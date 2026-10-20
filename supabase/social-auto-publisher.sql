@@ -135,14 +135,35 @@ create table if not exists public.social_publisher_config (
     id boolean primary key default true check (id),
     global_enabled boolean not null default false,
     image_provider text not null default 'gemini'
-        check (image_provider in ('gemini', 'cloudflare')),
+        check (image_provider in ('gemini', 'cloudflare', 'qwencloud')),
+    image_model text not null default '',
     updated_by uuid references public.profiles(id) on delete set null,
     updated_at timestamptz not null default now()
 );
 
 alter table public.social_publisher_config
     add column if not exists image_provider text not null default 'gemini'
-        check (image_provider in ('gemini', 'cloudflare'));
+        check (image_provider in ('gemini', 'cloudflare', 'qwencloud'));
+
+alter table public.social_publisher_config
+    add column if not exists image_model text not null default '';
+
+alter table public.social_publisher_config
+    drop constraint if exists social_publisher_config_image_provider_check;
+
+alter table public.social_publisher_config
+    add constraint social_publisher_config_image_provider_check
+        check (image_provider in ('gemini', 'cloudflare', 'qwencloud'));
+
+create table if not exists public.social_publisher_model_quotas (
+    model text primary key,
+    requests_used integer not null default 0 check (requests_used >= 0),
+    quota_limit integer not null default 0 check (quota_limit >= 0),
+    exhausted boolean not null default false,
+    last_status text not null default '',
+    window_started_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
 
 create table if not exists public.social_publisher_user_settings (
     owner_id uuid primary key references public.profiles(id) on delete cascade,
@@ -164,6 +185,7 @@ alter table public.social_post_schedules enable row level security;
 alter table public.social_post_runs enable row level security;
 alter table public.social_publisher_config enable row level security;
 alter table public.social_publisher_user_settings enable row level security;
+alter table public.social_publisher_model_quotas enable row level security;
 
 revoke all on table public.social_characters from public, anon, authenticated;
 revoke all on table public.social_page_connections from public, anon, authenticated;
@@ -172,6 +194,7 @@ revoke all on table public.social_post_schedules from public, anon, authenticate
 revoke all on table public.social_post_runs from public, anon, authenticated;
 revoke all on table public.social_publisher_config from public, anon, authenticated;
 revoke all on table public.social_publisher_user_settings from public, anon, authenticated;
+revoke all on table public.social_publisher_model_quotas from public, anon, authenticated;
 
 grant select, insert, update, delete on table public.social_characters to service_role;
 grant select, insert, update, delete on table public.social_page_connections to service_role;
@@ -180,6 +203,7 @@ grant select, insert, update, delete on table public.social_post_schedules to se
 grant select, insert, update, delete on table public.social_post_runs to service_role;
 grant select, insert, update, delete on table public.social_publisher_config to service_role;
 grant select, insert, update, delete on table public.social_publisher_user_settings to service_role;
+grant select, insert, update, delete on table public.social_publisher_model_quotas to service_role;
 
 create or replace function public.claim_due_social_post_schedules(
     p_now timestamptz default now(),

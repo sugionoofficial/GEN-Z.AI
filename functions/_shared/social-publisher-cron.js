@@ -1,6 +1,7 @@
 import { buildImagePrompt, composeSocialCaption, createScenePlan, renderCaption } from "../../lib/social-publisher/utils.js";
 import { decryptSecret, generateSocialContextCaption, generateSocialImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
 import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket } from "../../lib/social-publisher/storage.js";
+import { normalizeQwenCloudImageModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
 import { stripImageMetadata } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
 function value(env, key) {
@@ -60,6 +61,8 @@ async function processRun(env, config, claimedRun) {
     const runId = claimedRun.run_id;
     const scheduleId = claimedRun.schedule_id;
     const now = new Date().toISOString();
+    let imageProvider = "gemini";
+    let imageModel = "";
 
     try {
         await updateRun(config, runId, { status: "generating", started_at: now });
@@ -75,7 +78,7 @@ async function processRun(env, config, claimedRun) {
             dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_post_runs", `select=scene_plan&schedule_id=eq.${encodeURIComponent(schedule.id)}&status=eq.posted&order=created_at.desc&limit=12`)),
             dbRequest(config, table("social_publisher_user_settings", `select=caption_template,external_link&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
-            dbRequest(config, table("social_publisher_config", "select=image_provider&id=eq.true&limit=1"))
+            dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1"))
         ]);
         const character = characters?.[0];
         const page = pageConnections?.[0];
@@ -91,9 +94,10 @@ async function processRun(env, config, claimedRun) {
             .map(item => item.scene_plan?.key)
             .filter(Boolean);
         const aspectRatio = ["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16";
-        const imageProvider = ["cloudflare", "qwencloud"].includes(publisherConfigs?.[0]?.image_provider)
+        imageProvider = ["cloudflare", "qwencloud"].includes(publisherConfigs?.[0]?.image_provider)
             ? publisherConfigs[0].image_provider
             : "gemini";
+        imageModel = normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);
         const garmentBytes = imageProvider === "qwencloud" && character.garment_object_key
             ? await downloadReferenceObject(config, character.garment_object_key)
             : null;
@@ -119,10 +123,16 @@ async function processRun(env, config, claimedRun) {
             } : {}),
             ...(imageProvider === "qwencloud" ? {
                 garmentBytes,
-                garmentMimeType: character.garment_mime_type
+                garmentMimeType: character.garment_mime_type,
+                imageModel
             } : {})
         });
         if (!generated?.bytes?.length) throw new Error("Image provider returned an empty image.");
+        if (imageProvider === "qwencloud") {
+            recordModelUsage(config, generated.model).catch(recordError => {
+                console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
+            });
+        }
 
         const cleanedBlob = await stripImageMetadata(
             new Blob([generated.bytes], { type: generated.mimeType }),
@@ -179,6 +189,11 @@ async function processRun(env, config, claimedRun) {
     } catch (error) {
         const safeMessage = cleanError(error);
         console.error(`[Social Publisher] Run ${runId} failed: ${safeMessage}`);
+        if (imageProvider === "qwencloud" && (error?.quotaExhausted === true || error?.status === 429)) {
+            recordModelUsage(config, imageModel, { quotaError: true, message: safeMessage }).catch(recordError => {
+                console.error("Could not record QwenCloud quota failure:", recordError?.message || "unknown error");
+            });
+        }
         await updateRun(config, runId, {
             status: "failed",
             error_message: safeMessage,

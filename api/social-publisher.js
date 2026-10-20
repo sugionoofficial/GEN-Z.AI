@@ -18,6 +18,15 @@ import {
     publishFacebookPhoto
 } from "../lib/social-publisher/providers.js";
 import {
+    getModelQuotas,
+    normalizeQwenCloudImageModel,
+    QWENCLOUD_IMAGE_MODELS,
+    quotaPercentAvailable,
+    recordModelUsage,
+    resetModelQuota,
+    setModelQuotaLimit
+} from "../lib/social-publisher/quotas.js";
+import {
     createSignedReferenceUrl,
     deleteReferenceObject,
     downloadReferenceObject,
@@ -515,7 +524,7 @@ async function getDashboard(config, userId, env) {
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
         supabaseRequest(config, tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_post_runs", `select=id,schedule_id,status,scheduled_for,scene_plan,caption,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=30`)),
-        supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,updated_at&id=eq.true&limit=1")),
+            supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,updated_at&id=eq.true&limit=1")),
         supabaseRequest(config, tablePath("social_publisher_user_settings", `select=caption_template,external_link,updated_at&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
         isPrivateReferenceBucket(config)
     ]);
@@ -540,6 +549,7 @@ async function getDashboard(config, userId, env) {
             metaOAuthConfigured: Boolean(envValue(env, "META_APP_ID") && envValue(env, "META_APP_SECRET") && envValue(env, "META_REDIRECT_URI") && envValue(env, "META_LOGIN_CONFIG_ID")),
             imageProvider,
             captionProvider: imageProvider,
+            imageModel: imageProvider === "qwencloud" ? normalizeQwenCloudImageModel(publisherConfig?.[0]?.image_model) : "",
             imageApiConfigured: providerConfigured,
             captionApiConfigured: providerConfigured,
             cloudflareAiConfigured: typeof env?.AI?.run === "function",
@@ -549,13 +559,20 @@ async function getDashboard(config, userId, env) {
     };
 }
 
-async function getSocialImageProvider(config) {
+async function getSocialImageSettings(config) {
     const rows = await supabaseRequest(
         config,
-        tablePath("social_publisher_config", "select=image_provider&id=eq.true&limit=1")
+        tablePath("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1")
     );
     const value = rows?.[0]?.image_provider;
-    return ["gemini", "cloudflare", "qwencloud"].includes(value) ? value : "gemini";
+    return {
+        provider: ["gemini", "cloudflare", "qwencloud"].includes(value) ? value : "gemini",
+        imageModel: normalizeQwenCloudImageModel(rows?.[0]?.image_model)
+    };
+}
+
+async function getSocialImageProvider(config) {
+    return (await getSocialImageSettings(config)).provider;
 }
 
 async function saveSocialImageProvider(config, adminId, body, env) {
@@ -565,6 +582,9 @@ async function saveSocialImageProvider(config, adminId, body, env) {
         error.status = 400;
         throw error;
     }
+    const imageModel = imageProvider === "qwencloud"
+        ? normalizeQwenCloudImageModel(body?.image_model)
+        : "";
     if (imageProvider === "gemini" && !envValue(env, "GEMINI_API_KEY")) {
         const error = new Error("GEMINI_API_KEY diperlukan untuk gambar dan caption saat provider Gemini dipilih.");
         error.status = 409;
@@ -582,13 +602,14 @@ async function saveSocialImageProvider(config, adminId, body, env) {
     }
     const rows = await supabaseRequest(
         config,
-        tablePath("social_publisher_config", "on_conflict=id&select=id,image_provider,updated_at"),
+        tablePath("social_publisher_config", "on_conflict=id&select=id,image_provider,image_model,updated_at"),
         {
             method: "POST",
             headers: { Prefer: "resolution=merge-duplicates,return=representation" },
             body: JSON.stringify({
                 id: true,
                 image_provider: imageProvider,
+                image_model: imageModel,
                 updated_by: adminId,
                 updated_at: new Date().toISOString()
             })
@@ -601,9 +622,41 @@ async function saveSocialImageProvider(config, adminId, body, env) {
     }
     return {
         image_provider: rows[0].image_provider,
+        image_model: rows[0].image_model,
         gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
-        cloudflare_configured: typeof env?.AI?.run === "function"
+        cloudflare_configured: typeof env?.AI?.run === "function",
+        qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY"))
     };
+}
+
+function quotaSummaryRows(quotasByModel) {
+    return QWENCLOUD_IMAGE_MODELS.map(model => {
+        const row = quotasByModel.get(model.id) || null;
+        return {
+            model: model.id,
+            label: model.label,
+            note: model.note,
+            requests_used: Number(row?.requests_used) || 0,
+            quota_limit: Number(row?.quota_limit) || 0,
+            exhausted: row?.exhausted === true,
+            last_status: String(row?.last_status || ""),
+            window_started_at: row?.window_started_at || null,
+            updated_at: row?.updated_at || null,
+            percent_available: quotaPercentAvailable(row)
+        };
+    });
+}
+
+async function saveModelQuotaSettings(config, body = {}) {
+    const model = normalizeQwenCloudImageModel(body.model);
+    if (body.reset === true) {
+        await resetModelQuota(config, model);
+    }
+    if (body.quota_limit !== undefined && body.quota_limit !== null && body.quota_limit !== "") {
+        await setModelQuotaLimit(config, model, body.quota_limit);
+    }
+    const quotasByModel = await getModelQuotas(config);
+    return { model, quotas: quotaSummaryRows(quotasByModel) };
 }
 
 async function startOAuth(config, userId, env, res) {
@@ -919,7 +972,7 @@ async function generateManualPost(config, userId, env, body = {}) {
         error.status = 400;
         throw error;
     }
-    const imageProvider = await getSocialImageProvider(config);
+    const { provider: imageProvider, imageModel } = await getSocialImageSettings(config);
     const missingProviderKey = imageProvider === "gemini"
         ? !envValue(env, "GEMINI_API_KEY")
         : imageProvider === "qwencloud"
@@ -1048,10 +1101,16 @@ async function generateManualPost(config, userId, env, body = {}) {
             } : {}),
             ...(imageProvider === "qwencloud" ? {
                 garmentBytes,
-                garmentMimeType: character.garment_mime_type
+                garmentMimeType: character.garment_mime_type,
+                imageModel
             } : {})
         });
         if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar.");
+        if (imageProvider === "qwencloud") {
+            recordModelUsage(config, generated.model).catch(recordError => {
+                console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
+            });
+        }
         const cleanedBlob = await stripImageMetadata(
             new Blob([generated.bytes], { type: generated.mimeType }),
             generated.mimeType
@@ -1101,6 +1160,11 @@ async function generateManualPost(config, userId, env, body = {}) {
             caption,
         };
     } catch (error) {
+        if (imageProvider === "qwencloud" && (error?.quotaExhausted === true || error?.status === 429)) {
+            recordModelUsage(config, imageModel, { quotaError: true, message: error?.message }).catch(recordError => {
+                console.error("Could not record QwenCloud quota failure:", recordError?.message || "unknown error");
+            });
+        }
         const safeMessage = String(error?.message || "Pembuatan pratinjau manual gagal.")
             .replace(/(access_token|api[_-]?key)=?[^&\s]+/gi, "$1=[redacted]")
             .slice(0, 1000);
@@ -1278,7 +1342,7 @@ async function setGlobalEnabled(config, userId, env, enabled) {
 }
 
 async function handlePost(req, res, config, userId, env, action) {
-    if (action !== "studio-access-status" && action !== "studio-admin-save" && action !== "studio-admin-save-price" && action !== "studio-admin-image-provider") {
+    if (action !== "studio-access-status" && action !== "studio-admin-save" && action !== "studio-admin-save-price" && action !== "studio-admin-image-provider" && action !== "studio-admin-model-quota") {
         await ensureStudioAccess(config, userId);
     }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
@@ -1309,6 +1373,10 @@ async function handlePost(req, res, config, userId, env, action) {
     if (action === "studio-admin-image-provider") {
         const settings = await saveSocialImageProvider(config, userId, body, env);
         return json(res, 200, { success: true, settings });
+    }
+    if (action === "studio-admin-model-quota") {
+        const result = await saveModelQuotaSettings(config, body);
+        return json(res, 200, { success: true, ...result });
     }
     if (action === "set-global-enabled") {
         if (typeof body.enabled !== "boolean") return json(res, 400, { success: false, error: "Nilai enabled harus boolean." });
@@ -1355,12 +1423,19 @@ async function handleGet(req, res, config, userId, env, action) {
         return json(res, 200, { success: true, users: await listStudioUsers(config) });
     }
     if (action === "studio-admin-image-provider") {
-        const imageProvider = await getSocialImageProvider(config);
+        const [imageSettings, quotasByModel] = await Promise.all([
+            getSocialImageSettings(config),
+            getModelQuotas(config)
+        ]);
+        const imageProvider = imageSettings.provider;
+        const imageModel = imageSettings.imageModel;
         return json(res, 200, {
             success: true,
             settings: {
                 image_provider: imageProvider,
                 caption_provider: imageProvider,
+                image_model: imageModel,
+                qwencloud_models: quotaSummaryRows(quotasByModel),
                 gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
                 cloudflare_configured: typeof env?.AI?.run === "function",
                 qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY"))

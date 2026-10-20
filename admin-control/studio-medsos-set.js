@@ -12,6 +12,7 @@
     ];
     let users = [];
     let countdownTimer;
+    let providerSettings = null;
 
     function getSupabaseClient() {
         if (window.GENZ_SUPABASE) return window.GENZ_SUPABASE;
@@ -295,11 +296,120 @@
         return settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
     }
 
+    function quotaBadge(percent, exhausted) {
+        if (exhausted) return { className: "empty", text: "Tier habis" };
+        if (percent === null || percent === undefined) return { className: "unknown", text: "Batas tier belum diatur" };
+        if (percent <= 10) return { className: "empty", text: `Sisa ${percent}%` };
+        if (percent <= 35) return { className: "low", text: `Sisa ${percent}%` };
+        return { className: "ok", text: `Sisa ${percent}%` };
+    }
+
+    function quotaOptionLabel(entry) {
+        const badge = quotaBadge(entry.percent_available, entry.exhausted);
+        return `${entry.label} · ${badge.text}`;
+    }
+
+    function currentQuotaEntries() {
+        return providerSettings?.qwencloud_models || [];
+    }
+
+    function selectedQuwenModel() {
+        return document.getElementById("qwencloud-image-model").value || "qwen-image-3.0-pro";
+    }
+
+    function renderQwenCloudOptions() {
+        const box = document.getElementById("qwencloud-options");
+        const checked = document.querySelector('input[name="image-provider"]:checked')?.value;
+        box.hidden = checked !== "qwencloud";
+        if (box.hidden) return;
+        const entries = currentQuotaEntries();
+        const select = document.getElementById("qwencloud-image-model");
+        const previous = select.value || providerSettings?.image_model || "";
+        select.replaceChildren();
+        for (const entry of entries) {
+            select.add(new Option(quotaOptionLabel(entry), entry.model));
+        }
+        const wanted = entries.some(entry => entry.model === (previous || providerSettings?.image_model))
+            ? (previous || providerSettings?.image_model)
+            : entries[0]?.model;
+        select.value = wanted || "";
+        renderQuotaPanel();
+    }
+
+    function renderQuotaPanel() {
+        const panel = document.getElementById("qwencloud-quota-panel");
+        const entry = currentQuotaEntries().find(item => item.model === selectedQuwenModel());
+        const limitInput = document.getElementById("qwencloud-quota-limit");
+        if (!entry) {
+            panel.replaceChildren();
+            return;
+        }
+        const badge = quotaBadge(entry.percent_available, entry.exhausted);
+        const percent = entry.exhausted ? 0 : entry.percent_available;
+        const barClass = badge.className === "empty" ? "empty" : badge.className === "low" ? "low" : "";
+        panel.replaceChildren();
+        const head = document.createElement("div");
+        head.className = "quota-row";
+        const title = document.createElement("strong");
+        title.textContent = entry.label;
+        const badgeEl = document.createElement("span");
+        badgeEl.className = `quota-badge ${badge.className}`;
+        badgeEl.textContent = badge.text;
+        head.append(title, badgeEl);
+        const bar = document.createElement("div");
+        bar.className = `quota-bar ${barClass}`;
+        const fill = document.createElement("i");
+        fill.style.width = `${percent === null ? 0 : percent}%`;
+        bar.append(fill);
+        const detail = document.createElement("div");
+        detail.className = "quota-row";
+        const used = document.createElement("span");
+        used.textContent = `Terpakai ${entry.requests_used} request${entry.quota_limit > 0 ? ` dari batas ${entry.quota_limit}` : " (batas belum diatur)"}`;
+        const status = document.createElement("span");
+        status.textContent = entry.exhausted
+            ? `Ditolak provider: ${entry.last_status || "kuota tier habis"}`
+            : entry.last_status === "ok" ? "Pemakaian terakhir berhasil" : entry.last_status || "Belum ada pemakaian tercatat";
+        detail.append(used, status);
+        const note = document.createElement("div");
+        note.className = "quota-row";
+        const window = document.createElement("span");
+        window.textContent = entry.window_started_at ? `Penghitung sejak ${new Date(entry.window_started_at).toLocaleString("id-ID")}` : "Penghitung belum dimulai";
+        const model = document.createElement("span");
+        model.textContent = entry.note || "";
+        note.append(window, model);
+        panel.append(head, bar, detail, note);
+        if (document.activeElement !== limitInput) limitInput.value = entry.quota_limit > 0 ? String(entry.quota_limit) : "";
+    }
+
+    async function saveQwenCloudQuota(reset = false) {
+        const model = selectedQuwenModel();
+        const limitRaw = document.getElementById("qwencloud-quota-limit").value.trim();
+        const body = { model };
+        if (reset) body.reset = true;
+        if (!reset && limitRaw !== "") body.quota_limit = Number(limitRaw);
+        const button = document.getElementById(reset ? "reset-qwencloud-quota" : "save-qwencloud-quota");
+        button.disabled = true;
+        try {
+            const result = await api("studio-admin-model-quota", { method: "POST", body });
+            providerSettings = { ...providerSettings, qwencloud_models: result.quotas };
+            renderQwenCloudOptions();
+            setImageProviderStatus(reset
+                ? `Penghitung pemakaian ${model} direset.`
+                : `Batas tier ${model} disimpan.`, "success");
+        } catch (error) {
+            setImageProviderStatus(error.message || "Gagal menyimpan batas tier.", "error");
+        } finally {
+            button.disabled = false;
+        }
+    }
+
     async function loadImageProvider() {
         const result = await api("studio-admin-image-provider");
         const settings = result.settings || {};
+        providerSettings = settings;
         const selected = ["cloudflare", "qwencloud"].includes(settings.image_provider) ? settings.image_provider : "gemini";
         document.querySelector(`input[name="image-provider"][value="${selected}"]`).checked = true;
+        renderQwenCloudOptions();
         setImageProviderStatus(`Provider aktif: ${providerLabel(selected)} · ${providerReadiness(selected, settings)}.`);
     }
 
@@ -315,8 +425,13 @@
         try {
             const result = await api("studio-admin-image-provider", {
                 method: "POST",
-                body: { image_provider: selected }
+                body: {
+                    image_provider: selected,
+                    ...(selected === "qwencloud" ? { image_model: selectedQuwenModel() } : {})
+                }
             });
+            providerSettings = { ...providerSettings, ...result.settings };
+            renderQwenCloudOptions();
             setImageProviderStatus(`${providerLabel(result.settings.image_provider)} disimpan untuk pembuatan gambar dan caption manual maupun autopost.`, "success");
         } catch (error) {
             console.error(error);
@@ -441,6 +556,12 @@
         deactivateButton.addEventListener("click", () => saveSelectedAccess(false));
         savePriceButton.addEventListener("click", savePricing);
         saveImageProviderButton.addEventListener("click", saveImageProvider);
+        for (const radio of document.querySelectorAll('input[name="image-provider"]')) {
+            radio.addEventListener("change", renderQwenCloudOptions);
+        }
+        document.getElementById("qwencloud-image-model").addEventListener("change", renderQuotaPanel);
+        document.getElementById("save-qwencloud-quota").addEventListener("click", () => saveQwenCloudQuota(false));
+        document.getElementById("reset-qwencloud-quota").addEventListener("click", () => saveQwenCloudQuota(true));
 
         loadUsers().catch(error => {
             console.error(error);

@@ -535,3 +535,57 @@ test("QwenCloud caption uses qwen3-vl-plus and strips hashtags and links", async
         globalThis.fetch = originalFetch;
     }
 });
+
+test("QwenCloud honors the configured image model from the dropdown", async () => {
+    const originalFetch = globalThis.fetch;
+    let body;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        if (url.endsWith("/services/aigc/multimodal-generation/generation")) {
+            body = JSON.parse(options.body);
+            return Response.json({
+                output: { choices: [{ message: { content: [{ image: "https://result.example/x.png" }] } }] }
+            });
+        }
+        if (url === "https://result.example/x.png") return new Response(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]));
+        throw new Error(`Unexpected fetch: ${url}`);
+    };
+    try {
+        const result = await generateSocialImage({
+            env: { QWENCLOUD_API_KEY: "sk-test" },
+            prompt: "p",
+            referenceBytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]),
+            referenceMimeType: "image/png",
+            imageProvider: "qwencloud",
+            imageModel: "qwen-image-edit-max"
+        });
+        assert.equal(body.model, "qwen-image-edit-max");
+        assert.equal(result.model, "qwen-image-edit-max");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("QwenCloud quota exhaustion is surfaced as 429 with guidance", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({ message: "AllocationQuota.FreeTierOnly" }, { status: 400 });
+    try {
+        await assert.rejects(
+            generateSocialImage({
+                env: { QWENCLOUD_API_KEY: "sk-test" },
+                prompt: "p",
+                referenceBytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]),
+                referenceMimeType: "image/png",
+                imageProvider: "qwencloud"
+            }),
+            error => {
+                assert.equal(error.status, 429);
+                assert.equal(error.quotaExhausted, true);
+                assert.match(error.message, /Kuota tier model ini habis/);
+                return true;
+            }
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

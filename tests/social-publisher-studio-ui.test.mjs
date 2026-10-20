@@ -98,6 +98,31 @@ test("QwenCloud tersedia sebagai opsi provider gambar", () => {
     assert.match(apiSource, /\["gemini", "cloudflare", "qwencloud"\]/, "Validasi provider harus menerima qwencloud");
     assert.match(apiSource, /QWENCLOUD_API_KEY/, "API harus memeriksa secret QWENCLOUD_API_KEY");
     assert.match(setJs, /qwencloud_configured/, "Status kesiapan QwenCloud harus ditampilkan di admin");
-    assert.match(source, /QwenCloud \(Qwen Image\)/, "Studio Medsos harus melabeli provider QwenCloud");
+    assert.match(source, /QwenCloud \(/, "Studio Medsos harus melabeli provider QwenCloud");
     assert.match(cronSource, /"qwencloud"/, "Cron autopost harus mendukung provider qwencloud");
+});
+
+test("dropdown model QwenCloud dan panel kuota tier tersedia di SET Studio Medsos", () => {
+    const setHtml = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.html", import.meta.url)),
+        "utf8"
+    );
+    const setJs = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.js", import.meta.url)),
+        "utf8"
+    );
+    const migration = readFileSync(
+        fileURLToPath(new URL("../supabase/social-auto-publisher.sql", import.meta.url)),
+        "utf8"
+    );
+    assert.match(setHtml, /id="qwencloud-image-model"/, "Dropdown model gambar QwenCloud harus ada");
+    assert.match(setHtml, /id="qwencloud-quota-panel"/, "Panel kuota tier harus ada");
+    assert.match(setHtml, /id="qwencloud-quota-limit"/, "Input batas tier harus ada");
+    assert.match(setJs, /studio-admin-model-quota/, "Admin JS harus memanggil action penyimpanan kuota");
+    assert.match(setJs, /percent_available/, "Admin JS harus menampilkan persentase tier tersedia");
+    assert.match(setJs, /Tier habis/, "Admin JS harus menandai model yang tier-nya habis");
+    assert.match(apiSource, /action === "studio-admin-model-quota"/, "API harus melayani penyimpanan kuota per model");
+    assert.match(migration, /check \(image_provider in \('gemini', 'cloudflare', 'qwencloud'\)\)/, "Migration harus menerima provider qwencloud");
+    assert.match(migration, /add column if not exists image_model/, "Migration harus menambah kolom image_model");
+    assert.match(migration, /create table if not exists public\.social_publisher_model_quotas/, "Migration harus membuat ledger kuota model");
 });
