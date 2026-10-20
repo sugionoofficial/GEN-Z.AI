@@ -112,10 +112,11 @@ API Studio Medsos menggunakan `SUPABASE_URL`, `SUPABASE_ANON_KEY` (atau
 `SUPABASE_KEY`), dan `SUPABASE_SERVICE_ROLE_KEY` dari environment server.
 Social Publisher juga memerlukan `GEMINI_API_KEY` untuk membuat gambar dan
 caption kontekstual, serta `SOCIAL_TOKEN_ENCRYPTION_KEY` untuk melindungi token
-Facebook. Integrasi gambar saat ini menggunakan `gemini-nano-banana-2.1` dan
-caption menggunakan `gemini-2.5-flash`; biaya dan ketersediaan mengikuti
-konfigurasi akun Google, dan layanan ini tidak diklaim gratis. Service role key
-hanya digunakan server dan tidak boleh dikirim ke browser.
+Facebook. Integrasi gambar menggunakan Nano Banana 2 Lite
+(`gemini-3.1-flash-lite-image`), sedangkan caption menggunakan
+`gemini-2.5-flash`. Kuota dan biaya mengikuti model, tier, serta API key Google
+yang dikonfigurasi; pastikan ketersediaannya di Google AI Studio. Service role
+key hanya digunakan server dan tidak boleh dikirim ke browser.
 
 ---
 

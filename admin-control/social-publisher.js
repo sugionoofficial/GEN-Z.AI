@@ -673,8 +673,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             return;
         }
         const imagesPerMonth = 30 * 24 / interval;
-        const usd = imagesPerMonth * 0.0336;
-        $("cost-estimate").textContent = `Estimasi kasar Gemini Nano Banana 2.1 1K: sekitar US$${usd.toFixed(2)}/bulan pada 1 gambar per jadwal (${imagesPerMonth.toFixed(1)} gambar). Estimasi ini belum termasuk satu panggilan Gemini 2.5 Flash untuk caption per gambar, variasi tambahan, retry, pajak, atau perubahan tarif provider. Tarif saat ini dapat berubah.`;
+        $("cost-estimate").textContent = `Perkiraan volume Nano Banana 2 Lite: ${imagesPerMonth.toFixed(1)} gambar/bulan pada 1 gambar per jadwal. Biaya bergantung pada tier dan kuota model untuk API key Anda, serta belum termasuk satu panggilan Gemini 2.5 Flash untuk caption per gambar, retry, atau pajak. Periksa harga dan kuota di Google AI Studio sebelum mengaktifkan autopost.`;
     }
 
     function editSchedule(schedule) {

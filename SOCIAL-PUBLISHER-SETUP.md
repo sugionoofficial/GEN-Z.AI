@@ -5,7 +5,7 @@ The Social Publisher is an admin-only feature for generating one reference-guide
 ## How the flow works
 
 1. An admin uploads a character reference. The original reference is stored in a private Supabase Storage bucket.
-2. At the scheduled time, the Worker selects a scene combination (location, camera angle, outfit, situation, and lighting), avoids recently used combinations, and calls Gemini Nano Banana 2.1 with the reference image.
+2. At the scheduled time, the Worker selects a scene combination (location, camera angle, outfit, situation, and lighting), avoids recently used combinations, and calls Gemini Nano Banana 2 Lite with the reference image.
 3. The generated image bytes are sent directly to the Facebook Page photos endpoint. Generated images are **not stored in Supabase Storage**.
 4. The run record stores the prompt, scene, caption, Facebook post ID, permalink, status, and any error. The personal-profile share button opens Facebook's share flow for a person to confirm manually.
 
@@ -25,7 +25,7 @@ Create an API key for the Gemini Developer API and add it as a Worker secret:
 npx wrangler@4 secret put GEMINI_API_KEY
 ```
 
-The configured model is `gemini-nano-banana-2.1`. The API currently does not include a free image-output tier. At the listed Standard price, a 1K image is about US$0.0336 before input, retry, tax, or pricing changes. One image per day is roughly US$1.01 per 30-day month; four candidate images per day would be roughly US$4.03. This implementation generates **one** image per run to limit spend. See the current [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing).
+The configured image model is `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite); contextual captions use `gemini-2.5-flash`. Model access, free-tier quotas, and prices vary by Google account and API key. Check the current [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing) and the project's quota in Google AI Studio before enabling autopublish. A model reporting a zero-token quota is unavailable to that key's current tier; retries will not resolve that restriction. This implementation generates **one** image per run to limit usage.
 
 ### 3. Configure the Meta app and OAuth
 
