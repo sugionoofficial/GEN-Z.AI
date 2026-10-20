@@ -3,14 +3,17 @@ import assert from "node:assert/strict";
 import {
     buildImagePrompt,
     clampIntervalHours,
+    composeSocialCaption,
     createScenePlan,
     localDateTimeToUtc,
     normalizeMimeType,
+    normalizeSocialAspectRatio,
     renderCaption
 } from "../lib/social-publisher/utils.js";
 import {
     decryptSecret,
     encryptSecret,
+    generateSocialContextCaption,
     generateSocialImage,
     makeProfileShareUrl,
     publishFacebookPhoto
@@ -22,6 +25,7 @@ import {
     SOCIAL_REFERENCE_STORAGE_BUCKET,
     uploadReferenceObject
 } from "../lib/social-publisher/storage.js";
+import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
 const TEST_KEY = btoa(String.fromCharCode(...new Uint8Array(32).fill(7)));
 
@@ -57,6 +61,58 @@ test("prompt keeps the referenced character and includes selected scene controls
     assert.match(prompt, /neutral linen outfit/);
     assert.match(prompt, /soft daylight/);
     assert.match(prompt, /bob haircut/);
+});
+
+test("prompt supports the selected vertical or horizontal image ratio", () => {
+    const scene = { location: "a café", angle: "portrait", outfit: "linen", situation: "reading", lighting: "soft light" };
+    assert.match(buildImagePrompt({ scene, aspectRatio: "9:16" }), /vertical 9:16/);
+    assert.match(buildImagePrompt({ scene, aspectRatio: "16:9" }), /horizontal 16:9/);
+    assert.equal(normalizeSocialAspectRatio("16:9"), "16:9");
+    assert.equal(normalizeSocialAspectRatio("1:1"), null);
+});
+
+test("caption composition puts the contextual sentence and link before trailing hashtags", () => {
+    assert.equal(
+        composeSocialCaption({
+            baseCaption: "Lagi santai #outfit #GENZAI",
+            contextualCaption: "Hai guys, lagi menikmati kopi.",
+            externalLink: "https://example.com/promo"
+        }),
+        "Lagi santai\n\nHai guys, lagi menikmati kopi.\n\nhttps://example.com/promo\n\n#outfit #GENZAI"
+    );
+});
+
+test("metadata cleaner strips PNG text chunks and rejects invalid image signatures", async () => {
+    const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+    const chunk = (type, data) => {
+        const bytes = new Uint8Array(12 + data.length);
+        new DataView(bytes.buffer).setUint32(0, data.length);
+        bytes.set([...type].map(character => character.charCodeAt(0)), 4);
+        bytes.set(data, 8);
+        return bytes;
+    };
+    const chunks = [
+        chunk("IHDR", new Uint8Array(13)),
+        chunk("tEXt", new TextEncoder().encode("Comment\0GPS=private")),
+        chunk("IDAT", new Uint8Array()),
+        chunk("IEND", new Uint8Array())
+    ];
+    const input = new Uint8Array(signature.length + chunks.reduce((size, part) => size + part.length, 0));
+    input.set(signature);
+    let offset = signature.length;
+    for (const part of chunks) {
+        input.set(part, offset);
+        offset += part.length;
+    }
+
+    const cleaned = await stripImageMetadata(new Blob([input], { type: "image/png" }));
+    const cleanedText = new TextDecoder().decode(await cleaned.arrayBuffer());
+    assert.equal(cleaned.type, "image/png");
+    assert.doesNotMatch(cleanedText, /GPS=private/);
+    await assert.rejects(
+        stripImageMetadata(new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" })),
+        /Struktur PNG tidak valid/
+    );
 });
 
 test("caption template interpolates scene placeholders", () => {
@@ -110,13 +166,41 @@ test("Gemini image generation sends the reference and extracts returned image by
             env: { GEMINI_API_KEY: "test-key" },
             prompt: "photorealistic test prompt",
             referenceBytes: new Uint8Array([1, 2, 3]),
-            referenceMimeType: "image/jpeg"
+            referenceMimeType: "image/jpeg",
+            aspectRatio: "16:9"
         });
         assert.equal(requestBody.model, "gemini-nano-banana-2.1");
         assert.equal(requestBody.input[0].type, "image");
         assert.equal(requestBody.input[1].text, "photorealistic test prompt");
+        assert.equal(requestBody.response_format.aspect_ratio, "16:9");
         assert.deepEqual([...result.bytes], [...outputBytes]);
         assert.equal(result.model, "gemini-nano-banana-2.1");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("Gemini context caption provider requests one concise Indonesian sentence", async () => {
+    const originalFetch = globalThis.fetch;
+    let requestBody;
+    globalThis.fetch = async (url, options) => {
+        assert.match(String(url), /gemini-2\.5-flash:generateContent/);
+        requestBody = JSON.parse(options.body);
+        return Response.json({
+            candidates: [{ content: { parts: [{ text: '"Hai guys, lagi menikmati suasana sore."' }] } }]
+        });
+    };
+    try {
+        const caption = await generateSocialContextCaption({
+            env: { GEMINI_API_KEY: "test-key" },
+            imageBytes: new Uint8Array([1, 2, 3]),
+            imageMimeType: "image/png",
+            characterName: "Alya",
+            scene: { location: "taman" }
+        });
+        assert.equal(caption, "Hai guys, lagi menikmati suasana sore.");
+        assert.match(requestBody.contents[0].parts[1].text, /konteks/);
+        assert.equal(requestBody.generationConfig.maxOutputTokens, 80);
     } finally {
         globalThis.fetch = originalFetch;
     }

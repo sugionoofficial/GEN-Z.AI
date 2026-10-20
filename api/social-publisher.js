@@ -1,11 +1,29 @@
-import { bytesToBase64, clampIntervalHours, extensionForMime, normalizeMimeType } from "../lib/social-publisher/utils.js";
-import { encryptSecret } from "../lib/social-publisher/providers.js";
+import {
+    buildImagePrompt,
+    bytesToBase64,
+    clampIntervalHours,
+    composeSocialCaption,
+    createScenePlan,
+    extensionForMime,
+    normalizeMimeType,
+    normalizeSocialAspectRatio,
+    renderCaption
+} from "../lib/social-publisher/utils.js";
+import {
+    decryptSecret,
+    encryptSecret,
+    generateSocialContextCaption,
+    generateSocialImage,
+    makeProfileShareUrl,
+    publishFacebookPhoto
+} from "../lib/social-publisher/providers.js";
 import {
     deleteReferenceObject,
     downloadReferenceObject,
     isPrivateReferenceBucket,
     uploadReferenceObject
 } from "../lib/social-publisher/storage.js";
+import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
 const GRAPH_VERSION = "v26.0";
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
@@ -491,12 +509,13 @@ async function handleOAuthCallback(req, res, env) {
 }
 
 async function getDashboard(config, userId, env) {
-    const [characters, pages, schedules, runs, publisherConfig, referenceStorageConfigured] = await Promise.all([
+    const [characters, pages, schedules, runs, publisherConfig, userSettings, referenceStorageConfigured] = await Promise.all([
         supabaseRequest(config, tablePath("social_characters", `select=id,display_name,reference_filename,reference_mime_type,prompt_notes,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
-        supabaseRequest(config, tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,caption_template,created_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
+        supabaseRequest(config, tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_post_runs", `select=id,schedule_id,status,scheduled_for,scene_plan,caption,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=30`)),
         supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,updated_at&id=eq.true&limit=1")),
+        supabaseRequest(config, tablePath("social_publisher_user_settings", `select=caption_template,external_link,updated_at&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
         isPrivateReferenceBucket(config)
     ]);
 
@@ -507,6 +526,7 @@ async function getDashboard(config, userId, env) {
         schedules: schedules || [],
         runs: runs || [],
         globalEnabled: publisherConfig?.[0]?.global_enabled === true,
+        postingSettings: userSettings?.[0] || { caption_template: "Cerita hari ini ✨", external_link: "" },
         config: {
             metaOAuthConfigured: Boolean(envValue(env, "META_APP_ID") && envValue(env, "META_APP_SECRET") && envValue(env, "META_REDIRECT_URI") && envValue(env, "META_LOGIN_CONFIG_ID")),
             imageApiConfigured: Boolean(envValue(env, "GEMINI_API_KEY")),
@@ -623,17 +643,64 @@ async function saveCharacter(config, userId, body) {
     return rows[0];
 }
 
+async function savePostingSettings(config, userId, body = {}) {
+    const captionTemplate = cleanText(body.caption_template, 1000);
+    const externalLink = cleanText(body.external_link, 500);
+    if (!captionTemplate) {
+        const error = new Error("Caption dasar wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+    if (externalLink) {
+        let url;
+        try {
+            url = new URL(externalLink);
+        } catch {
+            const error = new Error("Link external harus berupa URL HTTPS yang valid.");
+            error.status = 400;
+            throw error;
+        }
+        if (url.protocol !== "https:") {
+            const error = new Error("Link external harus menggunakan HTTPS.");
+            error.status = 400;
+            throw error;
+        }
+    }
+
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_publisher_user_settings", "on_conflict=owner_id&select=owner_id,caption_template,external_link,updated_at"),
+        {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify({
+                owner_id: userId,
+                caption_template: captionTemplate,
+                external_link: externalLink,
+                updated_at: new Date().toISOString()
+            })
+        }
+    );
+    if (!rows?.length) {
+        const error = new Error("Pengaturan caption dan link tidak berhasil disimpan.");
+        error.status = 500;
+        throw error;
+    }
+    return rows[0];
+}
+
 async function saveSchedule(config, userId, body) {
     const characterId = cleanText(body?.character_id, 80);
     const pageConnectionId = cleanText(body?.page_connection_id, 80);
     const intervalHours = clampIntervalHours(body?.interval_hours);
     const nextRunAt = Date.parse(String(body?.next_run_at || ""));
     const timezone = cleanText(body?.timezone, 80) || "Asia/Jakarta";
+    const aspectRatio = normalizeSocialAspectRatio(body?.aspect_ratio);
     const captionTemplate = cleanText(body?.caption_template, 1000) || "Cerita hari ini dari {location} ✨";
     const id = cleanText(body?.id, 80);
 
-    if (!characterId || !pageConnectionId || !intervalHours || !Number.isFinite(nextRunAt) || nextRunAt < Date.now() - 60_000) {
-        const error = new Error("Pilih karakter, Halaman Facebook, interval 1–168 jam, dan waktu mulai di masa depan.");
+    if (!characterId || !pageConnectionId || !intervalHours || !aspectRatio || !Number.isFinite(nextRunAt) || nextRunAt < Date.now() - 60_000) {
+        const error = new Error("Pilih karakter, Facebook Page, rasio 9:16 atau 16:9, interval 1–168 jam, dan waktu mulai yang valid.");
         error.status = 400;
         throw error;
     }
@@ -665,13 +732,14 @@ async function saveSchedule(config, userId, body) {
         interval_hours: intervalHours,
         next_run_at: new Date(nextRunAt).toISOString(),
         timezone,
+        aspect_ratio: aspectRatio,
         caption_template: captionTemplate,
         enabled: body?.enabled === true,
         updated_at: new Date().toISOString()
     };
 
     if (id) {
-        const rows = await supabaseRequest(config, tablePath("social_post_schedules", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,caption_template`), {
+        const rows = await supabaseRequest(config, tablePath("social_post_schedules", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template`), {
             method: "PATCH",
             headers: { Prefer: "return=representation" },
             body: JSON.stringify(values)
@@ -684,12 +752,330 @@ async function saveSchedule(config, userId, body) {
         return rows[0];
     }
 
-    const rows = await supabaseRequest(config, tablePath("social_post_schedules", "select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,caption_template"), {
+    const rows = await supabaseRequest(config, tablePath("social_post_schedules", "select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template"), {
         method: "POST",
         headers: { Prefer: "return=representation" },
         body: JSON.stringify(values)
     });
     return rows?.[0] || null;
+}
+
+async function generateManualPost(config, userId, env, body = {}) {
+    const characterId = cleanText(body.character_id, 80);
+    const pageConnectionId = cleanText(body.page_connection_id, 80);
+    const aspectRatio = normalizeSocialAspectRatio(body.aspect_ratio);
+    if (!characterId || !pageConnectionId) {
+        const error = new Error("Pilih karakter tersimpan dan Facebook Page sebelum membuat pratinjau.");
+        error.status = 400;
+        throw error;
+    }
+    if (!aspectRatio) {
+        const error = new Error("Pilih rasio gambar 9:16 atau 16:9.");
+        error.status = 400;
+        throw error;
+    }
+    if (!envValue(env, "GEMINI_API_KEY") || !envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) {
+        const error = new Error("GEMINI_API_KEY dan SOCIAL_TOKEN_ENCRYPTION_KEY harus dikonfigurasi untuk posting manual.");
+        error.status = 503;
+        throw error;
+    }
+    if (!await isPrivateReferenceBucket(config)) {
+        const error = new Error("Bucket privat Supabase Storage untuk foto karakter belum tersedia.");
+        error.status = 503;
+        throw error;
+    }
+
+    const [characters, pages] = await Promise.all([
+        supabaseRequest(
+            config,
+            tablePath("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+        ),
+        supabaseRequest(
+            config,
+            tablePath("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(pageConnectionId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+        )
+    ]);
+    const character = characters?.[0];
+    const page = pages?.[0];
+    if (!character || !page) {
+        const error = new Error("Karakter atau koneksi Facebook Page tidak ditemukan untuk akun ini.");
+        error.status = 404;
+        throw error;
+    }
+    if (page.can_publish === false) {
+        const error = new Error("Koneksi Facebook Page belum memiliki izin CREATE_CONTENT.");
+        error.status = 409;
+        throw error;
+    }
+
+    const [settingsRows, previousPreviews] = await Promise.all([
+        supabaseRequest(
+            config,
+            tablePath("social_publisher_user_settings", `select=caption_template,external_link&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+        ),
+        supabaseRequest(
+            config,
+            tablePath("social_post_runs", "select=id&status=eq.generating&schedule_id=is.null&owner_id=eq." + encodeURIComponent(userId))
+        )
+    ]);
+    for (const previous of previousPreviews || []) {
+        await supabaseRequest(
+            config,
+            tablePath("social_post_runs", `id=eq.${encodeURIComponent(previous.id)}&owner_id=eq.${encodeURIComponent(userId)}`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify({
+                    status: "failed",
+                    error_message: "Pratinjau manual digantikan oleh permintaan baru.",
+                    finished_at: new Date().toISOString()
+                })
+            }
+        );
+    }
+    const postingSettings = settingsRows?.[0] || { caption_template: "Cerita hari ini ✨", external_link: "" };
+    const now = new Date().toISOString();
+    const runRows = await supabaseRequest(
+        config,
+        tablePath("social_post_runs", "select=id,status,scheduled_for,created_at"),
+        {
+            method: "POST",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify({
+                owner_id: userId,
+                schedule_id: null,
+                page_connection_id: pageConnectionId,
+                status: "generating",
+                scheduled_for: now,
+                started_at: now
+            })
+        }
+    );
+    const run = runRows?.[0];
+    if (!run?.id) {
+        const error = new Error("Run posting manual gagal dicatat.");
+        error.status = 500;
+        throw error;
+    }
+
+    try {
+        const referenceBytes = await downloadReferenceObject(config, character.reference_object_key);
+        if (!referenceBytes.length || referenceBytes.length > MAX_REFERENCE_BYTES) {
+            throw new Error("Ukuran foto referensi karakter tidak valid.");
+        }
+        const scene = { ...createScenePlan([]), aspect_ratio: aspectRatio };
+        const prompt = buildImagePrompt({
+            characterName: character.display_name,
+            characterNotes: character.prompt_notes,
+            scene,
+            aspectRatio
+        });
+        const generated = await generateSocialImage({
+            env,
+            prompt,
+            referenceBytes,
+            referenceMimeType: character.reference_mime_type,
+            aspectRatio
+        });
+        if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar.");
+        const cleanedBlob = await stripImageMetadata(
+            new Blob([generated.bytes], { type: generated.mimeType }),
+            generated.mimeType
+        );
+        const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+        const contextualCaption = await generateSocialContextCaption({
+            env,
+            imageBytes: cleanedBytes,
+            imageMimeType: cleanedBlob.type,
+            characterName: character.display_name,
+            scene
+        });
+        const baseCaption = renderCaption(postingSettings.caption_template, scene, character.display_name);
+        const caption = composeSocialCaption({
+            baseCaption,
+            contextualCaption,
+            externalLink: postingSettings.external_link
+        });
+
+        await supabaseRequest(
+            config,
+            tablePath("social_post_runs", `id=eq.${encodeURIComponent(run.id)}&owner_id=eq.${encodeURIComponent(userId)}`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify({
+                    status: "generating",
+                    scene_plan: scene,
+                    generated_prompt: prompt,
+                    caption,
+                    image_model: generated.model,
+                    error_message: null
+                })
+            }
+        );
+        return {
+            run_id: run.id,
+            status: "preview",
+            page_name: page.page_name,
+            image_base64: bytesToBase64(cleanedBytes),
+            image_mime_type: cleanedBlob.type,
+            image_model: generated.model,
+            aspect_ratio: aspectRatio,
+            scene,
+            contextual_caption: contextualCaption,
+            caption,
+        };
+    } catch (error) {
+        const safeMessage = String(error?.message || "Pembuatan pratinjau manual gagal.")
+            .replace(/(access_token|api[_-]?key)=?[^&\s]+/gi, "$1=[redacted]")
+            .slice(0, 1000);
+        try {
+            await supabaseRequest(
+                config,
+                tablePath("social_post_runs", `id=eq.${encodeURIComponent(run.id)}&owner_id=eq.${encodeURIComponent(userId)}`),
+                {
+                    method: "PATCH",
+                    headers: { Prefer: "return=minimal" },
+                    body: JSON.stringify({
+                        status: "failed",
+                        error_message: safeMessage,
+                        finished_at: new Date().toISOString()
+                    })
+                }
+            );
+        } catch (updateError) {
+            console.error("Could not record manual Social Publisher failure:", updateError?.message || "unknown error");
+        }
+        const failure = new Error(safeMessage);
+        failure.status = Number(error?.status) || 502;
+        throw failure;
+    }
+}
+
+async function publishManualPost(req, res, config, userId, env) {
+    const runId = cleanText(getHeader(req, "x-manual-run-id"), 80);
+    const imageMimeType = normalizeMimeType(getHeader(req, "content-type"));
+    const imageBytes = bytesFromBody(req.body);
+    if (!runId || !imageMimeType || !imageBytes.length || imageBytes.length > 12 * 1024 * 1024 || !hasValidImageSignature(imageBytes, imageMimeType)) {
+        const error = new Error("Pratinjau tidak valid. Buat ulang gambar sebelum menerbitkan.");
+        error.status = 400;
+        throw error;
+    }
+
+    const runs = await supabaseRequest(
+        config,
+        tablePath("social_post_runs", `select=id,status,page_connection_id,scene_plan,generated_prompt,caption,image_model&owner_id=eq.${encodeURIComponent(userId)}&id=eq.${encodeURIComponent(runId)}&schedule_id=is.null&limit=1`)
+    );
+    const run = runs?.[0];
+    if (!run || run.status !== "generating" || !run.page_connection_id || !run.caption) {
+        const error = new Error("Pratinjau tidak ditemukan atau sudah digunakan. Buat gambar baru.");
+        error.status = 409;
+        throw error;
+    }
+
+    const pages = await supabaseRequest(
+        config,
+        tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(run.page_connection_id)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+    );
+    const page = pages?.[0];
+    if (!page || page.can_publish === false) {
+        const error = new Error("Facebook Page tidak ditemukan atau tidak memiliki izin CREATE_CONTENT.");
+        error.status = 409;
+        throw error;
+    }
+
+    const cleanedBlob = await stripImageMetadata(new Blob([imageBytes], { type: imageMimeType }), imageMimeType);
+    const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+    const pageAccessToken = await decryptSecret(
+        page.page_token_ciphertext,
+        page.page_token_iv,
+        envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")
+    );
+
+    try {
+        const published = await publishFacebookPhoto({
+            env,
+            pageId: page.page_id,
+            pageAccessToken,
+            caption: run.caption,
+            imageBytes: cleanedBytes,
+            imageMimeType: cleanedBlob.type
+        });
+        const profileShareUrl = makeProfileShareUrl(published.permalinkUrl);
+        await supabaseRequest(
+            config,
+            tablePath("social_post_runs", `id=eq.${encodeURIComponent(run.id)}&owner_id=eq.${encodeURIComponent(userId)}&status=eq.generating`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify({
+                    status: "posted",
+                    facebook_photo_id: published.photoId || null,
+                    facebook_post_id: published.postId || null,
+                    permalink_url: published.permalinkUrl || null,
+                    profile_share_url: profileShareUrl || null,
+                    finished_at: new Date().toISOString(),
+                    error_message: null
+                })
+            }
+        );
+        return json(res, 200, {
+            success: true,
+            post: {
+                id: run.id,
+                status: "posted",
+                page_name: page.page_name,
+                caption: run.caption,
+                permalink_url: published.permalinkUrl || null
+            }
+        });
+    } catch (error) {
+        const safeMessage = String(error?.message || "Posting manual gagal.")
+            .replace(/(access_token|api[_-]?key)=?[^&\s]+/gi, "$1=[redacted]")
+            .slice(0, 1000);
+        await supabaseRequest(
+            config,
+            tablePath("social_post_runs", `id=eq.${encodeURIComponent(run.id)}&owner_id=eq.${encodeURIComponent(userId)}`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify({ status: "failed", error_message: safeMessage, finished_at: new Date().toISOString() })
+            }
+        ).catch(updateError => {
+            console.error("Could not record manual Social Publisher failure:", updateError?.message || "unknown error");
+        });
+        const failure = new Error(safeMessage);
+        failure.status = Number(error?.status) || 502;
+        throw failure;
+    }
+}
+
+async function discardManualPost(config, userId, body) {
+    const runId = cleanText(body?.run_id, 80);
+    if (!runId) {
+        const error = new Error("ID pratinjau tidak valid.");
+        error.status = 400;
+        throw error;
+    }
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_post_runs", `id=eq.${encodeURIComponent(runId)}&owner_id=eq.${encodeURIComponent(userId)}&schedule_id=is.null&status=eq.generating&select=id`),
+        {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify({
+                status: "failed",
+                error_message: "Pratinjau manual dibuang sebelum diterbitkan.",
+                finished_at: new Date().toISOString()
+            })
+        }
+    );
+    if (!rows?.length) {
+        const error = new Error("Pratinjau tidak ditemukan atau sudah digunakan.");
+        error.status = 409;
+        throw error;
+    }
+    return { run_id: runId, status: "discarded" };
 }
 
 async function setGlobalEnabled(config, userId, env, enabled) {
@@ -719,8 +1105,21 @@ async function handlePost(req, res, config, userId, env, action) {
         await ensureStudioAccess(config, userId);
     }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
+    if (action === "manual-publish") return await publishManualPost(req, res, config, userId, env);
     const body = req.body && typeof req.body === "object" ? req.body : {};
 
+    if (action === "manual-generate") {
+        const preview = await generateManualPost(config, userId, env, body);
+        return json(res, 200, { success: true, preview });
+    }
+    if (action === "manual-discard") {
+        const discarded = await discardManualPost(config, userId, body);
+        return json(res, 200, { success: true, discarded });
+    }
+    if (action === "save-posting-settings") {
+        const postingSettings = await savePostingSettings(config, userId, body);
+        return json(res, 200, { success: true, postingSettings });
+    }
     if (action === "studio-admin-save") {
         const access = await saveStudioAccess(config, userId, body);
         return json(res, 200, { success: true, access });
@@ -809,7 +1208,7 @@ async function handleGet(req, res, config, userId, env, action) {
 
 export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", req.headers?.origin || "*");
-    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-File-Name, X-Character-Name, X-Character-Consent, X-Character-Adult");
+    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-File-Name, X-Character-Name, X-Character-Consent, X-Character-Adult, X-Manual-Run-Id");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Vary", "Origin");
     res.setHeader("Cache-Control", "no-store");

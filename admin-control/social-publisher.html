@@ -26,6 +26,8 @@
     <style>
         .studio-gate-value.running,
         .studio-gate-countdown.running{color:#39ff71;text-shadow:0 0 12px rgba(57,255,113,.32);font-weight:800}
+        .manual-preview{width:100%;max-width:300px;max-height:540px;aspect-ratio:9/16;object-fit:contain;border:1px solid var(--border);border-radius:12px;background:#0b1421}.manual-post-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}.manual-preview-caption{margin-top:8px;color:var(--muted);font-size:12px;line-height:1.55;white-space:pre-wrap}
+        @media(max-width:768px){.manual-post-layout{grid-template-columns:1fr}.manual-preview{max-width:180px}}
     </style>
 </head>
 <body>
@@ -116,6 +118,64 @@
                 <div id="characters-list" class="list"><div class="empty">Belum ada karakter.</div></div>
             </section>
 
+            <section class="card wide" aria-labelledby="posting-settings-title">
+                <div class="card-head">
+                    <div>
+                        <h3 id="posting-settings-title">Caption & link untuk semua posting</h3>
+                        <p class="sub">Caption dasar ini dipakai terus untuk posting manual dan terjadwal. Kalimat singkat yang dibuat AI akan ditambahkan; link external diletakkan sebelum hashtag.</p>
+                    </div>
+                </div>
+                <form id="posting-settings-form" class="fields">
+                    <div class="field full">
+                        <label for="default-caption-template">Caption dasar tetap</label>
+                        <textarea id="default-caption-template" maxlength="1000" required>Seru-seruan hari ini ✨ #GENZAI</textarea>
+                        <span class="help">Hashtag akan selalu dipindahkan ke bagian akhir, setelah link external.</span>
+                    </div>
+                    <div class="field full">
+                        <label for="external-post-link">Link external (opsional)</label>
+                        <input id="external-post-link" type="url" maxlength="500" inputmode="url" placeholder="https://contoh.com">
+                    </div>
+                    <div class="field full">
+                        <button id="save-posting-settings" class="btn primary" type="submit">Simpan Caption & Link</button>
+                        <p id="posting-settings-status" class="status" role="status" aria-live="polite"></p>
+                    </div>
+                </form>
+            </section>
+
+            <section class="card wide" aria-labelledby="manual-post-title">
+                <div class="card-head">
+                    <div>
+                        <h3 id="manual-post-title">Buat posting manual</h3>
+                        <p class="sub">Pilih karakter, Page, dan rasio. Gambar akan dibersihkan dari metadata lalu ditampilkan untuk ditinjau; posting baru dikirim setelah Anda menekan tombol terbitkan.</p>
+                    </div>
+                </div>
+                <form id="manual-post-form" class="fields">
+                    <div class="manual-post-layout field full">
+                        <div class="fields">
+                            <div class="field"><label for="manual-character">Foto karakter tersimpan</label><select id="manual-character" required><option value="">Pilih karakter…</option></select></div>
+                            <div class="field"><label for="manual-page">Facebook Page tujuan</label><select id="manual-page" required><option value="">Pilih Page…</option></select></div>
+                            <div class="field"><label for="manual-aspect-ratio">Rasio gambar</label><select id="manual-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
+                            <div class="field full">
+                                <button id="manual-post-button" class="btn primary" type="submit">Buat & bersihkan pratinjau</button>
+                                <p id="manual-post-status" class="status" role="status" aria-live="polite"></p>
+                            </div>
+                        </div>
+                        <div>
+                            <img id="manual-character-preview" class="manual-preview" alt="Pratinjau foto karakter yang dipilih" hidden>
+                            <div id="manual-character-placeholder" class="empty">Pilih karakter untuk melihat foto referensinya.</div>
+                            <div id="manual-generated-result" hidden>
+                                <img id="manual-generated-preview" class="manual-preview" alt="Pratinjau gambar hasil generasi yang sudah dibersihkan">
+                                <p id="manual-generated-caption" class="manual-preview-caption"></p>
+                                <div class="actions">
+                                    <button id="manual-publish-button" class="btn green" type="button">Terbitkan ke Facebook Page</button>
+                                    <button id="manual-discard-button" class="btn" type="button">Buang pratinjau</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
             <section class="card wide" aria-labelledby="schedule-title">
                 <div class="card-head"><div><h3 id="schedule-title">3. Buat jadwal autopost</h3><p class="sub">Atur waktu mulai dan interval. Setiap run menghasilkan satu gambar untuk menjaga biaya tetap terkendali.</p></div></div>
                 <form id="schedule-form" class="fields">
@@ -124,7 +184,7 @@
                     <div class="field"><label for="schedule-page">Facebook Page</label><select id="schedule-page" required><option value="">Pilih Page…</option></select></div>
                     <div class="field"><label for="interval-hours">Posting setiap</label><div style="display:flex;gap:8px;align-items:center"><input id="interval-hours" type="number" min="1" max="168" step="1" value="24" required><span style="font-size:12px;color:var(--muted);white-space:nowrap">jam</span></div><span class="help">Batas: 1–168 jam. 24 jam = satu post per hari.</span></div>
                     <div class="field"><label for="first-run">Waktu post pertama (WIB)</label><input id="first-run" type="datetime-local" required><span class="help">Berikutnya berulang sesuai interval.</span></div>
-                    <div class="field full"><label for="caption-template">Template caption</label><textarea id="caption-template" maxlength="1000">Cerita hari ini dari {location} ✨</textarea><span class="help">Placeholder: {name}, {location}, {outfit}, {situation}, {lighting}, {angle}</span></div>
+                    <div class="field"><label for="schedule-aspect-ratio">Rasio gambar</label><select id="schedule-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
                     <div class="field full"><div id="cost-estimate" class="note-cost">Estimasi biaya gambar dihitung setelah interval dipilih.</div></div>
                     <div class="field full"><label class="inline-check"><input id="schedule-enabled" type="checkbox"><span>Jadwal ini aktif. Saat autopublish global aktif, gambar akan dibuat dan langsung diposting ke Page tanpa persetujuan tambahan.</span></label></div>
                     <div class="field full"><div class="actions"><button id="save-schedule" class="btn primary" type="submit">Simpan jadwal</button><button id="cancel-edit" class="btn" type="button" hidden>Batal edit</button></div><p id="schedule-status" class="status"></p></div>
@@ -143,6 +203,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=android-download-bridge-20261017"></script>
-    <script src="./social-publisher.js" defer></script>
+    <script type="module" src="./social-publisher.js"></script>
 </body>
 </html>

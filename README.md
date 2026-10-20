@@ -76,7 +76,16 @@ Credit diambil dari kolom:
 ## Studio Medsos
 
 Studio Medsos menyediakan Social Publisher untuk mengelola karakter, Facebook
-Page, dan jadwal autopost. Akses fitur diverifikasi di server berdasarkan
+Page, posting manual, dan jadwal autopost. Untuk posting manual, pilih karakter
+tersimpan, Facebook Page tujuan, dan rasio **9:16** atau **16:9**. Gambar baru
+dibuat dari foto referensi privat, metadata dibersihkan melalui Metadata Cleaner,
+lalu hasil dan caption ditampilkan sebagai pratinjau. Post hanya diterbitkan
+setelah tombol konfirmasi ditekan. Setiap posting manual tercatat di riwayat.
+Caption dasar dan link HTTPS dapat disimpan sekali untuk digunakan pada semua
+post; hashtag ditempatkan setelah link, bersama satu kalimat singkat yang dibuat
+AI sesuai gambar. Jadwal autopost memakai rasio tersimpan dan menjalankan
+generasi caption serta pembersihan metadata sebelum mengirim gambar ke Facebook.
+Akses fitur diverifikasi di server berdasarkan
 langganan user yang aktif dan masa berlakunya; mengubah tampilan browser tidak
 dapat melewati pemeriksaan akses API.
 
@@ -87,6 +96,9 @@ Sebelum mengaktifkan fitur, jalankan skrip berikut di Supabase SQL Editor:
 2. `supabase/studio-medsos-pricing.sql` untuk pengaturan harga langganan.
    Skrip harga aman dijalankan ulang pada tabel yang sudah ada untuk
    menambahkan kolom harga per periode.
+3. `supabase/social-auto-publisher.sql` untuk koneksi Facebook, jadwal,
+   riwayat, pengaturan caption/link, dan rasio gambar. Jalankan ulang setelah
+   memperbarui skema Social Publisher agar kolom/tabel tambahan tersedia.
 
 Admin dan owner dapat membuka **Admin Panel → SET Studio Medsos** untuk
 mengaktifkan langganan user, mengatur durasi dan waktu mulai, serta menetapkan
@@ -98,7 +110,12 @@ pengaturan tersebut.
 
 API Studio Medsos menggunakan `SUPABASE_URL`, `SUPABASE_ANON_KEY` (atau
 `SUPABASE_KEY`), dan `SUPABASE_SERVICE_ROLE_KEY` dari environment server.
-Service role key hanya digunakan server dan tidak boleh dikirim ke browser.
+Social Publisher juga memerlukan `GEMINI_API_KEY` untuk membuat gambar dan
+caption kontekstual, serta `SOCIAL_TOKEN_ENCRYPTION_KEY` untuk melindungi token
+Facebook. Integrasi gambar saat ini menggunakan `gemini-nano-banana-2.1` dan
+caption menggunakan `gemini-2.5-flash`; biaya dan ketersediaan mengikuti
+konfigurasi akun Google, dan layanan ini tidak diklaim gratis. Service role key
+hanya digunakan server dan tidak boleh dikirim ke browser.
 
 ---
 

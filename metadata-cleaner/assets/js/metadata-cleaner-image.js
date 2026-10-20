@@ -268,19 +268,24 @@ function canvasToBlob(
    STRIP IMAGE METADATA
 ========================================================= */
 
-async function stripImageMetadata(
+export async function stripImageMetadata(
     blob,
-    type
+    type = blob?.type
 ) {
+    if (!blob || typeof blob.arrayBuffer !== "function") {
+        throw new Error("File gambar tidak tersedia untuk pembersihan metadata.");
+    }
 
     const buffer =
         await blob.arrayBuffer();
 
-
     if (
         type === "image/jpeg"
     ) {
-
+        const bytes = new Uint8Array(buffer);
+        if (bytes.length < 4 || bytes[0] !== 0xFF || bytes[1] !== 0xD8) {
+            throw new Error("Struktur JPEG tidak valid; metadata tidak dapat dibersihkan.");
+        }
         return stripJPEGMetadata(
             buffer
         );
@@ -290,7 +295,10 @@ async function stripImageMetadata(
     if (
         type === "image/png"
     ) {
-
+        const bytes = new Uint8Array(buffer);
+        if (bytes.length < 8 || !matchesBytes(bytes, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], 0)) {
+            throw new Error("Struktur PNG tidak valid; metadata tidak dapat dibersihkan.");
+        }
         return stripPNGMetadata(
             buffer
         );
@@ -300,28 +308,16 @@ async function stripImageMetadata(
     if (
         type === "image/webp"
     ) {
-
+        const bytes = new Uint8Array(buffer);
+        if (bytes.length < 12 || readASCII(bytes, 0, 4) !== "RIFF" || readASCII(bytes, 8, 4) !== "WEBP") {
+            throw new Error("Struktur WebP tidak valid; metadata tidak dapat dibersihkan.");
+        }
         return stripWebPMetadata(
             buffer
         );
     }
 
-
-    /*
-     * Safety fallback.
-     *
-     * Jika format tidak dikenal, jangan merusak
-     * hasil Canvas.
-     */
-
-    return new Blob(
-        [
-            buffer
-        ],
-        {
-            type
-        }
-    );
+    throw new Error("Format gambar tidak didukung untuk pembersihan metadata.");
 }
 
 

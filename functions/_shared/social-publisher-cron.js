@@ -1,6 +1,7 @@
-import { buildImagePrompt, createScenePlan, renderCaption } from "../../lib/social-publisher/utils.js";
-import { decryptSecret, generateSocialImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
+import { buildImagePrompt, composeSocialCaption, createScenePlan, renderCaption } from "../../lib/social-publisher/utils.js";
+import { decryptSecret, generateSocialContextCaption, generateSocialImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
 import { downloadReferenceObject, isPrivateReferenceBucket } from "../../lib/social-publisher/storage.js";
+import { stripImageMetadata } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
 function value(env, key) {
     const processValue = typeof process !== "undefined" ? process.env?.[key] : "";
@@ -64,15 +65,16 @@ async function processRun(env, config, claimedRun) {
         await updateRun(config, runId, { status: "generating", started_at: now });
         const schedules = await dbRequest(config, table(
             "social_post_schedules",
-            `select=id,owner_id,character_id,page_connection_id,enabled,interval_hours,caption_template,timezone&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+            `select=id,owner_id,character_id,page_connection_id,enabled,interval_hours,aspect_ratio,caption_template,timezone&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
         ));
         const schedule = schedules?.[0];
         if (!schedule) throw new Error("Schedule was removed or disabled before processing.");
 
-        const [characters, pageConnections, previousRuns] = await Promise.all([
+        const [characters, pageConnections, previousRuns, settingsRows] = await Promise.all([
             dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
-            dbRequest(config, table("social_post_runs", `select=scene_plan&schedule_id=eq.${encodeURIComponent(schedule.id)}&status=eq.posted&order=created_at.desc&limit=12`))
+            dbRequest(config, table("social_post_runs", `select=scene_plan&schedule_id=eq.${encodeURIComponent(schedule.id)}&status=eq.posted&order=created_at.desc&limit=12`)),
+            dbRequest(config, table("social_publisher_user_settings", `select=caption_template,external_link&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`))
         ]);
         const character = characters?.[0];
         const page = pageConnections?.[0];
@@ -87,20 +89,42 @@ async function processRun(env, config, claimedRun) {
         const recentSceneKeys = (previousRuns || [])
             .map(item => item.scene_plan?.key)
             .filter(Boolean);
-        const scene = createScenePlan(recentSceneKeys);
+        const aspectRatio = ["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16";
+        const scene = { ...createScenePlan(recentSceneKeys), aspect_ratio: aspectRatio };
         const prompt = buildImagePrompt({
             characterName: character.display_name,
             characterNotes: character.prompt_notes,
-            scene
+            scene,
+            aspectRatio
         });
-        const caption = renderCaption(schedule.caption_template, scene, character.display_name);
         const generated = await generateSocialImage({
             env,
             prompt,
             referenceBytes,
-            referenceMimeType: character.reference_mime_type
+            referenceMimeType: character.reference_mime_type,
+            aspectRatio
         });
         if (!generated?.bytes?.length) throw new Error("Image provider returned an empty image.");
+
+        const cleanedBlob = await stripImageMetadata(
+            new Blob([generated.bytes], { type: generated.mimeType }),
+            generated.mimeType
+        );
+        const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+        const contextualCaption = await generateSocialContextCaption({
+            env,
+            imageBytes: cleanedBytes,
+            imageMimeType: cleanedBlob.type,
+            characterName: character.display_name,
+            scene
+        });
+        const settings = settingsRows?.[0];
+        const baseCaption = renderCaption(settings?.caption_template || schedule.caption_template, scene, character.display_name);
+        const caption = composeSocialCaption({
+            baseCaption,
+            contextualCaption,
+            externalLink: settings?.external_link
+        });
 
         const encryptionKey = value(env, "SOCIAL_TOKEN_ENCRYPTION_KEY");
         if (!encryptionKey) throw new Error("SOCIAL_TOKEN_ENCRYPTION_KEY is not configured.");
@@ -114,8 +138,8 @@ async function processRun(env, config, claimedRun) {
             pageId: page.page_id,
             pageAccessToken,
             caption,
-            imageBytes: generated.bytes,
-            imageMimeType: generated.mimeType
+            imageBytes: cleanedBytes,
+            imageMimeType: cleanedBlob.type
         });
         const profileShareUrl = makeProfileShareUrl(published.permalinkUrl);
 

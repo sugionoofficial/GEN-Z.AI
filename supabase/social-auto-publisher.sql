@@ -54,6 +54,7 @@ create table if not exists public.social_post_schedules (
     interval_hours integer not null default 24 check (interval_hours between 1 and 168),
     next_run_at timestamptz not null,
     timezone text not null default 'Asia/Jakarta' check (timezone = 'Asia/Jakarta'),
+    aspect_ratio text not null default '9:16' check (aspect_ratio in ('9:16', '16:9')),
     caption_template text not null default 'Cerita hari ini dari {location} ✨'
         check (char_length(caption_template) <= 1000),
     last_run_at timestamptz,
@@ -70,6 +71,10 @@ create table if not exists public.social_post_schedules (
     unique (id, owner_id)
 );
 
+alter table public.social_post_schedules
+    add column if not exists aspect_ratio text not null default '9:16'
+        check (aspect_ratio in ('9:16', '16:9'));
+
 create index if not exists social_post_schedules_due_idx
     on public.social_post_schedules (next_run_at)
     where enabled = true;
@@ -78,6 +83,7 @@ create table if not exists public.social_post_runs (
     id uuid primary key default gen_random_uuid(),
     owner_id uuid not null references public.profiles(id) on delete cascade,
     schedule_id uuid,
+    page_connection_id uuid,
     status text not null default 'queued'
         check (status in ('queued', 'generating', 'posted', 'failed')),
     scheduled_for timestamptz not null,
@@ -100,6 +106,9 @@ create table if not exists public.social_post_runs (
     unique (schedule_id, scheduled_for)
 );
 
+alter table public.social_post_runs
+    add column if not exists page_connection_id uuid;
+
 create index if not exists social_post_runs_owner_created_idx
     on public.social_post_runs (owner_id, created_at desc);
 
@@ -113,6 +122,15 @@ create table if not exists public.social_publisher_config (
     updated_at timestamptz not null default now()
 );
 
+create table if not exists public.social_publisher_user_settings (
+    owner_id uuid primary key references public.profiles(id) on delete cascade,
+    caption_template text not null default 'Cerita hari ini ✨'
+        check (char_length(caption_template) <= 1000),
+    external_link text not null default ''
+        check (char_length(external_link) <= 500),
+    updated_at timestamptz not null default now()
+);
+
 insert into public.social_publisher_config (id, global_enabled)
 values (true, false)
 on conflict (id) do nothing;
@@ -123,6 +141,7 @@ alter table public.facebook_oauth_states enable row level security;
 alter table public.social_post_schedules enable row level security;
 alter table public.social_post_runs enable row level security;
 alter table public.social_publisher_config enable row level security;
+alter table public.social_publisher_user_settings enable row level security;
 
 revoke all on table public.social_characters from public, anon, authenticated;
 revoke all on table public.social_page_connections from public, anon, authenticated;
@@ -130,6 +149,7 @@ revoke all on table public.facebook_oauth_states from public, anon, authenticate
 revoke all on table public.social_post_schedules from public, anon, authenticated;
 revoke all on table public.social_post_runs from public, anon, authenticated;
 revoke all on table public.social_publisher_config from public, anon, authenticated;
+revoke all on table public.social_publisher_user_settings from public, anon, authenticated;
 
 grant select, insert, update, delete on table public.social_characters to service_role;
 grant select, insert, update, delete on table public.social_page_connections to service_role;
@@ -137,6 +157,7 @@ grant select, insert, update, delete on table public.facebook_oauth_states to se
 grant select, insert, update, delete on table public.social_post_schedules to service_role;
 grant select, insert, update, delete on table public.social_post_runs to service_role;
 grant select, insert, update, delete on table public.social_publisher_config to service_role;
+grant select, insert, update, delete on table public.social_publisher_user_settings to service_role;
 
 create or replace function public.claim_due_social_post_schedules(
     p_now timestamptz default now(),

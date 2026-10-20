@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import socialPublisherHandler from "../api/social-publisher.js";
+import { encryptSecret } from "../lib/social-publisher/providers.js";
 
 const env = {
     SUPABASE_URL: "https://project.example",
@@ -436,5 +437,223 @@ test("Studio Medsos status endpoint does not activate a future subscription earl
         assert.equal(response.body.access.pending, true);
     } finally {
         restoreFetch();
+    }
+});
+
+test("Legacy manual immediate-publish action is not exposed", async () => {
+    const encryptionKey = btoa(String.fromCharCode(...new Uint8Array(32).fill(7)));
+    const encryptedToken = await encryptSecret("page-token-secret", encryptionKey);
+    const originalFetch = globalThis.fetch;
+    const calls = [];
+    const startedAt = new Date(Date.now() - 60_000).toISOString();
+    const expiresAt = new Date(Date.now() + 86_400_000).toISOString();
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        calls.push({ url, options });
+        if (url.endsWith("/auth/v1/user")) return Response.json({ id: "admin-user" });
+        if (url.includes("/rest/v1/profiles?select=id,role,status")) {
+            return Response.json([{ id: "admin-user", role: "USER", status: "active" }]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access?")) {
+            return Response.json([{
+                user_id: "admin-user",
+                is_active: true,
+                duration_days: 30,
+                started_at: startedAt,
+                expires_at: expiresAt
+            }]);
+        }
+        if (url.endsWith("/storage/v1/bucket/social-character-references")) {
+            return Response.json({ id: "social-character-references", public: false });
+        }
+        if (url.includes("/rest/v1/social_characters?")) {
+            return Response.json([{
+                id: "character-1",
+                owner_id: "admin-user",
+                display_name: "Alya",
+                reference_object_key: "social-reference/admin-user/reference.jpg",
+                reference_mime_type: "image/jpeg",
+                prompt_notes: "Rambut bob"
+            }]);
+        }
+        if (url.includes("/rest/v1/social_page_connections?")) {
+            return Response.json([{
+                id: "connection-1",
+                owner_id: "admin-user",
+                page_id: "page-123",
+                page_name: "GEN-Z Page",
+                can_publish: true,
+                page_token_ciphertext: encryptedToken.ciphertext,
+                page_token_iv: encryptedToken.iv
+            }]);
+        }
+        if (url.includes("/rest/v1/social_post_runs?") && options.method === "POST") {
+            const run = JSON.parse(options.body);
+            assert.equal(run.schedule_id, null);
+            assert.equal(run.status, "generating");
+            return Response.json([{ id: "manual-run-1", ...run }], { status: 201 });
+        }
+        if (url.includes("/storage/v1/object/authenticated/social-character-references/")) {
+            return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
+        }
+        if (url.includes("generativelanguage.googleapis.com/v1beta/interactions")) {
+            assert.equal(options.method, "POST");
+            return Response.json({
+                steps: [{
+                    type: "model_output",
+                    content: [{ type: "image", mime_type: "image/png", data: btoa(String.fromCharCode(137, 80, 78, 71)) }]
+                }]
+            });
+        }
+        if (url.endsWith("/page-123/photos")) {
+            assert.equal(options.method, "POST");
+            assert.equal(options.body.get("access_token"), "page-token-secret");
+            return Response.json({ id: "photo-1", post_id: "page-123_post-1" });
+        }
+        if (url.includes("/page-123_post-1?fields=permalink_url")) {
+            return Response.json({ permalink_url: "https://www.facebook.com/page-123/posts/post-1" });
+        }
+        if (url.includes("/rest/v1/social_post_runs?id=eq.manual-run-1")) {
+            assert.equal(options.method, "PATCH");
+            const update = JSON.parse(options.body);
+            assert.equal(update.status, "posted");
+            assert.equal(update.caption, "Alya di");
+            return new Response(null, { status: 204 });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    };
+
+    const response = makeResponse();
+    try {
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=manual-post",
+            query: { action: "manual-post" },
+            headers: { authorization: "Bearer test-token" },
+            body: {
+                character_id: "character-1",
+                page_connection_id: "connection-1",
+                caption_template: "{name} di"
+            },
+            env: {
+                ...env,
+                GEMINI_API_KEY: "gemini-test-key",
+                SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey
+            }
+        }, response);
+
+        assert.equal(response.statusCode, 404);
+        assert.match(response.body.error, /Action tidak dikenal/);
+        assert.equal(calls.filter(call => call.url.endsWith("/page-123/photos")).length, 0);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("Manual Social Publisher returns a clean preview and caption without posting", async () => {
+    const originalFetch = globalThis.fetch;
+    const pngBytes = new Uint8Array([
+        137, 80, 78, 71, 13, 10, 26, 10,
+        0, 0, 0, 0, 73, 72, 68, 82, 0, 0, 0, 0,
+        0, 0, 0, 0, 73, 69, 78, 68, 0, 0, 0, 0
+    ]);
+    const now = Date.now();
+    let imageRequests = 0;
+    let publishRequests = 0;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        if (url.endsWith("/auth/v1/user")) return Response.json({ id: "admin-user" });
+        if (url.includes("/rest/v1/profiles?select=id,role,status")) {
+            return Response.json([{ id: "admin-user", role: "USER", status: "active" }]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access?")) {
+            return Response.json([{
+                user_id: "admin-user",
+                is_active: true,
+                duration_days: 30,
+                started_at: new Date(now - 60_000).toISOString(),
+                expires_at: new Date(now + 86_400_000).toISOString()
+            }]);
+        }
+        if (url.endsWith("/storage/v1/bucket/social-character-references")) {
+            return Response.json({ id: "social-character-references", public: false });
+        }
+        if (url.includes("/rest/v1/social_characters?")) {
+            return Response.json([{
+                id: "character-1",
+                display_name: "Alya",
+                reference_object_key: "social-reference/admin-user/reference.jpg",
+                reference_mime_type: "image/jpeg",
+                prompt_notes: "Rambut bob"
+            }]);
+        }
+        if (url.includes("/rest/v1/social_page_connections?")) {
+            return Response.json([{ id: "connection-1", page_name: "GEN-Z Page", can_publish: true }]);
+        }
+        if (url.includes("/rest/v1/social_publisher_user_settings?")) {
+            return Response.json([{ caption_template: "Cerita hari ini #GENZAI", external_link: "https://example.com" }]);
+        }
+        if (url.includes("/rest/v1/social_post_runs?select=id&status=eq.generating")) return Response.json([]);
+        if (url.includes("/rest/v1/social_post_runs?") && options.method === "POST") {
+            return Response.json([{ id: "manual-run-1" }], { status: 201 });
+        }
+        if (url.includes("/storage/v1/object/authenticated/social-character-references/")) {
+            return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
+        }
+        if (url.includes("generativelanguage.googleapis.com/v1beta/interactions")) {
+            imageRequests += 1;
+            const request = JSON.parse(options.body);
+            assert.equal(request.response_format.aspect_ratio, "16:9");
+            return Response.json({
+                steps: [{
+                    content: [{ type: "image", mime_type: "image/png", data: btoa(String.fromCharCode(...pngBytes)) }]
+                }]
+            });
+        }
+        if (url.includes("gemini-2.5-flash:generateContent")) {
+            return Response.json({
+                candidates: [{ content: { parts: [{ text: "Hai guys, lagi menikmati suasana sore." }] } }]
+            });
+        }
+        if (url.includes("/rest/v1/social_post_runs?id=eq.manual-run-1")) {
+            const update = JSON.parse(options.body);
+            assert.equal(update.status, "generating");
+            assert.match(update.caption, /Hai guys/);
+            assert.match(update.caption, /https:\/\/example\.com/);
+            assert.match(update.caption, /#GENZAI/);
+            return new Response(null, { status: 204 });
+        }
+        if (url.includes("/page-123/photos")) publishRequests += 1;
+        throw new Error(`Unexpected fetch: ${url}`);
+    };
+
+    const response = makeResponse();
+    try {
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=manual-generate",
+            query: { action: "manual-generate" },
+            headers: { authorization: "Bearer test-token" },
+            body: {
+                character_id: "character-1",
+                page_connection_id: "connection-1",
+                aspect_ratio: "16:9"
+            },
+            env: {
+                ...env,
+                GEMINI_API_KEY: "gemini-test-key",
+                SOCIAL_TOKEN_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7)))
+            }
+        }, response);
+
+        assert.equal(response.statusCode, 200, JSON.stringify(response.body));
+        assert.equal(response.body.preview.status, "preview");
+        assert.equal(response.body.preview.aspect_ratio, "16:9");
+        assert.equal(response.body.preview.page_name, "GEN-Z Page");
+        assert.match(response.body.preview.caption, /Hai guys/);
+        assert.equal(imageRequests, 1);
+        assert.equal(publishRequests, 0);
+    } finally {
+        globalThis.fetch = originalFetch;
     }
 });

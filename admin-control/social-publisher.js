@@ -1,8 +1,10 @@
+import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
+
 (() => {
     "use strict";
 
     const endpoint = "/api/social-publisher";
-    const state = { data: null, busy: false, objectUrls: new Map() };
+    const state = { data: null, busy: false, objectUrls: new Map(), manualPreview: null };
     const $ = id => document.getElementById(id);
     const pageMessage = $("page-message");
     const configMessage = $("config-message");
@@ -39,7 +41,7 @@
         return token;
     }
 
-    async function api(action, { method = "GET", body, headers = {}, raw = false } = {}) {
+    async function api(action, { method = "GET", body, headers = {}, raw = false, responseRaw = raw } = {}) {
         const token = await sessionToken();
         const [actionName, ...queryParts] = String(action).split("&");
         const query = new URLSearchParams({ action: actionName });
@@ -57,7 +59,7 @@
             ...(body ? { body: raw ? body : JSON.stringify(body) } : {})
         });
 
-        if (raw && response.ok) return response;
+        if (responseRaw && response.ok) return response;
         const data = await response.json().catch(() => ({}));
         if (!response.ok || data.success !== true) {
             throw new Error(data.error || `Permintaan gagal (HTTP ${response.status}).`);
@@ -175,12 +177,17 @@
     function renderPages(pages = []) {
         const container = $("page-connections");
         const select = $("schedule-page");
+        const manualSelect = $("manual-page");
         container.replaceChildren();
         select.replaceChildren(new Option("Pilih Page…", ""));
+        manualSelect.replaceChildren(new Option("Pilih Page…", ""));
         for (const page of pages) {
             const option = new Option(`${page.page_name}${page.can_publish ? "" : " — perlu izin"}`, page.id);
             option.disabled = page.can_publish === false;
             select.add(option);
+            const manualOption = new Option(`${page.page_name}${page.can_publish ? "" : " — perlu izin"}`, page.id);
+            manualOption.disabled = page.can_publish === false;
+            manualSelect.add(manualOption);
 
             const item = document.createElement("div");
             item.className = "item";
@@ -215,10 +222,13 @@
     function renderCharacters(characters = []) {
         const container = $("characters-list");
         const select = $("schedule-character");
+        const manualSelect = $("manual-character");
         container.replaceChildren();
         select.replaceChildren(new Option("Pilih karakter…", ""));
+        manualSelect.replaceChildren(new Option("Pilih karakter…", ""));
         for (const character of characters) {
             select.add(new Option(character.display_name, character.id));
+            manualSelect.add(new Option(character.display_name, character.id));
             const item = document.createElement("div");
             item.className = "item";
             const img = document.createElement("img");
@@ -254,12 +264,187 @@
             const response = await api("reference&character_id=" + encodeURIComponent(characterId), { raw: true });
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
+            if (img.dataset.characterId && img.dataset.characterId !== characterId) {
+                URL.revokeObjectURL(url);
+                return;
+            }
             const previousUrl = state.objectUrls.get(characterId);
             if (previousUrl) URL.revokeObjectURL(previousUrl);
             state.objectUrls.set(characterId, url);
             img.src = url;
         } catch {
-            img.alt = "Preview referensi tidak tersedia";
+            if (!img.dataset.characterId || img.dataset.characterId === characterId) {
+                img.alt = "Preview referensi tidak tersedia";
+            }
+        }
+    }
+
+    function updateManualCharacterPreview() {
+        const characterId = $("manual-character").value;
+        const preview = $("manual-character-preview");
+        const placeholder = $("manual-character-placeholder");
+        if (state.manualPreview) return;
+        preview.dataset.characterId = characterId;
+        if (!characterId) {
+            preview.hidden = true;
+            preview.removeAttribute("src");
+            placeholder.hidden = false;
+            return;
+        }
+        const character = state.data?.characters?.find(item => item.id === characterId);
+        preview.alt = `Foto referensi ${character?.display_name || "karakter"} yang dipilih`;
+        preview.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='54' height='66'%3E%3Crect width='100%25' height='100%25' fill='%231b2737'/%3E%3C/svg%3E";
+        preview.hidden = false;
+        placeholder.hidden = true;
+        loadReferencePreview(characterId, preview);
+    }
+
+    async function submitManualPost(event) {
+        event.preventDefault();
+        const characterId = $("manual-character").value;
+        const pageConnectionId = $("manual-page").value;
+        if (!characterId || !pageConnectionId) {
+            status($("manual-post-status"), "Pilih karakter tersimpan dan Facebook Page.", "error");
+            return;
+        }
+        const button = $("manual-post-button");
+        let generatedRunId = "";
+        setButtonBusy(button, true, "Membuat & membersihkan…");
+        status($("manual-post-status"), "Membuat satu gambar, membersihkan metadata, dan menyiapkan caption untuk pratinjau…");
+        try {
+            if (state.manualPreview) await discardManualPreview(false);
+            const result = await api("manual-generate", {
+                method: "POST",
+                body: {
+                    character_id: characterId,
+                    page_connection_id: pageConnectionId,
+                    aspect_ratio: $("manual-aspect-ratio").value
+                }
+            });
+            generatedRunId = result.preview.run_id;
+            const binary = atob(result.preview.image_base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+            const generatedBlob = new Blob([bytes], { type: result.preview.image_mime_type });
+            const cleaned = await cleanImage(generatedBlob);
+            const objectUrl = URL.createObjectURL(cleaned.blob);
+            const previousUrl = state.objectUrls.get("manual-preview");
+            if (previousUrl) URL.revokeObjectURL(previousUrl);
+            state.objectUrls.set("manual-preview", objectUrl);
+            state.manualPreview = {
+                runId: result.preview.run_id,
+                blob: cleaned.blob,
+                pageName: result.preview.page_name,
+                caption: result.preview.caption
+            };
+            $("manual-generated-preview").src = objectUrl;
+            $("manual-generated-result").hidden = false;
+            $("manual-character-preview").hidden = true;
+            $("manual-character-placeholder").hidden = true;
+            $("manual-generated-caption").textContent = result.preview.caption;
+            status(
+                $("manual-post-status"),
+                `Gambar ${result.preview.aspect_ratio} selesai dibuat dan dibersihkan. Periksa pratinjau serta caption sebelum menerbitkan.`,
+                "good"
+            );
+        } catch (error) {
+            let cleanupMessage = "";
+            if (generatedRunId) {
+                try {
+                    await api("manual-discard", { method: "POST", body: { run_id: generatedRunId } });
+                } catch (discardError) {
+                    cleanupMessage = ` Gagal menutup run pratinjau: ${discardError.message || "kesalahan server"}.`;
+                }
+            }
+            status($("manual-post-status"), `${error.message || "Gagal membuat pratinjau."}${cleanupMessage}`, "error");
+        } finally {
+            setButtonBusy(button, false);
+        }
+    }
+
+    async function publishManualPreview() {
+        if (!state.manualPreview) {
+            status($("manual-post-status"), "Buat pratinjau gambar terlebih dahulu.", "error");
+            return;
+        }
+        if (!window.confirm(`Terbitkan gambar dan caption pratinjau ini ke "${state.manualPreview.pageName}"? Post akan langsung terlihat oleh audiens Page.`)) return;
+
+        const button = $("manual-publish-button");
+        setButtonBusy(button, true, "Menerbitkan…");
+        status($("manual-post-status"), "Mengirim gambar yang sudah dibersihkan ke Facebook Page…");
+        try {
+            const result = await api("manual-publish", {
+                method: "POST",
+                body: state.manualPreview.blob,
+                raw: true,
+                responseRaw: false,
+                headers: {
+                    "Content-Type": state.manualPreview.blob.type,
+                    "X-Manual-Run-Id": state.manualPreview.runId
+                }
+            });
+            const postUrl = safeExternalUrl(result.post?.permalink_url);
+            status(
+                $("manual-post-status"),
+                `Posting berhasil diterbitkan ke ${result.post?.page_name || "Facebook Page"}.${postUrl ? ` ${postUrl}` : ""}`,
+                "good"
+            );
+            showNotice(pageMessage, "Posting manual berhasil diterbitkan.", "success");
+            clearManualPreview();
+            await loadDashboard();
+        } catch (error) {
+            clearManualPreview();
+            status($("manual-post-status"), `${error.message || "Posting manual gagal."} Periksa Page sebelum mencoba ulang untuk menghindari post ganda.`, "error");
+            showNotice(pageMessage, error.message || "Posting manual gagal.", "error");
+            await loadDashboard();
+        } finally {
+            setButtonBusy(button, false);
+        }
+    }
+
+    function clearManualPreview() {
+        const previewUrl = state.objectUrls.get("manual-preview");
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        state.objectUrls.delete("manual-preview");
+        state.manualPreview = null;
+        $("manual-generated-preview").removeAttribute("src");
+        $("manual-generated-result").hidden = true;
+        updateManualCharacterPreview();
+    }
+
+    async function discardManualPreview(reportErrors = true) {
+        if (!state.manualPreview) return;
+        try {
+            await api("manual-discard", {
+                method: "POST",
+                body: { run_id: state.manualPreview.runId }
+            });
+            clearManualPreview();
+        } catch (error) {
+            if (reportErrors) status($("manual-post-status"), error.message || "Pratinjau gagal dibuang.", "error");
+            throw error;
+        }
+    }
+
+    async function savePostingSettings(event) {
+        event.preventDefault();
+        const button = $("save-posting-settings");
+        setButtonBusy(button, true, "Menyimpan…");
+        status($("posting-settings-status"), "Menyimpan caption dasar dan link…");
+        try {
+            const result = await api("save-posting-settings", {
+                method: "POST",
+                body: {
+                    caption_template: $("default-caption-template").value,
+                    external_link: $("external-post-link").value
+                }
+            });
+            if (state.data) state.data.postingSettings = result.postingSettings;
+            status($("posting-settings-status"), "Caption dasar dan link tersimpan; akan dipakai di semua posting berikutnya.", "good");
+        } catch (error) {
+            status($("posting-settings-status"), error.message || "Pengaturan caption gagal disimpan.", "error");
+        } finally {
+            setButtonBusy(button, false);
         }
     }
 
@@ -297,7 +482,7 @@
             title.textContent = `${characterName(schedule.character_id)} → ${pageName(schedule.page_connection_id)}`;
             const detail = document.createElement("div");
             detail.className = "item-meta";
-            detail.textContent = `Setiap ${schedule.interval_hours} jam · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"}`;
+            detail.textContent = `Setiap ${schedule.interval_hours} jam · rasio ${schedule.aspect_ratio || "9:16"} · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"}`;
             content.append(title, detail);
             const actions = document.createElement("div");
             actions.className = "item-actions";
@@ -339,7 +524,8 @@
             const label = document.createElement("span");
             label.className = `badge ${run.status || "queued"}`;
             label.textContent = run.status || "queued";
-            title.append(label, document.createTextNode(`  ${formatDate(run.scheduled_for || run.created_at)}`));
+            const source = run.schedule_id ? "Jadwal" : "Manual";
+            title.append(label, document.createTextNode(`  ${source} · ${formatDate(run.scheduled_for || run.created_at)}`));
             const detail = document.createElement("div");
             detail.className = "item-meta";
             const scene = run.scene_plan || {};
@@ -386,6 +572,8 @@
         renderCharacters(data.characters || []);
         renderSchedules(data.schedules || []);
         renderRuns(data.runs || []);
+        $("default-caption-template").value = data.postingSettings?.caption_template || "Cerita hari ini ✨";
+        $("external-post-link").value = data.postingSettings?.external_link || "";
         const pagesWithoutPublish = (data.pages || []).filter(page => page.can_publish === false).length;
         if (pagesWithoutPublish) {
             showNotice(pageMessage, "Koneksi berhasil, tetapi satu atau beberapa Page belum memberi izin CREATE_CONTENT. Periksa izin aplikasi Meta dan peran Anda pada Page.", "warn");
@@ -486,7 +674,7 @@
         }
         const imagesPerMonth = 30 * 24 / interval;
         const usd = imagesPerMonth * 0.0336;
-        $("cost-estimate").textContent = `Estimasi kasar Gemini Nano Banana 2.1 1K: sekitar US$${usd.toFixed(2)}/bulan pada 1 gambar per jadwal (${imagesPerMonth.toFixed(1)} gambar). Belum termasuk variasi tambahan, retry, pajak, atau perubahan tarif provider. Tarif saat ini dapat berubah.`;
+        $("cost-estimate").textContent = `Estimasi kasar Gemini Nano Banana 2.1 1K: sekitar US$${usd.toFixed(2)}/bulan pada 1 gambar per jadwal (${imagesPerMonth.toFixed(1)} gambar). Estimasi ini belum termasuk satu panggilan Gemini 2.5 Flash untuk caption per gambar, variasi tambahan, retry, pajak, atau perubahan tarif provider. Tarif saat ini dapat berubah.`;
     }
 
     function editSchedule(schedule) {
@@ -495,7 +683,7 @@
         $("schedule-page").value = schedule.page_connection_id;
         $("interval-hours").value = schedule.interval_hours;
         $("first-run").value = utcToLocalWib(schedule.next_run_at);
-        $("caption-template").value = schedule.caption_template || "";
+        $("schedule-aspect-ratio").value = schedule.aspect_ratio || "9:16";
         $("schedule-enabled").checked = schedule.enabled === true;
         saveScheduleButton.textContent = "Simpan perubahan";
         $("cancel-edit").hidden = false;
@@ -507,7 +695,7 @@
         $("schedule-form").reset();
         $("schedule-id").value = "";
         $("interval-hours").value = "24";
-        $("caption-template").value = "Cerita hari ini dari {location} ✨";
+        $("schedule-aspect-ratio").value = "9:16";
         $("schedule-enabled").checked = false;
         saveScheduleButton.textContent = "Simpan jadwal";
         $("cancel-edit").hidden = true;
@@ -534,7 +722,8 @@
             interval_hours: intervalHours,
             next_run_at: nextRunAt,
             timezone: "Asia/Jakarta",
-            caption_template: $("caption-template").value,
+            aspect_ratio: $("schedule-aspect-ratio").value,
+            caption_template: $("default-caption-template").value,
             enabled: $("schedule-enabled").checked
         };
         setButtonBusy(saveScheduleButton, true, "Menyimpan…");
@@ -660,6 +849,18 @@
 
     $("connect-page").addEventListener("click", connectFacebook);
     $("character-form").addEventListener("submit", uploadCharacter);
+    $("manual-post-form").addEventListener("submit", submitManualPost);
+    $("manual-publish-button").addEventListener("click", publishManualPreview);
+    $("manual-discard-button").addEventListener("click", async () => {
+        try {
+            await discardManualPreview();
+            status($("manual-post-status"), "Pratinjau dibuang. Gambar tidak diterbitkan.", "good");
+        } catch {
+            // The visible status is set by discardManualPreview.
+        }
+    });
+    $("posting-settings-form").addEventListener("submit", savePostingSettings);
+    $("manual-character").addEventListener("change", updateManualCharacterPreview);
     $("schedule-form").addEventListener("submit", submitSchedule);
     $("interval-hours").addEventListener("input", updateCostEstimate);
     $("refresh").addEventListener("click", loadDashboard);
