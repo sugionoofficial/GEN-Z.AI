@@ -172,6 +172,7 @@ test("Gemini image generation sends the reference and extracts returned image by
         assert.equal(requestBody.model, "gemini-nano-banana-2.1");
         assert.equal(requestBody.input[0].type, "image");
         assert.equal(requestBody.input[1].text, "photorealistic test prompt");
+        assert.equal(requestBody.response_format.mime_type, "image/jpeg");
         assert.equal(requestBody.response_format.aspect_ratio, "16:9");
         assert.deepEqual([...result.bytes], [...outputBytes]);
         assert.equal(result.model, "gemini-nano-banana-2.1");
