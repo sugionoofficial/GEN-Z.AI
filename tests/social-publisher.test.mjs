@@ -181,6 +181,31 @@ test("Gemini image generation sends the reference and extracts returned image by
     }
 });
 
+test("Gemini image generation preserves quota HTTP 429 and explains zero free-tier quota", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({
+        error: {
+            message: "Rate limit exceeded for model gemini-3.1-flash-lite-image (limit: 0 requests per day on Free Tier)."
+        }
+    }, { status: 429 });
+    try {
+        await assert.rejects(
+            generateSocialImage({
+                env: { GEMINI_API_KEY: "test-key" },
+                prompt: "test image"
+            }),
+            error => {
+                assert.equal(error.status, 429);
+                assert.match(error.message, /limit: 0 requests per day on Free Tier/);
+                assert.match(error.message, /upgrade tier atau gunakan API key dengan kuota aktif/i);
+                return true;
+            }
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
 test("Gemini context caption provider requests one concise Indonesian sentence", async () => {
     const originalFetch = globalThis.fetch;
     let requestBody;
