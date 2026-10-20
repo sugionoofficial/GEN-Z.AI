@@ -706,7 +706,7 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
                 SOCIAL_TOKEN_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7))),
                 AI: {
                     async run(model, input) {
-                        assert.equal(model, "@cf/bytedance/stable-diffusion-xl-lightning");
+                        assert.equal(model, "@cf/stabilityai/stable-diffusion-xl-base-1.0");
                         assert.equal(input.width, 1365);
                         assert.equal(input.height, 768);
                         return { image: pngBytes };
