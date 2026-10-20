@@ -229,15 +229,22 @@ test("Cloudflare Workers AI uses reference image-to-image and returns PNG output
     });
 
     assert.equal(model, "@cf/black-forest-labs/flux-2-klein-4b");
-    assert.match(input.prompt, /horizontal landscape \(16:9\)/);
     assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
-    assert.ok(input.multipart.body instanceof Uint8Array);
-    const multipartBody = new TextDecoder().decode(input.multipart.body);
-    const boundary = input.multipart.contentType.match(/boundary=(.+)$/)[1];
-    assert.ok(multipartBody.startsWith(`--${boundary}\r\n`));
-    assert.ok(multipartBody.endsWith(`--${boundary}--\r\n`));
-    assert.match(multipartBody, /name="image"; filename="character-reference"/);
-    assert.ok(multipartBody.includes(String.fromCharCode(...referenceBytes)));
+    assert.ok(input.multipart.body instanceof ReadableStream);
+    const multipartRequest = new Request("https://workers-ai.invalid", {
+        method: "POST",
+        body: input.multipart.body,
+        duplex: "half",
+        headers: { "Content-Type": input.multipart.contentType }
+    });
+    const formData = await multipartRequest.formData();
+    assert.match(formData.get("prompt"), /horizontal landscape \(16:9\)/);
+    assert.equal(formData.get("width"), "1365");
+    assert.equal(formData.get("height"), "768");
+    const referenceImage = formData.get("input_image_0");
+    assert.ok(referenceImage instanceof File);
+    assert.equal(referenceImage.type, "image/jpeg");
+    assert.deepEqual([...new Uint8Array(await referenceImage.arrayBuffer())], [...referenceBytes]);
     assert.deepEqual([...result.bytes], [...outputBytes]);
     assert.equal(result.mimeType, "image/png");
     assert.equal(result.model, model);

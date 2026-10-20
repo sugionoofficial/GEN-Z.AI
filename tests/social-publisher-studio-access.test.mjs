@@ -707,8 +707,8 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
                 AI: {
                     async run(model, input) {
                         assert.equal(model, "@cf/black-forest-labs/flux-2-klein-4b");
-                        assert.match(input.prompt, /horizontal landscape \(16:9\)/);
                         assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
+                        assert.ok(input.multipart.body instanceof ReadableStream);
                         return { image: pngBytes };
                     }
                 }
