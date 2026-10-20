@@ -138,6 +138,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     function renderConfig(config = {}) {
         const imageProviderLabel = config.imageProvider === "cloudflare" ? "Cloudflare Workers AI" : "Gemini Image API";
         const captionProviderLabel = config.captionProvider === "cloudflare" ? "Cloudflare Vision Caption" : "Gemini Caption API";
+        const garmentLabel = document.querySelector("label[for='character-garment']");
+        if (garmentLabel) {
+            garmentLabel.textContent = config.imageProvider === "cloudflare"
+                ? "Foto pakaian untuk Cloudflare Try-On (wajib)"
+                : "Foto pakaian untuk Cloudflare Try-On (opsional)";
+        }
         const items = [
             ["Meta OAuth", config.metaOAuthConfigured],
             [imageProviderLabel, config.imageApiConfigured],
@@ -226,12 +232,16 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const container = $("characters-list");
         const select = $("schedule-character");
         const manualSelect = $("manual-character");
+        const cloudflareProvider = state.data?.config?.imageProvider === "cloudflare";
         container.replaceChildren();
         select.replaceChildren(new Option("Pilih karakter…", ""));
         manualSelect.replaceChildren(new Option("Pilih karakter…", ""));
         for (const character of characters) {
-            select.add(new Option(character.display_name, character.id));
-            manualSelect.add(new Option(character.display_name, character.id));
+            const optionLabel = cloudflareProvider && !character.garment_filename
+                ? `${character.display_name} · pakaian belum diatur`
+                : character.display_name;
+            select.add(new Option(optionLabel, character.id));
+            manualSelect.add(new Option(optionLabel, character.id));
             const item = document.createElement("div");
             item.className = "item";
             const img = document.createElement("img");
@@ -313,6 +323,15 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const pageConnectionId = $("manual-page").value;
         if (!characterId || !pageConnectionId) {
             status($("manual-post-status"), "Pilih karakter tersimpan dan Facebook Page.", "error");
+            return;
+        }
+        const selectedCharacter = (state.data?.characters || []).find(character => character.id === characterId);
+        if (state.data?.config?.imageProvider === "cloudflare" && selectedCharacter && !selectedCharacter.garment_filename) {
+            status(
+                $("manual-post-status"),
+                `Karakter "${selectedCharacter.display_name}" belum memiliki foto pakaian, sedangkan Cloudflare P-Image Try-On mewajibkannya. Klik "Atur pakaian" pada daftar karakter tersimpan, lalu ulangi pratinjau.`,
+                "error"
+            );
             return;
         }
         const button = $("manual-post-button");
@@ -468,38 +487,38 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         } catch (error) {
             showNotice(pageMessage, error.message, "error");
         }
+    }
 
-        async function uploadGarment(character) {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = "image/jpeg,image/png,image/webp";
-            input.addEventListener("change", async () => {
-                const file = input.files?.[0];
-                if (!file) return;
-                if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 8 * 1024 * 1024) {
-                    showNotice(pageMessage, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
-                    return;
-                }
-                if (!window.confirm("Pastikan Anda berhak menggunakan foto pakaian ini. Saat Cloudflare dipilih, foto akan diproses oleh Workers AI/Pruna. Lanjutkan unggah?")) return;
-                try {
-                    await api(`upload-garment&character_id=${encodeURIComponent(character.id)}`, {
-                        method: "POST",
-                        body: file,
-                        raw: true,
-                        headers: {
-                            "Content-Type": file.type,
-                            "X-File-Name": encodeURIComponent(file.name),
-                            "X-Garment-Rights": "1"
-                        }
-                    });
-                    showNotice(pageMessage, "Foto pakaian tersimpan. Cloudflare P-Image Try-On akan memakainya untuk gambar berikutnya.", "success");
-                    await loadDashboard();
-                } catch (error) {
-                    showNotice(pageMessage, error.message, "error");
-                }
-            }, { once: true });
-            input.click();
-        }
+    async function uploadGarment(character) {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/jpeg,image/png,image/webp";
+        input.addEventListener("change", async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 8 * 1024 * 1024) {
+                showNotice(pageMessage, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
+                return;
+            }
+            if (!window.confirm("Pastikan Anda berhak menggunakan foto pakaian ini. Saat Cloudflare dipilih, foto akan diproses oleh Workers AI/Pruna. Lanjutkan unggah?")) return;
+            try {
+                await api(`upload-garment&character_id=${encodeURIComponent(character.id)}`, {
+                    method: "POST",
+                    body: file,
+                    raw: true,
+                    headers: {
+                        "Content-Type": file.type,
+                        "X-File-Name": encodeURIComponent(file.name),
+                        "X-Garment-Rights": "1"
+                    }
+                });
+                showNotice(pageMessage, "Foto pakaian tersimpan. Cloudflare P-Image Try-On akan memakainya untuk gambar berikutnya.", "success");
+                await loadDashboard();
+            } catch (error) {
+                showNotice(pageMessage, error.message, "error");
+            }
+        }, { once: true });
+        input.click();
     }
 
     function pageName(id) {
@@ -789,6 +808,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             caption_template: $("default-caption-template").value,
             enabled: $("schedule-enabled").checked
         };
+        const scheduledCharacter = (state.data?.characters || []).find(character => character.id === body.character_id);
+        if (state.data?.config?.imageProvider === "cloudflare" && scheduledCharacter && !scheduledCharacter.garment_filename
+            && !window.confirm(`Karakter "${scheduledCharacter.display_name}" belum memiliki foto pakaian, sedangkan Cloudflare P-Image Try-On mewajibkannya. Jadwal akan terus gagal sampai foto pakaian diunggah. Tetap simpan jadwal?`)) {
+            status(scheduleStatus, "Jadwal dibatalkan. Unggah foto pakaian pada karakter terlebih dahulu lewat tombol \"Atur pakaian\".", "error");
+            return;
+        }
         setButtonBusy(saveScheduleButton, true, "Menyimpan…");
         status(scheduleStatus, "Menyimpan konfigurasi jadwal…");
         try {
