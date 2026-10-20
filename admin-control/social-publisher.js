@@ -250,6 +250,16 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             img.loading = "lazy";
             img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='54' height='66'%3E%3Crect width='100%25' height='100%25' fill='%231b2737'/%3E%3C/svg%3E";
             loadReferencePreview(character.id, img);
+            const garmentImg = document.createElement("img");
+            garmentImg.className = "thumb";
+            garmentImg.alt = character.garment_filename ? `Foto pakaian ${character.display_name}` : "Foto pakaian belum diatur";
+            garmentImg.loading = "lazy";
+            garmentImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='54' height='66'%3E%3Crect width='100%25' height='100%25' fill='%231b2737'/%3E%3C/svg%3E";
+            garmentImg.dataset.characterId = character.id;
+            if (character.garment_filename) loadGarmentPreview(character.id, garmentImg);
+            const thumbs = document.createElement("div");
+            thumbs.className = "thumbs";
+            thumbs.append(img, garmentImg);
             const content = document.createElement("div");
             const title = document.createElement("p");
             title.className = "item-title";
@@ -271,7 +281,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const actions = document.createElement("div");
             actions.className = "item-actions";
             actions.append(action, notesAction);
-            item.append(img, content, actions);
+            item.append(thumbs, content, actions);
             container.append(item);
         }
         if (!characters.length) container.innerHTML = '<div class="empty">Belum ada karakter. Tambahkan foto referensi untuk memulai.</div>';
@@ -297,16 +307,41 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
+    async function loadGarmentPreview(characterId, img) {
+        try {
+            const response = await api("garment&character_id=" + encodeURIComponent(characterId), { raw: true });
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            if (img.dataset.characterId && img.dataset.characterId !== characterId) {
+                URL.revokeObjectURL(url);
+                return;
+            }
+            const previousUrl = state.objectUrls.get(`garment:${characterId}`);
+            if (previousUrl) URL.revokeObjectURL(previousUrl);
+            state.objectUrls.set(`garment:${characterId}`, url);
+            img.src = url;
+        } catch {
+            if (!img.dataset.characterId || img.dataset.characterId === characterId) {
+                img.alt = "Preview pakaian tidak tersedia";
+            }
+        }
+    }
+
     function updateManualCharacterPreview() {
         const characterId = $("manual-character").value;
         const preview = $("manual-character-preview");
         const placeholder = $("manual-character-placeholder");
+        const garmentBox = $("manual-garment-box");
+        const garmentPreview = $("manual-garment-preview");
         if (state.manualPreview) return;
         preview.dataset.characterId = characterId;
+        garmentPreview.dataset.characterId = characterId;
         if (!characterId) {
             preview.hidden = true;
             preview.removeAttribute("src");
             placeholder.hidden = false;
+            garmentBox.hidden = true;
+            garmentPreview.removeAttribute("src");
             return;
         }
         const character = state.data?.characters?.find(item => item.id === characterId);
@@ -315,6 +350,15 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         preview.hidden = false;
         placeholder.hidden = true;
         loadReferencePreview(characterId, preview);
+        if (character?.garment_filename) {
+            garmentBox.hidden = false;
+            garmentPreview.alt = `Foto pakaian ${character.display_name} yang dipilih`;
+            garmentPreview.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='54' height='66'%3E%3Crect width='100%25' height='100%25' fill='%231b2737'/%3E%3C/svg%3E";
+            loadGarmentPreview(characterId, garmentPreview);
+        } else {
+            garmentBox.hidden = true;
+            garmentPreview.removeAttribute("src");
+        }
     }
 
     async function submitManualPost(event) {
@@ -368,6 +412,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             $("manual-generated-result").hidden = false;
             $("manual-character-preview").hidden = true;
             $("manual-character-placeholder").hidden = true;
+            $("manual-garment-box").hidden = true;
             $("manual-generated-caption").textContent = result.preview.caption;
             status(
                 $("manual-post-status"),
