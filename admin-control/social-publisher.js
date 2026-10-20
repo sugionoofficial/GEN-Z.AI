@@ -137,10 +137,11 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
     function renderConfig(config = {}) {
         const imageProviderLabel = config.imageProvider === "cloudflare" ? "Cloudflare Workers AI" : "Gemini Image API";
+        const captionProviderLabel = config.captionProvider === "cloudflare" ? "Cloudflare Vision Caption" : "Gemini Caption API";
         const items = [
             ["Meta OAuth", config.metaOAuthConfigured],
             [imageProviderLabel, config.imageApiConfigured],
-            ["Gemini Caption API", config.captionApiConfigured],
+            [captionProviderLabel, config.captionApiConfigured],
             ["Token encryption", config.tokenEncryptionConfigured],
             ["Private Supabase Storage", config.referenceStorageConfigured]
         ];

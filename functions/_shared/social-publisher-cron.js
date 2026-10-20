@@ -91,6 +91,7 @@ async function processRun(env, config, claimedRun) {
             .map(item => item.scene_plan?.key)
             .filter(Boolean);
         const aspectRatio = ["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16";
+        const imageProvider = publisherConfigs?.[0]?.image_provider === "cloudflare" ? "cloudflare" : "gemini";
         const scene = { ...createScenePlan(recentSceneKeys), aspect_ratio: aspectRatio };
         const prompt = buildImagePrompt({
             characterName: character.display_name,
@@ -104,7 +105,7 @@ async function processRun(env, config, claimedRun) {
             referenceBytes,
             referenceMimeType: character.reference_mime_type,
             aspectRatio,
-            imageProvider: publisherConfigs?.[0]?.image_provider === "cloudflare" ? "cloudflare" : "gemini"
+            imageProvider
         });
         if (!generated?.bytes?.length) throw new Error("Image provider returned an empty image.");
 
@@ -118,7 +119,8 @@ async function processRun(env, config, claimedRun) {
             imageBytes: cleanedBytes,
             imageMimeType: cleanedBlob.type,
             characterName: character.display_name,
-            scene
+            scene,
+            imageProvider
         });
         const settings = settingsRows?.[0];
         const baseCaption = renderCaption(settings?.caption_template || schedule.caption_template, scene, character.display_name);

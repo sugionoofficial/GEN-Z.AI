@@ -400,7 +400,6 @@ test("Studio Medsos admin can select Cloudflare image generation", async () => {
             body: { image_provider: "cloudflare" },
             env: {
                 ...env,
-                GEMINI_API_KEY: "caption-api-key",
                 AI: { run: async () => new Uint8Array([1]) }
             }
         }, response);
@@ -667,15 +666,6 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
         if (url.includes("/storage/v1/object/authenticated/social-character-references/")) {
             return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
         }
-        if (url.includes("generativelanguage.googleapis.com/v1beta/interactions")) {
-            assert.fail("Image generation should use the selected Cloudflare provider.");
-        }
-        if (url.includes("gemini-2.5-flash:generateContent")) {
-            imageRequests += 1;
-            return Response.json({
-                candidates: [{ content: { parts: [{ text: "Hai guys, lagi menikmati suasana sore." }] } }]
-            });
-        }
         if (url.includes("/rest/v1/social_post_runs?id=eq.manual-run-1")) {
             const update = JSON.parse(options.body);
             assert.equal(update.status, "generating");
@@ -702,14 +692,18 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
             },
             env: {
                 ...env,
-                GEMINI_API_KEY: "gemini-test-key",
                 SOCIAL_TOKEN_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(7))),
                 AI: {
                     async run(model, input) {
-                        assert.equal(model, "@cf/black-forest-labs/flux-2-klein-4b");
-                        assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
-                        assert.ok(input.multipart.body instanceof ReadableStream);
-                        return { image: pngBytes };
+                        if (model === "@cf/black-forest-labs/flux-2-klein-4b") {
+                            imageRequests += 1;
+                            assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
+                            assert.ok(input.multipart.body instanceof ReadableStream);
+                            return { image: pngBytes };
+                        }
+                        assert.equal(model, "@cf/meta/llama-3.2-11b-vision-instruct");
+                        assert.match(input.prompt, /konteks/);
+                        return { response: "Hai guys, lagi menikmati suasana sore." };
                     }
                 }
             }

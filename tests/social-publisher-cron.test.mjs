@@ -89,14 +89,6 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
         if (url.includes("/storage/v1/object/authenticated/social-character-references/")) {
             return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
         }
-        if (url.includes("generativelanguage.googleapis.com/v1beta/interactions")) {
-            assert.fail("Cron should use the selected Cloudflare image provider.");
-        }
-        if (url.includes("gemini-2.5-flash:generateContent")) {
-            return Response.json({
-                candidates: [{ content: { parts: [{ text: "Hai guys, lagi menikmati suasana sore." }] } }]
-            });
-        }
         if (url.includes("graph.facebook.com/v26.0/page-123/photos")) {
             postedCaption = options.body.get("caption");
             postedImageText = await options.body.get("source").text();
@@ -116,14 +108,17 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
         const result = await runSocialPublisherCron({
             SUPABASE_URL: "https://project.example",
             SUPABASE_SERVICE_ROLE_KEY: "server-only-test-key",
-            GEMINI_API_KEY: "gemini-test-key",
             SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey,
             AI: {
                 async run(model, input) {
-                    assert.equal(model, "@cf/black-forest-labs/flux-2-klein-4b");
-                    assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
-                    assert.ok(input.multipart.body instanceof ReadableStream);
-                    return { image: btoa(String.fromCharCode(...generatedPng)) };
+                    if (model === "@cf/black-forest-labs/flux-2-klein-4b") {
+                        assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
+                        assert.ok(input.multipart.body instanceof ReadableStream);
+                        return { image: btoa(String.fromCharCode(...generatedPng)) };
+                    }
+                    assert.equal(model, "@cf/meta/llama-3.2-11b-vision-instruct");
+                    assert.match(input.prompt, /konteks/);
+                    return { response: "Hai guys, lagi menikmati suasana sore." };
                 }
             }
         });

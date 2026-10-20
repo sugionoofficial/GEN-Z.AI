@@ -110,17 +110,21 @@ pengaturan tersebut.
 
 API Studio Medsos menggunakan `SUPABASE_URL`, `SUPABASE_ANON_KEY` (atau
 `SUPABASE_KEY`), dan `SUPABASE_SERVICE_ROLE_KEY` dari environment server.
-Social Publisher juga memerlukan `GEMINI_API_KEY` untuk membuat gambar dan
-caption kontekstual, serta `SOCIAL_TOKEN_ENCRYPTION_KEY` untuk melindungi token
-Facebook. Integrasi gambar menggunakan Nano Banana 2 Lite
-(`gemini-3.1-flash-lite-image`), sedangkan caption menggunakan
-`gemini-2.5-flash`. Admin dapat memilih Google Gemini atau Cloudflare Workers AI
-sebagai provider gambar di **Admin Panel → SET Studio Medsos**. Pilihan
-Cloudflare memakai binding `AI` dengan model FLUX.2 Klein 4B untuk image editing;
-caption kontekstual tetap memerlukan `GEMINI_API_KEY`. Kuota dan biaya
+Social Publisher memakai provider terpilih untuk gambar dan caption kontekstual:
+Google Gemini memerlukan `GEMINI_API_KEY`, sementara Cloudflare memakai binding
+`AI` untuk FLUX.2 Klein 4B dan model vision Llama 3.2. `SOCIAL_TOKEN_ENCRYPTION_KEY`
+digunakan untuk melindungi token Facebook. Admin dapat memilih Google Gemini atau
+Cloudflare Workers AI sebagai provider gambar dan caption di
+**Admin Panel → SET Studio Medsos**. Pilihan
+Cloudflare memakai binding `AI` dengan model FLUX.2 Klein 4B untuk image editing
+dan `@cf/meta/llama-3.2-11b-vision-instruct` untuk caption, tanpa memerlukan
+`GEMINI_API_KEY`. Akun Cloudflare harus menerima lisensi model Llama sebelum penggunaan
+pertama. Kuota dan biaya
 bergantung pada tier dan ketersediaan model partner di akun provider masing-masing.
-Periksa harga FLUX.2 Klein 4B pada Cloudflare sebelum menggunakannya. Service role key hanya
+Periksa harga model FLUX dan Llama pada Cloudflare sebelum menggunakannya. Service role key hanya
 digunakan server dan tidak boleh dikirim ke browser.
+Pilihan Gemini memakai Nano Banana 2 Lite (`gemini-3.1-flash-lite-image`) dan
+`gemini-3.8-flash` melalui Interactions API, sehingga memerlukan `GEMINI_API_KEY`.
 
 ---
 

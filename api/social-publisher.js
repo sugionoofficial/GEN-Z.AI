@@ -531,10 +531,13 @@ async function getDashboard(config, userId, env) {
         config: {
             metaOAuthConfigured: Boolean(envValue(env, "META_APP_ID") && envValue(env, "META_APP_SECRET") && envValue(env, "META_REDIRECT_URI") && envValue(env, "META_LOGIN_CONFIG_ID")),
             imageProvider,
+            captionProvider: imageProvider,
             imageApiConfigured: imageProvider === "cloudflare"
                 ? typeof env?.AI?.run === "function"
                 : Boolean(envValue(env, "GEMINI_API_KEY")),
-            captionApiConfigured: Boolean(envValue(env, "GEMINI_API_KEY")),
+            captionApiConfigured: imageProvider === "cloudflare"
+                ? typeof env?.AI?.run === "function"
+                : Boolean(envValue(env, "GEMINI_API_KEY")),
             cloudflareAiConfigured: typeof env?.AI?.run === "function",
             tokenEncryptionConfigured: Boolean(envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")),
             referenceStorageConfigured
@@ -557,8 +560,8 @@ async function saveSocialImageProvider(config, adminId, body, env) {
         error.status = 400;
         throw error;
     }
-    if (!envValue(env, "GEMINI_API_KEY")) {
-        const error = new Error("GEMINI_API_KEY tetap diperlukan untuk membuat caption kontekstual.");
+    if (imageProvider === "gemini" && !envValue(env, "GEMINI_API_KEY")) {
+        const error = new Error("GEMINI_API_KEY diperlukan untuk gambar dan caption saat provider Gemini dipilih.");
         error.status = 409;
         throw error;
     }
@@ -832,8 +835,10 @@ async function generateManualPost(config, userId, env, body = {}) {
         throw error;
     }
     const imageProvider = await getSocialImageProvider(config);
-    if (!envValue(env, "GEMINI_API_KEY") || !envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) {
-        const error = new Error("GEMINI_API_KEY diperlukan untuk caption AI dan SOCIAL_TOKEN_ENCRYPTION_KEY untuk posting manual.");
+    if ((imageProvider === "gemini" && !envValue(env, "GEMINI_API_KEY")) || !envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) {
+        const error = new Error(imageProvider === "gemini"
+            ? "GEMINI_API_KEY diperlukan saat provider Gemini dipilih dan SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual."
+            : "SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual.");
         error.status = 503;
         throw error;
     }
@@ -952,7 +957,8 @@ async function generateManualPost(config, userId, env, body = {}) {
             imageBytes: cleanedBytes,
             imageMimeType: cleanedBlob.type,
             characterName: character.display_name,
-            scene
+            scene,
+            imageProvider
         });
         const baseCaption = renderCaption(postingSettings.caption_template, scene, character.display_name);
         const caption = composeSocialCaption({
@@ -1145,8 +1151,8 @@ async function discardManualPost(config, userId, body) {
 async function setGlobalEnabled(config, userId, env, enabled) {
     if (enabled) {
         const missing = [];
-        if (!envValue(env, "GEMINI_API_KEY")) missing.push("GEMINI_API_KEY");
         const imageProvider = await getSocialImageProvider(config);
+        if (imageProvider === "gemini" && !envValue(env, "GEMINI_API_KEY")) missing.push("GEMINI_API_KEY");
         if (imageProvider === "cloudflare" && typeof env?.AI?.run !== "function") missing.push("binding Cloudflare Workers AI (AI)");
         if (!envValue(env, "META_APP_ID") || !envValue(env, "META_APP_SECRET") || !envValue(env, "META_REDIRECT_URI") || !envValue(env, "META_LOGIN_CONFIG_ID")) missing.push("konfigurasi OAuth Meta (termasuk ID Facebook Login for Business)");
         if (!envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) missing.push("SOCIAL_TOKEN_ENCRYPTION_KEY");
@@ -1248,6 +1254,7 @@ async function handleGet(req, res, config, userId, env, action) {
             success: true,
             settings: {
                 image_provider: imageProvider,
+                caption_provider: imageProvider,
                 gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
                 cloudflare_configured: typeof env?.AI?.run === "function"
             }

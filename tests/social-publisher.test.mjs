@@ -292,14 +292,41 @@ test("Cloudflare Workers AI decodes base64 image output", async () => {
     assert.equal(result.mimeType, "image/jpeg");
 });
 
+test("Cloudflare Workers AI creates contextual captions without a Gemini API key", async () => {
+    let model;
+    let input;
+    const caption = await generateSocialContextCaption({
+        env: {
+            AI: {
+                async run(modelId, parameters) {
+                    model = modelId;
+                    input = parameters;
+                    return { response: '"Hai guys, menikmati suasana sore di taman."' };
+                }
+            }
+        },
+        imageBytes: new Uint8Array([1, 2, 3]),
+        imageMimeType: "image/jpeg",
+        characterName: "Alya",
+        scene: { location: "taman" },
+        imageProvider: "cloudflare"
+    });
+
+    assert.equal(model, "@cf/meta/llama-3.2-11b-vision-instruct");
+    assert.deepEqual(input.image, [1, 2, 3]);
+    assert.match(input.prompt, /konteks/);
+    assert.equal(input.max_tokens, 80);
+    assert.equal(caption, "Hai guys, menikmati suasana sore di taman.");
+});
+
 test("Gemini context caption provider requests one concise Indonesian sentence", async () => {
     const originalFetch = globalThis.fetch;
     let requestBody;
     globalThis.fetch = async (url, options) => {
-        assert.match(String(url), /gemini-2\.5-flash:generateContent/);
+        assert.match(String(url), /generativelanguage\.googleapis\.com\/v1beta\/interactions$/);
         requestBody = JSON.parse(options.body);
         return Response.json({
-            candidates: [{ content: { parts: [{ text: '"Hai guys, lagi menikmati suasana sore."' }] } }]
+            steps: [{ type: "model_output", content: [{ type: "text", text: '"Hai guys, lagi menikmati suasana sore."' }] }]
         });
     };
     try {
@@ -311,8 +338,11 @@ test("Gemini context caption provider requests one concise Indonesian sentence",
             scene: { location: "taman" }
         });
         assert.equal(caption, "Hai guys, lagi menikmati suasana sore.");
-        assert.match(requestBody.contents[0].parts[1].text, /konteks/);
-        assert.equal(requestBody.generationConfig.maxOutputTokens, 80);
+        assert.equal(requestBody.model, "gemini-3.8-flash");
+        assert.equal(requestBody.input[0].type, "image");
+        assert.equal(requestBody.input[0].mime_type, "image/png");
+        assert.match(requestBody.input[1].text, /konteks/);
+        assert.equal(requestBody.generation_config.max_output_tokens, 80);
     } finally {
         globalThis.fetch = originalFetch;
     }

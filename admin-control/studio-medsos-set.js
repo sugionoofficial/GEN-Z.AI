@@ -284,11 +284,10 @@
         const settings = result.settings || {};
         const selected = settings.image_provider === "cloudflare" ? "cloudflare" : "gemini";
         document.querySelector(`input[name="image-provider"][value="${selected}"]`).checked = true;
-        const geminiStatus = settings.gemini_configured ? "GEMINI_API_KEY siap" : "GEMINI_API_KEY belum tersedia (caption AI memerlukan key)";
         const providerStatus = selected === "cloudflare"
-            ? settings.cloudflare_configured ? "Cloudflare Workers AI binding siap" : "Cloudflare Workers AI binding belum tersedia"
-            : settings.gemini_configured ? "Gemini API key tersedia" : "Gemini API key belum tersedia";
-        setImageProviderStatus(`Provider aktif: ${selected === "cloudflare" ? "Cloudflare Workers AI" : "Google Gemini"} · ${providerStatus} · ${geminiStatus}.`);
+            ? settings.cloudflare_configured ? "Workers AI membuat gambar dan caption" : "Workers AI binding belum tersedia"
+            : settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
+        setImageProviderStatus(`Provider aktif: ${selected === "cloudflare" ? "Cloudflare Workers AI" : "Google Gemini"} · ${providerStatus}.`);
     }
 
     async function saveImageProvider() {
@@ -306,7 +305,7 @@
                 body: { image_provider: selected }
             });
             const providerName = result.settings.image_provider === "cloudflare" ? "Cloudflare Workers AI" : "Google Gemini";
-            setImageProviderStatus(`${providerName} disimpan dan akan digunakan pada pembuatan gambar manual maupun autopost.`, "success");
+            setImageProviderStatus(`${providerName} disimpan untuk pembuatan gambar dan caption manual maupun autopost.`, "success");
         } catch (error) {
             console.error(error);
             setImageProviderStatus(error.message || "Gagal menyimpan provider gambar.", "error");
