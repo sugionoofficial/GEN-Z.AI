@@ -229,14 +229,13 @@ test("Cloudflare Workers AI uses reference image-to-image and returns PNG output
     });
 
     assert.equal(model, "@cf/black-forest-labs/flux-2-klein-4b");
+    assert.match(input.prompt, /horizontal landscape \(16:9\)/);
     assert.match(input.multipart.contentType, /^multipart\/form-data;\s*boundary=.+$/);
     assert.ok(input.multipart.body instanceof Uint8Array);
     const multipartBody = new TextDecoder().decode(input.multipart.body);
     const boundary = input.multipart.contentType.match(/boundary=(.+)$/)[1];
     assert.ok(multipartBody.startsWith(`--${boundary}\r\n`));
     assert.ok(multipartBody.endsWith(`--${boundary}--\r\n`));
-    assert.match(multipartBody, /name="prompt"/);
-    assert.match(multipartBody, /horizontal landscape \(16:9\)/);
     assert.match(multipartBody, /name="image"; filename="character-reference"/);
     assert.ok(multipartBody.includes(String.fromCharCode(...referenceBytes)));
     assert.deepEqual([...result.bytes], [...outputBytes]);
