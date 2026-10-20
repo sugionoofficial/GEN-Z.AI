@@ -9,6 +9,8 @@ import {
 
 const GRAPH_VERSION = "v26.0";
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
+const OAUTH_STATE_COOKIE = "__Secure-social-oauth-state";
+const OAUTH_STATE_COOKIE_PATH = "/api/facebook-oauth-callback";
 
 function envValue(env, name) {
     const processValue = typeof process !== "undefined" ? process.env?.[name] : "";
@@ -35,6 +37,17 @@ function getQuery(req, name) {
 function getBearerToken(req) {
     const match = String(getHeader(req, "authorization") || "").match(/^Bearer\s+(.+)$/i);
     return match ? match[1].trim() : "";
+}
+
+function getCookie(req, name) {
+    const cookies = String(getHeader(req, "cookie") || "").split(";");
+    for (const cookie of cookies) {
+        const separator = cookie.indexOf("=");
+        if (separator > 0 && cookie.slice(0, separator).trim() === name) {
+            return cookie.slice(separator + 1).trim();
+        }
+    }
+    return "";
 }
 
 function getSupabaseConfig(env) {
@@ -193,7 +206,7 @@ async function handleOAuthCallback(req, res, env) {
     const redirectUri = envValue(env, "META_REDIRECT_URI");
     const encryptionKey = envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY");
 
-    if (!state || !config.url || !config.serviceRoleKey) {
+    if (!state || getCookie(req, OAUTH_STATE_COOKIE) !== state || !config.url || !config.serviceRoleKey) {
         return redirect(res, callbackLocation("oauth_error=state"));
     }
 
@@ -319,7 +332,7 @@ async function getDashboard(config, userId, env) {
     };
 }
 
-async function startOAuth(config, userId, env) {
+async function startOAuth(config, userId, env, res) {
     const appId = envValue(env, "META_APP_ID");
     const redirectUri = envValue(env, "META_REDIRECT_URI");
     const loginConfigId = envValue(env, "META_LOGIN_CONFIG_ID");
@@ -337,6 +350,10 @@ async function startOAuth(config, userId, env) {
         headers: { Prefer: "return=minimal" },
         body: JSON.stringify({ user_id: userId, state_hash: stateHash, expires_at: expiresAt })
     });
+    res.setHeader(
+        "Set-Cookie",
+        `${OAUTH_STATE_COOKIE}=${randomState}; Path=${OAUTH_STATE_COOKIE_PATH}; Max-Age=600; Secure; HttpOnly; SameSite=Lax`
+    );
 
     const url = new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`);
     url.searchParams.set("client_id", appId);
@@ -555,7 +572,7 @@ async function handleGet(req, res, config, userId, env, action) {
         return json(res, 200, await getDashboard(config, userId, env));
     }
     if (action === "oauth-start") {
-        return json(res, 200, { success: true, ...(await startOAuth(config, userId, env)) });
+        return json(res, 200, { success: true, ...(await startOAuth(config, userId, env, res)) });
     }
     if (action === "reference") {
         const id = cleanText(getQuery(req, "character_id"), 80);
@@ -599,6 +616,10 @@ export default async function handler(req, res) {
     const env = req.env || {};
 
     if (req.method === "GET" && action === "oauth-callback") {
+        res.setHeader(
+            "Set-Cookie",
+            `${OAUTH_STATE_COOKIE}=; Path=${OAUTH_STATE_COOKIE_PATH}; Max-Age=0; Secure; HttpOnly; SameSite=Lax`
+        );
         return handleOAuthCallback(req, res, env);
     }
     if (req.method !== "GET" && req.method !== "POST") {

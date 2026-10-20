@@ -153,6 +153,9 @@ declare
     v_scheduled_for timestamptz;
     v_limit integer := greatest(1, least(coalesce(p_limit, 2), 5));
 begin
+    delete from public.facebook_oauth_states
+    where expires_at < p_now - interval '1 day';
+
     if not exists (
         select 1
         from public.social_publisher_config
@@ -160,9 +163,6 @@ begin
     ) then
         return;
     end if;
-
-    delete from public.facebook_oauth_states
-    where expires_at < p_now - interval '1 day';
 
     update public.social_post_runs
     set status = 'failed',
