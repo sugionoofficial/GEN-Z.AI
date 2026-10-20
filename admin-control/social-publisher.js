@@ -135,6 +135,89 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         button.textContent = busy ? busyText : button.dataset.originalText;
     }
 
+    const MANUAL_LOADING_STAGES = [
+        { key: "connect", title: "Menghubungi studio AI…", subtitle: "Memeriksa provider gambar dan caption yang Anda pilih di SET Studio Medsos." },
+        { key: "render", title: "Merender gambar karakter…", subtitle: "AI sedang menyusun komposisi karakter, pakaian, dan rasio yang diminta." },
+        { key: "clean", title: "Membersihkan metadata…", subtitle: "Menghapus EXIF dan metadata sensitif dari gambar hasil generasi." },
+        { key: "ready", title: "Menyiapkan pratinjau…", subtitle: "Menyusun caption konteks dan pratinjau akhir untuk Anda tinjau." }
+    ];
+
+    const manualLoadingState = { timerId: 0, autoStageId: 0, startedAt: 0, stageIndex: -1 };
+
+    function manualLoadingStageElements() {
+        return Array.from(document.querySelectorAll("#manual-loading-stages [data-stage]"));
+    }
+
+    function manualLoadingRenderSubtitle() {
+        const config = state.data?.config || {};
+        if (config.imageProvider === "qwencloud") {
+            const model = config.imageModel || "qwen-image-3.0-pro";
+            const isAsyncModel = ["wan", "z-image", "vidu"].some(prefix => model.startsWith(prefix));
+            return isAsyncModel
+                ? `QwenCloud ${model} berjalan lewat task async — render bisa memakan waktu 1–2 menit, mohon tunggu.`
+                : `QwenCloud ${model} sedang merender gambar Anda.`;
+        }
+        if (config.imageProvider === "cloudflare") return "Cloudflare Workers AI (P-Image Try-On) sedang merender pakaian pada karakter Anda.";
+        return "Gemini Image API sedang merender gambar Anda.";
+    }
+
+    function setManualLoadingStage(key) {
+        const index = MANUAL_LOADING_STAGES.findIndex(stage => stage.key === key);
+        if (index < 0 || index === manualLoadingState.stageIndex) return;
+        manualLoadingState.stageIndex = index;
+        const stage = MANUAL_LOADING_STAGES[index];
+        $("manual-loading-title").textContent = stage.title;
+        $("manual-loading-subtitle").textContent = key === "render" ? manualLoadingRenderSubtitle() : stage.subtitle;
+        manualLoadingStageElements().forEach((item, itemIndex) => {
+            item.classList.toggle("done", itemIndex < index);
+            item.classList.toggle("active", itemIndex === index);
+        });
+    }
+
+    function showManualLoading() {
+        const overlay = $("manual-loading-overlay");
+        const card = $("manual-loading-card");
+        manualLoadingState.startedAt = Date.now();
+        manualLoadingState.stageIndex = -1;
+        card.classList.remove("done");
+        $("manual-loading-core").textContent = "G";
+        overlay.hidden = false;
+        document.body.style.overflow = "hidden";
+        setManualLoadingStage("connect");
+        $("manual-loading-timer").textContent = "0 detik berjalan";
+        manualLoadingState.timerId = window.setInterval(() => {
+            const elapsed = Math.max(0, Math.round((Date.now() - manualLoadingState.startedAt) / 1000));
+            $("manual-loading-timer").textContent = `${elapsed} detik berjalan`;
+        }, 1000);
+        manualLoadingState.autoStageId = window.setTimeout(() => {
+            if (manualLoadingState.stageIndex < 1) setManualLoadingStage("render");
+        }, 4500);
+    }
+
+    function hideManualLoading(success) {
+        const overlay = $("manual-loading-overlay");
+        window.clearInterval(manualLoadingState.timerId);
+        window.clearTimeout(manualLoadingState.autoStageId);
+        manualLoadingState.timerId = 0;
+        manualLoadingState.autoStageId = 0;
+        if (!overlay || overlay.hidden) return;
+        document.body.style.overflow = "";
+        if (success) {
+            const card = $("manual-loading-card");
+            card.classList.add("done");
+            $("manual-loading-core").textContent = "✓";
+            $("manual-loading-title").textContent = "Pratinjau siap!";
+            $("manual-loading-subtitle").textContent = "Gambar sudah dibuat dan dibersihkan. Silakan tinjau pratinjau serta caption sebelum menerbitkan.";
+            manualLoadingStageElements().forEach(item => {
+                item.classList.add("done");
+                item.classList.remove("active");
+            });
+            window.setTimeout(() => { overlay.hidden = true; }, 950);
+        } else {
+            overlay.hidden = true;
+        }
+    }
+
     function renderConfig(config = {}) {
         const imageProviderLabel = config.imageProvider === "cloudflare"
             ? "Cloudflare Workers AI"
@@ -388,6 +471,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         let generatedRunId = "";
         setButtonBusy(button, true, "Membuat & membersihkan…");
         status($("manual-post-status"), "Membuat satu gambar, membersihkan metadata, dan menyiapkan caption untuk pratinjau…");
+        showManualLoading();
         try {
             if (state.manualPreview) await discardManualPreview(false);
             const result = await api("manual-generate", {
@@ -399,11 +483,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 }
             });
             generatedRunId = result.preview.run_id;
+            setManualLoadingStage("clean");
             const binary = atob(result.preview.image_base64);
             const bytes = new Uint8Array(binary.length);
             for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
             const generatedBlob = new Blob([bytes], { type: result.preview.image_mime_type });
             const cleaned = await cleanImage(generatedBlob);
+            setManualLoadingStage("ready");
             const objectUrl = URL.createObjectURL(cleaned.blob);
             const previousUrl = state.objectUrls.get("manual-preview");
             if (previousUrl) URL.revokeObjectURL(previousUrl);
@@ -425,7 +511,9 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 `Gambar ${result.preview.aspect_ratio} selesai dibuat dan dibersihkan. Periksa pratinjau serta caption sebelum menerbitkan.`,
                 "good"
             );
+            hideManualLoading(true);
         } catch (error) {
+            hideManualLoading(false);
             let cleanupMessage = "";
             if (generatedRunId) {
                 try {

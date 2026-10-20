@@ -126,3 +126,28 @@ test("dropdown model QwenCloud dan panel kuota tier tersedia di SET Studio Medso
     assert.match(migration, /add column if not exists image_model/, "Migration harus menambah kolom image_model");
     assert.match(migration, /create table if not exists public\.social_publisher_model_quotas/, "Migration harus membuat ledger kuota model");
 });
+
+test("loading premium tampil saat tombol Buat & bersihkan pratinjau diklik", () => {
+    assert.match(htmlSource, /id="manual-loading-overlay" class="genz-loader" hidden/, "Overlay loading premium harus ada di halaman Social Publisher");
+    assert.match(htmlSource, /id="manual-loading-stages"/, "Overlay harus memuat daftar tahap proses");
+    for (const stage of ["connect", "render", "clean", "ready"]) {
+        assert.match(htmlSource, new RegExp(`data-stage="${stage}"`), `Tahap ${stage} harus ada di daftar tahap overlay`);
+    }
+    assert.match(htmlSource, /id="manual-loading-timer"/, "Overlay harus menampilkan penghitung waktu berjalan");
+    assert.match(htmlSource, /\.genz-loader-card\{/, "Gaya kartu overlay loading premium harus tersedia");
+    assert.match(htmlSource, /prefers-reduced-motion/, "Overlay harus menghormati prefers-reduced-motion");
+    assert.match(source, /function showManualLoading\(/, "Controller showManualLoading harus ada di admin JS");
+    assert.match(source, /function setManualLoadingStage\(/, "Controller setManualLoadingStage harus ada di admin JS");
+    assert.match(source, /function hideManualLoading\(/, "Controller hideManualLoading harus ada di admin JS");
+
+    const submitBody = source.slice(
+        source.indexOf("async function submitManualPost"),
+        source.indexOf("async function publishManualPreview")
+    );
+    assert.ok(submitBody.length > 0, "submitManualPost harus ditemukan sebelum publishManualPreview");
+    assert.match(submitBody, /showManualLoading\(\);/, "submitManualPost harus membuka overlay loading");
+    assert.match(submitBody, /setManualLoadingStage\("clean"\)/, "Overlay harus pindah ke tahap clean setelah API generasi selesai");
+    assert.match(submitBody, /setManualLoadingStage\("ready"\)/, "Overlay harus pindah ke tahap ready setelah cleanImage selesai");
+    assert.match(submitBody, /hideManualLoading\(true\)/, "Overlay harus ditutup dengan keadaan sukses saat pratinjau berhasil");
+    assert.match(submitBody, /hideManualLoading\(false\)/, "Overlay harus ditutup saat pratinjau gagal");
+});

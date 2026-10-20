@@ -27,7 +27,43 @@
         .studio-gate-value.running,
         .studio-gate-countdown.running{color:#39ff71;text-shadow:0 0 12px rgba(57,255,113,.32);font-weight:800}
         .manual-preview{width:100%;max-width:300px;max-height:540px;aspect-ratio:9/16;object-fit:contain;border:1px solid var(--border);border-radius:12px;background:#0b1421}.manual-post-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}.manual-preview-caption{margin-top:8px;color:var(--muted);font-size:12px;line-height:1.55;white-space:pre-wrap}
-        @media(max-width:768px){.manual-post-layout{grid-template-columns:1fr}.manual-preview{max-width:180px}}
+        .genz-loader{position:fixed;inset:0 0 0 var(--genz-sidebar-width,248px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10000;background:radial-gradient(circle at 18% 8%,rgba(124,108,255,.24),transparent 46%),radial-gradient(circle at 84% 88%,rgba(70,217,232,.16),transparent 42%),rgba(5,9,16,.8);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:genzLoaderFade .3s ease}
+        .genz-loader[hidden]{display:none}
+        .genz-loader-card{position:relative;width:min(92vw,440px);padding:34px 30px 24px;border-radius:24px;text-align:center;background:linear-gradient(165deg,rgba(23,33,52,.97),rgba(11,18,29,.97));border:1px solid rgba(141,125,255,.45);box-shadow:0 30px 90px rgba(0,0,0,.55),0 0 60px rgba(124,108,255,.14),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}
+        .genz-loader-card::before{content:"";position:absolute;inset:-45%;background:conic-gradient(from 0deg,transparent 0 68%,rgba(124,108,255,.18) 82%,rgba(70,217,232,.18) 93%,transparent 100%);animation:genzLoaderSweep 7s linear infinite;pointer-events:none}
+        .genz-loader-card>*{position:relative}
+        .genz-loader-orb{width:96px;height:96px;margin:0 auto 16px;position:relative;display:grid;place-items:center}
+        .genz-loader-ring{position:absolute;inset:0;border-radius:50%;border:3px solid transparent;border-top-color:#8d7dff;border-right-color:#55d9f2;animation:genzLoaderSpin 1.5s cubic-bezier(.55,.15,.45,.85) infinite;filter:drop-shadow(0 0 8px rgba(124,108,255,.5))}
+        .genz-loader-ring.thin{inset:13px;border-width:2px;border-top-color:#46d9e8;border-right-color:transparent;border-bottom-color:#8d7dff;filter:none;opacity:.85;animation-duration:2.4s;animation-direction:reverse}
+        .genz-loader-core{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#7864ff,#2acada);font-weight:900;font-size:19px;color:#fff;box-shadow:0 10px 26px rgba(101,84,180,.5);animation:genzLoaderPulse 2.2s ease-in-out infinite}
+        .genz-loader-eyebrow{margin:0 0 9px;font-size:10px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#b6adff}
+        .genz-loader-title{margin:0 0 8px;font-size:21px;line-height:1.2;letter-spacing:-.02em;color:#f2f6ff;transition:color .3s}
+        .genz-loader-subtitle{margin:0 auto;max-width:340px;color:#a9b6ca;font-size:12.5px;line-height:1.6;min-height:40px}
+        .genz-loader-track{margin:16px 0 4px;height:6px;border-radius:999px;background:#101c2c;border:1px solid #22314a;overflow:hidden}
+        .genz-loader-bar{height:100%;width:40%;border-radius:999px;background:linear-gradient(90deg,#7c6cff,#46d9e8,#7c6cff);background-size:200% 100%;animation:genzLoaderSlide 1.7s ease-in-out infinite,genzLoaderShimmer 2.6s linear infinite;transition:width .4s ease,background .4s ease}
+        .genz-loader-stages{list-style:none;margin:14px auto 0;padding:0;max-width:290px;display:grid;gap:9px;text-align:left}
+        .genz-loader-stages li{display:flex;align-items:center;gap:10px;font-size:12px;color:#5f6f88;transition:color .35s}
+        .stage-dot{width:9px;height:9px;border-radius:50%;background:#263449;border:1px solid #33445e;flex:0 0 auto;transition:background .35s,border-color .35s,box-shadow .35s}
+        .genz-loader-stages li.active{color:#eef3ff;font-weight:700}
+        .genz-loader-stages li.active .stage-dot{background:#8d7dff;border-color:#a99cff;box-shadow:0 0 10px rgba(141,125,255,.85);animation:genzLoaderPulse 1.4s ease-in-out infinite}
+        .genz-loader-stages li.done{color:#82ebc1}
+        .genz-loader-stages li.done .stage-dot{background:#35d39a;border-color:#35d39a;box-shadow:none;animation:none}
+        .genz-loader-timer{margin:14px 0 0;font-size:11px;font-weight:700;color:#93a2ba;font-variant-numeric:tabular-nums}
+        .genz-loader-note{margin:9px 0 0;font-size:10.5px;line-height:1.55;color:#66758c}
+        .genz-loader-card.done{border-color:rgba(53,211,154,.55)}
+        .genz-loader-card.done::before{animation:none;opacity:0}
+        .genz-loader-card.done .genz-loader-ring{animation:none;border-color:transparent;filter:none;opacity:0}
+        .genz-loader-card.done .genz-loader-core{background:linear-gradient(135deg,#2bb98a,#43dda9);animation:none;box-shadow:0 10px 26px rgba(53,211,154,.4)}
+        .genz-loader-card.done .genz-loader-title{color:#a7f5d6}
+        .genz-loader-card.done .genz-loader-bar{width:100%;background:#35d39a;animation:none}
+        @keyframes genzLoaderFade{from{opacity:0}to{opacity:1}}
+        @keyframes genzLoaderSpin{to{transform:rotate(360deg)}}
+        @keyframes genzLoaderPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+        @keyframes genzLoaderSlide{0%{transform:translateX(-115%)}55%{transform:translateX(165%)}100%{transform:translateX(-115%)}}
+        @keyframes genzLoaderShimmer{to{background-position:-200% 0}}
+        @keyframes genzLoaderSweep{to{transform:rotate(360deg)}}
+        @media(prefers-reduced-motion:reduce){.genz-loader,.genz-loader *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+        @media(max-width:768px){.manual-post-layout{grid-template-columns:1fr}.manual-preview{max-width:180px}.genz-loader{left:0}}
     </style>
 </head>
 <body>
@@ -51,6 +87,27 @@
             <div class="studio-gate-actions">
                 <button id="studio-gate-ok" class="btn primary" type="button">OK</button>
             </div>
+        </div>
+    </div>
+    <div id="manual-loading-overlay" class="genz-loader" hidden>
+        <div id="manual-loading-card" class="genz-loader-card" role="status" aria-live="polite" aria-label="Proses pembuatan dan pembersihan pratinjau">
+            <div class="genz-loader-orb" aria-hidden="true">
+                <span class="genz-loader-ring"></span>
+                <span class="genz-loader-ring thin"></span>
+                <span id="manual-loading-core" class="genz-loader-core">G</span>
+            </div>
+            <p class="genz-loader-eyebrow">STUDIO PRATINJAU PREMIUM</p>
+            <h2 id="manual-loading-title" class="genz-loader-title">Menyiapkan studio AI…</h2>
+            <p id="manual-loading-subtitle" class="genz-loader-subtitle">Menghubungi provider gambar dan caption yang Anda pilih.</p>
+            <div class="genz-loader-track" aria-hidden="true"><div id="manual-loading-bar" class="genz-loader-bar"></div></div>
+            <ul id="manual-loading-stages" class="genz-loader-stages">
+                <li data-stage="connect"><span class="stage-dot" aria-hidden="true"></span>Menghubungi studio AI</li>
+                <li data-stage="render"><span class="stage-dot" aria-hidden="true"></span>Merender gambar karakter</li>
+                <li data-stage="clean"><span class="stage-dot" aria-hidden="true"></span>Membersihkan metadata &amp; EXIF</li>
+                <li data-stage="ready"><span class="stage-dot" aria-hidden="true"></span>Menyiapkan pratinjau &amp; caption</li>
+            </ul>
+            <p id="manual-loading-timer" class="genz-loader-timer">0 detik berjalan</p>
+            <p class="genz-loader-note">Model async QwenCloud (wan/z-image/vidu) dapat memakan waktu hingga ±2 menit. Jangan tutup atau muat ulang halaman ini.</p>
         </div>
     </div>
     <main class="wrap">
