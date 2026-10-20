@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
     getModelQuotas,
     isQuotaErrorMessage,
+    defaultQuotaLimitFor,
     normalizeQwenCloudImageModel,
     QWENCLOUD_IMAGE_MODELS,
     quotaPercentAvailable,
@@ -25,10 +26,15 @@ function captureFetch(handler) {
 }
 
 test("normalizeQwenCloudImageModel falls back to the default model", () => {
-    assert.equal(normalizeQwenCloudImageModel("qwen-image-edit-max"), "qwen-image-edit-max");
+    assert.equal(normalizeQwenCloudImageModel("qwen-image-2.1-pro"), "qwen-image-2.1-pro");
+    assert.equal(normalizeQwenCloudImageModel("vidu/vidu-image_reference2image"), "vidu/vidu-image_reference2image");
     assert.equal(normalizeQwenCloudImageModel("tidak-ada"), "qwen-image-3.0-pro");
     assert.equal(normalizeQwenCloudImageModel(""), "qwen-image-3.0-pro");
-    assert.ok(QWENCLOUD_IMAGE_MODELS.length >= 3);
+    assert.equal(QWENCLOUD_IMAGE_MODELS.length, 16, "Katalog generator gambar QwenCloud harus memuat enam belas model");
+    assert.equal(defaultQuotaLimitFor("qwen-image-3.0-pro"), 10);
+    assert.equal(defaultQuotaLimitFor("wan2.7-image-pro"), 50);
+    assert.equal(defaultQuotaLimitFor("z-image-turbo"), 100);
+    assert.equal(defaultQuotaLimitFor("qwen-image-3.0"), 0);
 });
 
 test("isQuotaErrorMessage recognizes QwenCloud quota failures", () => {
@@ -60,22 +66,22 @@ test("recordModelUsage creates then increments the ledger and flags quota errors
         return Response.json(row ? [row] : []);
     });
     try {
-        await recordModelUsage(config, "qwen-image-3.0-pro");
-        assert.match(calls[0].url, /social_publisher_model_quotas\?select=model,requests_used,exhausted&model=eq.qwen-image-3\.0-pro/);
+        await recordModelUsage(config, "qwen-image-3.0");
+        assert.match(calls[0].url, /social_publisher_model_quotas\?select=model,requests_used,exhausted&model=eq.qwen-image-3\.0/);
         assert.equal(calls[1].options.method, "POST");
         assert.equal(row.requests_used, 1);
         assert.equal(row.exhausted, false);
 
-        await recordModelUsage(config, "qwen-image-3.0-pro");
+        await recordModelUsage(config, "qwen-image-3.0");
         assert.equal(calls[3].options.method, "PATCH");
         assert.equal(row.requests_used, 2);
 
-        await recordModelUsage(config, "qwen-image-3.0-pro", { quotaError: true, message: "AllocationQuota.FreeTierOnly" });
+        await recordModelUsage(config, "qwen-image-3.0", { quotaError: true, message: "AllocationQuota.FreeTierOnly" });
         assert.equal(row.exhausted, true);
         assert.equal(row.requests_used, 2);
         assert.match(row.last_status, /FreeTierOnly/);
 
-        await recordModelUsage(config, "qwen-image-3.0-pro");
+        await recordModelUsage(config, "qwen-image-3.0");
         assert.equal(row.exhausted, false);
         assert.equal(row.requests_used, 3);
     } finally {
@@ -84,13 +90,13 @@ test("recordModelUsage creates then increments the ledger and flags quota errors
 });
 
 test("setModelQuotaLimit validates and upserts the tier limit", async () => {
-    const { calls, restore } = captureFetch(() => Response.json([{ model: "qwen-image-edit-max" }]));
+    const { calls, restore } = captureFetch(() => Response.json([{ model: "qwen-image-2.1-pro" }]));
     try {
         await assert.rejects(
-            setModelQuotaLimit(config, "qwen-image-edit-max", -5),
+            setModelQuotaLimit(config, "qwen-image-2.1-pro", -5),
             /Batas tier harus berupa bilangan bulat/
         );
-        await setModelQuotaLimit(config, "qwen-image-edit-max", 500);
+        await setModelQuotaLimit(config, "qwen-image-2.1-pro", 500);
         const upsert = calls.find(call => call.options.method === "POST");
         assert.match(upsert.url, /on_conflict=model/);
         assert.match(upsert.options.headers.Prefer, /merge-duplicates/);
@@ -115,12 +121,31 @@ test("resetModelQuota patches counters back to zero", async () => {
 
 test("getModelQuotas returns a map keyed by model", async () => {
     const { restore } = captureFetch(() => Response.json([
-        { model: "qwen-image-3.0-pro", requests_used: 4, quota_limit: 10, exhausted: false, last_status: "ok" }
+        { model: "qwen-image-2.0-pro", requests_used: 4, quota_limit: 10, exhausted: false, last_status: "ok" }
     ]));
     try {
         const quotas = await getModelQuotas(config);
-        assert.equal(quotas.get("qwen-image-3.0-pro").requests_used, 4);
-        assert.equal(quotaPercentAvailable(quotas.get("qwen-image-3.0-pro")), 60);
+        assert.equal(quotas.get("qwen-image-2.0-pro").requests_used, 4);
+        assert.equal(quotaPercentAvailable(quotas.get("qwen-image-2.0-pro")), 60);
+    } finally {
+        restore();
+    }
+});
+
+test("recordModelUsage seeds the tier limit from the model free quota", async () => {
+    let created = null;
+    const { restore } = captureFetch((url, options) => {
+        if (options.method === "POST") {
+            created = JSON.parse(options.body);
+            return Response.json([]);
+        }
+        return Response.json([]);
+    });
+    try {
+        await recordModelUsage(config, "wan2.7-image-pro");
+        assert.equal(created.model, "wan2.7-image-pro");
+        assert.equal(created.quota_limit, 50);
+        assert.equal(created.requests_used, 1);
     } finally {
         restore();
     }

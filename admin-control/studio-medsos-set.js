@@ -375,7 +375,9 @@
         const window = document.createElement("span");
         window.textContent = entry.window_started_at ? `Penghitung sejak ${new Date(entry.window_started_at).toLocaleString("id-ID")}` : "Penghitung belum dimulai";
         const model = document.createElement("span");
-        model.textContent = entry.note || "";
+        model.textContent = entry.quota_source === "free-quota"
+            ? "Batas default dari free quota QwenCloud; tersimpan saat pemakaian pertama atau saat batas disimpan"
+            : entry.note || "";
         note.append(window, model);
         panel.append(head, bar, detail, note);
         if (document.activeElement !== limitInput) limitInput.value = entry.quota_limit > 0 ? String(entry.quota_limit) : "";
