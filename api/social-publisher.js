@@ -632,17 +632,20 @@ async function saveSocialImageProvider(config, adminId, body, env) {
 function quotaSummaryRows(quotasByModel) {
     return QWENCLOUD_IMAGE_MODELS.map(model => {
         const row = quotasByModel.get(model.id) || null;
+        const quotaLimit = row ? Number(row.quota_limit) || 0 : Number(model.defaultQuota) || 0;
+        const view = { ...(row || {}), quota_limit: quotaLimit, exhausted: row?.exhausted === true };
         return {
             model: model.id,
             label: model.label,
             note: model.note,
             requests_used: Number(row?.requests_used) || 0,
-            quota_limit: Number(row?.quota_limit) || 0,
+            quota_limit: quotaLimit,
             exhausted: row?.exhausted === true,
             last_status: String(row?.last_status || ""),
             window_started_at: row?.window_started_at || null,
             updated_at: row?.updated_at || null,
-            percent_available: quotaPercentAvailable(row)
+            percent_available: quotaLimit > 0 || row ? quotaPercentAvailable(view) : null,
+            quota_source: row ? "saved" : quotaLimit > 0 ? "free-quota" : "unset"
         };
     });
 }

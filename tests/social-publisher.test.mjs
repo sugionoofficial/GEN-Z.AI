@@ -432,7 +432,7 @@ test("reference storage rejects public buckets and unsafe object paths", async (
     }
 });
 
-test("QwenCloud sends reference and garment data URLs to qwen-image-3.0-pro", async () => {
+test("QwenCloud sends reference and garment data URLs to the default qwen-image-3.0-pro", async () => {
     const outputBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
     const referenceBytes = new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]);
     const garmentBytes = new Uint8Array([137, 80, 78, 71, 5, 6, 7, 8]);
@@ -557,10 +557,10 @@ test("QwenCloud honors the configured image model from the dropdown", async () =
             referenceBytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]),
             referenceMimeType: "image/png",
             imageProvider: "qwencloud",
-            imageModel: "qwen-image-edit-max"
+            imageModel: "wan2.7-image-pro"
         });
-        assert.equal(body.model, "qwen-image-edit-max");
-        assert.equal(result.model, "qwen-image-edit-max");
+        assert.equal(body.model, "wan2.7-image-pro");
+        assert.equal(result.model, "wan2.7-image-pro");
     } finally {
         globalThis.fetch = originalFetch;
     }
