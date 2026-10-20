@@ -101,7 +101,7 @@ async function verifyAdmin(req, env) {
     const config = getSupabaseConfig(env);
     const token = getBearerToken(req);
     if (!token) {
-        const error = new Error("Silakan login dengan akun admin.");
+        const error = new Error("Silakan login dengan akun aktif.");
         error.status = 401;
         throw error;
     }
@@ -126,18 +126,138 @@ async function verifyAdmin(req, env) {
         tablePath("profiles", `select=id,role,status&id=eq.${encodeURIComponent(authUser.id)}&limit=1`)
     );
     const profile = profiles?.[0];
-    if (!profile || !["ADMIN", "OWNER"].includes(String(profile.role || "").trim().toUpperCase())) {
-        const error = new Error("Fitur ini hanya dapat diakses admin atau owner.");
+    if (!profile) {
+        const error = new Error("Akun tidak terdaftar di profil pengguna.");
         error.status = 403;
         throw error;
     }
     if (String(profile.status || "").trim().toLowerCase() !== "active") {
-        const error = new Error("Akun admin tidak aktif.");
+        const error = new Error("Akun tidak aktif.");
         error.status = 403;
         throw error;
     }
 
-    return { config, userId: authUser.id };
+    return { config, userId: authUser.id, profile };
+}
+
+function requireStudioAdmin(profile) {
+    if (!["ADMIN", "OWNER"].includes(String(profile?.role || "").trim().toUpperCase())) {
+        const error = new Error("Akses hanya tersedia untuk admin.");
+        error.status = 403;
+        throw error;
+    }
+}
+
+async function getStudioAccessStatus(config, userId) {
+    try {
+        const rows = await supabaseRequest(
+            config,
+            tablePath("studio_medsos_access", `select=user_id,is_active,duration_days,started_at,expires_at&user_id=eq.${encodeURIComponent(userId)}&limit=1`)
+        );
+        const access = rows?.[0] || null;
+        const startsAt = access?.started_at ? Date.parse(access.started_at) : 0;
+        const expiresAt = access?.expires_at ? Date.parse(access.expires_at) : 0;
+        const now = Date.now();
+        const active = Boolean(access?.is_active) &&
+            Number.isFinite(startsAt) && startsAt <= now &&
+            Number.isFinite(expiresAt) && expiresAt > now;
+
+        return {
+            active,
+            is_active: Boolean(access?.is_active),
+            duration_days: Number(access?.duration_days ?? 0),
+            started_at: access?.started_at || null,
+            expires_at: access?.expires_at || null,
+            expired: Boolean(access) && (!Number.isFinite(expiresAt) || expiresAt <= now),
+            pending: Boolean(access?.is_active) && Number.isFinite(startsAt) && startsAt > now
+        };
+    } catch (error) {
+        if (error?.status === 404 || error?.code === "PGRST205" || /studio_medsos_access|does not exist|relation .*studio_medsos_access/i.test(String(error?.message || ""))) {
+            return { active: false, is_active: false, duration_days: 0, started_at: null, expires_at: null, expired: true };
+        }
+        throw error;
+    }
+}
+
+async function ensureStudioAccess(config, userId) {
+    const access = await getStudioAccessStatus(config, userId);
+    if (!access.active) {
+        const error = new Error("Akun Anda tidak aktif sebagai langganan Studio Medsos.");
+        error.status = 403;
+        error.details = access;
+        throw error;
+    }
+    return access;
+}
+
+async function listStudioUsers(config) {
+    const [profiles, accessRows] = await Promise.all([
+        supabaseRequest(
+            config,
+            tablePath("profiles", "select=id,email,name,role,status&order=email.asc&limit=1000")
+        ),
+        supabaseRequest(
+            config,
+            tablePath("studio_medsos_access", "select=user_id,is_active,duration_days,started_at,expires_at")
+        )
+    ]);
+    const accessByUser = new Map((accessRows || []).map(access => [access.user_id, access]));
+    return (profiles || []).map(profile => ({
+        ...profile,
+        studio_access: accessByUser.get(profile.id) || null
+    }));
+}
+
+async function saveStudioAccess(config, adminId, body = {}) {
+    const userId = String(body.user_id || "").trim();
+    const durationDays = Number(body.duration_days);
+    const startedAt = Date.parse(body.started_at);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+        const error = new Error("ID user tidak valid.");
+        error.status = 400;
+        throw error;
+    }
+    if (typeof body.is_active !== "boolean") {
+        const error = new Error("Status langganan harus berupa boolean.");
+        error.status = 400;
+        throw error;
+    }
+    if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 365) {
+        const error = new Error("Durasi langganan harus antara 1 dan 365 hari.");
+        error.status = 400;
+        throw error;
+    }
+    if (!Number.isFinite(startedAt)) {
+        const error = new Error("Tanggal mulai langganan tidak valid.");
+        error.status = 400;
+        throw error;
+    }
+
+    const startedAtIso = new Date(startedAt).toISOString();
+    const expiresAt = new Date(startedAt + durationDays * 24 * 60 * 60 * 1000).toISOString();
+    const rows = await supabaseRequest(
+        config,
+        tablePath("studio_medsos_access", "on_conflict=user_id&select=user_id,is_active,duration_days,started_at,expires_at"),
+        {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify({
+                user_id: userId,
+                is_active: body.is_active,
+                duration_days: durationDays,
+                started_at: startedAtIso,
+                expires_at: expiresAt,
+                updated_at: new Date().toISOString(),
+                updated_by: adminId
+            })
+        }
+    );
+    if (!rows?.length) {
+        const error = new Error("Pengaturan langganan tidak berhasil disimpan.");
+        error.status = 500;
+        throw error;
+    }
+    return rows[0];
 }
 
 function migrationError(error) {
@@ -531,9 +651,16 @@ async function setGlobalEnabled(config, userId, env, enabled) {
 }
 
 async function handlePost(req, res, config, userId, env, action) {
+    if (action !== "studio-access-status" && action !== "studio-admin-save") {
+        await ensureStudioAccess(config, userId);
+    }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
     const body = req.body && typeof req.body === "object" ? req.body : {};
 
+    if (action === "studio-admin-save") {
+        const access = await saveStudioAccess(config, userId, body);
+        return json(res, 200, { success: true, access });
+    }
     if (action === "set-global-enabled") {
         if (typeof body.enabled !== "boolean") return json(res, 400, { success: false, error: "Nilai enabled harus boolean." });
         const settings = await setGlobalEnabled(config, userId, env, body.enabled);
@@ -568,6 +695,16 @@ async function handlePost(req, res, config, userId, env, action) {
 }
 
 async function handleGet(req, res, config, userId, env, action) {
+    if (action === "studio-access-status") {
+        const access = await getStudioAccessStatus(config, userId);
+        return json(res, 200, { success: true, access });
+    }
+    if (action === "studio-admin-users") {
+        return json(res, 200, { success: true, users: await listStudioUsers(config) });
+    }
+    if (action !== "oauth-start") {
+        await ensureStudioAccess(config, userId);
+    }
     if (action === "dashboard") {
         return json(res, 200, await getDashboard(config, userId, env));
     }
@@ -627,7 +764,10 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { config, userId } = await verifyAdmin(req, env);
+        const { config, userId, profile } = await verifyAdmin(req, env);
+        if (action.startsWith("studio-admin-")) {
+            requireStudioAdmin(profile);
+        }
         if (req.method === "GET") return await handleGet(req, res, config, userId, env, action);
         return await handlePost(req, res, config, userId, env, action);
     } catch (rawError) {

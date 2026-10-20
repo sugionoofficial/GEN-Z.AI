@@ -639,8 +639,139 @@
     $("cancel-edit").addEventListener("click", resetScheduleForm);
     window.addEventListener("beforeunload", clearObjectUrls);
 
+    function clampDuration(value) {
+        const days = Number(value) || 1;
+        if (!Number.isFinite(days)) return 1;
+        return Math.min(365, Math.max(1, Math.round(days)));
+    }
+
+    function parseStudioAccess(record) {
+        const startedAt = record?.started_at ? new Date(record.started_at).getTime() : Date.now();
+        const durationDays = clampDuration(record?.duration_days ?? 30);
+        const expiryAt = record?.expires_at ? new Date(record.expires_at).getTime() : startedAt + durationDays * 24 * 60 * 60 * 1000;
+
+        return {
+            active: Boolean(record?.is_active),
+            durationDays,
+            startedAt,
+            expiresAt,
+            userId: record?.user_id || null
+        };
+    }
+
+    async function getStudioSubscriptionState() {
+        try {
+            const supabase = client();
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError || !user) {
+                return {
+                    active: false,
+                    durationDays: 30,
+                    startedAt: Date.now(),
+                    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+                };
+            }
+
+            const { data, error } = await supabase
+                .from("studio_medsos_access")
+                .select("user_id, is_active, duration_days, started_at, expires_at")
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+            if (error && error.code !== "PGRST116") {
+                throw error;
+            }
+
+            return parseStudioAccess(data);
+        } catch (error) {
+            console.warn("Studio Medsos access lookup failed:", error);
+            return {
+                active: false,
+                durationDays: 30,
+                startedAt: Date.now(),
+                expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+            };
+        }
+    }
+
+    async function updateStudioGate() {
+        const gate = document.getElementById("studio-access-gate");
+        const badge = document.getElementById("studio-gate-badge");
+        const title = document.getElementById("studio-gate-title");
+        const message = document.getElementById("studio-gate-message");
+        const value = document.getElementById("studio-gate-value");
+        const countdown = document.getElementById("studio-gate-countdown");
+        const okButton = document.getElementById("studio-gate-ok");
+        const mainWrap = document.querySelector("main.wrap");
+
+        if (!gate || !badge || !title || !message || !value || !countdown || !okButton || !mainWrap) return;
+
+        const state = await getStudioSubscriptionState();
+        const expiryAt = Number(state.expiresAt || state.startedAt + state.durationDays * 24 * 60 * 60 * 1000);
+        const active = Boolean(state.active) &&
+            Number.isFinite(state.startedAt) && state.startedAt <= Date.now() &&
+            Number.isFinite(expiryAt) && Date.now() < expiryAt;
+
+        if (!active) {
+            gate.hidden = false;
+            badge.textContent = "TIDAK AKTIF";
+            badge.className = "studio-gate-badge inactive";
+            title.textContent = state.active && state.startedAt > Date.now()
+                ? "Langganan Studio Medsos belum dimulai"
+                : "Status akun Anda tidak aktif sebagai langganan";
+            message.textContent = state.active && state.startedAt > Date.now()
+                ? "Akses Studio Medsos akan tersedia setelah waktu mulai langganan."
+                : "Anda belum memiliki langganan aktif untuk membuka Studio Medsos. Aktivasi langganan diperlukan untuk mengakses fitur ini.";
+            value.textContent = "Akses dibatasi";
+            countdown.textContent = state.active && state.startedAt > Date.now()
+                ? `Mulai pada: ${new Date(state.startedAt).toLocaleString("id-ID")}`
+                : "Silakan hubungi admin untuk aktivasi paket.";
+            okButton.disabled = true;
+            mainWrap.classList.add("studio-locked");
+            return;
+        }
+
+        const remainingMs = Math.max(0, expiryAt - Date.now());
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        badge.textContent = "AKTIF";
+        badge.className = "studio-gate-badge active";
+        title.textContent = "Status akun aktif sebagai langganan";
+        message.textContent = "Masa aktif langganan Anda masih berjalan. Halaman akan terbuka setelah Anda menutup pengingat ini.";
+        value.textContent = `${state.durationDays} hari`;
+        countdown.textContent = `${days} hari ${String(hours).padStart(2, "0")} jam ${String(minutes).padStart(2, "0")} menit ${String(seconds).padStart(2, "0")} detik`;
+        okButton.disabled = false;
+        gate.hidden = false;
+        mainWrap.classList.add("studio-locked");
+    }
+
+    function attachStudioGateEvents() {
+        const gate = document.getElementById("studio-access-gate");
+        const okButton = document.getElementById("studio-gate-ok");
+        if (!gate || !okButton) return;
+
+        okButton.addEventListener("click", () => {
+            gate.hidden = true;
+            const mainWrap = document.querySelector("main.wrap");
+            if (mainWrap) mainWrap.classList.remove("studio-locked");
+        });
+
+        const tick = () => {
+            updateStudioGate().catch((error) => {
+                console.warn("Studio gate refresh failed:", error);
+            });
+        };
+        tick();
+        setInterval(tick, 1000);
+    }
     showOAuthResult();
     setDefaultStartTime();
     updateCostEstimate();
+    updateStudioGate();
+    attachStudioGateEvents();
     loadDashboard();
 })();
