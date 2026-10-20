@@ -80,3 +80,24 @@ test("endpoint garment tersedia di API social publisher", () => {
         "api/social-publisher.js harus melayani action GET garment untuk preview pakaian"
     );
 });
+
+test("QwenCloud tersedia sebagai opsi provider gambar", () => {
+    const setHtml = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.html", import.meta.url)),
+        "utf8"
+    );
+    const setJs = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.js", import.meta.url)),
+        "utf8"
+    );
+    const cronSource = readFileSync(
+        fileURLToPath(new URL("../functions/_shared/social-publisher-cron.js", import.meta.url)),
+        "utf8"
+    );
+    assert.match(setHtml, /name="image-provider" value="qwencloud"/, "Admin SET Studio Medsos harus punya radio QwenCloud");
+    assert.match(apiSource, /\["gemini", "cloudflare", "qwencloud"\]/, "Validasi provider harus menerima qwencloud");
+    assert.match(apiSource, /QWENCLOUD_API_KEY/, "API harus memeriksa secret QWENCLOUD_API_KEY");
+    assert.match(setJs, /qwencloud_configured/, "Status kesiapan QwenCloud harus ditampilkan di admin");
+    assert.match(source, /QwenCloud \(Qwen Image\)/, "Studio Medsos harus melabeli provider QwenCloud");
+    assert.match(cronSource, /"qwencloud"/, "Cron autopost harus mendukung provider qwencloud");
+});

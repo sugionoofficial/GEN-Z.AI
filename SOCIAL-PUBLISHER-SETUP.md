@@ -25,9 +25,19 @@ Create an API key for the Gemini Developer API and add it as a Worker secret:
 npx wrangler@4 secret put GEMINI_API_KEY
 ```
 
-Atur secret ini jika memilih Google Gemini. Provider Cloudflare Workers AI tidak memerlukan `GEMINI_API_KEY`.
+Atur secret ini jika memilih Google Gemini. Provider Cloudflare Workers AI dan QwenCloud tidak memerlukan `GEMINI_API_KEY`.
 
-Admins can choose Gemini or Cloudflare Workers AI for both image generation and contextual captions in **Admin Panel → SET Studio Medsos**. Gemini uses `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite) for images and `gemini-3.8-flash` through the Interactions API for captions; this requires `GEMINI_API_KEY`. Cloudflare uses the `AI` binding, `pruna/p-image-try-on` with `person_image` and `garment_images` for virtual try-on, and `@cf/meta/llama-3.2-11b-vision-instruct` to caption the result. Upload a garment image for each character in **Social Publisher → Karakter tersimpan**; the short-lived signed URLs for the private Supabase photos are sent to Workers AI/Pruna for processing. The Llama model requires acceptance of Meta's license and acceptable use policy by making the documented initial `"agree"` request once per account. Check partner-model availability, terms, pricing, and quotas for your Cloudflare account. The binding is configured in `wrangler.toml`; apply the updated `supabase/social-auto-publisher.sql` migration to add the garment reference fields.
+### 2b. Configure QwenCloud image generation (optional)
+
+Create an API key on the QwenCloud platform and add it as a Worker secret:
+
+```sh
+npx wrangler@4 secret put QWENCLOUD_API_KEY
+```
+
+QwenCloud uses `qwen-image-3.0-pro` (edited image via the DashScope-compatible multimodal generation endpoint at `https://maas.qwencloudapi.com/api/v1`, overridable with `QWENCLOUD_BASE_URL`) for images and `qwen3-vl-plus` for contextual captions. The character reference photo is sent as a Base64 data URL; when the character has a garment photo it is included as a second input image so the outfit is followed, but unlike the Cloudflare provider the garment stays optional. Output size follows the chosen aspect ratio (`1152*2048` for 9:16, `2048*1152` for 16:9). Check QwenCloud model availability, pricing, and quotas for your account before use.
+
+Admins can choose Gemini, Cloudflare Workers AI, or QwenCloud for both image generation and contextual captions in **Admin Panel → SET Studio Medsos**. Gemini uses `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite) for images and `gemini-3.8-flash` through the Interactions API for captions; this requires `GEMINI_API_KEY`. Cloudflare uses the `AI` binding, `pruna/p-image-try-on` with `person_image` and `garment_images` for virtual try-on, and `@cf/meta/llama-3.2-11b-vision-instruct` to caption the result. Upload a garment image for each character in **Social Publisher → Karakter tersimpan**; the short-lived signed URLs for the private Supabase photos are sent to Workers AI/Pruna for processing. The Llama model requires acceptance of Meta's license and acceptable use policy by making the documented initial `"agree"` request once per account. Check partner-model availability, terms, pricing, and quotas for your Cloudflare account. The binding is configured in `wrangler.toml`; apply the updated `supabase/social-auto-publisher.sql` migration to add the garment reference fields.
 
 Workers AI free allocations, partner model access, and prices vary by account and may change. Check [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/) and [Llama 3.2 Vision pricing and requirements](https://developers.cloudflare.com/workers-ai/models/llama-3.2-11b-vision-instruct/) before use. Gemini access and quotas depend on the configured Google API key; see [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing). A provider reporting a zero quota is unavailable to that account's current tier; retries will not resolve that restriction.
 

@@ -431,3 +431,107 @@ test("reference storage rejects public buckets and unsafe object paths", async (
         globalThis.fetch = originalFetch;
     }
 });
+
+test("QwenCloud sends reference and garment data URLs to qwen-image-3.0-pro", async () => {
+    const outputBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+    const referenceBytes = new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]);
+    const garmentBytes = new Uint8Array([137, 80, 78, 71, 5, 6, 7, 8]);
+    const calls = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        calls.push({ url, options });
+        if (url.endsWith("/services/aigc/multimodal-generation/generation")) {
+            return Response.json({
+                output: {
+                    choices: [{ message: { content: [{ image: "https://result.example/out.png" }] } }]
+                }
+            });
+        }
+        if (url === "https://result.example/out.png") return new Response(outputBytes);
+        throw new Error(`Unexpected fetch: ${url}`);
+    };
+    try {
+        const result = await generateSocialImage({
+            env: { QWENCLOUD_API_KEY: "sk-qwencloud-test" },
+            prompt: "Keep the same character in a city cafe.",
+            referenceBytes,
+            referenceMimeType: "image/png",
+            garmentBytes,
+            garmentMimeType: "image/png",
+            aspectRatio: "9:16",
+            imageProvider: "qwencloud"
+        });
+        const body = JSON.parse(calls[0].options.body);
+        assert.equal(calls[0].url, "https://maas.qwencloudapi.com/api/v1/services/aigc/multimodal-generation/generation");
+        assert.equal(calls[0].options.headers.Authorization, "Bearer sk-qwencloud-test");
+        assert.equal(body.model, "qwen-image-3.0-pro");
+        assert.equal(body.parameters.size, "1152*2048");
+        assert.equal(body.parameters.watermark, false);
+        const content = body.input.messages[0].content;
+        assert.equal(content.length, 3);
+        assert.match(content[0].image, /^data:image\/png;base64,/);
+        assert.match(content[1].image, /^data:image\/png;base64,/);
+        assert.equal(content[2].text, "Keep the same character in a city cafe.");
+        assert.deepEqual([...result.bytes], [...outputBytes]);
+        assert.equal(result.mimeType, "image/png");
+        assert.equal(result.model, "qwen-image-3.0-pro");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("QwenCloud image generation maps provider failures to safe statuses", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({ message: "Invalid API key provided." }, { status: 401 });
+    try {
+        await assert.rejects(
+            generateSocialImage({
+                env: { QWENCLOUD_API_KEY: "sk-bad" },
+                prompt: "p",
+                referenceBytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]),
+                referenceMimeType: "image/png",
+                imageProvider: "qwencloud"
+            }),
+            error => {
+                assert.equal(error.status, 401);
+                assert.match(error.message, /QwenCloud image generation gagal/);
+                assert.match(error.message, /Invalid API key provided/);
+                return true;
+            }
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("QwenCloud caption uses qwen3-vl-plus and strips hashtags and links", async () => {
+    const calls = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        calls.push({ url, options });
+        return Response.json({
+            output: {
+                choices: [{ message: { content: [{ text: "Hai guys, suasana kafe sore ini seru banget #cafe https://contoh.com" }] } }]
+            }
+        });
+    };
+    try {
+        const caption = await generateSocialContextCaption({
+            env: { QWENCLOUD_API_KEY: "sk-qwencloud-test" },
+            imageBytes: new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]),
+            imageMimeType: "image/png",
+            characterName: "bela",
+            scene: { location: "kafe" },
+            imageProvider: "qwencloud"
+        });
+        const body = JSON.parse(calls[0].options.body);
+        assert.equal(body.model, "qwen3-vl-plus");
+        assert.equal(body.input.messages[0].content.length, 2);
+        assert.match(body.input.messages[0].content[0].image, /^data:image\/png;base64,/);
+        assert.equal(caption, "Hai guys, suasana kafe sore ini seru banget");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

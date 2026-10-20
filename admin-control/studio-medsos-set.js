@@ -279,21 +279,34 @@
         renderPricingStatus(result.pricing || {});
     }
 
+    function providerLabel(value) {
+        if (value === "cloudflare") return "Cloudflare Workers AI";
+        if (value === "qwencloud") return "QwenCloud (Qwen Image)";
+        return "Google Gemini";
+    }
+
+    function providerReadiness(value, settings = {}) {
+        if (value === "cloudflare") {
+            return settings.cloudflare_configured ? "Workers AI membuat gambar dan caption" : "Workers AI binding belum tersedia";
+        }
+        if (value === "qwencloud") {
+            return settings.qwencloud_configured ? "QwenCloud membuat gambar dan caption" : "QWENCLOUD_API_KEY belum tersedia";
+        }
+        return settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
+    }
+
     async function loadImageProvider() {
         const result = await api("studio-admin-image-provider");
         const settings = result.settings || {};
-        const selected = settings.image_provider === "cloudflare" ? "cloudflare" : "gemini";
+        const selected = ["cloudflare", "qwencloud"].includes(settings.image_provider) ? settings.image_provider : "gemini";
         document.querySelector(`input[name="image-provider"][value="${selected}"]`).checked = true;
-        const providerStatus = selected === "cloudflare"
-            ? settings.cloudflare_configured ? "Workers AI membuat gambar dan caption" : "Workers AI binding belum tersedia"
-            : settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
-        setImageProviderStatus(`Provider aktif: ${selected === "cloudflare" ? "Cloudflare Workers AI" : "Google Gemini"} · ${providerStatus}.`);
+        setImageProviderStatus(`Provider aktif: ${providerLabel(selected)} · ${providerReadiness(selected, settings)}.`);
     }
 
     async function saveImageProvider() {
         const selected = document.querySelector('input[name="image-provider"]:checked')?.value;
         if (!selected) {
-            setImageProviderStatus("Pilih Google Gemini atau Cloudflare Workers AI.", "error");
+            setImageProviderStatus("Pilih Google Gemini, Cloudflare Workers AI, atau QwenCloud.", "error");
             return;
         }
         const button = document.getElementById("save-image-provider");
@@ -304,8 +317,7 @@
                 method: "POST",
                 body: { image_provider: selected }
             });
-            const providerName = result.settings.image_provider === "cloudflare" ? "Cloudflare Workers AI" : "Google Gemini";
-            setImageProviderStatus(`${providerName} disimpan untuk pembuatan gambar dan caption manual maupun autopost.`, "success");
+            setImageProviderStatus(`${providerLabel(result.settings.image_provider)} disimpan untuk pembuatan gambar dan caption manual maupun autopost.`, "success");
         } catch (error) {
             console.error(error);
             setImageProviderStatus(error.message || "Gagal menyimpan provider gambar.", "error");

@@ -520,7 +520,14 @@ async function getDashboard(config, userId, env) {
         isPrivateReferenceBucket(config)
     ]);
 
-    const imageProvider = publisherConfig?.[0]?.image_provider === "cloudflare" ? "cloudflare" : "gemini";
+    const imageProvider = ["cloudflare", "qwencloud"].includes(publisherConfig?.[0]?.image_provider)
+        ? publisherConfig[0].image_provider
+        : "gemini";
+    const providerConfigured = imageProvider === "cloudflare"
+        ? typeof env?.AI?.run === "function"
+        : imageProvider === "qwencloud"
+            ? Boolean(envValue(env, "QWENCLOUD_API_KEY"))
+            : Boolean(envValue(env, "GEMINI_API_KEY"));
     return {
         success: true,
         characters: characters || [],
@@ -533,12 +540,8 @@ async function getDashboard(config, userId, env) {
             metaOAuthConfigured: Boolean(envValue(env, "META_APP_ID") && envValue(env, "META_APP_SECRET") && envValue(env, "META_REDIRECT_URI") && envValue(env, "META_LOGIN_CONFIG_ID")),
             imageProvider,
             captionProvider: imageProvider,
-            imageApiConfigured: imageProvider === "cloudflare"
-                ? typeof env?.AI?.run === "function"
-                : Boolean(envValue(env, "GEMINI_API_KEY")),
-            captionApiConfigured: imageProvider === "cloudflare"
-                ? typeof env?.AI?.run === "function"
-                : Boolean(envValue(env, "GEMINI_API_KEY")),
+            imageApiConfigured: providerConfigured,
+            captionApiConfigured: providerConfigured,
             cloudflareAiConfigured: typeof env?.AI?.run === "function",
             tokenEncryptionConfigured: Boolean(envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")),
             referenceStorageConfigured
@@ -551,13 +554,14 @@ async function getSocialImageProvider(config) {
         config,
         tablePath("social_publisher_config", "select=image_provider&id=eq.true&limit=1")
     );
-    return rows?.[0]?.image_provider === "cloudflare" ? "cloudflare" : "gemini";
+    const value = rows?.[0]?.image_provider;
+    return ["gemini", "cloudflare", "qwencloud"].includes(value) ? value : "gemini";
 }
 
 async function saveSocialImageProvider(config, adminId, body, env) {
     const imageProvider = String(body?.image_provider || "").trim();
-    if (!["gemini", "cloudflare"].includes(imageProvider)) {
-        const error = new Error("Pilih Gemini atau Cloudflare sebagai penyedia gambar.");
+    if (!["gemini", "cloudflare", "qwencloud"].includes(imageProvider)) {
+        const error = new Error("Pilih Gemini, Cloudflare, atau QwenCloud sebagai penyedia gambar.");
         error.status = 400;
         throw error;
     }
@@ -568,6 +572,11 @@ async function saveSocialImageProvider(config, adminId, body, env) {
     }
     if (imageProvider === "cloudflare" && typeof env?.AI?.run !== "function") {
         const error = new Error("Binding Cloudflare Workers AI belum tersedia. Tambahkan binding AI dan deploy Worker terlebih dahulu.");
+        error.status = 409;
+        throw error;
+    }
+    if (imageProvider === "qwencloud" && !envValue(env, "QWENCLOUD_API_KEY")) {
+        const error = new Error("QWENCLOUD_API_KEY diperlukan untuk gambar dan caption saat provider QwenCloud dipilih.");
         error.status = 409;
         throw error;
     }
@@ -911,10 +920,17 @@ async function generateManualPost(config, userId, env, body = {}) {
         throw error;
     }
     const imageProvider = await getSocialImageProvider(config);
-    if ((imageProvider === "gemini" && !envValue(env, "GEMINI_API_KEY")) || !envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) {
+    const missingProviderKey = imageProvider === "gemini"
+        ? !envValue(env, "GEMINI_API_KEY")
+        : imageProvider === "qwencloud"
+            ? !envValue(env, "QWENCLOUD_API_KEY")
+            : false;
+    if (missingProviderKey || !envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) {
         const error = new Error(imageProvider === "gemini"
             ? "GEMINI_API_KEY diperlukan saat provider Gemini dipilih dan SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual."
-            : "SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual.");
+            : imageProvider === "qwencloud"
+                ? "QWENCLOUD_API_KEY diperlukan saat provider QwenCloud dipilih dan SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual."
+                : "SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual.");
         error.status = 503;
         throw error;
     }
@@ -932,7 +948,7 @@ async function generateManualPost(config, userId, env, body = {}) {
     const [characters, pages] = await Promise.all([
         supabaseRequest(
             config,
-            tablePath("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,garment_object_key,prompt_notes&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+            tablePath("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,garment_object_key,garment_mime_type,prompt_notes&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
         ),
         supabaseRequest(
             config,
@@ -1007,6 +1023,9 @@ async function generateManualPost(config, userId, env, body = {}) {
         if (!referenceBytes.length || referenceBytes.length > MAX_REFERENCE_BYTES) {
             throw new Error("Ukuran foto referensi karakter tidak valid.");
         }
+        const garmentBytes = imageProvider === "qwencloud" && character.garment_object_key
+            ? await downloadReferenceObject(config, character.garment_object_key)
+            : null;
         const scene = { ...createScenePlan([]), aspect_ratio: aspectRatio };
         const prompt = buildImagePrompt({
             characterName: character.display_name,
@@ -1026,6 +1045,10 @@ async function generateManualPost(config, userId, env, body = {}) {
                 garmentImageUrls: character.garment_object_key
                     ? [await createSignedReferenceUrl(config, character.garment_object_key)]
                     : []
+            } : {}),
+            ...(imageProvider === "qwencloud" ? {
+                garmentBytes,
+                garmentMimeType: character.garment_mime_type
             } : {})
         });
         if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar.");
@@ -1339,7 +1362,8 @@ async function handleGet(req, res, config, userId, env, action) {
                 image_provider: imageProvider,
                 caption_provider: imageProvider,
                 gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
-                cloudflare_configured: typeof env?.AI?.run === "function"
+                cloudflare_configured: typeof env?.AI?.run === "function",
+                qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY"))
             }
         });
     }

@@ -141,8 +141,15 @@
                         <small>Virtual try-on memakai Pruna P-Image Try-On melalui binding AI. Setiap karakter perlu memiliki foto pakaian; foto referensi dikirim lewat URL privat berumur pendek untuk diproses model.</small>
                     </span>
                 </label>
+                <label class="provider-option">
+                    <input type="radio" name="image-provider" value="qwencloud">
+                    <span>
+                        <strong>QwenCloud (Qwen Image)</strong>
+                        <small>Edited image memakai qwen-image-3.0-pro dan caption vision memakai qwen3-vl-plus melalui secret QWENCLOUD_API_KEY. Foto referensi karakter (plus foto pakaian bila ada) dikirim sebagai base64; pakaian bersifat opsional.</small>
+                    </span>
+                </label>
             </div>
-            <p class="footer-note">Provider yang dipilih digunakan untuk gambar dan caption kontekstual: Cloudflare memakai Workers AI (termasuk model vision untuk caption), sedangkan Gemini memakai GEMINI_API_KEY.</p>
+            <p class="footer-note">Provider yang dipilih digunakan untuk gambar dan caption kontekstual: Cloudflare memakai Workers AI (termasuk model vision untuk caption), Gemini memakai GEMINI_API_KEY, dan QwenCloud memakai QWENCLOUD_API_KEY.</p>
             <div class="price-settings-row">
                 <button id="save-image-provider" class="btn primary" type="button">Simpan Provider Gambar</button>
             </div>
