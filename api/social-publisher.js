@@ -1374,6 +1374,29 @@ async function handleGet(req, res, config, userId, env, action) {
         res.setHeader("Cache-Control", "private, no-store");
         return res.status(200).end(bytes);
     }
+    if (action === "garment") {
+        const id = cleanText(getQuery(req, "character_id"), 80);
+        if (!id) return json(res, 400, { success: false, error: "ID karakter wajib diisi." });
+        const rows = await supabaseRequest(config, tablePath("social_characters", `select=garment_object_key,garment_mime_type&id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`));
+        const character = rows?.[0];
+        if (!character) return json(res, 404, { success: false, error: "Karakter tidak ditemukan." });
+        if (!character.garment_object_key) return json(res, 404, { success: false, error: "Karakter ini belum memiliki foto pakaian." });
+        if (!await isPrivateReferenceBucket(config)) {
+            return json(res, 503, { success: false, error: "Bucket privat Supabase Storage belum tersedia." });
+        }
+        let bytes;
+        try {
+            bytes = await downloadReferenceObject(config, character.garment_object_key);
+        } catch (error) {
+            if (error?.status === 404) return json(res, 404, { success: false, error: "File pakaian tidak tersedia di Supabase Storage." });
+            throw error;
+        }
+        res.setHeader("Content-Type", character.garment_mime_type || "application/octet-stream");
+        res.setHeader("Content-Length", String(bytes.length));
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.status(200).end(bytes);
+    }
     return json(res, 404, { success: false, error: "Action tidak dikenal." });
 }
 

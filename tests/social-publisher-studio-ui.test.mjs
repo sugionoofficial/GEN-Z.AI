@@ -7,6 +7,14 @@ const source = readFileSync(
     fileURLToPath(new URL("../admin-control/social-publisher.js", import.meta.url)),
     "utf8"
 );
+const htmlSource = readFileSync(
+    fileURLToPath(new URL("../admin-control/social-publisher.html", import.meta.url)),
+    "utf8"
+);
+const apiSource = readFileSync(
+    fileURLToPath(new URL("../api/social-publisher.js", import.meta.url)),
+    "utf8"
+);
 
 function declarationIndent(pattern) {
     const match = source.match(new RegExp(`^([ \\t]*)${pattern}`, "m"));
@@ -47,5 +55,28 @@ test("label foto pakaian mengikuti provider gambar yang aktif", () => {
         source,
         /document\.querySelector\("label\[for='character-garment'\]"\)/,
         "renderConfig harus memperbarui label field foto pakaian sesuai provider"
+    );
+});
+
+test("preview foto pakaian tersedia di daftar karakter dan bagian posting manual", () => {
+    // loadGarmentPreview harus sejajar dengan loadReferencePreview (scope utama IIFE)
+    // agar thumbnail pakaian di daftar karakter benar-benar termuat.
+    const garmentIndent = source.match(/^([ \t]*)async function loadGarmentPreview\(/m);
+    const referenceIndent = source.match(/^([ \t]*)async function loadReferencePreview\(/m);
+    assert.ok(garmentIndent, "loadGarmentPreview tidak ditemukan di admin-control/social-publisher.js");
+    assert.ok(referenceIndent, "loadReferencePreview tidak ditemukan di admin-control/social-publisher.js");
+    assert.equal(garmentIndent[1].length, referenceIndent[1].length);
+    assert.match(source, /loadGarmentPreview\(character\.id, garmentImg\)/, "Daftar karakter harus memuat preview pakaian");
+    assert.match(source, /api\("garment&character_id="/, "Preview pakaian harus memakai endpoint garment");
+    assert.match(htmlSource, /id="manual-garment-preview"/, "Bagian posting manual harus punya elemen preview pakaian");
+    assert.match(htmlSource, /id="manual-garment-box"/, "Bagian posting manual harus punya wadah preview pakaian");
+    assert.match(htmlSource, /\.thumbs\{/, "CSS harus menyediakan wadah .thumbs untuk dua thumbnail karakter");
+});
+
+test("endpoint garment tersedia di API social publisher", () => {
+    assert.match(
+        apiSource,
+        /if \(action === "garment"\)/,
+        "api/social-publisher.js harus melayani action GET garment untuk preview pakaian"
     );
 });
