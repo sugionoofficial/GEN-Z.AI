@@ -706,6 +706,8 @@
 
         if (studioAccessError || !studioAccessState) {
             gate.hidden = false;
+            value.classList.remove("running");
+            countdown.classList.remove("running");
             badge.textContent = "STATUS TIDAK TERSEDIA";
             badge.className = "studio-gate-badge inactive";
             title.textContent = "Status langganan belum dapat diverifikasi";
@@ -725,6 +727,8 @@
 
         if (!active) {
             gate.hidden = false;
+            value.classList.remove("running");
+            countdown.classList.remove("running");
             badge.textContent = "TIDAK AKTIF";
             badge.className = "studio-gate-badge inactive";
             title.textContent = state.active && state.startedAt > Date.now()
@@ -751,6 +755,8 @@
 
         badge.textContent = "AKTIF";
         badge.className = "studio-gate-badge active";
+        value.classList.add("running");
+        countdown.classList.add("running");
         title.textContent = "Status akun aktif sebagai langganan";
         message.textContent = "Masa aktif langganan Anda masih berjalan. Halaman akan terbuka setelah Anda menutup pengingat ini.";
         value.textContent = `${state.durationDays} hari`;

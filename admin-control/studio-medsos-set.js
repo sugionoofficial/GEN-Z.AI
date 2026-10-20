@@ -210,11 +210,15 @@
             ? "Langganan siap digunakan"
             : pending ? `Langganan dimulai pada ${formatDateTime(access.started_at)}`
                 : isActive && validExpiry ? "Masa langganan sudah berakhir" : "Belum ada langganan aktif";
-        document.getElementById("remaining-display").textContent = active
+        const remainingDisplay = document.getElementById("remaining-display");
+        const countdownDisplay = document.getElementById("countdown-display");
+        remainingDisplay.classList.toggle("running", active);
+        countdownDisplay.classList.toggle("running", active);
+        remainingDisplay.textContent = active
             ? `${Math.ceil(remainingMs / 86400000)} hari`
             : "0 hari";
         document.getElementById("expiry-display").textContent = `Berakhir pada: ${access?.expires_at ? formatDateTime(access.expires_at) : "--"}`;
-        document.getElementById("countdown-display").textContent = active
+        countdownDisplay.textContent = active
             ? `${days} hari ${String(hours).padStart(2, "0")} jam ${String(minutes).padStart(2, "0")} menit ${String(seconds).padStart(2, "0")} detik`
             : "00 hari 00 jam 00 menit 00 detik";
     }
