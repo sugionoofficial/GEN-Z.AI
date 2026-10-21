@@ -1440,18 +1440,19 @@
             >
 
                 <h4 id="editPromptTitle">
-                    Prompt standar GEN-Z.AI
+                    Prompt video
                 </h4>
 
                 <p>
-                    Salin prompt ini untuk digunakan pada akun user.
+                    Prompt tersimpan per video dan ditampilkan pada
+                    pratinjau contoh. Isi prompt khusus, atau
+                    kosongkan untuk memakai prompt standar GEN-Z.AI.
                 </p>
 
                 <textarea
                     id="editPromptText"
                     class="edit-prompt-text"
                     rows="4"
-                    readonly
                 >Bantu saya menyelesaikan permintaan secara akurat, jelas, dan terstruktur. Gunakan bahasa yang sesuai konteks, hindari mengarang fakta, dan tanyakan klarifikasi jika informasi belum cukup.</textarea>
 
                 <span
@@ -2270,6 +2271,7 @@ async function loadVideos() {
                     "id",
                     "title",
                     "description",
+                    "prompt",
                     "category",
                     "aspect_ratio",
                     "video_path",
@@ -3064,6 +3066,12 @@ function resetFileInputs() {
         "";
 }
 
+const STANDARD_PROMPT =
+    "Bantu saya menyelesaikan permintaan secara akurat, jelas, dan terstruktur. " +
+    "Gunakan bahasa yang sesuai konteks, hindari mengarang fakta, dan " +
+    "tanyakan klarifikasi jika informasi belum cukup.";
+
+
 function updateEditPromptVisibility(
     visible
 ) {
@@ -3072,7 +3080,6 @@ function updateEditPromptVisibility(
         elements.editPromptBlock.hidden =
             !(
                 visible &&
-                EDIT_MODE &&
                 isAdmin
             );
     }
@@ -3100,7 +3107,12 @@ function openAddModal() {
 
     elements.videoForm.reset();
 
-    updateEditPromptVisibility(false);
+    if (elements.editPromptText) {
+        elements.editPromptText.value =
+            STANDARD_PROMPT;
+    }
+
+    updateEditPromptVisibility(true);
 
     resetFileInputs();
 
@@ -3178,6 +3190,13 @@ function openEditModal(
 
     elements.videoDescription.value =
         video.description || "";
+
+
+    if (elements.editPromptText) {
+        elements.editPromptText.value =
+            String(video.prompt || "").trim() ||
+            STANDARD_PROMPT;
+    }
 
 
     elements.videoCategory.value =
@@ -3291,7 +3310,8 @@ function openExamplePreview(
         videoUrl;
     elements.examplePreviewVideo.load();
     elements.examplePreviewPrompt.textContent =
-        String(elements.editPromptText.value || "").trim();
+        String(video.prompt || "").trim() ||
+        STANDARD_PROMPT;
     elements.examplePromptCopyStatus.textContent =
         "Belum disalin";
     elements.examplePromptCopyStatus.classList.remove(
@@ -3422,7 +3442,6 @@ elements.copyEditPromptButton.addEventListener(
     async () => {
 
         if (
-            !EDIT_MODE ||
             !isAdmin ||
             elements.editPromptBlock.hidden
         ) {
@@ -4199,6 +4218,12 @@ elements.videoForm.addEventListener(
             elements.videoDescription.value.trim();
 
 
+        const prompt =
+            String(
+                elements.editPromptText?.value || ""
+            ).trim();
+
+
         const category =
             elements.videoCategory.value;
 
@@ -4321,6 +4346,10 @@ elements.videoForm.addEventListener(
 
                 description:
                     description ||
+                    null,
+
+                prompt:
+                    prompt ||
                     null,
 
                 category,
