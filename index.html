@@ -25,7 +25,7 @@
     <link rel="icon" href="/assets/genzai-app-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/assets/genzai-app-icon.png">
 
-    <script src="/assets/js/theme.js?v=android-download-bridge-20261017" defer></script>
+    <script src="/assets/js/theme.js?v=remove-app-download-20261021" defer></script>
 
     <title>GEN-Z.AI | Create Without Limits</title>
 
@@ -1554,7 +1554,7 @@
 
             .nav-actions {
                 display: grid;
-                grid-template-columns: repeat(4, minmax(0, 1fr));
+                grid-template-columns: repeat(3, minmax(0, 1fr));
                 gap: 7px;
             }
 
@@ -1571,16 +1571,6 @@
                 width: 100%;
                 min-height: 40px;
                 white-space: nowrap;
-            }
-
-            .navbar .nav-actions .genz-app-download {
-                font-size: 0;
-                white-space: nowrap;
-            }
-
-            .navbar .nav-actions .genz-app-download::after {
-                content: "Unduh App";
-                font-size: 11px;
             }
 
             @media (max-width: 360px) {
