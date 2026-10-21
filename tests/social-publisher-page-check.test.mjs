@@ -137,6 +137,34 @@ test("check-page surfaces a #200 permission error with reconnect guidance", asyn
     assert.equal(patches[0].can_publish, false);
 });
 
+test("check-page keeps publishing enabled when Graph refuses the tasks field itself (#100)", async () => {
+    const graphCalls = [];
+    const { response, patches } = await runCheckPage(async (url) => {
+        graphCalls.push(url);
+        if (url.includes("/debug_token?")) return Response.json({ data: { is_valid: true, type: "PAGE" } });
+        if (url.includes("tasks")) {
+            return Response.json(
+                {
+                    error: {
+                        message: "(#100) Tried accessing nonexisting field (tasks) on node type (Page)",
+                        type: "OAuthException",
+                        code: 100
+                    }
+                },
+                { status: 400 }
+            );
+        }
+        return Response.json({ id: "page-123", name: "GEN-Z Page" });
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.can_publish, true);
+    assert.equal(response.body.tasks_read, false);
+    assert.match(response.body.message, /belum dapat dipastikan/);
+    assert.equal(graphCalls.some(url => url.includes("fields=id%2Cname&") || url.includes("fields=id,name&")), true);
+    assert.equal(patches[0].can_publish, true);
+});
+
 test("check-page does not overwrite stored permissions when Facebook is unreachable", async () => {
     const originalFetch = globalThis.fetch;
     const encrypted = await encryptSecret("page-token-secret", encryptionKey);
