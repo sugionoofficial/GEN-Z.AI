@@ -249,11 +249,15 @@
             }
 
             html[data-genz-theme="light"] body :is(
-                h1, h2, h3, h4, h5, p, li, label, th, td,
-                .card-title, .panel-title, .stat-label, .stat-value,
+                h1, h2, h3, h4, h5, p, li, dt, dd, summary, label, th, td,
+                strong, .card-title, .panel-title, .stat-label, .stat-value,
                 .field-label, .form-label, .info-label, .info-value,
                 .section-title, .section-description, .page-title,
-                .page-subtitle, .subtitle, .description, .eyebrow
+                .page-subtitle, .subtitle, .description, .eyebrow,
+                .modal-title, .modal-header,
+                [class*="-title"], [class*="-value"], [class*="-name"],
+                [class*="-amount"], [class*="-balance"], [class*="-count"],
+                [class$="-main"]
             ) {
                 color: var(--theme-text);
             }
@@ -261,9 +265,99 @@
             html[data-genz-theme="light"] body :is(
                 .stat-label, .field-label, .form-label, .info-label,
                 .section-description, .page-subtitle, .subtitle,
-                .description, .eyebrow, small, .muted
+                .description, .eyebrow, small, .muted,
+                [class*="-label"], [class*="-desc"], [class*="-sub"],
+                [class*="-hint"], [class*="-note"], [class*="-meta"],
+                [class*="-muted"], [class*="-info"]
             ) {
                 color: var(--theme-muted) !important;
+            }
+
+            /* Cards/containers pages style with translucent whites that wash
+               out on the light page background. */
+            html[data-genz-theme="light"] body :is(
+                .cu-card, .package-card, .payment-card, .promo-card,
+                .modal-card, .state-box, .file-box, .log-box,
+                .table-wrap, .info-card, .stat-box, .glass,
+                .glass-panel, .drop-zone, .dropzone, .preview-card
+            ) {
+                border: 1px solid rgba(23, 32, 51, .14);
+                background: #ffffff;
+                color: var(--theme-text);
+                box-shadow: 0 10px 26px rgba(40, 54, 82, .08);
+            }
+
+            html[data-genz-theme="light"] body :is(
+                .loading-box, [class*="loading"], [class*="empty-state"]
+            ) {
+                color: var(--theme-muted);
+            }
+
+            /* Dark "island" panels keep their dark background in light mode,
+               so their headings/paragraphs must stay light. */
+            html[data-genz-theme="light"] body :is(.brand-panel, .visual) :is(h1, h2, h3, h4) {
+                color: #ffffff;
+            }
+
+            html[data-genz-theme="light"] body :is(.brand-panel, .visual) :is(p, li, dd, small) {
+                color: rgba(255, 255, 255, .72);
+            }
+
+            /* Shared sidebar (navigation.js) — items/icons default to white. */
+            html[data-genz-theme="light"] body .genz-nav-item {
+                color: var(--theme-muted);
+            }
+
+            html[data-genz-theme="light"] body .genz-nav-item:hover {
+                color: var(--theme-text);
+                background: rgba(255, 48, 72, .06);
+                border-color: rgba(255, 48, 72, .22);
+            }
+
+            html[data-genz-theme="light"] body .genz-nav-item.active {
+                color: var(--theme-text);
+                background:
+                    linear-gradient(90deg, rgba(255, 48, 72, .12), rgba(255, 48, 72, .03));
+                border-color: rgba(255, 48, 72, .3);
+                box-shadow: inset 3px 0 0 #ff3048, 0 0 14px rgba(255, 48, 72, .05);
+            }
+
+            html[data-genz-theme="light"] body :is(.genz-sidebar-header, .genz-sidebar-footer) {
+                border-color: rgba(23, 32, 51, .1);
+            }
+
+            html[data-genz-theme="light"] body .genz-sidebar {
+                border-right-color: rgba(23, 32, 51, .12);
+                box-shadow: 8px 0 30px rgba(40, 54, 82, .12);
+            }
+
+            html[data-genz-theme="light"] body .genz-logo {
+                background: #fff;
+                border-color: rgba(255, 48, 72, .34);
+            }
+
+            html[data-genz-theme="light"] body .genz-logo-mark {
+                background: linear-gradient(135deg, #ff3048, #c8102e);
+                color: #fff;
+                border-color: rgba(200, 16, 46, .55);
+            }
+
+            html[data-genz-theme="light"] body .genz-mobile-toggle span {
+                background: #172033;
+            }
+
+            html[data-genz-theme="light"] body .genz-mobile-close {
+                color: var(--theme-text);
+                background: rgba(23, 32, 51, .07);
+            }
+
+            html[data-genz-theme="light"] body .genz-account-box {
+                background: #f8f9fd;
+                border-color: rgba(23, 32, 51, .12);
+            }
+
+            html[data-genz-theme="light"] body .genz-sidebar-overlay {
+                background: rgba(23, 32, 51, .35);
             }
 
             html[data-genz-theme="light"] body :is(input, textarea, select) {
@@ -280,6 +374,11 @@
 
             html[data-genz-theme="light"] body :is(input, textarea, select)::placeholder {
                 color: #59657a;
+            }
+
+            html[data-genz-theme="light"] body select option {
+                color: var(--theme-text);
+                background-color: #ffffff;
             }
 
             html[data-genz-theme="light"] body :is(

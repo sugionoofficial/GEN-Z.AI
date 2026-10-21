@@ -29,7 +29,7 @@
        SHARED NAVIGATION
        ===================================================== -->
 
-  <script src="../navigation/navigation.js?v=android-download-bridge-20261017"></script>
+  <script src="../navigation/navigation.js?v=light-mode-pass-20261021"></script>
 
 
   <style>
@@ -1217,7 +1217,16 @@
       }
     }
 
-  </style>
+  
+        /* ====== LIGHT MODE PASS ====== */
+        html[data-genz-theme="light"] body :is(.balance, .package-credit, .package-price, .package-no-discount, .package-name, .section-title, .payment-detail-value, .payment-card h3) {
+            color: #172033;
+        }
+        html[data-genz-theme="light"] body .balance {
+            color: #16a34a;
+        }
+
+    </style>
 
 </head>
 

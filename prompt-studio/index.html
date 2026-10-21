@@ -1258,7 +1258,24 @@ body::before {
     }
 }
 
-</style>
+
+        /* ====== LIGHT MODE PASS ====== */
+        html[data-genz-theme="light"] {
+            --text-0: #172033;
+            --surface-1: #ffffff;
+            --surface-2: #f4f6fb;
+            --surface-3: rgba(15,23,42,.07);
+            --line-1: rgba(15,23,42,.09);
+            --line-2: rgba(15,23,42,.15);
+            --line-3: rgba(15,23,42,.22);
+        }
+        html[data-genz-theme="light"] .chip.active,
+        html[data-genz-theme="light"] .category-tile.active {
+            color: #b3122f;
+            border-color: rgba(255,51,85,.45);
+        }
+
+    </style>
 
 </head>
 
@@ -1668,7 +1685,7 @@ body::before {
      berdasarkan role user (admin/owner/user).
 ====================================================== -->
 
-<script src="/navigation/navigation.js?v=android-download-bridge-20261017"></script>
+<script src="/navigation/navigation.js?v=light-mode-pass-20261021"></script>
 
 <script>
 

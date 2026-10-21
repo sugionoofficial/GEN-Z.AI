@@ -197,6 +197,21 @@
             .video-options { grid-template-columns: minmax(0, 1fr); }
             .video-options-hint { grid-column: auto; }
         }
+    
+            /* ====== LIGHT MODE PASS ====== */
+            html[data-genz-theme="light"] {
+                color-scheme: light;
+                --chat-bg: #eef1f8;
+                --chat-panel: #ffffff;
+                --chat-line: rgba(15,23,42,.13);
+                --chat-muted: #5b6472;
+                --chat-text: #172033;
+            }
+            html[data-genz-theme="light"] body .user .message-content {
+                color: #ffffff;
+                background: linear-gradient(135deg, #5b4bd6, #2f5f96);
+            }
+
     </style>
 </head>
 <body>
@@ -306,7 +321,7 @@
         </section>
     </main>
 
-    <script src="/navigation/navigation.js?v=android-download-bridge-20261017"></script>
+    <script src="/navigation/navigation.js?v=light-mode-pass-20261021"></script>
     <script type="module" src="/live-chat/live-chat.js?v=photo-analysis-options-20261017"></script>
 </body>
 </html>

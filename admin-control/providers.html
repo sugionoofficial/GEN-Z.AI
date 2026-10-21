@@ -1398,6 +1398,17 @@
                 padding: 8px;
             }
         }
+    
+            /* ====== LIGHT MODE PASS ====== */
+            html[data-genz-theme="light"] {
+                --provider-white: #172033;
+                --provider-white-soft: rgba(23,32,51,.68);
+                --provider-white-muted: rgba(23,32,51,.45);
+            }
+            html[data-genz-theme="light"] body .provider-hero {
+                background: linear-gradient(145deg, rgba(169,112,255,.10), rgba(255,23,68,.06));
+            }
+
     </style>
 </head>
 
@@ -2108,7 +2119,7 @@
     ====================================================== -->
 
     <script
-        src="../navigation/navigation.js?v=android-download-bridge-20261017"
+        src="../navigation/navigation.js?v=light-mode-pass-20261021"
     ></script>
 
 

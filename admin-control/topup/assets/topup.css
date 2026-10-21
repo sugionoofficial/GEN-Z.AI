@@ -5573,3 +5573,13 @@ button {
             0 12px;
     }
 }
+
+
+/* ====== LIGHT MODE PASS ====== */
+html[data-genz-theme="light"] {
+    --border: rgba(15, 23, 42, 0.14);
+}
+
+html[data-genz-theme="light"] body {
+    background: #eef1f8;
+}
