@@ -96,9 +96,25 @@ Open **Admin Control → Social Auto Publisher**:
 1. Click **Hubungkan Facebook** and authorize the Pages you administer.
 2. Upload a licensed/authorized reference photo; confirm the character is an adult or fictional non-child.
 3. Open **Outfit & link order**, choose the character, then upload outfits with a name, photo, optional notes, and an HTTPS order link. Repeat for every look you want the random picker to use.
-4. Create an interval schedule (1–168 hours), choose its first run time in WIB, and write a caption template. Supported caption fields: `{name}`, `{location}`, `{outfit}`, `{situation}`, `{lighting}`, `{angle}`. `{outfit}` resolves to the outfit that was randomly selected for that post.
+4. Create an interval schedule (`OWNER`, `ADMIN`, and `USER` roles may not post faster than once per hour; maximum 168 hours), choose its first run time in WIB, and write a caption template. Supported caption fields: `{name}`, `{location}`, `{outfit}`, `{situation}`, `{lighting}`, `{angle}`. `{outfit}` resolves to the outfit that was randomly selected for that post.
 5. Turn on the schedule, then activate global autopublish after all configuration checks are ready.
 6. Review run status and use **Bagikan ke profil pribadi** to confirm sharing manually when desired.
+
+### Autopost interval by role
+
+Scheduling speed is enforced on the server, not just in the browser. The limits live
+in `SOCIAL_SCHEDULE_INTERVAL_POLICY` (`lib/social-publisher/utils.js`):
+
+| Role | Minimum interval | Maximum interval |
+| --- | --- | --- |
+| `OWNER` | 1 hour | 168 hours |
+| `ADMIN` | 1 hour | 168 hours |
+| `USER` | 1 hour | 168 hours |
+
+`save-schedule` rejects anything below the role minimum (HTTP 400) and rejects roles
+outside the list (HTTP 403). The dashboard returns the active policy as
+`schedulePolicy`, so the form renders the right `min`/`max` and help text for the
+signed-in role. Changing a role's minimum later only requires editing that map.
 
 ### Outfit library and order links
 
