@@ -25,7 +25,7 @@
     <link rel="icon" href="/assets/genzai-app-icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/assets/genzai-app-icon.png">
 
-    <script src="/assets/js/theme.js?v=remove-app-download-20261021" defer></script>
+    <script src="/assets/js/theme.js?v=light-mode-pass-20261021" defer></script>
 
     <title>GEN-Z.AI | Create Without Limits</title>
 
@@ -1891,6 +1891,133 @@
             -o-user-drag: none;
 
             -webkit-touch-callout: none;
+        }
+
+
+        /* =========================================================
+           LIGHT MODE — page-specific overrides
+        ========================================================= */
+
+        html[data-genz-theme="light"] {
+            --panel: rgba(255, 255, 255, 0.72);
+            --border: rgba(23, 32, 51, 0.14);
+            --text-soft: rgba(23, 32, 51, 0.72);
+        }
+
+        html[data-genz-theme="light"] .navbar {
+            border-bottom-color: rgba(23, 32, 51, 0.1);
+
+            background: rgba(255, 255, 255, 0.86);
+
+            box-shadow: 0 8px 26px rgba(40, 54, 82, 0.08);
+        }
+
+        html[data-genz-theme="light"] .nav-links {
+            color: rgba(23, 32, 51, 0.68);
+        }
+
+        html[data-genz-theme="light"] .nav-links a:hover {
+            color: #172033;
+
+            text-shadow: none;
+        }
+
+        html[data-genz-theme="light"] .brand {
+            color: #172033;
+        }
+
+        html[data-genz-theme="light"] .brand-mark {
+            color: #fff;
+
+            background: linear-gradient(135deg, #ff3048, #c8102e);
+        }
+
+        html[data-genz-theme="light"] .hero-copy h1,
+        html[data-genz-theme="light"] .section-title h2,
+        html[data-genz-theme="light"] .section-title h3 {
+            color: #172033;
+        }
+
+        html[data-genz-theme="light"] .hero-copy p,
+        html[data-genz-theme="light"] .section-title p {
+            color: rgba(23, 32, 51, 0.66);
+        }
+
+        html[data-genz-theme="light"] .btn-secondary {
+            color: #172033;
+
+            border-color: rgba(23, 32, 51, 0.18);
+
+            background: rgba(255, 255, 255, 0.9);
+
+            box-shadow: 0 10px 24px rgba(40, 54, 82, 0.08);
+        }
+
+        html[data-genz-theme="light"] .btn-secondary:hover {
+            color: #172033;
+
+            border-color: rgba(23, 32, 51, 0.3);
+
+            background: #ffffff;
+        }
+
+        html[data-genz-theme="light"] .feature-card h3 {
+            color: #172033;
+        }
+
+        html[data-genz-theme="light"] .feature-card p {
+            color: rgba(23, 32, 51, 0.66);
+        }
+
+        html[data-genz-theme="light"] .payment-method {
+            color: #172033;
+
+            background: #ffffff;
+        }
+
+        html[data-genz-theme="light"] .payment-brand-qris {
+            color: #172033;
+        }
+
+        html[data-genz-theme="light"] .credit-btn {
+            color: #172033;
+
+            border-color: rgba(23, 32, 51, 0.18);
+
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        html[data-genz-theme="light"] .trust-item strong {
+            color: #172033;
+        }
+
+        html[data-genz-theme="light"] footer {
+            border-top-color: rgba(23, 32, 51, 0.12);
+        }
+
+        html[data-genz-theme="light"] .footer-copy {
+            color: rgba(23, 32, 51, 0.55);
+        }
+
+        html[data-genz-theme="light"] .footer-links,
+        html[data-genz-theme="light"] .footer-links a {
+            color: rgba(23, 32, 51, 0.62);
+        }
+
+        html[data-genz-theme="light"] .footer-links a:hover {
+            color: #172033;
+        }
+
+        html[data-genz-theme="light"] .promo-price span {
+            color: rgba(23, 32, 51, 0.55);
+        }
+
+        html[data-genz-theme="light"] .feature-number {
+            color: rgba(23, 32, 51, 0.35);
+        }
+
+        html[data-genz-theme="light"] .hero-note {
+            color: rgba(23, 32, 51, 0.55);
         }
 
     </style>
