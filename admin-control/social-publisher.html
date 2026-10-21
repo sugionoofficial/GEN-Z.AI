@@ -100,6 +100,16 @@
                 <div id="page-connections" class="list"><div class="empty">Memuat koneksi…</div></div>
                 <div class="actions"><button id="connect-page" class="btn primary" type="button">Hubungkan Facebook</button></div>
                 <p class="status" id="connect-status"></p>
+                <details class="meta-help" id="meta-app-mode-help">
+                    <summary>Muncul “Aplikasi tidak aktif” di Facebook saat menghubungkan?</summary>
+                    <ol>
+                        <li><strong>Meta App masih mode Development.</strong> Selama belum Live, Facebook hanya mengizinkan akun yang terdaftar sebagai <em>App Role</em>. Buka <strong>Meta App Dashboard → App roles → Roles</strong>, tambahkan akun Facebook tersebut sebagai <em>Tester</em> (atau <em>Developer</em>), lalu login ulang ke Facebook pada akun itu sebelum menekan tombol hubungkan.</li>
+                        <li><strong>Akun harus mengelola Page.</strong> Akun tersebut wajib punya tugas <code>CREATE_CONTENT</code> pada Page tujuan. Kalau tidak, hubungkan memakai akun admin Page.</li>
+                        <li><strong>Login configuration harus benar.</strong> Gunakan konfigurasi <em>Facebook Login for Business</em> dengan izin <code>pages_show_list</code>, <code>pages_read_engagement</code>, dan <code>pages_manage_posts</code>, lalu pastikan <code>META_LOGIN_CONFIG_ID</code> di Worker memakai ID konfigurasi itu.</li>
+                        <li><strong>Redirect URI harus sama persis</strong> dengan yang terdaftar di Meta: <code>https://genzai.genzai-f37.workers.dev/api/facebook-oauth-callback</code>.</li>
+                        <li><strong>Untuk publik:</strong> setelah siap, ajukan App Review untuk izin Page lalu aktifkan <em>Live mode</em> agar akun di luar App Roles bisa menghubungkan Page.</li>
+                    </ol>
+                </details>
                 <p class="help">Profil pribadi tidak dapat diposting otomatis lewat Graph API resmi. Setelah Page post terbit, tersedia tombol untuk membagikannya ke profil secara manual.</p>
             </section>
 

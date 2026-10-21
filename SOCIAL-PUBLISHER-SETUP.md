@@ -127,6 +127,33 @@ signed-in role. Changing a role's minimum later only requires editing that map.
 
 A revoked/expired token, missing Meta permission, provider outage, or API error is recorded as a failed run. Reconnect the Page or fix the configuration before expecting later runs to succeed. Generated identity resemblance is not exact; use only images you have the rights and consent to use, and periodically check the posted content.
 
+### "Aplikasi tidak aktif" / "App not active" on Facebook
+
+Facebook shows this page **before** our callback runs, so the dashboard receives no
+`oauth_error` code. It means the Meta app is still in **Development mode** and the
+signed-in Facebook account is not part of the app's roles:
+
+1. Open **Meta App Dashboard → App roles → Roles** and add that Facebook account as
+   **Tester** (or **Developer**). Accept the invitation from the account itself, then
+   sign out of Facebook and sign in again before retrying.
+2. Confirm the account administers the target Page and holds the `CREATE_CONTENT`
+   task. Otherwise the connection succeeds with zero Pages.
+3. Check that the Facebook Login for Business configuration contains
+   `pages_show_list`, `pages_read_engagement`, and `pages_manage_posts`, and that
+   `META_LOGIN_CONFIG_ID` points at that configuration.
+4. Keep `META_REDIRECT_URI` byte-identical to the Meta *Valid OAuth Redirect URIs*
+   entry (`https://genzai.genzai-f37.workers.dev/api/facebook-oauth-callback`).
+5. To let accounts outside the app roles connect, pass App Review for the Page
+   permissions and switch the app to **Live mode**.
+
+The Social Publisher panel now renders this checklist under **1. Hubungkan Facebook
+Page** and opens it automatically when the callback reports `denied`, `pages`,
+`no_pages`, or `exchange`.
+
+Studio Medsos access is separate from Facebook: a newly registered account still
+needs an active `studio_medsos_access` row (Admin Panel → **SET Studio Medsos**)
+before the API accepts any Social Publisher action, including `oauth-start`.
+
 ### Page permission check and "(#200) Permissions error"
 
 Every publish first calls the Graph API to confirm that the stored Page token can still read the Page and that the authorizing account holds the `CREATE_CONTENT` task. The photo is only uploaded when that check passes, so a missing permission no longer fails mid-upload and cannot produce a duplicate post. A failing check records a specific message on the run instead of a generic HTTP error:

@@ -1323,6 +1323,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
+    function revealMetaAppModeHelp() {
+        const details = document.getElementById("meta-app-mode-help");
+        if (!details) return;
+        details.open = true;
+        details.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
     function showOAuthResult() {
         const params = new URLSearchParams(location.search);
         if (params.get("facebook_connected") === "1") {
@@ -1338,15 +1345,20 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const messages = {
                 state: "Permintaan OAuth tidak valid. Silakan coba hubungkan ulang.",
                 expired: "Permintaan OAuth kedaluwarsa. Silakan coba lagi.",
-                denied: "Izin Facebook tidak diberikan.",
+                denied: "Izin Facebook tidak diberikan. Jika Facebook menampilkan \"Aplikasi tidak aktif\", akun ini belum terdaftar sebagai App Role pada Meta App yang masih mode Development.",
                 config: "Konfigurasi Meta atau kunci enkripsi belum lengkap.",
                 exchange: "Facebook gagal memverifikasi OAuth. Periksa Meta App dan redirect URI.",
                 pages: "Tidak dapat membaca daftar Facebook Page yang Anda kelola.",
-                no_pages: "Tidak ada Facebook Page yang dapat dihubungkan pada akun ini.",
+                no_pages: "Tidak ada Facebook Page yang dapat dihubungkan pada akun ini. Pastikan akun Facebook tersebut adalah admin Page dengan tugas CREATE_CONTENT, dan — bila Meta App masih Development — terdaftar sebagai Tester/Developer di App Roles.",
                 migration: "SQL migration Social Publisher belum dijalankan.",
                 callback: "Proses koneksi Facebook gagal. Coba lagi."
             };
             showNotice(pageMessage, messages[code] || "Koneksi Facebook gagal.", "error");
+            // Surface the checklist automatically for failures that usually mean
+            // the Meta app is still in Development mode or lacks Page access.
+            if (["denied", "no_pages", "pages", "exchange"].includes(code)) {
+                revealMetaAppModeHelp();
+            }
         }
         if (params.has("facebook_connected") || params.has("oauth_error")) {
             history.replaceState({}, "", location.pathname);

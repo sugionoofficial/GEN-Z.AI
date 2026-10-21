@@ -126,3 +126,46 @@ test("dropdown model QwenCloud dan panel kuota tier tersedia di SET Studio Medso
     assert.match(migration, /add column if not exists image_model/, "Migration harus menambah kolom image_model");
     assert.match(migration, /create table if not exists public\.social_publisher_model_quotas/, "Migration harus membuat ledger kuota model");
 });
+
+test("panel menjelaskan error \"Aplikasi tidak aktif\" dan membuka panduan otomatis", () => {
+    assert.match(
+        htmlSource,
+        /id="meta-app-mode-help"/,
+        "Kartu Hubungkan Facebook harus punya panduan mode Development Meta App"
+    );
+    assert.match(
+        htmlSource,
+        /Aplikasi tidak aktif/,
+        "Panduan harus menyebut pesan error Facebook yang muncul"
+    );
+    assert.match(
+        htmlSource,
+        /App roles/,
+        "Panduan harus mengarahkan ke App roles untuk menambah Tester/Developer"
+    );
+    assert.match(
+        htmlSource,
+        /CREATE_CONTENT/,
+        "Panduan harus mengingatkan tugas Page CREATE_CONTENT"
+    );
+    assert.match(
+        htmlSource,
+        /genzai\.genzai-f37\.workers\.dev\/api\/facebook-oauth-callback/,
+        "Panduan harus memuat redirect URI yang benar"
+    );
+    assert.match(
+        source,
+        /function revealMetaAppModeHelp\(/,
+        "Panduan harus bisa dibuka otomatis dari hasil OAuth"
+    );
+    assert.match(
+        source,
+        /\["denied", "no_pages", "pages", "exchange"\]\.includes\(code\)/,
+        "Panduan otomatis dibuka untuk error izin/Page/exchange"
+    );
+    assert.match(
+        source,
+        /App Role pada Meta App yang masih mode Development/,
+        "Pesan denied harus menjelaskan penyebab mode Development"
+    );
+});
