@@ -431,7 +431,8 @@ async function readFacebookGrantedPermissions({ appId, appSecret, userToken, gra
         const token = data?.data || {};
         return {
             scopes: Array.isArray(token.scopes) ? token.scopes.map(String) : [],
-            granularScopes: Array.isArray(token.granular_scopes) ? token.granular_scopes : []
+            granularScopes: Array.isArray(token.granular_scopes) ? token.granular_scopes : [],
+            userId: token.user_id ? String(token.user_id) : ""
         };
     } catch {
         return null;
@@ -531,6 +532,29 @@ async function handleOAuthCallback(req, res, env) {
             userToken,
             graphVersion: GRAPH_VERSION
         });
+
+        // Remember which Facebook user authorized the Pages so a Meta data
+        // deletion request can be traced back to this account.
+        if (permissions?.userId) {
+            try {
+                await supabaseRequest(
+                    config,
+                    tablePath("social_facebook_identities", "on_conflict=owner_id"),
+                    {
+                        method: "POST",
+                        headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+                        body: JSON.stringify({
+                            owner_id: oauthState.user_id,
+                            fb_user_id: permissions.userId,
+                            updated_at: new Date().toISOString()
+                        })
+                    }
+                );
+            } catch (error) {
+                // Migration may not be applied yet; never block the Page connection.
+                console.error("Could not record Facebook identity:", error?.message || "unknown error");
+            }
+        }
 
         const connections = [];
         let pagesNeedingPermission = 0;

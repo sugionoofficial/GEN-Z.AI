@@ -12,6 +12,7 @@ import modelConfig from "../api/model-config.js";
 import openkeyChat from "../api/openkey-chat.js";
 import sightengineDetect from "../api/sightengine-detect.js";
 import socialPublisher from "../api/social-publisher.js";
+import facebookDataDeletion from "../api/facebook-data-deletion.js";
 import { runSocialPublisherCron } from "./_shared/social-publisher-cron.js";
 import viddraAccount from "../api/viddra/account.js";
 import viddraGenerate from "../api/viddra/generate.js";
@@ -32,6 +33,9 @@ const handlers = new Map([
     ["/api/sightengine-detect", sightengineDetect],
     ["/api/social-publisher", socialPublisher],
     ["/api/facebook-oauth-callback", socialPublisher],
+    ["/api/facebook-data-deletion", facebookDataDeletion],
+    // Alias kept for the Deauthorize/Deletion URL field in the Meta dashboard.
+    ["/api/data-deletion", facebookDataDeletion],
     ["/api/viddra/account", viddraAccount],
     ["/api/viddra/generate", viddraGenerate]
 ]);

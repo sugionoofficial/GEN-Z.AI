@@ -74,6 +74,55 @@ openssl rand -base64 32
 
 Do not rotate the existing key while switching Meta apps. Page access tokens are encrypted with AES-GCM before being stored in Supabase; rotating the key makes previously stored tokens unreadable and requires reconnecting each Page.
 
+### 3b. Data Deletion Request callback (required to publish the Meta app)
+
+Meta requires a reachable **Data Deletion Request Callback URL** before an app can
+be switched to Live mode. The Worker already exposes one; the endpoint verifies
+Meta's `signed_request` with `META_APP_SECRET`, deletes the data the app received
+from Facebook for the matching GEN-Z.AI account, and answers with a public status
+page plus a confirmation code.
+
+Apply the migration first (`supabase/social-auto-publisher.sql` creates
+`social_facebook_identities` and `social_data_deletion_requests`), then enter this
+URL in **Meta App Dashboard → App settings → Basic → Data Deletion Request URL**
+(also shown as **Data deletion instructions URL** in some app versions):
+
+```text
+https://genzai.genzai-f37.workers.dev/api/facebook-data-deletion
+```
+
+The same handler is also mounted at `/api/data-deletion` in case the dashboard
+field rejects a long path. Only `META_APP_SECRET` is required; it is already
+configured as a Worker secret for OAuth.
+
+What the endpoint returns:
+
+- `POST` with the form field `signed_request` → `200 {"url": "...", "confirmation_code": "..."}`.
+  Anything else (bad signature, missing `user_id`) returns `400`, and a missing
+  `META_APP_SECRET` or missing table returns `503`. Meta only accepts this JSON
+  shape, so do not change it.
+- `GET ?code=<confirmation_code>` → public HTML status page (pending / completed /
+  failed, number of removed rows, timestamps in WIB).
+- `GET` without `code` → public instructions page that shows the callback URL.
+
+Optionally set a contact channel shown on those public pages. These are
+non-secret values, so add them to the existing `[vars]` block in `wrangler.toml`
+and deploy:
+
+```toml
+[vars]
+PRIVACY_CONTACT_EMAIL = "privacy@example.com"
+# or: PRIVACY_CONTACT_URL = "https://example.com/privacy"
+```
+
+The page falls back to `PRIVACY_CONTACT_URL`, then to the in-app `/live-chat/`
+support page, so leaving both unset is fine.
+
+Deletion covers rows the app created from Facebook data: post runs, schedules,
+Page connections, pending OAuth states, and the Facebook identity mapping. The
+GEN-Z.AI account, saved characters, outfits, credits, and subscription are kept —
+the person deletes their GEN-Z.AI account separately from the app.
+
 ### 4. Confirm Worker configuration and deploy
 
 The Worker reads reference images through the existing Supabase service-role configuration; no Cloudflare R2 binding or R2 subscription is required. `wrangler.toml` retains the one-minute Cron Trigger. Deploy the Worker after both Supabase SQL files have been applied:

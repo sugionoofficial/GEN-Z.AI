@@ -321,3 +321,56 @@ alter table public.social_outfits enable row level security;
 
 revoke all on table public.social_outfits from public, anon, authenticated;
 grant select, insert, update, delete on table public.social_outfits to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Meta Data Deletion Request Callback
+-- Meta requires every Facebook Login app to expose a public deletion callback.
+-- The callback verifies `signed_request` with the app secret, deletes the data
+-- received from Facebook, and answers with a confirmation code + status URL.
+-- Safe to run again on an existing Social Publisher database.
+-- ---------------------------------------------------------------------------
+
+-- Maps a GEN-Z.AI account to the Facebook user that authorized the Page.
+-- Written by the OAuth callback so deletion requests can be traced back.
+-- A single Facebook account may authorize several GEN-Z.AI accounts, so
+-- `fb_user_id` is indexed but not unique; `owner_id` stays the primary key.
+create table if not exists public.social_facebook_identities (
+    owner_id uuid primary key references public.profiles(id) on delete cascade,
+    fb_user_id text not null check (char_length(fb_user_id) between 1 and 80),
+    linked_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index if not exists social_facebook_identities_fb_user_idx
+    on public.social_facebook_identities (fb_user_id);
+
+-- Audit trail for deletion requests. `confirmation_code` is the public handle
+-- shown by Meta; `deleted_counts` records how many rows were removed per table.
+create table if not exists public.social_data_deletion_requests (
+    id uuid primary key default gen_random_uuid(),
+    confirmation_code text not null unique check (char_length(confirmation_code) between 6 and 32),
+    fb_user_id text,
+    status text not null default 'pending'
+        check (status in ('pending', 'completed', 'failed')),
+    matched_user_ids uuid[] not null default '{}',
+    deleted_counts jsonb not null default '{}'::jsonb,
+    error_message text check (char_length(error_message) <= 500),
+    requested_at timestamptz not null default now(),
+    completed_at timestamptz
+);
+
+create index if not exists social_data_deletion_requests_requested_idx
+    on public.social_data_deletion_requests (requested_at desc);
+
+create index if not exists social_data_deletion_requests_fb_user_idx
+    on public.social_data_deletion_requests (fb_user_id)
+    where fb_user_id is not null;
+
+alter table public.social_facebook_identities enable row level security;
+alter table public.social_data_deletion_requests enable row level security;
+
+revoke all on table public.social_facebook_identities from public, anon, authenticated;
+revoke all on table public.social_data_deletion_requests from public, anon, authenticated;
+
+grant select, insert, update, delete on table public.social_facebook_identities to service_role;
+grant select, insert, update, delete on table public.social_data_deletion_requests to service_role;
