@@ -12,7 +12,6 @@
     let previousBodyOverflow = "";
     let mobilePreviewKeydownHandler = null;
     let refreshButton = null;
-    let appDownloadButton = null;
     let announcementCheckRunning = false;
     let announcementPollTimer = null;
     let announcementBodyOverflow = null;
@@ -624,42 +623,6 @@
                 margin-right: 8px;
             }
 
-            .genz-app-download {
-                min-height: 38px;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 7px;
-                padding: 8px 11px;
-                border: 1px solid rgba(255, 48, 72, .32);
-                border-radius: 9px;
-                color: #fff;
-                background: rgba(255, 48, 72, .08);
-                font: inherit;
-                font-size: 11px;
-                font-weight: 700;
-                text-align: center;
-                text-decoration: none;
-                white-space: nowrap;
-            }
-
-            .genz-app-download:hover {
-                border-color: rgba(255, 48, 72, .6);
-                background: rgba(255, 48, 72, .16);
-            }
-
-            .genz-sidebar-footer .genz-app-download {
-                width: 100%;
-                margin-bottom: 10px;
-            }
-
-            html[data-genz-theme="light"] .genz-app-download {
-                color: #283047;
-                border-color: #cf8a98;
-                background: #fff;
-                box-shadow: 0 6px 20px rgba(52, 65, 94, .1);
-            }
-
             .nav-actions .genz-theme-toggle {
                 min-height: 36px;
             }
@@ -677,7 +640,7 @@
 
             @media (max-width: 760px) {
                 html[data-genz-app="true"] .navbar .nav-actions {
-                    grid-template-columns: repeat(5, minmax(0, 1fr));
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
                 }
 
                 html[data-genz-app="true"] .navbar .nav-actions .genz-refresh-button {
@@ -1032,44 +995,6 @@
         }
     }
 
-    function mountAppDownload() {
-        if (!document.body) return;
-
-        const parent = getToggleParent();
-        if (parent === document.body) return;
-
-        if (!appDownloadButton) {
-            appDownloadButton = document.createElement("a");
-            appDownloadButton.className = "genz-app-download";
-            appDownloadButton.href = "/assets/downloads/genzai-android.apk";
-            appDownloadButton.download = "GEN-Z.AI-Android.apk";
-            appDownloadButton.textContent = "↓ Unduh Aplikasi Android";
-            appDownloadButton.setAttribute(
-                "aria-label",
-                "Unduh aplikasi GEN-Z.AI untuk Android"
-            );
-        }
-
-        if (appDownloadButton.parentElement !== parent) {
-            if (parent.classList.contains("genz-sidebar-footer")) {
-                const accountBox =
-                    parent.querySelector(".genz-account-box");
-
-                parent.insertBefore(appDownloadButton, accountBox);
-            } else {
-                parent.append(appDownloadButton);
-            }
-        } else if (
-            parent.classList.contains("genz-sidebar-footer") &&
-            appDownloadButton.previousElementSibling !== (refreshButton || toggleButton)
-        ) {
-            parent.insertBefore(
-                appDownloadButton,
-                refreshButton?.nextSibling || toggleButton?.nextSibling || parent.firstChild
-            );
-        }
-    }
-
     function showAnnouncement(announcement, userId) {
         if (!announcement || !userId || !announcement.id) return;
 
@@ -1256,7 +1181,6 @@
         mountToggle();
         mountDeviceModeToggle();
         mountRefreshButton();
-        mountAppDownload();
         loadAnnouncement();
         startAnnouncementPolling();
 
@@ -1264,7 +1188,6 @@
             mountToggle();
             mountDeviceModeToggle();
             mountRefreshButton();
-            mountAppDownload();
         });
         observer.observe(document.body, { childList: true, subtree: true });
     }
