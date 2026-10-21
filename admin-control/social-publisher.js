@@ -4,7 +4,39 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     "use strict";
 
     const endpoint = "/api/social-publisher";
-    const state = { data: null, busy: false, objectUrls: new Map(), manualPreview: null };
+    const RUNS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
+    const DEFAULT_RUNS_PER_PAGE = 10;
+    const RUNS_PER_PAGE_STORAGE_KEY = "genz-social-runs-per-page";
+
+    function readSavedRunsPerPage() {
+        try {
+            const saved = Number(window.localStorage?.getItem(RUNS_PER_PAGE_STORAGE_KEY));
+            if (RUNS_PER_PAGE_OPTIONS.includes(saved)) return saved;
+        } catch {
+            // Abaikan bila localStorage dibatasi browser.
+        }
+        return DEFAULT_RUNS_PER_PAGE;
+    }
+
+    function saveRunsPerPage(value) {
+        try {
+            window.localStorage?.setItem(RUNS_PER_PAGE_STORAGE_KEY, String(value));
+        } catch {
+            // Abaikan bila localStorage dibatasi browser.
+        }
+    }
+
+    const state = {
+        data: null,
+        busy: false,
+        runsBusy: false,
+        runsPage: 1,
+        runsPerPage: readSavedRunsPerPage(),
+        runsTotal: 0,
+        runsTotalPages: 1,
+        objectUrls: new Map(),
+        manualPreview: null
+    };
     const $ = id => document.getElementById(id);
     const pageMessage = $("page-message");
     const configMessage = $("config-message");
@@ -137,10 +169,85 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
-    function setButtonBusy(button, busy, busyText = "Memproses…") {
+    const busyStates = new WeakMap();
+
+    function formatElapsedSeconds(totalSeconds) {
+        const safe = Math.max(0, Math.floor(totalSeconds));
+        const minutes = Math.floor(safe / 60);
+        const seconds = safe % 60;
+        return `${minutes}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function updateButtonBusyText(button, nextText) {
+        const current = busyStates.get(button);
+        if (!current) return;
+        current.manualStageLocked = true;
+        if (current.textNode) current.textNode.textContent = nextText;
+    }
+
+    function setButtonBusy(button, busy, busyText = "Memproses…", options = {}) {
+        if (!button) return;
+        const previous = busyStates.get(button);
+        if (previous?.intervalId) {
+            clearInterval(previous.intervalId);
+        }
+        busyStates.delete(button);
+
         if (!button.dataset.originalText) button.dataset.originalText = button.textContent.trim();
-        button.disabled = busy;
-        button.textContent = busy ? busyText : button.dataset.originalText;
+
+        if (!busy) {
+            button.disabled = false;
+            button.removeAttribute("aria-busy");
+            button.classList.remove("is-premium-loading");
+            button.replaceChildren();
+            button.textContent = button.dataset.originalText;
+            return;
+        }
+
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+
+        if (!options.premium) {
+            button.textContent = busyText;
+            return;
+        }
+
+        button.classList.add("is-premium-loading");
+        const orbit = document.createElement("span");
+        orbit.className = "btn-fx-orbit";
+        orbit.setAttribute("aria-hidden", "true");
+
+        const textNode = document.createElement("span");
+        textNode.className = "btn-fx-text";
+        textNode.textContent = busyText;
+
+        const timeNode = document.createElement("span");
+        timeNode.className = "btn-fx-time";
+        timeNode.textContent = "0:00";
+
+        button.replaceChildren(orbit, textNode, timeNode);
+
+        const startedAt = Date.now();
+        const stages = Array.isArray(options.stages) ? options.stages : [];
+        const entry = {
+            textNode,
+            timeNode,
+            manualStageLocked: false,
+            intervalId: setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+                timeNode.textContent = formatElapsedSeconds(elapsed);
+                if (!entry.manualStageLocked && stages.length) {
+                    let activeLabel = busyText;
+                    for (const stage of stages) {
+                        if (elapsed >= stage.at) activeLabel = stage.text;
+                    }
+                    if (textNode.textContent !== activeLabel) {
+                        textNode.textContent = activeLabel;
+                    }
+                }
+            }, 1000)
+        };
+        busyStates.set(button, entry);
     }
 
     function renderConfig(config = {}) {
@@ -651,7 +758,14 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
         const button = $("manual-post-button");
         let generatedRunId = "";
-        setButtonBusy(button, true, "Membuat & membersihkan…");
+        setButtonBusy(button, true, "Membuat gambar AI…", {
+            premium: true,
+            stages: [
+                { at: 0, text: "Membuat gambar AI…" },
+                { at: 7, text: "Merancang visual & caption…" },
+                { at: 16, text: "Menyempurnakan detail gambar…" }
+            ]
+        });
         status($("manual-post-status"), "Membuat satu gambar, membersihkan metadata, dan menyiapkan caption untuk pratinjau…");
         try {
             if (state.manualPreview) await discardManualPreview(false);
@@ -664,6 +778,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 }
             });
             generatedRunId = result.preview.run_id;
+            updateButtonBusyText(button, "Membersihkan metadata…");
             const binary = atob(result.preview.image_base64);
             const bytes = new Uint8Array(binary.length);
             for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
@@ -717,8 +832,16 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (!window.confirm(`Terbitkan gambar dan caption pratinjau ini ke "${state.manualPreview.pageName}"? Post akan langsung terlihat oleh audiens Page.`)) return;
 
         const button = $("manual-publish-button");
+        const discardButton = $("manual-discard-button");
         const pageConnectionId = $("manual-page").value;
-        setButtonBusy(button, true, "Menerbitkan…");
+        if (discardButton) discardButton.disabled = true;
+        setButtonBusy(button, true, "Mengunggah ke Facebook Page…", {
+            premium: true,
+            stages: [
+                { at: 0, text: "Mengunggah ke Facebook Page…" },
+                { at: 5, text: "Menerbitkan posting Page…" }
+            ]
+        });
         status($("manual-post-status"), "Mengirim gambar yang sudah dibersihkan ke Facebook Page…");
         try {
             const result = await api("manual-publish", {
@@ -739,6 +862,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             );
             showNotice(pageMessage, "Posting manual berhasil diterbitkan.", "success");
             clearManualPreview();
+            state.runsPage = 1;
             await loadDashboard();
         } catch (error) {
             clearManualPreview();
@@ -758,6 +882,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             }
         } finally {
             setButtonBusy(button, false);
+            if (discardButton) discardButton.disabled = false;
         }
     }
 
@@ -926,10 +1051,117 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (!schedules.length) container.innerHTML = '<div class="empty">Belum ada jadwal autopost.</div>';
     }
 
-    function renderRuns(runs = []) {
+    function getRunsPageSequence(currentPage, totalPages) {
+        const total = Math.max(1, Math.floor(Number(totalPages) || 1));
+        const current = Math.min(total, Math.max(1, Math.floor(Number(currentPage) || 1)));
+        if (total <= 7) {
+            return Array.from({ length: total }, (_, index) => index + 1);
+        }
+        if (current <= 4) {
+            return [1, 2, 3, 4, 5, "…", total];
+        }
+        if (current >= total - 3) {
+            return [1, "…", total - 4, total - 3, total - 2, total - 1, total];
+        }
+        return [1, "…", current - 1, current, current + 1, "…", total];
+    }
+
+    function renderRunsPaginationControls() {
+        const info = $("runs-pagination-info");
+        const perPageSelect = $("runs-per-page");
+        const nav = $("runs-pagination");
+
+        if (perPageSelect) {
+            perPageSelect.value = String(state.runsPerPage);
+            perPageSelect.disabled = state.runsBusy;
+        }
+
+        if (info) {
+            if (state.runsTotal <= 0) {
+                info.textContent = "Belum ada riwayat";
+            } else {
+                const start = (state.runsPage - 1) * state.runsPerPage + 1;
+                const end = Math.min(state.runsTotal, state.runsPage * state.runsPerPage);
+                info.textContent = `Menampilkan ${start}–${end} dari ${state.runsTotal} riwayat · Halaman ${state.runsPage} dari ${state.runsTotalPages}`;
+            }
+        }
+
+        if (!nav) return;
+        nav.replaceChildren();
+        if (state.runsTotal <= 0) {
+            nav.hidden = true;
+            return;
+        }
+        nav.hidden = false;
+
+        const prev = document.createElement("button");
+        prev.type = "button";
+        prev.className = "runs-page-btn runs-page-nav";
+        prev.dataset.page = String(state.runsPage - 1);
+        prev.disabled = state.runsPage <= 1 || state.runsBusy;
+        prev.setAttribute("aria-label", "Halaman sebelumnya");
+        prev.textContent = "‹";
+        nav.append(prev);
+
+        for (const entry of getRunsPageSequence(state.runsPage, state.runsTotalPages)) {
+            if (entry === "…") {
+                const ellipsis = document.createElement("span");
+                ellipsis.className = "runs-ellipsis";
+                ellipsis.setAttribute("aria-hidden", "true");
+                ellipsis.textContent = "…";
+                nav.append(ellipsis);
+                continue;
+            }
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = `runs-page-btn${entry === state.runsPage ? " active" : ""}`;
+            btn.dataset.page = String(entry);
+            btn.disabled = state.runsBusy;
+            if (entry === state.runsPage) btn.setAttribute("aria-current", "page");
+            btn.setAttribute("aria-label", `Halaman ${entry}`);
+            btn.textContent = String(entry);
+            nav.append(btn);
+        }
+
+        const next = document.createElement("button");
+        next.type = "button";
+        next.className = "runs-page-btn runs-page-nav";
+        next.dataset.page = String(state.runsPage + 1);
+        next.disabled = state.runsPage >= state.runsTotalPages || state.runsBusy;
+        next.setAttribute("aria-label", "Halaman berikutnya");
+        next.textContent = "›";
+        nav.append(next);
+    }
+
+    function renderRuns(runs = [], pagination = null) {
         const container = $("runs-list");
         container.replaceChildren();
-        for (const run of runs) {
+
+        let visibleRuns = runs;
+        if (pagination && typeof pagination === "object") {
+            const perPage = RUNS_PER_PAGE_OPTIONS.includes(Number(pagination.perPage))
+                ? Number(pagination.perPage)
+                : state.runsPerPage;
+            const total = Math.max(0, Number(pagination.total) || 0);
+            const totalPages = Math.max(1, Number(pagination.totalPages) || Math.ceil(total / perPage) || 1);
+            const page = Math.min(totalPages, Math.max(1, Number(pagination.page) || state.runsPage || 1));
+            state.runsPerPage = perPage;
+            state.runsTotal = total;
+            state.runsTotalPages = totalPages;
+            state.runsPage = page;
+        } else {
+            const perPage = state.runsPerPage;
+            const total = runs.length;
+            const totalPages = Math.max(1, Math.ceil(total / perPage));
+            const page = Math.min(totalPages, Math.max(1, state.runsPage || 1));
+            const start = (page - 1) * perPage;
+            visibleRuns = runs.slice(start, start + perPage);
+            state.runsTotal = total;
+            state.runsTotalPages = totalPages;
+            state.runsPage = page;
+        }
+
+        for (const run of visibleRuns) {
             const item = document.createElement("div");
             item.className = "item";
             item.style.gridTemplateColumns = "minmax(0,1fr) auto";
@@ -976,7 +1208,55 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             item.append(content);
             container.append(item);
         }
-        if (!runs.length) container.innerHTML = '<div class="empty">Belum ada run. Aktifkan jadwal untuk mulai.</div>';
+        if (!visibleRuns.length) container.innerHTML = '<div class="empty">Belum ada run. Aktifkan jadwal untuk mulai.</div>';
+        renderRunsPaginationControls();
+    }
+
+    async function loadRunsPage(targetPage = state.runsPage, { perPage = state.runsPerPage, scrollIntoView = false } = {}) {
+        if (state.runsBusy) return;
+        const safePerPage = RUNS_PER_PAGE_OPTIONS.includes(Number(perPage))
+            ? Number(perPage)
+            : DEFAULT_RUNS_PER_PAGE;
+        const safePage = Math.max(1, Math.floor(Number(targetPage) || 1));
+
+        state.runsPerPage = safePerPage;
+        state.runsPage = safePage;
+        saveRunsPerPage(safePerPage);
+
+        state.runsBusy = true;
+        renderRunsPaginationControls();
+        const info = $("runs-pagination-info");
+        if (info) info.textContent = `Memuat halaman ${safePage}…`;
+
+        try {
+            const result = await api(`runs&page=${safePage}&limit=${safePerPage}`);
+            if (state.data) {
+                state.data.runs = result.runs || [];
+                state.data.runsPagination = result.runsPagination || null;
+            }
+            state.runsBusy = false;
+            renderRuns(result.runs || [], result.runsPagination || null);
+            if (scrollIntoView) {
+                const section = $("runs-section");
+                if (section) {
+                    const rect = section.getBoundingClientRect();
+                    if (rect.top < 0 || rect.top > window.innerHeight * 0.65) {
+                        window.scrollTo({
+                            top: Math.max(0, rect.top + window.scrollY - 16),
+                            behavior: "smooth"
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            state.runsBusy = false;
+            if (error?.status === 404 && Array.isArray(state.data?.runs)) {
+                renderRuns(state.data.runs, null);
+                return;
+            }
+            renderRunsPaginationControls();
+            showNotice(pageMessage, error.message || "Gagal memuat halaman riwayat.", "error");
+        }
     }
 
     function renderOutfitSelector(characters = []) {
@@ -995,7 +1275,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         renderPages(data.pages || []);
         renderCharacters(data.characters || []);
         renderSchedules(data.schedules || []);
-        renderRuns(data.runs || []);
+        renderRuns(data.runs || [], data.runsPagination || null);
         $("default-caption-template").value = data.postingSettings?.caption_template || "Cerita hari ini ✨";
         $("external-post-link").value = data.postingSettings?.external_link || "";
         renderOutfitSelector(data.characters || []);
@@ -1016,13 +1296,16 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         state.busy = true;
         $("refresh").disabled = true;
         try {
-            const data = await api("dashboard");
+            const data = await api(`dashboard&runs_page=${state.runsPage}&runs_limit=${state.runsPerPage}`);
             render(data);
         } catch (error) {
             showNotice(pageMessage, error.message || "Gagal memuat Social Publisher.", "error");
             configList.replaceChildren();
             $("page-connections").innerHTML = '<div class="empty">Belum dapat dimuat.</div>';
             $("characters-list").innerHTML = '<div class="empty">Belum dapat dimuat.</div>';
+            $("runs-list").innerHTML = '<div class="empty">Belum dapat dimuat.</div>';
+            const info = $("runs-pagination-info");
+            if (info) info.textContent = "Belum dapat dimuat";
         } finally {
             state.busy = false;
             $("refresh").disabled = false;
@@ -1323,13 +1606,6 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
-    function revealMetaAppModeHelp() {
-        const details = document.getElementById("meta-app-mode-help");
-        if (!details) return;
-        details.open = true;
-        details.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-
     function showOAuthResult() {
         const params = new URLSearchParams(location.search);
         if (params.get("facebook_connected") === "1") {
@@ -1345,20 +1621,15 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const messages = {
                 state: "Permintaan OAuth tidak valid. Silakan coba hubungkan ulang.",
                 expired: "Permintaan OAuth kedaluwarsa. Silakan coba lagi.",
-                denied: "Izin Facebook tidak diberikan. Jika Facebook menampilkan \"Aplikasi tidak aktif\", akun ini belum terdaftar sebagai App Role pada Meta App yang masih mode Development.",
+                denied: "Izin Facebook tidak diberikan. Silakan coba hubungkan ulang dan setujui izin pengelolaan Page.",
                 config: "Konfigurasi Meta atau kunci enkripsi belum lengkap.",
                 exchange: "Facebook gagal memverifikasi OAuth. Periksa Meta App dan redirect URI.",
                 pages: "Tidak dapat membaca daftar Facebook Page yang Anda kelola.",
-                no_pages: "Tidak ada Facebook Page yang dapat dihubungkan pada akun ini. Pastikan akun Facebook tersebut adalah admin Page dengan tugas CREATE_CONTENT, dan — bila Meta App masih Development — terdaftar sebagai Tester/Developer di App Roles.",
+                no_pages: "Tidak ada Facebook Page yang dapat dihubungkan pada akun ini. Pastikan akun Facebook tersebut mengelola minimal satu Page dengan izin menerbitkan konten.",
                 migration: "SQL migration Social Publisher belum dijalankan.",
                 callback: "Proses koneksi Facebook gagal. Coba lagi."
             };
             showNotice(pageMessage, messages[code] || "Koneksi Facebook gagal.", "error");
-            // Surface the checklist automatically for failures that usually mean
-            // the Meta app is still in Development mode or lacks Page access.
-            if (["denied", "no_pages", "pages", "exchange"].includes(code)) {
-                revealMetaAppModeHelp();
-            }
         }
         if (params.has("facebook_connected") || params.has("oauth_error")) {
             history.replaceState({}, "", location.pathname);
@@ -1395,7 +1666,26 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
+    function setTutorialOpen(open) {
+        const panel = $("usage-tutorial");
+        const button = $("toggle-tutorial");
+        if (!panel || !button) return;
+        const isOpen = Boolean(open);
+        panel.hidden = !isOpen;
+        button.setAttribute("aria-expanded", String(isOpen));
+        button.classList.toggle("is-open", isOpen);
+    }
+
     $("connect-page").addEventListener("click", connectFacebook);
+    $("toggle-tutorial")?.addEventListener("click", () => {
+        const panel = $("usage-tutorial");
+        if (!panel) return;
+        setTutorialOpen(panel.hidden);
+    });
+    $("close-tutorial")?.addEventListener("click", () => {
+        setTutorialOpen(false);
+        $("toggle-tutorial")?.focus?.();
+    });
     $("character-form").addEventListener("submit", uploadCharacter);
     $("manual-post-form").addEventListener("submit", submitManualPost);
     $("manual-publish-button").addEventListener("click", publishManualPreview);
@@ -1413,6 +1703,25 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     $("manual-character").addEventListener("change", updateManualCharacterPreview);
     $("schedule-form").addEventListener("submit", submitSchedule);
     $("interval-hours").addEventListener("input", updateCostEstimate);
+    if ($("runs-per-page")) {
+        $("runs-per-page").value = String(state.runsPerPage);
+        $("runs-per-page").addEventListener("change", event => {
+            const parsed = Number(event.target.value);
+            const nextPerPage = RUNS_PER_PAGE_OPTIONS.includes(parsed) ? parsed : DEFAULT_RUNS_PER_PAGE;
+            state.runsPerPage = nextPerPage;
+            state.runsPage = 1;
+            saveRunsPerPage(nextPerPage);
+            loadRunsPage(1, { perPage: nextPerPage });
+        });
+    }
+    $("runs-pagination")?.addEventListener("click", event => {
+        const button = event.target.closest("[data-page]");
+        if (!button || button.disabled) return;
+        const nextPage = Number(button.dataset.page);
+        if (!Number.isInteger(nextPage) || nextPage < 1 || nextPage > state.runsTotalPages) return;
+        if (nextPage === state.runsPage) return;
+        loadRunsPage(nextPage, { perPage: state.runsPerPage, scrollIntoView: true });
+    });
     $("refresh").addEventListener("click", loadDashboard);
     $("global-toggle").addEventListener("click", toggleGlobal);
     $("cancel-edit").addEventListener("click", resetScheduleForm);
