@@ -67,6 +67,8 @@ create table if not exists public.social_post_schedules (
     character_id uuid not null,
     page_connection_id uuid not null,
     enabled boolean not null default false,
+    -- Autopost cadence: the server enforces a per-role floor (OWNER, ADMIN and
+    -- USER start at once per hour); the column keeps the same 1..168h range.
     interval_hours integer not null default 24 check (interval_hours between 1 and 168),
     next_run_at timestamptz not null,
     timezone text not null default 'Asia/Jakarta' check (timezone = 'Asia/Jakarta'),

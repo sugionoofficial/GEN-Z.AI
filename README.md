@@ -100,7 +100,10 @@ menampilkan status terbaru langsung dari Facebook. Detail troubleshooting ada di
 `SOCIAL-PUBLISHER-SETUP.md`.
 Akses fitur diverifikasi di server berdasarkan
 langganan user yang aktif dan masa berlakunya; mengubah tampilan browser tidak
-dapat melewati pemeriksaan akses API.
+dapat melewati pemeriksaan akses API. Interval autopost dibatasi per role:
+**OWNER**, **ADMIN**, dan **USER** minimal **1 jam** dan maksimal **168 jam**
+per post. Batas ini diperiksa di server saat jadwal disimpan dan ditampilkan pada
+form jadwal sesuai role yang sedang login.
 
 Sebelum mengaktifkan fitur, jalankan skrip berikut di Supabase SQL Editor:
 

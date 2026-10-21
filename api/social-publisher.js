@@ -6,6 +6,7 @@ import {
     composeSocialCaption,
     createScenePlan,
     extensionForMime,
+    getScheduleIntervalPolicy,
     normalizeMimeType,
     normalizeSocialAspectRatio,
     pickRandomOutfit,
@@ -591,7 +592,7 @@ async function listRunsForDashboard(config, userId) {
     }
 }
 
-async function getDashboard(config, userId, env) {
+async function getDashboard(config, userId, env, profile) {
     const [characters, pages, schedules, runs, publisherConfig, userSettings, outfitLibrary, referenceStorageConfigured] = await Promise.all([
         supabaseRequest(config, tablePath("social_characters", `select=id,display_name,reference_filename,reference_mime_type,garment_filename,prompt_notes,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
@@ -618,6 +619,11 @@ async function getDashboard(config, userId, env) {
         schedules: schedules || [],
         runs: runs || [],
         outfits: outfitLibrary.outfits,
+        schedulePolicy: getScheduleIntervalPolicy(profile?.role) || {
+            role: String(profile?.role || "").trim().toUpperCase(),
+            minIntervalHours: null,
+            maxIntervalHours: null
+        },
         globalEnabled: publisherConfig?.[0]?.global_enabled === true,
         postingSettings: userSettings?.[0] || { caption_template: "Cerita hari ini ✨", external_link: "" },
         config: {
@@ -1222,18 +1228,29 @@ async function savePostingSettings(config, userId, body = {}) {
     return rows[0];
 }
 
-async function saveSchedule(config, userId, body) {
+async function saveSchedule(config, userId, body, profile) {
     const characterId = cleanText(body?.character_id, 80);
     const pageConnectionId = cleanText(body?.page_connection_id, 80);
-    const intervalHours = clampIntervalHours(body?.interval_hours);
     const nextRunAt = Date.parse(String(body?.next_run_at || ""));
     const timezone = cleanText(body?.timezone, 80) || "Asia/Jakarta";
     const aspectRatio = normalizeSocialAspectRatio(body?.aspect_ratio);
     const captionTemplate = cleanText(body?.caption_template, 1000) || "Cerita hari ini dari {location} ✨";
     const id = cleanText(body?.id, 80);
 
+    // Autopost cadence is role-based: OWNER, ADMIN, and USER start at 1 hour.
+    const intervalPolicy = getScheduleIntervalPolicy(profile?.role);
+    if (!intervalPolicy) {
+        const error = new Error("Role akun Anda tidak diizinkan mengatur jadwal autopost. Hubungi owner atau admin.");
+        error.status = 403;
+        throw error;
+    }
+    const { role, minIntervalHours, maxIntervalHours } = intervalPolicy;
+    const intervalHours = clampIntervalHours(body?.interval_hours, minIntervalHours, maxIntervalHours);
+
     if (!characterId || !pageConnectionId || !intervalHours || !aspectRatio || !Number.isFinite(nextRunAt) || nextRunAt < Date.now() - 60_000) {
-        const error = new Error("Pilih karakter, Facebook Page, rasio 9:16 atau 16:9, interval 1–168 jam, dan waktu mulai yang valid.");
+        const error = new Error(
+            `Pilih karakter, Facebook Page, rasio 9:16 atau 16:9, interval ${minIntervalHours}–${maxIntervalHours} jam (minimal ${minIntervalHours} jam untuk role ${role}), dan waktu mulai yang valid.`
+        );
         error.status = 400;
         throw error;
     }
@@ -1789,7 +1806,7 @@ async function setGlobalEnabled(config, userId, env, enabled) {
     return rows?.[0] || { id: true, global_enabled: enabled };
 }
 
-async function handlePost(req, res, config, userId, env, action) {
+async function handlePost(req, res, config, userId, env, action, profile = null) {
     if (action !== "studio-access-status" && action !== "studio-admin-save" && action !== "studio-admin-save-price" && action !== "studio-admin-image-provider" && action !== "studio-admin-model-quota") {
         await ensureStudioAccess(config, userId);
     }
@@ -1845,7 +1862,7 @@ async function handlePost(req, res, config, userId, env, action) {
         return json(res, 200, { success: true, ...(await deleteOutfit(config, userId, body)) });
     }
     if (action === "save-schedule") {
-        return json(res, 200, { success: true, schedule: await saveSchedule(config, userId, body) });
+        return json(res, 200, { success: true, schedule: await saveSchedule(config, userId, body, profile) });
     }
     if (action === "delete-schedule") {
         const id = cleanText(body.id, 80);
@@ -1869,7 +1886,7 @@ async function handlePost(req, res, config, userId, env, action) {
     return json(res, 404, { success: false, error: "Action tidak dikenal." });
 }
 
-async function handleGet(req, res, config, userId, env, action) {
+async function handleGet(req, res, config, userId, env, action, profile = null) {
     if (action === "studio-access-status") {
         const access = await getStudioAccessStatus(config, userId);
         return json(res, 200, { success: true, access });
@@ -1904,7 +1921,7 @@ async function handleGet(req, res, config, userId, env, action) {
         await ensureStudioAccess(config, userId);
     }
     if (action === "dashboard") {
-        return json(res, 200, await getDashboard(config, userId, env));
+        return json(res, 200, await getDashboard(config, userId, env, profile));
     }
     if (action === "outfits") {
         const characterId = cleanText(getQuery(req, "character_id"), 80);
@@ -2020,8 +2037,8 @@ export default async function handler(req, res) {
         if (action.startsWith("studio-admin-")) {
             requireStudioAdmin(profile);
         }
-        if (req.method === "GET") return await handleGet(req, res, config, userId, env, action);
-        return await handlePost(req, res, config, userId, env, action);
+        if (req.method === "GET") return await handleGet(req, res, config, userId, env, action, profile);
+        return await handlePost(req, res, config, userId, env, action, profile);
     } catch (rawError) {
         const error = migrationError(rawError);
         const payload = { success: false, error: error.message };
