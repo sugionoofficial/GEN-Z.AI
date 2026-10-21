@@ -48,7 +48,12 @@ test("privacy and terms pages exist and are self-describing", () => {
         assert.ok(html.includes(`<title>${title} — GEN-Z.AI</title>`), `${name} title mismatch`);
         assert.ok(html.includes(`rel="canonical" href="${canonical}"`), `${name} canonical mismatch`);
         assert.ok(html.includes('href="../assets/css/legal.css"'), `${name} must load the legal stylesheet`);
-        assert.ok(html.includes('src="/navigation/navigation.js"'), `${name} must load the shared navigation`);
+        assert.ok(html.includes('class="legal-topbar"'), `${name} needs its own public header`);
+        assert.doesNotMatch(
+            html,
+            /navigation\/navigation\.js/,
+            `${name} must not load the authenticated navigation, which redirects guests to /index.html`
+        );
         assert.ok(existsSync(path.join(root, name, "index.html")), `${name}/index.html missing`);
     }
 });
