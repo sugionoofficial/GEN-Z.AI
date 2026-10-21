@@ -1,4 +1,5 @@
 import {
+    applyOutfitToScene,
     buildImagePrompt,
     bytesToBase64,
     clampIntervalHours,
@@ -7,7 +8,9 @@ import {
     extensionForMime,
     normalizeMimeType,
     normalizeSocialAspectRatio,
-    renderCaption
+    pickRandomOutfit,
+    renderCaption,
+    sanitizeHttpsUrl
 } from "../lib/social-publisher/utils.js";
 import {
     checkFacebookPageAccess,
@@ -39,6 +42,7 @@ import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-clean
 
 const GRAPH_VERSION = "v26.0";
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
+const MAX_OUTFITS_PER_CHARACTER = 30;
 const OAUTH_STATE_COOKIE = "__Secure-social-oauth-state";
 const OAUTH_STATE_COOKIE_PATH = "/api/facebook-oauth-callback";
 
@@ -355,7 +359,7 @@ function migrationError(error) {
         wrapped.status = 503;
         return wrapped;
     }
-    if (error?.code === "PGRST205" || /social_(characters|post|page|facebook)_/i.test(error?.message || "")) {
+    if (error?.code === "PGRST205" || /social_(characters|outfits|post|page|facebook)_/i.test(error?.message || "")) {
         const wrapped = new Error("Skema Social Publisher belum tersedia. Jalankan supabase/social-auto-publisher.sql di Supabase SQL Editor terlebih dahulu.");
         wrapped.status = 503;
         return wrapped;
@@ -567,14 +571,35 @@ async function handleOAuthCallback(req, res, env) {
     }
 }
 
+async function listRunsForDashboard(config, userId) {
+    const columns = "id,schedule_id,status,scheduled_for,scene_plan,caption";
+    const tail = `&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=30`;
+    try {
+        return await supabaseRequest(
+            config,
+            tablePath("social_post_runs", `select=${columns},outfit_name,outfit_order_url,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`)
+        );
+    } catch (error) {
+        // PGRST204/42703: the outfit snapshot columns are added by the outfit migration.
+        if (error?.code === "PGRST204" || error?.code === "42703" || /outfit_(name|order_url)|column .* does not exist/i.test(error?.message || "")) {
+            return await supabaseRequest(
+                config,
+                tablePath("social_post_runs", `select=${columns},facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`)
+            );
+        }
+        throw error;
+    }
+}
+
 async function getDashboard(config, userId, env) {
-    const [characters, pages, schedules, runs, publisherConfig, userSettings, referenceStorageConfigured] = await Promise.all([
+    const [characters, pages, schedules, runs, publisherConfig, userSettings, outfitLibrary, referenceStorageConfigured] = await Promise.all([
         supabaseRequest(config, tablePath("social_characters", `select=id,display_name,reference_filename,reference_mime_type,garment_filename,prompt_notes,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
         supabaseRequest(config, tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
-        supabaseRequest(config, tablePath("social_post_runs", `select=id,schedule_id,status,scheduled_for,scene_plan,caption,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=30`)),
+        listRunsForDashboard(config, userId),
             supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,updated_at&id=eq.true&limit=1")),
         supabaseRequest(config, tablePath("social_publisher_user_settings", `select=caption_template,external_link,updated_at&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
+        listOutfitsForDashboard(config, userId),
         isPrivateReferenceBucket(config)
     ]);
 
@@ -592,6 +617,7 @@ async function getDashboard(config, userId, env) {
         pages: pages || [],
         schedules: schedules || [],
         runs: runs || [],
+        outfits: outfitLibrary.outfits,
         globalEnabled: publisherConfig?.[0]?.global_enabled === true,
         postingSettings: userSettings?.[0] || { caption_template: "Cerita hari ini ✨", external_link: "" },
         config: {
@@ -603,6 +629,7 @@ async function getDashboard(config, userId, env) {
             captionApiConfigured: providerConfigured,
             cloudflareAiConfigured: typeof env?.AI?.run === "function",
             tokenEncryptionConfigured: Boolean(envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")),
+            outfitLibraryReady: outfitLibrary.ready,
             referenceStorageConfigured
         }
     };
@@ -871,6 +898,262 @@ async function uploadGarmentReference(req, res, config, userId) {
     }
 }
 
+function isMissingOutfitSchema(error) {
+    const message = String(error?.message || "");
+    return error?.code === "PGRST205" ||
+        error?.code === "42P01" ||
+        (/social_outfits/i.test(message) && /does not exist|schema cache|relation/i.test(message));
+}
+
+function normalizeOutfitOrderUrl(value) {
+    const text = cleanText(value, 500);
+    if (!text) return "";
+    const safe = sanitizeHttpsUrl(text);
+    if (!safe) {
+        const error = new Error("Link order outfit harus berupa URL HTTPS yang valid atau dikosongkan.");
+        error.status = 400;
+        throw error;
+    }
+    return safe.slice(0, 500);
+}
+
+async function listOutfits(config, userId, { characterId = "", activeOnly = false, includeStorage = false } = {}) {
+    const columns = includeStorage
+        ? "id,character_id,name,object_key,mime_type,order_url,notes,is_active,created_at"
+        : "id,character_id,name,filename,mime_type,order_url,notes,is_active,created_at";
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_outfits", [
+            `select=${columns}`,
+            `owner_id=eq.${encodeURIComponent(userId)}`,
+            characterId ? `character_id=eq.${encodeURIComponent(characterId)}` : "",
+            activeOnly ? "is_active=eq.true" : "",
+            "order=created_at.desc"
+        ].filter(Boolean).join("&"))
+    );
+    return Array.isArray(rows) ? rows : [];
+}
+
+/**
+ * Outfits are optional: a character without outfits keeps using the legacy
+ * single garment photo, and a database that has not run the outfit migration
+ * yet still loads the dashboard.
+ */
+async function listOutfitsForDashboard(config, userId) {
+    try {
+        return { outfits: await listOutfits(config, userId), ready: true };
+    } catch (error) {
+        if (isMissingOutfitSchema(error)) return { outfits: [], ready: false };
+        throw error;
+    }
+}
+
+/**
+ * Random outfit selection for one post. Recently used outfits are skipped while
+ * another active outfit is available, so the wardrobe keeps rotating.
+ */
+async function pickOutfitForPost(config, userId, characterId) {
+    let outfits;
+    try {
+        outfits = await listOutfits(config, userId, { characterId, activeOnly: true, includeStorage: true });
+    } catch (error) {
+        if (isMissingOutfitSchema(error)) return { outfit: null, ready: false };
+        throw error;
+    }
+    if (!outfits.length) return { outfit: null, ready: true };
+
+    let recentOutfitIds = [];
+    try {
+        const recentRuns = await supabaseRequest(
+            config,
+            tablePath("social_post_runs", `select=outfit_id&owner_id=eq.${encodeURIComponent(userId)}&outfit_id=not.is.null&order=created_at.desc&limit=6`)
+        );
+        recentOutfitIds = (recentRuns || []).map(run => run.outfit_id).filter(Boolean);
+    } catch (error) {
+        // History is a nice-to-have for variety; never block a post because of it.
+        console.error("Could not read recent outfit history:", error?.message || "unknown error");
+    }
+
+    return { outfit: pickRandomOutfit(outfits, recentOutfitIds), ready: true };
+}
+
+function outfitCaptionSource(outfit) {
+    if (!outfit) return null;
+    return { id: outfit.id, name: outfit.name, order_url: outfit.order_url || "" };
+}
+
+function outfitRunValues(outfit) {
+    return {
+        outfit_id: outfit?.id || null,
+        outfit_name: outfit?.name || null,
+        outfit_order_url: outfit?.order_url || null
+    };
+}
+
+async function uploadOutfit(req, res, config, userId) {
+    const characterId = cleanText(getQuery(req, "character_id"), 80);
+    if (!characterId) {
+        const error = new Error("ID karakter wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+    if (String(getHeader(req, "x-outfit-rights") || "") !== "1") {
+        const error = new Error("Konfirmasi hak penggunaan foto outfit diperlukan.");
+        error.status = 400;
+        throw error;
+    }
+    if (!await isPrivateReferenceBucket(config)) {
+        const error = new Error("Bucket privat Supabase Storage untuk foto outfit belum tersedia.");
+        error.status = 503;
+        throw error;
+    }
+
+    const name = cleanText(decodeHeader(getHeader(req, "x-outfit-name")), 80);
+    if (!name) {
+        const error = new Error("Nama outfit wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+    const orderUrl = normalizeOutfitOrderUrl(decodeHeader(getHeader(req, "x-outfit-order-url")));
+    const notes = cleanText(decodeHeader(getHeader(req, "x-outfit-notes")), 400);
+
+    const characters = await supabaseRequest(
+        config,
+        tablePath("social_characters", `select=id&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+    );
+    if (!characters?.length) {
+        const error = new Error("Karakter tidak ditemukan untuk akun ini.");
+        error.status = 404;
+        throw error;
+    }
+
+    let existingOutfits = [];
+    try {
+        existingOutfits = await listOutfits(config, userId, { characterId });
+    } catch (error) {
+        if (isMissingOutfitSchema(error)) {
+            const wrapped = new Error("Tabel outfit belum tersedia. Jalankan ulang supabase/social-auto-publisher.sql di Supabase SQL Editor.");
+            wrapped.status = 503;
+            throw wrapped;
+        }
+        throw error;
+    }
+    if (existingOutfits.length >= MAX_OUTFITS_PER_CHARACTER) {
+        const error = new Error(`Maksimal ${MAX_OUTFITS_PER_CHARACTER} outfit per karakter. Hapus outfit lama sebelum menambah yang baru.`);
+        error.status = 409;
+        throw error;
+    }
+
+    const mime = normalizeMimeType(getHeader(req, "content-type"));
+    const bytes = bytesFromBody(req.body);
+    const filename = cleanText(decodeHeader(getHeader(req, "x-file-name")), 180)
+        || `outfit.${extensionForMime(mime)}`;
+    if (!mime || !bytes.length || bytes.length > MAX_REFERENCE_BYTES || !hasValidImageSignature(bytes, mime)) {
+        const error = new Error("File outfit harus berupa JPEG, PNG, atau WebP yang valid dan berukuran maksimal 8 MB.");
+        error.status = 400;
+        throw error;
+    }
+
+    const key = `social-outfit/${userId}/${crypto.randomUUID()}.${extensionForMime(mime)}`;
+    await uploadReferenceObject(config, key, bytes, mime);
+    try {
+        const saved = await supabaseRequest(
+            config,
+            tablePath("social_outfits", "select=id,character_id,name,filename,mime_type,order_url,notes,is_active,created_at"),
+            {
+                method: "POST",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify({
+                    owner_id: userId,
+                    character_id: characterId,
+                    name,
+                    object_key: key,
+                    filename: filename.replace(/[\\/\0]/g, "").slice(0, 180),
+                    mime_type: mime,
+                    size_bytes: bytes.length,
+                    order_url: orderUrl,
+                    notes,
+                    is_active: true
+                })
+            }
+        );
+        if (!saved?.length) {
+            const error = new Error("Outfit tidak berhasil disimpan.");
+            error.status = 500;
+            throw error;
+        }
+        return json(res, 201, { success: true, outfit: saved[0] });
+    } catch (error) {
+        await deleteReferenceObject(config, key).catch(() => {});
+        throw error;
+    }
+}
+
+async function saveOutfit(config, userId, body = {}) {
+    const id = cleanText(body.id, 80);
+    const name = cleanText(body.name, 80);
+    if (!id || !name) {
+        const error = new Error("ID dan nama outfit wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+
+    const values = {
+        name,
+        order_url: normalizeOutfitOrderUrl(body.order_url),
+        notes: cleanText(body.notes, 400),
+        updated_at: new Date().toISOString()
+    };
+    if (typeof body.is_active === "boolean") values.is_active = body.is_active;
+
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_outfits", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id,character_id,name,filename,mime_type,order_url,notes,is_active,created_at`),
+        {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(values)
+        }
+    );
+    if (!rows?.length) {
+        const error = new Error("Outfit tidak ditemukan.");
+        error.status = 404;
+        throw error;
+    }
+    return rows[0];
+}
+
+async function deleteOutfit(config, userId, body = {}) {
+    const id = cleanText(body.id, 80);
+    if (!id) {
+        const error = new Error("ID outfit wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_outfits", `select=id,object_key&id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+    );
+    const outfit = rows?.[0];
+    if (!outfit) {
+        const error = new Error("Outfit tidak ditemukan.");
+        error.status = 404;
+        throw error;
+    }
+
+    await supabaseRequest(
+        config,
+        tablePath("social_outfits", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}`),
+        { method: "DELETE" }
+    );
+    try {
+        await deleteReferenceObject(config, outfit.object_key);
+    } catch (error) {
+        console.error("Outfit object cleanup failed:", error?.message || "unknown error");
+    }
+    return { id };
+}
+
 async function saveCharacter(config, userId, body) {
     const id = cleanText(body?.id, 80);
     const displayName = cleanText(body?.display_name, 80);
@@ -1073,6 +1356,10 @@ async function generateManualPost(config, userId, env, body = {}) {
         throw error;
     }
 
+    const { outfit, ready: outfitLibraryReady } = await pickOutfitForPost(config, userId, characterId);
+    const garmentObjectKey = outfit?.object_key || character.garment_object_key || "";
+    const garmentMimeType = outfit?.mime_type || character.garment_mime_type || "";
+
     const [settingsRows, previousPreviews] = await Promise.all([
         supabaseRequest(
             config,
@@ -1112,7 +1399,8 @@ async function generateManualPost(config, userId, env, body = {}) {
                 page_connection_id: pageConnectionId,
                 status: "generating",
                 scheduled_for: now,
-                started_at: now
+                started_at: now,
+                ...(outfitLibraryReady ? outfitRunValues(outfit) : {})
             })
         }
     );
@@ -1128,15 +1416,21 @@ async function generateManualPost(config, userId, env, body = {}) {
         if (!referenceBytes.length || referenceBytes.length > MAX_REFERENCE_BYTES) {
             throw new Error("Ukuran foto referensi karakter tidak valid.");
         }
-        const garmentBytes = imageProvider === "qwencloud" && character.garment_object_key
-            ? await downloadReferenceObject(config, character.garment_object_key)
+        const garmentBytes = garmentObjectKey && imageProvider !== "cloudflare"
+            ? await downloadReferenceObject(config, garmentObjectKey)
             : null;
-        const scene = { ...createScenePlan([]), aspect_ratio: aspectRatio };
+        const scene = applyOutfitToScene(
+            { ...createScenePlan([]), aspect_ratio: aspectRatio },
+            outfit
+        );
         const prompt = buildImagePrompt({
             characterName: character.display_name,
             characterNotes: character.prompt_notes,
             scene,
-            aspectRatio
+            aspectRatio,
+            outfitName: outfit?.name,
+            outfitNotes: outfit?.notes,
+            hasOutfitReference: Boolean(garmentObjectKey)
         });
         const generated = await generateSocialImage({
             env,
@@ -1147,14 +1441,14 @@ async function generateManualPost(config, userId, env, body = {}) {
             imageProvider,
             ...(imageProvider === "cloudflare" ? {
                 personImageUrl: await createSignedReferenceUrl(config, character.reference_object_key),
-                garmentImageUrls: character.garment_object_key
-                    ? [await createSignedReferenceUrl(config, character.garment_object_key)]
+                garmentImageUrls: garmentObjectKey
+                    ? [await createSignedReferenceUrl(config, garmentObjectKey)]
                     : []
             } : {}),
-            ...(imageProvider === "qwencloud" ? {
+            ...(imageProvider !== "cloudflare" ? {
                 garmentBytes,
-                garmentMimeType: character.garment_mime_type,
-                imageModel
+                garmentMimeType,
+                ...(imageProvider === "qwencloud" ? { imageModel } : {})
             } : {})
         });
         if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar.");
@@ -1180,7 +1474,8 @@ async function generateManualPost(config, userId, env, body = {}) {
         const caption = composeSocialCaption({
             baseCaption,
             contextualCaption,
-            externalLink: postingSettings.external_link
+            externalLink: postingSettings.external_link,
+            outfit: outfitCaptionSource(outfit)
         });
 
         await supabaseRequest(
@@ -1195,6 +1490,7 @@ async function generateManualPost(config, userId, env, body = {}) {
                     generated_prompt: prompt,
                     caption,
                     image_model: generated.model,
+                    ...(outfitLibraryReady ? outfitRunValues(outfit) : {}),
                     error_message: null
                 })
             }
@@ -1210,6 +1506,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             scene,
             contextual_caption: contextualCaption,
             caption,
+            outfit: outfitCaptionSource(outfit)
         };
     } catch (error) {
         if (imageProvider === "qwencloud" && (error?.quotaExhausted === true || error?.status === 429)) {
@@ -1498,6 +1795,7 @@ async function handlePost(req, res, config, userId, env, action) {
     }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
     if (action === "upload-garment") return uploadGarmentReference(req, res, config, userId);
+    if (action === "upload-outfit") return uploadOutfit(req, res, config, userId);
     if (action === "manual-publish") return await publishManualPost(req, res, config, userId, env);
     if (action === "check-page") {
         return json(res, 200, { success: true, ...(await checkPageConnection(config, userId, env, req.body && typeof req.body === "object" ? req.body : {})) });
@@ -1539,6 +1837,12 @@ async function handlePost(req, res, config, userId, env, action) {
     }
     if (action === "save-character") {
         return json(res, 200, { success: true, character: await saveCharacter(config, userId, body) });
+    }
+    if (action === "save-outfit") {
+        return json(res, 200, { success: true, outfit: await saveOutfit(config, userId, body) });
+    }
+    if (action === "delete-outfit") {
+        return json(res, 200, { success: true, ...(await deleteOutfit(config, userId, body)) });
     }
     if (action === "save-schedule") {
         return json(res, 200, { success: true, schedule: await saveSchedule(config, userId, body) });
@@ -1602,6 +1906,15 @@ async function handleGet(req, res, config, userId, env, action) {
     if (action === "dashboard") {
         return json(res, 200, await getDashboard(config, userId, env));
     }
+    if (action === "outfits") {
+        const characterId = cleanText(getQuery(req, "character_id"), 80);
+        const { outfits, ready } = await listOutfitsForDashboard(config, userId);
+        return json(res, 200, {
+            success: true,
+            outfitLibraryReady: ready,
+            outfits: characterId ? outfits.filter(outfit => outfit.character_id === characterId) : outfits
+        });
+    }
     if (action === "oauth-start") {
         return json(res, 200, { success: true, ...(await startOAuth(config, userId, env, res)) });
     }
@@ -1650,12 +1963,34 @@ async function handleGet(req, res, config, userId, env, action) {
         res.setHeader("Cache-Control", "private, no-store");
         return res.status(200).end(bytes);
     }
+    if (action === "outfit") {
+        const id = cleanText(getQuery(req, "outfit_id"), 80);
+        if (!id) return json(res, 400, { success: false, error: "ID outfit wajib diisi." });
+        const rows = await supabaseRequest(config, tablePath("social_outfits", `select=object_key,mime_type&id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`));
+        const outfit = rows?.[0];
+        if (!outfit) return json(res, 404, { success: false, error: "Outfit tidak ditemukan." });
+        if (!await isPrivateReferenceBucket(config)) {
+            return json(res, 503, { success: false, error: "Bucket privat Supabase Storage belum tersedia." });
+        }
+        let bytes;
+        try {
+            bytes = await downloadReferenceObject(config, outfit.object_key);
+        } catch (error) {
+            if (error?.status === 404) return json(res, 404, { success: false, error: "File outfit tidak tersedia di Supabase Storage." });
+            throw error;
+        }
+        res.setHeader("Content-Type", outfit.mime_type || "application/octet-stream");
+        res.setHeader("Content-Length", String(bytes.length));
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.status(200).end(bytes);
+    }
     return json(res, 404, { success: false, error: "Action tidak dikenal." });
 }
 
 export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", req.headers?.origin || "*");
-    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-File-Name, X-Character-Name, X-Character-Consent, X-Character-Adult, X-Manual-Run-Id");
+    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-File-Name, X-Character-Name, X-Character-Consent, X-Character-Adult, X-Garment-Rights, X-Outfit-Name, X-Outfit-Order-Url, X-Outfit-Notes, X-Outfit-Rights, X-Manual-Run-Id");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Vary", "Origin");
     res.setHeader("Cache-Control", "no-store");

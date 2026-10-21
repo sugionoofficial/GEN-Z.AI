@@ -272,3 +272,50 @@ $$;
 
 revoke all on function public.claim_due_social_post_schedules(timestamptz, integer) from public, anon, authenticated;
 grant execute on function public.claim_due_social_post_schedules(timestamptz, integer) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Outfit library
+-- Each character can own several outfits. Every generated post picks one active
+-- outfit at random, uses its photo as the try-on garment, and appends the outfit
+-- name plus its order link to the caption next to the AI-generated sentence.
+-- Safe to run again on an existing Social Publisher database.
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.social_outfits (
+    id uuid primary key default gen_random_uuid(),
+    owner_id uuid not null references public.profiles(id) on delete cascade,
+    character_id uuid not null,
+    name text not null check (char_length(trim(name)) between 1 and 80),
+    object_key text not null unique,
+    filename text not null default 'outfit-image',
+    mime_type text not null check (mime_type in ('image/jpeg', 'image/png', 'image/webp')),
+    size_bytes integer not null check (size_bytes between 1 and 8388608),
+    order_url text not null default '' check (char_length(order_url) <= 500),
+    notes text not null default '' check (char_length(notes) <= 400),
+    is_active boolean not null default true,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint social_outfits_character_owner_fk
+        foreign key (character_id, owner_id)
+        references public.social_characters(id, owner_id)
+        on delete cascade,
+    unique (id, owner_id)
+);
+
+create index if not exists social_outfits_character_active_idx
+    on public.social_outfits (character_id, is_active, created_at desc);
+
+create index if not exists social_outfits_owner_created_idx
+    on public.social_outfits (owner_id, created_at desc);
+
+-- Snapshot of the randomly selected outfit on each run so the history and the
+-- published caption stay explainable even after the outfit is edited/deleted.
+alter table public.social_post_runs
+    add column if not exists outfit_id uuid,
+    add column if not exists outfit_name text,
+    add column if not exists outfit_order_url text;
+
+alter table public.social_outfits enable row level security;
+
+revoke all on table public.social_outfits from public, anon, authenticated;
+grant select, insert, update, delete on table public.social_outfits to service_role;

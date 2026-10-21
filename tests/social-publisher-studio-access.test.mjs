@@ -668,6 +668,7 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
             return Response.json([{ caption_template: "Cerita hari ini #GENZAI", external_link: "https://example.com" }]);
         }
         if (url.includes("/rest/v1/social_post_runs?select=id&status=eq.generating")) return Response.json([]);
+        if (url.includes("/rest/v1/social_outfits?")) return Response.json([]);
         if (url.includes("/rest/v1/social_post_runs?") && options.method === "POST") {
             return Response.json([{ id: "manual-run-1" }], { status: 201 });
         }

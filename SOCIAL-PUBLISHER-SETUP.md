@@ -5,8 +5,8 @@ The Social Publisher is an admin-only feature for generating one reference-guide
 ## How the flow works
 
 1. An admin uploads a character reference. The original reference is stored in a private Supabase Storage bucket.
-2. At the scheduled time, the Worker selects a scene combination (location, camera angle, outfit, situation, and lighting), avoids recently used combinations, and calls Gemini Nano Banana 2 Lite with the reference image.
-3. The generated image bytes are sent directly to the Facebook Page photos endpoint. Generated images are **not stored in Supabase Storage**.
+2. An admin uploads one or more outfits for that character, each with a name and an optional HTTPS order link. At the scheduled time, the Worker picks one active outfit at random (skipping outfits used by the latest posts while another option exists), selects a scene combination (location, camera angle, outfit name, situation, and lighting), and calls the configured image provider with the character reference plus the chosen outfit reference.
+3. The caption is composed from the base template, the AI sentence, the outfit block (`✨ Outfit: <name>` + `🛍️ Order di sini: <link>`), the external link, and hashtags. The generated image bytes are sent directly to the Facebook Page photos endpoint. Generated images are **not stored in Supabase Storage**.
 4. The run record stores the prompt, scene, caption, Facebook post ID, permalink, status, and any error. The personal-profile share button opens Facebook's share flow for a person to confirm manually.
 
 Schedules are saved as UTC timestamps derived from the selected **Asia/Jakarta (WIB)** time. The Worker checks the queue once per minute and posts one generated image for each due schedule.
@@ -15,7 +15,7 @@ Schedules are saved as UTC timestamps derived from the selected **Asia/Jakarta (
 
 ### 1. Apply the Supabase migration
 
-Run `supabase/social-auto-publisher.sql` and `supabase/social-reference-storage.sql` in the Supabase SQL Editor. The first file creates server-only tables with RLS; the second creates a dedicated private Storage bucket named `social-character-references`, limited to JPEG, PNG, and WebP references up to 8 MB. The Worker uses the existing Supabase service-role configuration to read and write these objects server-side. Do not make the bucket public.
+Run `supabase/social-auto-publisher.sql` and `supabase/social-reference-storage.sql` in the Supabase SQL Editor. The first file creates server-only tables with RLS, including the `social_outfits` library and the `outfit_id`/`outfit_name`/`outfit_order_url` columns on `social_post_runs`; the script is idempotent, so running it again upgrades an existing deployment. The second file creates a dedicated private Storage bucket named `social-character-references`, limited to JPEG, PNG, and WebP references up to 8 MB. The Worker uses the existing Supabase service-role configuration to read and write these objects server-side. Do not make the bucket public.
 
 ### 2. Configure Google Gemini image generation
 
@@ -95,9 +95,19 @@ Open **Admin Control → Social Auto Publisher**:
 
 1. Click **Hubungkan Facebook** and authorize the Pages you administer.
 2. Upload a licensed/authorized reference photo; confirm the character is an adult or fictional non-child.
-3. Create an interval schedule (1–168 hours), choose its first run time in WIB, and write a caption template. Supported caption fields: `{name}`, `{location}`, `{outfit}`, `{situation}`, `{lighting}`, `{angle}`.
-4. Turn on the schedule, then activate global autopublish after all configuration checks are ready.
-5. Review run status and use **Bagikan ke profil pribadi** to confirm sharing manually when desired.
+3. Open **Outfit & link order**, choose the character, then upload outfits with a name, photo, optional notes, and an HTTPS order link. Repeat for every look you want the random picker to use.
+4. Create an interval schedule (1–168 hours), choose its first run time in WIB, and write a caption template. Supported caption fields: `{name}`, `{location}`, `{outfit}`, `{situation}`, `{lighting}`, `{angle}`. `{outfit}` resolves to the outfit that was randomly selected for that post.
+5. Turn on the schedule, then activate global autopublish after all configuration checks are ready.
+6. Review run status and use **Bagikan ke profil pribadi** to confirm sharing manually when desired.
+
+### Outfit library and order links
+
+- Each character can store up to **30 outfits**. Every outfit keeps its photo in the private `social-character-references` bucket under `social-outfit/<user-id>/`.
+- One **active** outfit is picked at random whenever a post is generated. Outfits used by the latest runs are skipped while another active outfit is available, so consecutive posts do not repeat the same wardrobe.
+- The outfit photo is used as the try-on reference for Cloudflare P-Image Try-On and as a second reference image for Gemini and QwenCloud, so the fabric, color, cut, and pattern stay close to the real product.
+- The outfit name and order link are appended to the caption before the external link and hashtags. Only HTTPS order links are accepted; a non-HTTPS link is dropped instead of being published.
+- Runs store `outfit_id`, `outfit_name`, and `outfit_order_url` snapshots, so the history still explains what was published after an outfit is edited or deleted.
+- Characters without any outfit fall back to the legacy single garment upload, and to prompt-only wardrobe direction when no garment exists at all.
 
 A revoked/expired token, missing Meta permission, provider outage, or API error is recorded as a failed run. Reconnect the Page or fix the configuration before expecting later runs to succeed. Generated identity resemblance is not exact; use only images you have the rights and consent to use, and periodically check the posted content.
 
