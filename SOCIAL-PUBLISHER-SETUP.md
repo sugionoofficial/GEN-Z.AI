@@ -123,6 +123,27 @@ Page connections, pending OAuth states, and the Facebook identity mapping. The
 GEN-Z.AI account, saved characters, outfits, credits, and subscription are kept —
 the person deletes their GEN-Z.AI account separately from the app.
 
+### 3c. Basic app fields required by Meta
+
+Before an app can be published, Meta's **App settings → Basic** also requires a
+privacy policy URL, terms of service URL, and an app icon. Both pages ship in this
+repository and are copied to `dist/` by the build script:
+
+```text
+Privacy policy URL:    https://genzai.genzai-f37.workers.dev/privacy/
+Terms of service URL:  https://genzai.genzai-f37.workers.dev/terms/
+App icon:              assets/genzai-app-icon-1024.png
+```
+
+The icon is a 1024×1024 PNG (about 23 KB, well under Meta's 5 MB limit) rendered
+from `assets/genzai-app-icon.svg`, so it matches the site favicon and the PWA
+manifest. Upload the file when Meta asks for the icon; the dashboard lets you
+crop it to a square before saving.
+
+Edit `privacy/index.html` or `terms/index.html` when the data practices change —
+for example when a new AI provider is added — and keep the
+`Berlaku <date>` chip and the `Versi` chip in sync with the change.
+
 ### 4. Confirm Worker configuration and deploy
 
 The Worker reads reference images through the existing Supabase service-role configuration; no Cloudflare R2 binding or R2 subscription is required. `wrangler.toml` retains the one-minute Cron Trigger. Deploy the Worker after both Supabase SQL files have been applied:

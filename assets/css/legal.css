@@ -1,0 +1,248 @@
+/* =========================================================
+   GEN-Z.AI — LEGAL PAGES
+   Dipakai oleh /privacy/ dan /terms/.
+   Lapisan tampilan di atas assets/css/genz-premium.css.
+   ========================================================= */
+
+        body {
+            background:
+                radial-gradient(ellipse 900px 650px at 12% -8%, rgba(169, 112, 255, .10), transparent 60%),
+                radial-gradient(ellipse 800px 600px at 96% 6%, rgba(255, 51, 85, .06), transparent 55%),
+                #05070a;
+        }
+
+        .legal-shell {
+            max-width: 920px;
+            margin: 0 auto;
+        }
+
+        .legal-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .legal-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 13px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .03);
+            color: rgba(255, 255, 255, .62);
+            font-size: 11.5px;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .legal-toc {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 8px 18px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            counter-reset: legal-toc;
+        }
+
+        .legal-toc li {
+            counter-increment: legal-toc;
+            font-size: 13px;
+        }
+
+        .legal-toc a {
+            display: flex;
+            gap: 9px;
+            padding: 7px 8px;
+            border-radius: 8px;
+            color: rgba(255, 255, 255, .66);
+            text-decoration: none;
+            transition: background .18s ease, color .18s ease;
+        }
+
+        .legal-toc a::before {
+            content: counter(legal-toc, decimal-leading-zero);
+            font-family: "JetBrains Mono", monospace;
+            font-size: 11px;
+            color: #ff5a6e;
+            padding-top: 2px;
+        }
+
+        .legal-toc a:hover,
+        .legal-toc a:focus-visible {
+            background: rgba(255, 255, 255, .045);
+            color: #fff;
+        }
+
+        .legal-section {
+            scroll-margin-top: 96px;
+        }
+
+        .legal-section + .legal-section {
+            margin-top: 14px;
+        }
+
+        .legal-section h2 {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin: 0 0 12px;
+            font-size: 17px;
+            letter-spacing: -.01em;
+        }
+
+        .legal-section h2 .legal-num {
+            font-family: "JetBrains Mono", monospace;
+            font-size: 12px;
+            color: #ff5a6e;
+        }
+
+        .legal-section h3 {
+            margin: 20px 0 8px;
+            font-size: 13.5px;
+            color: #fff;
+            letter-spacing: .01em;
+        }
+
+        .legal-section p,
+        .legal-section li {
+            color: rgba(255, 255, 255, .68);
+            font-size: 13.5px;
+            line-height: 1.75;
+        }
+
+        .legal-section p {
+            margin: 0 0 10px;
+        }
+
+        .legal-section ul {
+            margin: 0 0 12px;
+            padding-left: 20px;
+        }
+
+        .legal-section li + li {
+            margin-top: 5px;
+        }
+
+        .legal-section strong {
+            color: rgba(255, 255, 255, .9);
+            font-weight: 600;
+        }
+
+        .legal-section a {
+            color: #8fd8ff;
+            text-decoration: underline;
+            text-decoration-color: rgba(143, 216, 255, .35);
+            text-underline-offset: 2px;
+        }
+
+        .legal-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 4px 0 12px;
+            font-size: 12.5px;
+        }
+
+        .legal-table th,
+        .legal-table td {
+            text-align: left;
+            vertical-align: top;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, .07);
+            color: rgba(255, 255, 255, .68);
+            line-height: 1.6;
+        }
+
+        .legal-table th {
+            color: rgba(255, 255, 255, .44);
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .legal-table tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .legal-callout {
+            margin: 4px 0 14px;
+            padding: 14px 16px;
+            border-left: 3px solid #ff334f;
+            border-radius: 0 10px 10px 0;
+            background: rgba(255, 51, 85, .07);
+            font-size: 13px;
+            color: rgba(255, 255, 255, .74);
+            line-height: 1.7;
+        }
+
+        .legal-callout strong {
+            color: #fff;
+        }
+
+        .legal-footer-note {
+            margin-top: 22px;
+            text-align: center;
+            color: rgba(255, 255, 255, .34);
+            font-size: 11.5px;
+        }
+
+        .legal-footer-note a {
+            color: rgba(255, 255, 255, .55);
+        }
+
+        html[data-genz-theme="light"] body {
+            background:
+                radial-gradient(ellipse 900px 650px at 12% -8%, rgba(169, 112, 255, .10), transparent 60%),
+                #f7f8fb;
+        }
+
+        html[data-genz-theme="light"] .legal-section p,
+        html[data-genz-theme="light"] .legal-section li,
+        html[data-genz-theme="light"] .legal-table th,
+        html[data-genz-theme="light"] .legal-table td,
+        html[data-genz-theme="light"] .legal-callout {
+            color: #3d4658;
+        }
+
+        html[data-genz-theme="light"] .legal-section h2,
+        html[data-genz-theme="light"] .legal-section h3,
+        html[data-genz-theme="light"] .legal-section strong,
+        html[data-genz-theme="light"] .legal-callout strong {
+            color: #101625;
+        }
+
+        html[data-genz-theme="light"] .legal-toc a {
+            color: #4a5568;
+        }
+
+        html[data-genz-theme="light"] .legal-chip {
+            border-color: rgba(16, 22, 37, .12);
+            background: rgba(16, 22, 37, .03);
+            color: #5a6478;
+        }
+
+        html[data-genz-theme="light"] .legal-table th,
+        html[data-genz-theme="light"] .legal-table td {
+            border-bottom-color: rgba(16, 22, 37, .08);
+        }
+
+        html[data-genz-theme="light"] .legal-callout {
+            background: rgba(255, 51, 85, .06);
+        }
+
+        @media (max-width: 640px) {
+            .legal-table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .legal-table td {
+                white-space: normal;
+            }
+        }
