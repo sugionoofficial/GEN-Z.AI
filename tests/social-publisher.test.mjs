@@ -244,7 +244,7 @@ test("Cloudflare P-Image Try-On rejects missing garment references", async () =>
             personImageUrl: "https://storage.example/person?token=person-token",
             garmentImageUrls: []
         }),
-        /memerlukan foto karakter dan minimal satu foto pakaian/
+        /memerlukan foto karakter dan minimal satu foto (outfit\/)?pakaian/
     );
 });
 

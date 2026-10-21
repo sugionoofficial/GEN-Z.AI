@@ -75,6 +75,7 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
             }]);
         }
         if (url.includes("/rest/v1/social_post_runs?select=scene_plan")) return Response.json([]);
+        if (url.includes("/rest/v1/social_outfits?")) return Response.json([]);
         if (url.includes("/rest/v1/social_publisher_user_settings?")) {
             return Response.json([{
                 caption_template: "Base {location} #GENZAI",

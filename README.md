@@ -83,8 +83,16 @@ lalu hasil dan caption ditampilkan sebagai pratinjau. Post hanya diterbitkan
 setelah tombol konfirmasi ditekan. Setiap posting manual tercatat di riwayat.
 Caption dasar dan link HTTPS dapat disimpan sekali untuk digunakan pada semua
 post; hashtag ditempatkan setelah link, bersama satu kalimat singkat yang dibuat
-AI sesuai gambar. Jadwal autopost memakai rasio tersimpan dan menjalankan
-generasi caption serta pembersihan metadata sebelum mengirim gambar ke Facebook.
+AI sesuai gambar. Setiap karakter juga punya library **outfit + link order**:
+unggah beberapa foto outfit dengan nama dan link order HTTPS, lalu server memilih
+satu outfit aktif secara acak setiap kali gambar dibuat (outfit yang baru dipakai
+dihindari selama masih ada pilihan lain). Foto outfit terpilih menjadi referensi
+try-on, sedangkan nama outfit dan link order-nya otomatis masuk ke caption sebagai
+blok `✨ Outfit: …` dan `🛍️ Order di sini: …`; placeholder `{outfit}` pada caption
+template ikut memakai nama outfit terpilih. Outfit dapat dinonaktifkan tanpa
+dihapus, dan maksimal 30 outfit disimpan per karakter. Jadwal autopost memakai
+rasio tersimpan dan menjalankan generasi caption serta pembersihan metadata
+sebelum mengirim gambar ke Facebook.
 Sebelum setiap unggahan, server memeriksa ulang token dan izin Page sehingga
 kegagalan seperti `(#200) Permissions error` dilaporkan dengan langkah
 perbaikan sebelum ada foto terkirim; tombol **Periksa izin** pada daftar Page
@@ -102,8 +110,9 @@ Sebelum mengaktifkan fitur, jalankan skrip berikut di Supabase SQL Editor:
    Skrip harga aman dijalankan ulang pada tabel yang sudah ada untuk
    menambahkan kolom harga per periode.
 3. `supabase/social-auto-publisher.sql` untuk koneksi Facebook, jadwal,
-   riwayat, pengaturan caption/link, dan rasio gambar. Jalankan ulang setelah
-   memperbarui skema Social Publisher agar kolom/tabel tambahan tersedia.
+   riwayat, pengaturan caption/link, rasio gambar, dan library outfit + link
+   order. Jalankan ulang setelah memperbarui skema Social Publisher agar
+   kolom/tabel tambahan (termasuk `social_outfits`) tersedia.
 
 Admin dan owner dapat membuka **Admin Panel → SET Studio Medsos** untuk
 mengaktifkan langganan user, mengatur durasi dan waktu mulai, serta menetapkan
@@ -126,9 +135,11 @@ pada foto karakter dan `@cf/meta/llama-3.2-11b-vision-instruct` untuk caption, t
 `GEMINI_API_KEY`. Akun Cloudflare harus menerima lisensi model Llama sebelum penggunaan
 pertama. Kuota dan biaya
 bergantung pada tier dan ketersediaan model partner di akun provider masing-masing.
-Foto pakaian wajib diunggah untuk setiap karakter yang dipakai saat provider Cloudflare
-aktif. URL bertanda tangan Supabase yang berumur pendek dikirim ke model Pruna untuk
-memproses foto karakter dan pakaian. Periksa biaya dan ketentuan model sebelum digunakan.
+Minimal satu outfit aktif (atau foto pakaian default) diperlukan untuk setiap karakter
+yang dipakai saat provider Cloudflare aktif. URL bertanda tangan Supabase yang berumur
+pendek dikirim ke model Pruna untuk memproses foto karakter dan outfit terpilih. Provider
+Gemini dan QwenCloud juga menerima foto outfit terpilih sebagai referensi kedua agar
+bahan, warna, dan potongan pakaian tetap konsisten. Periksa biaya dan ketentuan model sebelum digunakan.
 Service role key hanya digunakan server dan tidak boleh dikirim ke browser.
 Pilihan Gemini memakai Nano Banana 2 Lite (`gemini-3.1-flash-lite-image`) dan
 `gemini-3.8-flash` melalui Interactions API, sehingga memerlukan `GEMINI_API_KEY`.

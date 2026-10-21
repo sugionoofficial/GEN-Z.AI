@@ -17,6 +17,9 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     const uploadButton = $("upload-character");
     const saveScheduleButton = $("save-schedule");
     const connectButton = $("connect-page");
+    const outfitSelect = $("outfit-character");
+    const outfitStatus = $("outfit-status");
+    const saveOutfitButton = $("save-outfit");
     let studioAccessState = null;
     let studioAccessError = null;
     let studioGateDismissed = false;
@@ -152,8 +155,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const garmentLabel = document.querySelector("label[for='character-garment']");
         if (garmentLabel) {
             garmentLabel.textContent = config.imageProvider === "cloudflare"
-                ? "Foto pakaian untuk Cloudflare Try-On (wajib)"
-                : "Foto pakaian untuk Cloudflare Try-On (opsional)";
+                ? "Foto pakaian default (opsional bila sudah ada outfit)"
+                : "Foto pakaian default (opsional)";
         }
         const items = [
             ["Meta OAuth", config.metaOAuthConfigured],
@@ -256,8 +259,11 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         select.replaceChildren(new Option("Pilih karakter…", ""));
         manualSelect.replaceChildren(new Option("Pilih karakter…", ""));
         for (const character of characters) {
-            const optionLabel = cloudflareProvider && !character.garment_filename
-                ? `${character.display_name} · pakaian belum diatur`
+            const characterOutfits = (state.data?.outfits || []).filter(outfit => outfit.character_id === character.id);
+            const activeOutfitCount = characterOutfits.filter(outfit => outfit.is_active !== false).length;
+            const needsGarment = cloudflareProvider && !character.garment_filename && activeOutfitCount === 0;
+            const optionLabel = needsGarment
+                ? `${character.display_name} · outfit belum diatur`
                 : character.display_name;
             select.add(new Option(optionLabel, character.id));
             manualSelect.add(new Option(optionLabel, character.id));
@@ -285,13 +291,20 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             title.textContent = character.display_name;
             const detail = document.createElement("div");
             detail.className = "item-meta";
-            detail.textContent = `${character.reference_filename || "referensi"} · ${character.garment_filename ? `Pakaian: ${character.garment_filename}` : "Foto pakaian belum diatur"} · ${character.prompt_notes || "Tanpa catatan tambahan"}`;
+            detail.textContent = `${character.reference_filename || "referensi"} · ${activeOutfitCount ? `${activeOutfitCount} outfit aktif` : "Belum ada outfit"} · ${character.garment_filename ? "Pakaian default tersedia" : "Tanpa pakaian default"} · ${character.prompt_notes || "Tanpa catatan tambahan"}`;
             content.append(title, detail);
             const action = document.createElement("button");
             action.className = "btn small";
             action.type = "button";
-            action.textContent = character.garment_filename ? "Ganti pakaian" : "Atur pakaian";
+            action.textContent = character.garment_filename ? "Ganti pakaian default" : "Pakaian default";
             action.addEventListener("click", () => uploadGarment(character));
+            const outfitAction = document.createElement("button");
+            outfitAction.className = "btn small green";
+            outfitAction.type = "button";
+            outfitAction.textContent = activeOutfitCount
+                ? `Kelola outfit (${activeOutfitCount})`
+                : "Kelola outfit";
+            outfitAction.addEventListener("click", () => focusOutfitLibrary(character.id));
             const notesAction = document.createElement("button");
             notesAction.className = "btn small";
             notesAction.type = "button";
@@ -299,7 +312,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             notesAction.addEventListener("click", () => editCharacter(character));
             const actions = document.createElement("div");
             actions.className = "item-actions";
-            actions.append(action, notesAction);
+            actions.append(outfitAction, action, notesAction);
             item.append(thumbs, content, actions);
             container.append(item);
         }
@@ -346,6 +359,244 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
+    function safeHttpsLink(value) {
+        try {
+            const url = new URL(String(value || ""));
+            return url.protocol === "https:" ? url.toString() : "";
+        } catch {
+            return "";
+        }
+    }
+
+    function renderOutfits() {
+        const container = $("outfits-list");
+        const selectedCharacterId = outfitSelect.value;
+        const outfits = (state.data?.outfits || []).filter(outfit => outfit.character_id === selectedCharacterId);
+        const ready = state.data?.config?.outfitLibraryReady !== false;
+        const badge = $("outfit-ready-badge");
+        const notice = $("outfit-library-notice");
+        if (badge) {
+            const count = selectedCharacterId ? outfits.length : (state.data?.outfits || []).length;
+            badge.textContent = ready ? `${count} outfit` : "Belum siap";
+            badge.className = `badge${ready ? " posted" : " failed"}`;
+        }
+        if (notice) notice.hidden = ready;
+        saveOutfitButton.disabled = !ready;
+
+        container.replaceChildren();
+        if (!selectedCharacterId) {
+            const empty = document.createElement("div");
+            empty.className = "empty";
+            empty.style.gridColumn = "1/-1";
+            empty.textContent = "Pilih karakter untuk melihat daftar outfit.";
+            container.append(empty);
+            return;
+        }
+        if (!outfits.length) {
+            const empty = document.createElement("div");
+            empty.className = "empty";
+            empty.style.gridColumn = "1/-1";
+            empty.textContent = ready
+                ? "Belum ada outfit untuk karakter ini. Tambahkan minimal satu outfit agar gambar memakai pakaian yang Anda tentukan."
+                : "Library outfit belum tersedia di database. Jalankan ulang supabase/social-auto-publisher.sql, lalu muat ulang halaman.";
+            container.append(empty);
+            return;
+        }
+
+        for (const outfit of outfits) {
+            const card = document.createElement("article");
+            card.className = "outfit-card";
+            const img = document.createElement("img");
+            img.alt = `Foto outfit ${outfit.name}`;
+            img.loading = "lazy";
+            img.dataset.outfitId = outfit.id;
+            img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='215' height='170'%3E%3Crect width='100%25' height='100%25' fill='%231b2737'/%3E%3C/svg%3E";
+            loadOutfitPreview(outfit.id, img);
+            const title = document.createElement("p");
+            title.className = "item-title";
+            title.textContent = outfit.name;
+            const stateRow = document.createElement("div");
+            stateRow.className = "outfit-state";
+            const stateBadge = document.createElement("span");
+            stateBadge.className = `badge ${outfit.is_active === false ? "failed" : "posted"}`;
+            stateBadge.textContent = outfit.is_active === false ? "Nonaktif" : "Aktif";
+            const meta = document.createElement("span");
+            meta.className = "item-meta";
+            meta.textContent = outfit.notes || "";
+            stateRow.append(stateBadge, meta);
+            const order = document.createElement("a");
+            order.className = "outfit-order";
+            const orderUrl = safeHttpsLink(outfit.order_url);
+            if (orderUrl) {
+                order.href = orderUrl;
+                order.target = "_blank";
+                order.rel = "noopener noreferrer";
+                order.textContent = orderUrl;
+            } else {
+                order.classList.add("missing");
+                order.textContent = "Tanpa link order";
+            }
+            const actions = document.createElement("div");
+            actions.className = "outfit-card-actions";
+            const toggle = document.createElement("button");
+            toggle.className = `btn small ${outfit.is_active === false ? "green" : ""}`;
+            toggle.type = "button";
+            toggle.textContent = outfit.is_active === false ? "Aktifkan" : "Nonaktifkan";
+            toggle.addEventListener("click", () => toggleOutfit(outfit));
+            const edit = document.createElement("button");
+            edit.className = "btn small";
+            edit.type = "button";
+            edit.textContent = "Edit";
+            edit.addEventListener("click", () => editOutfit(outfit));
+            const remove = document.createElement("button");
+            remove.className = "btn small danger";
+            remove.type = "button";
+            remove.textContent = "Hapus";
+            remove.addEventListener("click", () => deleteOutfit(outfit));
+            actions.append(toggle, edit, remove);
+            card.append(img, title, stateRow, order, actions);
+            container.append(card);
+        }
+    }
+
+    async function loadOutfitPreview(outfitId, img) {
+        try {
+            const response = await api("outfit&outfit_id=" + encodeURIComponent(outfitId), { raw: true });
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            if (img.dataset.outfitId && img.dataset.outfitId !== outfitId) {
+                URL.revokeObjectURL(url);
+                return;
+            }
+            const previousUrl = state.objectUrls.get(`outfit:${outfitId}`);
+            if (previousUrl) URL.revokeObjectURL(previousUrl);
+            state.objectUrls.set(`outfit:${outfitId}`, url);
+            img.src = url;
+        } catch {
+            img.alt = "Preview outfit tidak tersedia";
+        }
+    }
+
+    function focusOutfitLibrary(characterId) {
+        outfitSelect.value = characterId;
+        renderOutfits();
+        document.getElementById("outfit-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        $("outfit-name").focus({ preventScroll: true });
+    }
+
+    async function submitOutfit(event) {
+        event.preventDefault();
+        const characterId = outfitSelect.value;
+        const name = $("outfit-name").value.trim();
+        const orderUrl = $("outfit-order-url").value.trim();
+        const notes = $("outfit-notes").value.trim();
+        const file = $("outfit-image").files?.[0];
+        if (!characterId) {
+            status(outfitStatus, "Pilih karakter terlebih dahulu.", "error");
+            return;
+        }
+        if (!name || !file) {
+            status(outfitStatus, "Isi nama outfit dan pilih foto outfit.", "error");
+            return;
+        }
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 8 * 1024 * 1024) {
+            status(outfitStatus, "Foto outfit harus JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
+            return;
+        }
+        if (orderUrl && !safeHttpsLink(orderUrl)) {
+            status(outfitStatus, "Link order harus berupa URL HTTPS yang valid.", "error");
+            return;
+        }
+        if (!$("outfit-rights").checked) {
+            status(outfitStatus, "Centang konfirmasi hak penggunaan foto outfit.", "error");
+            return;
+        }
+
+        setButtonBusy(saveOutfitButton, true, "Menyimpan…");
+        status(outfitStatus, "Mengunggah foto outfit ke Supabase Storage privat…");
+        try {
+            await api(`upload-outfit&character_id=${encodeURIComponent(characterId)}`, {
+                method: "POST",
+                body: file,
+                raw: true,
+                headers: {
+                    "Content-Type": file.type,
+                    "X-File-Name": encodeURIComponent(file.name),
+                    "X-Outfit-Name": encodeURIComponent(name),
+                    "X-Outfit-Order-Url": encodeURIComponent(orderUrl),
+                    "X-Outfit-Notes": encodeURIComponent(notes),
+                    "X-Outfit-Rights": "1"
+                }
+            });
+            $("outfit-form").reset();
+            outfitSelect.value = characterId;
+            status(outfitStatus, `Outfit "${name}" tersimpan. Outfit ini ikut dipilih acak pada post berikutnya.`, "good");
+            await loadDashboard();
+        } catch (error) {
+            status(outfitStatus, error.message || "Outfit gagal disimpan.", "error");
+        } finally {
+            setButtonBusy(saveOutfitButton, false);
+        }
+    }
+
+    async function editOutfit(outfit) {
+        const name = window.prompt("Nama outfit", outfit.name || "");
+        if (name === null) return;
+        const orderUrl = window.prompt("Link order outfit (HTTPS, boleh dikosongkan)", outfit.order_url || "");
+        if (orderUrl === null) return;
+        const notes = window.prompt("Catatan outfit (boleh dikosongkan)", outfit.notes || "");
+        if (notes === null) return;
+        if (orderUrl.trim() && !safeHttpsLink(orderUrl)) {
+            showNotice(pageMessage, "Link order harus berupa URL HTTPS yang valid.", "error");
+            return;
+        }
+        try {
+            await api("save-outfit", {
+                method: "POST",
+                body: {
+                    id: outfit.id,
+                    name: name.trim() || outfit.name,
+                    order_url: orderUrl.trim(),
+                    notes: notes.trim(),
+                    is_active: outfit.is_active !== false
+                }
+            });
+            showNotice(pageMessage, "Outfit diperbarui.", "success");
+            await loadDashboard();
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
+        }
+    }
+
+    async function toggleOutfit(outfit) {
+        try {
+            await api("save-outfit", {
+                method: "POST",
+                body: {
+                    id: outfit.id,
+                    name: outfit.name,
+                    order_url: outfit.order_url || "",
+                    notes: outfit.notes || "",
+                    is_active: outfit.is_active === false
+                }
+            });
+            await loadDashboard();
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
+        }
+    }
+
+    async function deleteOutfit(outfit) {
+        if (!window.confirm(`Hapus outfit "${outfit.name}"? Riwayat post yang sudah terbit tidak berubah.`)) return;
+        try {
+            await api("delete-outfit", { method: "POST", body: { id: outfit.id } });
+            showNotice(pageMessage, "Outfit dihapus.", "success");
+            await loadDashboard();
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
+        }
+    }
+
     function updateManualCharacterPreview() {
         const characterId = $("manual-character").value;
         const preview = $("manual-character-preview");
@@ -389,10 +640,11 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             return;
         }
         const selectedCharacter = (state.data?.characters || []).find(character => character.id === characterId);
-        if (state.data?.config?.imageProvider === "cloudflare" && selectedCharacter && !selectedCharacter.garment_filename) {
+        const hasActiveOutfit = (state.data?.outfits || []).some(outfit => outfit.character_id === characterId && outfit.is_active !== false);
+        if (state.data?.config?.imageProvider === "cloudflare" && selectedCharacter && !selectedCharacter.garment_filename && !hasActiveOutfit) {
             status(
                 $("manual-post-status"),
-                `Karakter "${selectedCharacter.display_name}" belum memiliki foto pakaian, sedangkan Cloudflare P-Image Try-On mewajibkannya. Klik "Atur pakaian" pada daftar karakter tersimpan, lalu ulangi pratinjau.`,
+                `Karakter "${selectedCharacter.display_name}" belum memiliki outfit maupun foto pakaian, sedangkan Cloudflare P-Image Try-On mewajibkannya. Tambahkan outfit pada bagian "Outfit & link order", lalu ulangi pratinjau.`,
                 "error"
             );
             return;
@@ -433,9 +685,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             $("manual-character-placeholder").hidden = true;
             $("manual-garment-box").hidden = true;
             $("manual-generated-caption").textContent = result.preview.caption;
+            showManualOutfit(result.preview.outfit);
+            const outfitNote = result.preview.outfit?.name
+                ? ` Outfit acak: ${result.preview.outfit.name}${result.preview.outfit.order_url ? " (link order disertakan di caption)" : ""}.`
+                : "";
             status(
                 $("manual-post-status"),
-                `Gambar ${result.preview.aspect_ratio} selesai dibuat dan dibersihkan. Periksa pratinjau serta caption sebelum menerbitkan.`,
+                `Gambar ${result.preview.aspect_ratio} selesai dibuat dan dibersihkan.${outfitNote} Periksa pratinjau serta caption sebelum menerbitkan.`,
                 "good"
             );
         } catch (error) {
@@ -505,6 +761,29 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
+    function showManualOutfit(outfit) {
+        const line = $("manual-outfit-line");
+        if (!line) return;
+        line.replaceChildren();
+        if (!outfit?.name) {
+            line.hidden = true;
+            return;
+        }
+        const label = document.createElement("strong");
+        label.textContent = `Outfit terpilih acak: ${outfit.name}`;
+        line.append(label);
+        const orderUrl = safeHttpsLink(outfit.order_url);
+        if (orderUrl) {
+            const link = document.createElement("a");
+            link.href = orderUrl;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = orderUrl;
+            line.append(document.createTextNode(" · "), link);
+        }
+        line.hidden = false;
+    }
+
     function clearManualPreview() {
         const previewUrl = state.objectUrls.get("manual-preview");
         if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -512,6 +791,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         state.manualPreview = null;
         $("manual-generated-preview").removeAttribute("src");
         $("manual-generated-result").hidden = true;
+        $("manual-outfit-line").hidden = true;
         updateManualCharacterPreview();
     }
 
@@ -666,7 +946,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const scene = run.scene_plan || {};
             detail.textContent = run.status === "failed"
                 ? (run.error_message || "Posting gagal; cek konfigurasi API dan Page.")
-                : [scene.location, scene.outfit, run.caption].filter(Boolean).join(" · ") || "Menunggu proses.";
+                : [scene.location, run.outfit_name || scene.outfit, run.caption].filter(Boolean).join(" · ") || "Menunggu proses.";
             content.append(title, detail);
             if (run.status === "posted" && run.permalink_url) {
                 const share = document.createElement("div");
@@ -699,6 +979,15 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (!runs.length) container.innerHTML = '<div class="empty">Belum ada run. Aktifkan jadwal untuk mulai.</div>';
     }
 
+    function renderOutfitSelector(characters = []) {
+        const previous = outfitSelect.value;
+        outfitSelect.replaceChildren(new Option("Pilih karakter…", ""));
+        for (const character of characters) {
+            outfitSelect.add(new Option(character.display_name, character.id));
+        }
+        outfitSelect.value = characters.some(character => character.id === previous) ? previous : "";
+    }
+
     function render(data) {
         state.data = data;
         renderConfig(data.config || {});
@@ -709,6 +998,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         renderRuns(data.runs || []);
         $("default-caption-template").value = data.postingSettings?.caption_template || "Cerita hari ini ✨";
         $("external-post-link").value = data.postingSettings?.external_link || "";
+        renderOutfitSelector(data.characters || []);
+        renderOutfits();
         const pagesWithoutPublish = (data.pages || []).filter(page => page.can_publish === false).length;
         if (pagesWithoutPublish) {
             showNotice(
@@ -1061,6 +1352,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     });
     $("posting-settings-form").addEventListener("submit", savePostingSettings);
+    $("outfit-form").addEventListener("submit", submitOutfit);
+    outfitSelect.addEventListener("change", renderOutfits);
     $("manual-character").addEventListener("change", updateManualCharacterPreview);
     $("schedule-form").addEventListener("submit", submitSchedule);
     $("interval-hours").addEventListener("input", updateCostEstimate);

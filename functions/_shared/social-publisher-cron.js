@@ -1,4 +1,4 @@
-import { buildImagePrompt, composeSocialCaption, createScenePlan, renderCaption } from "../../lib/social-publisher/utils.js";
+import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, pickRandomOutfit, renderCaption } from "../../lib/social-publisher/utils.js";
 import { decryptSecret, generateSocialContextCaption, generateSocialImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
 import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket } from "../../lib/social-publisher/storage.js";
 import { normalizeQwenCloudImageModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
@@ -33,7 +33,10 @@ async function dbRequest(config, path, options = {}) {
         try { data = JSON.parse(text); } catch { data = { message: text }; }
     }
     if (!response.ok) {
-        throw new Error(String(data?.message || data?.error_description || `Supabase HTTP ${response.status}`).slice(0, 500));
+        const error = new Error(String(data?.message || data?.error_description || `Supabase HTTP ${response.status}`).slice(0, 500));
+        error.status = response.status;
+        error.code = String(data?.code || "");
+        throw error;
     }
     return data;
 }
@@ -48,6 +51,52 @@ async function updateRun(config, runId, values) {
         headers: { Prefer: "return=minimal" },
         body: JSON.stringify(values)
     });
+}
+
+function isMissingOutfitSchema(error) {
+    if (error?.code === "PGRST205" || error?.code === "42P01") return true;
+    const message = String(error?.message || "");
+    return /social_outfits/i.test(message) && /does not exist|schema cache|relation/i.test(message);
+}
+
+function isMissingRunOutfitColumn(error) {
+    if (error?.code === "PGRST204" || error?.code === "42703") return true;
+    return /outfit_id|column .* does not exist/i.test(String(error?.message || ""));
+}
+
+/**
+ * Recent posted runs are used to avoid repeating a composition or an outfit.
+ * Deployments that have not run the outfit migration still fall back to the
+ * scene only history instead of failing the whole run.
+ */
+async function listRecentPostedRuns(config, scheduleId) {
+    const base = `select=scene_plan&schedule_id=eq.${encodeURIComponent(scheduleId)}&status=eq.posted&order=created_at.desc&limit=12`;
+    try {
+        return await dbRequest(config, table("social_post_runs", `select=scene_plan,outfit_id&schedule_id=eq.${encodeURIComponent(scheduleId)}&status=eq.posted&order=created_at.desc&limit=12`));
+    } catch (error) {
+        if (!isMissingRunOutfitColumn(error)) throw error;
+        return await dbRequest(config, table("social_post_runs", base));
+    }
+}
+
+/**
+ * Loads the character's active outfit library and picks one at random, skipping
+ * outfits used by the latest posts of this schedule when possible.
+ */
+async function pickScheduledOutfit(config, schedule, previousRuns) {
+    let outfits;
+    try {
+        outfits = await dbRequest(config, table(
+            "social_outfits",
+            `select=id,character_id,name,object_key,mime_type,order_url,notes,is_active,created_at&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&character_id=eq.${encodeURIComponent(schedule.character_id)}&is_active=eq.true&order=created_at.desc`
+        ));
+    } catch (error) {
+        if (isMissingOutfitSchema(error)) return { outfit: null, ready: false };
+        throw error;
+    }
+    if (!Array.isArray(outfits) || !outfits.length) return { outfit: null, ready: true };
+    const recentOutfitIds = (previousRuns || []).map(run => run.outfit_id).filter(Boolean);
+    return { outfit: pickRandomOutfit(outfits, recentOutfitIds), ready: true };
 }
 
 function cleanError(error) {
@@ -76,7 +125,7 @@ async function processRun(env, config, claimedRun) {
         const [characters, pageConnections, previousRuns, settingsRows, publisherConfigs] = await Promise.all([
             dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,garment_object_key,garment_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
-            dbRequest(config, table("social_post_runs", `select=scene_plan&schedule_id=eq.${encodeURIComponent(schedule.id)}&status=eq.posted&order=created_at.desc&limit=12`)),
+            listRecentPostedRuns(config, schedule.id),
             dbRequest(config, table("social_publisher_user_settings", `select=caption_template,external_link&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1"))
         ]);
@@ -93,20 +142,29 @@ async function processRun(env, config, claimedRun) {
         const recentSceneKeys = (previousRuns || [])
             .map(item => item.scene_plan?.key)
             .filter(Boolean);
+        const { outfit, ready: outfitLibraryReady } = await pickScheduledOutfit(config, schedule, previousRuns);
+        const garmentObjectKey = outfit?.object_key || character.garment_object_key || "";
+        const garmentMimeType = outfit?.mime_type || character.garment_mime_type || "";
         const aspectRatio = ["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16";
         imageProvider = ["cloudflare", "qwencloud"].includes(publisherConfigs?.[0]?.image_provider)
             ? publisherConfigs[0].image_provider
             : "gemini";
         imageModel = normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);
-        const garmentBytes = imageProvider === "qwencloud" && character.garment_object_key
-            ? await downloadReferenceObject(config, character.garment_object_key)
+        const garmentBytes = garmentObjectKey && imageProvider !== "cloudflare"
+            ? await downloadReferenceObject(config, garmentObjectKey)
             : null;
-        const scene = { ...createScenePlan(recentSceneKeys), aspect_ratio: aspectRatio };
+        const scene = applyOutfitToScene(
+            { ...createScenePlan(recentSceneKeys), aspect_ratio: aspectRatio },
+            outfit
+        );
         const prompt = buildImagePrompt({
             characterName: character.display_name,
             characterNotes: character.prompt_notes,
             scene,
-            aspectRatio
+            aspectRatio,
+            outfitName: outfit?.name,
+            outfitNotes: outfit?.notes,
+            hasOutfitReference: Boolean(garmentObjectKey)
         });
         const generated = await generateSocialImage({
             env,
@@ -117,14 +175,14 @@ async function processRun(env, config, claimedRun) {
             imageProvider,
             ...(imageProvider === "cloudflare" ? {
                 personImageUrl: await createSignedReferenceUrl(config, character.reference_object_key),
-                garmentImageUrls: character.garment_object_key
-                    ? [await createSignedReferenceUrl(config, character.garment_object_key)]
+                garmentImageUrls: garmentObjectKey
+                    ? [await createSignedReferenceUrl(config, garmentObjectKey)]
                     : []
             } : {}),
-            ...(imageProvider === "qwencloud" ? {
+            ...(imageProvider !== "cloudflare" ? {
                 garmentBytes,
-                garmentMimeType: character.garment_mime_type,
-                imageModel
+                garmentMimeType,
+                ...(imageProvider === "qwencloud" ? { imageModel } : {})
             } : {})
         });
         if (!generated?.bytes?.length) throw new Error("Image provider returned an empty image.");
@@ -152,7 +210,8 @@ async function processRun(env, config, claimedRun) {
         const caption = composeSocialCaption({
             baseCaption,
             contextualCaption,
-            externalLink: settings?.external_link
+            externalLink: settings?.external_link,
+            outfit: outfit ? { id: outfit.id, name: outfit.name, order_url: outfit.order_url || "" } : null
         });
 
         const encryptionKey = value(env, "SOCIAL_TOKEN_ENCRYPTION_KEY");
@@ -178,6 +237,11 @@ async function processRun(env, config, claimedRun) {
             generated_prompt: prompt,
             caption,
             image_model: generated.model,
+            ...(outfitLibraryReady ? {
+                outfit_id: outfit?.id || null,
+                outfit_name: outfit?.name || null,
+                outfit_order_url: outfit?.order_url || null
+            } : {}),
             facebook_photo_id: published.photoId || null,
             facebook_post_id: published.postId || null,
             permalink_url: published.permalinkUrl || null,
