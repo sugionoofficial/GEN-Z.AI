@@ -5,10 +5,14 @@ import {
     clampIntervalHours,
     composeSocialCaption,
     createScenePlan,
+    DEFAULT_SOCIAL_RUNS_PER_PAGE,
     extensionForMime,
     getScheduleIntervalPolicy,
     normalizeMimeType,
+    normalizeRunsPage,
+    normalizeRunsPerPage,
     normalizeSocialAspectRatio,
+    parseContentRangeTotal,
     pickRandomOutfit,
     renderCaption,
     sanitizeHttpsUrl
@@ -66,7 +70,12 @@ function getHeader(req, name) {
 function getQuery(req, name) {
     const query = req.query || {};
     if (Array.isArray(query[name])) return query[name][0] || "";
-    return String(query[name] || "");
+    if (query[name] !== undefined) return String(query[name] || "");
+    try {
+        return new URL(String(req.url || "/"), "https://social-publisher.invalid").searchParams.get(name) || "";
+    } catch {
+        return "";
+    }
 }
 
 function getBearerToken(req) {
@@ -93,7 +102,7 @@ function getSupabaseConfig(env) {
     };
 }
 
-async function supabaseRequest(config, path, options = {}) {
+async function supabaseRequestWithHeaders(config, path, options = {}) {
     if (!config.url || !config.serviceRoleKey) {
         throw new Error("Konfigurasi Supabase server belum lengkap.");
     }
@@ -122,9 +131,15 @@ async function supabaseRequest(config, path, options = {}) {
         const error = new Error(message || `Supabase request gagal (HTTP ${response.status}).`);
         error.status = response.status;
         error.code = data?.code || "";
+        error.headers = response.headers;
         throw error;
     }
 
+    return { data, headers: response.headers };
+}
+
+async function supabaseRequest(config, path, options = {}) {
+    const { data } = await supabaseRequestWithHeaders(config, path, options);
     return data;
 }
 
@@ -596,32 +611,104 @@ async function handleOAuthCallback(req, res, env) {
     }
 }
 
-async function listRunsForDashboard(config, userId) {
+async function listRunsForDashboard(config, userId, paginationOptions = {}) {
+    const perPage = normalizeRunsPerPage(paginationOptions.perPage, DEFAULT_SOCIAL_RUNS_PER_PAGE);
+    let page = normalizeRunsPage(paginationOptions.page);
     const columns = "id,schedule_id,status,scheduled_for,scene_plan,caption";
-    const tail = `&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=30`;
-    try {
-        return await supabaseRequest(
-            config,
-            tablePath("social_post_runs", `select=${columns},outfit_name,outfit_order_url,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`)
-        );
-    } catch (error) {
-        // PGRST204/42703: the outfit snapshot columns are added by the outfit migration.
-        if (error?.code === "PGRST204" || error?.code === "42703" || /outfit_(name|order_url)|column .* does not exist/i.test(error?.message || "")) {
-            return await supabaseRequest(
+
+    async function fetchPageSlice(targetPage) {
+        const offset = (targetPage - 1) * perPage;
+        const tail = `&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=${perPage}&offset=${offset}`;
+        const requestOptions = { headers: { Prefer: "count=exact" } };
+        try {
+            return await supabaseRequestWithHeaders(
                 config,
-                tablePath("social_post_runs", `select=${columns},facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`)
+                tablePath("social_post_runs", `select=${columns},outfit_name,outfit_order_url,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`),
+                requestOptions
             );
+        } catch (error) {
+            // PGRST204/42703: the outfit snapshot columns are added by the outfit migration.
+            if (error?.code === "PGRST204" || error?.code === "42703" || /outfit_(name|order_url)|column .* does not exist/i.test(error?.message || "")) {
+                return await supabaseRequestWithHeaders(
+                    config,
+                    tablePath("social_post_runs", `select=${columns},facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`),
+                    requestOptions
+                );
+            }
+            throw error;
         }
-        throw error;
     }
+
+    let response;
+    try {
+        response = await fetchPageSlice(page);
+    } catch (error) {
+        if (error?.status === 416 || error?.code === "PGRST103") {
+            const rangeTotal = parseContentRangeTotal(error.headers?.get?.("content-range")) ?? 0;
+            if (rangeTotal <= 0) {
+                return {
+                    runs: [],
+                    pagination: { page: 1, perPage, total: 0, totalPages: 1 }
+                };
+            }
+            page = Math.max(1, Math.ceil(rangeTotal / perPage));
+            response = await fetchPageSlice(page);
+        } else {
+            throw error;
+        }
+    }
+
+    let rows = Array.isArray(response?.data) ? response.data : [];
+    const headerTotal = parseContentRangeTotal(response?.headers?.get?.("content-range"));
+
+    if (headerTotal !== null) {
+        const totalPages = Math.max(1, Math.ceil(headerTotal / perPage));
+        if (rows.length === 0 && headerTotal > 0 && page > totalPages) {
+            page = totalPages;
+            const retry = await fetchPageSlice(page);
+            rows = Array.isArray(retry?.data) ? retry.data : [];
+        }
+        return {
+            runs: rows,
+            pagination: {
+                page: Math.min(page, totalPages),
+                perPage,
+                total: headerTotal,
+                totalPages
+            }
+        };
+    }
+
+    if (rows.length > perPage) {
+        const total = rows.length;
+        const totalPages = Math.max(1, Math.ceil(total / perPage));
+        const safePage = Math.min(page, totalPages);
+        const start = (safePage - 1) * perPage;
+        return {
+            runs: rows.slice(start, start + perPage),
+            pagination: { page: safePage, perPage, total, totalPages }
+        };
+    }
+
+    const inferredTotal = rows.length > 0 ? (page - 1) * perPage + rows.length : 0;
+    const totalPages = Math.max(1, Math.ceil(inferredTotal / perPage));
+    return {
+        runs: rows,
+        pagination: {
+            page: Math.min(page, totalPages),
+            perPage,
+            total: inferredTotal,
+            totalPages
+        }
+    };
 }
 
-async function getDashboard(config, userId, env, profile) {
-    const [characters, pages, schedules, runs, publisherConfig, userSettings, outfitLibrary, referenceStorageConfigured] = await Promise.all([
+async function getDashboard(config, userId, env, profile, runsOptions = {}) {
+    const [characters, pages, schedules, runsResult, publisherConfig, userSettings, outfitLibrary, referenceStorageConfigured] = await Promise.all([
         supabaseRequest(config, tablePath("social_characters", `select=id,display_name,reference_filename,reference_mime_type,garment_filename,prompt_notes,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
         supabaseRequest(config, tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
-        listRunsForDashboard(config, userId),
+        listRunsForDashboard(config, userId, runsOptions),
             supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,updated_at&id=eq.true&limit=1")),
         supabaseRequest(config, tablePath("social_publisher_user_settings", `select=caption_template,external_link,updated_at&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
         listOutfitsForDashboard(config, userId),
@@ -641,7 +728,13 @@ async function getDashboard(config, userId, env, profile) {
         characters: characters || [],
         pages: pages || [],
         schedules: schedules || [],
-        runs: runs || [],
+        runs: runsResult?.runs || [],
+        runsPagination: runsResult?.pagination || {
+            page: 1,
+            perPage: DEFAULT_SOCIAL_RUNS_PER_PAGE,
+            total: (runsResult?.runs || []).length,
+            totalPages: 1
+        },
         outfits: outfitLibrary.outfits,
         schedulePolicy: getScheduleIntervalPolicy(profile?.role) || {
             role: String(profile?.role || "").trim().toUpperCase(),
@@ -1945,7 +2038,21 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
         await ensureStudioAccess(config, userId);
     }
     if (action === "dashboard") {
-        return json(res, 200, await getDashboard(config, userId, env, profile));
+        return json(res, 200, await getDashboard(config, userId, env, profile, {
+            page: getQuery(req, "runs_page") || getQuery(req, "page"),
+            perPage: getQuery(req, "runs_limit") || getQuery(req, "limit")
+        }));
+    }
+    if (action === "runs") {
+        const result = await listRunsForDashboard(config, userId, {
+            page: getQuery(req, "page") || getQuery(req, "runs_page"),
+            perPage: getQuery(req, "limit") || getQuery(req, "per_page") || getQuery(req, "runs_limit")
+        });
+        return json(res, 200, {
+            success: true,
+            runs: result.runs,
+            runsPagination: result.pagination
+        });
     }
     if (action === "outfits") {
         const characterId = cleanText(getQuery(req, "character_id"), 80);

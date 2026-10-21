@@ -27,8 +27,34 @@
         .studio-gate-value.running,
         .studio-gate-countdown.running{color:#39ff71;text-shadow:0 0 12px rgba(57,255,113,.32);font-weight:800}
         .manual-preview{width:100%;max-width:300px;max-height:540px;aspect-ratio:9/16;object-fit:contain;border:1px solid var(--border);border-radius:12px;background:#0b1421}.manual-post-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}.manual-preview-caption{margin-top:8px;color:var(--muted);font-size:12px;line-height:1.55;white-space:pre-wrap}
+        .btn.is-premium-loading,.btn.is-premium-loading:disabled{position:relative;overflow:hidden;isolation:isolate;opacity:1;cursor:progress;min-height:44px;padding:10px 16px;gap:10px;color:#fff;transform:translateZ(0);transition:box-shadow .25s ease,border-color .25s ease,background .25s ease}
+        .btn.primary.is-premium-loading,.btn.primary.is-premium-loading:disabled{background:linear-gradient(135deg,#6b5bf6 0%,#4f46e5 52%,#3764d8 100%);border-color:#a59dff;box-shadow:0 10px 28px rgba(108,92,246,.42),0 0 0 1px rgba(165,157,255,.28),inset 0 1px 0 rgba(255,255,255,.28);animation:btn-violet-pulse 2.2s ease-in-out infinite}
+        .btn.green.is-premium-loading,.btn.green.is-premium-loading:disabled{background:linear-gradient(135deg,#13594a 0%,#0f453a 52%,#166b59 100%);border-color:#4ce6b0;color:#ecfff7;box-shadow:0 10px 28px rgba(53,211,154,.30),0 0 0 1px rgba(76,230,176,.24),inset 0 1px 0 rgba(255,255,255,.22);animation:btn-emerald-pulse 2.2s ease-in-out infinite}
+        .btn.is-premium-loading::before{content:"";position:absolute;inset:0;z-index:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,.22) 48%,rgba(255,255,255,.06) 56%,transparent 78%);transform:translateX(-120%);animation:btn-premium-sheen 1.75s cubic-bezier(.4,0,.2,1) infinite;pointer-events:none}
+        .btn.is-premium-loading::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;z-index:1;background:linear-gradient(90deg,transparent,rgba(255,255,255,.92),#46d9e8,transparent);background-size:200% 100%;animation:btn-progress-beam 1.35s linear infinite;pointer-events:none}
+        .btn.green.is-premium-loading::after{background:linear-gradient(90deg,transparent,#8af7d0,#46d9e8,transparent);background-size:200% 100%}
+        .btn-fx-orbit{position:relative;z-index:2;flex:0 0 auto;width:17px;height:17px;border-radius:50%;border:2px solid rgba(255,255,255,.26);border-top-color:#fff;border-right-color:rgba(70,217,232,.92);animation:spin .76s linear infinite;display:inline-grid;place-items:center;box-shadow:0 0 10px rgba(255,255,255,.25)}
+        .btn-fx-orbit::after{content:"";width:5px;height:5px;border-radius:50%;background:#fff;opacity:.92;animation:btn-core-dot 1.1s ease-in-out infinite}
+        .btn-fx-text{position:relative;z-index:2;color:#fff !important;font-size:12.5px;font-weight:800;letter-spacing:.01em;white-space:nowrap}
+        .btn-fx-time{position:relative;z-index:2;padding:2px 7px;border-radius:999px;background:rgba(6,11,22,.34);border:1px solid rgba(255,255,255,.24);color:#eef6ff !important;font-size:10.5px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.35;letter-spacing:.03em}
+        @keyframes btn-premium-sheen{0%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+        @keyframes btn-progress-beam{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        @keyframes btn-violet-pulse{0%,100%{box-shadow:0 10px 26px rgba(108,92,246,.36),0 0 0 1px rgba(165,157,255,.25),inset 0 1px 0 rgba(255,255,255,.26)}50%{box-shadow:0 12px 34px rgba(108,92,246,.56),0 0 0 3px rgba(124,108,255,.20),inset 0 1px 0 rgba(255,255,255,.34)}}
+        @keyframes btn-emerald-pulse{0%,100%{box-shadow:0 10px 26px rgba(53,211,154,.26),0 0 0 1px rgba(76,230,176,.22),inset 0 1px 0 rgba(255,255,255,.20)}50%{box-shadow:0 12px 34px rgba(53,211,154,.46),0 0 0 3px rgba(53,211,154,.18),inset 0 1px 0 rgba(255,255,255,.30)}}
+        @keyframes btn-core-dot{0%,100%{transform:scale(.75);opacity:.65}50%{transform:scale(1.1);opacity:1}}
+        @media(prefers-reduced-motion:reduce){.btn.is-premium-loading::before,.btn.is-premium-loading::after,.btn.primary.is-premium-loading,.btn.green.is-premium-loading,.btn-fx-orbit::after{animation:none}}
+        @media(max-width:480px){.btn.is-premium-loading,.btn.is-premium-loading:disabled{width:100%;justify-content:center;padding:10px 12px}.btn-fx-text{white-space:normal;text-align:left}}
         .outfit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px}.outfit-card{display:flex;flex-direction:column;gap:9px;padding:11px;border:1px solid #29384d;border-radius:13px;background:#0b1421}.outfit-card img{width:100%;height:170px;object-fit:cover;border-radius:9px;border:1px solid #35445a;background:#1b2737}.outfit-card .item-title{margin:0}.outfit-order{font-size:11px;line-height:1.45;color:#8fd8ff;overflow-wrap:anywhere}.outfit-order.missing{color:#91a1b8}.outfit-card-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}.outfit-state{display:flex;align-items:center;justify-content:space-between;gap:8px}.outfit-hint{margin:10px 0 0;padding:10px 12px;border-left:3px solid var(--accent);border-radius:0 8px 8px 0;background:#1a1b33;color:#cfc9ff;font-size:11px;line-height:1.55}.manual-outfit-line{margin-top:8px;font-size:11px;line-height:1.5;color:#d9d3ff;overflow-wrap:anywhere}.manual-outfit-line a{color:#8fd8ff}
+        .runs-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:12px 0;margin-bottom:14px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.runs-toolbar[hidden]{display:none}.runs-pagination-info{color:var(--muted);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}.runs-per-page-wrap{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.04em}.runs-per-page-wrap label{margin:0;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}.runs-per-page-select{width:auto;min-width:78px;appearance:none;-webkit-appearance:none;-moz-appearance:none;padding:7px 32px 7px 12px;border:1px solid #3a4960;border-radius:9px;background-color:#0b1421;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239eacc2' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 10px center;color:var(--text);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;cursor:pointer}.runs-per-page-select:hover{border-color:#7183a1}.runs-per-page-suffix{font-size:11px;color:var(--muted);white-space:nowrap}
+        .runs-pagination{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}.runs-pagination[hidden],.runs-pagination:empty{display:none}.runs-page-btn{min-width:36px;height:36px;padding:0 11px;border:1px solid #33435b;border-radius:9px;background:#0b1421;color:#cbd7ea;font:inherit;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .16s,background .16s,color .16s,box-shadow .16s}.runs-page-btn:hover:not(:disabled):not(.active){border-color:#7183a1;background:#182438;color:#fff}.runs-page-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.runs-page-btn.active{background:linear-gradient(135deg,#7061f5,#5750d9);border-color:#8f85ff;color:#fff;box-shadow:0 6px 16px rgba(112,97,245,.35)}.runs-page-btn:disabled{opacity:.38;cursor:not-allowed}.runs-page-nav{font-size:15px;padding:0 9px}.runs-ellipsis{color:#6f7e93;padding:0 4px;user-select:none;font-weight:800;line-height:1}
+        html[data-genz-theme="light"] .runs-toolbar,html[data-genz-theme="light"] .runs-pagination{border-color:#c6d0df}html[data-genz-theme="light"] .item{background:#f8f9fd;border-color:#c6d0df}html[data-genz-theme="light"] .runs-per-page-select{background-color:#fff;border-color:#8291a7;color:#172033;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234b5870' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")}html[data-genz-theme="light"] .runs-page-btn{background:#f8f9fd;border-color:#9aa7bc;color:#172033}html[data-genz-theme="light"] .runs-page-btn:hover:not(:disabled):not(.active){background:#eef1fa;border-color:#596fa8;color:#172033}html[data-genz-theme="light"] .runs-page-btn.active{background:linear-gradient(135deg,#7061f5,#5750d9);border-color:#5750d9;color:#fff}
+        .tutorial-btn{border-color:#4d5885;background:rgba(124,108,255,.14);color:#dedaff}.tutorial-btn:hover{border-color:#8f85ff;background:rgba(124,108,255,.24);color:#fff}.tutorial-btn.is-open{border-color:#8f85ff;background:rgba(124,108,255,.28);color:#fff;box-shadow:0 0 0 3px rgba(124,108,255,.18)}
+        .tutorial-panel{margin-top:14px;padding:16px;border:1px solid #354766;border-radius:14px;background:linear-gradient(155deg,rgba(16,26,44,.98),rgba(11,18,31,.98));box-shadow:0 12px 28px rgba(0,0,0,.22);animation:tutorial-fade .18s ease-out}.tutorial-panel[hidden]{display:none}@keyframes tutorial-fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+        .tutorial-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}.tutorial-head h4{margin:0 0 3px;font-size:14px;font-weight:800;color:var(--text)}.tutorial-head p{margin:0;font-size:11.5px;line-height:1.45;color:var(--muted)}.tutorial-close{flex:0 0 auto}
+        .tutorial-steps{display:grid;gap:9px}.tutorial-step{display:grid;grid-template-columns:24px minmax(0,1fr);gap:11px;align-items:start;padding:10px 11px;border-radius:10px;background:rgba(8,14,25,.62);border:1px solid #26354a}.tutorial-num{width:24px;height:24px;border-radius:999px;display:grid;place-items:center;background:linear-gradient(135deg,#7061f5,#5750d9);color:#fff;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}.tutorial-step-title{margin:0 0 3px;font-size:12.5px;font-weight:750;color:#f2f6fd}.tutorial-step-body{margin:0;font-size:12px;line-height:1.55;color:#aebcd2}
+        html[data-genz-theme="light"] .tutorial-btn{background:#eef1ff;border-color:#7c6cff;color:#3d32b5}html[data-genz-theme="light"] .tutorial-btn:hover{background:#e2e7ff;border-color:#5750d9;color:#2b2294}html[data-genz-theme="light"] .tutorial-btn.is-open{background:linear-gradient(135deg,#7061f5,#5750d9);border-color:#5750d9;color:#fff}html[data-genz-theme="light"] .tutorial-panel{background:#f5f7fd;border-color:#b8c4d8;box-shadow:0 10px 24px rgba(40,54,82,.09)}html[data-genz-theme="light"] .tutorial-head{border-color:#cfd8e6}html[data-genz-theme="light"] .tutorial-step{background:#fff;border-color:#d4dce9}html[data-genz-theme="light"] .tutorial-step-body{color:#425068}html[data-genz-theme="light"] .tutorial-close{background:#fff;border-color:#9aa7bc;color:#172033}
         @media(max-width:768px){.manual-post-layout{grid-template-columns:1fr}.manual-preview{max-width:180px}.outfit-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.outfit-card img{height:130px}}
+        @media(max-width:560px){.runs-toolbar{flex-direction:column;align-items:stretch;gap:10px}.runs-per-page-wrap{justify-content:space-between}.runs-pagination{gap:4px;margin-top:14px;padding-top:13px}.runs-page-btn{min-width:32px;height:32px;padding:0 8px;font-size:11px;border-radius:8px}.runs-page-nav{font-size:14px}}
     </style>
 </head>
 <body>
@@ -98,19 +124,64 @@
             <section class="card" aria-labelledby="connect-title">
                 <div class="card-head"><div><h3 id="connect-title">1. Hubungkan Facebook Page</h3><p class="sub">Meta OAuth akan menampilkan Pages yang Anda kelola dan mengizinkan tool menerbitkan posting.</p></div></div>
                 <div id="page-connections" class="list"><div class="empty">Memuat koneksi…</div></div>
-                <div class="actions"><button id="connect-page" class="btn primary" type="button">Hubungkan Facebook</button></div>
+                <div class="actions">
+                    <button id="connect-page" class="btn primary" type="button">Hubungkan Facebook</button>
+                    <button id="toggle-tutorial" class="btn tutorial-btn" type="button" aria-expanded="false" aria-controls="usage-tutorial">Tutorial</button>
+                </div>
+                <div id="usage-tutorial" class="tutorial-panel" role="region" aria-labelledby="usage-tutorial-title" hidden>
+                    <div class="tutorial-head">
+                        <div>
+                            <h4 id="usage-tutorial-title">Panduan Penggunaan Studio Medsos</h4>
+                            <p>Ikuti langkah berurutan di bawah ini untuk membuat dan menjadwalkan konten otomatis ke Facebook Page Anda.</p>
+                        </div>
+                        <button id="close-tutorial" class="btn small tutorial-close" type="button">Tutup</button>
+                    </div>
+                    <div class="tutorial-steps">
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">1</span>
+                            <div>
+                                <p class="tutorial-step-title">Hubungkan Facebook Page</p>
+                                <p class="tutorial-step-body">Klik tombol <strong>Hubungkan Facebook</strong>, login ke akun Facebook yang mengelola Page tujuan, pilih Page yang ingin dipakai, lalu setujui seluruh izin akses agar sistem dapat menerbitkan posting.</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">2</span>
+                            <div>
+                                <p class="tutorial-step-title">Tambahkan Karakter Referensi</p>
+                                <p class="tutorial-step-body">Pada bagian <strong>2. Tambah karakter referensi</strong>, isi nama karakter, unggah foto wajah/karakter yang jelas (JPEG/PNG/WebP maks. 8 MB), tambahkan catatan ciri fisik bila perlu, centang konfirmasi hak pakai, lalu klik <strong>Simpan karakter</strong>.</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">3</span>
+                            <div>
+                                <p class="tutorial-step-title">Simpan Koleksi Outfit &amp; Link Order</p>
+                                <p class="tutorial-step-body">Pada bagian <strong>3. Outfit &amp; link order</strong>, pilih karakter, isi nama outfit, masukkan link order produk (<code>https://...</code>), unggah foto outfit, lalu klik <strong>Simpan outfit</strong>. Sistem otomatis memilih outfit aktif secara acak di tiap post agar konten selalu bervariasi.</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">4</span>
+                            <div>
+                                <p class="tutorial-step-title">Atur Caption Dasar &amp; Link External</p>
+                                <p class="tutorial-step-body">Isi <strong>Caption dasar tetap</strong> (termasuk hashtag atau tag <code>{outfit}</code> untuk menampilkan nama outfit otomatis) serta opsional link external, kemudian klik <strong>Simpan Caption &amp; Link</strong>.</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">5</span>
+                            <div>
+                                <p class="tutorial-step-title">Buat Posting Manual atau Jadwal Autopost</p>
+                                <p class="tutorial-step-body">Untuk uji coba langsung, gunakan <strong>Buat posting manual</strong> lalu klik <strong>Buat &amp; bersihkan pratinjau</strong> dan <strong>Terbitkan ke Facebook Page</strong>. Untuk otomatis berkala, isi <strong>4. Buat jadwal autopost</strong>, centang <strong>Jadwal ini aktif</strong>, simpan jadwal, dan pastikan tombol <strong>Aktifkan autopublish</strong> di bagian atas menyala (<strong>AUTOPUBLISH ON</strong>).</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">6</span>
+                            <div>
+                                <p class="tutorial-step-title">Pantau Riwayat &amp; Bagikan Post</p>
+                                <p class="tutorial-step-body">Cek status seluruh konten pada bagian <strong>Riwayat pembuatan &amp; posting</strong> di bawah halaman, lihat langsung posting yang sudah terbit di Page, atau bagikan ke profil pribadi Anda.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <p class="status" id="connect-status"></p>
-                <details class="meta-help" id="meta-app-mode-help">
-                    <summary>Muncul “Aplikasi tidak aktif” di Facebook saat menghubungkan?</summary>
-                    <ol>
-                        <li><strong>Meta App masih mode Development.</strong> Selama belum Live, Facebook hanya mengizinkan akun yang terdaftar sebagai <em>App Role</em>. Buka <strong>Meta App Dashboard → App roles → Roles</strong>, tambahkan akun Facebook tersebut sebagai <em>Tester</em> (atau <em>Developer</em>), lalu login ulang ke Facebook pada akun itu sebelum menekan tombol hubungkan.</li>
-                        <li><strong>Akun harus mengelola Page.</strong> Akun tersebut wajib punya tugas <code>CREATE_CONTENT</code> pada Page tujuan. Kalau tidak, hubungkan memakai akun admin Page.</li>
-                        <li><strong>Login configuration harus benar.</strong> Gunakan konfigurasi <em>Facebook Login for Business</em> dengan izin <code>pages_show_list</code>, <code>pages_read_engagement</code>, dan <code>pages_manage_posts</code>, lalu pastikan <code>META_LOGIN_CONFIG_ID</code> di Worker memakai ID konfigurasi itu.</li>
-                        <li><strong>Redirect URI harus sama persis</strong> dengan yang terdaftar di Meta: <code>https://genzai.genzai-f37.workers.dev/api/facebook-oauth-callback</code>.</li>
-                        <li><strong>Untuk publik:</strong> setelah siap, ajukan App Review untuk izin Page lalu aktifkan <em>Live mode</em> agar akun di luar App Roles bisa menghubungkan Page.</li>
-                    </ol>
-                </details>
-                <p class="help">Profil pribadi tidak dapat diposting otomatis lewat Graph API resmi. Setelah Page post terbit, tersedia tombol untuk membagikannya ke profil secara manual.</p>
             </section>
 
             <section class="card" aria-labelledby="character-title">
@@ -253,9 +324,23 @@
                 <div id="schedules-list" class="schedule-grid"><div class="empty">Belum ada jadwal.</div></div>
             </section>
 
-            <section class="card wide" aria-labelledby="runs-title">
+            <section class="card wide" id="runs-section" aria-labelledby="runs-title">
                 <div class="card-head"><div><h3 id="runs-title">Riwayat pembuatan & posting</h3><p class="sub">Gambar hasil generasi dikirim langsung ke Facebook dan tidak disimpan ke Supabase Storage.</p></div><button id="refresh" class="btn small" type="button">Muat ulang</button></div>
+                <div class="runs-toolbar" id="runs-toolbar">
+                    <span class="runs-pagination-info" id="runs-pagination-info">Memuat riwayat…</span>
+                    <div class="runs-per-page-wrap">
+                        <label for="runs-per-page">Tampilkan</label>
+                        <select id="runs-per-page" class="runs-per-page-select" aria-label="Jumlah riwayat per halaman">
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span class="runs-per-page-suffix">per halaman</span>
+                    </div>
+                </div>
                 <div id="runs-list" class="list"><div class="empty">Memuat riwayat…</div></div>
+                <nav class="runs-pagination" id="runs-pagination" aria-label="Navigasi halaman riwayat pembuatan dan posting" hidden></nav>
             </section>
         </div>
         <p class="footer">GEN-Z.AI · Social Publisher · Waktu dijadwalkan dalam Asia/Jakarta</p>
