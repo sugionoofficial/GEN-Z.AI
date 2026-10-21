@@ -11,7 +11,94 @@
                 #05070a;
         }
 
-        .legal-shell {
+        /* ---------------------------------------------------------
+   Public top bar
+   Halaman legal harus bisa dibuka tanpa login, jadi tidak
+   memakai /navigation/navigation.js (yang mengalihkan tamu
+   ke /index.html).
+--------------------------------------------------------- */
+
+.legal-topbar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 1250px;
+    margin: 0 auto;
+    padding: 20px 24px 6px;
+}
+
+.legal-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+}
+
+.legal-brand-mark {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 70, 70, .4);
+    background: radial-gradient(circle at 35% 30%, rgba(255, 70, 70, .25), rgba(255, 0, 0, .05) 60%, rgba(0, 0, 0, .1));
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .5px;
+}
+
+.legal-brand-text {
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+}
+
+.legal-brand-text strong {
+    color: #ff3048;
+}
+
+.legal-nav {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.legal-nav a {
+    color: rgba(255, 255, 255, .55);
+    text-decoration: none;
+    padding: 6px 2px;
+    border-bottom: 1px solid transparent;
+    transition: color .18s ease, border-color .18s ease;
+}
+
+.legal-nav a:hover,
+.legal-nav a:focus-visible {
+    color: #fff;
+    border-bottom-color: rgba(255, 48, 72, .6);
+}
+
+html[data-genz-theme="light"] .legal-brand-text {
+    color: #101625;
+}
+
+html[data-genz-theme="light"] .legal-nav a {
+    color: #5a6478;
+}
+
+html[data-genz-theme="light"] .legal-nav a:hover {
+    color: #101625;
+}
+
+.legal-shell {
             max-width: 920px;
             margin: 0 auto;
         }
