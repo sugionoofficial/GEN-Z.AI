@@ -198,18 +198,417 @@
             .video-options-hint { grid-column: auto; }
         }
     
-            /* ====== LIGHT MODE PASS ====== */
+            /* =========================================================
+               LIGHT MODE PASS
+               ---------------------------------------------------------
+               Semua warna gelap yang di-hardcode di atas punya
+               pasangannya di sini. Scope html[data-genz-theme="light"]
+               supaya tema gelap tidak berubah sama sekali.
+            ========================================================= */
+
             html[data-genz-theme="light"] {
                 color-scheme: light;
+                background: #eef1f8;
                 --chat-bg: #eef1f8;
                 --chat-panel: #ffffff;
-                --chat-line: rgba(15,23,42,.13);
-                --chat-muted: #5b6472;
-                --chat-text: #172033;
+                --chat-line: #dbe3f0;
+                --chat-muted: #55617a;
+                --chat-text: #101828;
+                --chat-accent: #5b4bd6;
+                --chat-cyan: #0f8fa3;
+
+                /* turunan khusus tema terang */
+                --chat-hint: #5f6b80;
             }
-            html[data-genz-theme="light"] body .user .message-content {
+
+            html[data-genz-theme="light"] body {
+                color: var(--chat-text);
+                background:
+                    radial-gradient(ellipse at 50% -18%, rgba(139,124,255,.16), transparent 58%),
+                    radial-gradient(ellipse at 100% 55%, rgba(86,217,232,.10), transparent 40%),
+                    var(--chat-bg);
+            }
+
+            /* ---------- HEADER ---------- */
+
+            html[data-genz-theme="light"] .eyebrow {
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] h1 {
+                color: #0b1424;
+            }
+
+            html[data-genz-theme="light"] .subtitle {
+                color: var(--chat-hint);
+            }
+
+            html[data-genz-theme="light"] .heading-badge {
+                border-color: #dfe6f1;
+                background: #ffffff;
+                color: #35415a;
+                box-shadow: 0 1px 2px rgba(16,24,40,.04);
+            }
+
+            /* ---------- CARD / TOOLBAR ---------- */
+
+            html[data-genz-theme="light"] .chat-card {
+                border-color: #dfe6f1;
+                background: #ffffff;
+                box-shadow: 0 18px 50px rgba(16,24,40,.09);
+            }
+
+            html[data-genz-theme="light"] .toolbar {
+                background: #ffffff;
+                border-bottom-color: #e4eaf4;
+            }
+
+            html[data-genz-theme="light"] .model-mark {
+                border-color: #dcd4ff;
+                background: linear-gradient(145deg, #efeafe, #e8f5fa);
+                color: #5b4bd6;
+            }
+
+            html[data-genz-theme="light"] .model-label {
+                color: #6b7688;
+            }
+
+            html[data-genz-theme="light"] select {
+                color: #101828;
+            }
+
+            html[data-genz-theme="light"] select option {
+                color: #101828;
+                background: #ffffff;
+            }
+
+            html[data-genz-theme="light"] .catalog-status {
+                color: #6b7688;
+            }
+
+            html[data-genz-theme="light"] .text-button {
+                border-color: #dfe6f1;
+                background: #ffffff;
+                color: #35415a;
+            }
+
+            html[data-genz-theme="light"] .text-button:hover {
+                border-color: #b9aef5;
+                background: #f7f4ff;
+                color: #4a3cbe;
+            }
+
+            /* ---------- REPO PANEL ---------- */
+
+            html[data-genz-theme="light"] .repo-panel {
+                border-bottom-color: #e4eaf4;
+                background: #f8fafd;
+            }
+
+            html[data-genz-theme="light"] .repo-panel summary {
+                color: #24334d;
+            }
+
+            html[data-genz-theme="light"] .repo-panel summary::before {
+                color: #12855a;
+            }
+
+            html[data-genz-theme="light"] .repo-status {
+                color: #6b7688;
+            }
+
+            html[data-genz-theme="light"] .repo-input {
+                border-color: #dbe3f0;
+                background: #ffffff;
+                color: #101828;
+            }
+
+            html[data-genz-theme="light"] .repo-input:focus {
+                border-color: #8b7cff;
+                box-shadow: 0 0 0 3px rgba(139,124,255,.12);
+            }
+
+            html[data-genz-theme="light"] .repo-input::placeholder {
+                color: #8a94a6;
+            }
+
+            html[data-genz-theme="light"] .repo-load {
+                border-color: #c9c0fa;
+                background: #efeafe;
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] .repo-load:hover:not(:disabled) {
+                background: #e4dcfd;
+            }
+
+            html[data-genz-theme="light"] .repo-load:disabled {
+                background: #f2f4f8;
+                color: #8a94a6;
+            }
+
+            html[data-genz-theme="light"] .repo-select-all {
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] .repo-file-option {
+                color: #33415c;
+            }
+
+            html[data-genz-theme="light"] .repo-file-option:hover {
+                background: #eef3fb;
+            }
+
+            html[data-genz-theme="light"] .repo-file-size,
+            html[data-genz-theme="light"] .repo-file-empty,
+            html[data-genz-theme="light"] .repo-selection-hint {
+                color: #6b7688;
+            }
+
+            html[data-genz-theme="light"] .repo-context {
+                border-top-color: #e4eaf4;
+                background: #f2fbf6;
+                color: #0f7a4a;
+            }
+
+            html[data-genz-theme="light"] .repo-clear {
+                border-color: #cfe6d9;
+                background: #ffffff;
+                color: #27664a;
+            }
+
+            /* ---------- WELCOME ---------- */
+
+            html[data-genz-theme="light"] .welcome-icon {
+                border-color: #ded6ff;
+                background: linear-gradient(145deg, #f1ecff, #e9f6fa);
+            }
+
+            html[data-genz-theme="light"] .welcome h2 {
+                color: #0b1424;
+            }
+
+            html[data-genz-theme="light"] .welcome p {
+                color: var(--chat-hint);
+            }
+
+            /* ---------- MESSAGES ---------- */
+
+            html[data-genz-theme="light"] .message-content {
+                border-color: #e0e7f2;
+                background: #f6f8fd;
+                color: #1b2740;
+            }
+
+            html[data-genz-theme="light"] .avatar {
+                border-color: #dfe6f1;
+                background: #ffffff;
+                color: #33415c;
+            }
+
+            html[data-genz-theme="light"] .assistant .avatar {
+                border-color: #ded6ff;
+                background: #f0ebff;
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] .message-text.is-collapsed::after {
+                background: linear-gradient(transparent, #f6f8fd);
+            }
+
+            html[data-genz-theme="light"] .user .message-content {
+                border-color: transparent;
                 color: #ffffff;
                 background: linear-gradient(135deg, #5b4bd6, #2f5f96);
+            }
+
+            html[data-genz-theme="light"] .user .message-text.is-collapsed::after {
+                background: linear-gradient(transparent, #46408a);
+            }
+
+            html[data-genz-theme="light"] .message-error .message-content {
+                border-color: #f2c9cc;
+                background: #fdf3f4;
+                color: #b4232f;
+            }
+
+            html[data-genz-theme="light"] .message-expand {
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] .message-expand:hover,
+            html[data-genz-theme="light"] .message-expand:focus-visible {
+                color: #241b7a;
+            }
+
+            html[data-genz-theme="light"] .message-copy {
+                color: #6b7688;
+            }
+
+            html[data-genz-theme="light"] .message-copy:hover,
+            html[data-genz-theme="light"] .message-copy:focus-visible {
+                border-color: #dfe6f1;
+                background: #f2f5fa;
+                color: #1b2740;
+            }
+
+            html[data-genz-theme="light"] .message-copy.copied {
+                color: #0f7a4a;
+            }
+
+            /* ---------- FINAL PROMPT ---------- */
+
+            html[data-genz-theme="light"] .final-prompt {
+                border-color: #ddd6fb;
+                background: #fbfaff;
+            }
+
+            html[data-genz-theme="light"] .final-prompt-head {
+                border-bottom-color: #e8e3fb;
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] .final-prompt-copy {
+                border-color: #dfe6f1;
+                background: #ffffff;
+                color: #33415c;
+            }
+
+            html[data-genz-theme="light"] .final-prompt-text {
+                color: #24334d;
+            }
+
+            html[data-genz-theme="light"] .final-prompt-copy:hover,
+            html[data-genz-theme="light"] .final-prompt-copy.copied {
+                border-color: #b7e3cb;
+                background: #f1fbf5;
+                color: #0f7a4a;
+            }
+
+            html[data-genz-theme="light"] .typing i {
+                background: #6d5ce0;
+            }
+
+            /* ---------- COMPOSER ---------- */
+
+            html[data-genz-theme="light"] .composer-wrap {
+                border-top-color: #e4eaf4;
+                background: #fbfcff;
+            }
+
+            html[data-genz-theme="light"] .notice {
+                color: #6b7688;
+            }
+
+            html[data-genz-theme="light"] .notice.error {
+                color: #b4232f;
+            }
+
+            html[data-genz-theme="light"] .notice a {
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] .composer {
+                border-color: #dbe3f0;
+                background: #ffffff;
+            }
+
+            html[data-genz-theme="light"] .composer:focus-within {
+                border-color: #8b7cff;
+                box-shadow: 0 0 0 3px rgba(139,124,255,.14);
+            }
+
+            html[data-genz-theme="light"] textarea {
+                color: #101828;
+            }
+
+            html[data-genz-theme="light"] textarea::placeholder {
+                color: #8a94a6;
+            }
+
+            html[data-genz-theme="light"] .attach-button {
+                border-color: #dfe6f1;
+                background: #ffffff;
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] .attach-button:hover:not(:disabled) {
+                border-color: #b9aef5;
+                background: #f4f0ff;
+            }
+
+            html[data-genz-theme="light"] .composer-foot {
+                color: #6b7688;
+            }
+
+            html[data-genz-theme="light"] .auth-link {
+                color: #4a3cbe;
+            }
+
+            /* ---------- ATTACHMENTS ---------- */
+
+            html[data-genz-theme="light"] .attachment-chip {
+                border-color: #dfe6f1;
+                background: #ffffff;
+                color: #24334d;
+            }
+
+            html[data-genz-theme="light"] .attachment-file-icon {
+                background: #efeafe;
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] .attachment-remove {
+                color: #6b7688;
+            }
+
+            html[data-genz-theme="light"] .attachment-remove:hover {
+                background: #fdecee;
+                color: #b4232f;
+            }
+
+            html[data-genz-theme="light"] .message-file {
+                border-color: #dfe6f1;
+                background: #f4f6fb;
+                color: #4a3cbe;
+            }
+
+            /* ---------- MEDIA OPTIONS ---------- */
+
+            html[data-genz-theme="light"] .video-options {
+                border-color: #e0d9fb;
+                background: #f8f5ff;
+            }
+
+            html[data-genz-theme="light"] .video-option-label,
+            html[data-genz-theme="light"] .character-toggle {
+                color: #33415c;
+            }
+
+            html[data-genz-theme="light"] .video-option-input {
+                border-color: #dbe3f0;
+                background: #ffffff;
+                color: #101828;
+            }
+
+            html[data-genz-theme="light"] .character-image-button {
+                border-color: #dfe6f1;
+                background: #ffffff;
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] .character-image-preview {
+                color: #55617a;
+            }
+
+            html[data-genz-theme="light"] .character-image-remove {
+                border-color: #f2c9cc;
+                background: #ffffff;
+                color: #b4232f;
+            }
+
+            html[data-genz-theme="light"] .video-options-hint {
+                color: #6b7688;
             }
 
     </style>
