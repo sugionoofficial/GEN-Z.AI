@@ -75,8 +75,11 @@ Harga acuan QwenCloud (Singapore):
 | `wan2.6-i2v` | $0.10 / detik | $0.15 / detik |
 | `happyhorse-1.1` | $0.14 / detik | $0.18 / detik (480P $0.07) |
 
-Model dengan harga flat (tanpa resolusi), seperti Wan Animate dan
-HappyHorse Video Edit, memakai `credit_720p` sebagai harga tunggal.
+Model dengan harga flat (tanpa resolusi), seperti Wan Animate, memakai
+`credit_720p` sebagai harga tunggal. Di halaman **Edit Model** model
+seperti ini tidak punya centang resolusi sama sekali, jadi tombol Simpan
+tidak lagi memaksa memilih salah satu resolution (`resolutionIndependent`
+diset otomatis oleh factory saat `resolutions` kosong).
 
 #### Credit dihitung per blok 5 detik
 

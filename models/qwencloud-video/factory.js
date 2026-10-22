@@ -833,6 +833,13 @@ function createQwenCloudVideoModel(
             hideParameterSummary:
                 true,
 
+            /*
+             * Model tanpa resolusi (Wan Animate) memakai
+             * credit flat. Tanpa flag ini halaman Edit Model
+             * menolak menyimpan karena tidak ada resolution
+             * yang bisa dicentang.
+             */
+
             ...(spec.resolutions.length
                 ? {
                     resolutionOptions:
@@ -846,7 +853,10 @@ function createQwenCloudVideoModel(
                             })
                         )
                 }
-                : {})
+                : {
+                    resolutionIndependent:
+                        true
+                })
 
         },
 
