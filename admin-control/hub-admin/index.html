@@ -530,6 +530,143 @@
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
     <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
     <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
+
+    <!-- =====================================================
+         COMPACT DESKTOP
+
+         Semua blok dikecilkan agar tidak lagi melebar sampai
+         ujung kiri-kanan layar. Hanya berlaku di desktop
+         (>= 901px); layout tablet & HP tidak berubah.
+         Mode cerah tetap ditangani admin-light.css.
+    ====================================================== -->
+
+    <style id="hub-admin-compact-desktop">
+
+        @media (min-width: 901px) {
+
+            .page {
+                padding: 26px clamp(12px, 1.4vw, 20px) 40px;
+            }
+
+            .container {
+                max-width: 1000px;
+            }
+
+            .page-header {
+                margin-bottom: 16px;
+            }
+
+            .page-header h1 {
+                margin-bottom: 6px;
+                font-size: 24px;
+            }
+
+            .page-header p {
+                font-size: 13px;
+                line-height: 1.55;
+            }
+
+            .card {
+                padding: 18px;
+                margin-bottom: 14px;
+                border-radius: 14px;
+            }
+
+            .card-title {
+                margin-bottom: 4px;
+                font-size: 16px;
+            }
+
+            .card-description {
+                margin-bottom: 16px;
+                font-size: 12px;
+            }
+
+            .admin-grid {
+                gap: 12px;
+            }
+
+            .admin-box {
+                padding: 14px;
+                border-radius: 11px;
+            }
+
+            .admin-title {
+                margin-bottom: 9px;
+                font-size: 13.5px;
+            }
+
+            .form-group {
+                gap: 6px;
+            }
+
+            label {
+                font-size: 12px;
+            }
+
+            input {
+                min-height: 40px;
+                padding: 9px 11px;
+                font-size: 13px;
+            }
+
+            textarea {
+                min-height: 96px;
+                padding: 10px 11px;
+                font-size: 13px;
+            }
+
+            .switch-row {
+                min-height: 46px;
+                padding: 10px 12px;
+            }
+
+            .switch-title {
+                font-size: 13px;
+            }
+
+            .switch-description {
+                font-size: 11.5px;
+            }
+
+            .preview {
+                gap: 10px;
+            }
+
+            .preview-item {
+                padding: 12px;
+                border-radius: 11px;
+            }
+
+            .preview-label {
+                margin-bottom: 5px;
+                font-size: 10px;
+            }
+
+            .preview-value {
+                font-size: 13px;
+            }
+
+            .actions {
+                margin-top: 16px;
+                gap: 10px;
+            }
+
+            button {
+                min-height: 38px;
+                padding: 9px 15px;
+                font-size: 13px;
+            }
+
+            .status {
+                margin-top: 14px;
+                padding: 10px 12px;
+                font-size: 12px;
+            }
+        }
+
+    </style>
+
 </head>
 
 <body>
