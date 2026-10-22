@@ -1,0 +1,313 @@
+/* =========================================================
+   GEN-Z.AI
+   GENERATE STUDIO — BLOK MEDIA REFERENSI (POLISH)
+   ---------------------------------------------------------
+   File:
+   generate/assets/css/generate-media-blocks.css
+
+   Dimuat PALING AKHIR (setelah generate-layout.css).
+
+   Cakupan:
+   1. Kerangka blok Gambar / Video / Audio Referensi
+   2. Panel unggah (dropzone + tombol pilih file)
+   3. Pratinjau (thumbnail gambar/video, player audio)
+   4. Koleksi media (tambah/hapus item)
+   5. Penyesuaian HP
+
+   Nilai warna default = mode GELAP (selaras token neon hijau
+   generate-premium.css). Mode cerah dioverride di bagian 07.
+========================================================= */
+
+
+/* =========================================================
+   01. KERANGKA BLOK MEDIA
+========================================================= */
+
+#dynamicFields .generate-image-input,
+#dynamicFields .generate-video-input,
+#dynamicFields .generate-audio-input {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0;
+}
+
+
+/* Mode selector sedikit dirapatkan ke input di bawahnya */
+
+#dynamicFields .generate-image-mode-selector,
+#dynamicFields .generate-video-mode-selector,
+#dynamicFields .generate-audio-mode-selector {
+    margin-bottom: 2px !important;
+    gap: 8px !important;
+}
+
+
+/* =========================================================
+   02. PANEL UNGGAH (MODE UPLOAD)
+========================================================= */
+
+#dynamicFields .generate-image-upload-container,
+#dynamicFields .generate-video-upload-container,
+#dynamicFields .generate-audio-upload-container {
+    padding: 14px;
+
+    border: 1px dashed rgba(183, 255, 0, 0.30);
+    border-radius: 14px;
+
+    background: rgba(183, 255, 0, 0.03);
+}
+
+
+#dynamicFields .generate-image-file,
+#dynamicFields .generate-video-file,
+#dynamicFields .generate-audio-file {
+    width: 100% !important;
+    max-width: 100%;
+
+    font-size: 12px;
+    color: rgba(247, 250, 239, 0.75);
+}
+
+
+#dynamicFields .generate-image-file::file-selector-button,
+#dynamicFields .generate-video-file::file-selector-button,
+#dynamicFields .generate-audio-file::file-selector-button {
+    margin-right: 12px;
+    padding: 8px 14px;
+
+    border: 1px solid rgba(183, 255, 0, 0.38);
+    border-radius: 9px;
+
+    background: rgba(183, 255, 0, 0.10);
+    color: #d9ff55;
+
+    font: inherit;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.2;
+    cursor: pointer;
+
+    transition:
+        background .18s ease,
+        border-color .18s ease;
+}
+
+
+#dynamicFields .generate-image-file::file-selector-button:hover,
+#dynamicFields .generate-video-file::file-selector-button:hover,
+#dynamicFields .generate-audio-file::file-selector-button:hover {
+    border-color: rgba(183, 255, 0, 0.65);
+    background: rgba(183, 255, 0, 0.18);
+}
+
+
+/* =========================================================
+   03. PRATINJAU MEDIA
+========================================================= */
+
+#dynamicFields .generate-image-preview,
+#dynamicFields .generate-video-preview,
+#dynamicFields .generate-audio-preview,
+#dynamicFields .generate-media-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    max-width: 100% !important;
+    margin-top: 10px;
+}
+
+
+#dynamicFields .generate-image-preview img,
+#dynamicFields .generate-video-preview img {
+    width: 110px !important;
+    height: 110px !important;
+    max-width: 100% !important;
+
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 12px !important;
+
+    object-fit: cover;
+}
+
+
+#dynamicFields .generate-image-preview video,
+#dynamicFields .generate-video-preview video,
+#dynamicFields .generate-audio-preview audio,
+#dynamicFields .generate-media-preview audio {
+    width: 100% !important;
+    max-width: 520px !important;
+
+    border-radius: 12px;
+    background: #05070a;
+}
+
+
+/* =========================================================
+   04. KOLEKSI MEDIA (BANYAK GAMBAR / VIDEO)
+========================================================= */
+
+#dynamicFields .generate-media-collection {
+    gap: 12px !important;
+}
+
+
+#dynamicFields .generate-media-collection-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: start;
+
+    padding: 12px;
+
+    border: 1px solid rgba(183, 255, 0, 0.16);
+    border-radius: 14px;
+
+    background: rgba(255, 255, 255, 0.02);
+}
+
+
+#dynamicFields .generate-remove-media-item {
+    min-height: 38px !important;
+    padding: 0 14px !important;
+}
+
+
+#dynamicFields .generate-add-media-item {
+    align-self: flex-start;
+
+    min-height: 40px !important;
+    padding: 0 16px !important;
+}
+
+
+/* =========================================================
+   05. STATUS / PESAN
+========================================================= */
+
+#dynamicFields .generate-media-status,
+#dynamicFields .generate-media-error {
+    padding-left: 11px;
+
+    border-left: 2px solid rgba(183, 255, 0, 0.45);
+
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+
+#dynamicFields .generate-media-error {
+    border-left-color: #ff8b98;
+}
+
+
+/* =========================================================
+   06. HP — RAPI & TIDAK MELUBER
+========================================================= */
+
+@media (max-width: 600px) {
+
+    #dynamicFields .generate-image-mode-button,
+    #dynamicFields .generate-video-mode-button,
+    #dynamicFields .generate-audio-mode-button {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0 10px !important;
+    }
+
+
+    #dynamicFields .generate-image-upload-container,
+    #dynamicFields .generate-video-upload-container,
+    #dynamicFields .generate-audio-upload-container {
+        padding: 11px;
+    }
+
+
+    #dynamicFields .generate-image-preview img,
+    #dynamicFields .generate-video-preview img {
+        width: 86px !important;
+        height: 86px !important;
+    }
+
+
+    #dynamicFields .generate-media-collection-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+
+    #dynamicFields .generate-remove-media-item {
+        width: 100%;
+    }
+}
+
+
+/* =========================================================
+   07. MODE CERAH
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-image-upload-container,
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-video-upload-container,
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-audio-upload-container {
+
+    border-color: #c2cfe0 !important;
+    background: #f7faff !important;
+}
+
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-image-file,
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-video-file,
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-audio-file {
+
+    color: #33405a !important;
+}
+
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-image-file::file-selector-button,
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-video-file::file-selector-button,
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-audio-file::file-selector-button {
+
+    border-color: #b7c5d8 !important;
+    background: #ffffff !important;
+    color: #26324a !important;
+
+    box-shadow: 0 2px 8px rgba(40, 54, 82, 0.07);
+}
+
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-image-file::file-selector-button:hover,
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-video-file::file-selector-button:hover,
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-audio-file::file-selector-button:hover {
+
+    border-color: #8fbb00 !important;
+    background: #f2ffd9 !important;
+}
+
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-image-preview img,
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-video-preview img {
+
+    border-color: #d3dde9 !important;
+}
+
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-media-collection-row {
+
+    border-color: #dbe3ee !important;
+    background: #f8fafd !important;
+}
+
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-media-status {
+
+    border-left-color: #b0c944;
+}
+
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-media-error {
+
+    border-left-color: #b3261e;
+}
