@@ -121,6 +121,30 @@
         }
     }
 
+    function buildSubscriptionActions(user) {
+        const actions = document.createElement("div");
+        actions.className = "subscription-actions";
+
+        const buttons = [
+            { label: "Edit", action: "edit", variant: "edit" },
+            { label: "Tambah masa aktif", action: "extend", variant: "extend" },
+            { label: "Kurangi", action: "reduce", variant: "reduce" },
+            { label: "Stop", action: "stop", variant: "stop" }
+        ];
+
+        for (const { label, action, variant } of buttons) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = `sub-btn ${variant}`;
+            button.dataset.subAction = action;
+            button.dataset.userId = user.id;
+            button.textContent = label;
+            actions.append(button);
+        }
+
+        return actions;
+    }
+
     function renderActiveSubscriptions(now = Date.now()) {
         const list = document.getElementById("active-subscribers-list");
         const summary = document.getElementById("active-subscribers-summary");
@@ -170,7 +194,7 @@
             const remainingSeconds = Math.max(0, Math.floor((subscription.expiresAt - now) / 1000));
             countdown.textContent = formatCountdown(remainingSeconds);
 
-            item.append(details, countdown);
+            item.append(details, countdown, buildSubscriptionActions(user));
             list.append(item);
         }
     }
@@ -235,6 +259,236 @@
         for (const id of ["access-status", "duration-days", "started-at", "save-config", "reset-config"]) {
             document.getElementById(id).disabled = !enabled;
         }
+    }
+
+    /* =====================================================
+       AKSI PER USER — EDIT / TAMBAH / KURANGI / STOP
+    ===================================================== */
+
+    const adjustState = {
+        userId: null,
+        mode: "extend",
+        busy: false
+    };
+
+    const QUICK_DAYS = {
+        extend: [7, 30, 90],
+        reduce: [1, 7, 30]
+    };
+
+    function findUser(userId) {
+        return users.find(item => item.id === userId) || null;
+    }
+
+    function getBaseExpiry(user) {
+        const expiresAt = Date.parse(user?.studio_access?.expires_at || "");
+        const now = Date.now();
+        return Number.isFinite(expiresAt) && expiresAt > now ? expiresAt : now;
+    }
+
+    function setAdjustStatus(message, type = "") {
+        const node = document.getElementById("adjust-status");
+        if (!node) return;
+        node.className = `status-box adjust-status ${type}`.trim();
+        node.textContent = message;
+    }
+
+    function readAdjustDays() {
+        const input = document.getElementById("adjust-days");
+        return Number(input?.value);
+    }
+
+    function renderAdjustPreview() {
+        const user = findUser(adjustState.userId);
+        const days = readAdjustDays();
+        const preview = document.getElementById("adjust-preview");
+        const applyButton = document.getElementById("adjust-apply");
+
+        if (!preview || !applyButton) return;
+
+        if (!Number.isInteger(days) || days < 1 || days > 365) {
+            preview.textContent = "Masukkan jumlah hari antara 1 dan 365.";
+            applyButton.disabled = true;
+            return;
+        }
+
+        const base = getBaseExpiry(user);
+        const signedDays = adjustState.mode === "reduce" ? -days : days;
+        const nextExpiry = base + signedDays * 86400000;
+        const remainingDays = Math.ceil((nextExpiry - Date.now()) / 86400000);
+
+        if (nextExpiry <= Date.now()) {
+            preview.textContent = "Pengurangan melebihi sisa masa aktif. Gunakan tombol Stop untuk menghentikan langganan.";
+            applyButton.disabled = true;
+            return;
+        }
+
+        applyButton.disabled = false;
+        preview.textContent = `${adjustState.mode === "reduce" ? "Dikurangi" : "Ditambah"} ${days} hari · sisa ${remainingDays} hari · berakhir ${formatDateTime(nextExpiry)}`;
+    }
+
+    function openAdjustModal(userId, mode) {
+        const user = findUser(userId);
+        if (!user || !user.studio_access) {
+            setStatusMessage("Data langganan user tidak ditemukan.", "error");
+            return;
+        }
+
+        adjustState.userId = userId;
+        adjustState.mode = mode === "reduce" ? "reduce" : "extend";
+
+        const modal = document.getElementById("adjust-modal");
+        const title = document.getElementById("adjust-title");
+        const subtitle = document.getElementById("adjust-subtitle");
+        const userLine = document.getElementById("adjust-user");
+        const chips = document.getElementById("adjust-chips");
+        const input = document.getElementById("adjust-days");
+
+        const isReduce = adjustState.mode === "reduce";
+        title.textContent = isReduce ? "Kurangi masa aktif" : "Tambah masa aktif";
+        subtitle.textContent = isReduce
+            ? "Kurangi sisa masa aktif langganan Studio Medsos user ini."
+            : "Tambahkan masa aktif langganan Studio Medsos user ini.";
+        userLine.textContent = `${user.email || user.name || user.id} · berakhir ${formatDateTime(user.studio_access.expires_at)}`;
+
+        input.value = isReduce ? "7" : "30";
+
+        chips.replaceChildren();
+        for (const days of QUICK_DAYS[adjustState.mode]) {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "adjust-chip";
+            chip.dataset.days = String(days);
+            chip.textContent = `${days} hari`;
+            chips.append(chip);
+        }
+
+        setAdjustStatus("");
+        renderAdjustPreview();
+
+        modal.hidden = false;
+        modal.classList.add("show");
+        document.body.classList.add("modal-open");
+        window.setTimeout(() => input.focus(), 30);
+    }
+
+    function closeAdjustModal() {
+        const modal = document.getElementById("adjust-modal");
+        if (!modal) return;
+        modal.classList.remove("show");
+        modal.hidden = true;
+        document.body.classList.remove("modal-open");
+        adjustState.userId = null;
+        adjustState.busy = false;
+    }
+
+    function applyAccessResult(userId, access) {
+        const user = findUser(userId);
+        if (user) user.studio_access = access;
+        renderActiveSubscriptions();
+        const selectedId = document.getElementById("user-select").value;
+        if (selectedId && selectedId === userId) loadUserAccess(userId);
+    }
+
+    async function applyAdjust() {
+        if (adjustState.busy) return;
+
+        const days = readAdjustDays();
+        const userId = adjustState.userId;
+
+        if (!userId) return;
+        if (!Number.isInteger(days) || days < 1 || days > 365) {
+            setAdjustStatus("Jumlah hari harus bilangan bulat 1–365.", "error");
+            return;
+        }
+
+        const user = findUser(userId);
+        const signedDays = adjustState.mode === "reduce" ? -days : days;
+        const applyButton = document.getElementById("adjust-apply");
+
+        adjustState.busy = true;
+        applyButton.disabled = true;
+        applyButton.textContent = "Menyimpan…";
+        setAdjustStatus("Menyimpan perubahan masa aktif…");
+
+        try {
+            const result = await api("studio-admin-extend", {
+                method: "POST",
+                body: { user_id: userId, days: signedDays }
+            });
+
+            applyAccessResult(userId, result.access);
+            closeAdjustModal();
+            setStatusMessage(
+                `${adjustState.mode === "reduce" ? "Masa aktif dikurangi" : "Masa aktif ditambah"} ${days} hari untuk ${user?.email || "user"}. Berakhir ${formatDateTime(result.access.expires_at)}.`,
+                "success"
+            );
+        } catch (error) {
+            console.error(error);
+            setAdjustStatus(error.message || "Gagal memperbarui masa aktif.", "error");
+        } finally {
+            adjustState.busy = false;
+            if (applyButton) {
+                applyButton.disabled = false;
+                applyButton.textContent = "Simpan";
+            }
+        }
+    }
+
+    async function stopSubscription(userId) {
+        const user = findUser(userId);
+        if (!user) return;
+
+        const label = user.email || user.name || user.id;
+        if (!window.confirm(`Hentikan langganan Studio Medsos untuk ${label}?\n\nAkses user akan langsung ditutup.`)) {
+            return;
+        }
+
+        try {
+            const result = await api("studio-admin-stop", {
+                method: "POST",
+                body: { user_id: userId }
+            });
+            applyAccessResult(userId, result.access);
+            setStatusMessage(`Langganan ${label} dihentikan.`, "success");
+        } catch (error) {
+            console.error(error);
+            setStatusMessage(error.message || "Gagal menghentikan langganan.", "error");
+        }
+    }
+
+    function editSubscription(userId) {
+        const user = findUser(userId);
+        if (!user) return;
+
+        const select = document.getElementById("user-select");
+        select.value = userId;
+        loadUserAccess(userId);
+
+        const formSection = document.querySelector(".panel-grid");
+        formSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+        window.setTimeout(() => {
+            document.getElementById("duration-days")?.focus();
+        }, 320);
+
+        setStatusMessage(
+            "Mode edit: ubah masa aktif atau waktu mulai di formulir atas, lalu tekan Simpan Setting.",
+            "success"
+        );
+    }
+
+    function handleSubscriptionClick(event) {
+        const button = event.target.closest("[data-sub-action]");
+        if (!button) return;
+
+        const userId = button.dataset.userId;
+        const action = button.dataset.subAction;
+
+        if (action === "edit") return editSubscription(userId);
+        if (action === "extend") return openAdjustModal(userId, "extend");
+        if (action === "reduce") return openAdjustModal(userId, "reduce");
+        if (action === "stop") return stopSubscription(userId);
     }
 
     async function loadUserAccess(userId) {
@@ -556,6 +810,21 @@
         });
         saveButton.addEventListener("click", () => saveSelectedAccess(document.getElementById("access-status").checked));
         deactivateButton.addEventListener("click", () => saveSelectedAccess(false));
+        document.getElementById("active-subscribers-list").addEventListener("click", handleSubscriptionClick);
+        document.getElementById("adjust-modal").addEventListener("click", event => {
+            if (event.target.matches("[data-close-adjust]") || event.target.id === "adjust-modal") closeAdjustModal();
+        });
+        document.getElementById("adjust-days").addEventListener("input", renderAdjustPreview);
+        document.getElementById("adjust-chips").addEventListener("click", event => {
+            const chip = event.target.closest("[data-days]");
+            if (!chip) return;
+            document.getElementById("adjust-days").value = chip.dataset.days;
+            renderAdjustPreview();
+        });
+        document.getElementById("adjust-apply").addEventListener("click", applyAdjust);
+        document.addEventListener("keydown", event => {
+            if (event.key === "Escape" && !document.getElementById("adjust-modal").hidden) closeAdjustModal();
+        });
         savePriceButton.addEventListener("click", savePricing);
         saveImageProviderButton.addEventListener("click", saveImageProvider);
         for (const radio of document.querySelectorAll('input[name="image-provider"]')) {

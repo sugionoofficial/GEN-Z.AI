@@ -311,6 +311,136 @@ async function saveStudioAccess(config, adminId, body = {}) {
     return rows[0];
 }
 
+const STUDIO_ACCESS_SELECT = "select=user_id,is_active,duration_days,started_at,expires_at";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+async function findStudioAccessRow(config, userId) {
+    const rows = await supabaseRequest(
+        config,
+        tablePath("studio_medsos_access", `${STUDIO_ACCESS_SELECT}&user_id=eq.${encodeURIComponent(userId)}&limit=1`)
+    );
+    return rows?.[0] || null;
+}
+
+function assertStudioUserId(userId) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(userId || ""))) {
+        const error = new Error("ID user tidak valid.");
+        error.status = 400;
+        throw error;
+    }
+}
+
+async function writeStudioAccessRow(config, adminId, payload) {
+    const rows = await supabaseRequest(
+        config,
+        tablePath("studio_medsos_access", `on_conflict=user_id&${STUDIO_ACCESS_SELECT}`),
+        {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify({
+                ...payload,
+                updated_at: new Date().toISOString(),
+                updated_by: adminId
+            })
+        }
+    );
+    if (!rows?.length) {
+        const error = new Error("Pengaturan langganan tidak berhasil disimpan.");
+        error.status = 500;
+        throw error;
+    }
+    return rows[0];
+}
+
+/*
+ * Tambah / kurangi masa aktif langganan.
+ *
+ * body.days positif  = menambah masa aktif
+ * body.days negatif  = mengurangi masa aktif
+ *
+ * started_at lama dipertahankan bila masih wajar, expires_at
+ * digeser sesuai jumlah hari, duration_days dihitung ulang.
+ */
+async function extendStudioAccess(config, adminId, body = {}) {
+    const userId = String(body.user_id || "").trim();
+    assertStudioUserId(userId);
+
+    const days = Number(body.days);
+    if (!Number.isInteger(days) || days === 0 || days < -365 || days > 365) {
+        const error = new Error("Jumlah hari harus bilangan bulat antara -365 dan 365 dan tidak nol.");
+        error.status = 400;
+        throw error;
+    }
+
+    const current = await findStudioAccessRow(config, userId);
+    if (!current) {
+        const error = new Error("User ini belum memiliki data langganan Studio Medsos.");
+        error.status = 404;
+        throw error;
+    }
+    if (current.is_active !== true) {
+        const error = new Error("Langganan user sedang nonaktif. Aktifkan dulu sebelum menambah atau mengurangi masa aktif.");
+        error.status = 409;
+        throw error;
+    }
+
+    const now = Date.now();
+    const currentExpiry = Date.parse(current.expires_at || "");
+    const base = Number.isFinite(currentExpiry) && currentExpiry > now ? currentExpiry : now;
+    const nextExpiry = base + days * DAY_MS;
+
+    if (nextExpiry <= now) {
+        const error = new Error("Pengurangan melebihi sisa masa aktif. Gunakan tombol Stop untuk menghentikan langganan.");
+        error.status = 400;
+        throw error;
+    }
+
+    let startedAt = Date.parse(current.started_at || "");
+    if (!Number.isFinite(startedAt) || startedAt >= nextExpiry) {
+        startedAt = now;
+    }
+
+    const durationDays = Math.round((nextExpiry - startedAt) / DAY_MS);
+
+    if (durationDays > 3650) {
+        const error = new Error("Total masa aktif melebihi batas 3650 hari.");
+        error.status = 400;
+        throw error;
+    }
+
+    return writeStudioAccessRow(config, adminId, {
+        user_id: userId,
+        is_active: true,
+        duration_days: Math.max(1, durationDays),
+        started_at: new Date(startedAt).toISOString(),
+        expires_at: new Date(nextExpiry).toISOString()
+    });
+}
+
+/*
+ * Stop langganan: is_active = false, tanggal & durasi dibiarkan
+ * agar riwayat tetap terbaca saat admin mengaktifkan kembali.
+ */
+async function stopStudioAccess(config, adminId, body = {}) {
+    const userId = String(body.user_id || "").trim();
+    assertStudioUserId(userId);
+
+    const current = await findStudioAccessRow(config, userId);
+    if (!current) {
+        const error = new Error("User ini belum memiliki data langganan Studio Medsos.");
+        error.status = 404;
+        throw error;
+    }
+
+    return writeStudioAccessRow(config, adminId, {
+        user_id: userId,
+        is_active: false,
+        duration_days: Number(current.duration_days) > 0 ? Number(current.duration_days) : 30,
+        started_at: current.started_at || new Date().toISOString(),
+        expires_at: current.expires_at || new Date(Date.now() + 30 * DAY_MS).toISOString()
+    });
+}
+
 async function getStudioPricing(config) {
     const rows = await supabaseRequest(
         config,
@@ -1924,7 +2054,7 @@ async function setGlobalEnabled(config, userId, env, enabled) {
 }
 
 async function handlePost(req, res, config, userId, env, action, profile = null) {
-    if (action !== "studio-access-status" && action !== "studio-admin-save" && action !== "studio-admin-save-price" && action !== "studio-admin-image-provider" && action !== "studio-admin-model-quota") {
+    if (action !== "studio-access-status" && !action.startsWith("studio-admin-")) {
         await ensureStudioAccess(config, userId);
     }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
@@ -1950,6 +2080,14 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
     }
     if (action === "studio-admin-save") {
         const access = await saveStudioAccess(config, userId, body);
+        return json(res, 200, { success: true, access });
+    }
+    if (action === "studio-admin-extend") {
+        const access = await extendStudioAccess(config, userId, body);
+        return json(res, 200, { success: true, access });
+    }
+    if (action === "studio-admin-stop") {
+        const access = await stopStudioAccess(config, userId, body);
         return json(res, 200, { success: true, access });
     }
     if (action === "studio-admin-save-price") {

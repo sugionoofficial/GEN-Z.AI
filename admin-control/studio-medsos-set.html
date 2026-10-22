@@ -165,6 +165,216 @@
         }
     </style>
 
+    <style>
+        /* =========================================================
+           AKSI PER USER — LANGGANAN AKTIF
+           Edit / Tambah masa aktif / Kurangi / Stop
+        ========================================================= */
+
+        .subscription-item {
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            align-items: start;
+            row-gap: 12px;
+        }
+
+        .subscription-countdown {
+            align-self: center;
+        }
+
+        .subscription-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: flex-end;
+            align-self: center;
+        }
+
+        .sub-btn {
+            appearance: none;
+            border: 1px solid #4e5d7a;
+            background: #162638;
+            color: var(--text);
+            padding: 7px 11px;
+            border-radius: 9px;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1.2;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: filter .15s ease, border-color .15s ease, transform .15s ease;
+        }
+
+        .sub-btn:hover { filter: brightness(1.08); }
+        .sub-btn:active { transform: translateY(1px); }
+        .sub-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+        .sub-btn.edit {
+            border-color: rgba(141,125,255,.55);
+            background: rgba(141,125,255,.16);
+            color: #d9d2ff;
+        }
+
+        .sub-btn.extend {
+            border-color: rgba(64,211,157,.5);
+            background: rgba(64,211,157,.14);
+            color: #8af0c6;
+        }
+
+        .sub-btn.reduce {
+            border-color: rgba(244,206,112,.5);
+            background: rgba(244,206,112,.13);
+            color: #f4ce70;
+        }
+
+        .sub-btn.stop {
+            border-color: rgba(255,109,127,.5);
+            background: rgba(255,109,127,.13);
+            color: #ffc3cc;
+        }
+
+        /* ---------------- modal tambah / kurangi ---------------- */
+
+        #adjust-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: rgba(4, 9, 16, .74);
+            backdrop-filter: blur(4px);
+        }
+
+        #adjust-modal[hidden] { display: none; }
+
+        #adjust-modal .adjust-card {
+            width: min(440px, 100%);
+            max-height: calc(100vh - 36px);
+            overflow-y: auto;
+            padding: 22px;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            background: linear-gradient(160deg, #121d2d, #0b1522);
+            box-shadow: 0 26px 70px rgba(0, 0, 0, .55);
+        }
+
+        #adjust-modal h3 {
+            margin: 0;
+            font-size: 17px;
+            letter-spacing: -.01em;
+        }
+
+        #adjust-modal .adjust-subtitle {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        #adjust-user {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(141,125,255,.32);
+            background: rgba(141,125,255,.1);
+            font-size: 12px;
+            font-weight: 700;
+            color: #d9d2ff;
+            overflow-wrap: anywhere;
+        }
+
+        .adjust-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .adjust-chip {
+            appearance: none;
+            border: 1px solid #455570;
+            background: #16243a;
+            color: var(--text);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .adjust-chip:hover { border-color: var(--premium); }
+
+        .adjust-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .adjust-status { margin-top: 12px; }
+        .adjust-status.success { color: #8af0c6; border-color: rgba(64,211,157,.45); }
+        .adjust-status.error { color: #ffc3cc; border-color: rgba(255,109,127,.45); }
+
+        body.modal-open { overflow: hidden; }
+
+        @media (max-width: 900px) {
+            .subscription-item {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .subscription-countdown {
+                text-align: left;
+                align-self: start;
+            }
+
+            .subscription-actions {
+                justify-content: flex-start;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .sub-btn {
+                flex: 1 1 calc(50% - 6px);
+                text-align: center;
+            }
+
+            #adjust-modal .adjust-card { padding: 18px; }
+            .adjust-actions .btn { flex: 1 1 100%; }
+        }
+
+        /* ---------------- mode cerah ---------------- */
+        html[data-genz-theme="light"] .sub-btn,
+        html[data-genz-theme="light"] .adjust-chip {
+            background: #f4f7fc;
+            color: #0b1424;
+            border-color: #d5dfee;
+        }
+
+        html[data-genz-theme="light"] .sub-btn.edit { background: #efeaff; color: #3a2bb0; border-color: #cec2ff; }
+        html[data-genz-theme="light"] .sub-btn.extend { background: #e6f8f1; color: #0d6b4c; border-color: #b4e6d3; }
+        html[data-genz-theme="light"] .sub-btn.reduce { background: #fdf3e0; color: #8a5a06; border-color: #f0dcb4; }
+        html[data-genz-theme="light"] .sub-btn.stop { background: #fdecef; color: #9b1c31; border-color: #f5ccd4; }
+
+        html[data-genz-theme="light"] #adjust-modal { background: rgba(15, 23, 42, .42); }
+
+        html[data-genz-theme="light"] #adjust-modal .adjust-card {
+            background: #ffffff;
+            border-color: #e2e8f2;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, .22);
+        }
+
+        html[data-genz-theme="light"] #adjust-modal h3 { color: #0b1424; }
+        html[data-genz-theme="light"] #adjust-modal .adjust-subtitle { color: #55617a; }
+        html[data-genz-theme="light"] #adjust-user { color: #3a2bb0; background: #f4f1ff; border-color: #ded5ff; }
+        html[data-genz-theme="light"] .adjust-status.success { color: #0d6b4c; border-color: #b4e6d3; }
+        html[data-genz-theme="light"] .adjust-status.error { color: #b4232f; border-color: #f5ccd4; }
+    </style>
+
     <link
         rel="stylesheet"
         href="./assets/css/admin-light.css?v=light-theme-20261022"
@@ -337,6 +547,28 @@
                 <div class="empty-list">Memuat daftar langganan aktif…</div>
             </div>
         </section>
+
+    <div id="adjust-modal" role="dialog" aria-modal="true" aria-labelledby="adjust-title" hidden>
+        <div class="adjust-card">
+            <h3 id="adjust-title">Tambah masa aktif</h3>
+            <p id="adjust-subtitle" class="adjust-subtitle">Tambahkan masa aktif langganan Studio Medsos user ini.</p>
+            <div id="adjust-user">--</div>
+
+            <div class="field" style="margin-top:14px">
+                <span class="label">Jumlah hari</span>
+                <input id="adjust-days" class="input" type="number" min="1" max="365" step="1" value="30" inputmode="numeric">
+                <div id="adjust-chips" class="adjust-chips"></div>
+            </div>
+
+            <div id="adjust-preview" class="status-box small">--</div>
+            <div id="adjust-status" class="status-box adjust-status" role="status" aria-live="polite"></div>
+
+            <div class="adjust-actions">
+                <button type="button" class="btn" data-close-adjust>Batal</button>
+                <button type="button" class="btn primary" id="adjust-apply">Simpan</button>
+            </div>
+        </div>
+    </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
