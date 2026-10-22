@@ -46,6 +46,7 @@ import qwenCloudVideoModels
 
 import {
     resolveBillableCredit,
+    resolveQuotaUsageSeconds,
     roundCredit
 } from "../lib/generate/qwencloud-credit.js";
 
@@ -1583,6 +1584,62 @@ function normalizeHistoryInteger(
 }
 
 
+/* =========================================================
+   QWENCLOUD HISTORY DURATION
+   ---------------------------------------------------------
+   Kuota QwenCloud dipotong otomatis dari kolom duration
+   generation_history. Model tanpa parameter durasi
+   (Wan Animate, HappyHorse Video Edit) tetap harus punya
+   angka supaya kuota terpotong saat generate.
+
+   Yang disimpan adalah SATU BLOK BILLING (5 detik) —
+   sama dengan faktor credit model tanpa durasi. Saat task
+   selesai, api/generate-status.js menimpanya dengan durasi
+   sebenarnya dari respons QwenCloud (usage.duration).
+   ========================================================= */
+
+function resolveHistoryDuration({
+
+    parameters,
+    body,
+    providerCode,
+    provider,
+    databaseModel
+
+}) {
+
+    const rawDuration =
+        parameters?.duration ??
+        body?.duration ??
+        null;
+
+
+    const code =
+        String(
+            providerCode ||
+            provider?.provider_id ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (code !== "qwencloud") {
+        return normalizeHistoryInteger(
+            rawDuration
+        );
+    }
+
+
+    return resolveQuotaUsageSeconds(
+        rawDuration,
+        databaseModel?.min_duration,
+        code
+    );
+
+}
+
+
 async function createGenerationHistory({
 
     user,
@@ -1657,11 +1714,19 @@ async function createGenerationHistory({
 
 
     const duration =
-        normalizeHistoryInteger(
-            parameters?.duration ??
-            body?.duration ??
-            null
-        );
+        resolveHistoryDuration({
+
+            parameters,
+
+            body,
+
+            providerCode,
+
+            provider,
+
+            databaseModel
+
+        });
 
 
     const resolution =

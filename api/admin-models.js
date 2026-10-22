@@ -858,12 +858,70 @@ const authHeaders = (
 });
 
 
+/*
+ * Status model mengikuti pemakaian kuota (auto nonaktif) dan
+ * bisa kembali aktif saat kuota di-refund. Sinkronisasi ini
+ * dijalankan tiap kali daftar model dibuka admin supaya status
+ * yang tertinggal (mis. task gagal setelah halaman ditutup)
+ * ikut diperbaiki. Best-effort: kegagalan tidak memblokir list.
+ */
+
+const syncQuotaStatuses = async (
+    config
+) => {
+
+    try {
+
+        const result =
+            await supabaseRequest(
+
+                config.url,
+
+                "/rest/v1/rpc/qwencloud_quota_reconcile_all",
+
+                {
+                    method: "POST",
+                    headers: authHeaders(config),
+                    body: JSON.stringify({})
+                }
+
+            );
+
+
+        if (
+            !result.response.ok
+        ) {
+
+            console.warn(
+                "QwenCloud quota reconcile failed:",
+                result.data
+            );
+
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "QwenCloud quota reconcile error:",
+            error
+        );
+
+    }
+
+};
+
+
 const loadQuotaMap = async (
     config
 ) => {
 
     const map =
         new Map();
+
+
+    await syncQuotaStatuses(
+        config
+    );
 
 
     try {
@@ -1019,8 +1077,6 @@ const hasQuotaInput = (
 
         "quota_expires_at",
 
-        "quota_manual_used",
-
         "quota_reset"
 
     ].some(
@@ -1077,16 +1133,6 @@ const saveModelQuota = async (
         p_expires_at:
             body?.quota_expires_at ||
             null,
-
-        p_manual_used:
-            Math.max(
-                Math.round(
-                    Number(
-                        body?.quota_manual_used || 0
-                    ) || 0
-                ),
-                0
-            ),
 
         p_reset:
             body?.quota_reset === true

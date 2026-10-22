@@ -10,10 +10,15 @@
    - Menghitung persentase & level peringatan
    - Format label Indonesia (detik, tanggal)
 
+   Pemakaian (used/remaining) murni berasal dari view
+   qwencloud_model_quota yang menghitung generation_history:
+   task "processing" memotong kuota, task gagal mengembalikannya.
+   Tidak ada lagi pemakaian manual.
+
    Tidak menangani:
    - Query Supabase
    - Render UI
-   - Auto nonaktif (dilakukan trigger Postgres)
+   - Auto nonaktif / refund (dilakukan trigger Postgres)
 ========================================================= */
 
 "use strict";
@@ -323,15 +328,6 @@ export function resolveQuotaState(
 
         autoDisabled:
             Boolean(source.auto_disabled_at),
-
-        manualUsedSeconds:
-            Math.max(
-                toNumber(
-                    source.manual_used_seconds,
-                    0
-                ),
-                0
-            ),
 
         level:
             resolveQuotaLevel(

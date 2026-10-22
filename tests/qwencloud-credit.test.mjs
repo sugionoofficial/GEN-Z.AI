@@ -8,7 +8,9 @@ import {
     resolveBillableCredit,
     resolveDurationFactor,
     resolveDurationSeconds,
-    roundCredit
+    resolveQuotaUsageSeconds,
+    roundCredit,
+    toPositiveIntegerSeconds
 } from "../lib/generate/qwencloud-credit.js";
 
 test("detects QwenCloud models from config or model id", () => {
@@ -157,4 +159,79 @@ test("HappyHorse video edit has no duration so it bills once", () => {
     assert.equal(result.durationSeconds, null);
     assert.equal(result.durationFactor, 1);
     assert.equal(result.billableCredit, 40);
+});
+
+
+/* =========================================================
+   PEMAKAIAN KUOTA (AUTO DARI GENERATION HISTORY)
+========================================================= */
+
+test("quota usage uses the requested duration when present", () => {
+    assert.equal(
+        resolveQuotaUsageSeconds(10, 5, "qwencloud"),
+        10
+    );
+
+    assert.equal(
+        resolveQuotaUsageSeconds("15", null, "qwencloud"),
+        15
+    );
+
+    assert.equal(
+        resolveQuotaUsageSeconds("12.9", null, "qwencloud"),
+        12
+    );
+});
+
+test("quota usage falls back to model minimum duration", () => {
+    assert.equal(
+        resolveQuotaUsageSeconds(null, 5, "qwencloud"),
+        5
+    );
+
+    assert.equal(
+        resolveQuotaUsageSeconds("", "3", "qwencloud"),
+        3
+    );
+});
+
+test("quota usage reserves one billing block without duration", () => {
+    assert.equal(
+        resolveQuotaUsageSeconds(
+            null,
+            0,
+            "qwencloud"
+        ),
+        QWENCLOUD_BILLING_BLOCK_SECONDS
+    );
+
+    assert.equal(
+        resolveQuotaUsageSeconds(
+            undefined,
+            undefined,
+            "qwencloud"
+        ),
+        5
+    );
+});
+
+test("non qwencloud providers never reserve quota seconds", () => {
+    assert.equal(
+        resolveQuotaUsageSeconds(10, 5, "kie"),
+        null
+    );
+
+    assert.equal(
+        resolveQuotaUsageSeconds(10, 5, ""),
+        null
+    );
+});
+
+test("positive integer helper rejects empty and invalid values", () => {
+    assert.equal(toPositiveIntegerSeconds(null), null);
+    assert.equal(toPositiveIntegerSeconds(""), null);
+    assert.equal(toPositiveIntegerSeconds("abc"), null);
+    assert.equal(toPositiveIntegerSeconds(-5), null);
+    assert.equal(toPositiveIntegerSeconds(0), null);
+    assert.equal(toPositiveIntegerSeconds("7.8"), 7);
 });
