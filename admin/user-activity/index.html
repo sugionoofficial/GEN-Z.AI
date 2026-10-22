@@ -50,7 +50,7 @@
         }
 
         main {
-            width: min(1450px, 100%);
+            width: min(1040px, 100%);
             margin: auto;
             padding: 96px 28px 60px;
         }
@@ -1122,7 +1122,115 @@
         }
     
 
-            /* ====== LIGHT MODE PASS ====== */
+            /* =========================================================
+           TOOLBAR (PER PAGE) + PAGINATION
+        ========================================================= */
+
+        .activity-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            margin: 0 0 14px;
+            flex-wrap: wrap;
+        }
+
+        .activity-page-size {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            border: 1px solid var(--outline);
+            border-radius: 999px;
+            background: rgba(255,255,255,.02);
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .9px;
+            text-transform: uppercase;
+        }
+
+        .activity-page-size select {
+            appearance: none;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #0d1016;
+            color: var(--text-strong);
+            font: inherit;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .4px;
+            padding: 5px 9px;
+            cursor: pointer;
+        }
+
+        .activity-page-size select:focus-visible {
+            outline: 2px solid rgba(255,152,0,.6);
+            outline-offset: 2px;
+        }
+
+        .activity-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 22px;
+        }
+
+        .activity-pagination[hidden] {
+            display: none !important;
+        }
+
+        .page-btn {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid var(--outline);
+            border-radius: 9px;
+            background: rgba(255,255,255,.025);
+            color: var(--text);
+            font-size: 11px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            cursor: pointer;
+            transition: background .18s ease, border-color .18s ease, color .18s ease;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            border-color: #ffad1f;
+            background: rgba(255,152,0,.09);
+            color: #ffd18a;
+        }
+
+        .page-btn[aria-current="page"] {
+            border-color: #ff9800;
+            background: rgba(255,152,0,.16);
+            color: #ffd18a;
+        }
+
+        .page-btn:disabled {
+            opacity: .38;
+            cursor: not-allowed;
+        }
+
+        .page-ellipsis {
+            padding: 0 3px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .page-info {
+            margin-left: 8px;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .7px;
+            text-transform: uppercase;
+        }
+
+        /* ====== LIGHT MODE PASS ====== */
 
             html[data-genz-theme="light"] {
                 color-scheme: light;
@@ -1391,6 +1499,43 @@
                 color: #35415a !important;
             }
 
+            /* ---------- TOOLBAR + PAGINATION ---------- */
+
+            html[data-genz-theme="light"] .activity-page-size {
+                border-color: #e6d3b3 !important;
+                background: #ffffff !important;
+                color: #7a6748 !important;
+            }
+
+            html[data-genz-theme="light"] .activity-page-size select {
+                border-color: #dbe4f0 !important;
+                background: #f7f9fd !important;
+                color: #0b1424 !important;
+            }
+
+            html[data-genz-theme="light"] .page-btn {
+                border-color: #dfe6f1 !important;
+                background: #ffffff !important;
+                color: #35415a !important;
+            }
+
+            html[data-genz-theme="light"] .page-btn:hover:not(:disabled) {
+                border-color: #e0a94a !important;
+                background: #fdf3e2 !important;
+                color: #9a4a06 !important;
+            }
+
+            html[data-genz-theme="light"] .page-btn[aria-current="page"] {
+                border-color: #e08600 !important;
+                background: #fdeed6 !important;
+                color: #8a3f00 !important;
+            }
+
+            html[data-genz-theme="light"] .page-ellipsis,
+            html[data-genz-theme="light"] .page-info {
+                color: #6b7688 !important;
+            }
+
     </style>
 </head>
 
@@ -1467,12 +1612,26 @@
             <span class="activity-count" id="activityCount" aria-live="polite">Memuat aktivitas</span>
         </div>
 
+        <div class="activity-toolbar">
+            <label class="activity-page-size" for="pageSizeSelect">
+                <span>Tampilkan</span>
+                <select id="pageSizeSelect">
+                    <option value="10">10</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <span>per halaman</span>
+            </label>
+        </div>
+
         <div class="activity-list" id="activityList">
             <div class="state-box">
                 <div class="spinner"></div>
                 Memuat aktivitas…
             </div>
         </div>
+
+        <nav class="activity-pagination" id="activityPagination" aria-label="Navigasi halaman aktivitas" hidden></nav>
 
         <div class="footer">
             GEN-Z.AI • User Activity Detail
@@ -1560,11 +1719,22 @@
 
             console.log("[GEN-Z.AI User Activity] START");
 
+            var PAGE_SIZES = [10, 50, 100];
+
             var state = {
                 client: null,
                 userId: null,
                 profile: null,
                 history: [],
+                page: 1,
+                pageSize: PAGE_SIZES[0],
+                total: 0,
+                stats: {
+                    total: 0,
+                    success: 0,
+                    processing: 0,
+                    failed: 0
+                },
                 refreshTimer: null
             };
 
@@ -1712,20 +1882,15 @@
                 var container = document.getElementById("userStats");
                 if (!container) return;
 
-                var history = state.history;
+                /*
+                 * Statistik memakai hitungan seluruh riwayat,
+                 * bukan hanya baris di halaman yang sedang tampil.
+                 */
 
-                var total = history.length;
-                var success = history.filter(function (i) {
-                    return normalizeStatus(i.status) === "success";
-                }).length;
-                var processing = history.filter(function (i) {
-                    var s = normalizeStatus(i.status);
-                    return s === "processing" || s === "pending";
-                }).length;
-                var failed = history.filter(function (i) {
-                    var s = normalizeStatus(i.status);
-                    return s === "failed" || s === "cancelled";
-                }).length;
+                var total = state.stats.total;
+                var success = state.stats.success;
+                var processing = state.stats.processing;
+                var failed = state.stats.failed;
 
                 container.innerHTML =
                     '<div class="user-stat">' +
@@ -1750,40 +1915,154 @@
                LOAD HISTORY — hanya user ini
             ====================================================== */
 
+            var HISTORY_COLUMNS =
+                "id,user_id,status,model_id,model_name," +
+                "provider_name,task_id,prompt,credit_cost,created_at";
+
+            function totalPages() {
+                return Math.max(
+                    1,
+                    Math.ceil(state.total / state.pageSize)
+                );
+            }
+
             async function loadHistory() {
+                await loadHistoryPage();
+                await loadHistoryStats();
+                renderStats();
+            }
+
+            /* =========================================================
+               HALAMAN AKTIVITAS (server-side paging)
+            ========================================================= */
+
+            async function loadHistoryPage() {
+
+                var from = (state.page - 1) * state.pageSize;
+                var to = from + state.pageSize - 1;
 
                 var result = await state.client
                     .from("generation_history")
                     .select(
-                        "id,user_id,status,model_id,model_name," +
-                        "provider_name,task_id,prompt,credit_cost,created_at"
+                        HISTORY_COLUMNS,
+                        { count: "exact" }
                     )
                     .eq("user_id", state.userId)
                     .order("created_at", { ascending: false })
-                    .limit(200);
+                    .range(from, to);
 
                 if (result.error) {
                     throw result.error;
                 }
 
-                state.history = Array.isArray(result.data) ? result.data : [];
+                state.total =
+                    typeof result.count === "number"
+                        ? result.count
+                        : (Array.isArray(result.data) ? result.data.length : 0);
+
+                state.history =
+                    Array.isArray(result.data) ? result.data : [];
+
+                /*
+                 * Halaman bisa jadi kosong kalau data menyusut
+                 * (misal setelah cancel). Tarik halaman terakhir.
+                 */
+
+                if (
+                    !state.history.length &&
+                    state.total > 0 &&
+                    state.page > 1
+                ) {
+                    state.page = totalPages();
+                    return loadHistoryPage();
+                }
 
                 renderHistory();
-                renderStats();
+            }
+
+            /* =========================================================
+               STATISTIK (dihitung dari seluruh data, bukan per halaman)
+            ========================================================= */
+
+            async function loadHistoryStats() {
+
+                function countQuery(statuses) {
+
+                    var query = state.client
+                        .from("generation_history")
+                        .select("id", { count: "exact", head: true })
+                        .eq("user_id", state.userId);
+
+                    if (statuses && statuses.length) {
+                        query = query.in("status", statuses);
+                    }
+
+                    return query;
+                }
+
+                var results = await Promise.all([
+                    countQuery(null),
+                    countQuery(["success", "completed", "complete"]),
+                    countQuery(["processing", "pending", "queued"]),
+                    countQuery(["failed", "cancelled", "canceled"])
+                ]);
+
+                var error = results
+                    .map(function (r) { return r.error; })
+                    .filter(Boolean)[0];
+
+                if (error) {
+                    console.warn("[User Activity] Stats error:", error);
+                    return;
+                }
+
+                state.stats = {
+                    total: results[0].count || 0,
+                    success: results[1].count || 0,
+                    processing: results[2].count || 0,
+                    failed: results[3].count || 0
+                };
+
+                if (state.stats.total !== state.total) {
+                    state.total = state.stats.total;
+                    renderPagination();
+                }
             }
 
             function renderHistory() {
 
                 var list = document.getElementById("activityList");
                 var count = document.getElementById("activityCount");
+
                 if (count) {
-                    count.textContent = state.history.length + " aktivitas";
+                    var shown = state.history.length;
+
+                    if (!state.total) {
+                        count.textContent = "0 aktivitas";
+                    } else if (shown >= state.total) {
+                        count.textContent = state.total + " aktivitas";
+                    } else {
+                        var start = (state.page - 1) * state.pageSize + 1;
+                        var end = start + shown - 1;
+                        count.textContent =
+                            start + "–" + end + " dari " +
+                            state.total + " aktivitas";
+                    }
                 }
+
                 if (!list) return;
+
+                if (!state.total) {
+                    list.innerHTML =
+                        '<div class="state-box">Akun ini belum memiliki aktivitas generate.</div>';
+                    renderPagination();
+                    return;
+                }
 
                 if (!state.history.length) {
                     list.innerHTML =
-                        '<div class="state-box">Akun ini belum memiliki aktivitas generate.</div>';
+                        '<div class="state-box">Tidak ada aktivitas di halaman ini.</div>';
+                    renderPagination();
                     return;
                 }
 
@@ -1793,6 +2072,151 @@
 
                 bindToggles();
                 bindCancelButtons();
+                renderPagination();
+            }
+
+            /* =========================================================
+               PAGINATION
+            ========================================================= */
+
+            function buildPageNumbers(current, total) {
+
+                var pages = [];
+
+                if (total <= 7) {
+                    for (var i = 1; i <= total; i += 1) pages.push(i);
+                    return pages;
+                }
+
+                var start = Math.max(1, current - 2);
+                var end = Math.min(total, start + 4);
+
+                start = Math.max(1, end - 4);
+
+                if (start > 1) {
+                    pages.push(1);
+                    if (start > 2) pages.push("…");
+                }
+
+                for (var j = start; j <= end; j += 1) pages.push(j);
+
+                if (end < total) {
+                    if (end < total - 1) pages.push("…");
+                    pages.push(total);
+                }
+
+                return pages;
+            }
+
+            function renderPagination() {
+
+                var nav = document.getElementById("activityPagination");
+                if (!nav) return;
+
+                var total = totalPages();
+
+                if (state.total <= state.pageSize || state.pageSize === 0) {
+                    nav.hidden = true;
+                    nav.innerHTML = "";
+                    return;
+                }
+
+                nav.hidden = false;
+
+                var html = "";
+
+                html +=
+                    '<button type="button" class="page-btn" data-page="prev"' +
+                    (state.page <= 1 ? " disabled" : "") +
+                    ' aria-label="Halaman sebelumnya">‹</button>';
+
+                buildPageNumbers(state.page, total).forEach(function (page) {
+                    if (page === "…") {
+                        html += '<span class="page-ellipsis">…</span>';
+                        return;
+                    }
+
+                    html +=
+                        '<button type="button" class="page-btn" data-page="' + page + '"' +
+                        (page === state.page ? ' aria-current="page"' : "") +
+                        '>' + page + '</button>';
+                });
+
+                html +=
+                    '<button type="button" class="page-btn" data-page="next"' +
+                    (state.page >= total ? " disabled" : "") +
+                    ' aria-label="Halaman berikutnya">›</button>';
+
+                html +=
+                    '<span class="page-info">Halaman ' + state.page + ' / ' + total + '</span>';
+
+                nav.innerHTML = html;
+            }
+
+            function goToPage(page) {
+
+                var total = totalPages();
+                var next = Math.min(Math.max(1, page), total);
+
+                if (next === state.page) return;
+
+                state.page = next;
+
+                loadHistoryPage().then(function () {
+                    renderPagination();
+                }).catch(function (error) {
+                    console.warn("[User Activity] Page error:", error);
+                });
+            }
+
+            function bindPagination() {
+
+                var nav = document.getElementById("activityPagination");
+                if (!nav || nav.dataset.bound === "true") return;
+
+                nav.dataset.bound = "true";
+
+                nav.addEventListener("click", function (event) {
+
+                    var button = event.target.closest(".page-btn");
+                    if (!button || button.disabled) return;
+
+                    var target = button.dataset.page;
+
+                    if (target === "prev") {
+                        goToPage(state.page - 1);
+                        return;
+                    }
+
+                    if (target === "next") {
+                        goToPage(state.page + 1);
+                        return;
+                    }
+
+                    goToPage(Number(target));
+                });
+            }
+
+            function bindPageSize() {
+
+                var select = document.getElementById("pageSizeSelect");
+                if (!select || select.dataset.bound === "true") return;
+
+                select.dataset.bound = "true";
+
+                select.addEventListener("change", function () {
+
+                    var value = Number(select.value);
+
+                    if (PAGE_SIZES.indexOf(value) === -1) return;
+
+                    state.pageSize = value;
+                    state.page = 1;
+
+                    loadHistory().catch(function (error) {
+                        console.warn("[User Activity] Page size error:", error);
+                    });
+                });
             }
 
             /* =====================================================
@@ -2024,6 +2448,14 @@
             ====================================================== */
 
             function hasRunning() {
+
+                /*
+                 * Task yang berjalan bisa ada di halaman lain,
+                 * jadi pakai hitungan global, bukan halaman aktif.
+                 */
+
+                if (state.stats.processing > 0) return true;
+
                 return state.history.some(isRunningGeneration);
             }
 
@@ -2125,6 +2557,10 @@
 
                     /* Load user profile + history */
                     await loadProfile();
+
+                    bindPageSize();
+                    bindPagination();
+
                     await loadHistory();
 
                     startAutoRefresh();
