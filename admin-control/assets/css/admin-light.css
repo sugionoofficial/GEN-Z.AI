@@ -1,0 +1,1522 @@
+/* =========================================================
+   GEN-Z.AI — ADMIN CONTROL · MODE CERAH
+   ---------------------------------------------------------
+   File:
+   admin-control/assets/css/admin-light.css
+
+   Dipakai bersama oleh semua halaman di Admin Panel:
+   Providers, Models, Edit Model, Credit, Feature Credits,
+   Topup (index / payment settings / payment review),
+   Hub Admin, dan Studio Medsos Set.
+
+   Semua aturan di-scope ke html[data-genz-theme="light"] dan
+   memakai !important karena setiap halaman menulis palet
+   gelap langsung di blok <style> masing-masing.
+   Mode gelap tidak tersentuh.
+
+   Struktur:
+   01. Dasar halaman + tipografi
+   02. Permukaan (kartu / panel / hero / modal / box)
+   03. Teks per peran
+   04. Form (input, select, textarea, placeholder)
+   05. Tombol
+   06. Badge / status / pill
+   07. Tabel
+   08. Bagian khusus: Providers
+========================================================= */
+
+
+/* =========================================================
+   01. DASAR HALAMAN + TIPOGRAFI
+========================================================= */
+
+html[data-genz-theme="light"] {
+    color-scheme: light;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body {
+    background:
+        radial-gradient(ellipse at 10% 0%, rgba(255, 48, 72, .07), transparent 32rem),
+        radial-gradient(ellipse at 92% 6%, rgba(99, 102, 241, .07), transparent 30rem),
+        linear-gradient(145deg, #f7f9fd 0%, #eef2f9 52%, #e9eef7 100%) !important;
+    background-attachment: fixed !important;
+    color: #172033 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(h1, h2, h3, h4, h5, h6) {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(p, li, dd) {
+    color: #33405a !important;
+}
+
+
+/* =========================================================
+   02. PERMUKAAN
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .card, .panel, .hero, .stat-card, .section-card, .table-card,
+    .table-wrap, .toolbar, .stats, .admin-box, .form-group, .field,
+    .preview, .info-box, .info-card, .filter-card, .filter-row,
+    .method-card, .price-grid, .price-settings-row, .modal-body,
+    .modal-content, .modal-card, .packages-wrap, .packages-grid
+) {
+    background: #ffffff !important;
+    border-color: #ccd8e8 !important;
+    box-shadow: 0 12px 30px rgba(40, 54, 82, .07) !important;
+    color: #172033 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    [class$="-hero"], [class$="-panel"], [class$="-card"],
+    [class$="-wrapper"], [class$="-box"]
+) {
+    background: #ffffff !important;
+    border-color: #ccd8e8 !important;
+    box-shadow: 0 12px 30px rgba(40, 54, 82, .07) !important;
+    color: #172033 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    [class$="-header"], [class$="-footer"], [class$="-toolbar"],
+    .page-header, .card-header, .section-header
+) {
+    background: #f8fafd !important;
+    border-color: #e2e8f1 !important;
+    color: #172033 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .modal-overlay, .modal-backdrop, .model-modal-overlay
+) {
+    background: rgba(23, 32, 51, .38) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .modal, .modal-content, .modal-card, .model-modal
+) {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 26px 60px rgba(40, 54, 82, .20) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .loading-box, .loading, .spinner, .state-panel, .empty
+) {
+    background: #ffffff !important;
+    border-color: #e2e8f1 !important;
+    color: #46536a !important;
+}
+
+
+/* =========================================================
+   03. TEKS PER PERAN
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    [class$="-title"], [class$="-heading"], [class$="-name"], .title,
+    .section-title, .card-title, .package-name, .user-name
+) {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    [class$="-value"], [class$="-price"], [class$="-amount"],
+    [class$="-count"], [class$="-credits"], .value, .amount
+) {
+    color: #0f1828 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    [class$="-label"], [class$="-eyebrow"], label, th
+) {
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    [class$="-description"], [class$="-subtitle"], [class$="-desc"],
+    [class$="-hint"], [class$="-meta"], [class$="-muted"], [class$="-note"],
+    [class$="-text"], [class$="-info"], [class$="-message"], [class$="-status"],
+    .muted, .subtitle, .description, .note, .hint, .help-text, .helper-text,
+    .save-hint, .footnote, .footer-note, .back-link, .search-hint, .email,
+    .name-info, .loading-box, .footnote, small
+) {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .provider-list-empty, .provider-list-error, .empty-state, .empty-list,
+    .package-empty, .state-description
+) {
+    color: #55627a !important;
+}
+
+
+/* =========================================================
+   04. FORM
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    input, select, textarea, .form-control, .form-input, .form-select,
+    .form-textarea, .search-input, .search-box input, .price-input,
+    .discount-input
+) {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #101a2e !important;
+    box-shadow: inset 0 1px 2px rgba(34, 46, 70, .04) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    input, textarea, .form-control, .form-input, .search-input
+)::placeholder {
+    color: #6c7789 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    input, select, textarea
+):focus {
+    border-color: #c81e3c !important;
+    box-shadow: 0 0 0 3px rgba(200, 30, 60, .14) !important;
+    outline: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body select option {
+    background: #ffffff !important;
+    color: #101a2e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body input[readonly] {
+    border-color: #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #33405a !important;
+}
+
+
+/* =========================================================
+   05. TOMBOL
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .button-secondary, .btn-secondary, .btn-danger-light, .refresh-button,
+    .modal-close, .close-btn, .action-button, .remove-button
+) {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+    box-shadow: 0 2px 8px rgba(40, 54, 82, .06) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .button-secondary, .btn-secondary, .refresh-button, .modal-close,
+    .close-btn, .action-button
+):hover {
+    border-color: #e07a8d !important;
+    background: #fff5f6 !important;
+    color: #b3122f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .button-primary, .btn-primary, .add-button, .primary
+) {
+    border: 1px solid #a80d24 !important;
+    background: linear-gradient(135deg, #d4162f, #a80d24) !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(168, 13, 36, .20) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .button-primary, .btn-primary, .add-button
+):hover {
+    background: linear-gradient(135deg, #e01a34, #b90f28) !important;
+    border-color: #8f0a1e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .btn-danger, .btn-success, .danger-button
+) {
+    color: #ffffff !important;
+    box-shadow: 0 6px 16px rgba(40, 54, 82, .14) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn-danger {
+    border: 1px solid #a3182a !important;
+    background: linear-gradient(135deg, #c81e3c, #9d1024) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn-success {
+    border: 1px solid #06603a !important;
+    background: linear-gradient(135deg, #0d7a49, #06603a) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    button, .button, .btn
+):disabled {
+    border-color: #dbe3ee !important;
+    background: #eef2f9 !important;
+    color: #66738a !important;
+    box-shadow: none !important;
+}
+
+
+/* =========================================================
+   06. BADGE / STATUS / PILL
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    [class$="-badge"], [class*="-badge "], .badge, .unit-pill,
+    .package-badge, .status, .provider-status, .provider-default-badge,
+    .package-status, .status-pill
+) {
+    border: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #46536a !important;
+    box-shadow: none !important;
+}
+
+
+/* =========================================================
+   07. TABEL
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    table, .table
+) {
+    background: #ffffff !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body th {
+    border-bottom: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body td {
+    border-bottom: 1px solid #eef2f8 !important;
+    background: #ffffff !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body tr:hover td {
+    background: #f8fafd !important;
+}
+
+
+/* =========================================================
+   08. PROVIDERS
+========================================================= */
+
+html[data-genz-theme="light"] body .provider-main {
+    --provider-white: #172033;
+    --provider-white-soft: #33405a;
+    --provider-white-muted: #4a566b;
+    --provider-panel: #ffffff;
+    --provider-border: #dbe3ee;
+    --provider-shadow: 0 12px 30px rgba(40, 54, 82, .08);
+    --provider-green-bright: #06603a;
+    --provider-orange: #d9660b;
+    --provider-orange-bright: #b45309;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-eyebrow {
+    color: #b3122f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-eyebrow-dot {
+    background: #d4162f !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-title {
+    background: none !important;
+    color: #0b1424 !important;
+    -webkit-text-fill-color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-subtitle {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-admin-user {
+    border: 1px solid #dbe3ee !important;
+    background: #ffffff !important;
+    box-shadow: 0 10px 26px rgba(40, 54, 82, .08) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-admin-user-label {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-admin-user-value {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-hero {
+    border: 1px solid #e2e8f1 !important;
+    background:
+        linear-gradient(135deg, rgba(255, 23, 68, .06), rgba(99, 102, 241, .05)) !important;
+    box-shadow: 0 14px 34px rgba(40, 54, 82, .08) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-hero::before {
+    opacity: 0 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-hero-copy h2 {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-hero-copy p {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .add-provider-button {
+    border: 1px solid #06603a !important;
+    background: linear-gradient(135deg, #0d7a49, #06603a) !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 24px rgba(6, 96, 58, .22) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .add-provider-button:hover {
+    border-color: #044a2c !important;
+    background: linear-gradient(135deg, #0f8a52, #05502f) !important;
+    color: #ffffff !important;
+    box-shadow: 0 12px 28px rgba(6, 96, 58, .28) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-stat-card {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 12px 30px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-stat-card:hover {
+    border-color: #e0a2ad !important;
+    box-shadow: 0 16px 34px rgba(40, 54, 82, .10) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-stat-label {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-stat-value {
+    background: none !important;
+    color: #0b1424 !important;
+    -webkit-text-fill-color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-stat-description {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-stat-icon {
+    border: 1px solid #e6c8a6 !important;
+    background: #fffaef !important;
+    color: #9a4a06 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-panel {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 14px 34px rgba(40, 54, 82, .09) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-panel-header {
+    border-bottom: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-panel-title,
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-panel-title strong {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-panel-title span:not([class]) {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-panel-title-icon {
+    border: 1px solid #e6c8a6 !important;
+    background: #fffaef !important;
+    color: #9a4a06 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-panel-badge {
+    border: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-panel-badge-dot {
+    background: #0d7a49 !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 10px 26px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card:hover {
+    border-color: #e0a2ad !important;
+    box-shadow: 0 16px 34px rgba(40, 54, 82, .12) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card h3 {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-status,
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-default-badge,
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-list-empty {
+    border: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-actions button {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card-meta {
+    border-top: 1px solid #e2e8f1 !important;
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-list-empty,
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-list-error,
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-list-loading {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .form-label {
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .form-group {
+    border: 1px solid #e6ecf5 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .api-toggle {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .api-toggle:hover {
+    border-color: #e07a8d !important;
+    color: #b3122f !important;
+    box-shadow: 0 0 0 3px rgba(200, 30, 60, .12) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .modal-header {
+    border-bottom: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .modal-footer {
+    border-top: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .modal-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .modal-subtitle {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .modal-body {
+    background: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .message {
+    border: 1px solid #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+/* Kartu provider dirender dengan inline style gelap + opacity rendah */
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card :is(div, span, p) {
+    opacity: 1 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card :is(div, span) {
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-card-meta :is(span, div) {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-status {
+    border: 1px solid #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-status[data-provider-status="inactive"],
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-status[data-provider-status="maintenance"] {
+    border-color: #ecd9b4 !important;
+    background: #fffaef !important;
+    color: #8a5300 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-default-badge {
+    border: 1px solid #e6c8a6 !important;
+    background: #fffaef !important;
+    color: #8a5300 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-api-status[style*="ffb547"],
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-api-status {
+    color: #8a5300 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-actions button[data-provider-action="delete"] {
+    border: 1px solid #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #providerList .provider-card .provider-actions button[data-provider-action="edit"] {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+
+/* =========================================================
+   09. MODELS
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .page-title h1 {
+    background: none !important;
+    color: #0b1424 !important;
+    -webkit-text-fill-color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .page-title p {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .eyebrow {
+    border: 1px solid #f0c2c8 !important;
+    background: #fff1f3 !important;
+    color: #b3122f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .stat-value.red {
+    color: #b3122f !important;
+    text-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .stat-value.green {
+    color: #0a6b3f !important;
+    text-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .search-icon {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .state-icon {
+    border: 1px solid #f0c2c8 !important;
+    background: #fff1f3 !important;
+    color: #b3122f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .state-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .loading-box {
+    color: #4a566b !important;
+}
+
+
+/* =========================================================
+   10. MODEL EDIT
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .alert {
+    border: 1px solid #ecd9b4 !important;
+    background: #fffaef !important;
+    color: #6b4a12 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .readonly-value {
+    border: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .slider {
+    border-color: #c8d3e2 !important;
+    background: #dbe3ee !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .switch .slider {
+    border-color: #b7c4d6 !important;
+    background: #cfd9e6 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .switch input:checked + .slider {
+    border-color: #06603a !important;
+    background: #0d7a49 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .currency-preview-box,
+html[data-genz-theme="light"][data-genz-theme="light"] body .resolution-price-box {
+    border: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.currency-preview-box, .resolution-price-box).final {
+    border-color: #b7e3cb !important;
+    background: #f2fbf7 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.currency-preview-title, .resolution-title) {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.currency-preview-value, .resolution-price) {
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .credit-info {
+    border: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .field-help, .currency-preview-help, .resolution-selector-help, .resolution-help
+) {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field strong,
+html[data-genz-theme="light"][data-genz-theme="light"] body strong {
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn-secondary {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn-secondary:hover {
+    border-color: #e07a8d !important;
+    background: #fff5f6 !important;
+    color: #b3122f !important;
+}
+
+
+/* =========================================================
+   11. CREDIT MANAGEMENT
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .stat-icon {
+    border: 1px solid #e6c8a6 !important;
+    background: #fffaef !important;
+    color: #9a4a06 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .clear-search {
+    border: 1px solid transparent !important;
+    background: #f1f5fb !important;
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .search-meta {
+    border: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .search-result {
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .search-hint {
+    color: #55627a !important;
+}
+
+
+/* =========================================================
+   12. FEATURE CREDITS
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero-icon {
+    border: 1px solid #d6d1f7 !important;
+    background: #f6f4ff !important;
+    color: #4f3fc4 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .settings-panel {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .section-heading {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .button {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .button:disabled,
+html[data-genz-theme="light"][data-genz-theme="light"] body .button[disabled] {
+    border-color: #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #5b677c !important;
+    opacity: 1 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .page-shell :is(span, div)[class=""] {
+    color: #4f3fc4 !important;
+    opacity: 1 !important;
+}
+
+
+/* ---------------------------------------------------------
+   Judul halaman bergradasi teks → warna solid
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body h1 {
+    background: none !important;
+    color: #0b1424 !important;
+    -webkit-text-fill-color: #0b1424 !important;
+    text-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.model-id, .model-name-id) {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .back-button {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #b3122f !important;
+    box-shadow: 0 2px 8px rgba(40, 54, 82, .06) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .back-button:hover {
+    border-color: #e07a8d !important;
+    background: #fff5f6 !important;
+    color: #8f1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .price-prefix {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #cancelButton {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+    box-shadow: 0 2px 8px rgba(40, 54, 82, .06) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #cancelButton:hover {
+    border-color: #e07a8d !important;
+    background: #fff5f6 !important;
+    color: #b3122f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #saveButton {
+    border: 1px solid #06603a !important;
+    background: linear-gradient(135deg, #0d7a49, #06603a) !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(6, 96, 58, .20) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #saveButton:disabled {
+    border-color: #dbe3ee !important;
+    background: #eef2f9 !important;
+    color: #5b677c !important;
+    opacity: 1 !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .footnote,
+html[data-genz-theme="light"][data-genz-theme="light"] body .footnote :is(span, code) {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .footnote code {
+    border: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-info span {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-info strong {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-box {
+    border: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+}
+
+
+/* =========================================================
+   13. PALET VARIABEL BERSAMA
+   Halaman admin mendefinisikan token gelap di :root;
+   nilai di body (lebih dekat) menimpanya untuk mode cerah.
+========================================================= */
+
+html[data-genz-theme="light"] body {
+    --bg: #eef2f9;
+    --bg-main: #eef2f9;
+    --bg-panel: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8fafd;
+    --panel: #ffffff;
+    --panel-2: #f8fafd;
+    --border: #dbe3ee;
+    --border-hover: #c3cfdf;
+    --border-red: rgba(200, 30, 60, .35);
+    --border-red-strong: #c81e3c;
+    --text: #172033;
+    --text-soft: #33405a;
+    --text-muted: #4a566b;
+    --muted: #4a566b;
+    --muted-2: #55627a;
+    --red: #b3122f;
+    --red-dark: #8f1424;
+    --red-light: #c81e3c;
+    --red-soft: rgba(200, 30, 60, .10);
+    --green: #0a6b3f;
+    --blue: #0b5c9e;
+    --yellow: #8a5300;
+    --amber: #8a5300;
+    --cyan: #0b5c9e;
+    --premium: #4f3fc4;
+    --accent: #5b4bd6;
+    --accent-2: #4f3fc4;
+    --shadow: 0 12px 30px rgba(40, 54, 82, .08);
+    --shadow-red: none;
+}
+
+
+/* =========================================================
+   14. TOPUP — DAFTAR PAKET
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .package-loading {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .discount-symbol {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.price-preview, .price-preview-final) {
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .price-preview-old {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .package-card, .section-card, .stat-card, .table-card, .packages-wrap
+) {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 12px 30px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .package-original-price, .package-meta, .helper-text
+) {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .package-final-price {
+    color: #0a6b3f !important;
+}
+
+
+/* =========================================================
+   15. TOPUP — PENGATURAN PEMBAYARAN
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.header, .method-card) {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 12px 30px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .method-card h2 {
+    color: #8a4008 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.subtitle, .hint) {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .qr-preview {
+    border: 1px solid #dbe3ee !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .message {
+    border: 1px solid #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+
+/* =========================================================
+   16. TOPUP — REVIEW PEMBAYARAN
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body thead {
+    border-color: #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .proof-image-wrap {
+    border: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .info-box, .filter-card, .table-card, .modal-body, .modal
+) {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.info-label, .stat-label) {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.info-value, .stat-value) {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.action-btn, .btn) {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .action-btn.approve {
+    border-color: #06603a !important;
+    background: #0d7a49 !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .action-btn.reject {
+    border-color: #a3182a !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+
+/* =========================================================
+   17. HUB ADMIN
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(
+    .page-header, .card, .admin-box, .switch-row, .preview-item, .loading-box, .status
+) {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 12px 30px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .switch-row {
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.switch-title, .admin-title, .card-title) {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.switch-description, .card-description, .help-text) {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .preview-label {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .preview-value {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .loading-overlay {
+    background: rgba(238, 242, 249, .86) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.btn-primary, .btn-secondary) {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+    box-shadow: 0 2px 8px rgba(40, 54, 82, .06) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn-primary {
+    border-color: #a80d24 !important;
+    background: linear-gradient(135deg, #d4162f, #a80d24) !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .slider {
+    border-color: #b7c4d6 !important;
+    background: #cfd9e6 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .switch input:checked + .slider {
+    background: #0d7a49 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.success {
+    border-color: #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.error {
+    border-color: #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.info {
+    border-color: #bcd6f7 !important;
+    background: #eef6ff !important;
+    color: #0b4a8a !important;
+}
+
+
+/* =========================================================
+   18. STUDIO MEDSOS SET
+========================================================= */
+
+html[data-genz-theme="light"] body .wrap {
+    --bg: #eef2f9;
+    --panel: #ffffff;
+    --panel-2: #f8fafd;
+    --border: #dbe3ee;
+    --text: #172033;
+    --muted: #4a566b;
+    --premium: #4f3fc4;
+    --cyan: #0b5c9e;
+    --green: #0a6b3f;
+    --red: #a3182a;
+    --amber: #8a5300;
+    --shadow: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .card {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 12px 30px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.title, .label, .provider-option strong) {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.subtitle, .muted, .small, .footer-note, .subscription-meta) {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.switch-row, .provider-option, .qwencloud-options, .status-box, .subscription-item) {
+    border: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.input, .select) {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #101a2e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.primary {
+    border-color: #4f3fc4 !important;
+    background: linear-gradient(135deg, #5b4bd6, #4f3fc4) !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn:disabled {
+    border-color: #dbe3ee !important;
+    background: #eef2f9 !important;
+    color: #5b677c !important;
+    opacity: 1 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .premium-box {
+    border: 1px solid #d6d1f7 !important;
+    background: #f6f4ff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .mark {
+    background: linear-gradient(135deg, #5b4bd6, #0b7f74) !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .back {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .switch {
+    background: #cfd9e6 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .switch .slider {
+    background: #cfd9e6 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .switch input:checked + .slider {
+    background: linear-gradient(135deg, #5b4bd6, #0b7f74) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .badge.active {
+    border-color: #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .badge.inactive {
+    border-color: #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .subscription-countdown {
+    color: #06603a !important;
+}
+
+
+/* ---------------------------------------------------------
+   Credit Management — baris tabel (render JS)
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .avatar {
+    border: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #46536a !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .name-cell .name {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .name-cell .email {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .role {
+    border: 1px solid #d6d1f7 !important;
+    background: #f4f1ff !important;
+    color: #3d32b5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status {
+    border: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #46536a !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.active {
+    border-color: #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.inactive {
+    border-color: #ecd9b4 !important;
+    background: #fffaef !important;
+    color: #8a5300 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .credit-value {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .action-button.add-button {
+    border: 1px solid #06603a !important;
+    background: #0d7a49 !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .action-button.remove-button {
+    border: 1px solid #a3182a !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .action-button.add-button:hover {
+    background: #0f8a52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .action-button.remove-button:hover {
+    background: #fbe3e7 !important;
+}
+
+
+/* ---------------------------------------------------------
+   Models — kartu model (render JS)
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"] body {
+    --models-accent: #5b4bd6;
+    --models-accent-strong: #4f3fc4;
+    --models-surface: #ffffff;
+    --models-border: #ccd8e8;
+    --models-muted: #4a566b;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.model-card, .state-panel, .model-modal) {
+    border: 1px solid #ccd8e8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 12px 30px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-card:hover {
+    border-color: #b9aee8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 16px 34px rgba(40, 54, 82, .12) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-icon {
+    border: 1px solid #d6d1f7 !important;
+    background: #f6f4ff !important;
+    color: #4f3fc4 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.model-title, .model-name) {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.model-id, .model-description) {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .premium-badge {
+    border: 1px solid #f0c2c8 !important;
+    background: #fff1f3 !important;
+    color: #b3122f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .meta-item {
+    border: 1px solid #e6ecf5 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .meta-label {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .meta-value {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-pricing {
+    border: 1px solid #e6ecf5 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .pricing-header {
+    border-bottom: 1px solid #e2e8f1 !important;
+    background: #f1f5fb !important;
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .price-row {
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .price-row > span {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .price-row > strong {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .price-row.price-final {
+    border-top: 1px solid #e2e8f1 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .price-row.price-final > strong {
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .discount-value {
+    color: #8a5300 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .chip {
+    border: 1px solid #d6d1f7 !important;
+    background: #f4f1ff !important;
+    color: #3d32b5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-row {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-actions {
+    border-top: 1px solid #e2e8f1 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-search-item {
+    border: 1px solid #e2e8f1 !important;
+    background: #ffffff !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-selected-info {
+    border: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-form-field {
+    border: 1px solid #e6ecf5 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .toast {
+    border: 1px solid #dbe3ee !important;
+    background: #ffffff !important;
+    color: #33405a !important;
+}
+
+
+/* ---------------------------------------------------------
+   Payment Review — baris tabel (render JS)
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .user-email {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .credit {
+    border: 1px solid #bcd6f7 !important;
+    background: #eef6ff !important;
+    color: #0b4a8a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .method {
+    border: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .amount {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.status-pending {
+    border-color: #ecd9b4 !important;
+    background: #fffaef !important;
+    color: #8a5300 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.status-approved {
+    border-color: #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.status-rejected {
+    border-color: #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .action-btn.proof {
+    border-color: #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+
+/* ---------------------------------------------------------
+   Payment Settings — kartu metode (render JS)
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .method-card h2 {
+    color: #8a4008 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field label {
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field input {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #101a2e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field input::placeholder {
+    color: #6c7789 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field input:focus {
+    border-color: #c81e3c !important;
+    outline: 3px solid rgba(200, 30, 60, .14) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .active-control {
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .active-control input {
+    accent-color: #c81e3c;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .qr-preview {
+    border: 1px solid #dbe3ee !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .button.primary {
+    border: 1px solid #a80d24 !important;
+    background: linear-gradient(135deg, #d4162f, #a80d24) !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .actions .button {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
