@@ -3850,3 +3850,86 @@ textarea,
         transition: none;
     }
 }
+
+
+/* =========================================================
+   99. MEDIA MODE SELECTOR (URL / UPLOAD)
+   ---------------------------------------------------------
+   Kelas ini sebelumnya belum punya style sama sekali
+   sehingga tombol tampil sebagai tombol bawaan browser.
+========================================================= */
+
+.generate-image-mode-selector,
+.generate-video-mode-selector,
+.generate-audio-mode-selector {
+
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px !important;
+    margin-bottom: 10px;
+}
+
+.generate-image-mode-button,
+.generate-video-mode-button,
+.generate-audio-mode-button {
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 15px;
+
+    border: 1px solid rgba(183,255,0,0.24);
+    border-radius: 10px;
+
+    background: rgba(183,255,0,0.05);
+    color: rgba(247,250,239,0.78);
+
+    font-size: 12px;
+    font-weight: 780;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+
+    transition:
+        border-color .18s ease,
+        background .18s ease,
+        color .18s ease,
+        box-shadow .18s ease;
+}
+
+.generate-image-mode-button:hover,
+.generate-video-mode-button:hover,
+.generate-audio-mode-button:hover {
+
+    border-color: rgba(183,255,0,0.52);
+    background: rgba(183,255,0,0.10);
+    color: #f5faef;
+}
+
+.generate-image-mode-button.active,
+.generate-video-mode-button.active,
+.generate-audio-mode-button.active {
+
+    border-color: #b7ff00;
+    background: rgba(183,255,0,0.14);
+    color: #d9ff55;
+    box-shadow: 0 0 18px rgba(183,255,0,0.12);
+}
+
+.generate-media-status {
+
+    margin-top: 8px;
+    color: rgba(247,250,239,0.55);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.generate-media-error {
+
+    margin-top: 8px;
+    color: #ff8b98;
+    font-size: 11px;
+    line-height: 1.5;
+}
