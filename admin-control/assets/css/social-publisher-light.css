@@ -1,0 +1,730 @@
+/* =========================================================
+   GEN-Z.AI — STUDIO MEDSOS (SOCIAL PUBLISHER)
+   LIGHT THEME (MODE CERAH)
+   ---------------------------------------------------------
+   File:
+   admin-control/assets/css/social-publisher-light.css
+
+   Dimuat SETELAH dua blok <style> di
+   admin-control/social-publisher.html.
+
+   Kenapa perlu:
+   - Halaman memakai token gelap di :root
+     (--bg #080d18, --panel #111a2a, --muted #9eacc2) plus
+     latar gradient gelap. Hero, kartu, harga langganan,
+     config item, gate langganan, dan panel tutorial tetap
+     gelap saat tema cerah aktif, dengan teks gelap di atas
+     latar gelap (nyaris tak terbaca).
+   - Sebagian override cerah sudah ada di file HTML tapi
+     hanya menyentuh toolbar riwayat, paging, tutorial, dan
+     countdown.
+
+   Semua aturan di-scope ke html[data-genz-theme="light"]
+   sehingga MODE GELAP tidak berubah.
+
+   Spesifisitas:
+   - Prefix ganda data-genz-theme + body + !important agar
+     menang atas blok <style> halaman (yang dimuat lebih
+     awal) dan style global theme.js.
+========================================================= */
+
+
+/* =========================================================
+   01. TOKENS + PAGE
+========================================================= */
+
+html[data-genz-theme="light"] {
+    color-scheme: light;
+
+    --bg: #eef2f9;
+    --panel: #ffffff;
+    --panel2: #f8fafd;
+    --border: #e2e8f1;
+    --text: #0b1424;
+    --muted: #46536a;
+    --accent: #5b4bd6;
+    --cyan: #0e7490;
+    --green: #0a6b3f;
+    --red: #a3182a;
+    --amber: #7a4a00;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] {
+    background: #eef2f9 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body {
+    background:
+        radial-gradient(circle at 8% 0%, rgba(124, 108, 255, .10), transparent 32%),
+        radial-gradient(circle at 95% 15%, rgba(70, 217, 232, .09), transparent 26%),
+        linear-gradient(145deg, #f7f9fd 0%, #eef2f9 48%, #e9eef7 100%) !important;
+    background-attachment: fixed !important;
+    color: #0b1424 !important;
+}
+
+
+/* =========================================================
+   02. HEADER HALAMAN
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .brand h1 {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .brand p {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .back {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .back:hover {
+    border-color: #a99cf0 !important;
+    color: #3d32b5 !important;
+}
+
+
+/* =========================================================
+   03. HERO
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero {
+    border: 1px solid #d6d1f7 !important;
+    background:
+        radial-gradient(circle at 92% 10%, rgba(124, 108, 255, .12), transparent 46%),
+        linear-gradient(120deg, #ffffff, #f6f4ff 62%, #eef6fb) !important;
+    box-shadow: 0 16px 38px rgba(40, 54, 82, .10) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .eyebrow {
+    color: #4f3fc4 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero h2 {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero p {
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .state {
+    border: 1px solid #c8d3e2 !important;
+    background: #f8fafd !important;
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .state.on {
+    border-color: #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .state.off {
+    border-color: #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+
+/* =========================================================
+   04. NOTICE
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .notice {
+    border: 1px solid #cfd9e6 !important;
+    background: #f2f6fd !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .notice strong {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .notice.warn {
+    border-color: #ecd9b4 !important;
+    background: #fffaef !important;
+    color: #6b4a12 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .notice.error {
+    border-color: #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .notice.success {
+    border-color: #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .notice code {
+    background: #eef2f9;
+    color: #3d32b5;
+}
+
+
+/* =========================================================
+   05. KARTU
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .card {
+    border: 1px solid #e2e8f1 !important;
+    background: #ffffff !important;
+    box-shadow:
+        0 14px 32px rgba(40, 54, 82, .08),
+        inset 0 1px 0 #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .card h3 {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .sub {
+    color: #4a566b !important;
+}
+
+
+/* =========================================================
+   06. FORM
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body label {
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body input,
+html[data-genz-theme="light"][data-genz-theme="light"] body textarea,
+html[data-genz-theme="light"][data-genz-theme="light"] body select {
+    background: #ffffff !important;
+    border: 1px solid #c8d3e2 !important;
+    color: #101a2e !important;
+    box-shadow: inset 0 1px 2px rgba(34, 46, 70, .04) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body input::placeholder,
+html[data-genz-theme="light"][data-genz-theme="light"] body textarea::placeholder {
+    color: #6c7789 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body input:focus,
+html[data-genz-theme="light"][data-genz-theme="light"] body textarea:focus,
+html[data-genz-theme="light"][data-genz-theme="light"] body select:focus {
+    border-color: #5b4bd6 !important;
+    box-shadow: 0 0 0 3px rgba(91, 75, 214, .16) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body select option {
+    background: #ffffff !important;
+    color: #101a2e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .help {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-check {
+    border: 1px solid #dbe3ee !important;
+    background: #f8fafd !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.error {
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.good {
+    color: #0a6b3f !important;
+}
+
+
+/* =========================================================
+   07. BUTTON
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+    box-shadow: 0 2px 8px rgba(40, 54, 82, .06);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn:hover {
+    border-color: #a99cf0 !important;
+    background: #f6f4ff !important;
+    color: #3d32b5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.primary {
+    border: 1px solid #4b3ac4 !important;
+    background: linear-gradient(135deg, #6a5ae6, #4b3ac4) !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 24px rgba(75, 58, 196, .22) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.primary:hover {
+    background: linear-gradient(135deg, #5b4bd6, #3f2faf) !important;
+    color: #ffffff !important;
+    border-color: #3f2faf !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.green {
+    border: 1px solid #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.green:hover {
+    border-color: #8fd3b0 !important;
+    background: #ddf7e9 !important;
+    color: #085c36 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.danger {
+    border: 1px solid #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.danger:hover {
+    border-color: #e08a98 !important;
+    background: #fbe3e7 !important;
+    color: #8f1424 !important;
+}
+
+/* Tombol premium (loading) tetap memakai teks putih di atas gradien. */
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn-fx-text,
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn-fx-time {
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-btn {
+    border: 1px solid #b9b0f2 !important;
+    background: #f1eeff !important;
+    color: #3d32b5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-btn:hover {
+    border-color: #8f85ff !important;
+    background: #e6e1ff !important;
+    color: #2b2294 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-btn.is-open {
+    background: linear-gradient(135deg, #6a5ae6, #4b3ac4) !important;
+    border-color: #4b3ac4 !important;
+    color: #ffffff !important;
+}
+
+
+/* =========================================================
+   08. STATUS KONFIGURASI
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .config-item {
+    border: 1px solid #dbe3ee !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .config-item span {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .config-item strong {
+    color: #0f1828 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .dot {
+    background: #d97706 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .dot.ok {
+    background: #0f9d58 !important;
+    box-shadow: 0 0 8px rgba(15, 157, 88, .35) !important;
+}
+
+
+/* =========================================================
+   09. DAFTAR ITEM (koneksi, karakter, jadwal, riwayat)
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .item {
+    border: 1px solid #e2e8f1 !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(40, 54, 82, .05);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .item-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .item-meta {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .thumb {
+    background: #f1f5fb !important;
+    border: 1px solid #dbe3ee !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .empty {
+    border: 1px dashed #c3cfdd !important;
+    background: #f8fafd !important;
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .garment-label {
+    color: #4a566b !important;
+}
+
+
+/* ---------------------------------------------------------
+   BADGE
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .badge {
+    border: 1px solid #cfd9e6 !important;
+    background: #f1f5fb !important;
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .badge.posted {
+    border-color: #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .badge.failed {
+    border-color: #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .badge.generating,
+html[data-genz-theme="light"][data-genz-theme="light"] body .badge.queued {
+    border-color: #ecd9b4 !important;
+    background: #fffaef !important;
+    color: #6b4a12 !important;
+}
+
+
+/* ---------------------------------------------------------
+   BIAYA + FOOTER
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .note-cost {
+    border-left: 3px solid #b45309 !important;
+    background: #fffaef !important;
+    color: #6b4a12 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .footer {
+    color: #5b677c !important;
+}
+
+
+/* =========================================================
+   10. HARGA LANGGANAN
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-price {
+    border: 1px solid #d6d1f7 !important;
+    background: #f8f6ff !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-price-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-price-item {
+    border: 1px solid #ddd7f7 !important;
+    background: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-price-item span {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-price-item strong {
+    color: #3d32b5 !important;
+}
+
+
+/* =========================================================
+   11. GATE LANGGANAN (modal status akun)
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate {
+    background: rgba(238, 242, 249, .80) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-card {
+    border: 1px solid #d6d1f7 !important;
+    background: #ffffff !important;
+    box-shadow: 0 26px 60px rgba(40, 54, 82, .18) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate h2 {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate p {
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-value {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-countdown {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-badge {
+    border: 1px solid #cfd9e6 !important;
+    background: #f1f5fb !important;
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-badge.active {
+    border-color: #b7e3cb !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-badge.inactive {
+    border-color: #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-value.running,
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-countdown.running {
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-prices {
+    border: 1px solid #ddd7f7 !important;
+    background: #f8f6ff !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-prices-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-price-item {
+    border: 1px solid #ddd7f7 !important;
+    background: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-price-item span {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate-price-item strong {
+    color: #3d32b5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate .btn {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-gate .btn.primary {
+    border-color: #4b3ac4 !important;
+    background: linear-gradient(135deg, #6a5ae6, #4b3ac4) !important;
+    color: #ffffff !important;
+}
+
+
+/* =========================================================
+   12. OUTFIT
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .outfit-card {
+    border: 1px solid #e2e8f1 !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(40, 54, 82, .05);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .outfit-card img {
+    border: 1px solid #dbe3ee !important;
+    background: #f1f5fb !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .outfit-order {
+    color: #0b5c9e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .outfit-order.missing {
+    color: #66738a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .outfit-hint {
+    border-left: 3px solid #5b4bd6 !important;
+    background: #f4f1ff !important;
+    color: #3c3473 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .manual-outfit-line {
+    color: #3c3473 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .manual-outfit-line a {
+    color: #0b5c9e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .manual-preview-caption {
+    color: #4a566b !important;
+}
+
+
+/* =========================================================
+   13. TUTORIAL
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-panel {
+    border: 1px solid #d6d1f7 !important;
+    background: #f8f6ff !important;
+    box-shadow: 0 12px 28px rgba(40, 54, 82, .08) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-head {
+    border-bottom: 1px solid #ddd7f7 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-head h4 {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-head p {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-step {
+    border: 1px solid #ddd7f7 !important;
+    background: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-step-title {
+    color: #17233a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-step-body {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-step-body strong {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-step-body code {
+    background: #f1f5fb;
+    color: #3d32b5;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-num {
+    background: linear-gradient(135deg, #6a5ae6, #4b3ac4) !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .tutorial-close {
+    border-color: #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+
+/* =========================================================
+   14. TOOLBAR + PAGINATION RIWAYAT
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-toolbar,
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-pagination {
+    border-color: #e6ecf5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-pagination-info,
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-per-page-wrap,
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-per-page-wrap label,
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-per-page-suffix {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-per-page-select {
+    background-color: #ffffff !important;
+    border: 1px solid #c8d3e2 !important;
+    color: #101a2e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-page-btn {
+    border: 1px solid #dbe3ee !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-page-btn:hover:not(:disabled):not(.active) {
+    border-color: #a99cf0 !important;
+    background: #f6f4ff !important;
+    color: #3d32b5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-page-btn.active {
+    border-color: #4b3ac4 !important;
+    background: linear-gradient(135deg, #6a5ae6, #4b3ac4) !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .runs-ellipsis {
+    color: #66738a !important;
+}
+
+
+/* =========================================================
+   15. COUNTDOWN JADWAL (tetap hijau terang)
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .schedule-countdown {
+    border: 1px solid #12b866 !important;
+    background: #e9fff2 !important;
+    color: #068040 !important;
+    text-shadow: none !important;
+    box-shadow: 0 4px 12px rgba(18, 184, 102, .16) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .schedule-countdown-label {
+    color: #14684a !important;
+    text-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .schedule-countdown-value {
+    color: #068040 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .schedule-countdown[data-countdown-state="waiting"] {
+    border-color: #d29a12 !important;
+    background: #fff6de !important;
+    color: #8a5a00 !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .schedule-countdown[data-countdown-state="waiting"] .schedule-countdown-label {
+    color: #8a6a1f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .schedule-countdown[data-countdown-state="waiting"] .schedule-countdown-value {
+    color: #8a5a00 !important;
+}
