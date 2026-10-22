@@ -2002,6 +2002,119 @@ tbody tr {
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
     <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
     <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
+    <!-- =====================================================
+         THUMBNAIL PROSES + REFERENSI
+         -----------------------------------------------------
+         Saat generation masih berjalan, blok animasi berputar
+         (GENERATING) ditemani thumbnail referensi di sampingnya.
+         Di HP thumbnail referensi dipindah ke bawah blok agar
+         tetap muat di kolom sempit.
+    ====================================================== -->
+
+    <style id="history-processing-reference-style">
+
+        /* Kolom preview ikut lebar isi (thumbnail / spinner + ref) */
+        tbody tr {
+            grid-template-columns:
+                auto
+                minmax(0, 1.4fr)
+                minmax(0, 2.2fr)
+                auto
+                auto
+                auto;
+        }
+
+        .thumbnail-processing-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .thumbnail-processing-wrap .history-thumbnail {
+            flex: 0 0 auto;
+        }
+
+        .thumbnail-reference {
+            position: relative;
+            flex: 0 0 auto;
+            width: 52px;
+            height: 52px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            overflow: hidden;
+            background: #030509;
+            isolation: isolate;
+        }
+
+        .thumbnail-reference img,
+        .thumbnail-reference video {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumbnail-reference-label {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 2;
+            padding: 3px 0 2px;
+            text-align: center;
+            background: linear-gradient(transparent, rgba(0, 0, 0, .92) 40%);
+            color: rgba(255, 255, 255, .88);
+            font-size: 6px;
+            font-weight: 900;
+            letter-spacing: .6px;
+            line-height: 1;
+        }
+
+        @media (max-width: 860px) {
+
+            tbody tr {
+                grid-template-columns:
+                    auto
+                    minmax(0, 1fr)
+                    auto
+                    auto;
+            }
+
+            .thumbnail-processing-wrap {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+
+            .thumbnail-reference {
+                width: 56px;
+                height: 56px;
+                border-radius: 8px;
+            }
+
+            .thumbnail-reference-label {
+                font-size: 5.5px;
+                padding: 2px 0;
+            }
+        }
+
+        @media (max-width: 560px) {
+
+            tbody tr {
+                grid-template-columns:
+                    auto
+                    minmax(0, 1fr);
+            }
+
+            .thumbnail-reference {
+                width: 48px;
+                height: 48px;
+            }
+        }
+
+    </style>
+
 </head>
 
 <body>
@@ -2184,7 +2297,7 @@ tbody tr {
 <script src="./assets/js/history-auth.js?v=persistent-auth-20261022"></script>
 <script src="./assets/js/history-data.js"></script>
 <script src="./assets/js/history-status-sync.js"></script>
-<script src="./assets/js/history-render.js?v=20261016-regenerate"></script>
+<script src="./assets/js/history-render.js?v=20261022-processing-ref"></script>
 <script src="./assets/js/history-runtime.js"></script>
 <script src="./assets/js/history-modal.js?v=generated-download-name-20261017"></script>
 <script src="./assets/js/history-events.js?v=persistent-auth-20261022"></script>
