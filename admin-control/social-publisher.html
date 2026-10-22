@@ -53,6 +53,23 @@
         .tutorial-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}.tutorial-head h4{margin:0 0 3px;font-size:14px;font-weight:800;color:var(--text)}.tutorial-head p{margin:0;font-size:11.5px;line-height:1.45;color:var(--muted)}.tutorial-close{flex:0 0 auto}
         .tutorial-steps{display:grid;gap:9px}.tutorial-step{display:grid;grid-template-columns:24px minmax(0,1fr);gap:11px;align-items:start;padding:10px 11px;border-radius:10px;background:rgba(8,14,25,.62);border:1px solid #26354a}.tutorial-num{width:24px;height:24px;border-radius:999px;display:grid;place-items:center;background:linear-gradient(135deg,#7061f5,#5750d9);color:#fff;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}.tutorial-step-title{margin:0 0 3px;font-size:12.5px;font-weight:750;color:#f2f6fd}.tutorial-step-body{margin:0;font-size:12px;line-height:1.55;color:#aebcd2}
         html[data-genz-theme="light"] .tutorial-btn{background:#eef1ff;border-color:#7c6cff;color:#3d32b5}html[data-genz-theme="light"] .tutorial-btn:hover{background:#e2e7ff;border-color:#5750d9;color:#2b2294}html[data-genz-theme="light"] .tutorial-btn.is-open{background:linear-gradient(135deg,#7061f5,#5750d9);border-color:#5750d9;color:#fff}html[data-genz-theme="light"] .tutorial-panel{background:#f5f7fd;border-color:#b8c4d8;box-shadow:0 10px 24px rgba(40,54,82,.09)}html[data-genz-theme="light"] .tutorial-head{border-color:#cfd8e6}html[data-genz-theme="light"] .tutorial-step{background:#fff;border-color:#d4dce9}html[data-genz-theme="light"] .tutorial-step-body{color:#425068}html[data-genz-theme="light"] .tutorial-close{background:#fff;border-color:#9aa7bc;color:#172033}
+        .schedule-countdown{display:inline-flex;align-items:center;gap:8px;margin-top:9px;padding:6px 12px;border-radius:999px;border:1px solid rgba(57,255,113,.5);background:rgba(57,255,113,.1);color:#39ff71;font-size:11.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.03em;text-shadow:0 0 10px rgba(57,255,113,.5);box-shadow:0 0 16px rgba(57,255,113,.14)}
+        .schedule-countdown::before{content:"";flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:#39ff71;box-shadow:0 0 9px #39ff71;animation:schedule-countdown-pulse 1.4s ease-in-out infinite}
+        .schedule-countdown-label{color:#b8ffd4;font-weight:700;letter-spacing:.02em;text-shadow:none}
+        .schedule-countdown-value{color:#39ff71;letter-spacing:.06em}
+        .schedule-countdown[data-countdown-state="waiting"]{border-color:rgba(255,214,102,.55);background:rgba(255,214,102,.1);color:#ffd666;text-shadow:0 0 10px rgba(255,214,102,.4);box-shadow:none}
+        .schedule-countdown[data-countdown-state="waiting"]::before{background:#ffd666;box-shadow:0 0 9px #ffd666}
+        .schedule-countdown[data-countdown-state="waiting"] .schedule-countdown-label{color:#ffe9b0}
+        .schedule-countdown[data-countdown-state="waiting"] .schedule-countdown-value{color:#ffd666}
+        @keyframes schedule-countdown-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.78)}}
+        @media(prefers-reduced-motion:reduce){.schedule-countdown::before{animation:none}}
+        @media(max-width:560px){.schedule-countdown{width:100%;justify-content:center;flex-wrap:wrap;row-gap:3px}}
+        html[data-genz-theme="light"] .schedule-countdown{background:#e9fff2;border-color:#12b866;color:#0a8a48;text-shadow:none;box-shadow:0 4px 12px rgba(18,184,102,.16)}
+        html[data-genz-theme="light"] .schedule-countdown-label{color:#14684a}
+        html[data-genz-theme="light"] .schedule-countdown-value{color:#0a8a48}
+        html[data-genz-theme="light"] .schedule-countdown[data-countdown-state="waiting"]{background:#fff6de;border-color:#d29a12;color:#8a5a00;text-shadow:none}
+        html[data-genz-theme="light"] .schedule-countdown[data-countdown-state="waiting"] .schedule-countdown-label{color:#8a6a1f}
+        html[data-genz-theme="light"] .schedule-countdown[data-countdown-state="waiting"] .schedule-countdown-value{color:#8a5a00}
         @media(max-width:768px){.manual-post-layout{grid-template-columns:1fr}.manual-preview{max-width:180px}.outfit-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.outfit-card img{height:130px}}
         @media(max-width:560px){.runs-toolbar{flex-direction:column;align-items:stretch;gap:10px}.runs-per-page-wrap{justify-content:space-between}.runs-pagination{gap:4px;margin-top:14px;padding-top:13px}.runs-page-btn{min-width:32px;height:32px;padding:0 8px;font-size:11px;border-radius:8px}.runs-page-nav{font-size:14px}}
     </style>
@@ -348,6 +365,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
-    <script type="module" src="./social-publisher.js?v=persistent-auth-20261022"></script>
+    <script type="module" src="./social-publisher.js?v=schedule-countdown-20261022"></script>
 </body>
 </html>
