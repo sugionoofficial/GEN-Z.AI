@@ -1026,14 +1026,25 @@
             <aside class="genz-sidebar" id="genz-sidebar" aria-label="GEN-Z.AI Navigation">
                 <div class="genz-sidebar-header">
                     <div class="genz-brand">
-                        <div class="genz-logo" aria-label="GEN-Z.AI" title="GEN-Z.AI">
-                            <div class="genz-logo-mark" aria-hidden="true">AI</div>
-                            <div class="genz-logo-text">
-                                <span class="genz-logo-main">GEN-<strong>Z</strong></span>
-                                <span class="genz-logo-ai">.AI</span>
-                            </div>
-                        </div>
-                        <div class="genz-brand-subtitle">AI Platform</div>
+                        <a class="genz-logo" href="/" title="gen-z.ai" aria-label="gen-z.ai — beranda">
+                            <img
+                                class="genz-logo-img genz-logo-img-dark"
+                                src="/assets/brand/gen-z-ai-sidebar.svg?v=1"
+                                alt="gen-z.ai"
+                                width="379"
+                                height="96"
+                                decoding="async"
+                            >
+                            <img
+                                class="genz-logo-img genz-logo-img-light"
+                                src="/assets/brand/gen-z-ai-sidebar-light.svg?v=1"
+                                alt=""
+                                aria-hidden="true"
+                                width="379"
+                                height="96"
+                                decoding="async"
+                            >
+                        </a>
                     </div>
                     <button type="button" class="genz-mobile-close" id="genz-mobile-close" aria-label="Close menu">×</button>
                 </div>
@@ -1328,60 +1339,40 @@
 
             .genz-brand { min-width: 0; }
 
+            /*
+             * Logo sidebar: aset vektor (mark Z + "gen-z.ai")
+             * dengan tinggi tetap supaya tajam di layar retina
+             * dan tidak ikut mengecil saat wordmark di-zip.
+             */
+
             .genz-logo {
                 display: inline-flex;
                 align-items: center;
-                gap: 9px;
-                min-height: 43px;
-                padding: 6px 10px 6px 6px;
-                border: 1px solid rgba(255, 50, 50, .24);
-                border-radius: 11px;
-                background: rgba(255, 255, 255, .025);
+                min-height: 40px;
+                padding: 0;
+                border: 0;
+                background: none;
+                text-decoration: none;
+                cursor: pointer;
+                transition: opacity .18s ease;
             }
 
-            .genz-logo-mark {
-                width: 34px; height: 34px;
-                flex: 0 0 34px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border: 1px solid rgba(255, 70, 70, .4);
-                border-radius: 9px;
-                color: #ffffff;
-                background: radial-gradient(circle at 35% 30%, rgba(255, 70, 70, .25), rgba(255, 0, 0, .05) 60%, rgba(0, 0, 0, .1));
-                font-size: 11px;
-                font-weight: 900;
-                letter-spacing: .5px;
+            .genz-logo:hover { opacity: .86; }
+
+            .genz-logo-img {
+                display: block;
+                width: auto;
+                height: 38px;
+                max-width: 100%;
+                user-select: none;
+                -webkit-user-drag: none;
             }
 
-            .genz-logo-text {
-                display: flex;
-                align-items: baseline;
-                color: #ffffff;
-                font-size: 18px;
-                font-weight: 800;
-                letter-spacing: .4px;
-            }
+            /* versi terang dipakai otomatis saat tema light */
+            .genz-logo-img-light { display: none; }
 
-            .genz-logo-main strong {
-                color: #ff3d3d;
-                text-shadow: 0 0 9px rgba(255, 0, 0, .75);
-            }
-
-            .genz-logo-ai {
-                margin-left: 1px;
-                color: #ff4a4a;
-                text-shadow: 0 0 8px rgba(255, 0, 0, .55);
-            }
-
-            .genz-brand-subtitle {
-                padding-left: 4px;
-                color: rgba(255, 255, 255, .45);
-                font-size: 10px;
-                font-weight: 600;
-                letter-spacing: 1.2px;
-                text-transform: uppercase;
-            }
+            html[data-genz-theme="light"] .genz-logo-img-dark { display: none; }
+            html[data-genz-theme="light"] .genz-logo-img-light { display: block; }
 
             .genz-mobile-close {
                 display: none;
@@ -1584,7 +1575,8 @@
                     padding: 13px 11px;
                 }
                 .genz-brand { flex: 1 1 auto; }
-                .genz-logo { min-height: 40px; }
+                .genz-logo { min-height: 36px; }
+                .genz-logo-img { height: 34px; }
                 .genz-mobile-close {
                     display: flex;
                     flex: 0 0 40px;
@@ -1603,9 +1595,8 @@
             }
 
             @media (max-width: 480px) {
-                .genz-logo { gap: 8px; min-height: 40px; padding: 5px 9px 5px 6px; }
-                .genz-logo-mark { width: 32px; height: 32px; flex-basis: 32px; border-radius: 8px; font-size: 11px; }
-                .genz-logo-text { font-size: 17px; }
+                .genz-logo { min-height: 32px; }
+                .genz-logo-img { height: 30px; }
                 .genz-nav { padding: 7px 8px 14px; }
                 .genz-sidebar-footer { padding: 9px 8px 12px; }
                 .genz-account-box { margin-bottom: 9px; }
