@@ -50,9 +50,9 @@
         }
 
         main {
-            width: min(1600px, 100%);
+            width: min(1450px, 100%);
             margin: auto;
-            padding: 96px clamp(12px, 2vw, 28px) 64px;
+            padding: 96px 28px 60px;
         }
 
         .page-header {
@@ -1121,9 +1121,274 @@
             outline-color: #ffb52e;
         }
     
+
             /* ====== LIGHT MODE PASS ====== */
+
             html[data-genz-theme="light"] {
+                color-scheme: light;
+
+                --text: #3b4757;
+                --text-strong: #0b1424;
+                --muted: #55617a;
+                --muted-light: #6b7688;
+                --accent: #e08600;
+                --accent-2: #b45309;
+                --accent-dark: #9a4a06;
+                --success: #0f8a4f;
+                --surface: #ffffff;
+                --surface-raised: #ffffff;
                 --border: rgba(15,23,42,.14);
+                --outline: rgba(224,134,0,.38);
+            }
+
+            html[data-genz-theme="light"] html,
+            html[data-genz-theme="light"] body {
+                background: #eef2f8;
+                color: var(--text);
+            }
+
+            html[data-genz-theme="light"] body {
+                background:
+                    radial-gradient(900px 500px at 50% -180px, rgba(224,134,0,.10), transparent 72%),
+                    #eef2f8;
+            }
+
+            /* ---------- HEADER ---------- */
+
+            html[data-genz-theme="light"] .page-header::after {
+                background: linear-gradient(90deg, rgba(224,134,0,.42), rgba(224,134,0,.10) 72%, transparent);
+            }
+
+            html[data-genz-theme="light"] .page-title,
+            html[data-genz-theme="light"] .section-title,
+            html[data-genz-theme="light"] .user-email,
+            html[data-genz-theme="light"] .user-stat-value,
+            html[data-genz-theme="light"] .activity-model,
+            html[data-genz-theme="light"] .activity-info-value {
+                color: #0b1424 !important;
+            }
+
+            html[data-genz-theme="light"] .page-description,
+            html[data-genz-theme="light"] .activity-description,
+            html[data-genz-theme="light"] .user-name,
+            html[data-genz-theme="light"] .user-stat-label,
+            html[data-genz-theme="light"] .activity-provider,
+            html[data-genz-theme="light"] .activity-info-label,
+            html[data-genz-theme="light"] .footer,
+            html[data-genz-theme="light"] .state-box {
+                color: #55617a !important;
+            }
+
+            html[data-genz-theme="light"] .page-overline,
+            html[data-genz-theme="light"] .user-overline,
+            html[data-genz-theme="light"] .activity-overline,
+            html[data-genz-theme="light"] .back-link-icon,
+            html[data-genz-theme="light"] .activity-prompt-label {
+                color: #9a4a06 !important;
+            }
+
+            /* ---------- SURFACES ---------- */
+
+            html[data-genz-theme="light"] .back-link,
+            html[data-genz-theme="light"] .user-badge,
+            html[data-genz-theme="light"] .activity-count {
+                border-color: #e3c9a2 !important;
+                background: #fff7ec !important;
+                color: #9a4a06 !important;
+                box-shadow: none !important;
+            }
+
+            html[data-genz-theme="light"] .back-link:hover {
+                border-color: #d9a866 !important;
+                background: #fdf0dd !important;
+            }
+
+            html[data-genz-theme="light"] .user-header {
+                background: #ffffff !important;
+                border-color: #dbe4f0 !important;
+                box-shadow: 0 16px 40px rgba(40,54,82,.08) !important;
+            }
+
+            html[data-genz-theme="light"] .user-header::after {
+                background: rgba(224,134,0,.10);
+            }
+
+            html[data-genz-theme="light"] .user-avatar {
+                border-color: #f0c98a !important;
+                background: linear-gradient(145deg, #fff3e0, #ffe4bf) !important;
+                color: #9a4a06 !important;
+                box-shadow: none !important;
+            }
+
+            html[data-genz-theme="light"] .user-badge.status-active {
+                border-color: #bce5d0 !important;
+                background: #e6f7ee !important;
+                color: #0b7a45 !important;
+            }
+
+            html[data-genz-theme="light"] .user-badge.credits {
+                border-color: #e3c9a2 !important;
+                color: #9a4a06 !important;
+            }
+
+            html[data-genz-theme="light"] .user-stat {
+                background: #ffffff !important;
+                border-color: #dbe4f0 !important;
+                box-shadow: 0 8px 22px rgba(40,54,82,.06) !important;
+            }
+
+            html[data-genz-theme="light"] .user-stat:hover {
+                border-color: #e3c9a2 !important;
+                background: #fffdfa !important;
+            }
+
+            html[data-genz-theme="light"] .user-stat:nth-child(2) {
+                --stat-accent: #12a05c;
+            }
+
+            html[data-genz-theme="light"] .user-stat:nth-child(3) {
+                --stat-accent: #2f7fd1;
+            }
+
+            html[data-genz-theme="light"] .user-stat:nth-child(4) {
+                --stat-accent: #d13b3b;
+            }
+
+            /* ---------- ACTIVITY CARDS ---------- */
+
+            html[data-genz-theme="light"] .activity-item {
+                background: #ffffff !important;
+                border-color: #dbe4f0 !important;
+                box-shadow: 0 10px 26px rgba(40,54,82,.07) !important;
+            }
+
+            html[data-genz-theme="light"] .activity-item:hover {
+                border-color: #e3c9a2 !important;
+                background: #ffffff !important;
+                box-shadow: 0 14px 30px rgba(40,54,82,.11) !important;
+            }
+
+            html[data-genz-theme="light"] .activity-item.active {
+                border-color: #bce5d0 !important;
+                box-shadow:
+                    0 10px 26px rgba(40,54,82,.07),
+                    inset 2px 0 0 #12a05c !important;
+            }
+
+            html[data-genz-theme="light"] .activity-status.processing,
+            html[data-genz-theme="light"] .activity-status.pending {
+                color: #8a6100 !important;
+                background: #fdf4dd !important;
+                border-color: #f0dca6 !important;
+            }
+
+            html[data-genz-theme="light"] .activity-status.success {
+                color: #0b7a45 !important;
+                background: #e6f7ee !important;
+                border-color: #bce5d0 !important;
+            }
+
+            html[data-genz-theme="light"] .activity-status.failed,
+            html[data-genz-theme="light"] .activity-status.cancelled {
+                color: #b4232f !important;
+                background: #fdeaea !important;
+                border-color: #f6c9cd !important;
+            }
+
+            html[data-genz-theme="light"] .activity-info-box {
+                background: #f7f9fd !important;
+                border-color: #e1e8f2 !important;
+            }
+
+            html[data-genz-theme="light"] .activity-info-box:first-child .activity-info-value {
+                color: #3f4b5e !important;
+            }
+
+            html[data-genz-theme="light"] .activity-prompt-block {
+                background: #f8fafd !important;
+                border-color: #e1e8f2 !important;
+            }
+
+            html[data-genz-theme="light"] .activity-prompt-block.expanded {
+                border-color: #e3c9a2 !important;
+            }
+
+            html[data-genz-theme="light"] .activity-prompt-header {
+                background: #f2f6fc !important;
+                border-bottom-color: #e1e8f2 !important;
+            }
+
+            html[data-genz-theme="light"] .activity-prompt-text {
+                color: #35415a !important;
+            }
+
+            html[data-genz-theme="light"] .activity-prompt-text::after {
+                background: linear-gradient(to bottom, transparent 0%, #f8fafd 100%) !important;
+            }
+
+            html[data-genz-theme="light"] .activity-prompt-toggle {
+                border-color: #e3c9a2 !important;
+                background: #fff7ec !important;
+                color: #9a4a06 !important;
+                box-shadow: none !important;
+            }
+
+            html[data-genz-theme="light"] .activity-prompt-toggle:hover {
+                border-color: #d9a866 !important;
+                background: #fdf0dd !important;
+            }
+
+            html[data-genz-theme="light"] .activity-prompt-block.expanded
+            .activity-prompt-text::-webkit-scrollbar-thumb {
+                background: rgba(224,134,0,.5);
+            }
+
+            /* ---------- ACTIONS ---------- */
+
+            html[data-genz-theme="light"] .cancel-generation {
+                border-color: #f0b6bb !important;
+                background: #fdeaea !important;
+                color: #b4232f !important;
+                box-shadow: none !important;
+            }
+
+            html[data-genz-theme="light"] .cancel-generation:hover {
+                border-color: #e58c93 !important;
+                background: #fbdcdd !important;
+            }
+
+            /* ---------- STATE / DEBUG ---------- */
+
+            html[data-genz-theme="light"] .state-box {
+                background: #ffffff !important;
+                border-color: #dbe4f0 !important;
+                border-style: dashed !important;
+            }
+
+            html[data-genz-theme="light"] .spinner {
+                border-color: rgba(224,134,0,.24) !important;
+                border-top-color: #e08600 !important;
+            }
+
+            html[data-genz-theme="light"] .footer {
+                border-top-color: #dbe4f0 !important;
+            }
+
+            html[data-genz-theme="light"] .debug-panel {
+                border-color: #dbe4f0 !important;
+                background: #ffffff !important;
+                color: #35415a !important;
+                box-shadow: 0 18px 40px rgba(40,54,82,.16) !important;
+            }
+
+            html[data-genz-theme="light"] .debug-panel-title {
+                color: #b4232f !important;
+            }
+
+            html[data-genz-theme="light"] .debug-panel-close {
+                border-color: #dbe4f0 !important;
+                background: #f2f6fc !important;
+                color: #35415a !important;
             }
 
     </style>
@@ -1592,7 +1857,7 @@
                         '<div class="activity-actions">' +
                             '<button type="button" class="cancel-generation" data-history-id="' +
                                 escapeHtml(item.id || "") + '">' +
-                                'Cancel Generate' +
+                                'Batalkan paksa' +
                             '</button>' +
                         '</div>';
                 }
@@ -1664,21 +1929,68 @@
 
                 if (!state.client || !historyId) return;
 
-                if (!window.confirm("Batalkan generate ini?")) {
+                if (!window.confirm(
+                    "Batalkan paksa generate ini?\n\n" +
+                    "Task yang masih berjalan akan ditandai batal " +
+                    "dan credit user dikembalikan."
+                )) {
                     return;
                 }
+
+                var originalLabel = button.textContent;
 
                 button.disabled = true;
                 button.textContent = "Membatalkan…";
 
                 try {
 
-                    var result = await state.client
-                        .from("generation_history")
-                        .update({ status: "cancelled" })
-                        .eq("id", historyId);
+                    /*
+                     * Update langsung ke generation_history
+                     * diblokir RLS untuk baris milik user lain,
+                     * jadi cancellation dilakukan lewat API admin
+                     * (service role) yang sekaligus merefund credit.
+                     */
 
-                    if (result.error) throw result.error;
+                    var session = await state.client.auth.getSession();
+                    var token = session
+                        && session.data
+                        && session.data.session
+                        ? session.data.session.access_token
+                        : "";
+
+                    if (!token) {
+                        throw new Error("Session login tidak ditemukan.");
+                    }
+
+                    var response = await fetch(
+                        "/api/admin-cancel-generation",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Authorization": "Bearer " + token,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                history_id: historyId,
+                                reason: "Dibatalkan oleh admin"
+                            })
+                        }
+                    );
+
+                    var payload = null;
+
+                    try {
+                        payload = await response.json();
+                    } catch (parseError) {
+                        payload = null;
+                    }
+
+                    if (!response.ok || !payload || !payload.success) {
+                        throw new Error(
+                            (payload && payload.error) ||
+                            "Gagal membatalkan generate."
+                        );
+                    }
 
                     state.history = state.history.map(function (item) {
                         if (String(item.id) === String(historyId)) {
@@ -1690,17 +2002,20 @@
                     renderHistory();
                     renderStats();
 
+                    await loadHistory().catch(function () {});
+
                 } catch (error) {
 
                     console.error("[User Activity] Cancel error:", error);
 
                     button.disabled = false;
-                    button.textContent = "Cancel Generate";
+                    button.textContent = originalLabel;
 
                     window.alert(
                         "Gagal membatalkan generate: " +
                         (error && error.message ? error.message : "Unknown error")
                     );
+
                 }
             }
 
