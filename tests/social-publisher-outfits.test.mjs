@@ -565,6 +565,14 @@ test("scheduled autopost picks an outfit at random and adds its order link to th
         if (url.endsWith("/rest/v1/rpc/claim_due_social_post_schedules")) {
             return Response.json([{ run_id: "run-1", schedule_id: "schedule-1" }]);
         }
+        if (url.includes("/rest/v1/studio_medsos_access?")) {
+            return Response.json([{
+                user_id: "owner-1",
+                is_active: true,
+                started_at: new Date(Date.now() - 86400000).toISOString(),
+                expires_at: new Date(Date.now() + 30 * 86400000).toISOString()
+            }]);
+        }
         if (url.includes("/rest/v1/social_post_schedules?")) {
             return Response.json([{
                 id: "schedule-1",
