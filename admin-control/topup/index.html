@@ -28,6 +28,22 @@
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
     <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
     <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
+    <!-- =====================================================
+         COMPACT DESKTOP
+         Admin Top Up: 1500px -> 1120px.
+         Hanya berlaku di desktop (>= 901px); layout
+         tablet & HP tidak berubah.
+    ====================================================== -->
+
+    <style id="admin-topup-compact-desktop">
+
+        @media (min-width: 901px) {
+            .page { width: min(1120px, calc(100% - 40px)); padding: 28px 0 60px; }
+            .page-header { padding: 20px 22px; margin-bottom: 18px; border-radius: 18px; }
+        }
+
+    </style>
+
 </head>
 
 <body>
