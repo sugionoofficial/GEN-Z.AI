@@ -1917,6 +1917,186 @@
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
     <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
     <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
+    <!-- =====================================================
+         COMPACT DESKTOP
+
+         Blok halaman Credit Management dikecilkan agar tidak
+         melebar sampai ujung kiri-kanan layar. Hanya berlaku
+         di desktop (>= 901px); layout tablet & HP tetap.
+    ====================================================== -->
+
+    <style id="credit-compact-desktop">
+
+        @media (min-width: 901px) {
+
+            .main {
+                padding:
+                    28px
+                    clamp(12px, 1.6vw, 24px)
+                    44px;
+            }
+
+            .content {
+                width: min(1080px, 100%);
+            }
+
+            .hero {
+                padding: 22px 24px;
+                margin-bottom: 14px;
+                border-radius: 18px;
+            }
+
+            .eyebrow {
+                margin-bottom: 10px;
+                padding: 6px 10px;
+                font-size: 8.5px;
+            }
+
+            .hero h1 {
+                font-size: clamp(24px, 3vw, 32px);
+            }
+
+            .hero p {
+                max-width: 600px;
+                margin-top: 9px;
+                font-size: 12.5px;
+                line-height: 1.6;
+            }
+
+            .stats {
+                gap: 12px;
+                margin-bottom: 14px;
+            }
+
+            .stat-card {
+                padding: 16px 18px;
+                border-radius: 15px;
+            }
+
+            .stat-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 14px;
+            }
+
+            .stat-label {
+                font-size: 9.5px;
+                letter-spacing: 1.1px;
+            }
+
+            .stat-value {
+                margin-top: 11px;
+                font-size: 26px;
+            }
+
+            .stat-description {
+                margin-top: 4px;
+                font-size: 10.5px;
+            }
+
+            .card {
+                border-radius: 16px;
+            }
+
+            .card-header {
+                gap: 14px;
+                padding: 16px 18px;
+            }
+
+            .card-title {
+                font-size: 15px;
+            }
+
+            .card-subtitle {
+                margin-top: 3px;
+                font-size: 11.5px;
+            }
+
+            .search-box {
+                width: min(300px, 26vw);
+            }
+
+            .search-input {
+                height: 36px;
+                border-radius: 10px;
+                font-size: 11px;
+            }
+
+            .refresh-button {
+                min-height: 36px;
+                padding: 0 12px;
+                border-radius: 10px;
+                font-size: 10px;
+            }
+
+            .search-meta {
+                min-height: 36px;
+                padding: 0 18px;
+                font-size: 9.5px;
+            }
+
+            .message {
+                margin: 14px 18px 0;
+                padding: 10px 12px;
+                border-radius: 10px;
+                font-size: 11px;
+            }
+
+            table {
+                min-width: 760px;
+            }
+
+            th,
+            td {
+                padding: 11px 14px;
+                font-size: 11.5px;
+            }
+
+            th {
+                font-size: 8.5px;
+                letter-spacing: 1px;
+            }
+
+            .avatar {
+                width: 30px;
+                height: 30px;
+                font-size: 11px;
+            }
+
+            .name {
+                font-size: 12.5px;
+            }
+
+            .email {
+                max-width: 200px;
+                font-size: 9.5px;
+            }
+
+            .credit-value {
+                font-size: 15px;
+            }
+
+            .role,
+            .status {
+                padding: 4px 7px;
+                font-size: 8.5px;
+            }
+
+            .action-button {
+                min-height: 28px;
+                padding: 0 8px;
+                border-radius: 8px;
+                font-size: 8.5px;
+            }
+
+            .footer-note {
+                margin-top: 14px;
+                font-size: 9.5px;
+            }
+        }
+
+    </style>
+
 </head>
 
 
