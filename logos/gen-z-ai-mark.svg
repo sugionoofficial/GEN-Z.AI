@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="64%">
+      <stop offset="0%" stop-color="#1A1B40"/>
+      <stop offset="50%" stop-color="#0B0C1C"/>
+      <stop offset="100%" stop-color="#04050B"/>
+    </radialGradient>
+
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#8D7DFF" stop-opacity=".34"/>
+      <stop offset="55%" stop-color="#6C63F0" stop-opacity=".11"/>
+      <stop offset="100%" stop-color="#8D7DFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="zGrad" gradientUnits="userSpaceOnUse" x1="-131" y1="-131" x2="131" y2="131">
+      <stop offset="0%" stop-color="#D3C6FF"/>
+      <stop offset="30%" stop-color="#8D7DFF"/>
+      <stop offset="70%" stop-color="#6FB4FF"/>
+      <stop offset="100%" stop-color="#55D9F2"/>
+    </linearGradient>
+
+    <linearGradient id="wordGrad" gradientUnits="userSpaceOnUse" x1="0" y1="-66" x2="0" y2="4">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="60%" stop-color="#EDEBFF"/>
+      <stop offset="100%" stop-color="#C9C5EE"/>
+    </linearGradient>
+
+    <filter id="zGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bgGlow)"/>
+  <circle cx="512.0" cy="512.0" r="288.00" fill="url(#halo)"/>
+
+  <g transform="translate(512.0 512.0) scale(1.52672)">
+    <path d="M -131.00 -131.00 H 131.00 V -73.00 H -131.00 Z M -131.00 73.00 H 131.00 V 131.00 H -131.00 Z M 131.00 -131.00 L 131.00 -73.00 L -131.00 131.00 L -131.00 73.00 Z" fill="url(#zGrad)" opacity=".38" filter="url(#zGlow)"/>
+    <path d="M -131.00 -131.00 H 131.00 V -73.00 H -131.00 Z M -131.00 73.00 H 131.00 V 131.00 H -131.00 Z M 131.00 -131.00 L 131.00 -73.00 L -131.00 131.00 L -131.00 73.00 Z" fill="url(#zGrad)"/>
+  </g>
+</svg>
