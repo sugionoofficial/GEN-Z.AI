@@ -35,6 +35,29 @@
      header X-DashScope-Async: enable.
 ========================================================= */
 
+
+/* ---------------------------------------------------------
+   ENV GUARD
+   ---------------------------------------------------------
+   File ini juga ikut dikirim ke browser (dipakai adapter
+   model di halaman admin), jadi akses process.env harus
+   aman ketika `process` tidak tersedia.
+--------------------------------------------------------- */
+
+function getEnv() {
+
+    return (
+        typeof process !== "undefined" &&
+        process &&
+        process.env
+            ? process.env
+            : {}
+    );
+
+}
+
+
+
 const DEFAULT_BASE_URL =
     "https://dashscope-intl.aliyuncs.com/api/v1";
 
@@ -82,8 +105,8 @@ function getBaseUrl() {
 
     const configured =
         String(
-            process.env.DASHSCOPE_BASE_URL ||
-            process.env.QWENCLOUD_BASE_URL ||
+            getEnv().DASHSCOPE_BASE_URL ||
+            getEnv().QWENCLOUD_BASE_URL ||
             ""
         ).trim();
 

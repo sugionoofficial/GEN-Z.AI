@@ -1,3 +1,24 @@
+/* ---------------------------------------------------------
+   ENV GUARD
+   ---------------------------------------------------------
+   File ini juga ikut dikirim ke browser (dipakai adapter
+   model di halaman admin), jadi akses process.env harus
+   aman ketika `process` tidak tersedia.
+--------------------------------------------------------- */
+
+function getEnv() {
+
+    return (
+        typeof process !== "undefined" &&
+        process &&
+        process.env
+            ? process.env
+            : {}
+    );
+
+}
+
+
 /**
  * =========================================================
  * GEN-Z.AI
@@ -85,7 +106,7 @@ function normalizeBaseUrl(value) {
 function getApiKey() {
 
     const apiKey =
-        process.env.KIE_API_KEY;
+        getEnv().KIE_API_KEY;
 
     if (!apiKey) {
 
@@ -121,9 +142,9 @@ function getBaseUrl() {
 
     return normalizeBaseUrl(
 
-        process.env.KIE_API_ENDPOINT ||
+        getEnv().KIE_API_ENDPOINT ||
 
-        process.env.KIE_API_BASE_URL ||
+        getEnv().KIE_API_BASE_URL ||
 
         DEFAULT_BASE_URL
 

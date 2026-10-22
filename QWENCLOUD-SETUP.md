@@ -15,6 +15,9 @@ per model Wan, **10 detik** per model HappyHorse.
 
 ```
 provider/qwencloud/client.js        HTTP client DashScope (create + polling)
+                                    juga dimuat browser lewat adapter model,
+                                    jadi folder provider/ WAJIB ada di
+                                    staticDirectories build Cloudflare.
 models/qwencloud-video/specs.js     daftar 17 model (edit di sini untuk menambah)
 models/qwencloud-video/factory.js   adapter generator (config, validate, payload)
 models/qwencloud-video/index.js     registry model
