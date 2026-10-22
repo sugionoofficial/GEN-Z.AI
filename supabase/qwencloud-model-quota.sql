@@ -1,4 +1,15 @@
 -- =========================================================
+-- ⚠️  SUPERSEDED — gunakan supabase/qwencloud-quota-auto.sql
+-- ---------------------------------------------------------
+-- File ini adalah versi pertama (total kuota manual +
+-- pemakaian manual). Versi terbaru menghapus pemakaian
+-- manual, memotong kuota otomatis saat generate, dan
+-- mengembalikannya otomatis saat task gagal.
+--
+-- Jalankan qwencloud-quota-auto.sql SETELAH file ini.
+-- =========================================================
+
+-- =========================================================
 -- GEN-Z.AI
 -- QWENCLOUD MODEL FREE QUOTA
 -- ---------------------------------------------------------

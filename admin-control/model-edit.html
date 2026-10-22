@@ -2390,6 +2390,21 @@
                 background: rgba(255, 255, 255, .28);
             }
 
+            /* Pemakaian otomatis: read-only, bukan input admin */
+
+            .quota-card input#quotaUsed {
+                cursor: default;
+                color: rgba(255, 255, 255, .62) !important;
+                background: rgba(255, 255, 255, .04) !important;
+                border-color: rgba(255, 255, 255, .10) !important;
+            }
+
+            html[data-genz-theme="light"] .quota-card input#quotaUsed {
+                color: #4a566b !important;
+                background: #f1f4fa !important;
+                border-color: #d6dfec !important;
+            }
+
             .quota-label {
                 font-size: 12.5px;
                 font-weight: 600;
@@ -3087,8 +3102,11 @@
 
                     <p class="section-description">
                         Kuota gratis QwenCloud dihitung per model.
-                        Pemakaian dihitung otomatis dari durasi task
-                        yang berjalan atau berhasil. Saat kuota habis,
+                        Pemakaian dihitung <strong>otomatis</strong>
+                        dari riwayat generate: task yang sedang
+                        berjalan langsung memotong kuota, dan task
+                        yang gagal (menurut QwenCloud) otomatis
+                        mengembalikan detiknya. Saat kuota habis,
                         model <strong>dinonaktifkan otomatis</strong>
                         dan hilang dari halaman Generate.
                     </p>
@@ -3153,22 +3171,20 @@
 
                         <div class="field">
 
-                            <label for="quotaManualUsed">
-                                Pemakaian Manual (detik)
+                            <label for="quotaUsed">
+                                Pemakaian Otomatis (detik)
                             </label>
 
                             <input
                                 type="number"
-                                id="quotaManualUsed"
-                                min="0"
-                                step="1"
-                                inputmode="numeric"
+                                id="quotaUsed"
+                                readonly
                                 placeholder="0"
                             >
 
                             <div class="field-help">
-                                Untuk model tanpa durasi
-                                (Wan Animate, Video Edit).
+                                Dihitung dari riwayat generate.
+                                Tidak bisa diisi manual.
                             </div>
 
                         </div>
@@ -3362,7 +3378,7 @@
         formatQuotaStatusLabel,
         resolveDefaultQuotaSeconds,
         resolveQuotaState
-    } from "./assets/js/model-quota.js?v=model-quota-20261022";
+    } from "./assets/js/model-quota.js?v=quota-auto-20261022";
 
 
     /* =========================================================
@@ -3436,8 +3452,8 @@
     const quotaTotalSeconds =
         document.getElementById("quotaTotalSeconds");
 
-    const quotaManualUsed =
-        document.getElementById("quotaManualUsed");
+    const quotaUsed =
+        document.getElementById("quotaUsed");
 
     const quotaExpiresAt =
         document.getElementById("quotaExpiresAt");
@@ -5180,6 +5196,16 @@
 
         }
 
+
+        if (quotaUsed) {
+
+            quotaUsed.value =
+                hasRow && state.tracked
+                    ? String(state.usedSeconds)
+                    : "0";
+
+        }
+
     }
 
 
@@ -5221,9 +5247,6 @@
             quotaTotalSeconds.value =
                 quota.total_seconds ?? "";
 
-            quotaManualUsed.value =
-                quota.manual_used_seconds ?? 0;
-
             quotaExpiresAt.value =
                 quota.expires_at
                     ? String(quota.expires_at).slice(0, 10)
@@ -5235,9 +5258,6 @@
                 resolveDefaultQuotaSeconds(
                     model?.model_id
                 );
-
-            quotaManualUsed.value =
-                0;
 
             quotaExpiresAt.value =
                 "";
@@ -5279,17 +5299,6 @@
                 Math.round(
                     numberValue(
                         quotaTotalSeconds.value
-                    )
-                )
-            );
-
-
-        payload.quota_manual_used =
-            Math.max(
-                0,
-                Math.round(
-                    numberValue(
-                        quotaManualUsed.value
                     )
                 )
             );

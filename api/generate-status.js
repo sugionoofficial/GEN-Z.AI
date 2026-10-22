@@ -2092,6 +2092,87 @@ function uniqueUrls(
    NORMALIZE PROVIDER RESULT
    ========================================================= */
 
+/*
+ * Durasi tagihan dari provider (QwenCloud / DashScope
+ * mengirim usage.duration dalam detik). Dipakai untuk
+ * menyelaraskan pemakaian kuota dengan yang benar-benar
+ * ditagih provider.
+ */
+
+function getProviderUsageSeconds(
+    raw
+) {
+
+    const usage =
+        findDeepValue(
+            raw,
+            [
+                "usage"
+            ]
+        );
+
+
+    if (
+        !usage ||
+        typeof usage !== "object"
+    ) {
+
+        return null;
+
+    }
+
+
+    const candidates = [
+        usage.duration,
+        usage.video_duration,
+        usage.videoDuration,
+        usage.output_duration,
+        usage.outputDuration
+    ];
+
+
+    for (
+        const candidate of candidates
+    ) {
+
+        if (
+            candidate === null ||
+            candidate === undefined ||
+            candidate === ""
+        ) {
+
+            continue;
+
+        }
+
+
+        const number =
+            Number(
+                candidate
+            );
+
+
+        if (
+            Number.isFinite(
+                number
+            ) &&
+            number > 0
+        ) {
+
+            return Math.round(
+                number
+            );
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
 function normalizeProviderResult(
     raw,
     taskId
@@ -2296,6 +2377,11 @@ function normalizeProviderResult(
         state:
             normalizedState,
 
+        usage_seconds:
+            getProviderUsageSeconds(
+                raw
+            ),
+
         provider_state:
             providerState ||
             null,
@@ -2479,6 +2565,37 @@ async function updateGenerationHistory(
             error_message:
                 null
         };
+
+
+        /*
+         * QwenCloud menagih per detik. Kalau provider
+         * mengirim usage.duration, pakai angka itu supaya
+         * pemakaian kuota sama dengan tagihan sebenarnya
+         * (mis. Video Edit / Animate yang durasinya baru
+         * diketahui setelah task selesai).
+         */
+
+        if (
+            lower(history.provider_id) ===
+                "qwencloud" &&
+            Number.isFinite(
+                Number(
+                    normalized.usage_seconds
+                )
+            ) &&
+            Number(
+                normalized.usage_seconds
+            ) > 0
+        ) {
+
+            payload.duration =
+                Math.round(
+                    Number(
+                        normalized.usage_seconds
+                    )
+                );
+
+        }
     }
 
 
