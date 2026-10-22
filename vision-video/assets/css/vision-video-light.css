@@ -1,0 +1,606 @@
+/* =========================================================
+   GEN-Z.AI VISION VIDEO
+   LIGHT THEME (MODE CERAH)
+   ---------------------------------------------------------
+   File:
+   vision-video/assets/css/vision-video-light.css
+
+   Dimuat SETELAH genz-premium.css dan vision-video.css.
+
+   Tujuan:
+   - Saat html[data-genz-theme="light"], seluruh halaman
+     Vision Video memakai latar terang + teks berkontras tinggi.
+   - Menimpa blok "orange theme" di akhir vision-video.css yang
+     memaksa hero/card/dropzone/prompt-result menjadi
+     #000 / #030303 / #050505.
+   - Mode gelap TIDAK tersentuh (semua aturan di-scope ke
+     html[data-genz-theme="light"]).
+
+   Spesifisitas:
+   - Prefix ganda data-genz-theme + body agar menang atas
+     aturan gelap dan style global theme.js.
+========================================================= */
+
+
+/* =========================================================
+   01. PAGE
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-page {
+
+    color: #0b1424;
+    background:
+        linear-gradient(
+            180deg,
+            #eef2f9 0%,
+            #f2f5fb 42%,
+            #e9eef7 100%
+        ) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-page::before {
+
+    background:
+        radial-gradient(
+            ellipse 900px 500px at 50% -80px,
+            rgba(255, 145, 0, .10),
+            transparent 72%
+        ),
+        linear-gradient(180deg, rgba(238, 242, 249, .9), rgba(233, 238, 247, .95)) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-page::after {
+
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(234, 88, 12, .55),
+        rgba(249, 115, 22, .75),
+        rgba(234, 88, 12, .55),
+        transparent
+    ) !important;
+    box-shadow: none !important;
+}
+
+
+/* =========================================================
+   02. HERO
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-hero {
+
+    border: 1px solid #ecdcc8 !important;
+    background:
+        radial-gradient(
+            ellipse 700px 320px at 88% 12%,
+            rgba(255, 145, 0, .10),
+            transparent 62%
+        ),
+        linear-gradient(
+            150deg,
+            #ffffff 0%,
+            #fdf8f2 55%,
+            #ffffff 100%
+        ) !important;
+    box-shadow:
+        0 16px 38px rgba(40, 54, 82, .10),
+        inset 0 1px 0 #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-hero::before,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-hero::after {
+
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(234, 88, 12, .45),
+        rgba(249, 115, 22, .65),
+        rgba(234, 88, 12, .45),
+        transparent
+    ) !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-eyebrow {
+
+    border: 1px solid #e8c9a4 !important;
+    background: #fff6ea !important;
+    color: #9a4a06 !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-hero h1 {
+
+    color: #0b1424 !important;
+    text-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-hero h1::after {
+
+    background: linear-gradient(90deg, #ea580c, rgba(234, 88, 12, .35), transparent) !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-hero p {
+
+    color: #b45309 !important;
+    text-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-hero-description {
+
+    color: #46536a !important;
+    text-shadow: none !important;
+}
+
+
+/* ---------------------------------------------------------
+   CREDIT BADGE
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-credit-badge {
+
+    border: 1px solid #e8d5bf !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 22px rgba(40, 54, 82, .10) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-credit-badge::before {
+
+    background: linear-gradient(90deg, transparent, rgba(234, 88, 12, .55), transparent) !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-credit-badge span,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-credit-label {
+
+    color: #6b7688 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-credit-badge strong {
+
+    color: #0b1424 !important;
+    text-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-credit-badge.is-low strong {
+
+    color: #8a5300 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-credit-badge.is-empty strong {
+
+    color: #a3182a !important;
+}
+
+
+/* =========================================================
+   03. CARDS
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-card {
+
+    border: 1px solid #e2e8f1 !important;
+    background: #ffffff !important;
+    box-shadow:
+        0 14px 34px rgba(40, 54, 82, .09),
+        inset 0 1px 0 #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-card::before,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-card::after {
+
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(249, 115, 22, .55),
+        transparent
+    ) !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-card-eyebrow {
+
+    color: #b45309 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-card h2 {
+
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-card-header p {
+
+    color: #4a566b !important;
+}
+
+
+/* =========================================================
+   04. DROPZONE (VIDEO & CHARACTER)
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-dropzone,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-character-dropzone {
+
+    border: 1.5px dashed #cfd8e4 !important;
+    background:
+        radial-gradient(
+            circle at 50% 32%,
+            rgba(255, 145, 0, .07),
+            transparent 56%
+        ),
+        #f8fafd !important;
+    box-shadow: inset 0 1px 2px rgba(34, 46, 70, .04) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-dropzone:hover,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-character-dropzone:hover {
+
+    border-color: #e08c3a !important;
+    background: #fffaf3 !important;
+    box-shadow: 0 8px 22px rgba(234, 88, 12, .10) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-dropzone.is-dragover,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-character-dropzone.is-dragover {
+
+    border-color: #d9660b !important;
+    background: #fff4e6 !important;
+    box-shadow: inset 0 0 0 1px rgba(217, 102, 11, .18) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-upload-icon {
+
+    border: 1px solid #f0c9a0 !important;
+    background: #fff6ea !important;
+    color: #b45309 !important;
+    box-shadow: 0 6px 16px rgba(234, 88, 12, .10) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-upload-state h3 {
+
+    color: #17233a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-upload-state p {
+
+    color: #5d6a80 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-upload-state small {
+
+    color: #66738a !important;
+}
+
+
+/* ---------------------------------------------------------
+   BUTTONS
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-secondary-button {
+
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+    box-shadow: 0 2px 8px rgba(40, 54, 82, .06);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-secondary-button:hover {
+
+    border-color: #e0a06a !important;
+    background: #fffaf3 !important;
+    color: #0b1424 !important;
+    box-shadow: 0 6px 18px rgba(234, 88, 12, .12) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-primary-button {
+
+    border: 1px solid #b45309 !important;
+    background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%) !important;
+    color: #ffffff !important;
+    box-shadow:
+        0 12px 28px rgba(194, 65, 12, .24),
+        inset 0 1px 0 rgba(255, 255, 255, .22) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-primary-button:hover:not(:disabled) {
+
+    border-color: #9a4a06 !important;
+    background: linear-gradient(135deg, #cf4a0e 0%, #a83c07 100%) !important;
+    box-shadow: 0 16px 34px rgba(194, 65, 12, .28) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-primary-button:disabled {
+
+    filter: grayscale(.25);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-spinner {
+
+    border: 2px solid rgba(255, 255, 255, .45) !important;
+    border-top-color: #ffffff !important;
+    border-right-color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-remove-button {
+
+    border: 1px solid #f0c2c8 !important;
+    background: #fff5f6 !important;
+    color: #b3122f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-remove-button:hover {
+
+    border-color: #e11d48 !important;
+    background: #ffe8ec !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-copy-button {
+
+    border: 1px solid #e8c9a4 !important;
+    background: #fff6ea !important;
+    color: #9a4a06 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-copy-button:hover:not(:disabled) {
+
+    border-color: #d9660b !important;
+    background: #ffe9d1 !important;
+    color: #7a3a03 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-copy-button.copy-success,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-secondary-button.copy-success {
+
+    border-color: #9ad7b6 !important;
+    background: #eafaf1 !important;
+    color: #0a6b3f !important;
+}
+
+
+/* ---------------------------------------------------------
+   VIDEO PREVIEW & FILE INFO
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-player-wrapper {
+
+    border: 1px solid #dbe3ee !important;
+    background: #0b1220 !important;
+    box-shadow: 0 12px 28px rgba(40, 54, 82, .14) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-player-wrapper video {
+
+    background: #0b1220 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-file-info > div,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-structure-item {
+
+    border: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-file-info span,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-structure-item span {
+
+    color: #566276 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-file-info strong,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-structure-item strong {
+
+    color: #0f1828 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-character-notice {
+
+    color: #4a566b !important;
+}
+
+
+/* =========================================================
+   05. SETTINGS FORM
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-field label,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-form-group > label,
+html[data-genz-theme="light"][data-genz-theme="light"] body #visionVideoSettingsCard .vision-video-form-group > label {
+
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-field select,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-field input,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-field textarea,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-form-group select,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-form-group input,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-form-group textarea,
+html[data-genz-theme="light"][data-genz-theme="light"] body #visionVideoSettingsCard .vision-video-form-group select,
+html[data-genz-theme="light"][data-genz-theme="light"] body #visionVideoSettingsCard .vision-video-form-group textarea {
+
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #101a2e !important;
+    box-shadow: inset 0 1px 2px rgba(34, 46, 70, .05) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-form-group select:hover,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-form-group textarea:hover,
+html[data-genz-theme="light"][data-genz-theme="light"] body #visionVideoSettingsCard .vision-video-form-group select:hover {
+
+    border-color: #a9b8cb !important;
+    background-color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-form-group select:focus,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-form-group textarea:focus,
+html[data-genz-theme="light"][data-genz-theme="light"] body #visionVideoSettingsCard .vision-video-form-group select:focus,
+html[data-genz-theme="light"][data-genz-theme="light"] body #visionVideoSettingsCard .vision-video-form-group textarea:focus {
+
+    border-color: #d9660b !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    box-shadow:
+        0 0 0 3px rgba(234, 88, 12, .14),
+        0 6px 18px rgba(234, 88, 12, .08) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-form-group textarea::placeholder,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-field textarea::placeholder {
+
+    color: #6c7789 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-field select option,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-form-group select option,
+html[data-genz-theme="light"][data-genz-theme="light"] body #visionVideoSettingsCard .vision-video-form-group select option {
+
+    background: #ffffff !important;
+    color: #101a2e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #visionVideoSettingsCard .vision-video-form-group > label::before {
+
+    background: linear-gradient(180deg, #f97316, #ea580c) !important;
+    box-shadow: none !important;
+}
+
+
+/* =========================================================
+   06. ACTION, STATUS, PROGRESS
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-credit-notice {
+
+    border: 1px solid #ecdcc8 !important;
+    background: #fffaf3 !important;
+    color: #5d5a52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-credit-notice strong {
+
+    color: #8a4b04;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-status {
+
+    border: 1px solid #e2e8f1 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-status-text {
+
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-status-indicator {
+
+    background: #ea580c !important;
+    box-shadow: 0 0 8px rgba(234, 88, 12, .45) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-status[data-state="completed"] .vision-video-status-indicator {
+
+    background: #0f9d58 !important;
+    box-shadow: 0 0 8px rgba(15, 157, 88, .45) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-status[data-state="error"] .vision-video-status-indicator {
+
+    background: #d3233c !important;
+    box-shadow: 0 0 8px rgba(211, 35, 60, .40) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-progress {
+
+    background: #e6ecf5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-progress-bar {
+
+    background: linear-gradient(90deg, #ea580c, #f97316) !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-progress-text {
+
+    color: #4a566b !important;
+}
+
+
+/* =========================================================
+   07. PROMPT RESULT & ANALYSIS
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-prompt-container {
+
+    border: 1px solid #dbe3ee !important;
+    background: #f7f9fd !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-prompt-result {
+
+    border: 1px solid #dbe3ee !important;
+    background: #f7f9fd !important;
+    color: #101a2e !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-analysis-result {
+
+    border: 1px solid #dbe3ee !important;
+    background: #f7f9fd !important;
+    color: #17233a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-placeholder,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-prompt-placeholder,
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-analysis-placeholder {
+
+    color: #5d6a80 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-prompt-placeholder h3 {
+
+    color: #17233a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-placeholder-icon {
+
+    border: 1px solid #f0c9a0 !important;
+    background: #fff6ea !important;
+    color: #b45309 !important;
+}
+
+
+/* =========================================================
+   08. INFO CARDS
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-info-card {
+
+    border: 1px solid #e2e8f1 !important;
+    background: #ffffff !important;
+    box-shadow: 0 10px 26px rgba(40, 54, 82, .08) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-info-icon {
+
+    border: 1px solid #f0c9a0 !important;
+    background: #fff6ea !important;
+    color: #b45309 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-info-card strong {
+
+    color: #0f1828 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .vision-video-info-card p {
+
+    color: #4a566b !important;
+}
