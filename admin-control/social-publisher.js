@@ -1021,9 +1021,84 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         return state.data?.characters?.find(character => character.id === id)?.display_name || "Karakter";
     }
 
+    const scheduleCountdown = { timer: null, nodes: [] };
+
+    function formatScheduleCountdown(remainingMs) {
+        const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        const pad = value => String(value).padStart(2, "0");
+        return days > 0
+            ? `${days} hari ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+            : `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    }
+
+    function updateScheduleCountdownNode(node) {
+        if (!node) return;
+        const target = Number(node.dataset.countdownTarget);
+        const label = node.querySelector(".schedule-countdown-label");
+        const value = node.querySelector(".schedule-countdown-value");
+        if (!Number.isFinite(target) || !value) return;
+        const remaining = target - Date.now();
+        if (remaining <= 0) {
+            node.dataset.countdownState = "waiting";
+            if (label) label.textContent = "Menunggu eksekusi otomatis";
+            value.textContent = "00:00:00";
+            return;
+        }
+        node.dataset.countdownState = "running";
+        if (label) label.textContent = "Autopublish aktif · posting berikutnya dalam";
+        value.textContent = formatScheduleCountdown(remaining);
+    }
+
+    function createScheduleCountdown(schedule) {
+        const target = Date.parse(schedule.next_run_at);
+        if (!Number.isFinite(target)) return null;
+        const box = document.createElement("div");
+        box.className = "schedule-countdown";
+        box.setAttribute("role", "timer");
+        box.dataset.countdownTarget = String(target);
+        box.title = `Posting otomatis berikutnya ${formatDate(schedule.next_run_at)}`;
+        const label = document.createElement("span");
+        label.className = "schedule-countdown-label";
+        const value = document.createElement("span");
+        value.className = "schedule-countdown-value";
+        value.setAttribute("aria-live", "off");
+        box.append(label, value);
+        updateScheduleCountdownNode(box);
+        scheduleCountdown.nodes.push(box);
+        return box;
+    }
+
+    function startScheduleCountdown() {
+        if (scheduleCountdown.timer !== null) {
+            window.clearInterval(scheduleCountdown.timer);
+            scheduleCountdown.timer = null;
+        }
+        if (!scheduleCountdown.nodes.length) return;
+        scheduleCountdown.timer = window.setInterval(() => {
+            for (const node of scheduleCountdown.nodes) {
+                if (node.isConnected) updateScheduleCountdownNode(node);
+            }
+        }, 1000);
+    }
+
+    function stopScheduleCountdown() {
+        if (scheduleCountdown.timer !== null) {
+            window.clearInterval(scheduleCountdown.timer);
+            scheduleCountdown.timer = null;
+        }
+        scheduleCountdown.nodes = [];
+    }
+
     function renderSchedules(schedules = []) {
         const container = $("schedules-list");
+        stopScheduleCountdown();
         container.replaceChildren();
+        const autopublishOn = state.data?.globalEnabled === true;
+        let countdownCards = 0;
         for (const schedule of schedules) {
             const card = document.createElement("article");
             card.className = "item";
@@ -1036,6 +1111,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             detail.className = "item-meta";
             detail.textContent = `Setiap ${schedule.interval_hours} jam · rasio ${schedule.aspect_ratio || "9:16"} · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"}`;
             content.append(title, detail);
+            if (schedule.enabled === true && autopublishOn) {
+                const countdown = createScheduleCountdown(schedule);
+                if (countdown) {
+                    content.append(countdown);
+                    countdownCards += 1;
+                }
+            }
             const actions = document.createElement("div");
             actions.className = "item-actions";
             actions.style.display = "flex";
@@ -1061,6 +1143,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             container.append(card);
         }
         if (!schedules.length) container.innerHTML = '<div class="empty">Belum ada jadwal autopost.</div>';
+        if (countdownCards > 0) startScheduleCountdown();
+        else scheduleCountdown.nodes = [];
     }
 
     function getRunsPageSequence(currentPage, totalPages) {
