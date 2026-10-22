@@ -82,6 +82,17 @@
                 color: #c7d2fe;
                 font-weight: 700;
             }
+            html[data-genz-theme="light"] .feature-credit-cost-note {
+                color: #3c4a60 !important;
+            }
+            html[data-genz-theme="light"] .feature-credit-cost-note strong {
+                color: #7a4a00 !important;
+            }
+            html[data-genz-theme="light"] #feature-credit-notice {
+                border-color: rgba(99, 102, 241, .35) !important;
+                background: #eef1ff !important;
+                color: #2b338a !important;
+            }
         `;
         document.head.append(style);
 
