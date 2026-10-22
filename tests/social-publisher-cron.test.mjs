@@ -41,6 +41,14 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
         if (url.endsWith("/rest/v1/rpc/claim_due_social_post_schedules")) {
             return Response.json([{ run_id: "run-1", schedule_id: "schedule-1" }]);
         }
+        if (url.includes("/rest/v1/studio_medsos_access?")) {
+            return Response.json([{
+                user_id: "owner-1",
+                is_active: true,
+                started_at: new Date(Date.now() - 86400000).toISOString(),
+                expires_at: new Date(Date.now() + 30 * 86400000).toISOString()
+            }]);
+        }
         if (url.includes("/rest/v1/social_post_schedules?")) {
             return Response.json([{
                 id: "schedule-1",
@@ -144,6 +152,71 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
         assert.doesNotMatch(postedImageText, /GPS=private/);
         assert.equal(patches.at(-1).status, "posted");
         assert.equal(patches.at(-1).caption, postedCaption);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("Social Publisher cron stops autopublish and pauses the schedule when the subscription has expired", async () => {
+    const originalFetch = globalThis.fetch;
+    const runPatches = [];
+    const schedulePatches = [];
+    let generated = false;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        if (url.endsWith("/rest/v1/rpc/claim_due_social_post_schedules")) {
+            return Response.json([{ run_id: "run-1", schedule_id: "schedule-1" }]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access?")) {
+            return Response.json([{
+                user_id: "owner-1",
+                is_active: true,
+                started_at: "2026-08-01T00:00:00.000Z",
+                expires_at: "2026-08-31T00:00:00.000Z"
+            }]);
+        }
+        if (url.includes("/rest/v1/social_post_schedules?")) {
+            if (options.method === "PATCH") {
+                schedulePatches.push({ url, body: JSON.parse(options.body) });
+                return new Response(null, { status: 204 });
+            }
+            return Response.json([{
+                id: "schedule-1",
+                owner_id: "owner-1",
+                character_id: "character-1",
+                page_connection_id: "connection-1",
+                enabled: true,
+                interval_hours: 24,
+                aspect_ratio: "9:16",
+                caption_template: "Schedule fallback",
+                timezone: "Asia/Jakarta"
+            }]);
+        }
+        if (url.includes("/rest/v1/social_post_runs?id=eq.run-1")) {
+            runPatches.push(JSON.parse(options.body));
+            return new Response(null, { status: 204 });
+        }
+        if (url.includes("/rest/v1/social_characters?")) {
+            generated = true;
+            throw new Error(`Unexpected fetch: ${url}`);
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    };
+
+    try {
+        const result = await runSocialPublisherCron({
+            SUPABASE_URL: "https://project.example",
+            SUPABASE_SERVICE_ROLE_KEY: "server-only-test-key"
+        });
+
+        assert.deepEqual(result, { claimed: 1, skipped: false });
+        assert.equal(generated, false);
+        assert.equal(schedulePatches.length, 1);
+        assert.equal(schedulePatches[0].body.enabled, false);
+        assert.equal(schedulePatches[0].body.paused_reason, "subscription_inactive");
+        assert.equal(runPatches.at(-1).status, "failed");
+        assert.match(runPatches.at(-1).error_message, /Langganan Studio Medsos berakhir/);
+        assert.match(runPatches.at(-1).error_message, /Auto publish dijeda otomatis/);
     } finally {
         globalThis.fetch = originalFetch;
     }

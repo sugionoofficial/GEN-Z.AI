@@ -93,6 +93,17 @@ alter table public.social_post_schedules
     add column if not exists aspect_ratio text not null default '9:16'
         check (aspect_ratio in ('9:16', '16:9'));
 
+-- Auto publish hanya boleh berjalan selama langganan Studio Medsos aktif.
+-- Jadwal yang dijeda otomatis karena langganan berhenti diberi tanda
+-- 'subscription_inactive' supaya bisa diaktifkan kembali saat admin
+-- memperpanjang masa aktif. Jadwal yang dijeda manual tetap null.
+alter table public.social_post_schedules
+    add column if not exists paused_reason text;
+
+create index if not exists social_post_schedules_paused_reason_idx
+    on public.social_post_schedules (owner_id, paused_reason)
+    where enabled = false;
+
 create index if not exists social_post_schedules_due_idx
     on public.social_post_schedules (next_run_at)
     where enabled = true;
@@ -231,6 +242,26 @@ begin
         where id = true and global_enabled = true
     ) then
         return;
+    end if;
+
+    -- Langganan Studio Medsos berakhir / dimatikan: hentikan auto publish
+    -- dengan menjeda jadwalnya, bukan sekadar melewati klaim. Hasilnya
+    -- jadwal terlihat "dijeda" di UI dan bisa diaktifkan kembali otomatis
+    -- begitu masa aktif diperpanjang.
+    if to_regclass('public.studio_medsos_access') is not null then
+        update public.social_post_schedules s
+        set enabled = false,
+            paused_reason = 'subscription_inactive',
+            updated_at = p_now
+        where s.enabled = true
+          and not exists (
+              select 1
+              from public.studio_medsos_access a
+              where a.user_id = s.owner_id
+                and a.is_active = true
+                and a.started_at <= p_now
+                and a.expires_at > p_now
+          );
     end if;
 
     update public.social_post_runs

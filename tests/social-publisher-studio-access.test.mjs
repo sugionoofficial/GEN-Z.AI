@@ -140,6 +140,10 @@ test("Studio Medsos admin can save a user's subscription in Supabase", async () 
     const restoreFetch = mockAuthAndFetch(
         { id: "admin-user", role: "ADMIN", status: "active" },
         async (url, options) => {
+            if (url.includes("/rest/v1/social_post_schedules?")) {
+                assert.equal(options.method, "GET");
+                return Response.json([]);
+            }
             assert.match(url, /\/rest\/v1\/studio_medsos_access\?/);
             assert.equal(options.method, "POST");
             const payload = JSON.parse(options.body);
@@ -735,5 +739,115 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
         assert.equal(publishRequests, 0);
     } finally {
         globalThis.fetch = originalFetch;
+    }
+});
+
+test("Studio Medsos stop pauses the user's auto publish schedules", async () => {
+    const patches = [];
+    const restoreFetch = mockAuthAndFetch(
+        { id: "admin-user", role: "ADMIN", status: "active" },
+        async (url, options = {}) => {
+            if (url.includes("/rest/v1/studio_medsos_access?") && (options.method || "GET") === "GET") {
+                return Response.json([{
+                    user_id: "123e4567-e89b-42d3-a456-426614174000",
+                    is_active: true,
+                    duration_days: 30,
+                    started_at: "2026-10-20T00:00:00.000Z",
+                    expires_at: "2026-11-19T00:00:00.000Z"
+                }]);
+            }
+            if (url.includes("/rest/v1/studio_medsos_access?") && options.method === "POST") {
+                const payload = JSON.parse(options.body);
+                return Response.json([{
+                    user_id: payload.user_id,
+                    is_active: payload.is_active,
+                    duration_days: payload.duration_days,
+                    started_at: payload.started_at,
+                    expires_at: payload.expires_at
+                }], { status: 201 });
+            }
+            if (url.includes("/rest/v1/social_post_schedules?")) {
+                patches.push({ url, body: JSON.parse(options.body || "{}") });
+                return new Response(null, { status: 204 });
+            }
+            throw new Error(`Unexpected fetch: ${url}`);
+        }
+    );
+    const response = makeResponse();
+    try {
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=studio-admin-stop",
+            query: { action: "studio-admin-stop" },
+            headers: { authorization: "Bearer test-token" },
+            body: { user_id: "123e4567-e89b-42d3-a456-426614174000" },
+            env
+        }, response);
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.body.access.is_active, false);
+        assert.equal(patches.length, 1);
+        assert.equal(patches[0].body.enabled, false);
+        assert.equal(patches[0].body.paused_reason, "subscription_inactive");
+        assert.match(patches[0].url, /owner_id=eq\.123e4567-e89b-42d3-a456-426614174000/);
+    } finally {
+        restoreFetch();
+    }
+});
+
+test("Studio Medsos extend reactivates schedules paused by an expired subscription", async () => {
+    const schedulePatches = [];
+    const restoreFetch = mockAuthAndFetch(
+        { id: "admin-user", role: "ADMIN", status: "active" },
+        async (url, options = {}) => {
+            if (url.includes("/rest/v1/studio_medsos_access?") && (options.method || "GET") === "GET") {
+                return Response.json([{
+                    user_id: "123e4567-e89b-42d3-a456-426614174000",
+                    is_active: true,
+                    duration_days: 30,
+                    started_at: "2026-09-01T00:00:00.000Z",
+                    expires_at: new Date(Date.now() + 5 * 86400000).toISOString()
+                }]);
+            }
+            if (url.includes("/rest/v1/studio_medsos_access?") && options.method === "POST") {
+                const payload = JSON.parse(options.body);
+                assert.equal(payload.is_active, true);
+                return Response.json([{
+                    user_id: payload.user_id,
+                    is_active: true,
+                    duration_days: payload.duration_days,
+                    started_at: payload.started_at,
+                    expires_at: payload.expires_at
+                }], { status: 201 });
+            }
+            if (url.includes("/rest/v1/social_post_schedules?select=id,interval_hours")) {
+                assert.match(url, /paused_reason=eq\.subscription_inactive/);
+                return Response.json([{ id: "schedule-1", interval_hours: 12 }]);
+            }
+            if (url.includes("/rest/v1/social_post_schedules?id=eq.schedule-1")) {
+                schedulePatches.push(JSON.parse(options.body));
+                return new Response(null, { status: 204 });
+            }
+            throw new Error(`Unexpected fetch: ${url}`);
+        }
+    );
+    const response = makeResponse();
+    try {
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=studio-admin-extend",
+            query: { action: "studio-admin-extend" },
+            headers: { authorization: "Bearer test-token" },
+            body: { user_id: "123e4567-e89b-42d3-a456-426614174000", days: 30 },
+            env
+        }, response);
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(schedulePatches.length, 1);
+        assert.equal(schedulePatches[0].enabled, true);
+        assert.equal(schedulePatches[0].paused_reason, null);
+        assert.ok(Date.parse(schedulePatches[0].next_run_at) > Date.now());
+    } finally {
+        restoreFetch();
     }
 });

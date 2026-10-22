@@ -308,7 +308,24 @@ async function saveStudioAccess(config, adminId, body = {}) {
         error.status = 500;
         throw error;
     }
-    return rows[0];
+
+    const access = rows[0];
+    const now = Date.now();
+    const stillActive = access.is_active === true &&
+        Date.parse(access.started_at) <= now &&
+        Date.parse(access.expires_at) > now;
+
+    if (stillActive) {
+        await resumeSchedulesAfterActivation(config, userId).catch(error => {
+            console.error("Gagal mengaktifkan kembali jadwal auto publish:", error?.message || error);
+        });
+    } else {
+        await pauseSchedulesForInactiveSubscription(config, userId).catch(error => {
+            console.error("Gagal menjeda jadwal auto publish:", error?.message || error);
+        });
+    }
+
+    return access;
 }
 
 const STUDIO_ACCESS_SELECT = "select=user_id,is_active,duration_days,started_at,expires_at";
@@ -350,6 +367,96 @@ async function writeStudioAccessRow(config, adminId, payload) {
         throw error;
     }
     return rows[0];
+}
+
+const SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive";
+
+function isMissingPausedReasonColumn(error) {
+    if (error?.code === "PGRST204" || error?.code === "42703") return true;
+    return /paused_reason/i.test(String(error?.message || ""));
+}
+
+/**
+ * Jeda semua jadwal auto publish milik user ketika langganannya berhenti.
+ * Best-effort: kegagalan di sini tidak boleh menggagalkan aksi admin.
+ */
+async function pauseSchedulesForInactiveSubscription(config, ownerId) {
+    if (!ownerId) return 0;
+    const payload = {
+        enabled: false,
+        paused_reason: SUBSCRIPTION_INACTIVE_REASON,
+        updated_at: new Date().toISOString()
+    };
+    try {
+        await supabaseRequest(
+            config,
+            tablePath("social_post_schedules", `owner_id=eq.${encodeURIComponent(ownerId)}&enabled=eq.true`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify(payload)
+            }
+        );
+        return 1;
+    } catch (error) {
+        if (!isMissingPausedReasonColumn(error)) throw error;
+    }
+    /* Deployment lama tanpa kolom paused_reason: tetap jeda jadwalnya. */
+    return supabaseRequest(
+        config,
+        tablePath("social_post_schedules", `owner_id=eq.${encodeURIComponent(ownerId)}&enabled=eq.true`),
+        {
+            method: "PATCH",
+            headers: { Prefer: "return=minimal" },
+            body: JSON.stringify({ enabled: false, updated_at: payload.updated_at })
+        }
+    ).then(() => 1);
+}
+
+/**
+ * Aktifkan kembali jadwal yang dijeda otomatis karena langganan berhenti.
+ * Jadwal yang dijeda manual oleh user tidak disentuh (paused_reason kosong).
+ */
+async function resumeSchedulesAfterActivation(config, ownerId) {
+    if (!ownerId) return 0;
+    let rows;
+    try {
+        rows = await supabaseRequest(
+            config,
+            tablePath(
+                "social_post_schedules",
+                `select=id,interval_hours&owner_id=eq.${encodeURIComponent(ownerId)}&enabled=eq.false&paused_reason=eq.${SUBSCRIPTION_INACTIVE_REASON}`
+            )
+        );
+    } catch (error) {
+        if (!isMissingPausedReasonColumn(error)) throw error;
+        return 0;
+    }
+    const list = Array.isArray(rows) ? rows : [];
+    let resumed = 0;
+    for (const row of list) {
+        const intervalHours = Math.min(168, Math.max(1, Number(row.interval_hours) || 24));
+        try {
+            await supabaseRequest(
+                config,
+                tablePath("social_post_schedules", `id=eq.${encodeURIComponent(row.id)}&owner_id=eq.${encodeURIComponent(ownerId)}`),
+                {
+                    method: "PATCH",
+                    headers: { Prefer: "return=minimal" },
+                    body: JSON.stringify({
+                        enabled: true,
+                        paused_reason: null,
+                        next_run_at: new Date(Date.now() + intervalHours * 60 * 60 * 1000).toISOString(),
+                        updated_at: new Date().toISOString()
+                    })
+                }
+            );
+            resumed += 1;
+        } catch (error) {
+            console.error("Tidak bisa mengaktifkan kembali jadwal auto publish:", error?.message || error);
+        }
+    }
+    return resumed;
 }
 
 /*
@@ -408,13 +515,19 @@ async function extendStudioAccess(config, adminId, body = {}) {
         throw error;
     }
 
-    return writeStudioAccessRow(config, adminId, {
+    const access = await writeStudioAccessRow(config, adminId, {
         user_id: userId,
         is_active: true,
         duration_days: Math.max(1, durationDays),
         started_at: new Date(startedAt).toISOString(),
         expires_at: new Date(nextExpiry).toISOString()
     });
+
+    await resumeSchedulesAfterActivation(config, userId).catch(error => {
+        console.error("Gagal mengaktifkan kembali jadwal auto publish:", error?.message || error);
+    });
+
+    return access;
 }
 
 /*
@@ -432,13 +545,20 @@ async function stopStudioAccess(config, adminId, body = {}) {
         throw error;
     }
 
-    return writeStudioAccessRow(config, adminId, {
+    const access = await writeStudioAccessRow(config, adminId, {
         user_id: userId,
         is_active: false,
         duration_days: Number(current.duration_days) > 0 ? Number(current.duration_days) : 30,
         started_at: current.started_at || new Date().toISOString(),
         expires_at: current.expires_at || new Date(Date.now() + 30 * DAY_MS).toISOString()
     });
+
+    /* Stop langganan = auto publish user langsung berhenti, tanpa menunggu cron. */
+    await pauseSchedulesForInactiveSubscription(config, userId).catch(error => {
+        console.error("Gagal menjeda jadwal auto publish:", error?.message || error);
+    });
+
+    return access;
 }
 
 async function getStudioPricing(config) {
