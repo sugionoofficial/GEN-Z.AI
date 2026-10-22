@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="GEN-Z.AI">
+  <defs>
+
+    <linearGradient id="tileBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1C1D44"/>
+      <stop offset="55%" stop-color="#12132A"/>
+      <stop offset="100%" stop-color="#0A0B18"/>
+    </linearGradient>
+
+    <linearGradient id="zGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#D3C6FF"/>
+      <stop offset="30%" stop-color="#8D7DFF"/>
+      <stop offset="72%" stop-color="#6FB4FF"/>
+      <stop offset="100%" stop-color="#55D9F2"/>
+    </linearGradient>
+
+    <linearGradient id="tileEdge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8D7DFF" stop-opacity=".6"/>
+      <stop offset="100%" stop-color="#55D9F2" stop-opacity=".3"/>
+    </linearGradient>
+
+    <radialGradient id="halo" cx="50%" cy="40%" r="62%">
+      <stop offset="0%" stop-color="#8D7DFF" stop-opacity=".34"/>
+      <stop offset="100%" stop-color="#8D7DFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#tileBg)"/>
+  <rect x="3" y="3" width="506" height="506" rx="109" fill="none" stroke="url(#tileEdge)" stroke-width="4"/>
+  <circle cx="256" cy="222" r="196" fill="url(#halo)"/>
+
+  <g transform="translate(256 256) scale(2.62)">
+    <path d="M -50.00 -50.00 H 50.00 V -27.00 H -50.00 Z M -50.00 27.00 H 50.00 V 50.00 H -50.00 Z M 50.00 -50.00 L 50.00 -27.00 L -50.00 50.00 L -50.00 27.00 Z" fill="url(#zGrad)"/>
+  </g>
+</svg>
