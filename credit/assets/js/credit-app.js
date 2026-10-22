@@ -452,6 +452,10 @@ import {
 
     async function loadSession() {
 
+        if (window.GENZSession?.ensureFreshSession) {
+            await window.GENZSession.ensureFreshSession();
+        }
+
         const client = getClient();
 
 
@@ -473,9 +477,14 @@ import {
         }
 
 
+        const resolvedSession =
+            (data && data.session) ||
+            window.GENZSession?.readSession?.() ||
+            null;
+
         const user =
-            data && data.session
-                ? data.session.user
+            resolvedSession
+                ? resolvedSession.user
                 : null;
 
 

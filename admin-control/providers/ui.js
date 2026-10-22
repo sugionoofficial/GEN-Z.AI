@@ -211,6 +211,8 @@
 
         try {
 
+            window.GENZSession?.clearAllAuthStorage?.();
+
             const supabaseModule =
                 window.GENZProviderSupabase;
 

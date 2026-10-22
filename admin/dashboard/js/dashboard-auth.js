@@ -144,6 +144,10 @@
 
         async getSession() {
 
+            if (window.GENZSession?.ensureFreshSession) {
+                await window.GENZSession.ensureFreshSession();
+            }
+
             const client =
                 this.getSupabaseClient();
 
@@ -161,7 +165,9 @@
 
 
             const session =
-                data?.session || null;
+                data?.session ||
+                window.GENZSession?.readSession?.() ||
+                null;
 
 
             if (!session) {

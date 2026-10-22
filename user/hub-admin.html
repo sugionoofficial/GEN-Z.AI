@@ -1250,7 +1250,7 @@
     <script src="../assets/js/config.js"></script>
 
     <!-- Shared GEN-Z.AI Navigation -->
-    <script src="../navigation/navigation.js?v=light-mode-pass-20261021"></script>
+    <script src="../navigation/navigation.js?v=persistent-auth-20261022"></script>
 
 
     <script>
@@ -2237,6 +2237,13 @@
 
                     }
 
+
+                    /*
+                     * Pastikan token akses selalu segar sebelum inisialisasi client.
+                     */
+                    if (window.GENZSession?.ensureFreshSession) {
+                        await window.GENZSession.ensureFreshSession();
+                    }
 
                     /*
                      * Gunakan existing client

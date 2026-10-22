@@ -195,7 +195,8 @@ function readSessionFromStorage() {
             "sb-" + projectRef + "-auth-token";
 
         const raw =
-            localStorage.getItem(key);
+            localStorage.getItem(key) ||
+            localStorage.getItem("genz-auth-session-v1");
 
         if (!raw) {
 
@@ -215,6 +216,14 @@ function readSessionFromStorage() {
 
         }
 
+        if (!session.expires_at) {
+            const decodedExp = getTokenExpiry(session.access_token);
+            if (decodedExp) {
+                session.expires_at = decodedExp;
+                localStorage.setItem(key, JSON.stringify(session));
+            }
+        }
+
         return session;
 
     } catch (error) {
@@ -229,6 +238,9 @@ function readSessionFromStorage() {
 function clearSessionStorage() {
 
     try {
+
+        localStorage.removeItem("genz-auth-session-v1");
+        localStorage.removeItem("genz-auth-profile-cache-v1");
 
         if (
             typeof window === "undefined" ||
@@ -252,6 +264,9 @@ function clearSessionStorage() {
 
             localStorage.removeItem(
                 "sb-" + projectRef + "-auth-token"
+            );
+            localStorage.removeItem(
+                "sb-" + projectRef + "-auth-token-user"
             );
 
         }
@@ -565,164 +580,225 @@ function getTokenExpiry(accessToken) {
 }
 
 
-export async function ensureFreshToken() {
-
-    const session =
-        readSessionFromStorage();
-
-    if (!session) {
-
-        return;
-
-    }
-
-    const storedExpiry =
-        Number(session.expires_at);
-
-    const expiresAt =
-        Number.isFinite(storedExpiry) && storedExpiry > 0
-            ? storedExpiry
-            : getTokenExpiry(session.access_token);
-
-    if (!expiresAt) {
-
-        throw new Error(
-            "Masa berlaku sesi login tidak dapat diverifikasi. Silakan login kembali."
-        );
-
-    }
-
-
-    const nowSec =
-        Math.floor(Date.now() / 1000);
-
-    const secondsUntilExpiry =
-        expiresAt - nowSec;
-
+export async function ensureFreshToken(options = {}) {
 
     if (
-        Number.isFinite(secondsUntilExpiry) &&
-        secondsUntilExpiry >= TOKEN_REFRESH_BUFFER_SEC
+        typeof window !== "undefined" &&
+        window.GENZSession &&
+        typeof window.GENZSession.ensureFreshSession === "function"
     ) {
+        const synced = await window.GENZSession.ensureFreshSession(options);
+        if (synced) {
+            return synced;
+        }
+    }
+
+    if (typeof window !== "undefined" && window.__GENZ_REFRESH_PROMISE__) {
+        return await window.__GENZ_REFRESH_PROMISE__;
+    }
+
+    const runRefresh = async () => {
+        const session =
+            readSessionFromStorage();
+
+        if (!session) {
+
+            return null;
+
+        }
+
+        const storedExpiry =
+            Number(session.expires_at);
+
+        const expiresAt =
+            Number.isFinite(storedExpiry) && storedExpiry > 0
+                ? storedExpiry
+                : getTokenExpiry(session.access_token);
+
+        if (!expiresAt) {
+
+            throw new Error(
+                "Masa berlaku sesi login tidak dapat diverifikasi. Silakan login kembali."
+            );
+
+        }
+
+
+        const nowSec =
+            Math.floor(Date.now() / 1000);
+
+        const secondsUntilExpiry =
+            expiresAt - nowSec;
+
+
+        if (
+            !options?.force &&
+            Number.isFinite(secondsUntilExpiry) &&
+            secondsUntilExpiry >= TOKEN_REFRESH_BUFFER_SEC
+        ) {
+
+            debugLog(
+                "[GEN-Z.AI][Auth] Token masih valid, " +
+                secondsUntilExpiry +
+                " detik lagi."
+            );
+
+            return session;
+
+        }
+
+
+        if (!session.refresh_token) {
+
+            throw new Error(
+                "Sesi login kedaluwarsa dan tidak dapat diperbarui. Silakan login kembali."
+            );
+
+        }
+
+
+        const config = window.GENZ_CONFIG;
+        const usedRefreshToken = session.refresh_token;
+
+        const res =
+            await fetch(
+                `${config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "apikey": config.SUPABASE_KEY
+                    },
+                    body: JSON.stringify({
+                        refresh_token: usedRefreshToken
+                    })
+                }
+            );
+
+        const responseData =
+            await res.json().catch(() => null);
+
+        if (!res.ok) {
+            const latest = readSessionFromStorage();
+            if (
+                latest &&
+                latest.access_token &&
+                (
+                    latest.refresh_token !== usedRefreshToken ||
+                    Number(latest.expires_at) > Math.floor(Date.now() / 1000) + 10
+                )
+            ) {
+                return latest;
+            }
+
+            if (res.status === 400 || res.status === 401 || res.status === 403) {
+                clearSessionStorage();
+            }
+
+            throw new Error(
+                responseData?.error_description ||
+                responseData?.message ||
+                `Gagal memperbarui sesi login (HTTP ${res.status}). Silakan coba lagi.`
+            );
+
+        }
+
+
+        if (
+            !responseData ||
+            !responseData.access_token
+        ) {
+
+            throw new Error(
+                "Supabase mengembalikan sesi login yang tidak valid."
+            );
+
+        }
+
+
+        const expiresIn =
+            Number(responseData.expires_in);
+
+        const refreshedExpiry =
+            Number(responseData.expires_at) ||
+            (
+                Number.isFinite(expiresIn) &&
+                expiresIn > 0
+                    ? nowSec + expiresIn
+                    : getTokenExpiry(responseData.access_token)
+            );
+
+
+        if (!refreshedExpiry) {
+
+            throw new Error(
+                "Supabase tidak mengembalikan waktu kedaluwarsa sesi."
+            );
+
+        }
+
+
+        const newSession = {
+            ...session,
+            ...responseData,
+            expires_at: refreshedExpiry,
+            refresh_token:
+                responseData.refresh_token ||
+                session.refresh_token,
+            user:
+                responseData.user ||
+                session.user
+        };
+
+        const match =
+            config.SUPABASE_URL.match(
+                /https:\/\/([^.]+)/
+            );
+
+        const projectRef =
+            match && match[1];
+
+        if (!projectRef) {
+
+            throw new Error(
+                "Project Supabase tidak dapat ditentukan untuk menyimpan sesi."
+            );
+
+        }
+
+        const serialized = JSON.stringify(newSession);
+        localStorage.setItem(
+            "sb-" + projectRef + "-auth-token",
+            serialized
+        );
+        localStorage.setItem("genz-auth-session-v1", serialized);
+
+        const activeClient = window.GENZ_SUPABASE || window.supabaseClient;
+        if (activeClient?.auth && newSession.access_token && newSession.refresh_token) {
+            await activeClient.auth.setSession({
+                access_token: newSession.access_token,
+                refresh_token: newSession.refresh_token
+            }).catch(() => {});
+        }
 
         debugLog(
-            "[GEN-Z.AI][Auth] Token masih valid, " +
-            secondsUntilExpiry +
-            " detik lagi."
+            "[GEN-Z.AI][Auth] Refresh token berhasil."
         );
 
-        return;
-
-    }
-
-
-    if (!session.refresh_token) {
-
-        throw new Error(
-            "Sesi login kedaluwarsa dan tidak dapat diperbarui. Silakan login kembali."
-        );
-
-    }
-
-
-    const config = window.GENZ_CONFIG;
-
-    const res =
-        await fetch(
-            `${config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "apikey": config.SUPABASE_KEY
-                },
-                body: JSON.stringify({
-                    refresh_token: session.refresh_token
-                })
-            }
-        );
-
-    const responseData =
-        await res.json().catch(() => null);
-
-    if (!res.ok) {
-
-        throw new Error(
-            responseData?.error_description ||
-            responseData?.message ||
-            `Gagal memperbarui sesi login (HTTP ${res.status}). Silakan login kembali.`
-        );
-
-    }
-
-
-    if (
-        !responseData ||
-        !responseData.access_token
-    ) {
-
-        throw new Error(
-            "Supabase mengembalikan sesi login yang tidak valid."
-        );
-
-    }
-
-
-    const expiresIn =
-        Number(responseData.expires_in);
-
-    const refreshedExpiry =
-        Number(responseData.expires_at) ||
-        (
-            Number.isFinite(expiresIn) &&
-            expiresIn > 0
-                ? nowSec + expiresIn
-                : getTokenExpiry(responseData.access_token)
-        );
-
-
-    if (!refreshedExpiry) {
-
-        throw new Error(
-            "Supabase tidak mengembalikan waktu kedaluwarsa sesi."
-        );
-
-    }
-
-
-    const newSession = {
-        ...session,
-        ...responseData,
-        expires_at: refreshedExpiry,
-        refresh_token:
-            responseData.refresh_token ||
-            session.refresh_token
+        return newSession;
     };
 
-    const match =
-        config.SUPABASE_URL.match(
-            /https:\/\/([^.]+)/
-        );
+    const inflight = runRefresh().finally(() => {
+        if (typeof window !== "undefined" && window.__GENZ_REFRESH_PROMISE__ === inflight) {
+            window.__GENZ_REFRESH_PROMISE__ = null;
+        }
+    });
 
-    const projectRef =
-        match && match[1];
-
-    if (!projectRef) {
-
-        throw new Error(
-            "Project Supabase tidak dapat ditentukan untuk menyimpan sesi."
-        );
-
+    if (typeof window !== "undefined") {
+        window.__GENZ_REFRESH_PROMISE__ = inflight;
     }
 
-    localStorage.setItem(
-        "sb-" + projectRef + "-auth-token",
-        JSON.stringify(newSession)
-    );
-
-    debugLog(
-        "[GEN-Z.AI][Auth] Refresh token berhasil."
-    );
+    return await inflight;
 
 }
 
@@ -1046,13 +1122,17 @@ export async function loadProfile() {
 
     if (!result.data) {
 
-        /*
-         * Jangan panggil safeSignOut() di sini
-         * karena client.auth.signOut() hang.
-         * Cukup clear localStorage.
-         */
+        await ensureFreshToken({ force: true });
 
-        clearSessionStorage();
+        result = await getSupabaseClient()
+            .from("profiles")
+            .select("id,email,name,role,credits,status")
+            .eq("id", user.id)
+            .maybeSingle();
+
+    }
+
+    if (!result.data) {
 
         throw new Error(
             "Profile belum ditemukan untuk akun ini."
@@ -1082,6 +1162,8 @@ export async function loadProfile() {
 
 export async function getAccessToken() {
 
+    await ensureFreshToken();
+
     const session =
         readSessionFromStorage();
 
@@ -1104,9 +1186,9 @@ export async function getAccessToken() {
 
 export async function ensureAuthenticated() {
 
-    await loadSupabase();
-
     await ensureFreshToken();
+
+    await loadSupabase();
 
     let user = getCurrentUser();
 

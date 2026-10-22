@@ -71,6 +71,287 @@
     }
 
 
+    const SESSION_BACKUP_STORAGE_KEY = "genz-auth-session-v1";
+    const PROFILE_CACHE_STORAGE_KEY = "genz-auth-profile-cache-v1";
+    const TOKEN_REFRESH_BUFFER_SEC = 300;
+
+
+    function getProjectRef() {
+        const match = String(window.GENZ_CONFIG.SUPABASE_URL || "").match(
+            /https:\/\/([^.]+)/
+        );
+        return (match && match[1]) || null;
+    }
+
+
+    function getAuthStorageKey() {
+        const ref = getProjectRef();
+        return ref ? "sb-" + ref + "-auth-token" : null;
+    }
+
+
+    function decodeJwtExp(token) {
+        try {
+            if (typeof token !== "string") return 0;
+            const parts = token.split(".");
+            if (parts.length !== 3) return 0;
+            let base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+            const mod = base64.length % 4;
+            if (mod) base64 += "=".repeat(4 - mod);
+            const payload = JSON.parse(atob(base64));
+            const exp = Number(payload && payload.exp);
+            return Number.isFinite(exp) && exp > 0 ? exp : 0;
+        } catch (_err) {
+            return 0;
+        }
+    }
+
+
+    function normalizeSessionObject(session, fallbackUser) {
+        if (!session || typeof session !== "object" || !session.access_token) {
+            return null;
+        }
+        const nowSec = Math.floor(Date.now() / 1000);
+        const explicitExpiresAt = Number(session.expires_at);
+        const expiresIn = Number(session.expires_in);
+        const computedExpiresAt =
+            (Number.isFinite(explicitExpiresAt) && explicitExpiresAt > 0
+                ? explicitExpiresAt
+                : 0) ||
+            decodeJwtExp(session.access_token) ||
+            (Number.isFinite(expiresIn) && expiresIn > 0
+                ? nowSec + expiresIn
+                : 0) ||
+            nowSec + 3600;
+
+        return {
+            ...session,
+            token_type: session.token_type || "bearer",
+            expires_at: computedExpiresAt,
+            user: session.user || fallbackUser || null
+        };
+    }
+
+
+    function saveStoredSession(session, fallbackUser) {
+        try {
+            const normalized = normalizeSessionObject(session, fallbackUser);
+            if (!normalized) return null;
+            const serialized = JSON.stringify(normalized);
+            const key = getAuthStorageKey();
+            if (key) {
+                localStorage.setItem(key, serialized);
+            }
+            localStorage.setItem(SESSION_BACKUP_STORAGE_KEY, serialized);
+            return normalized;
+        } catch (_err) {
+            return null;
+        }
+    }
+
+
+    function readStoredSession() {
+        try {
+            const key = getAuthStorageKey();
+            if (!key) return null;
+            let raw = localStorage.getItem(key);
+            let fromBackup = false;
+            if (!raw) {
+                raw = localStorage.getItem(SESSION_BACKUP_STORAGE_KEY);
+                fromBackup = Boolean(raw);
+            }
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed || !parsed.access_token) return null;
+            const needsRepair =
+                !Number.isFinite(Number(parsed.expires_at)) ||
+                Number(parsed.expires_at) <= 0;
+            const normalized = normalizeSessionObject(parsed);
+            if (!normalized) return null;
+            if (fromBackup || needsRepair) {
+                localStorage.setItem(key, JSON.stringify(normalized));
+            }
+            if (!localStorage.getItem(SESSION_BACKUP_STORAGE_KEY)) {
+                localStorage.setItem(
+                    SESSION_BACKUP_STORAGE_KEY,
+                    JSON.stringify(normalized)
+                );
+            }
+            return normalized;
+        } catch (_err) {
+            return null;
+        }
+    }
+
+
+    function clearAllAuthStorage() {
+        try {
+            localStorage.removeItem(SESSION_BACKUP_STORAGE_KEY);
+            localStorage.removeItem(PROFILE_CACHE_STORAGE_KEY);
+            const key = getAuthStorageKey();
+            if (key) {
+                localStorage.removeItem(key);
+                localStorage.removeItem(key + "-user");
+            }
+        } catch (_err) {
+            /* ignore */
+        }
+    }
+
+
+    function saveProfileCache(profile) {
+        try {
+            if (!profile || !profile.id) return;
+            localStorage.setItem(
+                PROFILE_CACHE_STORAGE_KEY,
+                JSON.stringify({
+                    id: profile.id,
+                    email: profile.email || "",
+                    name: profile.name || "",
+                    role: profile.role || "USER",
+                    credits: Number(profile.credits || 0),
+                    status: profile.status || "active",
+                    cachedAt: Date.now()
+                })
+            );
+        } catch (_err) {
+            /* ignore */
+        }
+    }
+
+
+    function readProfileCache(userId) {
+        try {
+            const raw = localStorage.getItem(PROFILE_CACHE_STORAGE_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed || (userId && String(parsed.id) !== String(userId))) {
+                return null;
+            }
+            return parsed;
+        } catch (_err) {
+            return null;
+        }
+    }
+
+
+    async function ensureFreshStoredSession(force) {
+        if (window.__GENZ_REFRESH_PROMISE__) {
+            return await window.__GENZ_REFRESH_PROMISE__;
+        }
+
+        const task = (async function () {
+            const session = readStoredSession();
+            if (!session) return { session: null, rejected: false };
+
+            const nowSec = Math.floor(Date.now() / 1000);
+            const expiresAt =
+                Number(session.expires_at) || decodeJwtExp(session.access_token);
+            const secondsLeft = expiresAt ? expiresAt - nowSec : -1;
+
+            if (!force && secondsLeft >= TOKEN_REFRESH_BUFFER_SEC) {
+                return { session, rejected: false };
+            }
+
+            if (!session.refresh_token) {
+                return {
+                    session: secondsLeft >= 0 ? session : null,
+                    rejected: secondsLeft < 0
+                };
+            }
+
+            const usedRefreshToken = session.refresh_token;
+
+            try {
+                const res = await fetch(
+                    `${window.GENZ_CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "apikey": window.GENZ_CONFIG.SUPABASE_KEY
+                        },
+                        body: JSON.stringify({
+                            refresh_token: usedRefreshToken
+                        })
+                    }
+                );
+
+                if (!res.ok) {
+                    const latest = readStoredSession();
+                    const latestNow = Math.floor(Date.now() / 1000);
+                    if (
+                        latest &&
+                        latest.access_token &&
+                        (
+                            latest.refresh_token !== usedRefreshToken ||
+                            Number(latest.expires_at) > latestNow + 10
+                        )
+                    ) {
+                        return { session: latest, rejected: false };
+                    }
+
+                    if (
+                        res.status === 400 ||
+                        res.status === 401 ||
+                        res.status === 403
+                    ) {
+                        clearAllAuthStorage();
+                        return { session: null, rejected: true };
+                    }
+
+                    return { session, rejected: false, networkError: true };
+                }
+
+                const payload = await res.json().catch(() => null);
+                if (!payload || !payload.access_token) {
+                    return { session, rejected: false };
+                }
+
+                const refreshedSec = Math.floor(Date.now() / 1000);
+                const expiresIn = Number(payload.expires_in);
+                const nextExpiresAt =
+                    Number(payload.expires_at) ||
+                    (Number.isFinite(expiresIn) && expiresIn > 0
+                        ? refreshedSec + expiresIn
+                        : 0) ||
+                    decodeJwtExp(payload.access_token) ||
+                    refreshedSec + 3600;
+
+                const saved = saveStoredSession(
+                    {
+                        ...session,
+                        ...payload,
+                        expires_at: nextExpiresAt,
+                        refresh_token:
+                            payload.refresh_token || session.refresh_token,
+                        user: payload.user || session.user
+                    },
+                    session.user
+                );
+
+                return { session: saved || session, rejected: false };
+            } catch (_networkErr) {
+                return { session, rejected: false, networkError: true };
+            }
+        })().finally(function () {
+            if (window.__GENZ_REFRESH_PROMISE__ === task) {
+                window.__GENZ_REFRESH_PROMISE__ = null;
+            }
+        });
+
+        window.__GENZ_REFRESH_PROMISE__ = task;
+        return await task;
+    }
+
+
+    /*
+     * Perbaiki struktur session tersimpan sebelum GoTrueClient melakukan init
+     * agar session valid yang belum punya expires_at tidak dihapus otomatis.
+     */
+    readStoredSession();
+
+
     // =========================================================
     // SUPABASE CLIENT
     // ---------------------------------------------------------
@@ -97,6 +378,23 @@
                 }
             }
         );
+
+    const rawSignOut = supabaseClient.auth.signOut.bind(supabaseClient.auth);
+    supabaseClient.auth.signOut = async function (...args) {
+        clearAllAuthStorage();
+        try {
+            return await Promise.race([
+                rawSignOut(...args),
+                new Promise(function (resolve) {
+                    setTimeout(function () {
+                        resolve({ error: null });
+                    }, 2500);
+                })
+            ]);
+        } catch (_err) {
+            return { error: null };
+        }
+    };
 
 
     /* =========================================================
@@ -546,6 +844,26 @@
     }
 
 
+    function resolveTargetDashboardPath(role) {
+        const params = new URLSearchParams(window.location.search);
+        const requestedNext = String(params.get("next") || "").trim();
+        if (
+            requestedNext &&
+            requestedNext.startsWith("/") &&
+            !requestedNext.startsWith("//") &&
+            !requestedNext.toLowerCase().includes("login.html")
+        ) {
+            return requestedNext;
+        }
+
+        const upperRole = String(role || "").trim().toUpperCase();
+        if (upperRole === "ADMIN" || upperRole === "OWNER") {
+            return "admin/dashboard/index.html";
+        }
+        return "user/dashboard.html";
+    }
+
+
     async function completeAuthenticatedLogin(user) {
 
         const {
@@ -560,15 +878,19 @@
             );
         }
 
+        const activeSession = sessionData?.session || readStoredSession();
+
         if (
-            !sessionData?.session ||
-            sessionData.session.user.id !== user.id
+            !activeSession ||
+            (activeSession.user && activeSession.user.id !== user.id)
         ) {
             await supabaseClient.auth.signOut();
             throw new Error("Session Supabase tidak sesuai dengan user.");
         }
 
-        const {
+        saveStoredSession(activeSession, user);
+
+        let {
             data: profiles,
             error: profileError
         } = await supabaseClient
@@ -576,11 +898,40 @@
             .select("id,email,name,role,credits,status")
             .eq("id", user.id);
 
+        /*
+         * Bila query pertama mengembalikan kosong karena JWT di memori perlu
+         * disinkronkan setelah refresh, paksa refresh 1x sebelum menyerah.
+         */
+        if (
+            !profileError &&
+            (!Array.isArray(profiles) || profiles.length === 0)
+        ) {
+            const refreshed = await ensureFreshStoredSession(true);
+            if (refreshed?.session?.access_token && refreshed.session.refresh_token) {
+                await supabaseClient.auth.setSession({
+                    access_token: refreshed.session.access_token,
+                    refresh_token: refreshed.session.refresh_token
+                }).catch(() => {});
+
+                const retryRes = await supabaseClient
+                    .from("profiles")
+                    .select("id,email,name,role,credits,status")
+                    .eq("id", user.id);
+                profiles = retryRes.data;
+                profileError = retryRes.error;
+            }
+        }
+
         if (profileError) {
-            throw new Error(
-                "Gagal mengambil profile: " +
-                profileError.message
-            );
+            const cachedProfile = readProfileCache(user.id);
+            if (cachedProfile) {
+                profiles = [cachedProfile];
+            } else {
+                throw new Error(
+                    "Gagal mengambil profile: " +
+                    profileError.message
+                );
+            }
         }
 
         if (
@@ -588,13 +939,14 @@
             profiles.length === 0 ||
             profiles[0].id !== user.id
         ) {
-            await supabaseClient.auth.signOut();
             throw new Error(
                 "Profile belum ditemukan atau tidak sesuai untuk akun ini."
             );
         }
 
         const profile = profiles[0];
+        saveProfileCache(profile);
+
         const accountStatus = String(profile.status || "")
             .trim()
             .toLowerCase();
@@ -624,14 +976,14 @@
         if (role === "USER") {
             hideLoginStatusHologram();
             showMessage("Login berhasil. Membuka dashboard...");
-            window.location.href = "user/dashboard.html";
+            window.location.replace(resolveTargetDashboardPath(role));
             return;
         }
 
         if (role === "ADMIN" || role === "OWNER") {
             hideLoginStatusHologram();
             showMessage("Login berhasil. Membuka dashboard admin...");
-            window.location.href = "admin/dashboard/index.html";
+            window.location.replace(resolveTargetDashboardPath(role));
             return;
         }
 
@@ -825,6 +1177,82 @@
 
 
     // =========================================================
+    // AUTO-RESUME PERSISTENT SESSION
+    // ---------------------------------------------------------
+    // Jika user sudah login dan belum klik Logout, membuka login.html
+    // langsung memulihkan sesi (termasuk refresh token otomatis bila
+    // access_token sudah kedaluwarsa) dan mengarahkan ke dashboard
+    // tanpa meminta email & password ulang.
+    // =========================================================
+
+    let autoResumeStarted = false;
+
+    async function resumeExistingSessionIfPresent() {
+        if (emailLinkCallback || autoResumeStarted) {
+            return;
+        }
+
+        const existing = readStoredSession();
+        if (!existing) {
+            return;
+        }
+
+        autoResumeStarted = true;
+        setLoading(true);
+        showMessage("Memulihkan sesi login aktif...");
+
+        try {
+            const refreshedResult = await ensureFreshStoredSession(false);
+
+            if (refreshedResult.rejected || !refreshedResult.session) {
+                setLoading(false);
+                showMessage("");
+                return;
+            }
+
+            const session = refreshedResult.session;
+
+            if (refreshedResult.networkError) {
+                const cachedProfile = readProfileCache(session.user?.id);
+                if (cachedProfile && String(cachedProfile.status || "active").toLowerCase() === "active") {
+                    window.location.replace(
+                        resolveTargetDashboardPath(cachedProfile.role)
+                    );
+                    return;
+                }
+            }
+
+            if (session.access_token && session.refresh_token) {
+                await supabaseClient.auth.setSession({
+                    access_token: session.access_token,
+                    refresh_token: session.refresh_token
+                }).catch(() => {});
+            }
+
+            let activeUser = session.user || null;
+            if (!activeUser) {
+                const { data: userData } = await supabaseClient.auth.getUser();
+                activeUser = userData?.user || null;
+            }
+
+            if (!activeUser) {
+                setLoading(false);
+                showMessage("");
+                return;
+            }
+
+            await completeAuthenticatedLogin(activeUser);
+        } catch (error) {
+            console.warn("GEN-Z.AI session resume warning:", error);
+            setLoading(false);
+            showMessage("");
+        }
+    }
+
+    void resumeExistingSessionIfPresent();
+
+
+    // =========================================================
     // EXPOSE CLIENT
     // =========================================================
 
@@ -832,7 +1260,13 @@
         Object.freeze({
 
             supabase:
-                supabaseClient
+                supabaseClient,
+
+            resumeSession:
+                resumeExistingSessionIfPresent,
+
+            clearAllAuthStorage:
+                clearAllAuthStorage
 
         });
 

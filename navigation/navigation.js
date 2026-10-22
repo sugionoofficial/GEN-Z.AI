@@ -59,7 +59,10 @@
 
     const PROFILE_RETRY_COUNT = 3;
     const PROFILE_RETRY_DELAY = 500;
-    const TOKEN_REFRESH_BUFFER_SEC = 60;
+    const TOKEN_REFRESH_BUFFER_SEC = 300;
+    const SESSION_KEEPALIVE_INTERVAL_MS = 4 * 60 * 1000;
+    const SESSION_BACKUP_STORAGE_KEY = "genz-auth-session-v1";
+    const PROFILE_CACHE_STORAGE_KEY = "genz-auth-profile-cache-v1";
     const PRESENCE_HEARTBEAT_INTERVAL_MS = 20000;
     const PRESENCE_STALE_AFTER_MS = 90000;
     const PRESENCE_SESSION_STORAGE_KEY = "genz-presence-session-id";
@@ -70,6 +73,8 @@
     let navigationReady = false;
     let navigationReadyResolve;
     let documentKeydownBound = false;
+    let sessionKeepAliveTimer = null;
+    let sessionKeepAliveBound = false;
     let presenceHeartbeatTimer = null;
     let presenceVisibilityHandler = null;
     let presenceSessionId = null;
@@ -77,6 +82,178 @@
     const navigationReadyPromise = new Promise(resolve => {
         navigationReadyResolve = resolve;
     });
+
+
+    function getProjectRef() {
+        const config = window.GENZ_CONFIG;
+        if (!config || !config.SUPABASE_URL) return null;
+        const match = String(config.SUPABASE_URL).match(/https:\/\/([^.]+)/);
+        return (match && match[1]) || null;
+    }
+
+
+    function getAuthStorageKey() {
+        const projectRef = getProjectRef();
+        return projectRef ? "sb-" + projectRef + "-auth-token" : null;
+    }
+
+
+    function decodeJwtExp(token) {
+        try {
+            if (typeof token !== "string") return 0;
+            const parts = token.split(".");
+            if (parts.length !== 3) return 0;
+            let base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+            const mod = base64.length % 4;
+            if (mod) base64 += "=".repeat(4 - mod);
+            const payload = JSON.parse(atob(base64));
+            const exp = Number(payload && payload.exp);
+            return Number.isFinite(exp) && exp > 0 ? exp : 0;
+        } catch (error) {
+            return 0;
+        }
+    }
+
+
+    function normalizeSessionObject(session, fallbackUser = null) {
+        if (!session || typeof session !== "object" || !session.access_token) {
+            return null;
+        }
+
+        const nowSec = Math.floor(Date.now() / 1000);
+        const explicitExpiresAt = Number(session.expires_at);
+        const expiresIn = Number(session.expires_in);
+        const jwtExp = decodeJwtExp(session.access_token);
+        const computedExpiresAt =
+            (Number.isFinite(explicitExpiresAt) && explicitExpiresAt > 0
+                ? explicitExpiresAt
+                : 0) ||
+            jwtExp ||
+            (Number.isFinite(expiresIn) && expiresIn > 0
+                ? nowSec + expiresIn
+                : 0);
+
+        const normalized = {
+            ...session,
+            token_type: session.token_type || "bearer",
+            expires_at: computedExpiresAt || nowSec + 3600,
+            user: session.user || fallbackUser || null
+        };
+
+        return normalized;
+    }
+
+
+    function saveSessionToStorage(session, fallbackUser = null) {
+        try {
+            const normalized = normalizeSessionObject(session, fallbackUser);
+            if (!normalized) return null;
+
+            const storageKey = getAuthStorageKey();
+            const serialized = JSON.stringify(normalized);
+
+            if (storageKey) {
+                localStorage.setItem(storageKey, serialized);
+            }
+            localStorage.setItem(SESSION_BACKUP_STORAGE_KEY, serialized);
+
+            return normalized;
+        } catch (error) {
+            return null;
+        }
+    }
+
+
+    function saveProfileCache(profile) {
+        try {
+            if (!profile || !profile.id) return;
+            localStorage.setItem(
+                PROFILE_CACHE_STORAGE_KEY,
+                JSON.stringify({
+                    id: profile.id,
+                    email: profile.email || "",
+                    name: profile.name || "",
+                    role: profile.role || "USER",
+                    credits: Number(profile.credits || 0),
+                    status: profile.status || "active",
+                    cachedAt: Date.now()
+                })
+            );
+        } catch (error) {
+            /* ignore storage quota/privacy restrictions */
+        }
+    }
+
+
+    function readProfileCache(userId) {
+        try {
+            const raw = localStorage.getItem(PROFILE_CACHE_STORAGE_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed || String(parsed.id) !== String(userId)) {
+                return null;
+            }
+            return parsed;
+        } catch (error) {
+            return null;
+        }
+    }
+
+
+    function wrapClientSignOut(client) {
+        if (!client || !client.auth || client.auth.__genzWrappedSignOut) {
+            return client;
+        }
+
+        const originalSignOut = client.auth.signOut.bind(client.auth);
+        client.auth.signOut = async (...args) => {
+            clearSessionStorage();
+            try {
+                return await Promise.race([
+                    originalSignOut(...args),
+                    new Promise(resolve =>
+                        setTimeout(() => resolve({ error: null }), 2500)
+                    )
+                ]);
+            } catch (error) {
+                return { error: null };
+            }
+        };
+        client.auth.__genzWrappedSignOut = true;
+
+        return client;
+    }
+
+
+    async function syncSupabaseClientSession(session) {
+        if (!session || !session.access_token || !session.refresh_token) {
+            return;
+        }
+
+        const client = window.GENZ_SUPABASE || window.supabaseClient;
+        if (!client || !client.auth) return;
+
+        try {
+            client.realtime?.setAuth?.(session.access_token);
+        } catch (error) {
+            /* ignore realtime sync errors */
+        }
+
+        try {
+            const { data } = await client.auth.getSession();
+            if (data?.session?.access_token === session.access_token) {
+                return;
+            }
+            await client.auth.setSession({
+                access_token: session.access_token,
+                refresh_token: session.refresh_token
+            });
+        } catch (error) {
+            if (isDebugEnabled()) {
+                console.warn("[GEN-Z.AI] syncSupabaseClientSession warning:", error);
+            }
+        }
+    }
 
 
     function syncNavigationGlobals() {
@@ -89,8 +266,12 @@
 
     function getSupabaseClient() {
 
-        if (window.GENZ_SUPABASE) return window.GENZ_SUPABASE;
-        if (window.supabaseClient) return window.supabaseClient;
+        if (window.GENZ_SUPABASE) {
+            return wrapClientSignOut(window.GENZ_SUPABASE);
+        }
+        if (window.supabaseClient) {
+            return wrapClientSignOut(window.supabaseClient);
+        }
 
         const supabaseGlobal = window.supabase;
         const config = window.GENZ_CONFIG;
@@ -104,18 +285,27 @@
         const supabaseKey = config.SUPABASE_KEY || config.SUPABASE_ANON_KEY;
         if (!supabaseKey) return null;
 
+        /*
+         * Pastikan session yang tersimpan memiliki expires_at numerik yang valid
+         * sebelum GoTrueClient melakukan inisialisasi agar session tidak dihapus
+         * oleh _recoverAndRefresh().
+         */
+        readSessionFromStorage();
+
         try {
-            const client = supabaseGlobal.createClient(
-                config.SUPABASE_URL,
-                supabaseKey,
-                {
-                    auth: {
-                        persistSession: true,
-                        autoRefreshToken: false,
-                        detectSessionInUrl: false,
-                        lock: async (_n, _t, fn) => await fn()
+            const client = wrapClientSignOut(
+                supabaseGlobal.createClient(
+                    config.SUPABASE_URL,
+                    supabaseKey,
+                    {
+                        auth: {
+                            persistSession: true,
+                            autoRefreshToken: false,
+                            detectSessionInUrl: false,
+                            lock: async (_n, _t, fn) => await fn()
+                        }
                     }
-                }
+                )
             );
 
             window.GENZ_SUPABASE = client;
@@ -132,21 +322,39 @@
     function readSessionFromStorage() {
 
         try {
-            const config = window.GENZ_CONFIG;
-            if (!config || !config.SUPABASE_URL) return null;
+            const key = getAuthStorageKey();
+            if (!key) return null;
 
-            const match = config.SUPABASE_URL.match(/https:\/\/([^.]+)/);
-            const projectRef = match && match[1];
-            if (!projectRef) return null;
+            let raw = localStorage.getItem(key);
+            let restoredFromBackup = false;
 
-            const key = "sb-" + projectRef + "-auth-token";
-            const raw = localStorage.getItem(key);
+            if (!raw) {
+                raw = localStorage.getItem(SESSION_BACKUP_STORAGE_KEY);
+                restoredFromBackup = Boolean(raw);
+            }
+
             if (!raw) return null;
 
-            const session = JSON.parse(raw);
-            if (!session || !session.access_token) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed || !parsed.access_token) return null;
 
-            return session;
+            const needsRepair =
+                !Number.isFinite(Number(parsed.expires_at)) ||
+                Number(parsed.expires_at) <= 0;
+            const normalized = normalizeSessionObject(parsed);
+            if (!normalized) return null;
+
+            if (restoredFromBackup || needsRepair) {
+                localStorage.setItem(key, JSON.stringify(normalized));
+            }
+            if (!localStorage.getItem(SESSION_BACKUP_STORAGE_KEY)) {
+                localStorage.setItem(
+                    SESSION_BACKUP_STORAGE_KEY,
+                    JSON.stringify(normalized)
+                );
+            }
+
+            return normalized;
         } catch (error) {
             return null;
         }
@@ -156,15 +364,14 @@
     function clearSessionStorage() {
 
         try {
-            const config = window.GENZ_CONFIG;
-            if (!config || !config.SUPABASE_URL) return;
+            localStorage.removeItem(SESSION_BACKUP_STORAGE_KEY);
+            localStorage.removeItem(PROFILE_CACHE_STORAGE_KEY);
 
-            const match = config.SUPABASE_URL.match(/https:\/\/([^.]+)/);
-            const projectRef = match && match[1];
-            if (!projectRef) return;
+            const key = getAuthStorageKey();
+            if (!key) return;
 
-            const key = "sb-" + projectRef + "-auth-token";
             localStorage.removeItem(key);
+            localStorage.removeItem(key + "-user");
         } catch (error) {
             /* ignore */
         }
@@ -323,61 +530,170 @@
     }
 
 
-    async function ensureFreshToken() {
+    async function ensureFreshToken(options = {}) {
+        const force = Boolean(options && options.force);
 
-        try {
-            const session = readSessionFromStorage();
-            if (!session || !session.expires_at) return;
-
-            const nowSec = Math.floor(Date.now() / 1000);
-            const secondsUntilExpiry = session.expires_at - nowSec;
-
-            if (secondsUntilExpiry >= TOKEN_REFRESH_BUFFER_SEC) return;
-            if (secondsUntilExpiry < 0) return;
-            if (!session.refresh_token) return;
-
-            const config = window.GENZ_CONFIG;
-
-            const res = await fetch(
-                `${config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "apikey": config.SUPABASE_KEY
-                    },
-                    body: JSON.stringify({
-                        refresh_token: session.refresh_token
-                    })
-                }
-            );
-
-            if (!res.ok) {
-                if (isDebugEnabled()) {
-                    console.warn("[GEN-Z.AI] Refresh token HTTP error:", res.status);
-                }
-                return;
-            }
-
-            const newSession = await res.json();
-            if (!newSession || !newSession.access_token) return;
-
-            const match = config.SUPABASE_URL.match(/https:\/\/([^.]+)/);
-            const projectRef = match && match[1];
-
-            if (projectRef) {
-                const key = "sb-" + projectRef + "-auth-token";
-                localStorage.setItem(key, JSON.stringify(newSession));
-            }
-
-            if (isDebugEnabled()) {
-                console.log("[GEN-Z.AI] Refresh token berhasil.");
-            }
-        } catch (error) {
-            if (isDebugEnabled()) {
-                console.warn("[GEN-Z.AI] ensureFreshToken error:", error);
-            }
+        if (window.__GENZ_REFRESH_PROMISE__) {
+            return await window.__GENZ_REFRESH_PROMISE__;
         }
+
+        const runRefresh = async () => {
+            try {
+                const session = readSessionFromStorage();
+                if (!session) return null;
+
+                const nowSec = Math.floor(Date.now() / 1000);
+                const expiresAt =
+                    Number(session.expires_at) ||
+                    decodeJwtExp(session.access_token);
+                const secondsUntilExpiry = expiresAt
+                    ? expiresAt - nowSec
+                    : -1;
+
+                /*
+                 * Token masih panjang masa berlakunya dan tidak diminta force refresh:
+                 * sinkronkan saja ke in-memory client tanpa memutar refresh_token.
+                 * PENTING: JANGAN return lebih awal saat secondsUntilExpiry < 0!
+                 * Justru saat access_token sudah kedaluwarsa (mis. aplikasi dibuka lagi
+                 * setelah >1 jam / besok / minggu depan), refresh_token WAJIB ditukar!
+                 */
+                if (!force && secondsUntilExpiry >= TOKEN_REFRESH_BUFFER_SEC) {
+                    await syncSupabaseClientSession(session);
+                    return session;
+                }
+
+                if (!session.refresh_token) {
+                    return secondsUntilExpiry >= 0 ? session : null;
+                }
+
+                const config = window.GENZ_CONFIG;
+                const supabaseKey =
+                    config && (config.SUPABASE_KEY || config.SUPABASE_ANON_KEY);
+                if (!config || !config.SUPABASE_URL || !supabaseKey) {
+                    return session;
+                }
+
+                const usedRefreshToken = session.refresh_token;
+
+                const res = await fetch(
+                    `${config.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "apikey": supabaseKey
+                        },
+                        body: JSON.stringify({
+                            refresh_token: usedRefreshToken
+                        })
+                    }
+                );
+
+                if (!res.ok) {
+                    /*
+                     * Cek dulu apakah tab lain sudah lebih dulu memutar refresh_token
+                     * dan menyimpan token baru ke localStorage.
+                     */
+                    const latestStored = readSessionFromStorage();
+                    const latestNowSec = Math.floor(Date.now() / 1000);
+                    if (
+                        latestStored &&
+                        latestStored.access_token &&
+                        (
+                            latestStored.refresh_token !== usedRefreshToken ||
+                            Number(latestStored.expires_at) > latestNowSec + 10
+                        )
+                    ) {
+                        await syncSupabaseClientSession(latestStored);
+                        return latestStored;
+                    }
+
+                    /*
+                     * Hanya hapus sesi bila server Supabase secara eksplisit menolak
+                     * refresh_token (400 / 401 / 403 — token dicabut / logout global).
+                     * Gangguan jaringan / 5xx TIDAK BOLEH menghapus sesi user!
+                     */
+                    if (
+                        res.status === 400 ||
+                        res.status === 401 ||
+                        res.status === 403
+                    ) {
+                        if (isDebugEnabled()) {
+                            console.warn(
+                                "[GEN-Z.AI] Refresh token ditolak server:",
+                                res.status
+                            );
+                        }
+                        clearSessionStorage();
+                        return null;
+                    }
+
+                    if (isDebugEnabled()) {
+                        console.warn(
+                            "[GEN-Z.AI] Refresh token HTTP sementara gagal:",
+                            res.status
+                        );
+                    }
+                    return session;
+                }
+
+                const responseData = await res.json().catch(() => null);
+                if (!responseData || !responseData.access_token) {
+                    return session;
+                }
+
+                const refreshedAtSec = Math.floor(Date.now() / 1000);
+                const expiresIn = Number(responseData.expires_in);
+                const computedExpiresAt =
+                    Number(responseData.expires_at) ||
+                    (Number.isFinite(expiresIn) && expiresIn > 0
+                        ? refreshedAtSec + expiresIn
+                        : 0) ||
+                    decodeJwtExp(responseData.access_token) ||
+                    refreshedAtSec + 3600;
+
+                const nextSession = saveSessionToStorage(
+                    {
+                        ...session,
+                        ...responseData,
+                        expires_at: computedExpiresAt,
+                        refresh_token:
+                            responseData.refresh_token ||
+                            session.refresh_token,
+                        user: responseData.user || session.user
+                    },
+                    session.user
+                );
+
+                if (nextSession) {
+                    await syncSupabaseClientSession(nextSession);
+                    if (nextSession.user) {
+                        currentUser = nextSession.user;
+                        syncNavigationGlobals();
+                    }
+                }
+
+                if (isDebugEnabled()) {
+                    console.log("[GEN-Z.AI] Refresh token berhasil.");
+                }
+
+                return nextSession || session;
+            } catch (error) {
+                if (isDebugEnabled()) {
+                    console.warn("[GEN-Z.AI] ensureFreshToken error:", error);
+                }
+                return readSessionFromStorage();
+            }
+        };
+
+        const inflight = runRefresh().finally(() => {
+            if (window.__GENZ_REFRESH_PROMISE__ === inflight) {
+                window.__GENZ_REFRESH_PROMISE__ = null;
+            }
+        });
+        window.__GENZ_REFRESH_PROMISE__ = inflight;
+
+        return await inflight;
     }
 
 
@@ -429,27 +745,52 @@
 
     async function getSessionWithRetry() {
 
-        await ensureFreshToken();
+        for (let attempt = 0; attempt < 2; attempt++) {
+            await ensureFreshToken();
 
-        const session = readSessionFromStorage();
-        if (!session) {
-            return { session: null, user: null };
+            const session = readSessionFromStorage();
+            if (!session) {
+                return { session: null, user: null };
+            }
+
+            const nowSec = Math.floor(Date.now() / 1000);
+
+            if (!session.expires_at || session.expires_at >= nowSec) {
+                return { session, user: session.user };
+            }
+
+            /*
+             * Jika access_token sudah kedaluwarsa tetapi refresh_token MASIH ADA
+             * (artinya refresh baru saja terkendala sinyal/jaringan sesaat),
+             * coba ulang sekali lagi sebelum menyerah, dan JANGAN hapus localStorage!
+             */
+            if (!session.refresh_token) {
+                return { session: null, user: null };
+            }
+
+            if (attempt === 0) {
+                await delay(700);
+            }
         }
 
-        const nowSec = Math.floor(Date.now() / 1000);
-
-        if (session.expires_at && session.expires_at < nowSec) {
-            return { session: null, user: null };
+        /*
+         * Bila perangkat sedang offline / sinyal putus sementara tetapi user sudah
+         * punya sesi tersimpan yang belum logout, pertahankan sesi lokal agar user
+         * tidak dipaksa mengetik email & password ulang.
+         */
+        const fallbackSession = readSessionFromStorage();
+        if (fallbackSession && fallbackSession.refresh_token && fallbackSession.user) {
+            return { session: fallbackSession, user: fallbackSession.user };
         }
 
-        return { session, user: session.user };
+        return { session: null, user: null };
     }
 
 
     async function loadProfile(userId) {
 
         const supabase = getSupabaseClient();
-        if (!supabase || !userId) return null;
+        if (!supabase || !userId) return readProfileCache(userId);
 
         let lastError = null;
 
@@ -479,8 +820,18 @@
                         .maybeSingle();
                 }
 
+                if (!result.error && result.data) {
+                    saveProfileCache(result.data);
+                    return result.data;
+                }
+
+                if (!result.error && !result.data && attempt === 0) {
+                    await ensureFreshToken({ force: true });
+                    continue;
+                }
+
                 if (!result.error) {
-                    return result.data || null;
+                    return null;
                 }
 
                 lastError = result.error;
@@ -495,6 +846,10 @@
 
         if (lastError) {
             debugError("[GEN-Z.AI] Profile load error:", lastError);
+            const cached = readProfileCache(userId);
+            if (cached) {
+                return cached;
+            }
         }
 
         return null;
@@ -787,9 +1142,32 @@
     }
 
 
+    function stopSessionKeepAlive() {
+        if (sessionKeepAliveTimer) {
+            window.clearInterval(sessionKeepAliveTimer);
+            sessionKeepAliveTimer = null;
+        }
+    }
+
+
     async function logoutUser() {
 
+        stopSessionKeepAlive();
         await stopPresenceTracking(true);
+        clearSessionStorage();
+
+        const client = window.GENZ_SUPABASE || window.supabaseClient;
+        if (client && client.auth && typeof client.auth.signOut === "function") {
+            try {
+                await Promise.race([
+                    client.auth.signOut({ scope: "local" }),
+                    delay(2000)
+                ]);
+            } catch (error) {
+                /* ignore signOut network errors — storage already cleared */
+            }
+        }
+
         clearSessionStorage();
 
         currentUser = null;
@@ -805,7 +1183,61 @@
 
 
     function setupAuthListener() {
-        /* no-op */
+        stopSessionKeepAlive();
+
+        sessionKeepAliveTimer = window.setInterval(() => {
+            void ensureFreshToken();
+        }, SESSION_KEEPALIVE_INTERVAL_MS);
+
+        if (!sessionKeepAliveBound) {
+            sessionKeepAliveBound = true;
+
+            document.addEventListener("visibilitychange", () => {
+                if (!document.hidden && currentUser) {
+                    void ensureFreshToken();
+                }
+            });
+
+            window.addEventListener("focus", () => {
+                if (currentUser) {
+                    void ensureFreshToken();
+                }
+            });
+
+            window.addEventListener("online", () => {
+                if (currentUser) {
+                    void ensureFreshToken();
+                }
+            });
+
+            window.addEventListener("storage", event => {
+                const authKey = getAuthStorageKey();
+                if (
+                    event.key !== authKey &&
+                    event.key !== SESSION_BACKUP_STORAGE_KEY
+                ) {
+                    return;
+                }
+
+                const latest = readSessionFromStorage();
+                if (!latest) {
+                    /*
+                     * User klik Logout di tab lain -> sinkronkan logout ke tab ini.
+                     */
+                    if (currentUser && !isLoginPage()) {
+                        stopSessionKeepAlive();
+                        currentUser = null;
+                        currentProfile = null;
+                        currentRole = "user";
+                        syncNavigationGlobals();
+                        window.location.href = LOGIN_PATH;
+                    }
+                    return;
+                }
+
+                void syncSupabaseClientSession(latest);
+            });
+        }
     }
 
 
@@ -1237,6 +1669,17 @@
     }
 
 
+    window.GENZSession = {
+        ensureFreshSession: ensureFreshToken,
+        readSession: readSessionFromStorage,
+        saveSession: saveSessionToStorage,
+        saveProfileCache: saveProfileCache,
+        readProfileCache: readProfileCache,
+        clearAllAuthStorage: clearSessionStorage,
+        logout: logoutUser
+    };
+
+
     window.GENZNavigation = {
 
         init: initialize,
@@ -1253,7 +1696,11 @@
 
         readSession: readSessionFromStorage,
 
-        cleanup: () => { /* no-op */ },
+        ensureFreshToken: ensureFreshToken,
+
+        cleanup: () => {
+            stopSessionKeepAlive();
+        },
 
         ready: navigationReadyPromise
 

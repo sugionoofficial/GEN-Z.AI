@@ -1442,6 +1442,8 @@ function handleModalClick(
             }
 
 
+            window.GENZSession?.clearAllAuthStorage?.();
+
             const {
                 error
             } =
