@@ -189,6 +189,12 @@ mengedit `specs.js`. Jalankan `supabase/qwencloud-provider-models.sql`,
 lalu isi API key lewat Admin Panel → Providers → QwenCloud. Detail
 langkah lengkap ada di [QWENCLOUD-SETUP.md](QWENCLOUD-SETUP.md).
 
+QwenCloud menagih per detik, sehingga credit model QwenCloud dihitung per
+blok 5 detik (5s = 1x, 10s = 2x, 15s = 3x) lewat
+`lib/generate/qwencloud-credit.js`. Error provider diterjemahkan ke bahasa
+Indonesia (kuota gratis habis, saldo kurang, filter konten, rate limit,
+dst.) sebelum ditampilkan di halaman Generate dan History.
+
 Model lain memiliki folder sendiri di `models/` dengan struktur:
 
 ```

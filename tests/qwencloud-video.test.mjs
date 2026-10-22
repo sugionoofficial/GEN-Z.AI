@@ -13,10 +13,14 @@ import {
 
 import {
     IMAGE2VIDEO_ENDPOINT,
+    PROVIDER_ERROR_MESSAGES,
     VIDEO_GENERATION_ENDPOINT,
     getBaseUrl,
+    getProviderErrorMessage,
+    mapProviderCode,
     normalizeOutputUrls,
     normalizeStatus,
+    normalizeTaskError,
     redactSecrets
 } from "../provider/qwencloud/client.js";
 
@@ -472,4 +476,228 @@ test("exposes durations and resolutions used by the generate form", () => {
     const kf2v = model("qwen-wan2.2-kf2v-flash");
     assert.equal(findParam(kf2v, "first_frame_url").required, true);
     assert.equal(findParam(kf2v, "last_frame_url").required, true);
+});
+
+
+/* =========================================================
+   TASK-LEVEL ERROR + PESAN BAHASA INDONESIA
+========================================================= */
+
+test("maps DashScope codes to internal codes", () => {
+    assert.equal(mapProviderCode("InvalidApiKey"), "INVALID_API_KEY");
+    assert.equal(mapProviderCode("Throttling"), "RATE_LIMITED");
+    assert.equal(
+        mapProviderCode("AllocationQuota.FreeTierOnly"),
+        "FREE_QUOTA_EXHAUSTED"
+    );
+    assert.equal(
+        mapProviderCode("AllocationQuota.FreeTierExhausted"),
+        "FREE_QUOTA_EXHAUSTED"
+    );
+    assert.equal(mapProviderCode("Arrearage"), "INSUFFICIENT_BALANCE");
+    assert.equal(mapProviderCode("DataInspectionFailed"), "CONTENT_BLOCKED");
+
+    // prefix/suffix tetap dikenali
+    assert.equal(
+        mapProviderCode("AllocationQuota.FreeTierOnly:free_tier"),
+        "FREE_QUOTA_EXHAUSTED"
+    );
+
+    // fallback berdasarkan HTTP status
+    assert.equal(mapProviderCode("", 401), "INVALID_API_KEY");
+    assert.equal(mapProviderCode("", 429), "RATE_LIMITED");
+    assert.equal(mapProviderCode("", 503), "PROVIDER_UNAVAILABLE");
+    assert.equal(mapProviderCode("", 0), "QWENCLOUD_REQUEST_FAILED");
+});
+
+test("returns Indonesian messages for every internal code", () => {
+    const freeQuota = getProviderErrorMessage("FREE_QUOTA_EXHAUSTED");
+    assert.match(freeQuota, /Kuota gratis model ini sudah habis/);
+
+    assert.match(
+        getProviderErrorMessage("INSUFFICIENT_BALANCE"),
+        /Saldo QwenCloud tidak mencukupi/
+    );
+    assert.match(
+        getProviderErrorMessage("CONTENT_BLOCKED"),
+        /filter konten/
+    );
+    assert.match(
+        getProviderErrorMessage("RATE_LIMITED"),
+        /Permintaan terlalu cepat/
+    );
+
+    // kode tidak dikenal tetap memberi pesan Indonesia
+    assert.equal(
+        getProviderErrorMessage("APA-SAJA"),
+        PROVIDER_ERROR_MESSAGES.QWENCLOUD_REQUEST_FAILED
+    );
+    assert.equal(
+        getProviderErrorMessage(null),
+        PROVIDER_ERROR_MESSAGES.QWENCLOUD_REQUEST_FAILED
+    );
+});
+
+test("normalizes a task that failed because the free quota ran out", () => {
+    const result = normalizeTaskError(
+        {
+            task_status: "FAILED",
+            code: "AllocationQuota.FreeTierOnly",
+            message:
+                "AllocationQuota.FreeTierOnly: You have no free quota left for this model."
+        },
+        {}
+    );
+
+    assert.equal(result.errorCode, "FREE_QUOTA_EXHAUSTED");
+    assert.match(result.errorMessage, /Kuota gratis model ini sudah habis/);
+    assert.equal(
+        result.providerCode,
+        "AllocationQuota.FreeTierOnly"
+    );
+    assert.match(result.providerMessage, /no free quota left/);
+});
+
+test("normalizes content-filter and overdue-billing task failures", () => {
+    assert.equal(
+        normalizeTaskError({ code: "DataInspectionFailed" }, {}).errorCode,
+        "CONTENT_BLOCKED"
+    );
+    assert.equal(
+        normalizeTaskError({ code: "Arrearage" }, {}).errorCode,
+        "INSUFFICIENT_BALANCE"
+    );
+});
+
+test("returns empty normalization for tasks without errors", () => {
+    assert.deepEqual(normalizeTaskError({}, {}), {
+        errorCode: null,
+        errorMessage: null,
+        providerCode: null,
+        providerMessage: null
+    });
+});
+
+test("falls back to the provider message when the code is unknown", () => {
+    const result = normalizeTaskError(
+        {
+            code: "SomeNewProviderError",
+            message: "Provider failure detail"
+        },
+        {}
+    );
+
+    assert.equal(result.errorCode, "QWENCLOUD_REQUEST_FAILED");
+    assert.match(
+        result.errorMessage,
+        /^Permintaan ke QwenCloud gagal\. Detail: Provider failure detail$/
+    );
+});
+
+test("queryTask exposes the normalized task error", async () => {
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async () => ({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+            request_id: "req-quota",
+            output: {
+                task_id: "task-quota",
+                task_status: "FAILED",
+                code: "AllocationQuota.FreeTierOnly",
+                message: "no free quota"
+            }
+        })
+    });
+
+    try {
+        const result = await model("qwen-wan2.6-t2v").queryTask(
+            "task-quota",
+            "sk-test"
+        );
+
+        assert.equal(result.status, "FAILED");
+        assert.equal(result.errorCode, "FREE_QUOTA_EXHAUSTED");
+        assert.equal(result.error_code, "FREE_QUOTA_EXHAUSTED");
+        assert.match(
+            result.errorMessage,
+            /Kuota gratis model ini sudah habis/
+        );
+        assert.match(
+            result.error_message,
+            /Kuota gratis model ini sudah habis/
+        );
+        assert.equal(
+            result.providerErrorCode,
+            "AllocationQuota.FreeTierOnly"
+        );
+        assert.equal(result.providerErrorMessage, "no free quota");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("queryTask leaves error fields empty for a running task", async () => {
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async () => ({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+            output: {
+                task_id: "task-run",
+                task_status: "RUNNING"
+            }
+        })
+    });
+
+    try {
+        const result = await model("qwen-wan2.6-t2v").queryTask(
+            "task-run",
+            "sk-test"
+        );
+
+        assert.equal(result.status, "PROCESSING");
+        assert.equal(result.errorCode, null);
+        assert.equal(result.errorMessage, null);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("HTTP errors are surfaced with Indonesian messages", async () => {
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async () => ({
+        ok: false,
+        status: 429,
+        statusText: "Too Many Requests",
+        text: async () => JSON.stringify({
+            code: "Throttling.RateQuota",
+            message: "Requests rate limit exceeded"
+        })
+    });
+
+    try {
+        await assert.rejects(
+            () => model("qwen-wan2.6-t2v").createTask(
+                {
+                    prompt: "a",
+                    aspect_ratio: "16:9",
+                    resolution: "720P",
+                    duration: "5"
+                },
+                "sk-test"
+            ),
+            error => {
+                assert.equal(error.code, "RATE_LIMITED");
+                assert.match(error.message, /Permintaan terlalu cepat/);
+                assert.equal(error.providerMessage, "Requests rate limit exceeded");
+                return true;
+            }
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
 });

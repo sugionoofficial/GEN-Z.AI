@@ -421,6 +421,301 @@ const DASHSCOPE_ERROR_CODES =
     });
 
 
+/* =========================================================
+   PESAN ERROR (BAHASA INDONESIA)
+   ---------------------------------------------------------
+   Kode internal → pesan siap tampil di halaman Generate /
+   History. Teks provider asli tetap disimpan di
+   `providerMessage` untuk troubleshooting.
+========================================================= */
+
+const PROVIDER_ERROR_MESSAGES =
+    Object.freeze({
+
+        FREE_QUOTA_EXHAUSTED:
+            "Kuota gratis model ini sudah habis. Pilih model lain atau aktifkan penagihan pay-as-you-go di QwenCloud.",
+
+        INSUFFICIENT_BALANCE:
+            "Saldo QwenCloud tidak mencukupi atau ada tagihan tertunggak. Semua panggilan model diblokir sampai pembayaran diselesaikan.",
+
+        INVALID_API_KEY:
+            "API key QwenCloud tidak valid atau bukan untuk region Singapore. Periksa kembali key di Admin Panel → Providers.",
+
+        ACCESS_DENIED:
+            "API key tidak punya akses ke model ini. Pastikan model sudah aktif di akun QwenCloud.",
+
+        MODEL_NOT_FOUND:
+            "Model tidak ditemukan di akun QwenCloud. Periksa nama model atau region endpoint.",
+
+        RATE_LIMITED:
+            "Permintaan terlalu cepat. Tunggu beberapa saat lalu coba lagi.",
+
+        CONTENT_BLOCKED:
+            "Prompt atau media ditolak oleh filter konten QwenCloud. Ubah prompt/gambar lalu coba lagi.",
+
+        INVALID_PAYLOAD:
+            "Parameter tidak diterima QwenCloud. Periksa prompt, durasi, dan resolusi.",
+
+        PROVIDER_TIMEOUT:
+            "QwenCloud tidak merespons tepat waktu. Coba lagi beberapa saat.",
+
+        PROVIDER_NETWORK_ERROR:
+            "Tidak dapat menghubungi QwenCloud. Periksa koneksi lalu coba lagi.",
+
+        PROVIDER_UNAVAILABLE:
+            "Layanan QwenCloud sedang bermasalah. Coba lagi beberapa saat.",
+
+        TASK_NOT_FOUND:
+            "Task tidak ditemukan di QwenCloud — hasil hanya tersimpan 24 jam.",
+
+        QWENCLOUD_REQUEST_FAILED:
+            "Permintaan ke QwenCloud gagal."
+
+    });
+
+
+/* =========================================================
+   ERROR CODE MAPPER
+   ---------------------------------------------------------
+   Dipakai untuk error HTTP (create task) maupun error
+   tingkat task (output.code saat task FAILED).
+========================================================= */
+
+function mapProviderCode(
+    providerCode,
+    status = 0
+) {
+
+    const normalized =
+        String(
+            providerCode ||
+            ""
+        ).trim();
+
+
+    const mapped =
+        DASHSCOPE_ERROR_CODES[
+            normalized
+        ];
+
+
+    if (mapped) {
+
+        return mapped;
+
+    }
+
+
+    /*
+     * DashScope kadang memakai prefix atau suffix pada code,
+     * contoh: "AllocationQuota.FreeTierOnly:xxx".
+     */
+
+    for (
+        const [
+            key,
+            value
+        ] of Object.entries(
+            DASHSCOPE_ERROR_CODES
+        )
+    ) {
+
+        if (
+            normalized
+                .toLowerCase()
+                .includes(
+                    key.toLowerCase()
+                )
+        ) {
+
+            return value;
+
+        }
+
+    }
+
+
+    switch (Number(status) || 0) {
+
+        case 400:
+            return "INVALID_PAYLOAD";
+
+        case 401:
+            return "INVALID_API_KEY";
+
+        case 402:
+            return "INSUFFICIENT_BALANCE";
+
+        case 403:
+            return "ACCESS_DENIED";
+
+        case 404:
+            return "TASK_NOT_FOUND";
+
+        case 429:
+            return "RATE_LIMITED";
+
+        case 500:
+        case 502:
+        case 503:
+            return "PROVIDER_UNAVAILABLE";
+
+        default:
+            return "QWENCLOUD_REQUEST_FAILED";
+
+    }
+
+}
+
+
+/* =========================================================
+   PESAN ERROR BAHASA INDONESIA
+========================================================= */
+
+function getProviderErrorMessage(
+    code
+) {
+
+    return (
+        PROVIDER_ERROR_MESSAGES[
+            String(
+                code ||
+                ""
+            ).trim()
+        ] ||
+        PROVIDER_ERROR_MESSAGES.QWENCLOUD_REQUEST_FAILED
+    );
+
+}
+
+
+/* =========================================================
+   TASK-LEVEL ERROR
+   ---------------------------------------------------------
+   HTTP 200 + output.task_status = FAILED tetap membawa
+   output.code (mis. AllocationQuota.FreeTierOnly).
+   Tanpa normalisasi, user hanya melihat pesan Inggris
+   mentah dari provider.
+========================================================= */
+
+function normalizeTaskError(
+    output = {},
+    data = {}
+) {
+
+    const providerCode =
+        String(
+            output?.code ||
+            output?.error_code ||
+            data?.code ||
+            ""
+        ).trim();
+
+
+    const providerMessage =
+        String(
+            output?.message ||
+            output?.error_message ||
+            data?.message ||
+            ""
+        ).trim();
+
+
+    if (
+        !providerCode &&
+        !providerMessage
+    ) {
+
+        return {
+
+            errorCode:
+                null,
+
+            errorMessage:
+                null,
+
+            providerCode:
+                null,
+
+            providerMessage:
+                null
+
+        };
+
+    }
+
+
+    const errorCode =
+        mapProviderCode(
+            providerCode,
+            0
+        );
+
+
+    const genericMessage =
+        PROVIDER_ERROR_MESSAGES.QWENCLOUD_REQUEST_FAILED;
+
+
+    const friendly =
+        PROVIDER_ERROR_MESSAGES[
+            errorCode
+        ] ||
+        null;
+
+
+    /*
+     * Kode yang dikenali → pesan Indonesia siap tampil.
+     * Kode asing → pesan Indonesia umum + detail provider
+     * agar tetap bisa ditindaklanjuti.
+     */
+
+    let errorMessage;
+
+
+    if (
+        friendly &&
+        errorCode !==
+            "QWENCLOUD_REQUEST_FAILED"
+    ) {
+
+        errorMessage =
+            friendly;
+
+    } else if (
+        providerMessage
+    ) {
+
+        errorMessage =
+            `${genericMessage} Detail: ${providerMessage}`;
+
+    } else {
+
+        errorMessage =
+            friendly ||
+            "Task QwenCloud gagal diproses.";
+
+    }
+
+
+    return {
+
+        errorCode,
+
+        errorMessage,
+
+        providerCode:
+            providerCode ||
+            null,
+
+        providerMessage:
+            providerMessage ||
+            null
+
+    };
+
+}
+
+
 function createProviderError(
     response,
     data
@@ -440,11 +735,24 @@ function createProviderError(
         ).trim();
 
 
+    const code =
+        mapProviderCode(
+            providerCode,
+            status
+        );
+
+
+    const providerMessage =
+        extractErrorMessage(
+            data,
+            status
+        );
+
+
     const error =
         new Error(
-            extractErrorMessage(
-                data,
-                status
+            getProviderErrorMessage(
+                code
             )
         );
 
@@ -469,59 +777,22 @@ function createProviderError(
         data;
 
 
-    let code =
-        DASHSCOPE_ERROR_CODES[providerCode] ||
-        null;
-
-
-    if (!code) {
-
-        switch (status) {
-
-            case 400:
-                code = "INVALID_PAYLOAD";
-                break;
-
-            case 401:
-                code = "INVALID_API_KEY";
-                break;
-
-            case 402:
-                code = "INSUFFICIENT_BALANCE";
-                break;
-
-            case 403:
-                code = "ACCESS_DENIED";
-                break;
-
-            case 404:
-                code = "TASK_NOT_FOUND";
-                break;
-
-            case 429:
-                code = "RATE_LIMITED";
-                break;
-
-            case 500:
-            case 502:
-            case 503:
-                code = "PROVIDER_UNAVAILABLE";
-                break;
-
-            default:
-                code = "QWENCLOUD_REQUEST_FAILED";
-
-        }
-
-    }
-
-
     error.code =
         code;
 
 
     error.providerCode =
         providerCode ||
+        null;
+
+
+    /*
+     * Pesan asli provider tetap disimpan untuk log/troubleshooting,
+     * sedangkan error.message sudah berbahasa Indonesia.
+     */
+
+    error.providerMessage =
+        providerMessage ||
         null;
 
 
@@ -1078,12 +1349,17 @@ export {
     VIDEO_GENERATION_ENDPOINT,
     IMAGE2VIDEO_ENDPOINT,
 
+    PROVIDER_ERROR_MESSAGES,
+
     createProviderError,
     createVideoTask,
     getBaseUrl,
+    getProviderErrorMessage,
     getTask,
+    mapProviderCode,
     normalizeOutputUrls,
     normalizeStatus,
+    normalizeTaskError,
     redactSecrets
 };
 
@@ -1093,8 +1369,11 @@ export default Object.freeze({
     createVideoTask,
     getTask,
     normalizeStatus,
+    normalizeTaskError,
     normalizeOutputUrls,
     getBaseUrl,
+    getProviderErrorMessage,
+    mapProviderCode,
     redactSecrets,
     PROVIDER_ID,
     PROVIDER_NAME
