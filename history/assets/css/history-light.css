@@ -756,3 +756,18 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .upscale-already-tex
 html[data-genz-theme="light"][data-genz-theme="light"] body .upscale-hint {
     color: #55627a !important;
 }
+
+
+/* ---------------------------------------------------------
+   THUMBNAIL REFERENSI (MODE CERAH)
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .thumbnail-reference {
+    background: #eef2f9 !important;
+    border: 1px solid #dbe3ee !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .thumbnail-reference-label {
+    background: linear-gradient(transparent, rgba(238, 242, 249, .96) 40%) !important;
+    color: #33405a !important;
+}

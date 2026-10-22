@@ -633,19 +633,99 @@
        THUMBNAIL
     ===================================================== */
 
-    function getProcessingThumbnailHtml() {
+    /* =================================================
+       REFERENCE THUMBNAIL
+       -------------------------------------------------
+       Saat generation masih diproses, hasil belum ada.
+       Yang bisa ditampilkan adalah referensi yang dipakai
+       (image_reference_url / video_reference_url).
+    ================================================= */
+
+    function getReferenceThumbnail(item) {
+
+        const imageUrl =
+            String(
+                item?.image_reference_url || ""
+            ).trim();
+
+        const videoUrl =
+            String(
+                item?.video_reference_url || ""
+            ).trim();
+
+        if (!imageUrl && !videoUrl) {
+
+            return null;
+        }
+
+        return {
+            url: imageUrl || videoUrl,
+            isVideo: !imageUrl && Boolean(videoUrl)
+        };
+    }
+
+
+    function getProcessingThumbnailHtml(
+        item
+    ) {
+
+        const reference =
+            getReferenceThumbnail(
+                item
+            );
+
+        const referenceHtml =
+            reference
+                ? `
+                    <div
+                        class="thumbnail-reference"
+                        aria-label="Referensi generation"
+                    >
+
+                        ${
+                            reference.isVideo
+                                ? `
+                                    <video
+                                        src="${escapeHtml(reference.url)}"
+                                        muted
+                                        playsinline
+                                        preload="metadata"
+                                    ></video>
+                                `
+                                : `
+                                    <img
+                                        src="${escapeHtml(reference.url)}"
+                                        alt="Referensi"
+                                        loading="lazy"
+                                    >
+                                `
+                        }
+
+                        <span class="thumbnail-reference-label">
+                            REF
+                        </span>
+
+                    </div>
+                `
+                : "";
 
         return `
-            <div
-                class="history-thumbnail thumbnail-processing"
-                aria-label="Generation sedang diproses"
-            >
+            <div class="thumbnail-processing-wrap">
 
-                <div class="thumbnail-loader"></div>
+                <div
+                    class="history-thumbnail thumbnail-processing"
+                    aria-label="Generation sedang diproses"
+                >
 
-                <span class="thumbnail-processing-label">
-                    GENERATING
-                </span>
+                    <div class="thumbnail-loader"></div>
+
+                    <span class="thumbnail-processing-label">
+                        GENERATING
+                    </span>
+
+                </div>
+
+                ${referenceHtml}
 
             </div>
         `;
@@ -889,7 +969,9 @@
 
             case "processing":
             case "pending":
-                return getProcessingThumbnailHtml();
+                return getProcessingThumbnailHtml(
+                    item
+                );
 
             case "success":
                 return getSuccessThumbnailHtml(
