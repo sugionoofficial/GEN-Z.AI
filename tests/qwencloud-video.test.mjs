@@ -845,3 +845,25 @@ test("Wan models keep enum durations while HappyHorse keeps the range", () => {
         undefined
     );
 });
+
+
+test("models without resolutions stay editable in the admin model editor", () => {
+    const animate = model("qwen-wan2.2-animate-move");
+    const flatConfig = animate.config.adminEditor;
+
+    assert.equal(flatConfig.hideParameterSummary, true);
+    assert.equal(flatConfig.resolutionOptions, undefined);
+    assert.equal(
+        flatConfig.resolutionIndependent,
+        true,
+        "Edit Model menolak simpan model tanpa resolutionOptions tanpa flag ini"
+    );
+
+    const video = model("qwen-happyhorse-1.1-t2v").config.adminEditor;
+
+    assert.equal(video.resolutionIndependent, undefined);
+    assert.deepEqual(
+        video.resolutionOptions.map(option => option.value),
+        [ "720p", "1080p", "480p" ]
+    );
+});
