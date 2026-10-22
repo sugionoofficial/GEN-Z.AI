@@ -51,7 +51,8 @@ import {
     createVideoTask,
     getTask,
     normalizeOutputUrls,
-    normalizeStatus
+    normalizeStatus,
+    normalizeTaskError
 } from "../../provider/qwencloud/client.js";
 
 import {
@@ -1668,6 +1669,19 @@ function createQwenCloudVideoModel(
             );
 
 
+        /*
+         * Error tingkat task: HTTP 200 + task FAILED tetap
+         * membawa output.code (mis. AllocationQuota.FreeTierOnly)
+         * yang harus diterjemahkan ke pesan Indonesia.
+         */
+
+        const taskError =
+            normalizeTaskError(
+                output,
+                data
+            );
+
+
         return {
 
             success:
@@ -1713,15 +1727,23 @@ function createQwenCloudVideoModel(
                 data?.usage ||
                 null,
 
+            errorCode:
+                taskError.errorCode,
+
+            error_code:
+                taskError.errorCode,
+
             errorMessage:
-                output.message ||
-                data?.message ||
-                null,
+                taskError.errorMessage,
 
             error_message:
-                output.message ||
-                data?.message ||
-                null,
+                taskError.errorMessage,
+
+            providerErrorCode:
+                taskError.providerCode,
+
+            providerErrorMessage:
+                taskError.providerMessage,
 
             raw:
                 data

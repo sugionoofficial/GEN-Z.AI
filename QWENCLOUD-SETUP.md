@@ -74,6 +74,32 @@ Harga acuan QwenCloud (Singapore):
 Model dengan harga flat (tanpa resolusi), seperti Wan Animate, memakai
 `credit_720p` sebagai harga tunggal.
 
+#### Credit dihitung per blok 5 detik
+
+QwenCloud menagih **per detik**, jadi credit di database adalah harga
+untuk **5 detik (1 blok)** dan sistem mengalikannya otomatis:
+
+| Durasi | Faktor | Contoh (`credit_720p = 30`) |
+|---|---|---|
+| 5 detik | 1x | 30 credit |
+| 10 detik | 2x | 60 credit |
+| 15 detik | 3x | 90 credit |
+
+- Pembulatan ke atas: 6 detik → 2 blok.
+- Model tanpa parameter durasi (Wan Animate) selalu 1x.
+- Faktor dibatasi maksimal 10x sebagai pengaman.
+- Diskon model tetap dihitung setelah faktor durasi.
+- Logika ada di `lib/generate/qwencloud-credit.js` (murni fungsi, ada
+  unit test di `tests/qwencloud-credit.test.mjs`), diuji juga lewat
+  helper di `tests/`.
+
+Contoh log saat generate:
+
+```
+credit_unit: 30, duration_seconds: 10, duration_factor: 2,
+credit_base: 60, discount_percent: 0, credit: 60
+```
+
 ---
 
 ## 4. Environment (opsional)
@@ -162,7 +188,53 @@ Tidak perlu file adapter baru.
 
 ---
 
-## 8. Troubleshooting
+## 8. Kuota Gratis QwenCloud
+
+Aturan resmi QwenCloud yang memengaruhi provider ini:
+
+| Aturan | Konsekuensi di GEN-Z.AI |
+|---|---|
+| Kuota gratis **hanya region Singapore** (API key + endpoint Singapore) | `DASHSCOPE_BASE_URL` lain (Beijing/Frankfurt) akan ditagih penuh dari detik pertama |
+| Berlaku **90 hari** sejak aktivasi akun atau rilis model | Kuota tidak dipause walau tidak dipakai; sisa kuota hangus saat kedaluwarsa |
+| **Per model**, tidak bisa digabung / dipindah | 13 model = 13 kuota terpisah, tidak otomatis dialihkan kalau satu habis |
+| Snapshot bertanggal (mis. `wan2.6-t2v-2026-09-01`) dihitung **model terpisah** | Bisa didaftarkan sebagai model tambahan untuk mendapat kuota ekstra |
+| Toggle **Free quota only** memblokir request saat kuota habis | Request gagal dengan `AllocationQuota.FreeTierOnly` → GEN-Z.AI menampilkan pesan kuota habis, credit user **otomatis direfund** |
+| Tagihan tertunggak memblokir **semua** model walau kuota masih ada | Error `Arrearage` → pesan "Saldo QwenCloud tidak mencukupi" |
+
+Cek sisa kuota di **Free Tier** (`home.qwencloud.com/benefits`) dengan
+region **Singapore** aktif. Data kuota di konsol terlambat beberapa menit,
+jadi jangan mengandalkan angka di layar untuk request terakhir.
+
+---
+
+## 9. Pesan Error (Bahasa Indonesia)
+
+Error provider diterjemahkan sebelum sampai ke user. Pesan asli tetap
+disimpan di `providerMessage` untuk troubleshooting.
+
+| Kode internal | Kapan muncul | Pesan ke user |
+|---|---|---|
+| `FREE_QUOTA_EXHAUSTED` | `AllocationQuota.FreeTierOnly` / `FreeTierExhausted` | Kuota gratis model ini sudah habis. Pilih model lain atau aktifkan pay-as-you-go di QwenCloud. |
+| `INSUFFICIENT_BALANCE` | `Arrearage` / HTTP 402 | Saldo QwenCloud tidak mencukupi atau ada tagihan tertunggak… |
+| `INVALID_API_KEY` | `InvalidApiKey` / HTTP 401 | API key QwenCloud tidak valid atau bukan untuk region Singapore… |
+| `ACCESS_DENIED` | `AccessDenied` / HTTP 403 | API key tidak punya akses ke model ini… |
+| `MODEL_NOT_FOUND` | `ModelNotFound` | Model tidak ditemukan di akun QwenCloud… |
+| `RATE_LIMITED` | `Throttling*` / HTTP 429 | Permintaan terlalu cepat. Tunggu beberapa saat lalu coba lagi. |
+| `CONTENT_BLOCKED` | `DataInspectionFailed` | Prompt atau media ditolak oleh filter konten QwenCloud… |
+| `INVALID_PAYLOAD` | `InvalidParameter` / HTTP 400 | Parameter tidak diterima QwenCloud… |
+| `PROVIDER_TIMEOUT` | create > 60s / query > 30s | QwenCloud tidak merespons tepat waktu… |
+| `PROVIDER_NETWORK_ERROR` | fetch gagal | Tidak dapat menghubungi QwenCloud… |
+| `TASK_NOT_FOUND` | HTTP 404 | Task tidak ditemukan — hasil hanya tersimpan 24 jam. |
+
+Error **tingkat task** juga dinormalisasi: DashScope bisa membalas
+HTTP 200 dengan `output.task_status = "FAILED"` dan `output.code` berisi
+`AllocationQuota.FreeTierOnly` atau `DataInspectionFailed`. Kode itu
+dipetakan lewat `normalizeTaskError()` sehingga riwayat generation
+menampilkan alasan Indonesia, bukan pesan Inggris mentah.
+
+---
+
+## 10. Troubleshooting
 
 | Gejala | Penyebab umum |
 |---|---|

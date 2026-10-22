@@ -14,12 +14,37 @@
 --      per resolusi sesuai harga jual kamu.
 --
 -- CATATAN CREDIT
---   Nilai credit di bawah adalah DEFAULT konservatif.
+--   Nilai credit di bawah adalah DEFAULT konservatif dan
+--   dihitung untuk DURASI 5 DETIK (1 blok).
+--
+--   QwenCloud menagih per detik, jadi GEN-Z.AI mengalikan
+--   credit secara otomatis:
+--       5s = 1x   |   10s = 2x   |   15s = 3x
+--   (lihat lib/generate/qwencloud-credit.js)
+--
+--   Contoh: wan2.6-t2v 720P = 30 credit
+--       5s  -> 30 credit
+--       10s -> 60 credit
+--       15s -> 90 credit
+--
+--   Model tanpa parameter durasi (Wan Animate) selalu 1x.
+--
 --   Harga asli QwenCloud (Singapore):
 --     wan2.6-t2v 720P  = $0.10 / detik
 --     wan2.6-t2v 1080P = $0.15 / detik
 --   Sesuaikan credit_480p / credit_720p / credit_1080p
 --   dengan kurs credit GEN-Z.AI.
+--
+-- CATATAN KUOTA GRATIS QWENCLOUD
+--   - Hanya berlaku di region SINGAPORE (key + endpoint).
+--   - 90 hari sejak aktivasi akun / rilis model.
+--   - Per model, tidak bisa digabung atau dipindah.
+--   - Snapshot bertanggal (mis. wan2.6-t2v-2026-09-01)
+--     punya kuota SENDIRI, terpisah dari wan2.6-t2v.
+--   - Toggle "Free quota only" mencegah tagihan otomatis;
+--     kalau kuota habis, request gagal dengan kode
+--     AllocationQuota.FreeTierOnly (GEN-Z.AI menampilkan
+--     pesan: "Kuota gratis model ini sudah habis...").
 -- =========================================================
 
 -- =========================================================

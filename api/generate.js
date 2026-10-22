@@ -44,6 +44,11 @@ import klingMotionControl30Pro
 import qwenCloudVideoModels
     from "../models/qwencloud-video/index.js";
 
+import {
+    resolveBillableCredit,
+    roundCredit
+} from "../lib/generate/qwencloud-credit.js";
+
 
 /* =========================================================
    ENVIRONMENT
@@ -889,7 +894,8 @@ function calculateDiscountedCredit(
 function resolveGenerationCredit(
     databaseModel,
     parameters,
-    modelId = ""
+    modelId = "",
+    modelConfig = null
 ) {
 
     if (!databaseModel) {
@@ -1190,6 +1196,21 @@ function resolveGenerationCredit(
     }
 
 
+    /* ---------- faktor durasi (QwenCloud) ---------- */
+
+    const {
+        durationSeconds,
+        durationFactor,
+        billableCredit: creditWithDuration
+    } =
+        resolveBillableCredit(
+            credit,
+            parameters,
+            modelConfig,
+            modelId
+        );
+
+
     let discountPercent;
 
 
@@ -1217,9 +1238,11 @@ function resolveGenerationCredit(
 
 
     const creditFinal =
-        calculateDiscountedCredit(
-            credit,
-            discountPercent
+        roundCredit(
+            calculateDiscountedCredit(
+                creditWithDuration,
+                discountPercent
+            )
         );
 
 
@@ -1232,7 +1255,16 @@ function resolveGenerationCredit(
             creditResolution,
 
         credit_base:
+            creditWithDuration,
+
+        credit_unit:
             credit,
+
+        duration_seconds:
+            durationSeconds,
+
+        duration_factor:
+            durationFactor,
 
         discount_percent:
             discountPercent,
@@ -4600,7 +4632,8 @@ export default async function handler(
             resolveGenerationCredit(
                 databaseModel,
                 parameters,
-                modelId
+                modelId,
+                modelConfig
             );
 
     } catch (error) {
