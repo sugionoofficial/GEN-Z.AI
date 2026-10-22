@@ -1,0 +1,191 @@
+/* =========================================================
+   GEN-Z.AI — TEMPMAIL (email.html)
+   LIGHT THEME (MODE CERAH)
+   ---------------------------------------------------------
+   File:
+   assets/css/tempmail-light.css
+
+   Dimuat SETELAH <style> inline email.html.
+
+   Kenapa perlu:
+   - Halaman TempMail memakai palet gelap langsung (body #0a0a0a,
+     teks #eee, .box #333 + rgba(255,255,255,.015)).
+   - Di mode cerah theme.js memutihkan body/teks, sehingga kartu
+     (termasuk kotak "Pesan Masuk" dan "Isi Pesan") tetap gelap,
+     alamat email hijau neon menyilaukan, dan teks #888 pada
+     kartu gelap jadi samar.
+   - Beberapa warna masih ditulis inline di markup (h3 "color:#fff",
+     keterangan "color:#888") dan lewat innerHTML di JS.
+
+   Semua aturan di-scope ke html[data-genz-theme="light"]
+   sehingga MODE GELAP tidak berubah.
+========================================================= */
+
+
+/* =========================================================
+   01. PAGE
+========================================================= */
+
+html[data-genz-theme="light"] {
+    color-scheme: light;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body {
+    background:
+        radial-gradient(ellipse at 12% 0%, rgba(255, 48, 72, .07), transparent 32rem),
+        linear-gradient(145deg, #f7f9fd 0%, #eef2f9 52%, #e9eef7 100%) !important;
+    background-attachment: fixed !important;
+    color: #0b1424 !important;
+}
+
+
+/* =========================================================
+   02. HEADING
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body h1 {
+    color: #b3122f !important;
+    text-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .subtitle {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .email-container h3 {
+    color: #0b1424 !important;
+}
+
+
+/* =========================================================
+   03. BUTTONS
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body button {
+    border: 1px solid #a80d24 !important;
+    background: linear-gradient(135deg, #d4162f, #a80d24) !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(168, 13, 36, .18) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #e01a34, #b90f28) !important;
+    border-color: #8f0a1e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body button:disabled {
+    border-color: #dbe3ee !important;
+    background: #f1f5fb !important;
+    color: #5b677c !important;
+    opacity: 1 !important;
+    cursor: not-allowed;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body button.secondary {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+    box-shadow: 0 2px 8px rgba(40, 54, 82, .06) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body button.secondary:hover:not(:disabled) {
+    border-color: #e07a8d !important;
+    background: #fff5f6 !important;
+    color: #b3122f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .spinner {
+    border: 2px solid rgba(255, 255, 255, .45) !important;
+    border-top-color: #ffffff !important;
+}
+
+
+/* =========================================================
+   04. BOX / CARD
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .box {
+    border: 1px solid #e2e8f1 !important;
+    background: #ffffff !important;
+    color: #33405a !important;
+    box-shadow: 0 12px 30px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .box > div[style] {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #status {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #status.error {
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #status.success {
+    color: #0a6b3f !important;
+}
+
+
+/* =========================================================
+   05. ALAMAT EMAIL
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .email-text {
+    color: #0a6b3f !important;
+    background: #eafaf1;
+    border: 1px solid #b7e3cb;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+
+/* =========================================================
+   06. DAFTAR PESAN
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-item {
+    border-bottom: 1px solid #eef2f8 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-item:hover {
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-subject {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-from {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #message-list > p {
+    color: #58657b !important;
+}
+
+
+/* =========================================================
+   07. ISI PESAN
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-meta {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-meta strong {
+    color: #17233a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-meta span {
+    color: #33405a !important;
+}
+
+/* Body email tetap berlatar putih agar konten HTML dari pengirim
+   (logo, tabel, warna brand) tidak berubah tampilannya. */
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-body {
+    border: 1px solid #dbe3ee !important;
+    background: #ffffff !important;
+    color: #101a2e !important;
+}
