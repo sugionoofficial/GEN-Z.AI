@@ -1028,22 +1028,15 @@
                     <div class="genz-brand">
                         <a class="genz-logo" href="/" title="gen-z.ai" aria-label="gen-z.ai — beranda">
                             <img
-                                class="genz-logo-img genz-logo-img-dark"
-                                src="/assets/brand/gen-z-ai-sidebar.svg?v=1"
-                                alt="gen-z.ai"
-                                width="379"
-                                height="96"
-                                decoding="async"
-                            >
-                            <img
-                                class="genz-logo-img genz-logo-img-light"
-                                src="/assets/brand/gen-z-ai-sidebar-light.svg?v=1"
+                                class="genz-logo-mark-img"
+                                src="/assets/brand/gen-z-ai-mark-tile.svg?v=2"
                                 alt=""
                                 aria-hidden="true"
-                                width="379"
-                                height="96"
+                                width="120"
+                                height="120"
                                 decoding="async"
                             >
+                            <span class="genz-logo-text">gen-z<span class="genz-logo-ai">.ai</span></span>
                         </a>
                     </div>
                     <button type="button" class="genz-mobile-close" id="genz-mobile-close" aria-label="Close menu">×</button>
@@ -1340,14 +1333,15 @@
             .genz-brand { min-width: 0; }
 
             /*
-             * Logo sidebar: aset vektor (mark Z + "gen-z.ai")
-             * dengan tinggi tetap supaya tajam di layar retina
-             * dan tidak ikut mengecil saat wordmark di-zip.
+             * Logo sidebar: mark Z (aset 1:1) berdampingan dengan
+             * teks URL "gen-z.ai". Teksnya tetap teks asli supaya
+             * bisa diseleksi, tajam di semua DPI, dan ikut tema.
              */
 
             .genz-logo {
                 display: inline-flex;
                 align-items: center;
+                gap: 10px;
                 min-height: 40px;
                 padding: 0;
                 border: 0;
@@ -1357,22 +1351,44 @@
                 transition: opacity .18s ease;
             }
 
-            .genz-logo:hover { opacity: .86; }
+            .genz-logo:hover { opacity: .85; }
 
-            .genz-logo-img {
+            .genz-logo-mark-img {
                 display: block;
-                width: auto;
-                height: 38px;
-                max-width: 100%;
+                width: 36px;
+                height: 36px;
+                flex: 0 0 36px;
+                border-radius: 9px;
                 user-select: none;
                 -webkit-user-drag: none;
             }
 
-            /* versi terang dipakai otomatis saat tema light */
-            .genz-logo-img-light { display: none; }
+            .genz-logo-text {
+                color: #ffffff;
+                font-size: 19px;
+                font-weight: 900;
+                letter-spacing: -.45px;
+                line-height: 1;
+                white-space: nowrap;
+            }
 
-            html[data-genz-theme="light"] .genz-logo-img-dark { display: none; }
-            html[data-genz-theme="light"] .genz-logo-img-light { display: block; }
+            .genz-logo-ai {
+                background: linear-gradient(135deg, #b7a8ff 0%, #7fa9ff 52%, #55d9f2 100%);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                color: transparent;
+            }
+
+            html[data-genz-theme="light"] .genz-logo-text {
+                color: #0f172a;
+            }
+
+            html[data-genz-theme="light"] .genz-logo-ai {
+                background: linear-gradient(135deg, #6d55e8 0%, #3b7be0 52%, #1f9fc0 100%);
+                -webkit-background-clip: text;
+                background-clip: text;
+            }
 
             .genz-mobile-close {
                 display: none;
@@ -1575,8 +1591,9 @@
                     padding: 13px 11px;
                 }
                 .genz-brand { flex: 1 1 auto; }
-                .genz-logo { min-height: 36px; }
-                .genz-logo-img { height: 34px; }
+                .genz-logo { min-height: 36px; gap: 9px; }
+                .genz-logo-mark-img { width: 32px; height: 32px; flex-basis: 32px; border-radius: 8px; }
+                .genz-logo-text { font-size: 17px; }
                 .genz-mobile-close {
                     display: flex;
                     flex: 0 0 40px;
@@ -1595,8 +1612,9 @@
             }
 
             @media (max-width: 480px) {
-                .genz-logo { min-height: 32px; }
-                .genz-logo-img { height: 30px; }
+                .genz-logo { min-height: 32px; gap: 8px; }
+                .genz-logo-mark-img { width: 30px; height: 30px; flex-basis: 30px; border-radius: 8px; }
+                .genz-logo-text { font-size: 16px; }
                 .genz-nav { padding: 7px 8px 14px; }
                 .genz-sidebar-footer { padding: 9px 8px 12px; }
                 .genz-account-box { margin-bottom: 9px; }
