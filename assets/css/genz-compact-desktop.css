@@ -1,0 +1,87 @@
+/* =========================================================
+   GEN-Z.AI
+   COMPACT DESKTOP — LEBAR BLOK SITEWIDE
+   ---------------------------------------------------------
+   File: assets/css/genz-compact-desktop.css
+
+   Tujuan:
+   - Semua blok halaman admin & user tidak lagi melebar
+     sampai ujung kiri-kanan layar di desktop.
+   - Satu sumber kebenaran: halaman cukup memuat file ini,
+     tidak perlu menulis ulang max-width di tiap halaman.
+
+   Kenapa memakai !important:
+   - Beberapa halaman punya <style> tambahan SETELAH </head>
+     (contoh: admin-control/models.html menulis ulang
+     .main-content { max-width: 1600px } di body), sehingga
+     aturan biasa di head kalah urutan.
+   - Dengan !important di sini, blok tetap ringkas walau
+     halaman menambah CSS-nya sendiri di kemudian hari.
+
+   Cakupan:
+   - Hanya aktif di desktop (min-width: 901px).
+   - Tablet & HP tidak berubah sama sekali.
+
+   Warna, tema cerah/gelap, dan layout internal TIDAK diubah.
+   Hanya lebar maksimum kontainer.
+========================================================= */
+
+@media (min-width: 901px) {
+
+    /* -----------------------------------------------------
+       01. KONTAINER UTAMA — 1120px
+    ----------------------------------------------------- */
+
+    html body :is(
+        .main,
+        .content,
+        .container,
+        .main-content,
+        .provider-content,
+        .page-shell,
+        .page,
+        .wrap,
+        .upscale-page,
+        .vision-page,
+        .metadata-cleaner-container,
+        .gz-container,
+        .chat-shell,
+        .user-management-page
+    ) {
+        max-width: 1120px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+
+    /* -----------------------------------------------------
+       02. KONTAINER YANG BUTUH SEDIKIT LEBIH LEBAR
+    ----------------------------------------------------- */
+
+    html body :is(
+        .vision-video-hero,
+        .vision-video-main-grid
+    ) {
+        max-width: 1160px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    /* VidDRA studio butuh ruang untuk panel kiri + preview */
+    html body .viddra-shell {
+        max-width: 1240px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+
+    /* -----------------------------------------------------
+       03. PADDING SAMPING
+       Supaya konten tidak menempel ke tepi layar.
+    ----------------------------------------------------- */
+
+    html body .user-management-page {
+        padding-left: 24px !important;
+        padding-right: 24px !important;
+    }
+}

@@ -5154,3 +5154,55 @@ input[type="number"]::-webkit-outer-spin-button {
 /* =========================================================
    END
 ========================================================= */
+
+
+/* =========================================================
+   COMPACT DESKTOP — LEBAR BLOK SITEWIDE
+   ---------------------------------------------------------
+   Cadangan dari assets/css/genz-compact-desktop.css.
+   Halaman yang memuat genz-premium.css otomatis ikut
+   ringkas di desktop, walaupun halaman tersebut menulis
+   max-width sendiri (karena !important di sini).
+
+   Hanya aktif di desktop (min-width: 901px).
+   Warna & tema tidak diubah.
+========================================================= */
+
+@media (min-width: 901px) {
+
+    html body :is(
+        .main,
+        .content,
+        .container,
+        .main-content,
+        .provider-content,
+        .page-shell,
+        .page,
+        .wrap,
+        .upscale-page,
+        .vision-page,
+        .metadata-cleaner-container,
+        .gz-container,
+        .chat-shell,
+        .user-management-page
+    ) {
+        max-width: 1120px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    html body :is(
+        .vision-video-hero,
+        .vision-video-main-grid
+    ) {
+        max-width: 1160px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    html body .viddra-shell {
+        max-width: 1240px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+}
