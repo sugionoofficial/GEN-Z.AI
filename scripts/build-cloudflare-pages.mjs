@@ -44,6 +44,7 @@ const staticDirectories = [
     "vision-video"
 ];
 const staticFiles = [
+    "favicon.ico",
     "index.html",
     "login.html",
     "manifest.webmanifest",

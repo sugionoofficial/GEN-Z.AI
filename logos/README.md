@@ -61,3 +61,25 @@ sehingga tinggi total sama dengan lebar wordmark.
 Lockup sidebar 378.8 × 96 px (rasio 3.95:1), tinggi tampil 38px di desktop,
 34px di tablet, 30px di layar ≤480px. Varian terang/gelap dipilih otomatis
 lewat `html[data-genz-theme="light"]` di `navigation/navigation.js`.
+
+
+## Favicon & app icon
+
+| File | Ukuran | Dipakai untuk |
+| --- | --- | --- |
+| `assets/brand/favicon.svg` | 100×100 (vektor) | favicon modern (Z 74% supaya tegas di tab) |
+| `assets/brand/favicon-16/32/48/96.png` | 16–96 px | favicon raster |
+| `assets/brand/favicon.ico` | 16+32+48+96 | fallback `/favicon.ico` |
+| `assets/brand/favicon-192.png` | 192 px | Android/PWA |
+| `assets/brand/apple-touch-icon.png` | 180 px | iOS home screen |
+| `assets/brand/app-icon.svg` / `-512` / `-1024` | 512/1024 | manifest PWA + app icon |
+
+Semua 40 halaman HTML memuat:
+
+```html
+<link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
+<link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
+<link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
+<link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
+```
