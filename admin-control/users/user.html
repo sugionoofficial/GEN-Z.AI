@@ -65,12 +65,12 @@
 
     <link
         rel="stylesheet"
-        href="./assets/css/user.css?v=admin-user-layout-20261011"
+        href="./assets/css/user.css?v=admin-deletion-20261022"
     >
 
     <link
         rel="stylesheet"
-        href="./assets/css/user-light.css?v=light-theme-20261022"
+        href="./assets/css/user-light.css?v=admin-deletion-20261022"
     >
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -216,6 +216,145 @@
                 </div>
 
             </article>
+
+        </section>
+
+
+        <!-- =================================================
+             ACCOUNT DELETION REQUESTS
+        ================================================== -->
+
+        <section
+            class="deletion-card"
+            id="deletionRequestsSection"
+            hidden
+        >
+
+            <div
+                class="deletion-card-header"
+            >
+
+                <div>
+
+                    <div
+                        class="section-title"
+                    >
+                        Permintaan Penghapusan Akun
+                        <span
+                            id="deletionPendingBadge"
+                            class="deletion-count-badge"
+                            hidden
+                        >
+                            0
+                        </span>
+                    </div>
+
+                    <div
+                        class="section-subtitle"
+                    >
+                        Diajukan user dari halaman Profil Akun. Tinjau, tandai selesai,
+                        lalu hapus akunnya lewat tombol Delete User di bawah.
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="deletion-toolbar"
+                >
+
+                    <div
+                        class="deletion-filters"
+                        role="tablist"
+                        aria-label="Filter permintaan penghapusan"
+                    >
+
+                        <button
+                            type="button"
+                            class="deletion-filter is-active"
+                            data-deletion-filter="pending"
+                            role="tab"
+                            aria-selected="true"
+                        >
+                            Menunggu
+                        </button>
+
+                        <button
+                            type="button"
+                            class="deletion-filter"
+                            data-deletion-filter="completed"
+                            role="tab"
+                            aria-selected="false"
+                        >
+                            Selesai
+                        </button>
+
+                        <button
+                            type="button"
+                            class="deletion-filter"
+                            data-deletion-filter="rejected"
+                            role="tab"
+                            aria-selected="false"
+                        >
+                            Ditolak
+                        </button>
+
+                        <button
+                            type="button"
+                            class="deletion-filter"
+                            data-deletion-filter="all"
+                            role="tab"
+                            aria-selected="false"
+                        >
+                            Semua
+                        </button>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        id="deletionRefreshButton"
+                        class="secondary-button"
+                    >
+                        Refresh
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div
+                class="deletion-body"
+                id="deletionRequestsBody"
+            >
+
+                <div
+                    class="empty-state"
+                >
+
+                    <div
+                        class="empty-icon"
+                    >
+                        …
+                    </div>
+
+                    <div
+                        class="empty-title"
+                    >
+                        Memuat Permintaan
+                    </div>
+
+                    <div
+                        class="empty-text"
+                    >
+                        Mengambil data permintaan penghapusan...
+                    </div>
+
+                </div>
+
+            </div>
 
         </section>
 
@@ -985,7 +1124,7 @@
 
     <script
         type="module"
-        src="./assets/js/user-loader.js"
+        src="./assets/js/user-loader.js?v=admin-deletion-20261022"
     ></script>
 
     <script src="/assets/js/support-chat.js" defer></script>

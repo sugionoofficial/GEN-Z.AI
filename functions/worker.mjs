@@ -7,6 +7,7 @@ import adminProviderCredentials from "../api/admin-provider-credentials.js";
 import adminUsers from "../api/admin-users.js";
 import adminCancelGeneration from "../api/admin-cancel-generation.js";
 import account from "../api/account.js";
+import adminDeletionRequests from "../api/admin-deletion-requests.js";
 import generateStatus from "../api/generate-status.js";
 import generate from "../api/generate.js";
 import kieConfig from "../api/kie-config.js";
@@ -29,6 +30,7 @@ const handlers = new Map([
     ["/api/admin-users", adminUsers],
     ["/api/admin-cancel-generation", adminCancelGeneration],
     ["/api/account", account],
+    ["/api/admin-deletion-requests", adminDeletionRequests],
     ["/api/generate-status", generateStatus],
     ["/api/generate", generate],
     ["/api/kie-config", kieConfig],
