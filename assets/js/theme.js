@@ -331,15 +331,15 @@
                 box-shadow: 8px 0 30px rgba(40, 54, 82, .12);
             }
 
-            html[data-genz-theme="light"] body .genz-logo {
-                background: #fff;
-                border-color: rgba(255, 48, 72, .34);
-            }
+            /*
+             * Logo sidebar sekarang berupa aset gambar; varian terang
+             * otomatis dipakai lewat aturan di navigation.js, jadi
+             * tidak perlu warna latar/border lagi.
+             */
 
-            html[data-genz-theme="light"] body .genz-logo-mark {
-                background: linear-gradient(135deg, #ff3048, #c8102e);
-                color: #fff;
-                border-color: rgba(200, 16, 46, .55);
+            html[data-genz-theme="light"] body .genz-logo {
+                background: none;
+                border-color: transparent;
             }
 
             html[data-genz-theme="light"] body .genz-mobile-toggle span {
@@ -391,7 +391,7 @@
             }
 
             html[data-genz-theme="light"] body :is(
-                .genz-sidebar .genz-logo-text, .genz-sidebar .genz-nav-label,
+                .genz-sidebar .genz-nav-label,
                 .genz-sidebar .genz-account-email
             ) {
                 color: var(--theme-text);

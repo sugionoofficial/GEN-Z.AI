@@ -48,3 +48,16 @@ sehingga tinggi total sama dengan lebar wordmark.
   dari SVG.
 - Jangan regangkan (selalu 1:1), jangan ganti warna gradient, dan jangan
   menambahkan efek bayangan di luar yang sudah ada.
+
+
+## Aset sidebar (dipakai di aplikasi)
+
+| File | Isi |
+| --- | --- |
+| `assets/brand/gen-z-ai-sidebar.svg` | lockup horizontal: tile Z + wordmark `gen-z.ai`, latar transparan (tema gelap) |
+| `assets/brand/gen-z-ai-sidebar-light.svg` | versi tema terang: wordmark navy + aksen `.ai` lebih pekat |
+| `assets/brand/gen-z-ai-mark-tile.svg` | mark Z dalam tile rounded, 120×120 (1:1) |
+
+Lockup sidebar 378.8 × 96 px (rasio 3.95:1), tinggi tampil 38px di desktop,
+34px di tablet, 30px di layar ≤480px. Varian terang/gelap dipilih otomatis
+lewat `html[data-genz-theme="light"]` di `navigation/navigation.js`.
