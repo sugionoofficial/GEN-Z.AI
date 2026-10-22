@@ -171,6 +171,10 @@ Pilihan Gemini memakai Nano Banana 2 Lite (`gemini-3.1-flash-lite-image`) dan
 | `qwen-wan2.6-r2v` | Wan 2.6 Reference to Video | image-to-video | QwenCloud |
 | `qwen-wan2.2-animate-move` | Wan 2.2 Animate Move | image-to-video | QwenCloud |
 | `qwen-wan2.2-animate-mix` | Wan 2.2 Animate Mix | image-to-video | QwenCloud |
+| `qwen-happyhorse-1.1-t2v` | HappyHorse 1.1 Text to Video | text-to-video | QwenCloud |
+| `qwen-happyhorse-1.1-i2v` | HappyHorse 1.1 Image to Video | image-to-video | QwenCloud |
+| `qwen-happyhorse-1.1-r2v` | HappyHorse 1.1 Reference to Video | image-to-video | QwenCloud |
+| `qwen-happyhorse-1.0-video-edit` | HappyHorse 1.0 Video Edit | video-to-video | QwenCloud |
 
 Jalankan `supabase/generation-failure-credit-refund.sql` di Supabase SQL
 Editor agar kegagalan task mengembalikan kredit GEN-Z.AI secara idempoten
@@ -191,7 +195,11 @@ langkah lengkap ada di [QWENCLOUD-SETUP.md](QWENCLOUD-SETUP.md).
 
 QwenCloud menagih per detik, sehingga credit model QwenCloud dihitung per
 blok 5 detik (5s = 1x, 10s = 2x, 15s = 3x) lewat
-`lib/generate/qwencloud-credit.js`. Error provider diterjemahkan ke bahasa
+`lib/generate/qwencloud-credit.js`. Model HappyHorse memakai gaya payload
+sendiri (`payloadStyle: "happyhorse"`): rasio dikirim sebagai
+`parameters.ratio`, media sebagai array `input.media[{ type, url }]`, dan
+durasi berupa integer bebas 3–15 detik (`durationRange`). Video Edit tidak
+punya durasi/rasio — hanya `parameters.resolution`. Error provider diterjemahkan ke bahasa
 Indonesia (kuota gratis habis, saldo kurang, filter konten, rate limit,
 dst.) sebelum ditampilkan di halaman Generate dan History.
 

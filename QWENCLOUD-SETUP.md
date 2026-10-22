@@ -1,11 +1,13 @@
 # QwenCloud (Alibaba Cloud Model Studio / DashScope) — Setup
 
-Provider **`qwencloud`** menghubungkan GEN-Z.AI ke seluruh model video Wan
-di QwenCloud: text-to-video, image-to-video, first/last frame,
-reference-to-video, dan Wan Animate.
+Provider **`qwencloud`** menghubungkan GEN-Z.AI ke seluruh model video di
+QwenCloud: **Wan 2.2 / 2.5 / 2.6** (text-to-video, image-to-video,
+first/last frame, reference-to-video, Wan Animate) dan **HappyHorse 1.0 /
+1.1** (text-to-video, image-to-video, reference-to-video, video edit).
 
-Semua model video yang tersedia di akun QwenCloud (gratis 50 detik per
-model) sudah terdaftar — total **13 model**.
+Semua model yang menghasilkan video di akun QwenCloud sudah terdaftar —
+total **17 model** (13 Wan + 4 HappyHorse). Kuota gratis: **50 detik**
+per model Wan, **10 detik** per model HappyHorse.
 
 ---
 
@@ -13,11 +15,12 @@ model) sudah terdaftar — total **13 model**.
 
 ```
 provider/qwencloud/client.js        HTTP client DashScope (create + polling)
-models/qwencloud-video/specs.js     daftar 13 model (edit di sini untuk menambah)
+models/qwencloud-video/specs.js     daftar 17 model (edit di sini untuk menambah)
 models/qwencloud-video/factory.js   adapter generator (config, validate, payload)
 models/qwencloud-video/index.js     registry model
 supabase/qwencloud-provider-models.sql   seed provider + model + credit
-tests/qwencloud-video.test.mjs      19 test adapter & client
+tests/qwencloud-video.test.mjs      unit test adapter & client
+lib/generate/qwencloud-credit.js     billing per blok 5 detik
 ```
 
 Adapter QwenCloud otomatis terdaftar di:
@@ -51,7 +54,7 @@ supabase/qwencloud-provider-models.sql
 File ini membuat:
 
 - baris `providers` dengan `provider_id = 'qwencloud'`
-- 13 baris `models` (status `active`, credit default)
+- 17 baris `models` (status `active`, credit default)
 
 ### b. Isi API key
 
@@ -70,9 +73,10 @@ Harga acuan QwenCloud (Singapore):
 |---|---|---|
 | `wan2.6-t2v` | $0.10 / detik | $0.15 / detik |
 | `wan2.6-i2v` | $0.10 / detik | $0.15 / detik |
+| `happyhorse-1.1` | $0.14 / detik | $0.18 / detik (480P $0.07) |
 
-Model dengan harga flat (tanpa resolusi), seperti Wan Animate, memakai
-`credit_720p` sebagai harga tunggal.
+Model dengan harga flat (tanpa resolusi), seperti Wan Animate dan
+HappyHorse Video Edit, memakai `credit_720p` sebagai harga tunggal.
 
 #### Credit dihitung per blok 5 detik
 
@@ -86,7 +90,8 @@ untuk **5 detik (1 blok)** dan sistem mengalikannya otomatis:
 | 15 detik | 3x | 90 credit |
 
 - Pembulatan ke atas: 6 detik → 2 blok.
-- Model tanpa parameter durasi (Wan Animate) selalu 1x.
+- Model tanpa parameter durasi (Wan Animate, HappyHorse Video Edit) selalu 1x.
+- HappyHorse 3–15 detik ikut aturan blok yang sama: 3s = 1x, 8s = 2x, 15s = 3x.
 - Faktor dibatasi maksimal 10x sebagai pengaman.
 - Diskon model tetap dihitung setelah faktor durasi.
 - Logika ada di `lib/generate/qwencloud-credit.js` (murni fungsi, ada
@@ -120,7 +125,8 @@ Tidak ada perubahan kode yang dibutuhkan.
 
 | Jenis | Endpoint | Input utama |
 |---|---|---|
-| t2v / i2v / r2v | `/services/aigc/video-generation/video-synthesis` | `prompt`, `img_url`, `reference_urls` |
+| t2v / i2v / r2v (Wan) | `/services/aigc/video-generation/video-synthesis` | `prompt`, `img_url`, `reference_urls` |
+| HappyHorse (semua) | `/services/aigc/video-generation/video-synthesis` | `prompt`, `media[]` |
 | kf2v / animate | `/services/aigc/image2video/video-synthesis` | `first_frame_url`, `last_frame_url`, `image_url`, `video_url` |
 | polling | `/tasks/{task_id}` | — |
 
@@ -136,19 +142,19 @@ X-DashScope-Async: enable
 
 | Parameter | Tipe field | Muncul pada |
 |---|---|---|
-| `image_urls` | koleksi gambar | r2v |
-| `image_url` | gambar tunggal | i2v, animate |
+| `image_urls` | koleksi gambar | r2v (Wan 1–5, HappyHorse 1–9), video edit (0–5) |
+| `image_url` | gambar tunggal | i2v, animate, HappyHorse i2v |
 | `first_frame_url` + `last_frame_url` | dua blok gambar | kf2v |
 | `video_urls` | koleksi video | r2v |
-| `video_url` | video tunggal | animate |
+| `video_url` | video tunggal | animate, HappyHorse video edit |
 | `audio_url` | audio | t2v / i2v (2.5 & 2.6) |
 | `prompt` | textarea | semua |
 | `negative_prompt` | textarea | t2v / i2v / kf2v |
-| `aspect_ratio` | enum | t2v / r2v |
+| `aspect_ratio` | enum | t2v / r2v (dikirim sebagai `ratio` di HappyHorse) |
 | `resolution` | enum | t2v / i2v / r2v / kf2v |
-| `duration` | enum | t2v / i2v / r2v / kf2v |
+| `duration` | enum (Wan) / slider 3–15 detik (HappyHorse) | t2v / i2v / r2v / kf2v |
 | `mode` | enum (`wan-std`, `wan-pro`) | animate |
-| `prompt_extend` | boolean | t2v / i2v / kf2v / r2v |
+| `prompt_extend` | boolean | t2v / i2v / kf2v / r2v (Wan saja) |
 
 Urutan blok di halaman Generate otomatis mengikuti aturan global:
 
@@ -170,7 +176,7 @@ Cukup tambah satu objek di `models/qwencloud-video/specs.js`:
     id: "qwen-wan2.7-t2v",
     dashscopeModel: "wan2.7-t2v",
     name: "Wan 2.7 Text to Video",
-    kind: "t2v",                 // t2v | i2v | kf2v | r2v | animate
+    kind: "t2v",                 // t2v | i2v | kf2v | r2v | animate | video-edit
     type: "text-to-video",
     ratios: ["16:9", "9:16", "1:1"],
     resolutions: ["720P", "1080P"],
@@ -186,6 +192,45 @@ Cukup tambah satu objek di `models/qwencloud-video/specs.js`:
 Lalu tambahkan baris `models` di Supabase (atau lewat Admin Panel).
 Tidak perlu file adapter baru.
 
+### Model gaya HappyHorse
+
+HappyHorse (dan model DashScope lain yang memakai `media[]`) memakai gaya
+payload berbeda. Tambahkan `payloadStyle: "happyhorse"` dan ganti
+`durations` dengan `durationRange`:
+
+```js
+{
+    id: "qwen-happyhorse-1.1-t2v",
+    dashscopeModel: "happyhorse-1.1-t2v",
+    name: "HappyHorse 1.1 Text to Video",
+    kind: "t2v",
+    payloadStyle: "happyhorse",
+    type: "text-to-video",
+    ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+    resolutions: ["720P", "1080P", "480P"],
+    durations: [],                       // tidak dipakai
+    durationRange: { min: 3, max: 15 },  // slider integer
+    defaultDuration: "5",
+    negativePrompt: false,
+    audioTrack: false,
+    shotType: false,
+    maxPrompt: 2500
+}
+```
+
+Perbedaan payload yang ditangani factory:
+
+| Hal | Wan | HappyHorse |
+|---|---|---|
+| Ukuran / rasio | `parameters.size` = `"1280*720"` | `parameters.ratio` = `"16:9"` |
+| Media | `input.img_url` / `input.reference_urls[]` | `input.media[{ type, url }]` — `first_frame`, `reference_image`, `video` |
+| Durasi | enum `5` / `10` / `15` | integer bebas `3`–`15` |
+| Prompt tambahan | `prompt_extend`, `shot_type` | tidak ada |
+
+Catatan video edit: `kind: "video-edit"` hanya mengirim
+`parameters.resolution` — tanpa durasi dan tanpa rasio. Durasi output
+mengikuti video sumber (maksimal 15 detik), jadi credit-nya selalu **1x**.
+
 ---
 
 ## 8. Kuota Gratis QwenCloud
@@ -196,10 +241,26 @@ Aturan resmi QwenCloud yang memengaruhi provider ini:
 |---|---|
 | Kuota gratis **hanya region Singapore** (API key + endpoint Singapore) | `DASHSCOPE_BASE_URL` lain (Beijing/Frankfurt) akan ditagih penuh dari detik pertama |
 | Berlaku **90 hari** sejak aktivasi akun atau rilis model | Kuota tidak dipause walau tidak dipakai; sisa kuota hangus saat kedaluwarsa |
-| **Per model**, tidak bisa digabung / dipindah | 13 model = 13 kuota terpisah, tidak otomatis dialihkan kalau satu habis |
+| **Per model**, tidak bisa digabung / dipindah | 17 model = 17 kuota terpisah, tidak otomatis dialihkan kalau satu habis |
 | Snapshot bertanggal (mis. `wan2.6-t2v-2026-09-01`) dihitung **model terpisah** | Bisa didaftarkan sebagai model tambahan untuk mendapat kuota ekstra |
 | Toggle **Free quota only** memblokir request saat kuota habis | Request gagal dengan `AllocationQuota.FreeTierOnly` → GEN-Z.AI menampilkan pesan kuota habis, credit user **otomatis direfund** |
 | Tagihan tertunggak memblokir **semua** model walau kuota masih ada | Error `Arrearage` → pesan "Saldo QwenCloud tidak mencukupi" |
+
+### Kuota HappyHorse lebih kecil
+
+| Model | Kuota gratis | Efek |
+|---|---|---|
+| Wan 2.2 / 2.5 / 2.6 | 50 detik per model | 3–10 request uji coba |
+| HappyHorse 1.0 / 1.1 | **10 detik per model** | hanya 1–2 request uji coba |
+
+Kuota **tidak dipotong otomatis**. Kalau sisa kuota 6 detik dan kamu
+meminta 10 detik dengan toggle *Free quota only* aktif, request **gagal**
+(`AllocationQuota.FreeTierOnly`), bukan dipendekkan. Untuk uji coba pakai
+durasi **3–5 detik**, dan sisakan sisa kuota untuk model produksi.
+
+Harga HappyHorse juga lebih mahal dari Wan (Singapore, per detik):
+480P $0.07 · 720P $0.14 · 1080P $0.18 (Wan 2.6: 720P $0.10 · 1080P $0.15),
+karena itu credit default HappyHorse diset **±1.4x Wan**.
 
 Cek sisa kuota di **Free Tier** (`home.qwencloud.com/benefits`) dengan
 region **Singapore** aktif. Data kuota di konsol terlambat beberapa menit,
@@ -239,9 +300,9 @@ menampilkan alasan Indonesia, bukan pesan Inggris mentah.
 | Gejala | Penyebab umum |
 |---|---|
 | `INVALID_API_KEY` | Key beda region dengan `DASHSCOPE_BASE_URL` |
-| `FREE_QUOTA_EXHAUSTED` | Kuota gratis 50 detik habis, toggle *Free quota only* menyala |
+| `FREE_QUOTA_EXHAUSTED` | Kuota gratis habis (Wan 50 detik, HappyHorse 10 detik), toggle *Free quota only* menyala |
 | `current user api does not support synchronous calls` | Header `X-DashScope-Async` hilang (tidak terjadi di adapter ini) |
-| `INVALID_PAYLOAD` | Nilai `resolution` / `duration` di luar dukungan model |
+| `INVALID_PAYLOAD` | Nilai `resolution` / `duration` di luar dukungan model (HappyHorse: integer 3–15) |
 | Video hilang setelah 24 jam | `video_url` DashScope hanya valid 24 jam — unduh cepat |
 | `PROVIDER_TIMEOUT` | Create 60 detik / polling 30 detik terlampaui |
 

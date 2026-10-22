@@ -127,3 +127,34 @@ test("duration billing never returns NaN or negative credit", () => {
     assert.ok(Number.isFinite(result.billableCredit));
     assert.ok(result.billableCredit >= 0);
 });
+
+test("HappyHorse charges per 5-second block across its 3–15 second range", () => {
+    const config = { providerId: "qwencloud", payloadStyle: "happyhorse" };
+    const id = "qwen-happyhorse-1.1-t2v";
+
+    const short = resolveBillableCredit(30, { duration: "3" }, config, id);
+    assert.equal(short.durationSeconds, 3);
+    assert.equal(short.durationFactor, 1);
+    assert.equal(short.billableCredit, 30);
+
+    const mid = resolveBillableCredit(30, { duration: "8" }, config, id);
+    assert.equal(mid.durationFactor, 2);
+    assert.equal(mid.billableCredit, 60);
+
+    const long = resolveBillableCredit(30, { duration: "15" }, config, id);
+    assert.equal(long.durationFactor, 3);
+    assert.equal(long.billableCredit, 90);
+});
+
+test("HappyHorse video edit has no duration so it bills once", () => {
+    const result = resolveBillableCredit(
+        40,
+        { video_url: "https://cdn.test/in.mp4" },
+        { providerId: "qwencloud" },
+        "qwen-happyhorse-1.0-video-edit"
+    );
+
+    assert.equal(result.durationSeconds, null);
+    assert.equal(result.durationFactor, 1);
+    assert.equal(result.billableCredit, 40);
+});
