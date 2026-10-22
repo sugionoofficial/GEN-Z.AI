@@ -1,0 +1,600 @@
+/* =========================================================
+   GEN-Z.AI — VIDDRA (FREE) / VIDDRA AI VIDEO
+   LIGHT THEME (MODE CERAH)
+   ---------------------------------------------------------
+   File:
+   viddra/assets/css/viddra-light.css
+
+   Dipakai oleh:
+   - viddra/index.html            (VidDra account / FREE)
+   - viddra/generate/index.html   (Generate Video)
+
+   Dimuat SETELAH <style> inline kedua halaman.
+
+   Kenapa perlu:
+   - viddra/index.html memakai token gelap (--viddra-bg #050507,
+     --viddra-panel, --viddra-muted #9696a3) → kartu gelap dengan
+     label abu-abu yang hilang di latar terang.
+   - viddra/generate/index.html memakai latar #030303 dengan
+     teks #555-#777 (nyaris tak terlihat) pada hero, kartu,
+     parameter, cost, preview, dan pipeline.
+   - theme.js hanya mengubah body + beberapa elemen global,
+     sehingga menyisakan "pulau gelap" di tengah halaman terang.
+
+   Semua aturan di-scope ke html[data-genz-theme="light"]
+   sehingga MODE GELAP tidak berubah.
+
+   Spesifisitas:
+   - Prefix ganda data-genz-theme + body + !important agar
+     menang atas style inline halaman dan style global theme.js.
+========================================================= */
+
+
+/* =========================================================
+   01. PAGE / BODY (dua halaman)
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] {
+
+    --viddra-bg: #eef2f9;
+    --viddra-panel: #ffffff;
+    --viddra-panel-secondary: #ffffff;
+    --viddra-border: rgba(200, 30, 60, .28);
+    --viddra-border-strong: rgba(200, 30, 60, .55);
+    --viddra-red: #c81e3c;
+    --viddra-red-dark: #a80d24;
+    --viddra-red-soft: #fff1f3;
+    --viddra-text: #0b1424;
+    --viddra-muted: #46536a;
+    --viddra-green: #0a7a49;
+    --viddra-yellow: #7a4a00;
+
+    color-scheme: light;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] {
+    background: #eef2f9 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body {
+    background:
+        radial-gradient(circle at 12% 8%, rgba(255, 40, 80, .08), transparent 30%),
+        radial-gradient(circle at 88% 16%, rgba(96, 118, 214, .08), transparent 30%),
+        linear-gradient(135deg, #f7f9fd 0%, #eef2f9 48%, #e9eef7 100%) !important;
+    background-attachment: fixed !important;
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-page {
+    color: #0b1424;
+}
+
+
+/* =========================================================
+   02. VIDDRA ACCOUNT PAGE (viddra/index.html)
+========================================================= */
+
+/* Hero khusus halaman account (tanpa panel). */
+html[data-genz-theme="light"][data-genz-theme="light"] body [data-viddra-page="account"] .viddra-hero {
+    border: 0;
+    border-bottom: 1px solid #dde4ee;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .eyebrow {
+    color: #b3122f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-title {
+    color: #0b1424 !important;
+    -webkit-text-fill-color: #0b1424;
+    background: none !important;
+    -webkit-background-clip: border-box !important;
+    background-clip: border-box !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero-copy {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-badge {
+    border: 1px solid #f0c2c8 !important;
+    background: #fff5f6 !important;
+    color: #a3182a !important;
+    box-shadow: 0 6px 18px rgba(40, 54, 82, .06);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .provider-dot {
+    background: #c81e3c !important;
+    box-shadow: 0 0 12px rgba(200, 30, 60, .45) !important;
+}
+
+
+/* ---------------------------------------------------------
+   ACCOUNT CARD
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card {
+    border: 1px solid #e2e8f1 !important;
+    background:
+        linear-gradient(145deg, rgba(255, 49, 88, .05), transparent 38%),
+        #ffffff !important;
+    box-shadow:
+        0 18px 44px rgba(40, 54, 82, .10),
+        0 0 0 1px rgba(255, 255, 255, .6) inset !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card .card-header {
+    border-bottom: 1px solid #e6ecf5 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card .card-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .card-description {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field-label {
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-input {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #101a2e !important;
+    box-shadow: inset 0 1px 2px rgba(34, 46, 70, .04) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-input::placeholder {
+    color: #6c7789 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-input:focus {
+    border-color: #c81e3c !important;
+    box-shadow: 0 0 0 3px rgba(200, 30, 60, .14) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-button-secondary {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #2f3c52 !important;
+    box-shadow: 0 2px 8px rgba(40, 54, 82, .06);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-button-secondary:hover {
+    border-color: #e07a8d !important;
+    background: #fff5f6 !important;
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-button-primary {
+    border: 1px solid #a80d24 !important;
+    background: linear-gradient(135deg, #d4162f, #a80d24) !important;
+    color: #ffffff !important;
+    box-shadow: 0 12px 28px rgba(168, 13, 36, .22) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #generateVidDraButton {
+    border: 1px solid #0a6b3f !important;
+    background: linear-gradient(135deg, #0f8a52, #0a6b3f) !important;
+    color: #ffffff !important;
+    box-shadow: 0 12px 28px rgba(10, 107, 63, .20) !important;
+}
+
+
+/* ---------------------------------------------------------
+   STATUS BOX + STATUS GRID
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status {
+    border: 1px solid #dbe3ee !important;
+    background: #f8fafd !important;
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.success {
+    border: 1px solid #a8dcc2 !important;
+    background: #f0fbf5 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.warning {
+    border: 1px solid #ecd9b4 !important;
+    background: #fffaef !important;
+    color: #7a4a00 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status.error {
+    border: 1px solid #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-item {
+    border: 1px solid #dbe3ee !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-label {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-value {
+    color: #0f1828 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .notice {
+    border-left: 2px solid #c81e3c !important;
+    background: #fff5f6 !important;
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .watcher-box {
+    border: 1px solid #ecd9b4 !important;
+    background: #fffaef !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .watcher-title {
+    color: #7a4a00 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .watcher-copy {
+    color: #5a4a24 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .watcher-off {
+    color: #0a6b3f !important;
+}
+
+
+/* =========================================================
+   03. VIDDRA GENERATE PAGE (viddra/generate/index.html)
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body [data-viddra-page="generate"] .viddra-hero {
+    border: 1px solid #f0c2c8 !important;
+    background:
+        radial-gradient(circle at 88% 6%, rgba(255, 40, 80, .10), transparent 46%),
+        linear-gradient(135deg, #ffffff, #fdf5f6) !important;
+    box-shadow:
+        0 18px 44px rgba(40, 54, 82, .10),
+        inset 0 0 34px rgba(255, 0, 55, .02) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body [data-viddra-page="generate"] .viddra-hero::before {
+    background: rgba(255, 40, 80, .10) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-eyebrow {
+    border: 1px solid #f0c2c8 !important;
+    background: #fff1f3 !important;
+    color: #b3122f !important;
+}
+
+/* Judul gradient hanya di halaman Generate Video. */
+html[data-genz-theme="light"][data-genz-theme="light"] body [data-viddra-page="generate"] .viddra-title {
+    background: linear-gradient(90deg, #0b1424, #c81e3c 54%, #a80d24) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    color: #0b1424 !important;
+    filter: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-subtitle {
+    color: #46536a !important;
+}
+
+
+/* ---------------------------------------------------------
+   CREDIT BALANCE
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-balance {
+    border: 1px solid #f0c2c8 !important;
+    background: linear-gradient(135deg, #fff5f6, #ffffff) !important;
+    box-shadow: 0 10px 26px rgba(40, 54, 82, .08) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .balance-label {
+    color: #b3122f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .balance-value {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .balance-value span {
+    color: #c81e3c !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .balance-note {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .balance-update-button {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .balance-update-button:hover {
+    border-color: #e07a8d !important;
+    color: #b3122f !important;
+}
+
+
+/* ---------------------------------------------------------
+   CARDS
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-card {
+    border: 1px solid #e2e8f1 !important;
+    background: #ffffff !important;
+    box-shadow:
+        0 16px 40px rgba(40, 54, 82, .09),
+        inset 0 1px 0 #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .viddra-card .card-header {
+    border-bottom: 1px solid #e6ecf5 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .card-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field-label {
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field-hint {
+    color: #5b677c !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body textarea {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #101a2e !important;
+    box-shadow: inset 0 1px 2px rgba(34, 46, 70, .04) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body textarea::placeholder {
+    color: #6c7789 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body textarea:focus {
+    border-color: #c81e3c !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(200, 30, 60, .14) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .prompt-counter {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .prompt-note {
+    color: #5b677c !important;
+}
+
+
+/* ---------------------------------------------------------
+   MODEL CARD
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-card {
+    border: 1px solid #f0c2c8 !important;
+    background: linear-gradient(135deg, #fff5f6, #ffffff) !important;
+    box-shadow: 0 10px 24px rgba(255, 20, 70, .06) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-icon {
+    border: 1px solid #f0c2c8 !important;
+    background: #fff1f3 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-name {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-provider {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .model-badge {
+    border: 1px solid #f0c2c8 !important;
+    background: #fff1f3 !important;
+    color: #b3122f !important;
+}
+
+
+/* ---------------------------------------------------------
+   PARAMETERS + COST
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .parameter-card {
+    border: 1px solid #dbe3ee !important;
+    background: #f8fafd !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .parameter-label {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .parameter-value {
+    color: #0f1828 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .parameter-note {
+    color: #5b677c !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .cost-card {
+    border: 1px solid #dbe3ee !important;
+    background: linear-gradient(135deg, #f8fafd, #fff5f6) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .cost-label {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .cost-value {
+    color: #0f1828 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .cost-note {
+    color: #5b677c !important;
+}
+
+
+/* ---------------------------------------------------------
+   API KEY STATUS
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .api-key-status {
+    border: 1px solid #ecd9b4 !important;
+    background: #fffaef !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .api-key-status-icon {
+    background: #fff3d6 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .api-key-status-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .api-key-status-text {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .api-key-button {
+    border: 1px solid #a80d24 !important;
+    background: linear-gradient(135deg, #d4162f, #a80d24) !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 24px rgba(168, 13, 36, .20) !important;
+}
+
+
+/* ---------------------------------------------------------
+   GENERATE BUTTON + STATUS
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .generate-button {
+    border: 1px solid #a80d24 !important;
+    background: linear-gradient(135deg, #d4162f, #a80d24) !important;
+    color: #ffffff !important;
+    box-shadow:
+        0 14px 30px rgba(168, 13, 36, .22),
+        inset 0 1px rgba(255, 255, 255, .22) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .generate-button:disabled {
+    filter: grayscale(.25);
+    opacity: .65;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-box {
+    border: 1px solid #dbe3ee !important;
+    background: #f8fafd !important;
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-box.processing {
+    border: 1px solid #ecd9b4 !important;
+    background: #fffaef !important;
+    color: #7a4a00 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-box.success {
+    border: 1px solid #a8dcc2 !important;
+    background: #f0fbf5 !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-box.error {
+    border: 1px solid #f0bcc4 !important;
+    background: #fdf0f2 !important;
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .spinner {
+    border: 2px solid rgba(255, 255, 255, .45) !important;
+    border-top-color: #ffffff !important;
+}
+
+
+/* ---------------------------------------------------------
+   PREVIEW
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .preview-area {
+    background:
+        radial-gradient(circle at center, rgba(255, 20, 65, .05), transparent 58%),
+        #f7f9fd !important;
+    border-top: 1px solid #eef2f8;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .preview-empty {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .preview-icon {
+    border: 1px solid #f0c2c8 !important;
+    background: #fff5f6 !important;
+    color: #c81e3c !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .preview-title {
+    color: #17233a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .preview-description {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #resultVideo {
+    background: #0b1220 !important;
+    border: 1px solid #dbe3ee;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .download-result-button {
+    border: 1px solid #f0c2c8 !important;
+    background: linear-gradient(135deg, #fff5f6, #ffffff) !important;
+    color: #b3122f !important;
+    box-shadow: 0 8px 20px rgba(255, 25, 70, .08) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .download-result-button:hover {
+    border-color: #e07a8d !important;
+    background: #fff1f3 !important;
+    color: #a80d24 !important;
+}
+
+
+/* ---------------------------------------------------------
+   PIPELINE INFO
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .info-item {
+    border: 1px solid #dbe3ee !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .info-text {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .info-text strong {
+    color: #0f1828 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .info-dot {
+    background: #c81e3c !important;
+    box-shadow: 0 0 10px rgba(200, 30, 60, .35) !important;
+}
