@@ -58,7 +58,7 @@ html[data-genz-theme="light"][data-genz-theme="light"] body :is(p, li, dd) {
 
 html[data-genz-theme="light"][data-genz-theme="light"] body :is(
     .card, .panel, .hero, .stat-card, .section-card, .table-card,
-    .table-wrap, .toolbar, .stats, .admin-box, .form-group, .field,
+    .table-wrap, .toolbar, .stats, .admin-box, .form-group,
     .preview, .info-box, .info-card, .filter-card, .filter-row,
     .method-card, .price-grid, .price-settings-row, .modal-body,
     .modal-content, .modal-card, .packages-wrap, .packages-grid
@@ -1519,4 +1519,89 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .actions .button {
     border: 1px solid #c8d3e2 !important;
     background: #ffffff !important;
     color: #2f3c52 !important;
+}
+
+
+/* ---------------------------------------------------------
+   Model Edit — tampilan ringkas & premium (mode cerah)
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.model-hero, .form-card) {
+    border: 1px solid #e6ecf5 !important;
+    background: #ffffff !important;
+    box-shadow: 0 10px 26px rgba(40, 54, 82, .06) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.model-hero, .form-card):hover {
+    border-color: #dbe3ee !important;
+    box-shadow: 0 14px 32px rgba(40, 54, 82, .09) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field label {
+    color: #58657b !important;
+    letter-spacing: .06em !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field input,
+html[data-genz-theme="light"][data-genz-theme="light"] body .field select,
+html[data-genz-theme="light"][data-genz-theme="light"] body .field textarea {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #101a2e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field input::placeholder,
+html[data-genz-theme="light"][data-genz-theme="light"] body .field textarea::placeholder {
+    color: #7b8698 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .field input:focus,
+html[data-genz-theme="light"][data-genz-theme="light"] body .field select:focus,
+html[data-genz-theme="light"][data-genz-theme="light"] body .field textarea:focus {
+    border-color: #c81e3c !important;
+    box-shadow: 0 0 0 3px rgba(200, 30, 60, .12) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .form-card .section-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .form-card .section-description {
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .parameter-card {
+    border: 1px solid #e6ecf5 !important;
+    background: #f8fafd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .resolution-option-label {
+    border: 1px solid #dbe3ee !important;
+    background: #ffffff !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .resolution-option input:checked + .resolution-option-label {
+    border-color: #c81e3c !important;
+    background: #fff5f6 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .resolution-option-check {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #55627a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .resolution-option input:checked + .resolution-option-label .resolution-option-check {
+    border-color: #a80d24 !important;
+    background: #c81e3c !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .resolution-option-name {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .resolution-option-status {
+    color: #55627a !important;
 }

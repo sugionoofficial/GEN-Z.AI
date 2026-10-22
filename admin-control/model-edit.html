@@ -1940,6 +1940,392 @@
                 border-color: rgba(255,23,68,.35);
             }
 
+            /* =====================================================
+               COMPACT PREMIUM LAYOUT — 2026-10-22
+               Blok dipadatkan, kolom kiri-kanan diberi jarak,
+               tepi konten tidak lagi mepet ke layar.
+            ====================================================== */
+
+            .main {
+                padding: 24px 26px 40px !important;
+            }
+
+            .content {
+                width: min(1080px, 100%) !important;
+            }
+
+            .page-header {
+                gap: 16px !important;
+                margin-bottom: 16px !important;
+                padding-left: 0 !important;
+            }
+
+            .page-header h1 {
+                font-size: clamp(24px, 2.6vw, 30px) !important;
+                letter-spacing: -0.8px !important;
+            }
+
+            .eyebrow {
+                min-height: 22px !important;
+                margin-bottom: 8px !important;
+                padding: 0 9px !important;
+                border-radius: 999px !important;
+                font-size: 8.5px !important;
+                letter-spacing: 1.4px !important;
+            }
+
+            .page-description {
+                max-width: 620px !important;
+                margin-top: 8px !important;
+                font-size: 12px !important;
+                line-height: 1.65 !important;
+            }
+
+            .model-hero {
+                padding: 14px 18px !important;
+                margin-bottom: 12px !important;
+                border-radius: 16px !important;
+            }
+
+            .model-hero-top {
+                gap: 14px !important;
+                align-items: center !important;
+            }
+
+            .model-title {
+                font-size: 18px !important;
+                letter-spacing: -0.3px !important;
+            }
+
+            .model-id {
+                margin-top: 4px !important;
+                font-size: 10.5px !important;
+            }
+
+            .premium-badge {
+                min-height: 23px !important;
+                padding: 0 10px !important;
+                font-size: 8px !important;
+                letter-spacing: .9px !important;
+            }
+
+            .form-card {
+                padding: 16px 18px 18px !important;
+                margin-bottom: 12px !important;
+                border-radius: 16px !important;
+            }
+
+            .form-card .section-title {
+                margin-bottom: 4px !important;
+                font-size: 14px !important;
+                letter-spacing: -0.2px !important;
+            }
+
+            .form-card .section-title::before {
+                content: "";
+                display: inline-block;
+                width: 3px;
+                height: 12px;
+                margin-right: 8px;
+                border-radius: 2px;
+                vertical-align: -1px;
+                background: var(--model-edit-orange, #ff9f1c);
+            }
+
+            html[data-genz-theme="light"] body .form-card .section-title::before {
+                background: #c81e3c;
+            }
+
+            .form-card .section-description {
+                max-width: 640px;
+                margin-bottom: 14px !important;
+                font-size: 10.5px !important;
+                line-height: 1.6 !important;
+            }
+
+            /* Kolom kiri-kanan diberi jarak, tidak mepet */
+            .form-grid {
+                gap: 13px 22px !important;
+            }
+
+            .field label {
+                margin-bottom: 6px !important;
+                font-size: 9.5px !important;
+                font-weight: 850 !important;
+                letter-spacing: .06em !important;
+                text-transform: uppercase !important;
+            }
+
+            .field-help {
+                margin-top: 5px !important;
+                font-size: 9.5px !important;
+                line-height: 1.5 !important;
+            }
+
+            .field input,
+            .field select {
+                min-height: 40px !important;
+                padding: 0 12px !important;
+                border-radius: 10px !important;
+                font-size: 12.5px !important;
+            }
+
+            .field textarea {
+                min-height: 82px !important;
+                padding: 10px 12px !important;
+                border-radius: 10px !important;
+                font-size: 12.5px !important;
+                line-height: 1.6 !important;
+            }
+
+            .readonly-value {
+                min-height: 40px !important;
+                padding: 0 12px !important;
+                border-radius: 10px !important;
+                font-size: 11.5px !important;
+            }
+
+            .status-box {
+                min-height: 44px !important;
+                padding: 7px 12px !important;
+                border-radius: 10px !important;
+            }
+
+            .status-info strong {
+                font-size: 11.5px !important;
+            }
+
+            .status-info span {
+                margin-top: 2px !important;
+                font-size: 9.5px !important;
+            }
+
+            .switch {
+                width: 46px !important;
+                height: 25px !important;
+            }
+
+            .status-box .slider::before {
+                width: 19px !important;
+                height: 19px !important;
+                left: 2px !important;
+                top: 2px !important;
+            }
+
+            .status-box .switch input:checked + .slider::before {
+                transform: translateX(21px) !important;
+            }
+
+            .currency-preview-box,
+            .resolution-price-box,
+            .price-box,
+            .credit-info,
+            .parameter-card {
+                padding: 12px 14px !important;
+                border-radius: 12px !important;
+            }
+
+            .currency-preview-title,
+            .resolution-title {
+                font-size: 11.5px !important;
+            }
+
+            .currency-preview-value {
+                font-size: 15px !important;
+            }
+
+            .currency-preview-help,
+            .resolution-row-label,
+            .credit-info {
+                font-size: 9.5px !important;
+                line-height: 1.55 !important;
+            }
+
+            .resolution-row {
+                gap: 8px !important;
+                padding: 5px 0 !important;
+            }
+
+            .resolution-option-label {
+                padding: 10px 12px !important;
+                border-radius: 11px !important;
+            }
+
+            .form-card .actions {
+                gap: 10px !important;
+            }
+
+            .form-card .actions .btn {
+                min-height: 40px !important;
+                padding: 0 18px !important;
+                border-radius: 10px !important;
+                font-size: 12px !important;
+            }
+
+            /* ---------- Mode gelap: permukaan lebih lembut ---------- */
+
+            html:not([data-genz-theme="light"]) body .model-hero,
+            html:not([data-genz-theme="light"]) body .form-card {
+                border: 1px solid rgba(255, 159, 28, .20) !important;
+                background:
+                    linear-gradient(160deg, rgba(17, 17, 21, .96), rgba(6, 6, 8, .98)) !important;
+                box-shadow:
+                    0 16px 40px rgba(0, 0, 0, .40),
+                    inset 0 1px rgba(255, 255, 255, .035) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .model-hero:hover,
+            html:not([data-genz-theme="light"]) body .form-card:hover {
+                border-color: rgba(255, 159, 28, .34) !important;
+                box-shadow:
+                    0 20px 48px rgba(0, 0, 0, .48),
+                    inset 0 1px rgba(255, 255, 255, .05) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .field input,
+            html:not([data-genz-theme="light"]) body .field select,
+            html:not([data-genz-theme="light"]) body .field textarea {
+                border: 1px solid rgba(255, 255, 255, .10) !important;
+                background: rgba(255, 255, 255, .035) !important;
+                color: #f4f6fb !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .field input::placeholder,
+            html:not([data-genz-theme="light"]) body .field textarea::placeholder {
+                color: rgba(255, 255, 255, .34) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .field input:focus,
+            html:not([data-genz-theme="light"]) body .field select:focus,
+            html:not([data-genz-theme="light"]) body .field textarea:focus {
+                border-color: rgba(255, 159, 28, .60) !important;
+                background: rgba(255, 255, 255, .055) !important;
+                box-shadow: 0 0 0 3px rgba(255, 159, 28, .12) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .readonly-value,
+            html:not([data-genz-theme="light"]) body .status-box {
+                border: 1px solid rgba(255, 255, 255, .09) !important;
+                background: rgba(255, 255, 255, .03) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .currency-preview-box,
+            html:not([data-genz-theme="light"]) body .resolution-price-box,
+            html:not([data-genz-theme="light"]) body .price-box,
+            html:not([data-genz-theme="light"]) body .credit-info,
+            html:not([data-genz-theme="light"]) body .parameter-card {
+                border: 1px solid rgba(255, 255, 255, .08) !important;
+                background: rgba(255, 255, 255, .028) !important;
+                box-shadow: none !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .currency-preview-box.final,
+            html:not([data-genz-theme="light"]) body .resolution-price-box.final {
+                border-color: rgba(255, 159, 28, .30) !important;
+                background: rgba(255, 159, 28, .07) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .status-box .slider {
+                border: 1px solid rgba(255, 255, 255, .14) !important;
+                background: rgba(255, 255, 255, .14) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .status-box .switch input:checked + .slider {
+                border-color: #0f8a52 !important;
+                background: #0d7a49 !important;
+                box-shadow: 0 0 14px rgba(13, 122, 73, .35) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .model-hero .premium-badge {
+                border: 1px solid rgba(255, 159, 28, .34) !important;
+                background: rgba(255, 159, 28, .10) !important;
+                color: #ffc271 !important;
+            }
+
+            html:not([data-genz-theme="light"]) body #cancelButton {
+                border: 1px solid rgba(255, 255, 255, .14) !important;
+                background: rgba(255, 255, 255, .06) !important;
+                color: #f4f6fb !important;
+                box-shadow: none !important;
+            }
+
+            html:not([data-genz-theme="light"]) body #cancelButton:hover {
+                border-color: rgba(255, 255, 255, .24) !important;
+                background: rgba(255, 255, 255, .10) !important;
+                color: #ffffff !important;
+            }
+
+            html:not([data-genz-theme="light"]) body #saveButton {
+                border: 1px solid #06603a !important;
+                background: linear-gradient(135deg, #0d7a49, #06603a) !important;
+                color: #ffffff !important;
+                box-shadow: 0 10px 24px rgba(6, 96, 58, .28) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body #saveButton:hover {
+                border-color: #0a6b3f !important;
+                background: linear-gradient(135deg, #0f8a52, #05502f) !important;
+                box-shadow: 0 12px 28px rgba(6, 96, 58, .34) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body #saveButton:disabled {
+                border-color: #24303c !important;
+                background: #1a232d !important;
+                color: #8b95a5 !important;
+                opacity: 1 !important;
+                box-shadow: none !important;
+            }
+
+            /* Teks bantu di mode gelap dinaikkan kontrasnya agar tidak samar */
+            html:not([data-genz-theme="light"]) body .section-description {
+                color: rgba(255, 255, 255, .60) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .field-help,
+            html:not([data-genz-theme="light"]) body .currency-preview-help,
+            html:not([data-genz-theme="light"]) body .resolution-selector-help,
+            html:not([data-genz-theme="light"]) body .parameter-label,
+            html:not([data-genz-theme="light"]) body .resolution-row-label,
+            html:not([data-genz-theme="light"]) body .price-prefix,
+            html:not([data-genz-theme="light"]) body .credit-info,
+            html:not([data-genz-theme="light"]) body .status-info span {
+                color: rgba(255, 255, 255, .62) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .model-id {
+                color: rgba(255, 255, 255, .58) !important;
+            }
+
+            html:not([data-genz-theme="light"]) body .field label {
+                color: rgba(255, 255, 255, .78) !important;
+            }
+
+            @media (max-width: 900px) {
+                .main {
+                    padding: 16px 16px 32px !important;
+                }
+            }
+
+            @media (max-width: 720px) {
+                .main {
+                    padding: 14px 12px 28px !important;
+                }
+
+                .page-header {
+                    padding-left: 0 !important;
+                }
+
+                .form-card,
+                .model-hero {
+                    padding: 14px 14px 16px !important;
+                    border-radius: 14px !important;
+                }
+
+                .form-grid {
+                    gap: 12px !important;
+                }
+            }
+
     </style>
     <link
         rel="stylesheet"
