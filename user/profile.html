@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    >
+
+    <meta name="theme-color" content="#05060b">
+    <meta name="description" content="Kelola profil, keamanan, dan data akun GEN-Z.AI.">
+
+    <title>Profil Akun — GEN-Z.AI</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet"
+    >
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+    <script src="/assets/js/config.js"></script>
+    <script src="/assets/js/theme.js?v=light-mode-pass-20261021" defer></script>
+
+    <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
+    <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
+    <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
+    <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
+
+    <style>
+        /* =========================================================
+           GEN-Z.AI — PROFIL AKUN
+           Dark palette dulu, lalu blok override light mode
+           di-scope html[data-genz-theme="light"].
+        ========================================================= */
+
+        * { box-sizing: border-box; }
+
+        :root {
+            color-scheme: dark;
+
+            --bg: #05060b;
+            --panel: #0c0f17;
+            --panel-raised: #11151f;
+            --panel-soft: rgba(255, 255, 255, .028);
+            --border: rgba(255, 255, 255, .085);
+            --border-strong: rgba(255, 255, 255, .14);
+
+            --text: #f3f5fb;
+            --text-strong: #ffffff;
+            --muted: #98a0b3;
+            --muted-soft: #7a8296;
+
+            --violet: #8b7cf8;
+            --violet-bright: #b3a7ff;
+            --cyan: #56d9e8;
+            --ok: #35e08e;
+            --ok-soft: rgba(53, 224, 142, .12);
+            --danger: #ff5c6c;
+            --danger-soft: rgba(255, 92, 108, .1);
+            --danger-border: rgba(255, 92, 108, .32);
+
+            --radius: 20px;
+            --shadow: 0 22px 60px rgba(0, 0, 0, .38);
+        }
+
+        html {
+            min-height: 100%;
+            background: var(--bg);
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(ellipse 900px 520px at 50% -180px, rgba(139, 124, 248, .18), transparent 70%),
+                radial-gradient(ellipse 700px 480px at 96% 28%, rgba(86, 217, 232, .08), transparent 62%),
+                var(--bg);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ---------- LAYOUT ---------- */
+
+        .profile-shell {
+            width: min(1080px, 100%);
+            margin: 0 auto;
+            padding: 96px 28px 64px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 20px;
+            padding-bottom: 22px;
+            margin-bottom: 22px;
+            position: relative;
+        }
+
+        .page-header::after {
+            content: "";
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(139, 124, 248, .5), rgba(86, 217, 232, .18) 60%, transparent);
+        }
+
+        .page-overline {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            margin-bottom: 11px;
+            color: var(--violet-bright);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.9px;
+            text-transform: uppercase;
+        }
+
+        .page-overline::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--cyan);
+            box-shadow: 0 0 12px rgba(86, 217, 232, .85);
+        }
+
+        .page-title {
+            margin: 0;
+            color: var(--text-strong);
+            font-size: clamp(30px, 4.4vw, 42px);
+            font-weight: 900;
+            letter-spacing: -1.8px;
+            line-height: 1.02;
+        }
+
+        .page-subtitle {
+            margin: 10px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .back-link {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: var(--panel-soft);
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: border-color .18s ease, background .18s ease, transform .18s ease;
+        }
+
+        .back-link:hover {
+            border-color: rgba(139, 124, 248, .55);
+            background: rgba(139, 124, 248, .1);
+            transform: translateY(-1px);
+        }
+
+        /* ---------- HERO ---------- */
+
+        .account-hero {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 22px;
+            padding: 24px;
+            margin-bottom: 18px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background:
+                linear-gradient(150deg, rgba(139, 124, 248, .12), rgba(86, 217, 232, .04) 55%, transparent),
+                var(--panel);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .account-hero::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--violet), var(--cyan));
+            opacity: .85;
+        }
+
+        .avatar {
+            display: grid;
+            place-items: center;
+            width: 74px;
+            height: 74px;
+            flex: 0 0 auto;
+            border: 1px solid rgba(139, 124, 248, .38);
+            border-radius: 22px;
+            background: linear-gradient(145deg, rgba(139, 124, 248, .3), rgba(86, 217, 232, .14));
+            color: #ffffff;
+            font-size: 26px;
+            font-weight: 900;
+            letter-spacing: -.5px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), 0 14px 30px rgba(0, 0, 0, .3);
+        }
+
+        .hero-main { min-width: 0; }
+
+        .hero-name {
+            margin: 0;
+            color: var(--text-strong);
+            font-size: clamp(20px, 2.6vw, 25px);
+            font-weight: 850;
+            letter-spacing: -.7px;
+            overflow-wrap: anywhere;
+        }
+
+        .hero-email {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 12.5px;
+            overflow-wrap: anywhere;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin-top: 12px;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--panel-soft);
+            color: var(--muted);
+            font-size: 9.5px;
+            font-weight: 850;
+            letter-spacing: .7px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .chip::before {
+            content: "";
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .chip-role {
+            border-color: rgba(139, 124, 248, .42);
+            color: var(--violet-bright);
+        }
+
+        .chip-status {
+            border-color: rgba(53, 224, 142, .34);
+            color: var(--ok);
+        }
+
+        .chip-status.is-inactive {
+            border-color: rgba(255, 92, 108, .38);
+            color: var(--danger);
+        }
+
+        .hero-meta {
+            display: flex;
+            gap: 26px;
+            padding-left: 22px;
+            border-left: 1px solid var(--border);
+        }
+
+        .hero-meta div {
+            display: grid;
+            gap: 5px;
+        }
+
+        .hero-meta span {
+            color: var(--muted-soft);
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 1.1px;
+            text-transform: uppercase;
+        }
+
+        .hero-meta strong {
+            color: var(--text-strong);
+            font-size: 16px;
+            font-weight: 850;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        /* ---------- CARDS ---------- */
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--panel);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, .26);
+        }
+
+        .card-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .card-icon {
+            display: grid;
+            place-items: center;
+            width: 36px;
+            height: 36px;
+            flex: 0 0 auto;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: var(--panel-raised);
+            color: var(--violet-bright);
+        }
+
+        .card-icon svg { width: 18px; height: 18px; }
+
+        .card-title {
+            margin: 0;
+            color: var(--text-strong);
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: -.3px;
+        }
+
+        .card-desc {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 11.5px;
+            line-height: 1.6;
+        }
+
+        /* ---------- FORM ---------- */
+
+        .field {
+            display: grid;
+            gap: 7px;
+            margin-bottom: 14px;
+        }
+
+        .field-label {
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 850;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .input,
+        .select,
+        .textarea {
+            width: 100%;
+            min-height: 44px;
+            padding: 12px 13px;
+            border: 1px solid var(--border-strong);
+            border-radius: 12px;
+            outline: none;
+            background: var(--panel-raised);
+            color: var(--text);
+            font: inherit;
+            font-size: 13px;
+            transition: border-color .18s ease, box-shadow .18s ease;
+        }
+
+        .textarea {
+            min-height: 84px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        .input:focus,
+        .select:focus,
+        .textarea:focus {
+            border-color: rgba(139, 124, 248, .7);
+            box-shadow: 0 0 0 3px rgba(139, 124, 248, .14);
+        }
+
+        .input::placeholder,
+        .textarea::placeholder { color: var(--muted-soft); }
+
+        .input:disabled,
+        .select:disabled,
+        .textarea:disabled { opacity: .55; cursor: not-allowed; }
+
+        .select option {
+            color: var(--text);
+            background: var(--panel-raised);
+        }
+
+        .field-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .hint {
+            color: var(--muted-soft);
+            font-size: 10.5px;
+            line-height: 1.6;
+        }
+
+        .counter {
+            color: var(--muted-soft);
+            font-size: 10px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 11px 16px;
+            border: 1px solid var(--border-strong);
+            border-radius: 12px;
+            background: var(--panel-raised);
+            color: var(--text);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform .16s ease, filter .16s ease, border-color .16s ease, background .16s ease;
+        }
+
+        .btn:hover:not(:disabled) { transform: translateY(-1px); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+
+        .btn-primary {
+            border-color: rgba(139, 124, 248, .7);
+            background: linear-gradient(135deg, #7a68f0, #5a4fd0);
+            color: #ffffff;
+            box-shadow: 0 10px 24px rgba(105, 88, 230, .28);
+        }
+
+        .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+        .btn-ghost { background: transparent; color: var(--muted); }
+
+        .btn-danger {
+            border-color: var(--danger-border);
+            background: var(--danger-soft);
+            color: var(--danger);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: rgba(255, 92, 108, .18);
+        }
+
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 9px;
+            margin-top: auto;
+            padding-top: 4px;
+        }
+
+        .divider {
+            height: 1px;
+            margin: 16px 0;
+            background: var(--border);
+        }
+
+        /* ---------- INFO ROWS ---------- */
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 10px 0;
+            border-bottom: 1px dashed var(--border);
+            font-size: 12px;
+        }
+
+        .info-row:last-of-type { border-bottom: 0; }
+
+        .info-row span, .info-label { color: var(--muted); }
+
+        .info-row strong {
+            color: var(--text);
+            font-weight: 750;
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+
+        /* ---------- DANGER ZONE ---------- */
+
+        .card-danger {
+            grid-column: 1 / -1;
+            border-color: var(--danger-border);
+            background:
+                linear-gradient(150deg, rgba(255, 92, 108, .07), transparent 55%),
+                var(--panel);
+        }
+
+        .card-danger .card-icon {
+            border-color: var(--danger-border);
+            background: var(--danger-soft);
+            color: var(--danger);
+        }
+
+        .card-danger .card-title { color: var(--text-strong); }
+
+        .checkline {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin: 2px 0 14px;
+            color: var(--muted);
+            font-size: 11.5px;
+            line-height: 1.6;
+            cursor: pointer;
+        }
+
+        .checkline input {
+            width: 16px;
+            height: 16px;
+            margin-top: 1px;
+            flex: 0 0 auto;
+            accent-color: var(--danger);
+            cursor: pointer;
+        }
+
+        .deletion-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 0 14px;
+        }
+
+        .deletion-grid .field-full { grid-column: 1 / -1; }
+
+        .pending-box {
+            display: grid;
+            gap: 12px;
+            padding: 16px;
+            border: 1px solid rgba(245, 200, 90, .35);
+            border-radius: 14px;
+            background: rgba(245, 200, 90, .08);
+        }
+
+        .pending-box[hidden] { display: none; }
+
+        .pending-head {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: #f5c85a;
+            font-size: 11px;
+            font-weight: 850;
+            letter-spacing: .9px;
+            text-transform: uppercase;
+        }
+
+        .pending-head::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .pending-text {
+            margin: 0;
+            color: var(--muted);
+            font-size: 11.5px;
+            line-height: 1.65;
+        }
+
+        .pending-text strong { color: var(--text); }
+
+        /* ---------- TOAST ---------- */
+
+        .toast {
+            position: fixed;
+            z-index: 12000;
+            right: 20px;
+            bottom: 20px;
+            max-width: min(360px, calc(100vw - 32px));
+            padding: 13px 15px;
+            border: 1px solid var(--border-strong);
+            border-radius: 13px;
+            background: var(--panel-raised);
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.55;
+            box-shadow: 0 18px 44px rgba(0, 0, 0, .45);
+            opacity: 0;
+            transform: translateY(12px);
+            pointer-events: none;
+            transition: opacity .22s ease, transform .22s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success { border-color: rgba(53, 224, 142, .45); }
+        .toast.error { border-color: var(--danger-border); }
+        .toast.info { border-color: rgba(139, 124, 248, .5); }
+
+        .skeleton {
+            display: inline-block;
+            width: 120px;
+            height: 14px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .14), rgba(255, 255, 255, .07));
+            background-size: 200% 100%;
+            animation: shimmer 1.4s linear infinite;
+        }
+
+        @keyframes shimmer {
+            from { background-position: 200% 0; }
+            to { background-position: -200% 0; }
+        }
+
+        /* =========================================================
+           LIGHT MODE
+        ========================================================= */
+
+        html[data-genz-theme="light"] {
+            color-scheme: light;
+
+            --bg: #eef2f9;
+            --panel: #ffffff;
+            --panel-raised: #f7f9fd;
+            --panel-soft: #f2f5fa;
+            --border: #dfe6f1;
+            --border-strong: #cfd9e8;
+
+            --text: #1b2740;
+            --text-strong: #0b1424;
+            --muted: #55617a;
+            --muted-soft: #6b7688;
+
+            --violet: #6d5ce0;
+            --violet-bright: #4a3cbe;
+            --cyan: #0f8fa3;
+            --ok: #0f7a4a;
+            --ok-soft: #e9f8f0;
+            --danger: #b4232f;
+            --danger-soft: #fdf1f2;
+            --danger-border: #f0c6cb;
+
+            --shadow: 0 18px 44px rgba(16, 24, 40, .09);
+        }
+
+        html[data-genz-theme="light"] body {
+            background:
+                radial-gradient(ellipse 900px 520px at 50% -180px, rgba(139, 124, 248, .16), transparent 70%),
+                radial-gradient(ellipse 700px 480px at 96% 28%, rgba(86, 217, 232, .1), transparent 62%),
+                var(--bg);
+        }
+
+        html[data-genz-theme="light"] .page-header::after {
+            background: linear-gradient(90deg, rgba(109, 92, 224, .45), rgba(15, 143, 163, .16) 60%, transparent);
+        }
+
+        html[data-genz-theme="light"] .account-hero {
+            background:
+                linear-gradient(150deg, rgba(139, 124, 248, .1), rgba(86, 217, 232, .04) 55%, transparent),
+                var(--panel);
+        }
+
+        html[data-genz-theme="light"] .avatar {
+            border-color: #cec6f7;
+            background: linear-gradient(145deg, #ece7ff, #e4f6fa);
+            color: #4a3cbe;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 12px 26px rgba(76, 62, 190, .16);
+        }
+
+        html[data-genz-theme="light"] .card {
+            box-shadow: 0 12px 30px rgba(16, 24, 40, .06);
+        }
+
+        html[data-genz-theme="light"] .card-icon {
+            color: #4a3cbe;
+        }
+
+        html[data-genz-theme="light"] .card-danger {
+            background:
+                linear-gradient(150deg, rgba(255, 92, 108, .06), transparent 55%),
+                var(--panel);
+        }
+
+        html[data-genz-theme="light"] .select option {
+            background: #ffffff;
+            color: #101828;
+        }
+
+        html[data-genz-theme="light"] .pending-box {
+            border-color: #efdcae;
+            background: #fffaf0;
+        }
+
+        html[data-genz-theme="light"] .pending-head { color: #9a6b0b; }
+
+        html[data-genz-theme="light"] .btn-danger:hover:not(:disabled) {
+            background: #fbe3e6;
+        }
+
+        html[data-genz-theme="light"] .toast {
+            box-shadow: 0 16px 40px rgba(16, 24, 40, .16);
+        }
+
+        html[data-genz-theme="light"] .skeleton {
+            background: linear-gradient(90deg, #e8edf6, #dbe3f0, #e8edf6);
+            background-size: 200% 100%;
+        }
+
+        /* =========================================================
+           RESPONSIVE
+        ========================================================= */
+
+        @media (max-width: 900px) {
+            .account-hero {
+                grid-template-columns: auto minmax(0, 1fr);
+                align-items: flex-start;
+            }
+
+            .hero-meta {
+                grid-column: 1 / -1;
+                gap: 32px;
+                padding: 16px 0 0;
+                border-left: 0;
+                border-top: 1px solid var(--border);
+            }
+        }
+
+        @media (max-width: 820px) {
+            .cards { grid-template-columns: minmax(0, 1fr); }
+        }
+
+        @media (max-width: 640px) {
+            .profile-shell { padding: 88px 14px 44px; }
+
+            .page-header {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 14px;
+            }
+
+            .back-link { width: 100%; justify-content: center; }
+
+            .account-hero {
+                gap: 16px;
+                padding: 18px;
+            }
+
+            .avatar {
+                width: 58px;
+                height: 58px;
+                border-radius: 18px;
+                font-size: 21px;
+            }
+
+            .card { padding: 18px; }
+
+            .deletion-grid { grid-template-columns: minmax(0, 1fr); }
+
+            .btn { width: 100%; }
+
+            .toast {
+                right: 12px;
+                bottom: 12px;
+                left: 12px;
+                max-width: none;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                transition-duration: .01ms !important;
+                animation-duration: .01ms !important;
+                animation-iteration-count: 1 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="navigation"></div>
+
+    <main class="profile-shell">
+
+        <header class="page-header">
+            <div>
+                <div class="page-overline">Akun · GEN-Z.AI</div>
+                <h1 class="page-title">Profil Akun</h1>
+                <p class="page-subtitle">
+                    Kelola identitas tampilan, keamanan akun, dan permintaan penghapusan data.
+                </p>
+            </div>
+            <a class="back-link" href="/user/dashboard.html">
+                <span aria-hidden="true">←</span>
+                Kembali ke Dashboard
+            </a>
+        </header>
+
+        <!-- =====================================================
+             HERO
+        ====================================================== -->
+
+        <section class="account-hero" aria-labelledby="heroName">
+            <div class="avatar" id="avatar" aria-hidden="true">–</div>
+
+            <div class="hero-main">
+                <h2 class="hero-name" id="heroName">
+                    <span class="skeleton"></span>
+                </h2>
+                <p class="hero-email" id="heroEmail">Memuat profil…</p>
+                <div class="chips">
+                    <span class="chip chip-role" id="heroRole">Memuat</span>
+                    <span class="chip chip-status" id="heroStatus">Memuat</span>
+                </div>
+            </div>
+
+            <div class="hero-meta">
+                <div>
+                    <span>Credit</span>
+                    <strong id="heroCredits">—</strong>
+                </div>
+                <div>
+                    <span>Bergabung</span>
+                    <strong id="heroJoined">—</strong>
+                </div>
+            </div>
+        </section>
+
+        <div class="cards">
+
+            <!-- =================================================
+                 IDENTITAS
+            ================================================== -->
+
+            <section class="card" aria-labelledby="identityTitle">
+                <header class="card-head">
+                    <div class="card-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="8" r="3.6"></circle>
+                            <path d="M4.5 20a7.5 7.5 0 0 1 15 0"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="card-title" id="identityTitle">Identitas</h2>
+                        <p class="card-desc">Nama tampilan yang muncul di dashboard dan riwayat aktivitas.</p>
+                    </div>
+                </header>
+
+                <form id="nameForm" novalidate>
+                    <div class="field">
+                        <div class="field-row">
+                            <label class="field-label" for="nameInput">Nama tampilan</label>
+                            <span class="counter" id="nameCounter">0/80</span>
+                        </div>
+                        <input
+                            class="input"
+                            id="nameInput"
+                            name="name"
+                            type="text"
+                            maxlength="80"
+                            autocomplete="nickname"
+                            placeholder="Nama kamu"
+                            disabled
+                        >
+                        <p class="hint">Minimal 2 karakter, maksimal 80 karakter. Email tidak bisa diubah dari halaman ini.</p>
+                    </div>
+
+                    <div class="btn-row">
+                        <button class="btn btn-primary" id="saveNameButton" type="submit" disabled>
+                            Simpan nama
+                        </button>
+                        <button class="btn btn-ghost" id="resetNameButton" type="button" disabled>
+                            Reset
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- =================================================
+                 KEAMANAN
+            ================================================== -->
+
+            <section class="card" aria-labelledby="securityTitle">
+                <header class="card-head">
+                    <div class="card-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="4" y="10" width="16" height="10" rx="2.5"></rect>
+                            <path d="M8 10V7.5a4 4 0 0 1 8 0V10"></path>
+                            <path d="M12 14v2.5"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="card-title" id="securityTitle">Keamanan</h2>
+                        <p class="card-desc">Kirim tautan reset password ke email akun ini.</p>
+                    </div>
+                </header>
+
+                <div class="info-row">
+                    <span>Email akun</span>
+                    <strong id="securityEmail">—</strong>
+                </div>
+
+                <div class="divider"></div>
+
+                <p class="hint" style="margin:0 0 12px">
+                    Tautan reset berlaku sekali pakai. Buka halaman reset, lalu buat password baru.
+                </p>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="resetPasswordButton" type="button" disabled>
+                        Kirim tautan reset password
+                    </button>
+                    <a class="btn btn-ghost" href="/reset-password.html">Buka halaman reset</a>
+                </div>
+
+                <p class="hint" id="resetHint" style="margin-top:10px" aria-live="polite"></p>
+            </section>
+
+            <!-- =================================================
+                 ZONA BERBAHAYA
+            ================================================== -->
+
+            <section class="card card-danger" aria-labelledby="dangerTitle">
+                <header class="card-head">
+                    <div class="card-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10.3 3.9 2.5 17.4A2 2 0 0 0 4.2 20.4h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path>
+                            <path d="M12 9v4"></path>
+                            <path d="M12 16.5h.01"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="card-title" id="dangerTitle">Ajukan penghapusan akun &amp; data</h2>
+                        <p class="card-desc">
+                            Permintaan akan ditinjau manual oleh tim GEN-Z.AI. Semua credit, riwayat generate,
+                            dan lampiran yang tersimpan akan dihapus permanen setelah permintaan disetujui.
+                        </p>
+                    </div>
+                </header>
+
+                <div class="pending-box" id="pendingBox" hidden>
+                    <div class="pending-head">Permintaan sedang ditinjau</div>
+                    <p class="pending-text">
+                        Diajukan pada <strong id="pendingDate">—</strong> dengan alasan
+                        <strong id="pendingReason">—</strong>. Kamu masih bisa membatalkan permintaan ini
+                        selama statusnya belum diproses.
+                    </p>
+                    <div class="btn-row">
+                        <button class="btn" id="cancelDeletionButton" type="button">
+                            Batalkan permintaan
+                        </button>
+                    </div>
+                </div>
+
+                <form id="deletionForm" novalidate>
+                    <div class="deletion-grid">
+                        <div class="field">
+                            <label class="field-label" for="deletionReason">Alasan</label>
+                            <select class="select" id="deletionReason" required>
+                                <option value="">Pilih alasan…</option>
+                                <option value="no-longer-used">Tidak lagi memakai GEN-Z.AI</option>
+                                <option value="switching-service">Pindah ke layanan lain</option>
+                                <option value="delete-all-data">Hanya ingin menghapus semua data</option>
+                                <option value="too-expensive">Biaya terlalu tinggi</option>
+                                <option value="other">Lainnya</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label class="field-label" for="deletionConfirm">Ketik <strong>HAPUS</strong> untuk konfirmasi</label>
+                            <input
+                                class="input"
+                                id="deletionConfirm"
+                                type="text"
+                                autocomplete="off"
+                                autocapitalize="characters"
+                                placeholder="HAPUS"
+                                maxlength="12"
+                            >
+                        </div>
+
+                        <div class="field field-full">
+                            <div class="field-row">
+                                <label class="field-label" for="deletionNote">Catatan tambahan (opsional)</label>
+                                <span class="counter" id="noteCounter">0/500</span>
+                            </div>
+                            <textarea
+                                class="textarea"
+                                id="deletionNote"
+                                maxlength="500"
+                                placeholder="Ceritakan alasanmu bila perlu…"
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    <label class="checkline" for="deletionAck">
+                        <input id="deletionAck" type="checkbox">
+                        <span>
+                            Saya paham akun ini akan dihapus bersama seluruh data terkait dan tindakan ini
+                            tidak bisa dibatalkan setelah disetujui.
+                        </span>
+                    </label>
+
+                    <div class="btn-row">
+                        <button class="btn btn-danger" id="requestDeletionButton" type="submit">
+                            Kirim permintaan penghapusan
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+        </div>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
+
+    <script>
+        (() => {
+            "use strict";
+
+            /* =================================================
+               STATE + ELEMENTS
+            ================================================= */
+
+            const state = {
+                client: null,
+                user: null,
+                profile: null,
+                savingName: false,
+                resetCooldownUntil: 0,
+                resetTimer: null,
+                pendingRequest: null,
+                toastTimer: null
+            };
+
+            const el = (id) => document.getElementById(id);
+
+            const elements = {
+                avatar: el("avatar"),
+                heroName: el("heroName"),
+                heroEmail: el("heroEmail"),
+                heroRole: el("heroRole"),
+                heroStatus: el("heroStatus"),
+                heroCredits: el("heroCredits"),
+                heroJoined: el("heroJoined"),
+
+                nameForm: el("nameForm"),
+                nameInput: el("nameInput"),
+                nameCounter: el("nameCounter"),
+                saveNameButton: el("saveNameButton"),
+                resetNameButton: el("resetNameButton"),
+
+                securityEmail: el("securityEmail"),
+                resetPasswordButton: el("resetPasswordButton"),
+                resetHint: el("resetHint"),
+
+                deletionForm: el("deletionForm"),
+                deletionReason: el("deletionReason"),
+                deletionNote: el("deletionNote"),
+                deletionAck: el("deletionAck"),
+                deletionConfirm: el("deletionConfirm"),
+                noteCounter: el("noteCounter"),
+                requestDeletionButton: el("requestDeletionButton"),
+
+                pendingBox: el("pendingBox"),
+                pendingDate: el("pendingDate"),
+                pendingReason: el("pendingReason"),
+                cancelDeletionButton: el("cancelDeletionButton"),
+
+                toast: el("toast")
+            };
+
+            const REASON_LABELS = {
+                "no-longer-used": "Tidak lagi memakai GEN-Z.AI",
+                "switching-service": "Pindah ke layanan lain",
+                "delete-all-data": "Ingin menghapus semua data",
+                "too-expensive": "Biaya terlalu tinggi",
+                "other": "Lainnya"
+            };
+
+            const RESET_COOLDOWN_MS = 60000;
+
+
+            /* =================================================
+               HELPERS
+            ================================================= */
+
+            function toast(message, type) {
+                if (!elements.toast) return;
+
+                elements.toast.textContent = message;
+                elements.toast.className = "toast show " + (type || "info");
+
+                window.clearTimeout(state.toastTimer);
+
+                state.toastTimer = window.setTimeout(() => {
+                    elements.toast.className = "toast " + (type || "info");
+                }, 4200);
+            }
+
+            function initials(name, email) {
+                const source = String(name || email || "?").trim();
+                const parts = source.split(/\s+/).filter(Boolean);
+
+                if (parts.length >= 2) {
+                    return (parts[0][0] + parts[1][0]).toUpperCase();
+                }
+
+                return source.slice(0, 2).toUpperCase();
+            }
+
+            function formatNumber(value) {
+                return Number(value || 0).toLocaleString("id-ID");
+            }
+
+            function formatDate(value) {
+                if (!value) return "—";
+
+                const date = new Date(value);
+
+                if (Number.isNaN(date.getTime())) return "—";
+
+                return date.toLocaleDateString("id-ID", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric"
+                });
+            }
+
+            function humanizeRole(role) {
+                const value = String(role || "user").trim().toLowerCase();
+
+                if (value === "owner") return "Owner";
+                if (value === "admin") return "Admin";
+                return "User";
+            }
+
+            function getSupabaseClient() {
+                if (window.GENZ_SUPABASE) return window.GENZ_SUPABASE;
+                if (window.supabaseClient) return window.supabaseClient;
+
+                const config = window.GENZ_CONFIG || {};
+                const url = config.SUPABASE_URL || config.supabaseUrl || "";
+                const key = config.SUPABASE_KEY || config.supabaseKey || "";
+
+                if (
+                    url &&
+                    key &&
+                    window.supabase &&
+                    typeof window.supabase.createClient === "function"
+                ) {
+                    const client = window.supabase.createClient(url, key, {
+                        auth: {
+                            persistSession: true,
+                            autoRefreshToken: true,
+                            detectSessionInUrl: true
+                        }
+                    });
+
+                    window.GENZ_SUPABASE = client;
+                    window.supabaseClient = client;
+
+                    return client;
+                }
+
+                return null;
+            }
+
+            async function authHeaders() {
+                if (!state.client) throw new Error("Supabase client tidak tersedia.");
+
+                const result = await state.client.auth.getSession();
+                const token = result?.data?.session?.access_token;
+
+                if (!token) throw new Error("Session login tidak ditemukan.");
+
+                return {
+                    "Authorization": "Bearer " + token,
+                    "Content-Type": "application/json"
+                };
+            }
+
+            async function callAccountApi(payload) {
+                const headers = await authHeaders();
+
+                const response = await fetch("/api/account", {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify(payload)
+                });
+
+                let data = null;
+
+                try {
+                    data = await response.json();
+                } catch {
+                    data = null;
+                }
+
+                return { response, data };
+            }
+
+
+            /* =================================================
+               RENDER
+            ================================================= */
+
+            function renderProfile() {
+                const profile = state.profile || {};
+                const name = String(profile.name || "").trim();
+                const email = String(profile.email || state.user?.email || "").trim();
+                const role = humanizeRole(profile.role);
+                const status = String(profile.status || "active").toLowerCase();
+
+                elements.avatar.textContent = initials(name, email);
+                elements.heroName.textContent = name || "Belum ada nama";
+                elements.heroEmail.textContent = email || "Email tidak tersedia";
+
+                elements.heroRole.textContent = role;
+
+                elements.heroStatus.textContent = status === "active" ? "Aktif" : status;
+                elements.heroStatus.classList.toggle("is-inactive", status !== "active");
+
+                elements.heroCredits.textContent = formatNumber(profile.credits);
+                elements.heroJoined.textContent = formatDate(profile.created_at);
+
+                elements.nameInput.value = name;
+                elements.nameInput.disabled = false;
+                elements.nameCounter.textContent = name.length + "/80";
+
+                elements.securityEmail.textContent = email || "—";
+                elements.resetPasswordButton.disabled = !email;
+
+                updateSaveState();
+            }
+
+            function updateSaveState() {
+                const current = String(state.profile?.name || "").trim();
+                const next = elements.nameInput.value.trim();
+
+                const valid =
+                    next.length >= 2 &&
+                    next.length <= 80 &&
+                    next !== current;
+
+                elements.saveNameButton.disabled =
+                    state.savingName || !valid;
+
+                elements.resetNameButton.disabled =
+                    state.savingName || !elements.nameInput.value;
+
+                elements.nameCounter.textContent =
+                    elements.nameInput.value.length + "/80";
+            }
+
+            function renderPendingRequest(request) {
+                state.pendingRequest = request || null;
+
+                const hasPending =
+                    request && request.status === "pending";
+
+                elements.pendingBox.hidden = !hasPending;
+                elements.deletionForm.hidden = Boolean(hasPending);
+
+                if (!hasPending) return;
+
+                elements.pendingDate.textContent = formatDate(request.requested_at);
+                elements.pendingReason.textContent =
+                    REASON_LABELS[request.reason] || request.reason || "—";
+            }
+
+
+            /* =================================================
+               LOAD
+            ================================================= */
+
+            async function loadProfile() {
+                if (window.GENZNavigationReady) {
+                    try {
+                        await window.GENZNavigationReady;
+                    } catch {
+                        /* lanjut dengan sesi sendiri */
+                    }
+                }
+
+                state.client = getSupabaseClient();
+
+                if (!state.client) {
+                    toast("Supabase client tidak tersedia.", "error");
+                    return;
+                }
+
+                const sessionResult = await state.client.auth.getSession();
+                const session = sessionResult?.data?.session;
+
+                if (!session) {
+                    window.location.href = "/index.html";
+                    return;
+                }
+
+                state.user = session.user;
+
+                const navProfile = window.GENZ_NAVIGATION_PROFILE;
+
+                if (
+                    navProfile &&
+                    String(navProfile.id) === String(session.user.id)
+                ) {
+                    state.profile = navProfile;
+                } else {
+                    const result = await state.client
+                        .from("profiles")
+                        .select("id,email,name,role,credits,status,created_at")
+                        .eq("id", session.user.id)
+                        .single();
+
+                    if (result.error) {
+                        console.error("[Profile] load error:", result.error);
+                        toast("Gagal memuat profil: " + result.error.message, "error");
+                    }
+
+                    state.profile = result.data || {
+                        id: session.user.id,
+                        email: session.user.email || "",
+                        name: "",
+                        role: "USER",
+                        credits: 0,
+                        status: "active"
+                    };
+                }
+
+                renderProfile();
+                await loadDeletionStatus();
+            }
+
+            async function loadDeletionStatus() {
+                try {
+                    const { response, data } = await callAccountApi({ action: "status" });
+
+                    if (!response.ok) {
+                        console.warn("[Profile] status error:", data);
+                        return;
+                    }
+
+                    renderPendingRequest(data?.request || null);
+
+                } catch (error) {
+                    console.warn("[Profile] status exception:", error);
+                }
+            }
+
+
+            /* =================================================
+               SAVE NAME
+            ================================================= */
+
+            elements.nameInput?.addEventListener("input", updateSaveState);
+
+            elements.nameInput?.addEventListener("blur", () => {
+                const cleaned = elements.nameInput.value
+                    .replace(/\s+/g, " ")
+                    .trim();
+
+                if (cleaned !== elements.nameInput.value) {
+                    elements.nameInput.value = cleaned;
+                }
+
+                updateSaveState();
+            });
+
+            elements.resetNameButton?.addEventListener("click", () => {
+                elements.nameInput.value = String(state.profile?.name || "");
+                updateSaveState();
+                elements.nameInput.focus();
+            });
+
+            elements.nameForm?.addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                const name = elements.nameInput.value
+                    .replace(/\s+/g, " ")
+                    .trim();
+
+                if (name.length < 2) {
+                    toast("Nama minimal 2 karakter.", "error");
+                    return;
+                }
+
+                state.savingName = true;
+                elements.saveNameButton.disabled = true;
+                elements.saveNameButton.textContent = "Menyimpan…";
+
+                try {
+                    const { response, data } = await callAccountApi({
+                        action: "update-profile",
+                        name
+                    });
+
+                    if (!response.ok || !data?.success) {
+                        throw new Error(data?.error || "Gagal menyimpan nama.");
+                    }
+
+                    state.profile = {
+                        ...(state.profile || {}),
+                        ...(data.profile || {}),
+                        name
+                    };
+
+                    if (window.GENZ_NAVIGATION_PROFILE) {
+                        window.GENZ_NAVIGATION_PROFILE.name = name;
+                    }
+
+                    renderProfile();
+                    toast(data.message || "Nama berhasil diperbarui.", "success");
+
+                } catch (error) {
+                    console.error("[Profile] save name:", error);
+                    toast(error.message || "Gagal menyimpan nama.", "error");
+                } finally {
+                    state.savingName = false;
+                    elements.saveNameButton.textContent = "Simpan nama";
+                    updateSaveState();
+                }
+            });
+
+
+            /* =================================================
+               RESET PASSWORD
+            ================================================= */
+
+            function startResetCooldown() {
+                state.resetCooldownUntil = Date.now() + RESET_COOLDOWN_MS;
+
+                const button = elements.resetPasswordButton;
+
+                button.disabled = true;
+
+                const tick = () => {
+                    const left = Math.ceil((state.resetCooldownUntil - Date.now()) / 1000);
+
+                    if (left <= 0) {
+                        window.clearInterval(state.resetTimer);
+                        state.resetTimer = null;
+                        button.disabled = false;
+                        button.textContent = "Kirim tautan reset password";
+                        elements.resetHint.textContent = "";
+                        return;
+                    }
+
+                    button.textContent = `Kirim ulang dalam ${left}s`;
+                    elements.resetHint.textContent =
+                        "Belum menerima email? Periksa folder spam atau tunggu hitungan selesai.";
+                };
+
+                tick();
+                state.resetTimer = window.setInterval(tick, 1000);
+            }
+
+            elements.resetPasswordButton?.addEventListener("click", async () => {
+                const email = String(state.profile?.email || state.user?.email || "").trim();
+
+                if (!email) {
+                    toast("Email akun tidak tersedia.", "error");
+                    return;
+                }
+
+                if (Date.now() < state.resetCooldownUntil) return;
+
+                elements.resetPasswordButton.disabled = true;
+                elements.resetPasswordButton.textContent = "Mengirim…";
+                elements.resetHint.textContent = "";
+
+                try {
+                    const { error } = await state.client.auth.resetPasswordForEmail(email, {
+                        redirectTo: window.location.origin + "/reset-password.html"
+                    });
+
+                    if (error) throw error;
+
+                    elements.resetHint.textContent =
+                        "Tautan reset dikirim ke " + email + ".";
+                    toast("Tautan reset password sudah dikirim.", "success");
+                    startResetCooldown();
+
+                } catch (error) {
+                    console.error("[Profile] reset password:", error);
+                    elements.resetHint.textContent = "";
+                    elements.resetPasswordButton.disabled = false;
+                    elements.resetPasswordButton.textContent = "Kirim tautan reset password";
+                    toast(
+                        error?.message || "Gagal mengirim tautan reset password.",
+                        "error"
+                    );
+                }
+            });
+
+
+            /* =================================================
+               DELETION REQUEST
+            ================================================= */
+
+            elements.deletionNote?.addEventListener("input", () => {
+                elements.noteCounter.textContent =
+                    elements.deletionNote.value.length + "/500";
+            });
+
+            elements.deletionForm?.addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                const reason = elements.deletionReason.value;
+                const note = elements.deletionNote.value.trim();
+                const confirm = elements.deletionConfirm.value.trim().toUpperCase();
+
+                if (!reason) {
+                    toast("Pilih alasan penghapusan terlebih dahulu.", "error");
+                    elements.deletionReason.focus();
+                    return;
+                }
+
+                if (!elements.deletionAck.checked) {
+                    toast("Centang pernyataan persetujuan terlebih dahulu.", "error");
+                    elements.deletionAck.focus();
+                    return;
+                }
+
+                if (confirm !== "HAPUS") {
+                    toast("Ketik HAPUS untuk mengonfirmasi.", "error");
+                    elements.deletionConfirm.focus();
+                    return;
+                }
+
+                const button = elements.requestDeletionButton;
+                const original = button.textContent;
+
+                button.disabled = true;
+                button.textContent = "Mengirim…";
+
+                try {
+                    const { response, data } = await callAccountApi({
+                        action: "request-deletion",
+                        reason,
+                        note,
+                        confirm
+                    });
+
+                    if (response.status === 409 && data?.request) {
+                        renderPendingRequest(data.request);
+                        toast(data.error || "Permintaan sudah pernah dikirim.", "info");
+                        return;
+                    }
+
+                    if (!response.ok || !data?.success) {
+                        throw new Error(data?.error || "Gagal mengirim permintaan.");
+                    }
+
+                    renderPendingRequest(data.request || {
+                        status: "pending",
+                        reason,
+                        requested_at: new Date().toISOString()
+                    });
+
+                    elements.deletionForm.reset();
+                    elements.noteCounter.textContent = "0/500";
+                    toast(data.message || "Permintaan penghapusan terkirim.", "success");
+
+                } catch (error) {
+                    console.error("[Profile] deletion request:", error);
+                    toast(error.message || "Gagal mengirim permintaan.", "error");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = original;
+                }
+            });
+
+            elements.cancelDeletionButton?.addEventListener("click", async () => {
+                const button = elements.cancelDeletionButton;
+                const original = button.textContent;
+
+                button.disabled = true;
+                button.textContent = "Membatalkan…";
+
+                try {
+                    const { response, data } = await callAccountApi({
+                        action: "cancel-deletion"
+                    });
+
+                    if (!response.ok || !data?.success) {
+                        throw new Error(data?.error || "Gagal membatalkan permintaan.");
+                    }
+
+                    renderPendingRequest(null);
+                    toast(data.message || "Permintaan dibatalkan.", "success");
+
+                } catch (error) {
+                    console.error("[Profile] cancel deletion:", error);
+                    toast(error.message || "Gagal membatalkan permintaan.", "error");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = original;
+                }
+            });
+
+
+            /* =================================================
+               INIT
+            ================================================= */
+
+            loadProfile().catch((error) => {
+                console.error("[Profile] init error:", error);
+                toast("Gagal memuat halaman profil.", "error");
+            });
+
+        })();
+    </script>
+</body>
+</html>
