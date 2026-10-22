@@ -41,6 +41,130 @@
         #countdown-display.running,
         .subscription-countdown{color:#39ff71!important;text-shadow:0 0 10px rgba(57,255,113,.28);font-weight:800}
     </style>
+    <style>
+        /* =========================================================
+           MOBILE FIX — BLOK MODEL GAMBAR QWENCLOUD
+           ---------------------------------------------------------
+           <select> dengan label model yang panjang punya lebar
+           intrinsik sebesar option terpanjang, sehingga di layar HP
+           blok + tulisannya keluar dari kartu. Semua item di blok
+           ini dipaksa boleh menyusut (min-width:0) dan teksnya
+           diizinkan turun baris.
+        ========================================================= */
+
+        .card,
+        .panel-grid,
+        .panel-grid > *,
+        .qwencloud-options,
+        .qwencloud-options > *,
+        .qwencloud-options .provider-field,
+        .quota-panel,
+        .provider-option span {
+            min-width: 0;
+        }
+
+        /* kolom grid dibatasi 1fr supaya tidak melebar mengikuti
+           min-content dari <select>/teks panjang */
+        .qwencloud-options,
+        .qwencloud-options .provider-field,
+        .quota-panel {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .qwencloud-options select,
+        .qwencloud-options input,
+        .qwencloud-options input[type="number"] {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            text-overflow: ellipsis;
+        }
+
+        .qwencloud-options select {
+            /* option terpanjang tidak boleh menahan lebar select */
+            overflow: hidden;
+        }
+
+        .qwencloud-options .btn {
+            max-width: 100%;
+        }
+
+        .qwencloud-options small,
+        .qwencloud-options .muted,
+        .provider-option small,
+        .provider-option strong,
+        .footer-note {
+            overflow-wrap: anywhere;
+        }
+
+        .quota-row {
+            flex-wrap: wrap;
+            align-items: flex-start;
+            overflow-wrap: anywhere;
+        }
+
+        .quota-row > * {
+            min-width: 0;
+        }
+
+        .quota-badge {
+            max-width: 100%;
+            white-space: normal;
+            text-align: left;
+        }
+
+        @media (max-width: 760px) {
+            /* jaring pengaman: tidak ada blok yang boleh mendorong
+               halaman melebar ke samping di layar HP */
+            html,
+            body {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            .wrap {
+                padding: 24px 12px 48px;
+            }
+
+            .card {
+                padding: 16px;
+                border-radius: 16px;
+            }
+
+            .qwencloud-options {
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .qwencloud-options .price-settings-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+
+            .qwencloud-options .price-settings-row .btn,
+            .quota-limit-field,
+            #qwencloud-quota-limit {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .quota-panel {
+                padding: 10px;
+            }
+
+            .quota-row {
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .footer-note,
+            .status-box {
+                line-height: 1.65;
+            }
+        }
+    </style>
+
     <link
         rel="stylesheet"
         href="./assets/css/admin-light.css?v=light-theme-20261022"
