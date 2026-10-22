@@ -1963,3 +1963,464 @@ footer span {
 #accountRole {
     color: #ffb547 !important;
 }
+
+
+/* =========================================================
+   LIGHT THEME (MODE CERAH) — ADMIN DASHBOARD
+   ---------------------------------------------------------
+   Semua blok memakai latar solid + teks berkontras tinggi
+   agar tidak ada elemen yang tampak samar / wash-out.
+   Prefix ganda data-genz-theme dipakai supaya aturan ini
+   selalu menang atas style tema global (theme.js).
+========================================================= */
+
+:root[data-genz-theme="light"] {
+    --gza-bg: #eef1f8;
+    --gza-surface: #ffffff;
+    --gza-surface-2: #f7f9fd;
+    --gza-surface-3: #eef2f9;
+
+    --gza-border: rgba(23, 32, 51, .16);
+    --gza-border-soft: rgba(23, 32, 51, .10);
+
+    --gza-red: #d97706;
+    --gza-red-soft: rgba(217, 119, 6, .10);
+    --gza-red-line: rgba(217, 119, 6, .32);
+
+    --gza-green: #0b8a52;
+    --gza-green-soft: rgba(11, 138, 82, .10);
+
+    --gza-text: #101a2e;
+    --gza-text-2: #3c4a60;
+    --gza-text-3: #566179;
+
+    --gza-shadow:
+        0 14px 34px rgba(40, 54, 82, .10);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body {
+    color: #101a2e;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body::before {
+    background-image:
+        linear-gradient(rgba(23, 32, 51, .045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 32, 51, .045) 1px, transparent 1px);
+}
+
+
+/* ---------------------------------------------------------
+   HEADER
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dashboardHeader h1 {
+    color: #0d1626;
+    text-shadow: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dashboardHeader .eyebrow {
+    color: #a5520a !important;
+    text-shadow: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dashboardHeader .subtitle,
+html[data-genz-theme="light"][data-genz-theme="light"] body #dashboardHeader p {
+    color: #34415a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #roleBadge,
+html[data-genz-theme="light"][data-genz-theme="light"] body .role-badge {
+    color: #93420a;
+    border-color: rgba(217, 119, 6, .55);
+    background: linear-gradient(135deg, #fff1dc, #fffaf2);
+    box-shadow: 0 4px 14px rgba(217, 119, 6, .16);
+}
+
+
+/* ---------------------------------------------------------
+   HERO / SYSTEM STATUS
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero,
+html[data-genz-theme="light"][data-genz-theme="light"] body #systemStatus {
+    border-color: rgba(23, 32, 51, .16);
+    background:
+        linear-gradient(
+            110deg,
+            #fff6e8 0%,
+            #ffffff 46%,
+            #fdfefe 100%
+        );
+    box-shadow:
+        0 14px 34px rgba(40, 54, 82, .10),
+        inset 0 1px 0 rgba(255, 255, 255, .9);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .system-status {
+    color: #17233a;
+    font-weight: 750;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .system-status .status-dot,
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-dot {
+    background: #0f9d58;
+    box-shadow: 0 0 7px rgba(15, 157, 88, .55), 0 0 16px rgba(15, 157, 88, .22);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .version {
+    color: #414d63 !important;
+    font-weight: 600;
+}
+
+
+/* ---------------------------------------------------------
+   SECTION TITLES
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .section-title {
+    color: #0d1626;
+    text-shadow: none;
+}
+
+
+/* ---------------------------------------------------------
+   STAT CARDS
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .stat-card {
+    border-color: rgba(23, 32, 51, .16);
+    background: #ffffff;
+    box-shadow:
+        0 12px 28px rgba(40, 54, 82, .09),
+        inset 0 1px 0 rgba(255, 255, 255, .9);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .stat-card:hover {
+    border-color: rgba(217, 119, 6, .40);
+    background: #ffffff;
+    box-shadow: 0 18px 38px rgba(40, 54, 82, .14);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .stat-card::before {
+    background: linear-gradient(90deg, transparent, rgba(217, 119, 6, .65), transparent);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .stat-card .stat-label {
+    color: #7a4d0c !important;
+    font-weight: 800;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .stat-card .stat-value {
+    color: #0b1424;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .stat-card .stat-note {
+    color: #46536a !important;
+}
+
+
+/* ---------------------------------------------------------
+   SEARCH
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-search label {
+    color: #2f3c52;
+    font-weight: 750;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-search input {
+    color: #101a2e;
+    border: 1px solid #b6c2d3;
+    background: #ffffff;
+    box-shadow: inset 0 1px 2px rgba(34, 46, 70, .05);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-search input::placeholder {
+    color: #6a7688;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-search input:focus {
+    border-color: #c9741a;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, .18);
+}
+
+
+/* ---------------------------------------------------------
+   ACCOUNT CARDS
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card {
+    border: 1px solid rgba(23, 32, 51, .16);
+    background: #ffffff;
+    box-shadow:
+        0 12px 28px rgba(40, 54, 82, .09),
+        inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card::before {
+    background: linear-gradient(90deg, transparent, rgba(217, 119, 6, .45), transparent);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card:hover,
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card:focus-visible {
+    border-color: rgba(217, 119, 6, .48);
+    background: #ffffff;
+    box-shadow: 0 18px 38px rgba(40, 54, 82, .15);
+    outline: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card:has(.account-light.active) {
+    border-color: rgba(11, 138, 82, .45);
+    box-shadow:
+        0 12px 28px rgba(40, 54, 82, .09),
+        0 0 0 1px rgba(11, 138, 82, .12);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card:has(.account-light.active)::before {
+    background: linear-gradient(90deg, transparent, rgba(11, 138, 82, .55), transparent);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-email,
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountActivityGrid .account-email,
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card .account-email {
+    color: #0e1728;
+    font-weight: 780;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-name,
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountActivityGrid .account-name,
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card .account-name {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-role,
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card .account-role,
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountActivityGrid .account-role {
+    color: #93420a;
+    border: 1px solid rgba(217, 119, 6, .42);
+    background: #fff3e2;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-meta,
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-card .account-meta,
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountActivityGrid .account-meta {
+    color: #46536a !important;
+    border-top: 1px solid rgba(23, 32, 51, .14);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-meta strong,
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountActivityGrid .account-meta strong {
+    color: #0e1728;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-activity-count,
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountActivityGrid .account-activity-count {
+    color: #414d63 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-activity-count.active,
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountActivityGrid .account-activity-count.active {
+    color: #0a7a49 !important;
+    font-weight: 800;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-light {
+    background: #a3adbd;
+    opacity: 1;
+    box-shadow: 0 0 0 1px rgba(23, 32, 51, .12);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-light.active {
+    background: #0fbe6a;
+    box-shadow:
+        0 0 5px #0fbe6a,
+        0 0 12px rgba(15, 190, 106, .55);
+}
+
+
+/* ---------------------------------------------------------
+   EMPTY / LOADING STATES
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .account-empty,
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-loading,
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountActivityLoading {
+    color: #3f4b60 !important;
+    border: 1px dashed rgba(23, 32, 51, .28);
+    background: #ffffff;
+}
+
+
+/* ---------------------------------------------------------
+   SYSTEM INFORMATION PANELS
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .panel {
+    border-color: rgba(23, 32, 51, .16);
+    background: #ffffff;
+    box-shadow:
+        0 12px 28px rgba(40, 54, 82, .09),
+        inset 0 1px 0 rgba(255, 255, 255, .9);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .panel::before {
+    background: linear-gradient(90deg, transparent, rgba(217, 119, 6, .55), transparent);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .panel-title,
+html[data-genz-theme="light"][data-genz-theme="light"] body .panel h3 {
+    color: #0d1626;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .info-row {
+    color: #101a2e;
+    border-bottom: 1px solid rgba(23, 32, 51, .11);
+    background-color: transparent;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .info-row:last-child {
+    border-bottom: 0;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .info-label {
+    color: #34415a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .info-value {
+    color: #0e1728 !important;
+    font-weight: 750;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .info-value.online,
+html[data-genz-theme="light"][data-genz-theme="light"] body .info-row .info-value.online,
+html[data-genz-theme="light"][data-genz-theme="light"] body .online {
+    color: #0a7a49 !important;
+    text-shadow: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountRole {
+    color: #93420a !important;
+}
+
+
+/* ---------------------------------------------------------
+   FOOTER
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .footer,
+html[data-genz-theme="light"][data-genz-theme="light"] body footer {
+    color: #3f4b60 !important;
+}
+
+
+/* ---------------------------------------------------------
+   ACTIVITY MODAL (MODE CERAH)
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #activityModal .activity-modal-panel,
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-modal-panel {
+    color: #101a2e;
+    border-color: rgba(23, 32, 51, .18);
+    background: #ffffff;
+    box-shadow: 0 26px 70px rgba(40, 54, 82, .22);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-item {
+    color: #101a2e;
+    border-color: rgba(23, 32, 51, .14);
+    background: #f8fafd;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-item:hover {
+    border-color: rgba(217, 119, 6, .40);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-modal-empty,
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-empty {
+    color: #3f4b60;
+    background: #f8fafd;
+}
+
+
+/* ---------------------------------------------------------
+   MODE CERAH — OVERRIDE ID (spesifisitas lebih tinggi
+   daripada aturan #id !important bawaan tema gelap)
+--------------------------------------------------------- */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountEmail {
+    color: #0e1728 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountStatus {
+    color: #0a7a49 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountRole {
+    color: #93420a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #systemStatusText {
+    color: #34415a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #accountActivityTitle,
+html[data-genz-theme="light"][data-genz-theme="light"] body #systemInformationTitle {
+    color: #0d1626 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #activityModalTitle {
+    color: #0d1626 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #activityModalAccount {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #activityModalClose {
+    color: #3f4b60;
+    border-color: rgba(23, 32, 51, .18);
+    background: #f1f4fa;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #activityModalClose:hover {
+    color: #0e1728;
+    border-color: rgba(217, 119, 6, .45);
+    background: #fff3e2;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-item strong {
+    color: #101a2e;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-item small,
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-item-meta,
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-item-prompt,
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-item-model,
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-item-provider {
+    color: #46536a;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-item-title {
+    color: #101a2e;
+    font-weight: 750;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .summary-label {
+    color: #3f4b60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .activity-summary-item strong,
+html[data-genz-theme="light"][data-genz-theme="light"] body .modal-summary-card {
+    color: #0e1728;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #activityModal .activity-modal-panel::before {
+    background: linear-gradient(90deg, transparent, rgba(217, 119, 6, .55), transparent);
+}
