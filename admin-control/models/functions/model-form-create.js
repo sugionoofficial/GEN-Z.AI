@@ -928,7 +928,15 @@
                 source.status
             );
 
-        return {
+        const quotaTotalSeconds =
+            source.quota_total_seconds;
+
+
+        const quotaExpiresAt =
+            source.quota_expires_at;
+
+
+        const normalized = {
             provider_id:
                 providerId,
 
@@ -968,6 +976,36 @@
             status:
                 status
         };
+
+
+        /*
+         * Kuota QwenCloud: diteruskan apa adanya ke API.
+         * API yang memutuskan apakah provider-nya QwenCloud.
+         */
+
+        if (quotaTotalSeconds !== undefined) {
+
+            normalized.quota_total_seconds =
+                quotaTotalSeconds === null
+                    ? null
+                    : toNumber(
+                        quotaTotalSeconds,
+                        0
+                    );
+
+        }
+
+
+        if (quotaExpiresAt !== undefined) {
+
+            normalized.quota_expires_at =
+                normalizeText(quotaExpiresAt) ||
+                null;
+
+        }
+
+
+        return normalized;
     }
 
     /* =========================================================
@@ -1432,6 +1470,44 @@
                 "inactive"
             );
 
+        /*
+         * Kuota QwenCloud (opsional).
+         *
+         * Hanya dibaca kalau blok kuota memang tampil,
+         * yaitu saat provider QwenCloud dipilih.
+         */
+        const quotaFields =
+            form.querySelector("#quotaFields") ||
+            document.getElementById("quotaFields");
+
+        const quotaVisible =
+            Boolean(
+                quotaFields &&
+                quotaFields.hidden !== true
+            );
+
+        const quotaTotalSeconds =
+            quotaVisible
+                ? getFieldValue(
+                    form,
+                    [
+                        "#quotaTotalSeconds",
+                        "[name='quota_total_seconds']"
+                    ]
+                )
+                : "";
+
+        const quotaExpiresAt =
+            quotaVisible
+                ? getFieldValue(
+                    form,
+                    [
+                        "#quotaExpiresAt",
+                        "[name='quota_expires_at']"
+                    ]
+                )
+                : "";
+
         /* -----------------------------------------------------
            Ratios
            ----------------------------------------------------- */
@@ -1613,7 +1689,7 @@
          * credit_cost
          * credit_final
          */
-        return {
+        const payload = {
             provider_id:
                 normalizeId(
                     providerId
@@ -1663,6 +1739,26 @@
                     status
                 )
         };
+
+
+        if (quotaVisible) {
+
+            payload.quota_total_seconds =
+                quotaTotalSeconds === ""
+                    ? null
+                    : toNumber(
+                        quotaTotalSeconds,
+                        0
+                    );
+
+            payload.quota_expires_at =
+                normalizeText(quotaExpiresAt) ||
+                null;
+
+        }
+
+
+        return payload;
     }
 
     /* =========================================================

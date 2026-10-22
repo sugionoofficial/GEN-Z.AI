@@ -195,7 +195,16 @@ langkah lengkap ada di [QWENCLOUD-SETUP.md](QWENCLOUD-SETUP.md).
 
 QwenCloud menagih per detik, sehingga credit model QwenCloud dihitung per
 blok 5 detik (5s = 1x, 10s = 2x, 15s = 3x) lewat
-`lib/generate/qwencloud-credit.js`. Model HappyHorse memakai gaya payload
+`lib/generate/qwencloud-credit.js`.
+
+Kuota gratis QwenCloud dilacak per model lewat `supabase/qwencloud-model-quota.sql`
+(tabel `model_quota`, view `qwencloud_model_quota`, trigger `trg_qwencloud_quota`).
+Total kuota diisi manual dari halaman **Edit Model** / **Tambah Model**
+(Wan 50 detik, HappyHorse 10 detik), pemakaian dihitung otomatis dari
+`generation_history`. Saat kuota habis model **dinonaktifkan otomatis**
+sehingga hilang dari halaman Generate. Detail: [QWENCLOUD-SETUP.md](QWENCLOUD-SETUP.md) §11.
+
+Model HappyHorse memakai gaya payload
 sendiri (`payloadStyle: "happyhorse"`): rasio dikirim sebagai
 `parameters.ratio`, media sebagai array `input.media[{ type, url }]`, dan
 durasi berupa integer bebas 3–15 detik (`durationRange`). Video Edit tidak

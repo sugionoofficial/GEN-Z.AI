@@ -1232,7 +1232,14 @@
             ).toLowerCase();
 
 
-        return {
+        const quotaTotalSeconds =
+            source.quota_total_seconds ?? null;
+
+        const quotaExpiresAt =
+            source.quota_expires_at ?? null;
+
+
+        const payload = {
 
             provider_id:
                 providerId,
@@ -1274,6 +1281,34 @@
                 supportedResolutions
 
         };
+
+
+        /*
+         * Kuota QwenCloud ikut dikirim ke API.
+         * API mengabaikannya untuk provider lain.
+         */
+
+        if (quotaTotalSeconds !== null) {
+
+            payload.quota_total_seconds =
+                toNumber(
+                    quotaTotalSeconds,
+                    0
+                );
+
+        }
+
+
+        if (quotaExpiresAt !== null) {
+
+            payload.quota_expires_at =
+                String(quotaExpiresAt) ||
+                null;
+
+        }
+
+
+        return payload;
 
     }
 
