@@ -3304,6 +3304,53 @@
         background: rgba(155, 140, 255, .52) !important;
     }
 
+
+    /* =========================================================
+       QWENCLOUD QUOTA
+    ========================================================= */
+
+    .quota-fields[hidden] {
+        display: none !important;
+    }
+
+    .quota-fields-title {
+        margin: 0 0 6px;
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: .01em;
+    }
+
+    .quota-fields-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .quota-subfield label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        opacity: .86;
+    }
+
+    .quota-subfield input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 9px;
+        border: 1px solid rgba(255, 255, 255, .16);
+        background: rgba(255, 255, 255, .05);
+        color: inherit;
+        font-size: 13px;
+    }
+
+    html[data-genz-theme="light"] .quota-subfield input {
+        border-color: rgba(0, 0, 0, .16);
+        background: #fff;
+        color: #1f2937;
+    }
+
     @media (max-width: 1000px) {
         .main-content {
             padding-right: 8px;
@@ -3725,14 +3772,68 @@
                     </div>
 
 
+                    <!-- =================================================
+                         QWENCLOUD QUOTA
+                    ================================================== -->
+
+                    <div
+                        class="model-form-field full quota-fields"
+                        id="quotaFields"
+                        hidden
+                    >
+
+                        <h3 class="quota-fields-title">
+                            Kuota QwenCloud
+                        </h3>
+
+                        <p class="model-form-hint">
+                            Kuota gratis QwenCloud dihitung per model
+                            (Wan 50 detik, HappyHorse 10 detik).
+                            Model otomatis dinonaktifkan saat kuota
+                            habis, sehingga hilang dari halaman Generate.
+                        </p>
+
+                        <div class="quota-fields-grid">
+
+                            <div class="quota-subfield">
+
+                                <label for="quotaTotalSeconds">
+                                    Total Kuota (detik)
+                                </label>
+
+                                <input
+                                    id="quotaTotalSeconds"
+                                    name="quota_total_seconds"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    placeholder="50"
+                                >
+
+                            </div>
+
+                            <div class="quota-subfield">
+
+                                <label for="quotaExpiresAt">
+                                    Kuota Kedaluwarsa
+                                </label>
+
+                                <input
+                                    id="quotaExpiresAt"
+                                    name="quota_expires_at"
+                                    type="date"
+                                >
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
                 </div>
 
             </div>
-
-
-            <!-- =====================================================
-                 MODAL FOOTER
-            ====================================================== -->
 
             <div class="model-modal-footer">
 
@@ -3788,6 +3889,17 @@
 <script
     type="module"
     src="./models/models-loader.js?v=models-registry-20261018-wan"
+></script>
+
+
+<script
+    type="module"
+    src="./assets/js/model-quota.js?v=model-quota-20261022"
+></script>
+
+<script
+    type="module"
+    src="./models/models-quota.js?v=model-quota-20261022"
 ></script>
 
 

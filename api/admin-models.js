@@ -85,6 +85,11 @@ import {
     validateModel
 } from "../lib/admin-models/validation.js";
 
+import {
+    QWENCLOUD_PROVIDER_CODE,
+    resolveDefaultQuotaSeconds
+} from "../lib/generate/model-quota.js";
+
 
 // ========================================
 // GET PROVIDER
@@ -826,6 +831,318 @@ const getModelKiePricing = (
 // GET SINGLE MODEL
 // ========================================
 
+// ========================================
+// QWENCLOUD MODEL QUOTA
+// ========================================
+
+const QUOTA_VIEW =
+    "qwencloud_model_quota";
+
+
+const authHeaders = (
+    config
+) => ({
+
+    "apikey":
+        config.serviceRoleKey,
+
+    "Authorization":
+        `Bearer ${config.serviceRoleKey}`,
+
+    "Content-Type":
+        "application/json",
+
+    "Accept":
+        "application/json"
+
+});
+
+
+const loadQuotaMap = async (
+    config
+) => {
+
+    const map =
+        new Map();
+
+
+    try {
+
+        const result =
+            await supabaseRequest(
+
+                config.url,
+
+                `/rest/v1/${QUOTA_VIEW}?select=*`,
+
+                {
+                    method: "GET",
+                    headers: authHeaders(config)
+                }
+
+            );
+
+
+        if (
+            !result.response.ok
+        ) {
+
+            console.warn(
+                "QWENCLOUD QUOTA VIEW UNAVAILABLE:",
+                result.data
+            );
+
+            return map;
+
+        }
+
+
+        const rows =
+            Array.isArray(
+                result.data
+            )
+                ? result.data
+                : [];
+
+
+        rows.forEach(
+            row => {
+
+                if (row?.model_id) {
+
+                    map.set(
+                        String(row.model_id),
+                        row
+                    );
+
+                }
+
+            }
+        );
+
+
+        return map;
+
+    } catch (error) {
+
+        console.warn(
+            "QWENCLOUD QUOTA LOAD FAILED:",
+            error
+        );
+
+        return map;
+
+    }
+
+};
+
+
+const getQuotaForModel = async (
+    config,
+    modelUuid
+) => {
+
+    if (!modelUuid) {
+        return null;
+    }
+
+
+    try {
+
+        const result =
+            await supabaseRequest(
+
+                config.url,
+
+                `/rest/v1/${QUOTA_VIEW}?select=*&model_id=eq.${encodeURIComponent(modelUuid)}&limit=1`,
+
+                {
+                    method: "GET",
+                    headers: authHeaders(config)
+                }
+
+            );
+
+
+        if (
+            !result.response.ok ||
+            !Array.isArray(result.data)
+        ) {
+
+            return null;
+
+        }
+
+
+        return result.data[0] || null;
+
+    } catch (error) {
+
+        console.warn(
+            "QWENCLOUD QUOTA FETCH FAILED:",
+            error
+        );
+
+        return null;
+
+    }
+
+};
+
+
+const isQwenCloudProvider = (
+    provider
+) => {
+
+    return String(
+        provider?.provider_id || ""
+    )
+        .trim()
+        .toLowerCase() ===
+        QWENCLOUD_PROVIDER_CODE;
+
+};
+
+
+const hasQuotaInput = (
+    body
+) => {
+
+    if (!body || typeof body !== "object") {
+        return false;
+    }
+
+
+    return [
+
+        "quota_total_seconds",
+
+        "quota_expires_at",
+
+        "quota_manual_used",
+
+        "quota_reset"
+
+    ].some(
+        key => body[key] !== undefined
+    );
+
+};
+
+
+const saveModelQuota = async (
+    config,
+    modelUuid,
+    body,
+    fallbackModelId = ""
+) => {
+
+    if (!modelUuid) {
+        return null;
+    }
+
+
+    const totalInput =
+        body?.quota_total_seconds;
+
+
+    const fallbackTotal =
+        resolveDefaultQuotaSeconds(
+            body?.model_id ||
+            fallbackModelId
+        );
+
+
+    const total =
+        totalInput === undefined ||
+        totalInput === null ||
+        String(totalInput).trim() === ""
+            ? fallbackTotal
+            : Math.max(
+                Math.round(
+                    Number(totalInput) || 0
+                ),
+                0
+            );
+
+
+    const payload = {
+
+        p_model_uuid:
+            modelUuid,
+
+        p_total_seconds:
+            total,
+
+        p_expires_at:
+            body?.quota_expires_at ||
+            null,
+
+        p_manual_used:
+            Math.max(
+                Math.round(
+                    Number(
+                        body?.quota_manual_used || 0
+                    ) || 0
+                ),
+                0
+            ),
+
+        p_reset:
+            body?.quota_reset === true
+
+    };
+
+
+    const result =
+        await supabaseRequest(
+
+            config.url,
+
+            "/rest/v1/rpc/admin_set_model_quota",
+
+            {
+                method: "POST",
+                headers: authHeaders(config),
+                body: JSON.stringify(payload)
+            }
+
+        );
+
+
+    if (
+        !result.response.ok
+    ) {
+
+        console.error(
+            "SAVE MODEL QUOTA ERROR:",
+            result.data
+        );
+
+
+        throw new Error(
+
+            getSupabaseError(
+
+                result.data,
+
+                "Gagal menyimpan kuota model."
+
+            )
+
+        );
+
+    }
+
+
+    return await getQuotaForModel(
+        config,
+        modelUuid
+    );
+
+};
+
+
 const getSingleModel = async (
     config,
     identifier
@@ -953,9 +1270,20 @@ const getSingleModel = async (
     }
 
 
+    const quota =
+        isQwenCloudProvider(provider)
+            ? await getQuotaForModel(
+                config,
+                model.id
+            )
+            : null;
+
+
     const mergedModel = {
 
         ...model,
+
+        quota,
 
         provider_name:
             provider?.provider_name ||
@@ -1156,6 +1484,12 @@ const listModels = async (
         );
 
 
+    const quotaMap =
+        await loadQuotaMap(
+            config
+        );
+
+
     const providerMap =
         new Map();
 
@@ -1221,9 +1555,27 @@ const listModels = async (
                     );
 
 
+                const isQwenCloud =
+                    String(
+                        provider?.provider_id || ""
+                    )
+                        .trim()
+                        .toLowerCase() ===
+                    QWENCLOUD_PROVIDER_CODE;
+
+
                 return {
 
                     ...model,
+
+                    quota:
+                        isQwenCloud
+                            ? (
+                                quotaMap.get(
+                                    String(model.id)
+                                ) || null
+                            )
+                            : null,
 
                     provider_name:
                         provider?.provider_name ||
@@ -1596,6 +1948,65 @@ const createModel = async (
             : result.data;
 
 
+    /*
+     * Model QwenCloud otomatis mendapat baris kuota.
+     * Total default: 50 detik (Wan) / 10 detik (HappyHorse),
+     * bisa ditimpa lewat form Tambah Model.
+     */
+
+    if (
+        created?.id &&
+        isQwenCloudProvider(provider)
+    ) {
+
+        try {
+
+            const quota =
+                await saveModelQuota(
+
+                    config,
+
+                    created.id,
+
+                    {
+                        ...body,
+                        model_id:
+                            created.model_id
+                    },
+
+                    created.model_id
+
+                );
+
+
+            return {
+
+                ...created,
+
+                quota
+
+            };
+
+        } catch (error) {
+
+            /*
+             * Model sudah terbuat. Kuota gagal disimpan
+             * tidak boleh membatalkan pembuatan model.
+             */
+
+            console.warn(
+                "CREATE MODEL QUOTA WARNING:",
+                error
+            );
+
+
+            return created;
+
+        }
+
+    }
+
+
     return created;
 
 };
@@ -1677,6 +2088,36 @@ const updateModel = async (
             model
         ).length === 0
     ) {
+
+        /*
+         * Perubahan hanya pada kuota QwenCloud:
+         * tidak ada kolom model yang perlu di-PATCH.
+         */
+
+        if (hasQuotaInput(body)) {
+
+            const quota =
+                await saveModelQuota(
+
+                    config,
+
+                    id,
+
+                    body
+
+                );
+
+
+            return {
+
+                id,
+
+                quota
+
+            };
+
+        }
+
 
         if (
             !updatedKiePricing
@@ -1846,9 +2287,48 @@ const updateModel = async (
     }
 
 
+    const updated =
+        result.data[0];
+
+
+    let quota =
+        null;
+
+
+    if (
+        hasQuotaInput(body) &&
+        updated?.id
+    ) {
+
+        quota =
+            await saveModelQuota(
+
+                config,
+
+                updated.id,
+
+                body,
+
+                updated.model_id
+
+            );
+
+    } else if (updated?.id) {
+
+        quota =
+            await getQuotaForModel(
+                config,
+                updated.id
+            );
+
+    }
+
+
     return {
 
-        ...result.data[0],
+        ...updated,
+
+        quota,
 
         kie_pricing_updated:
             updatedKiePricing

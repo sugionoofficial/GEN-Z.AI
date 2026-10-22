@@ -19,6 +19,9 @@ models/qwencloud-video/specs.js     daftar 17 model (edit di sini untuk menambah
 models/qwencloud-video/factory.js   adapter generator (config, validate, payload)
 models/qwencloud-video/index.js     registry model
 supabase/qwencloud-provider-models.sql   seed provider + model + credit
+supabase/qwencloud-model-quota.sql       tabel + view + trigger kuota per model
+lib/generate/model-quota.js              re-export helper kuota (server)
+admin-control/assets/js/model-quota.js   helper kuota (browser + server)
 tests/qwencloud-video.test.mjs      unit test adapter & client
 lib/generate/qwencloud-credit.js     billing per blok 5 detik
 ```
@@ -49,12 +52,14 @@ Supabase → SQL Editor → jalankan:
 
 ```
 supabase/qwencloud-provider-models.sql
+supabase/qwencloud-model-quota.sql
 ```
 
 File ini membuat:
 
 - baris `providers` dengan `provider_id = 'qwencloud'`
 - 17 baris `models` (status `active`, credit default)
+- 17 baris `model_quota` (Wan 50 detik, HappyHorse 10 detik)
 
 ### b. Isi API key
 
@@ -311,3 +316,68 @@ menampilkan alasan Indonesia, bukan pesan Inggris mentah.
 
 Log provider tidak pernah memuat API key — semua secret di-redact sebelum
 masuk Cloudflare Workers Logs.
+
+---
+
+## 11. Kuota per Model & Auto Nonaktif
+
+QwenCloud tidak menyediakan endpoint untuk membaca sisa kuota gratis, jadi
+GEN-Z.AI memakai **pelacakan pemakaian sendiri**:
+
+| Bagian | Sumber |
+|---|---|
+| **Total kuota** | diisi manual oleh admin di halaman Edit/Tambah Model |
+| **Pemakaian** | dihitung otomatis dari `generation_history` (durasi task berstatus `processing` atau `success`) |
+| **Sisa & persentase** | view `qwencloud_model_quota` |
+| **Auto nonaktif** | trigger `trg_qwencloud_quota` → `models.status = 'inactive'` |
+
+### Tampilan admin
+
+- **Edit Model → kartu "Kuota QwenCloud"**: persentase besar, progress bar,
+  label `Sisa 32% · 16 detik dari 50 detik · kedaluwarsa 19 Jan 2027`,
+  badge level (`Kuota aman` / `menipis` / `hampir habis` / `habis`).
+- Input **Total Kuota**, **Pemakaian Manual**, **Kedaluwarsa**, dan tombol
+  **Reset pemakaian & aktifkan model**.
+- **Tambah Model**: blok kuota muncul otomatis hanya ketika provider
+  **QwenCloud** dipilih.
+- Kartu kuota **tidak muncul** untuk provider lain.
+
+### Aturan penting
+
+1. **Total 0 detik = pelacakan dimatikan.** Model tidak akan pernah
+   dinonaktifkan otomatis; berguna saat sudah pindah ke pay-as-you-go.
+2. **Pemakaian manual** dipakai untuk model tanpa parameter durasi
+   (`qwen-wan2.2-animate-*` dan `qwen-happyhorse-1.0-video-edit`), karena
+   durasi task-nya tidak tercatat di `generation_history`.
+3. **Task gagal tidak dihitung** — hanya status `processing` dan `success`.
+   Kalau task gagal, kredit user sudah direfund dan kuota tidak terpakai.
+4. Saat pemakaian mencapai total, model langsung `inactive` sehingga
+   **hilang dari halaman Generate** tanpa perlu aksi manual. Kolom
+   `auto_disabled_at` menyimpan waktu kejadian.
+5. **Reset pemakaian** memulai hitungan dari nol (`started_at = now()`) dan
+   mengaktifkan kembali model yang dinonaktifkan otomatis. Model yang
+   dinonaktifkan manual tetap `inactive` sampai diaktifkan sendiri.
+6. Kalau total kuota dinaikkan melebihi pemakaian, model otomatis boleh
+   dipakai lagi tanpa perlu reset.
+7. Kuota yang sudah lewat `expires_at` ditandai **kedaluwarsa** di UI.
+
+### Hitung manual lewat SQL
+
+```sql
+-- sisa kuota semua model QwenCloud
+select model_code, status, total_seconds, used_seconds,
+       remaining_seconds, remaining_percent, expires_at, auto_disabled_at
+from public.qwencloud_model_quota
+order by model_code;
+
+-- ubah total / reset pemakaian
+select public.admin_set_model_quota(
+    (select id from public.models where model_id = 'qwen-happyhorse-1.1-t2v'),
+    10,            -- total detik
+    date '2027-01-19',
+    0,             -- pemakaian manual
+    true           -- reset + aktifkan kembali
+);
+```
+
+---
