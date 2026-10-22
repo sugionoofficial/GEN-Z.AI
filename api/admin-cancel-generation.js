@@ -322,6 +322,240 @@ const getBody = (req) => {
 
 
 // ========================================
+// ERROR TEXT
+// ========================================
+
+const describeError = (data) => {
+
+    if (!data) {
+        return "unknown error";
+    }
+
+    if (typeof data === "string") {
+        return data;
+    }
+
+    return String(
+        data.message ||
+        data.error_description ||
+        data.hint ||
+        data.details ||
+        JSON.stringify(data)
+    );
+
+};
+
+
+const CANCELLABLE_STATUSES = [
+    "processing",
+    "pending",
+    "queued",
+    "running"
+];
+
+
+// ========================================
+// FALLBACK — TANPA RPC
+// ========================================
+//
+// Kadang PostgREST belum memuat fungsi admin_cancel_generation
+// di schema cache (PGRST202) walau fungsinya ada di database.
+// Jalur ini memakai service role langsung: PATCH generation_history
+// lalu refund lewat refund_generate_credits.
+//
+// ========================================
+
+const cancelViaRest = async (
+    config,
+    historyId,
+    reason
+) => {
+
+    const filter =
+        `?id=eq.${encodeURIComponent(historyId)}`;
+
+
+    const found =
+        await supabaseRequest(
+            config.url,
+            "/rest/v1/generation_history" +
+                filter +
+                "&select=id,user_id,status,credit_cost,credit_refunded&limit=1",
+            {
+                method: "GET",
+                headers: serviceHeaders(config)
+            }
+        );
+
+
+    if (!found.response.ok) {
+
+        return {
+            ok: false,
+            status: 500,
+            error:
+                "Gagal membaca riwayat generate: " +
+                describeError(found.data)
+        };
+
+    }
+
+
+    const current =
+        Array.isArray(found.data)
+            ? found.data[0] || null
+            : found.data;
+
+
+    if (!current || !current.id) {
+
+        return {
+            ok: false,
+            status: 404,
+            error:
+                "Riwayat generate tidak ditemukan."
+        };
+
+    }
+
+
+    const previous =
+        String(
+            current.status || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (CANCELLABLE_STATUSES.indexOf(previous) === -1) {
+
+        return {
+            ok: true,
+            row: {
+                id: current.id,
+                status: current.status,
+                previous_status: current.status,
+                cancelled: false,
+                credit_refunded:
+                    current.credit_refunded === true,
+                refund_amount: 0
+            }
+        };
+
+    }
+
+
+    const finalReason =
+        reason || "Dibatalkan oleh admin";
+
+
+    const patched =
+        await supabaseRequest(
+            config.url,
+            "/rest/v1/generation_history" + filter,
+            {
+                method: "PATCH",
+                headers: {
+                    ...serviceHeaders(config),
+                    "Prefer": "return=representation"
+                },
+                body: JSON.stringify({
+                    status: "cancelled",
+                    completed_at: new Date().toISOString(),
+                    error_message: finalReason
+                })
+            }
+        );
+
+
+    if (!patched.response.ok) {
+
+        return {
+            ok: false,
+            status: 500,
+            error:
+                "Gagal menandai generate sebagai batal: " +
+                describeError(patched.data)
+        };
+
+    }
+
+
+    let refunded = false;
+    let refundAmount = 0;
+
+    const creditCost =
+        Number(current.credit_cost || 0);
+
+
+    if (
+        current.credit_refunded !== true &&
+        creditCost > 0
+    ) {
+
+        const refund =
+            await supabaseRequest(
+                config.url,
+                "/rest/v1/rpc/refund_generate_credits",
+                {
+                    method: "POST",
+                    headers: serviceHeaders(config),
+                    body: JSON.stringify({
+                        p_user_id: current.user_id,
+                        p_amount: creditCost
+                    })
+                }
+            );
+
+
+        if (refund.response.ok) {
+
+            refunded = true;
+            refundAmount = creditCost;
+
+            await supabaseRequest(
+                config.url,
+                "/rest/v1/generation_history" + filter,
+                {
+                    method: "PATCH",
+                    headers: {
+                        ...serviceHeaders(config),
+                        "Prefer": "return=minimal"
+                    },
+                    body: JSON.stringify({
+                        credit_refunded: true
+                    })
+                }
+            );
+
+        } else {
+
+            console.error(
+                "ADMIN CANCEL REFUND ERROR:",
+                refund.data
+            );
+
+        }
+
+    }
+
+
+    return {
+        ok: true,
+        row: {
+            id: current.id,
+            status: "cancelled",
+            previous_status: previous,
+            cancelled: true,
+            credit_refunded: refunded,
+            refund_amount: refundAmount
+        }
+    };
+
+};
+
+
+// ========================================
 // HANDLER
 // ========================================
 
@@ -449,6 +683,10 @@ export default async function handler(
         // RPC
         // =================================
 
+        let row = null;
+        let via = "rpc";
+
+
         const result =
             await supabaseRequest(
                 config.url,
@@ -464,33 +702,60 @@ export default async function handler(
             );
 
 
-        if (!result.response.ok) {
+        if (result.response.ok) {
+
+            row =
+                Array.isArray(result.data)
+                    ? result.data[0] || null
+                    : result.data;
+
+        } else {
+
+            /*
+             * RPC bisa gagal karena PostgREST belum memuat
+             * fungsinya di schema cache, jadi jangan langsung
+             * menyerah: batalkan langsung lewat service role.
+             */
 
             console.error(
-                "ADMIN CANCEL GENERATION ERROR:",
+                "ADMIN CANCEL RPC FAILED:",
+                result.response.status,
                 result.data
             );
 
-            return json(
-                res,
-                500,
-                {
-                    success: false,
-                    error:
-                        "Gagal membatalkan generate. " +
-                        "Pastikan migration " +
-                        "supabase/admin-cancel-generation.sql " +
-                        "sudah dijalankan."
-                }
-            );
+
+            const fallback =
+                await cancelViaRest(
+                    config,
+                    historyId,
+                    reason
+                );
+
+
+            if (!fallback.ok) {
+
+                return json(
+                    res,
+                    fallback.status || 500,
+                    {
+                        success: false,
+                        error:
+                            fallback.error +
+                            " (RPC " +
+                            result.response.status +
+                            ": " +
+                            describeError(result.data) +
+                            ")"
+                    }
+                );
+
+            }
+
+
+            row = fallback.row;
+            via = "rest";
 
         }
-
-
-        const row =
-            Array.isArray(result.data)
-                ? result.data[0] || null
-                : result.data;
 
 
         if (!row) {
@@ -543,7 +808,10 @@ export default async function handler(
             {
                 success: true,
                 message:
-                    "Generate berhasil dibatalkan.",
+                    row.credit_refunded
+                        ? "Generate dibatalkan dan credit dikembalikan."
+                        : "Generate berhasil dibatalkan.",
+                via,
                 history: row
             }
         );
