@@ -41,6 +41,8 @@
 
     let boundClickHandler = null;
 
+    let boundDetailHandler = null;
+
     let operationLocked = false;
 
 
@@ -518,6 +520,90 @@
      * CLICK HANDLER
      * ===================================================== */
 
+    async function handleDetailEdit(event) {
+
+        const target =
+            event.target instanceof Element
+                ? event.target
+                : null;
+
+
+        if (!target) {
+
+            return;
+
+        }
+
+
+        const button =
+            target.closest(
+                "[data-detail-edit]"
+            );
+
+
+        if (!button) {
+
+            return;
+
+        }
+
+
+        event.preventDefault();
+
+
+        const modelId =
+            getModelIdFromElement(
+                button
+            );
+
+
+        if (!modelId) {
+
+            return;
+
+        }
+
+
+        const table =
+            window.GENZModelTable;
+
+
+        if (
+            table &&
+            typeof table.closeModelDetail ===
+                "function"
+        ) {
+
+            table.closeModelDetail();
+
+        }
+
+
+        try {
+
+            await triggerEdit(
+                modelId,
+                button
+            );
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI Models] " +
+                "Edit dari panel detail gagal:",
+                error
+            );
+
+
+            showError(
+                error
+            );
+
+        }
+
+    }
+
+
     async function handleClick(event) {
 
         if (!event) {
@@ -541,9 +627,62 @@
 
 
         /*
-         * HANYA tangani tombol Edit.
-         *
-         * Tidak ada selector Delete.
+         * Tombol View: buka panel detail mengambang.
+         */
+
+        const viewButton =
+            target.closest(
+                [
+                    "[data-action='view']",
+
+                    "[data-model-action='view']",
+
+                    ".btn-view-model"
+
+                ].join(",")
+            );
+
+
+        if (viewButton) {
+
+            event.preventDefault();
+
+            event.stopPropagation();
+
+
+            const viewModelId =
+                getModelIdFromElement(
+                    viewButton
+                );
+
+
+            const table =
+                window.GENZModelTable;
+
+
+            if (
+                viewModelId &&
+                table &&
+                typeof table.openModelDetail ===
+                    "function"
+            ) {
+
+                table.openModelDetail(
+                    viewModelId
+                );
+
+            }
+
+
+            return;
+
+        }
+
+
+        /*
+         * Tombol Edit pada kartu.
+         * Tombol Edit di dalam panel detail punya
+         * listener sendiri (data-detail-edit).
          */
 
         const editButton =
@@ -730,10 +869,24 @@
         boundClickHandler =
             handleClick;
 
+        boundDetailHandler =
+            handleDetailEdit;
+
 
         boundContainer.addEventListener(
             "click",
             boundClickHandler
+        );
+
+
+        /*
+         * Panel detail berada di luar container,
+         * jadi listener-nya dipasang di document.
+         */
+
+        document.addEventListener(
+            "click",
+            boundDetailHandler
         );
 
 
@@ -769,6 +922,20 @@
 
 
         boundClickHandler =
+            null;
+
+
+        if (boundDetailHandler) {
+
+            document.removeEventListener(
+                "click",
+                boundDetailHandler
+            );
+
+        }
+
+
+        boundDetailHandler =
             null;
 
 

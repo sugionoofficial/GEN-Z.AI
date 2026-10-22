@@ -1431,23 +1431,22 @@
 
 
         /*
-         * Model ID adalah satu-satunya identifier
-         * yang digunakan untuk navigasi Edit.
+         * Kartu ringkas:
+         * nama model, provider, tombol View + Edit.
+         *
+         * Detail lengkap (harga, rasio, resolusi, status)
+         * dipindah ke panel mengambang lewat tombol View.
          */
 
         const identifier =
             normalized.model_id;
 
 
-        const status =
-            normalized.status;
-
-
         return (
 
             '<article' +
 
-                ' class="model-card"' +
+                ' class="model-card model-card-compact"' +
 
                 ' data-model-id="' +
                     escapeHtml(identifier) +
@@ -1464,11 +1463,126 @@
                 '"' +
 
                 ' data-status="' +
-                    escapeHtml(status) +
+                    escapeHtml(normalized.status) +
                 '"' +
 
             ">" +
 
+
+                '<div class="model-card-compact-main">' +
+
+                    '<h2 class="model-name">' +
+
+                        escapeHtml(
+                            normalized.model_name
+                        ) +
+
+                    "</h2>" +
+
+
+                    '<div class="model-card-provider">' +
+
+                        escapeHtml(
+                            normalized.provider_name
+                        ) +
+
+                    "</div>" +
+
+                "</div>" +
+
+
+                '<div class="model-card-actions">' +
+
+                    '<button' +
+
+                        ' type="button"' +
+
+                        ' class="btn btn-secondary btn-small btn-view-model"' +
+
+                        ' data-action="view"' +
+
+                        ' data-model-id="' +
+                            escapeHtml(identifier) +
+                        '"' +
+
+                        ' data-model-code="' +
+                            escapeHtml(identifier) +
+                        '"' +
+
+                        ' data-model-db-id="' +
+                            escapeHtml(
+                                normalized.id
+                            ) +
+                        '"' +
+
+                    ">" +
+
+                        "👁 View" +
+
+                    "</button>" +
+
+
+                    '<button' +
+
+                        ' type="button"' +
+
+                        ' class="btn btn-primary btn-small btn-edit-model"' +
+
+                        ' data-action="edit"' +
+
+                        ' data-model-id="' +
+                            escapeHtml(identifier) +
+                        '"' +
+
+                        ' data-model-code="' +
+                            escapeHtml(identifier) +
+                        '"' +
+
+                        ' data-model-db-id="' +
+                            escapeHtml(
+                                normalized.id
+                            ) +
+                        '"' +
+
+                    ">" +
+
+                        "✎ Edit" +
+
+                    "</button>" +
+
+                "</div>" +
+
+            "</article>"
+
+        );
+
+    }
+
+
+    /* =========================================================
+       DETAIL (panel mengambang)
+    ========================================================= */
+
+    function renderDetail(model) {
+
+        const normalized =
+            normalizeModel(model);
+
+
+        if (!normalized) {
+
+            return "";
+
+        }
+
+
+        const identifier =
+            normalized.model_id;
+
+
+        return (
+
+            '<div class="model-detail-content">' +
 
                 '<span class="premium-badge">' +
                     "Premium" +
@@ -1485,16 +1599,20 @@
                     '<div class="model-title">' +
 
                         '<h2 class="model-name">' +
+
                             escapeHtml(
                                 normalized.model_name
                             ) +
+
                         "</h2>" +
 
 
                         '<div class="model-id">' +
+
                             escapeHtml(
                                 normalized.model_id
                             ) +
+
                         "</div>" +
 
                     "</div>" +
@@ -1516,59 +1634,56 @@
 
                     '<div class="meta-item">' +
 
-                        '<div class="meta-label">' +
-                            "Provider" +
-                        "</div>" +
+                        '<div class="meta-label">Provider</div>' +
 
                         '<div class="meta-value">' +
+
                             escapeHtml(
                                 normalized.provider_name
                             ) +
+
                         "</div>" +
 
                     "</div>" +
 
-
                     '<div class="meta-item">' +
 
-                        '<div class="meta-label">' +
-                            "Tipe" +
-                        "</div>" +
+                        '<div class="meta-label">Tipe</div>' +
 
                         '<div class="meta-value">' +
+
                             escapeHtml(
                                 normalized.type
                             ) +
+
                         "</div>" +
 
                     "</div>" +
 
-
                     '<div class="meta-item">' +
 
-                        '<div class="meta-label">' +
-                            "Durasi" +
-                        "</div>" +
+                        '<div class="meta-label">Durasi</div>' +
 
                         '<div class="meta-value">' +
+
                             formatDuration(
                                 normalized
                             ) +
+
                         "</div>" +
 
                     "</div>" +
 
-
                     '<div class="meta-item">' +
 
-                        '<div class="meta-label">' +
-                            "Source" +
-                        "</div>" +
+                        '<div class="meta-label">Source</div>' +
 
                         '<div class="meta-value">' +
+
                             escapeHtml(
                                 normalized.source
                             ) +
+
                         "</div>" +
 
                     "</div>" +
@@ -1588,9 +1703,11 @@
                     "</div>" +
 
                     '<div class="chips">' +
+
                         formatRatio(
                             normalized
                         ) +
+
                     "</div>" +
 
                 "</div>" +
@@ -1603,9 +1720,11 @@
                     "</div>" +
 
                     '<div class="chips">' +
+
                         formatResolution(
                             normalized
                         ) +
+
                     "</div>" +
 
                 "</div>" +
@@ -1632,7 +1751,7 @@
 
                         ' class="btn btn-primary btn-small btn-edit-model"' +
 
-                        ' data-action="edit"' +
+                        ' data-detail-edit="true"' +
 
                         ' data-model-id="' +
                             escapeHtml(identifier) +
@@ -1656,9 +1775,247 @@
 
                 "</div>" +
 
-            "</article>"
+            "</div>"
 
         );
+
+    }
+
+
+    /* =========================================================
+       DETAIL OVERLAY
+    ========================================================= */
+
+    function ensureDetailOverlay() {
+
+        let overlay =
+            document.getElementById(
+                "modelDetailOverlay"
+            );
+
+
+        if (overlay) {
+
+            return overlay;
+
+        }
+
+
+        overlay =
+            document.createElement("div");
+
+
+        overlay.id =
+            "modelDetailOverlay";
+
+        overlay.className =
+            "model-detail-overlay";
+
+        overlay.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+
+        overlay.innerHTML =
+
+            '<div class="model-detail-panel"' +
+                ' role="dialog"' +
+                ' aria-modal="true"' +
+                ' aria-label="Detail model"' +
+            ">" +
+
+                '<div class="model-detail-head">' +
+
+                    '<span class="model-detail-eyebrow">' +
+                        "Detail Model" +
+                    "</span>" +
+
+                    '<button' +
+
+                        ' type="button"' +
+
+                        ' class="model-detail-close"' +
+
+                        ' data-model-detail-close="true"' +
+
+                        ' aria-label="Tutup detail model"' +
+
+                    ">" +
+
+                        "×" +
+
+                    "</button>" +
+
+                "</div>" +
+
+
+                '<div class="model-detail-body"' +
+                    ' id="modelDetailBody"' +
+                "></div>" +
+
+            "</div>";
+
+
+        document.body.appendChild(
+            overlay
+        );
+
+
+        overlay.addEventListener(
+            "click",
+            event => {
+
+                const target =
+                    event.target instanceof Element
+                        ? event.target
+                        : null;
+
+
+                if (!target) {
+
+                    return;
+
+                }
+
+
+                if (
+                    target === overlay ||
+                    target.closest(
+                        "[data-model-detail-close]"
+                    )
+                ) {
+
+                    closeModelDetail();
+
+                }
+
+            }
+        );
+
+
+        document.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Escape" &&
+                    overlay.classList.contains("show")
+                ) {
+
+                    closeModelDetail();
+
+                }
+
+            }
+        );
+
+
+        return overlay;
+
+    }
+
+
+    function openModelDetail(identifier) {
+
+        const model =
+            findByIdentifier(identifier) ||
+            findByModelId(identifier);
+
+
+        if (!model) {
+
+            console.warn(
+                "[GEN-Z.AI] Detail model tidak ditemukan:",
+                identifier
+            );
+
+            return false;
+
+        }
+
+
+        const normalized =
+            normalizeModel(model);
+
+
+        if (!normalized) {
+
+            return false;
+
+        }
+
+
+        const overlay =
+            ensureDetailOverlay();
+
+
+        const body =
+            overlay.querySelector(
+                "#modelDetailBody"
+            );
+
+
+        if (body) {
+
+            body.innerHTML =
+                renderDetail(normalized);
+
+        }
+
+
+        overlay.classList.add("show");
+
+        overlay.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+
+        document.body.classList.add(
+            "model-detail-open"
+        );
+
+
+        overlay
+            .querySelector(".model-detail-close")
+            ?.focus();
+
+
+        return true;
+
+    }
+
+
+    function closeModelDetail() {
+
+        const overlay =
+            document.getElementById(
+                "modelDetailOverlay"
+            );
+
+
+        if (!overlay) {
+
+            return false;
+
+        }
+
+
+        overlay.classList.remove("show");
+
+        overlay.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+
+        document.body.classList.remove(
+            "model-detail-open"
+        );
+
+
+        return true;
 
     }
 
@@ -2195,6 +2552,12 @@
 
             renderRow:
                 renderCard,
+
+            renderDetail,
+
+            openModelDetail,
+
+            closeModelDetail,
 
             renderEmpty,
 
