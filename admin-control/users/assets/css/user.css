@@ -3046,3 +3046,64 @@
         font-size: 16px;
     }
 }
+
+
+/* =========================================================
+   DESKTOP — SEMUA BLOK LEBIH RINGKAS
+   ---------------------------------------------------------
+   Sebelumnya .user-management-page memakai max-width 1900px
+   sehingga kartu statistik, tabel user, dan kartu permintaan
+   penghapusan melebar sampai ujung kiri-kanan layar.
+
+   Aturan ini hanya berlaku di desktop (>= 901px) supaya
+   layout HP yang sudah 3 kolom sejajar tidak berubah.
+========================================================= */
+
+@media (min-width: 901px) {
+
+    .user-management-page {
+        max-width: 1120px;
+        padding: 28px 24px 56px;
+    }
+
+    .stats-grid {
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        padding: 18px 20px;
+        border-radius: 13px;
+    }
+
+    .stat-label {
+        margin-bottom: 6px;
+        font-size: 11px;
+    }
+
+    .stat-value {
+        font-size: 26px;
+    }
+
+    .users-card,
+    .deletion-card {
+        border-radius: 14px;
+    }
+
+    .users-card-header,
+    .deletion-card-header {
+        padding: 18px 20px;
+    }
+
+    .section-title {
+        font-size: 16px;
+    }
+
+    .users-search {
+        padding: 14px 20px;
+    }
+
+    .deletion-body {
+        padding: 18px 20px 20px;
+    }
+}
