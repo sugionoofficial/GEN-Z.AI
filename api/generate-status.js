@@ -64,6 +64,9 @@ import wan30RefS6
 import klingMotionControl30Pro
     from "../models/kling-motion-control-30-pro/index.js";
 
+import qwenCloudVideoModels
+    from "../models/qwencloud-video/index.js";
+
 /* =========================================================
    CONSTANTS
    ========================================================= */
@@ -75,7 +78,10 @@ const MODEL_REGISTRY = [
     seedance25StudioMotiongen,
     seedanceA2VStudioS14,
     wan30RefS6,
-    klingMotionControl30Pro
+    klingMotionControl30Pro,
+
+    /* QwenCloud (Alibaba Cloud Model Studio / DashScope) */
+    ...qwenCloudVideoModels
 ];
 
 const STALE_TASK_EXPIRED_ERROR =

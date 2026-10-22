@@ -41,6 +41,9 @@ import wan30RefS6
 import klingMotionControl30Pro
     from "../models/kling-motion-control-30-pro/index.js";
 
+import qwenCloudVideoModels
+    from "../models/qwencloud-video/index.js";
+
 
 /* =========================================================
    ENVIRONMENT
@@ -88,7 +91,10 @@ const MODEL_REGISTRY = Object.freeze([
     seedance25StudioMotiongen,
     seedanceA2VStudioS14,
     wan30RefS6,
-    klingMotionControl30Pro
+    klingMotionControl30Pro,
+
+    /* QwenCloud (Alibaba Cloud Model Studio / DashScope) */
+    ...qwenCloudVideoModels
 ]);
 
 

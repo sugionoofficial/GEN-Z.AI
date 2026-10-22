@@ -328,6 +328,7 @@ function isFullWidthParameter(
         parameter === "image_url" ||
         parameter === "reference_image_urls" ||
         parameter === "first_frame_url" ||
+        parameter === "last_frame_url" ||
         parameter === "video_urls" ||
         parameter === "video_url" ||
         parameter === "reference_video_urls" ||

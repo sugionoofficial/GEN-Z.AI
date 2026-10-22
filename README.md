@@ -158,6 +158,19 @@ Pilihan Gemini memakai Nano Banana 2 Lite (`gemini-3.1-flash-lite-image`) dan
 | `digital-human-lipsync-image` | Digital Human - LipSync Image | image-to-video | Motiongen-AI |
 | `seedance-25-studio-s14` | Seedance 2.5 (30s) | text-to-video | Motiongen-AI |
 | `wan-30-ref-s6` | Wan 3.0 Reference Video (15s) | image-to-video | Motiongen-AI |
+| `qwen-wan2.6-t2v` | Wan 2.6 Text to Video | text-to-video | QwenCloud |
+| `qwen-wan2.5-t2v-preview` | Wan 2.5 Text to Video (Preview) | text-to-video | QwenCloud |
+| `qwen-wan2.2-t2v-plus` | Wan 2.2 Text to Video Plus | text-to-video | QwenCloud |
+| `qwen-wan2.6-i2v-flash` | Wan 2.6 Image to Video Flash | image-to-video | QwenCloud |
+| `qwen-wan2.6-i2v` | Wan 2.6 Image to Video | image-to-video | QwenCloud |
+| `qwen-wan2.5-i2v-preview` | Wan 2.5 Image to Video (Preview) | image-to-video | QwenCloud |
+| `qwen-wan2.2-i2v-flash` | Wan 2.2 Image to Video Flash | image-to-video | QwenCloud |
+| `qwen-wan2.2-i2v-plus` | Wan 2.2 Image to Video Plus | image-to-video | QwenCloud |
+| `qwen-wan2.2-kf2v-flash` | Wan 2.2 First & Last Frame | image-to-video | QwenCloud |
+| `qwen-wan2.6-r2v-flash` | Wan 2.6 Reference to Video Flash | image-to-video | QwenCloud |
+| `qwen-wan2.6-r2v` | Wan 2.6 Reference to Video | image-to-video | QwenCloud |
+| `qwen-wan2.2-animate-move` | Wan 2.2 Animate Move | image-to-video | QwenCloud |
+| `qwen-wan2.2-animate-mix` | Wan 2.2 Animate Mix | image-to-video | QwenCloud |
 
 Jalankan `supabase/generation-failure-credit-refund.sql` di Supabase SQL
 Editor agar kegagalan task mengembalikan kredit GEN-Z.AI secara idempoten
@@ -170,7 +183,13 @@ Untuk Wan 3.0 Reference Video, buat/aktifkan model `wan-30-ref-s6` dengan
 provider `motiongen` dan harga `4` pada ketiga tier kredit. Model ini wajib
 menerima 1–6 gambar referensi dan dapat memakai satu video referensi opsional.
 
-Setiap model memiliki folder sendiri di `models/` dengan struktur:
+Model QwenCloud (Alibaba Cloud Model Studio / DashScope) memakai satu
+factory bersama di `models/qwencloud-video/` — menambah model cukup
+mengedit `specs.js`. Jalankan `supabase/qwencloud-provider-models.sql`,
+lalu isi API key lewat Admin Panel → Providers → QwenCloud. Detail
+langkah lengkap ada di [QWENCLOUD-SETUP.md](QWENCLOUD-SETUP.md).
+
+Model lain memiliki folder sendiri di `models/` dengan struktur:
 
 ```
 models/<model-name>/
@@ -229,6 +248,10 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-secret-key
 # Optional: SightEngine (NSFW checker)
 # SIGHTENGINE_API_USER=...
 # SIGHTENGINE_API_SECRET=...
+
+# Optional: QwenCloud (DashScope) base URL override
+# Default: https://dashscope-intl.aliyuncs.com/api/v1
+# DASHSCOPE_BASE_URL=https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/api/v1
 ```
 
 > **Penting**: Jangan pernah commit `.env` atau service role key ke repository.

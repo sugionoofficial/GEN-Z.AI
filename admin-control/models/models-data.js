@@ -53,7 +53,7 @@
 ========================================================= */
 
 const MODEL_DATA_VERSION =
-    "2026-10-18-wan-registry-v9";
+    "2026-10-22-qwencloud-v10";
 
 
 /* =========================================================
@@ -101,6 +101,9 @@ import klingMotionControlConfig
 
 import klingMotionControlParameters
     from "../../models/kling-motion-control-30-pro/parameters.js?v=models-registry-editor-20261014";
+
+import qwenCloudVideoModels
+    from "../../models/qwencloud-video/index.js?v=models-registry-qwencloud-20261022";
 
 
 /* =========================================================
@@ -191,7 +194,27 @@ const MODEL_REGISTRY = [
 
         parameters:
             klingMotionControlParameters
-    }
+    },
+
+    /*
+     * QwenCloud (Alibaba Cloud Model Studio / DashScope)
+     *
+     * Semua model video dibuat dari satu factory, sehingga
+     * folder registry-nya sama: models/qwencloud-video.
+     */
+
+    ...qwenCloudVideoModels.map(
+        model => ({
+            folder:
+                "models/qwencloud-video",
+
+            config:
+                model.config,
+
+            parameters:
+                model.parameters
+        })
+    )
 
 ];
 

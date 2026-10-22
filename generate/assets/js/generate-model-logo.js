@@ -84,7 +84,26 @@ const LOGO_MAP = Object.freeze({
         "minimax.svg",
 
     minimax:
-        "minimax.svg"
+        "minimax.svg",
+
+
+    /* =====================================================
+       QWENCLOUD / ALIBABA CLOUD MODEL STUDIO (DASHSCOPE)
+       Model: qwen-wan2.6-t2v, qwen-wan2.6-r2v, dst.
+       Logo file: wan.svg
+    ===================================================== */
+
+    qwencloud:
+        "wan.svg",
+
+    "qwen-cloud":
+        "wan.svg",
+
+    qwen:
+        "wan.svg",
+
+    dashscope:
+        "wan.svg"
 
 });
 

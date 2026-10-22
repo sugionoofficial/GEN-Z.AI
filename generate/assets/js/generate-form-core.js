@@ -61,6 +61,7 @@ export const PARAMETER_ORDER = [
     "image_url",
     "reference_image_urls",
     "first_frame_url",
+    "last_frame_url",
     "video_urls",
     "video_url",
     "reference_video_urls",
@@ -83,6 +84,7 @@ export const FULL_WIDTH_PARAMETERS =
         "image_url",
         "reference_image_urls",
         "first_frame_url",
+        "last_frame_url",
         "video_urls",
         "video_url",
         "reference_video_urls",
@@ -782,6 +784,9 @@ export function getParameterLabel(
         first_frame_url:
             "Gambar Referensi",
 
+        last_frame_url:
+            "Gambar Referensi",
+
         video_urls:
             "Video Referensi",
 
@@ -802,6 +807,12 @@ export function getParameterLabel(
 
         prompt:
             "Prompt",
+
+        negative_prompt:
+            "Negative Prompt",
+
+        prompt_extend:
+            "Perkaya Prompt Otomatis",
 
         mode:
             "Mode",
