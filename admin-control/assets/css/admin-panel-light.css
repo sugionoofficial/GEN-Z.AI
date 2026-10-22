@@ -1,0 +1,269 @@
+/* =========================================================
+   GEN-Z.AI — ADMIN PANEL (ADMIN CONTROL HUB)
+   LIGHT THEME (MODE CERAH)
+   ---------------------------------------------------------
+   File:
+   admin-control/assets/css/admin-panel-light.css
+
+   Dimuat SETELAH <style> inline admin-control/admin-panel.html.
+
+   Kenapa perlu:
+   - Palet halaman ini gelap total (#050505) dengan border
+     oranye (--admin-orange). Blok override di akhir <style>
+     memaksa .page-header, .hero, .feature-card, dan
+     .system-status tetap #050505 !important.
+   - Di mode cerah theme.js hanya memutihkan body/teks, jadi
+     semua kartu tetap hitam dengan judul gelap di atas hitam
+     ("GEN-Z.AI", "Admin Control", "Edit User", dst).
+   - Gradien teks (.brand-name, .holo-g, .hero h1 span) memakai
+     background-clip: text sehingga warnanya harus ditimpa
+     eksplisit.
+
+   Semua aturan di-scope ke html[data-genz-theme="light"]
+   sehingga MODE GELAP tidak berubah.
+
+   Identitas oranye dipertahankan, hanya digelapkan secukupnya
+   agar lolos kontras di atas latar putih.
+========================================================= */
+
+
+/* =========================================================
+   01. TOKENS + PAGE
+========================================================= */
+
+html[data-genz-theme="light"] {
+    --admin-orange: #d9660b;
+    --admin-orange-line: #ecdcc8;
+    --admin-orange-bright: #b45309;
+
+    color-scheme: light;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body {
+    background:
+        radial-gradient(circle at 10% 0%, rgba(255, 120, 30, .08), transparent 30%),
+        radial-gradient(circle at 90% 10%, rgba(255, 23, 68, .07), transparent 30%),
+        linear-gradient(145deg, #f7f9fd 0%, #eef2f9 52%, #e9eef7 100%) !important;
+    background-attachment: fixed !important;
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .page::before {
+    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, .55) 40%, transparent 60%) !important;
+    opacity: .5 !important;
+}
+
+
+/* =========================================================
+   02. LOADING
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #loading {
+    background:
+        radial-gradient(circle at center, rgba(255, 23, 68, .08), #eef2f9 55%) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .loading-logo {
+    background: #ffffff !important;
+    border: 1px solid #ecdcc8 !important;
+    box-shadow: 0 12px 28px rgba(40, 54, 82, .12) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .loading-g {
+    background: linear-gradient(135deg, #0b1424, #0e7490, #6d3fc4, #b3122f) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .loading-spinner {
+    border: 2px solid #ecdcc8 !important;
+    border-top-color: #c2410c !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .loading-text {
+    color: #58657b !important;
+}
+
+
+/* =========================================================
+   03. PAGE HEADER
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .page-header {
+    border: 1px solid #ecdcc8 !important;
+    background:
+        linear-gradient(145deg, #ffffff, #fdf9f4) !important;
+    box-shadow: 0 14px 34px rgba(40, 54, 82, .09) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .page-header::before {
+    background: radial-gradient(circle, rgba(255, 120, 30, .12), transparent 68%) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .page-header::after {
+    background: linear-gradient(90deg, transparent, rgba(217, 102, 11, .55), transparent) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .holo-logo {
+    background: linear-gradient(145deg, #fffaf3, #fff3e2) !important;
+    border: 1px solid #e8c9a4 !important;
+    box-shadow: 0 8px 20px rgba(217, 102, 11, .12) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .holo-logo::after {
+    background: linear-gradient(145deg, #fffaf3, #fff3e2) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .holo-g {
+    background: linear-gradient(135deg, #0b1424 0%, #0e7490 34%, #6d3fc4 62%, #b3122f 100%) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .holo-scan {
+    background: linear-gradient(90deg, transparent, rgba(217, 102, 11, .85), transparent) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .brand-name {
+    background: linear-gradient(90deg, #0b1424, #1f3557 45%, #0b1424) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .brand-subtitle {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .header-badge {
+    border: 1px solid #e8c9a4 !important;
+    background: #fff6ea !important;
+    color: #9a4a06 !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .header-badge-dot {
+    background: #c2410c !important;
+    box-shadow: 0 0 8px rgba(194, 65, 12, .45) !important;
+}
+
+
+/* =========================================================
+   04. HERO
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero {
+    border: 1px solid #ecdcc8 !important;
+    background:
+        radial-gradient(circle at 50% -40%, rgba(255, 120, 30, .12), transparent 62%),
+        linear-gradient(145deg, #ffffff, #fdf8f2) !important;
+    box-shadow: 0 14px 34px rgba(40, 54, 82, .08) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero::before {
+    background: radial-gradient(circle, rgba(255, 120, 30, .12), transparent 68%) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .eyebrow {
+    border: 1px solid #e8c9a4 !important;
+    background: #fff6ea !important;
+    color: #9a4a06 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero h1 {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero h1 span {
+    background: linear-gradient(90deg, #b8172f, #c2410c 55%, #9a4a06) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    color: #b8172f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .hero p {
+    color: #46536a !important;
+}
+
+
+/* =========================================================
+   05. FEATURE CARDS
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .feature-card {
+    border: 1px solid #e8e2d6 !important;
+    background: #ffffff !important;
+    color: #0b1424 !important;
+    box-shadow: 0 12px 30px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .feature-card::before {
+    background: radial-gradient(circle, rgba(255, 120, 30, .10), transparent 68%) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .feature-card::after {
+    background: linear-gradient(90deg, transparent, rgba(217, 102, 11, .45), transparent) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .feature-card:hover {
+    border-color: #d9660b !important;
+    background: #fffdf8 !important;
+    box-shadow: 0 16px 36px rgba(217, 102, 11, .16) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .feature-icon {
+    border: 1px solid #e8c9a4 !important;
+    background: #fff6ea !important;
+    color: #b45309 !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .feature-card h2 {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .feature-card p {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .feature-arrow {
+    border: 1px solid #e8c9a4 !important;
+    background: #fff6ea !important;
+    color: #9a4a06 !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .feature-card:hover .feature-arrow {
+    border-color: #d9660b !important;
+    background: #ffefdd !important;
+    color: #8a3b05 !important;
+}
+
+
+/* =========================================================
+   06. SYSTEM STATUS
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .system-status {
+    border: 1px solid #e2e8f1 !important;
+    background: #ffffff !important;
+    box-shadow: 0 10px 26px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-text {
+    color: #3c4a60 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-dot {
+    background: #0f9d58 !important;
+    box-shadow: 0 0 8px rgba(15, 157, 88, .45) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .status-role {
+    border: 1px solid #e8c9a4 !important;
+    background: #fff6ea !important;
+    color: #9a4a06 !important;
+}
