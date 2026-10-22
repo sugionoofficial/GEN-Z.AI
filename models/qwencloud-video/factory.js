@@ -234,6 +234,9 @@ function buildParameters(
 
     const parameters = [];
 
+    const isHappyHorse =
+        spec.payloadStyle === "happyhorse";
+
 
     const promptDefinition = {
 
@@ -245,7 +248,8 @@ function buildParameters(
 
         required:
             spec.kind === "t2v" ||
-            spec.kind === "r2v",
+            spec.kind === "r2v" ||
+            spec.kind === "video-edit",
 
         maxLength:
             spec.maxPrompt || 2000,
@@ -296,14 +300,43 @@ function buildParameters(
     };
 
 
-    const durationDefinition = {
-        name: "duration",
-        type: "string",
-        required: false,
-        enum: spec.durations,
-        default: spec.defaultDuration,
-        description: "Durasi video dalam detik."
-    };
+    /*
+     * Model Wan memakai enum durasi (5/10/15),
+     * HappyHorse memakai rentang bebas (3–15 detik),
+     * Wan Animate tidak punya parameter durasi.
+     */
+
+    const durationDefinition =
+        Array.isArray(spec.durations) && spec.durations.length
+            ? {
+                name: "duration",
+                type: "string",
+                required: false,
+                enum: spec.durations,
+                default: spec.defaultDuration,
+                description: "Durasi video dalam detik."
+            }
+            : spec.durationRange
+                ? {
+                    name: "duration",
+                    type: "integer",
+                    required: false,
+                    min: spec.durationRange.min,
+                    max: spec.durationRange.max,
+                    default: String(
+                        spec.defaultDuration ||
+                        spec.durationRange.min
+                    ),
+                    description:
+                        `Durasi video ${spec.durationRange.min}–${spec.durationRange.max} detik.`
+                }
+                : null;
+
+
+    const durationParameters =
+        durationDefinition
+            ? [durationDefinition]
+            : [];
 
 
     const promptExtendDefinition = {
@@ -313,6 +346,16 @@ function buildParameters(
         default: true,
         description: "Biarkan QwenCloud memperkaya prompt secara otomatis."
     };
+
+
+    /*
+     * HappyHorse tidak punya prompt_extend.
+     */
+
+    const promptExtendParameters =
+        isHappyHorse
+            ? []
+            : [promptExtendDefinition];
 
 
     switch (spec.kind) {
@@ -336,7 +379,7 @@ function buildParameters(
             parameters.push(
                 ratioDefinition,
                 resolutionDefinition,
-                durationDefinition
+                ...durationParameters
             );
 
 
@@ -362,7 +405,7 @@ function buildParameters(
 
 
             parameters.push(
-                promptExtendDefinition
+                ...promptExtendParameters
             );
 
             break;
@@ -406,7 +449,7 @@ function buildParameters(
 
             parameters.push(
                 resolutionDefinition,
-                durationDefinition
+                ...durationParameters
             );
 
 
@@ -432,7 +475,7 @@ function buildParameters(
 
 
             parameters.push(
-                promptExtendDefinition
+                ...promptExtendParameters
             );
 
             break;
@@ -513,49 +556,53 @@ function buildParameters(
                     "image_urls",
 
                 required:
-                    false,
+                    isHappyHorse,
 
                 maxItems:
-                    5,
+                    spec.maxReferences || 5,
 
                 accept:
                     "image/jpeg,image/png,image/webp",
 
                 description:
-                    "Hingga 5 gambar referensi (karakter, objek, atau latar)."
+                    `Hingga ${spec.maxReferences || 5} gambar referensi (karakter, objek, atau latar).`
 
             });
 
 
-            parameters.push({
+            if (!isHappyHorse) {
 
-                name:
-                    "video_urls",
+                parameters.push({
 
-                type:
-                    "video_urls",
+                    name:
+                        "video_urls",
 
-                required:
-                    false,
+                    type:
+                        "video_urls",
 
-                maxItems:
-                    1,
+                    required:
+                        false,
 
-                accept:
-                    "video/mp4,video/webm",
+                    maxItems:
+                        1,
 
-                description:
-                    "Maksimal 1 video referensi (gerak/suara karakter)."
+                    accept:
+                        "video/mp4,video/webm",
 
-            });
+                    description:
+                        "Maksimal 1 video referensi (gerak/suara karakter)."
+
+                });
+
+            }
 
 
             parameters.push(
                 promptDefinition,
                 ratioDefinition,
                 resolutionDefinition,
-                durationDefinition,
-                promptExtendDefinition
+                ...durationParameters,
+                ...promptExtendParameters
             );
 
             break;
@@ -629,6 +676,62 @@ function buildParameters(
                     "wan-std lebih cepat & murah, wan-pro lebih halus."
 
             });
+
+            break;
+
+
+        case "video-edit":
+
+            parameters.push({
+
+                name:
+                    "video_url",
+
+                type:
+                    "video_url",
+
+                required:
+                    true,
+
+                label:
+                    "Video Sumber",
+
+                accept:
+                    "video/mp4,video/quicktime",
+
+                description:
+                    "URL publik video sumber yang akan diedit (MP4/MOV, 3–60 detik)."
+
+            });
+
+
+            parameters.push({
+
+                name:
+                    "image_urls",
+
+                type:
+                    "image_urls",
+
+                required:
+                    false,
+
+                maxItems:
+                    spec.maxReferences || 5,
+
+                accept:
+                    "image/jpeg,image/png,image/webp",
+
+                description:
+                    "Hingga 5 gambar referensi (gaya atau subjek) sebagai panduan edit."
+
+            });
+
+
+            parameters.push(
+                promptDefinition,
+                resolutionDefinition
+            );
 
             break;
 
@@ -721,6 +824,9 @@ function createQwenCloudVideoModel(
 
         kind:
             spec.kind,
+
+        payloadStyle:
+            spec.payloadStyle || "wan",
 
         adminEditor: {
 
@@ -1089,13 +1195,25 @@ function createQwenCloudVideoModel(
             );
 
 
+        const imageUrlsDefinition =
+            definitions.get(
+                "image_urls"
+            );
+
+
+        const maxImages =
+            Number(
+                imageUrlsDefinition?.maxItems || 5
+            );
+
+
         if (
-            definitions.has("image_urls") &&
-            imageUrls.length > 5
+            imageUrlsDefinition &&
+            imageUrls.length > maxImages
         ) {
 
             errors.push(
-                "Maksimal 5 gambar referensi."
+                `Maksimal ${maxImages} gambar referensi.`
             );
 
         }
@@ -1212,6 +1330,70 @@ function createQwenCloudVideoModel(
         }
 
 
+        /* ---------- duration range (HappyHorse) ---------- */
+
+        const durationDefinition =
+            definitions.get(
+                "duration"
+            );
+
+
+        if (
+            durationDefinition &&
+            !Array.isArray(
+                durationDefinition.enum
+            ) &&
+            Number.isFinite(
+                durationDefinition.min
+            ) &&
+            Number.isFinite(
+                durationDefinition.max
+            )
+        ) {
+
+            const rawDuration =
+                input.duration;
+
+
+            const duration =
+                rawDuration === null ||
+                rawDuration === undefined ||
+                rawDuration === ""
+                    ? Number(durationDefinition.default)
+                    : Number(
+                        String(
+                            rawDuration
+                        ).trim()
+                    );
+
+
+            if (
+                !Number.isFinite(
+                    duration
+                ) ||
+                !Number.isInteger(
+                    duration
+                )
+            ) {
+
+                errors.push(
+                    "duration harus berupa angka bulat (detik)."
+                );
+
+            } else if (
+                duration < durationDefinition.min ||
+                duration > durationDefinition.max
+            ) {
+
+                errors.push(
+                    `duration harus antara ${durationDefinition.min} dan ${durationDefinition.max} detik.`
+                );
+
+            }
+
+        }
+
+
         /* ---------- negative prompt ---------- */
 
         const negative =
@@ -1288,6 +1470,148 @@ function createQwenCloudVideoModel(
 
             input.audio_url =
                 values.audio_url;
+
+        }
+
+
+        /* =================================================
+           HAPPYHORSE — gaya payload `media[]`
+           -------------------------------------------------
+           Beda dari Wan:
+           - rasio memakai `ratio`, bukan `size`
+           - media memakai array { type, url }
+           - durasi integer bebas 3–15 detik
+        ================================================= */
+
+        if (spec.payloadStyle === "happyhorse") {
+
+            const media = [];
+
+
+            if (
+                spec.kind === "i2v" &&
+                values.image_url
+            ) {
+
+                media.push({
+
+                    type:
+                        "first_frame",
+
+                    url:
+                        values.image_url
+
+                });
+
+            }
+
+
+            if (spec.kind === "r2v") {
+
+                for (
+                    const url
+                    of values.image_urls || []
+                ) {
+
+                    media.push({
+
+                        type:
+                            "reference_image",
+
+                        url
+
+                    });
+
+                }
+
+            }
+
+
+            if (spec.kind === "video-edit") {
+
+                if (values.video_url) {
+
+                    media.push({
+
+                        type:
+                            "video",
+
+                        url:
+                            values.video_url
+
+                    });
+
+                }
+
+
+                for (
+                    const url
+                    of values.image_urls || []
+                ) {
+
+                    media.push({
+
+                        type:
+                            "reference_image",
+
+                        url
+
+                    });
+
+                }
+
+            }
+
+
+            if (media.length) {
+
+                input.media = media;
+
+            }
+
+
+            if (values.resolution) {
+
+                parametersOut.resolution =
+                    values.resolution;
+
+            }
+
+
+            if (
+                spec.ratios.length &&
+                values.aspect_ratio
+            ) {
+
+                parametersOut.ratio =
+                    values.aspect_ratio;
+
+            }
+
+
+            if (definitions.has("duration")) {
+
+                parametersOut.duration =
+                    Number(
+                        values.duration ||
+                        spec.defaultDuration ||
+                        5
+                    );
+
+            }
+
+
+            return {
+
+                model:
+                    spec.dashscopeModel,
+
+                input,
+
+                parameters:
+                    parametersOut
+
+            };
 
         }
 

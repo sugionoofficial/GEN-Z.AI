@@ -1,7 +1,7 @@
 -- =========================================================
 -- GEN-Z.AI
 -- QWENCLOUD (ALIBABA CLOUD MODEL STUDIO / DASHSCOPE)
--- PROVIDER + 13 MODEL VIDEO
+-- PROVIDER + 17 MODEL VIDEO
 -- ---------------------------------------------------------
 -- File:
 --   supabase/qwencloud-provider-models.sql
@@ -27,11 +27,24 @@
 --       10s -> 60 credit
 --       15s -> 90 credit
 --
---   Model tanpa parameter durasi (Wan Animate) selalu 1x.
+--   Model tanpa parameter durasi (Wan Animate, HappyHorse
+--   Video Edit) selalu 1x.
 --
 --   Harga asli QwenCloud (Singapore):
 --     wan2.6-t2v 720P  = $0.10 / detik
 --     wan2.6-t2v 1080P = $0.15 / detik
+--
+--   Harga HappyHorse 1.1 (Singapore) — lebih mahal:
+--     happyhorse-1.1 480P  = $0.07 / detik
+--     happyhorse-1.1 720P  = $0.14 / detik
+--     happyhorse-1.1 1080P = $0.18 / detik
+--   Karena itu credit HappyHorse di bawah diset ~1.4x Wan.
+--
+--   PENTING: kuota gratis HappyHorse hanya 10 DETIK per
+--   model (Wan 50 detik). Request 15 detik TIDAK dipotong
+--   otomatis — kalau kuota gratis tinggal 10 detik dan
+--   "Free quota only" aktif, request 15 detik akan GAGAL.
+--   Untuk uji coba, pakai durasi 3–10 detik.
 --   Sesuaikan credit_480p / credit_720p / credit_1080p
 --   dengan kurs credit GEN-Z.AI.
 --
@@ -61,7 +74,7 @@ insert into public.providers (
 values (
     'qwencloud',
     'QwenCloud',
-    'Alibaba Cloud Model Studio (DashScope) — model video Wan 2.2 / 2.5 / 2.6.',
+    'Alibaba Cloud Model Studio (DashScope) — model video Wan 2.2 / 2.5 / 2.6 dan HappyHorse 1.0 / 1.1.',
     'active',
     false
 )
@@ -171,6 +184,35 @@ seed (model_id, model_name, description, min_duration, max_duration, supported_r
             'Wan 2.2 Animate Mix',
             'Ganti karakter pada video referensi dengan gambar karakter (mode wan-std / wan-pro).',
             0, 0, '{}', '{}', 35, 35, 35
+        ),
+
+        -- HAPPYHORSE 1.1 / 1.0 ----------------------------
+        --   Durasi 3–15 detik (integer bebas), rasio
+        --   memakai `ratio` dan media memakai array
+        --   { type, url }. Kuota gratis 10 detik/model.
+        (
+            'qwen-happyhorse-1.1-t2v',
+            'HappyHorse 1.1 Text to Video',
+            'Text to video HappyHorse 1.1 — 3–15 detik, 480P/720P/1080P, 9 rasio.',
+            3, 15, '{16:9,9:16,1:1,4:3,3:4}', '{720P,1080P,480P}', 28, 42, 70
+        ),
+        (
+            'qwen-happyhorse-1.1-i2v',
+            'HappyHorse 1.1 Image to Video',
+            'Image to video HappyHorse 1.1 dari satu frame awal — 3–15 detik.',
+            3, 15, '{}', '{720P,1080P,480P}', 28, 42, 70
+        ),
+        (
+            'qwen-happyhorse-1.1-r2v',
+            'HappyHorse 1.1 Reference to Video',
+            'Konsistensi karakter dari 1–9 gambar referensi — 3–15 detik.',
+            3, 15, '{16:9,9:16,1:1,4:3,3:4}', '{720P,1080P}', 30, 45, 70
+        ),
+        (
+            'qwen-happyhorse-1.0-video-edit',
+            'HappyHorse 1.0 Video Edit',
+            'Edit video sumber (MP4/MOV 3–60 detik) dengan prompt + hingga 5 gambar referensi.',
+            0, 0, '{}', '{720P,1080P}', 60, 60, 80
         )
 )
 insert into public.models (

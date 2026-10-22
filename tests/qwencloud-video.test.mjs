@@ -32,7 +32,13 @@ const findParam = (adapter, name) =>
 
 test("registers every QwenCloud video model with a unique id", () => {
     assert.equal(qwenCloudVideoModels.length, QWENCLOUD_VIDEO_SPECS.length);
-    assert.equal(qwenCloudVideoModels.length, 13);
+    assert.equal(qwenCloudVideoModels.length, 17);
+    assert.equal(
+        qwenCloudVideoModels.filter(
+            adapter => adapter.config.payloadStyle === "happyhorse"
+        ).length,
+        4
+    );
 
     const ids = qwenCloudVideoModels.map(adapter => adapter.config.id);
     assert.equal(new Set(ids).size, ids.length);
@@ -700,4 +706,142 @@ test("HTTP errors are surfaced with Indonesian messages", async () => {
     } finally {
         globalThis.fetch = originalFetch;
     }
+});
+
+
+/* =========================================================
+   HAPPYHORSE
+   ========================================================= */
+
+test("builds a HappyHorse text-to-video payload with ratio and integer duration", () => {
+    const payload = model("qwen-happyhorse-1.1-t2v").buildPayload({
+        prompt: "kota kardus saat senja",
+        aspect_ratio: "9:16",
+        resolution: "720P",
+        duration: "8"
+    });
+
+    assert.deepEqual(payload, {
+        model: "happyhorse-1.1-t2v",
+        input: { prompt: "kota kardus saat senja" },
+        parameters: { resolution: "720P", ratio: "9:16", duration: 8 }
+    });
+
+    assert.equal(typeof payload.parameters.duration, "number");
+    assert.equal(payload.parameters.size, undefined);
+    assert.equal(payload.parameters.prompt_extend, undefined);
+});
+
+test("builds a HappyHorse image-to-video payload with a first_frame media item", () => {
+    const payload = model("qwen-happyhorse-1.1-i2v").buildPayload({
+        image_url: "https://cdn.test/frame.png",
+        prompt: "angin bertiup",
+        resolution: "1080P",
+        duration: "5"
+    });
+
+    assert.deepEqual(payload.input.media, [
+        { type: "first_frame", url: "https://cdn.test/frame.png" }
+    ]);
+    assert.equal(payload.input.img_url, undefined);
+    assert.equal(payload.parameters.duration, 5);
+    assert.equal(payload.parameters.ratio, undefined);
+});
+
+test("builds a HappyHorse reference-to-video payload with up to 9 references", () => {
+    const adapter = model("qwen-happyhorse-1.1-r2v");
+
+    assert.equal(findParam(adapter, "image_urls").maxItems, 9);
+
+    const payload = adapter.buildPayload({
+        prompt: "[Image 1] melambai ke arah kamera",
+        image_urls: [ "https://cdn.test/a.jpg", "https://cdn.test/b.jpg" ],
+        aspect_ratio: "16:9",
+        resolution: "1080P",
+        duration: "10"
+    });
+
+    assert.deepEqual(payload.input.media, [
+        { type: "reference_image", url: "https://cdn.test/a.jpg" },
+        { type: "reference_image", url: "https://cdn.test/b.jpg" }
+    ]);
+    assert.equal(payload.parameters.ratio, "16:9");
+    assert.equal(payload.parameters.duration, 10);
+});
+
+test("HappyHorse reference-to-video rejects more than 9 references", () => {
+    const urls = Array.from(
+        { length: 10 },
+        (_, index) => `https://cdn.test/${index}.jpg`
+    );
+
+    const result = model("qwen-happyhorse-1.1-r2v").validate({
+        prompt: "[Image 1] tersenyum",
+        image_urls: urls,
+        resolution: "720P",
+        duration: "5"
+    });
+
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.includes("Maksimal 9 gambar referensi."));
+});
+
+test("builds a HappyHorse video-edit payload without duration or ratio", () => {
+    const adapter = model("qwen-happyhorse-1.0-video-edit");
+
+    assert.equal(findParam(adapter, "duration"), undefined);
+    assert.equal(findParam(adapter, "aspect_ratio"), undefined);
+
+    const payload = adapter.buildPayload({
+        video_url: "https://cdn.test/in.mp4",
+        image_urls: [ "https://cdn.test/sweater.jpg" ],
+        prompt: "ganti jaket menjadi sweter rajut",
+        resolution: "720P"
+    });
+
+    assert.deepEqual(payload, {
+        model: "happyhorse-1.0-video-edit",
+        input: {
+            prompt: "ganti jaket menjadi sweter rajut",
+            media: [
+                { type: "video", url: "https://cdn.test/in.mp4" },
+                { type: "reference_image", url: "https://cdn.test/sweater.jpg" }
+            ]
+        },
+        parameters: { resolution: "720P" }
+    });
+});
+
+test("HappyHorse duration uses a 3–15 second integer range", () => {
+    const adapter = model("qwen-happyhorse-1.1-t2v");
+    const duration = findParam(adapter, "duration");
+
+    assert.equal(duration.type, "integer");
+    assert.equal(duration.enum, undefined);
+    assert.equal(duration.min, 3);
+    assert.equal(duration.max, 15);
+
+    const tooLong = adapter.validate({ prompt: "a", duration: "20" });
+    assert.equal(tooLong.valid, false);
+    assert.ok(
+        tooLong.errors.some(error => error.includes("antara 3 dan 15"))
+    );
+
+    const fraction = adapter.validate({ prompt: "a", duration: "7.5" });
+    assert.equal(fraction.valid, false);
+
+    assert.equal(adapter.validate({ prompt: "a", duration: "3" }).valid, true);
+    assert.equal(adapter.validate({ prompt: "a", duration: "15" }).valid, true);
+});
+
+test("Wan models keep enum durations while HappyHorse keeps the range", () => {
+    assert.deepEqual(
+        findParam(model("qwen-wan2.6-t2v"), "duration").enum,
+        [ "5", "10", "15" ]
+    );
+    assert.equal(findParam(model("qwen-wan2.6-t2v"), "duration").min, undefined);
+    assert.equal(
+        findParam(model("qwen-happyhorse-1.1-i2v"), "duration").enum,
+        undefined
+    );
 });

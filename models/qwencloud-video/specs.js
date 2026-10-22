@@ -28,6 +28,11 @@
      audioTrack      dukung input audio_url (musik/dialog)
      shotType        dukung parameter shot_type
      maxPrompt       batas karakter prompt
+     payloadStyle    "wan" (default) | "happyhorse"
+                     happyhorse memakai media[] + ratio
+     durationRange   { min, max } untuk model dengan durasi
+                     bebas (HappyHorse 3–15 detik)
+     maxReferences   jumlah maksimum gambar referensi
 ========================================================= */
 
 const QWENCLOUD_VIDEO_SPECS = Object.freeze([
@@ -266,6 +271,90 @@ const QWENCLOUD_VIDEO_SPECS = Object.freeze([
         modes: ["wan-std", "wan-pro"],
         defaultMode: "wan-std",
         maxPrompt: 800
+    },
+
+
+    /* =====================================================
+       HAPPYHORSE 1.1 / 1.0
+       -----------------------------------------------------
+       Gaya payload berbeda dari Wan (payloadStyle):
+       - rasio memakai `ratio`, bukan `size`
+       - media memakai array { type, url }
+       - durasi integer bebas 3–15 detik
+       Kuota gratis: 10 detik per model (bukan 50).
+    ===================================================== */
+
+    {
+        id: "qwen-happyhorse-1.1-t2v",
+        dashscopeModel: "happyhorse-1.1-t2v",
+        name: "HappyHorse 1.1 Text to Video",
+        kind: "t2v",
+        payloadStyle: "happyhorse",
+        type: "text-to-video",
+        ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+        resolutions: ["720P", "1080P", "480P"],
+        durations: [],
+        durationRange: { min: 3, max: 15 },
+        defaultDuration: "5",
+        negativePrompt: false,
+        audioTrack: false,
+        shotType: false,
+        maxPrompt: 2500
+    },
+
+    {
+        id: "qwen-happyhorse-1.1-i2v",
+        dashscopeModel: "happyhorse-1.1-i2v",
+        name: "HappyHorse 1.1 Image to Video",
+        kind: "i2v",
+        payloadStyle: "happyhorse",
+        type: "image-to-video",
+        ratios: [],
+        resolutions: ["720P", "1080P", "480P"],
+        durations: [],
+        durationRange: { min: 3, max: 15 },
+        defaultDuration: "5",
+        negativePrompt: false,
+        audioTrack: false,
+        shotType: false,
+        maxPrompt: 2500
+    },
+
+    {
+        id: "qwen-happyhorse-1.1-r2v",
+        dashscopeModel: "happyhorse-1.1-r2v",
+        name: "HappyHorse 1.1 Reference to Video",
+        kind: "r2v",
+        payloadStyle: "happyhorse",
+        type: "image-to-video",
+        ratios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+        resolutions: ["720P", "1080P"],
+        durations: [],
+        durationRange: { min: 3, max: 15 },
+        defaultDuration: "5",
+        negativePrompt: false,
+        audioTrack: false,
+        shotType: false,
+        maxReferences: 9,
+        maxPrompt: 2500
+    },
+
+    {
+        id: "qwen-happyhorse-1.0-video-edit",
+        dashscopeModel: "happyhorse-1.0-video-edit",
+        name: "HappyHorse 1.0 Video Edit",
+        kind: "video-edit",
+        payloadStyle: "happyhorse",
+        type: "video-to-video",
+        ratios: [],
+        resolutions: ["720P", "1080P"],
+        durations: [],
+        defaultDuration: "",
+        negativePrompt: false,
+        audioTrack: false,
+        shotType: false,
+        maxReferences: 5,
+        maxPrompt: 2500
     }
 
 ]);
