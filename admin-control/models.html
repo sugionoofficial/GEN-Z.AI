@@ -3413,6 +3413,62 @@
         word-break: break-word;
     }
 
+    /* -------- STATUS BADGE DI KARTU RINGKAS -------- */
+
+    .model-card-compact .model-card-compact-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .model-card-compact .model-card-compact-head .model-name {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .model-card-compact .model-card-status {
+        flex: 0 0 auto;
+        display: inline-flex;
+    }
+
+    .model-card-compact .model-card-status .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        line-height: 1;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    /* Status tidak aktif: kartu diredam, teks tetap terbaca */
+
+    .model-card.model-card-compact[data-status-state="inactive"] {
+        border-color: rgba(148, 160, 190, .22) !important;
+        background:
+            linear-gradient(145deg, rgba(15, 17, 28, .96), rgba(8, 10, 18, .96)) !important;
+    }
+
+    .model-card.model-card-compact[data-status-state="inactive"] .model-name {
+        color: rgba(255, 255, 255, .74);
+    }
+
+    .model-card.model-card-compact[data-status-state="inactive"] .model-card-provider {
+        color: rgba(255, 255, 255, .34);
+    }
+
+    /* Status maintenance: garis kuning tipis */
+
+    .model-card.model-card-compact[data-status-state="maintenance"] {
+        border-color: rgba(224, 168, 0, .38) !important;
+    }
+
     .model-card-compact .model-card-actions {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3592,6 +3648,61 @@
     }
 
     /* -------- LIGHT THEME -------- */
+
+    /* -------- STATUS BADGE — LIGHT THEME -------- */
+
+    html[data-genz-theme="light"] .model-card.model-card-compact[data-status-state="inactive"] {
+        border-color: #d9e1ed !important;
+        background: #fbfcfe !important;
+    }
+
+    html[data-genz-theme="light"] .model-card.model-card-compact[data-status-state="inactive"] .model-name {
+        color: #35415a !important;
+    }
+
+    html[data-genz-theme="light"] .model-card.model-card-compact[data-status-state="inactive"] .model-card-provider {
+        color: #5a6579 !important;
+    }
+
+    html[data-genz-theme="light"] .model-card.model-card-compact[data-status-state="maintenance"] {
+        border-color: #eccf8a !important;
+    }
+
+    html[data-genz-theme="light"] .status-badge.status-active {
+        color: #0b7a45 !important;
+        background: #e6f7ee !important;
+        border: 1px solid #bce5d0 !important;
+        box-shadow: none !important;
+    }
+
+    html[data-genz-theme="light"] .status-badge.status-active::before {
+        background: #12a05c;
+        box-shadow: 0 0 6px rgba(18, 160, 92, .45);
+    }
+
+    html[data-genz-theme="light"] .status-badge.status-inactive {
+        color: #4a566b !important;
+        background: #eef2f8 !important;
+        border: 1px solid #d9e1ed !important;
+        box-shadow: none !important;
+    }
+
+    html[data-genz-theme="light"] .status-badge.status-inactive::before {
+        background: #97a2b5;
+        box-shadow: none;
+    }
+
+    html[data-genz-theme="light"] .status-badge.status-maintenance {
+        color: #8a6100 !important;
+        background: #fdf4dd !important;
+        border: 1px solid #f0dca6 !important;
+        box-shadow: none !important;
+    }
+
+    html[data-genz-theme="light"] .status-badge.status-maintenance::before {
+        background: #d99b00;
+        box-shadow: none;
+    }
 
     html[data-genz-theme="light"] .model-card-compact .model-card-provider {
         color: #55617a;
@@ -4243,7 +4354,7 @@
 
 <script
     type="module"
-    src="./models/models-loader.js?v=models-compact-card-20261022"
+    src="./models/models-loader.js?v=models-card-status-20261022"
 ></script>
 
 

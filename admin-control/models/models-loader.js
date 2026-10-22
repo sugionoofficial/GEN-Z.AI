@@ -288,7 +288,7 @@ const FUNCTION_PATH =
 
             src:
                 FUNCTION_PATH +
-                "model-table.js?v=models-compact-card-20261022",
+                "model-table.js?v=models-card-status-20261022",
 
             global:
                 "GENZModelTable",
@@ -304,7 +304,7 @@ const FUNCTION_PATH =
 
             src:
                 FUNCTION_PATH +
-                "model-table-events.js?v=models-compact-card-20261022",
+                "model-table-events.js?v=models-card-status-20261022",
 
             global:
                 "GENZModelTableEvents",

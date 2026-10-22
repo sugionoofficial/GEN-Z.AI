@@ -1181,6 +1181,49 @@
        FORMAT STATUS
     ========================================================= */
 
+    /* =========================================================
+       STATUS STATE
+       ---------------------------------------------------------
+       Nilai status ternormalisasi untuk atribut CSS
+       (data-status-state) dan badge pada kartu ringkas.
+    ========================================================= */
+
+    function getStatusState(status) {
+
+        const value =
+            String(
+                status || "active"
+            )
+                .trim()
+                .toLowerCase();
+
+
+        if (
+            value === "inactive" ||
+            value === "disabled" ||
+            value === "nonaktif"
+        ) {
+
+            return "inactive";
+
+        }
+
+
+        if (
+            value === "maintenance" ||
+            value === "maintain"
+        ) {
+
+            return "maintenance";
+
+        }
+
+
+        return "active";
+
+    }
+
+
     function formatStatus(status) {
 
         const value =
@@ -1442,6 +1485,12 @@
             normalized.model_id;
 
 
+        const statusState =
+            getStatusState(
+                normalized.status
+            );
+
+
         return (
 
             '<article' +
@@ -1466,18 +1515,35 @@
                     escapeHtml(normalized.status) +
                 '"' +
 
+                ' data-status-state="' +
+                    escapeHtml(statusState) +
+                '"' +
+
             ">" +
 
 
                 '<div class="model-card-compact-main">' +
 
-                    '<h2 class="model-name">' +
+                    '<div class="model-card-compact-head">' +
 
-                        escapeHtml(
-                            normalized.model_name
-                        ) +
+                        '<h2 class="model-name">' +
 
-                    "</h2>" +
+                            escapeHtml(
+                                normalized.model_name
+                            ) +
+
+                        "</h2>" +
+
+
+                        '<span class="model-card-status">' +
+
+                            formatStatus(
+                                normalized.status
+                            ) +
+
+                        "</span>" +
+
+                    "</div>" +
 
 
                     '<div class="model-card-provider">' +
