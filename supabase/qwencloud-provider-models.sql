@@ -8,6 +8,7 @@
 --
 -- Cara pakai:
 --   1. Jalankan file ini di Supabase → SQL Editor.
+--      (File ini idempotent: aman dijalankan berulang.)
 --   2. Buka Admin Panel → Providers → QwenCloud → Isi API Key
 --      (API key disimpan terenkripsi di provider_credentials).
 --   3. Buka Admin Panel → Models untuk menyesuaikan credit
@@ -237,8 +238,19 @@ select
     seed.description,
     seed.min_duration,
     seed.max_duration,
-    seed.supported_ratios,
-    seed.supported_resolutions,
+
+    /*
+     * WAJIB di-cast ke text[].
+     *
+     * Literal '{16:9,9:16}' di dalam CTE `seed` bertipe
+     * `text` (unknown → text), bukan `text[]`. Tanpa cast,
+     * Postgres menolak dengan:
+     *   42804: column "supported_ratios" is of type text[]
+     *          but expression is of type text
+     */
+
+    seed.supported_ratios::text[],
+    seed.supported_resolutions::text[],
     seed.credit_480p,
     seed.credit_720p,
     seed.credit_1080p,
