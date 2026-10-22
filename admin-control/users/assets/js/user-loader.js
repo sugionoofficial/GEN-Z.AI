@@ -17,6 +17,7 @@
 import { initUserEvents } from "./user-events.js";
 import { checkAuth } from "./user-auth.js";
 import { loadUsers } from "./user-data.js";
+import { initDeletionRequests } from "./deletion-requests.js";
 
 
 /* =========================================================
@@ -223,6 +224,22 @@ export async function initUsersPage() {
     */
 
     await loadUsers();
+
+
+    /*
+       STEP 5
+       Permintaan penghapusan akun (tidak memblokir
+       tabel user bila gagal).
+    */
+
+    initDeletionRequests()
+        .catch(error => {
+
+            console.error(
+                "[GEN-Z.AI UserLoader] Deletion requests gagal:",
+                error
+            );
+        });
 
 
     console.log(

@@ -555,3 +555,143 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .form-group input[re
     border-color: #c8d3e2 !important;
     box-shadow: none !important;
 }
+
+
+/* =========================================================
+   ACCOUNT DELETION REQUESTS — MODE CERAH
+   ---------------------------------------------------------
+   Blok putih = teks gelap. Semua aturan di-scope ke
+   html[data-genz-theme="light"] sehingga mode gelap
+   tidak berubah.
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-card {
+    border: 1px solid #e2e8f2 !important;
+    background: #ffffff !important;
+    box-shadow: 0 14px 34px rgba(16, 24, 40, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-card-header {
+    border-bottom: 1px solid #e8edf5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-card .section-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-card .section-subtitle {
+    color: #55617a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-count-badge {
+    border: 1px solid #f0c6cb !important;
+    background: #fdf1f2 !important;
+    color: #b4232f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-filters {
+    border: 1px solid #e2e8f2 !important;
+    background: #f6f8fc !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-filter {
+    color: #55617a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-filter:hover {
+    background: #eaeff8 !important;
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-filter.is-active {
+    border-color: #f0c6cb !important;
+    background: #fdf1f2 !important;
+    color: #b4232f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-item {
+    border: 1px solid #e6ecf5 !important;
+    background: #fbfcfe !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-avatar {
+    border: 1px solid #f0c6cb !important;
+    background: #fdf1f2 !important;
+    color: #b4232f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-item-name {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-item-email {
+    color: #55617a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-chip {
+    border: 1px solid #dfe6f1 !important;
+    background: #f2f5fa !important;
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-status {
+    border: 1px solid #dfe6f1 !important;
+    background: #f2f5fa !important;
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-status-pending {
+    border-color: #efdcae !important;
+    background: #fffaf0 !important;
+    color: #9a6b0b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-status-completed {
+    border-color: #bfe6d2 !important;
+    background: #eefaf4 !important;
+    color: #0f7a4a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-status-rejected {
+    border-color: #f0c6cb !important;
+    background: #fdf1f2 !important;
+    color: #b4232f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-status-cancelled {
+    border-color: #dfe6f1 !important;
+    background: #f2f5fa !important;
+    color: #55617a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-meta {
+    border-top: 1px dashed #e2e8f2 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-meta-row span {
+    color: #55617a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-meta-row strong {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-note {
+    border-left: 2px solid #e5a7b0 !important;
+    background: #f8fafd !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-card .empty-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-card .empty-text {
+    color: #55617a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .deletion-card .empty-icon {
+    border-color: #e2e8f2 !important;
+    background: #f6f8fc !important;
+    color: #b4232f !important;
+}
