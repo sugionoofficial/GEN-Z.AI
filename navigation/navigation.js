@@ -1043,11 +1043,18 @@
                 </div>
                 <nav class="genz-nav" aria-label="Main navigation">${navigationItems}</nav>
                 <div class="genz-sidebar-footer">
-                    <div class="genz-account-box">
-                        <div class="genz-account-label">ACCOUNT</div>
-                        <div class="genz-account-email">${escapeHTML(email)}</div>
-                        <div class="genz-account-role">${escapeHTML(roleLabel)}</div>
-                    </div>
+                    <a
+                        class="genz-account-box"
+                        href="/user/profile.html"
+                        aria-label="Buka halaman profil akun"
+                    >
+                        <div class="genz-account-main">
+                            <div class="genz-account-label">ACCOUNT</div>
+                            <div class="genz-account-email">${escapeHTML(email)}</div>
+                            <div class="genz-account-role">${escapeHTML(roleLabel)}</div>
+                        </div>
+                        <span class="genz-account-arrow" aria-hidden="true">→</span>
+                    </a>
                     <button type="button" class="genz-logout-button" id="genz-logout-button">LOG OUT</button>
                 </div>
             </aside>
@@ -1472,12 +1479,47 @@
             }
 
             .genz-account-box {
+                display: flex;
+                align-items: center;
+                gap: 8px;
                 width: 100%;
                 margin: 0 0 10px;
                 padding: 10px 11px;
                 border: 1px solid rgba(255, 50, 50, .18);
                 border-radius: 10px;
                 background: rgba(255, 255, 255, .025);
+                color: inherit;
+                text-decoration: none;
+                cursor: pointer;
+                transition: border-color .18s ease, background .18s ease, transform .18s ease;
+            }
+
+            .genz-account-box:hover {
+                border-color: rgba(255, 80, 80, .42);
+                background: rgba(255, 255, 255, .06);
+            }
+
+            .genz-account-box:focus-visible {
+                outline: 2px solid rgba(255, 90, 90, .85);
+                outline-offset: 2px;
+            }
+
+            .genz-account-main {
+                min-width: 0;
+                flex: 1 1 auto;
+            }
+
+            .genz-account-arrow {
+                flex: 0 0 auto;
+                color: rgba(255, 255, 255, .38);
+                font-size: 12px;
+                line-height: 1;
+                transition: color .18s ease, transform .18s ease;
+            }
+
+            .genz-account-box:hover .genz-account-arrow {
+                color: #ff6565;
+                transform: translateX(2px);
             }
 
             .genz-account-label {
@@ -1508,6 +1550,37 @@
                 font-size: 8px;
                 font-weight: 800;
                 letter-spacing: .8px;
+            }
+
+            html[data-genz-theme="light"] body .genz-account-box {
+                color: #101828;
+            }
+
+            html[data-genz-theme="light"] body .genz-account-box:hover {
+                border-color: rgba(23, 32, 51, .26);
+                background: #eef1f8;
+            }
+
+            html[data-genz-theme="light"] body .genz-account-box .genz-account-label {
+                color: #55617a;
+            }
+
+            html[data-genz-theme="light"] body .genz-account-box .genz-account-email {
+                color: #101828;
+            }
+
+            html[data-genz-theme="light"] body .genz-account-box .genz-account-role {
+                border-color: rgba(180, 35, 47, .3);
+                background: #fdf1f2;
+                color: #b4232f;
+            }
+
+            html[data-genz-theme="light"] body .genz-account-box .genz-account-arrow {
+                color: #8a94a6;
+            }
+
+            html[data-genz-theme="light"] body .genz-account-box:hover .genz-account-arrow {
+                color: #b4232f;
             }
 
             .genz-logout-button {
