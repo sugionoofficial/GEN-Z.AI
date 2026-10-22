@@ -68,7 +68,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         return window.GENZ_SUPABASE;
     }
 
-    async function sessionToken() {
+    async function sessionToken(force = false) {
+        if (window.GENZSession?.ensureFreshSession) {
+            const refreshed = await window.GENZSession.ensureFreshSession({ force });
+            if (refreshed?.access_token) {
+                return refreshed.access_token;
+            }
+        }
         const { data, error } = await client().auth.getSession();
         if (error) throw error;
         const token = data?.session?.access_token;
@@ -77,34 +83,40 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     }
 
     async function api(action, { method = "GET", body, headers = {}, raw = false, responseRaw = raw } = {}) {
-        const token = await sessionToken();
         const [actionName, ...queryParts] = String(action).split("&");
         const query = new URLSearchParams({ action: actionName });
         for (const part of queryParts) {
             const separator = part.indexOf("=");
             if (separator > 0) query.set(part.slice(0, separator), decodeURIComponent(part.slice(separator + 1)));
         }
-        const response = await fetch(`${endpoint}?${query.toString()}`, {
-            method,
-            headers: {
-                Authorization: `Bearer ${token}`,
-                ...(body && !raw ? { "Content-Type": "application/json" } : {}),
-                ...headers
-            },
-            ...(body ? { body: raw ? body : JSON.stringify(body) } : {})
-        });
 
-        if (responseRaw && response.ok) return response;
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.success !== true) {
-            const error = new Error(data.error || `Permintaan gagal (HTTP ${response.status}).`);
-            error.code = data.code || "";
-            error.status = response.status;
-            error.retrySafe = data.retry_safe !== false;
-            error.needsReconnect = data.needs_reconnect === true;
-            throw error;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const token = await sessionToken(attempt > 0);
+            const response = await fetch(`${endpoint}?${query.toString()}`, {
+                method,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    ...(body && !raw ? { "Content-Type": "application/json" } : {}),
+                    ...headers
+                },
+                ...(body ? { body: raw ? body : JSON.stringify(body) } : {})
+            });
+
+            if (responseRaw && response.ok) return response;
+            if (response.status === 401 && attempt === 0 && window.GENZSession?.ensureFreshSession) {
+                continue;
+            }
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.success !== true) {
+                const error = new Error(data.error || `Permintaan gagal (HTTP ${response.status}).`);
+                error.code = data.code || "";
+                error.status = response.status;
+                error.retrySafe = data.retry_safe !== false;
+                error.needsReconnect = data.needs_reconnect === true;
+                throw error;
+            }
+            return data;
         }
-        return data;
     }
 
     function showNotice(element, message, tone = "warn") {

@@ -438,6 +438,10 @@
             }
 
 
+            if (window.GENZSession?.ensureFreshSession) {
+                await window.GENZSession.ensureFreshSession();
+            }
+
             state.supabaseClient =
                 window.GENZ_SUPABASE ||
                 window.supabaseClient ||
@@ -461,10 +465,15 @@
                     .auth
                     .getSession();
 
+            const resolvedSession =
+                data?.session ||
+                window.GENZSession?.readSession?.() ||
+                null;
+
 
             if (
                 error ||
-                !data?.session
+                !resolvedSession
             ) {
 
                 window.location.replace(
@@ -478,7 +487,7 @@
 
 
             state.currentUser =
-                data.session.user;
+                resolvedSession.user;
 
 
             return await GENZHistory.loadProfile();

@@ -26,6 +26,271 @@
     <link rel="apple-touch-icon" href="/assets/genzai-app-icon.png">
 
     <script src="/assets/js/theme.js?v=light-mode-pass-20261021" defer></script>
+    <script>
+        /* =========================================================
+           GEN-Z.AI PERSISTENT SESSION AUTO-RESUME (ROOT / PWA / APK)
+           ---------------------------------------------------------
+           Jika user sudah login dan belum klik Logout, membuka "/"
+           langsung memulihkan sesi (termasuk refresh token otomatis
+           bila access_token kedaluwarsa) dan masuk ke Dashboard
+           tanpa meminta email & password berulang kali.
+        ========================================================= */
+        (function () {
+            "use strict";
+
+            var SUPABASE_URL = "https://boeamhglmvkatnycluaa.supabase.co";
+            var SUPABASE_KEY = "sb_publishable_blGIFRNPbB2qAa1vXQBXcw_txqDQldb";
+            var AUTH_KEY = "sb-boeamhglmvkatnycluaa-auth-token";
+            var BACKUP_KEY = "genz-auth-session-v1";
+            var PROFILE_CACHE_KEY = "genz-auth-profile-cache-v1";
+            var REFRESH_BUFFER_SEC = 300;
+
+            function decodeExp(token) {
+                try {
+                    if (typeof token !== "string") return 0;
+                    var parts = token.split(".");
+                    if (parts.length !== 3) return 0;
+                    var b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+                    var pad = b64.length % 4;
+                    if (pad) b64 += "=".repeat(4 - pad);
+                    var payload = JSON.parse(atob(b64));
+                    var exp = Number(payload && payload.exp);
+                    return Number.isFinite(exp) && exp > 0 ? exp : 0;
+                } catch (_e) {
+                    return 0;
+                }
+            }
+
+            function clearAllStorage() {
+                try {
+                    localStorage.removeItem(BACKUP_KEY);
+                    localStorage.removeItem(PROFILE_CACHE_KEY);
+                    localStorage.removeItem(AUTH_KEY);
+                    localStorage.removeItem(AUTH_KEY + "-user");
+                } catch (_e) { /* ignore */ }
+            }
+
+            function dashboardPathForRole(role) {
+                var r = String(role || "").trim().toUpperCase();
+                return (r === "ADMIN" || r === "OWNER")
+                    ? "/admin/dashboard/index.html"
+                    : "/user/dashboard.html";
+            }
+
+            function isStatusActive(status) {
+                if (status === undefined || status === null || String(status).trim() === "") {
+                    return true;
+                }
+                var s = String(status).trim().toLowerCase();
+                return s === "active" || s === "approved" || s === "enabled";
+            }
+
+            var session = null;
+            try {
+                var raw = localStorage.getItem(AUTH_KEY) || localStorage.getItem(BACKUP_KEY);
+                if (!raw) return;
+                session = JSON.parse(raw);
+                if (!session || !session.access_token) return;
+            } catch (_e) {
+                return;
+            }
+
+            var params;
+            try {
+                params = new URLSearchParams(window.location.search);
+            } catch (_e) {
+                params = null;
+            }
+            var forceLanding = Boolean(
+                params && (params.get("landing") === "1" || params.get("home") === "1")
+            );
+
+            var nowSec = Math.floor(Date.now() / 1000);
+            var expiresAt = Number(session.expires_at) || decodeExp(session.access_token) || 0;
+            if (!session.expires_at && expiresAt) {
+                session.expires_at = expiresAt;
+                try {
+                    var fixed = JSON.stringify(session);
+                    localStorage.setItem(AUTH_KEY, fixed);
+                    localStorage.setItem(BACKUP_KEY, fixed);
+                } catch (_e) { /* ignore */ }
+            }
+
+            var cachedProfile = null;
+            try {
+                var rawProfile = localStorage.getItem(PROFILE_CACHE_KEY);
+                if (rawProfile) {
+                    var parsedProfile = JSON.parse(rawProfile);
+                    if (
+                        parsedProfile &&
+                        (!session.user || String(parsedProfile.id) === String(session.user.id))
+                    ) {
+                        cachedProfile = parsedProfile;
+                    }
+                }
+            } catch (_e) { /* ignore */ }
+
+            if (forceLanding) {
+                document.addEventListener("DOMContentLoaded", function () {
+                    var target = dashboardPathForRole(cachedProfile && cachedProfile.role);
+                    var loginBtn = document.querySelector(".nav-login");
+                    if (loginBtn) {
+                        loginBtn.href = target;
+                        loginBtn.textContent = "Dashboard";
+                    }
+                });
+                return;
+            }
+
+            /*
+             * Jalur instan (< 1ms, tanpa kedipan halaman): token masih segar dan
+             * cache profil aktif sudah tersedia -> langsung masuk ke Dashboard!
+             */
+            if (
+                expiresAt - nowSec >= REFRESH_BUFFER_SEC &&
+                cachedProfile &&
+                isStatusActive(cachedProfile.status)
+            ) {
+                window.location.replace(dashboardPathForRole(cachedProfile.role));
+                return;
+            }
+
+            /*
+             * Token perlu diperbarui (mis. dibuka kembali setelah berjam-jam/berhari-hari)
+             * atau cache profil belum pernah disimpan -> perbarui di balik layar.
+             */
+            document.documentElement.style.visibility = "hidden";
+            var safetyTimer = window.setTimeout(function () {
+                document.documentElement.style.visibility = "";
+            }, 4000);
+
+            (async function () {
+                try {
+                    var activeSession = session;
+                    var secLeft = (Number(activeSession.expires_at) || 0) - Math.floor(Date.now() / 1000);
+
+                    if (secLeft < REFRESH_BUFFER_SEC) {
+                        if (!activeSession.refresh_token) {
+                            clearAllStorage();
+                            document.documentElement.style.visibility = "";
+                            return;
+                        }
+
+                        var tokenRes = await fetch(
+                            SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token",
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "apikey": SUPABASE_KEY
+                                },
+                                body: JSON.stringify({
+                                    refresh_token: activeSession.refresh_token
+                                })
+                            }
+                        );
+
+                        if (!tokenRes.ok) {
+                            if (
+                                tokenRes.status === 400 ||
+                                tokenRes.status === 401 ||
+                                tokenRes.status === 403
+                            ) {
+                                clearAllStorage();
+                                document.documentElement.style.visibility = "";
+                                return;
+                            }
+
+                            if (cachedProfile && isStatusActive(cachedProfile.status)) {
+                                window.location.replace(dashboardPathForRole(cachedProfile.role));
+                                return;
+                            }
+
+                            document.documentElement.style.visibility = "";
+                            return;
+                        }
+
+                        var refreshed = await tokenRes.json().catch(function () { return null; });
+                        if (!refreshed || !refreshed.access_token) {
+                            document.documentElement.style.visibility = "";
+                            return;
+                        }
+
+                        var refreshedNow = Math.floor(Date.now() / 1000);
+                        var nextExp =
+                            Number(refreshed.expires_at) ||
+                            (Number(refreshed.expires_in) > 0
+                                ? refreshedNow + Number(refreshed.expires_in)
+                                : 0) ||
+                            decodeExp(refreshed.access_token) ||
+                            (refreshedNow + 3600);
+
+                        activeSession = Object.assign({}, activeSession, refreshed, {
+                            expires_at: nextExp,
+                            refresh_token: refreshed.refresh_token || activeSession.refresh_token,
+                            user: refreshed.user || activeSession.user
+                        });
+
+                        var serialized = JSON.stringify(activeSession);
+                        localStorage.setItem(AUTH_KEY, serialized);
+                        localStorage.setItem(BACKUP_KEY, serialized);
+                    }
+
+                    var userId = activeSession.user && activeSession.user.id;
+                    var role = cachedProfile && cachedProfile.role;
+
+                    if (userId) {
+                        var profRes = await fetch(
+                            SUPABASE_URL +
+                                "/rest/v1/profiles?select=id,email,name,role,credits,status&id=eq." +
+                                encodeURIComponent(userId),
+                            {
+                                headers: {
+                                    "apikey": SUPABASE_KEY,
+                                    "Authorization": "Bearer " + activeSession.access_token
+                                }
+                            }
+                        );
+
+                        if (profRes.ok) {
+                            var rows = await profRes.json().catch(function () { return null; });
+                            var profile = Array.isArray(rows) ? rows[0] : null;
+                            if (profile) {
+                                if (!isStatusActive(profile.status)) {
+                                    clearAllStorage();
+                                    document.documentElement.style.visibility = "";
+                                    return;
+                                }
+                                role = profile.role;
+                                localStorage.setItem(
+                                    PROFILE_CACHE_KEY,
+                                    JSON.stringify({
+                                        id: profile.id,
+                                        email: profile.email || "",
+                                        name: profile.name || "",
+                                        role: profile.role || "USER",
+                                        credits: Number(profile.credits || 0),
+                                        status: profile.status || "active",
+                                        cachedAt: Date.now()
+                                    })
+                                );
+                            }
+                        }
+                    }
+
+                    window.location.replace(dashboardPathForRole(role));
+                } catch (_err) {
+                    if (cachedProfile && isStatusActive(cachedProfile.status)) {
+                        window.location.replace(dashboardPathForRole(cachedProfile.role));
+                        return;
+                    }
+                    document.documentElement.style.visibility = "";
+                } finally {
+                    window.clearTimeout(safetyTimer);
+                }
+            })();
+        })();
+    </script>
 
     <title>GEN-Z.AI | Create Without Limits</title>
 

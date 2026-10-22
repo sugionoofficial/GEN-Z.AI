@@ -716,11 +716,32 @@ async function compressVideoForStorage(file) {
 }
 
 
+async function ensureActiveSession(force = false) {
+    if (window.GENZSession?.ensureFreshSession) {
+        const refreshed = await window.GENZSession.ensureFreshSession({ force });
+        if (refreshed?.access_token) {
+            state.session = refreshed;
+            if (refreshed.user) state.user = refreshed.user;
+            return refreshed;
+        }
+    }
+
+    const stored = readSessionFromStorage();
+    if (stored?.access_token) {
+        state.session = stored;
+        if (stored.user && !state.user) state.user = stored.user;
+    }
+    return state.session;
+}
+
+
 /* =========================================================
    UPLOAD TO SUPABASE
 ========================================================= */
 
 async function uploadMedia(file, mediaType) {
+
+    await ensureActiveSession(false);
 
     const supabase = getSupabaseClient();
     if (!supabase) throw new Error("Supabase client tidak tersedia.");
@@ -771,44 +792,54 @@ async function uploadMedia(file, mediaType) {
 
 async function callBackend(sourceUrl, mediaType, targetResolution) {
 
-    const session = state.session;
+    let session = await ensureActiveSession(false);
     if (!session?.access_token) {
         throw new Error("Session tidak ditemukan. Silakan login ulang.");
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), CONFIG.requestTimeout);
+    for (let attempt = 0; attempt < 2; attempt++) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), CONFIG.requestTimeout);
 
-    try {
-        const response = await fetch(CONFIG.apiEndpoint, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + session.access_token
-            },
-            body: JSON.stringify({
-                action: mediaType === "video"
-                    ? "upscale-video-upload"
-                    : "upscale-photo",
-                source_url: sourceUrl,
-                target_resolution: targetResolution
-            }),
-            signal: controller.signal,
-            credentials: "same-origin"
-        });
+        try {
+            const response = await fetch(CONFIG.apiEndpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + session.access_token
+                },
+                body: JSON.stringify({
+                    action: mediaType === "video"
+                        ? "upscale-video-upload"
+                        : "upscale-photo",
+                    source_url: sourceUrl,
+                    target_resolution: targetResolution
+                }),
+                signal: controller.signal,
+                credentials: "same-origin"
+            });
 
-        const data = await response.json().catch(() => ({}));
+            const data = await response.json().catch(() => ({}));
 
-        if (!response.ok) {
-            throw new Error(
-                data?.error || `HTTP ${response.status}`
-            );
+            if (response.status === 401 && attempt === 0) {
+                const retrySession = await ensureActiveSession(true);
+                if (retrySession?.access_token) {
+                    session = retrySession;
+                    continue;
+                }
+            }
+
+            if (!response.ok) {
+                throw new Error(
+                    data?.error || `HTTP ${response.status}`
+                );
+            }
+
+            return data;
+
+        } finally {
+            clearTimeout(timer);
         }
-
-        return data;
-
-    } finally {
-        clearTimeout(timer);
     }
 }
 

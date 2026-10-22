@@ -128,6 +128,10 @@
 
     async function getSession() {
 
+        if (window.GENZSession?.ensureFreshSession) {
+            await window.GENZSession.ensureFreshSession();
+        }
+
         const supabase =
             requireSupabase();
 
@@ -149,7 +153,7 @@
             result.data.session
         )
             ? result.data.session
-            : null;
+            : (window.GENZSession?.readSession?.() || null);
     }
 
 

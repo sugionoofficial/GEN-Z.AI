@@ -179,6 +179,8 @@ async function logout() {
 
     try {
 
+        window.GENZSession?.clearAllAuthStorage?.();
+
         if (supabase) {
 
             await supabase.auth.signOut();
