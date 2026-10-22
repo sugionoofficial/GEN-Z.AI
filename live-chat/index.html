@@ -611,6 +611,140 @@
                 color: #6b7688;
             }
 
+            /* =========================================================
+               SAFETY NET — BLOK PUTIH = TEKS GELAP
+               ---------------------------------------------------------
+               Stylesheet global (assets/css/genz-premium.css) memakai
+               selektor ID seperti #modelSelect { color:#f4f7ff }, jadi
+               aturan light biasa kalah specific. Di sini semua elemen
+               teks di dalam kartu chat dipaksa gelap, lalu permukaan
+               beraksen (bubble user, tombol kirim, error) di-assert
+               ulang sesudahnya.
+            ========================================================= */
+
+            html[data-genz-theme="light"] .chat-card,
+            html[data-genz-theme="light"] .chat-card :is(
+                h1, h2, h3, h4, h5, h6, p, span, label, summary, strong, b,
+                em, small, li, dt, dd, div, button, input, textarea, select,
+                option, a, code, pre, th, td
+            ) {
+                color: #101828;
+            }
+
+            /* --- permukaan beraksen: teks tetap putih --- */
+
+            html[data-genz-theme="light"] .chat-card .send-button,
+            html[data-genz-theme="light"] .chat-card .user .message-content,
+            html[data-genz-theme="light"] .chat-card .user .message-content *,
+            html[data-genz-theme="light"] .chat-card .user .message-content :is(p, span, div, strong, em, li, code) {
+                color: #ffffff;
+            }
+
+            /* --- error tetap merah --- */
+
+            html[data-genz-theme="light"] .chat-card .message-error .message-content,
+            html[data-genz-theme="light"] .chat-card .message-error .message-content * {
+                color: #b4232f;
+            }
+
+            /* --- teks sekunder tetap lebih lembut dari judul --- */
+
+            html[data-genz-theme="light"] .chat-card :is(
+                .model-label, .catalog-status, .subtitle, .repo-status,
+                .repo-file-size, .repo-file-empty, .repo-selection-hint,
+                .video-options-hint, .composer-foot, .notice, .welcome p
+            ) {
+                color: #5f6b80;
+            }
+
+            html[data-genz-theme="light"] .chat-card .welcome h2,
+            html[data-genz-theme="light"] .chat-card .final-prompt-head,
+            html[data-genz-theme="light"] .chat-card .eyebrow {
+                color: #0b1424;
+            }
+
+            html[data-genz-theme="light"] .chat-card .final-prompt-head {
+                color: #4a3cbe;
+            }
+
+            /* --- kontrol form: latar putih, teks gelap --- */
+
+            html[data-genz-theme="light"] #modelSelect,
+            html[data-genz-theme="light"] .chat-card #modelSelect {
+                border: 1px solid #dbe3f0;
+                background: #ffffff;
+                color: #101828;
+                -webkit-text-fill-color: #101828;
+            }
+
+            html[data-genz-theme="light"] .chat-card #modelSelect:hover {
+                border-color: #b9aef5;
+            }
+
+            html[data-genz-theme="light"] .chat-card #modelSelect:focus {
+                border-color: #8b7cff;
+                box-shadow: 0 0 0 3px rgba(139,124,255,.14);
+            }
+
+            html[data-genz-theme="light"] .chat-card #modelSelect:disabled {
+                color: #55617a;
+                -webkit-text-fill-color: #55617a;
+                background: #f4f6fb;
+                opacity: 1;
+            }
+
+            html[data-genz-theme="light"] .chat-card #modelSelect option,
+            html[data-genz-theme="light"] #modelSelect option {
+                background: #ffffff;
+                color: #101828;
+                -webkit-text-fill-color: #101828;
+            }
+
+            html[data-genz-theme="light"] .chat-card :is(input, textarea) {
+                -webkit-text-fill-color: #101828;
+            }
+
+            html[data-genz-theme="light"] .chat-card :is(input, textarea)::placeholder {
+                color: #8a94a6;
+                -webkit-text-fill-color: #8a94a6;
+                opacity: 1;
+            }
+
+            /* --- tombol abu-abu global yang membawa warna putih --- */
+
+            html[data-genz-theme="light"] .chat-card .text-button,
+            html[data-genz-theme="light"] .chat-card .repo-clear,
+            html[data-genz-theme="light"] .chat-card .repo-load,
+            html[data-genz-theme="light"] .chat-card .repo-select-all,
+            html[data-genz-theme="light"] .chat-card .message-copy,
+            html[data-genz-theme="light"] .chat-card .message-expand,
+            html[data-genz-theme="light"] .chat-card .character-image-button,
+            html[data-genz-theme="light"] .chat-card .attach-button {
+                color: #4a3cbe;
+            }
+
+            html[data-genz-theme="light"] .chat-card .repo-load {
+                background: #efeafe;
+                border-color: #c9c0fa;
+            }
+
+            html[data-genz-theme="light"] .chat-card .text-button {
+                background: #ffffff;
+                border-color: #dfe6f1;
+                color: #35415a;
+            }
+
+            html[data-genz-theme="light"] .chat-card .repo-load:disabled,
+            html[data-genz-theme="light"] .chat-card .attach-button:disabled,
+            html[data-genz-theme="light"] .chat-card .send-button:disabled {
+                color: #8a94a6;
+            }
+
+            html[data-genz-theme="light"] .chat-card .send-button {
+                color: #ffffff;
+                background: linear-gradient(145deg, #6f5ee8, #4b3fc0);
+            }
+
     </style>
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
 <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
