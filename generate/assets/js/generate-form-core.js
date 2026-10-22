@@ -47,11 +47,29 @@ export const SERVER_CONTROLLED_PARAMETERS =
     ]);
 
 
+/*
+ * Urutan render parameter pada halaman Generate:
+ * 1. Gambar referensi
+ * 2. Video referensi (jika model punya parameter video)
+ * 3. Audio referensi (jika model punya parameter audio)
+ * 4. Prompt
+ * 5. Parameter lain (mode, aspect ratio, duration, resolution, ...)
+ */
+
 export const PARAMETER_ORDER = [
     "image_urls",
     "image_url",
+    "reference_image_urls",
+    "first_frame_url",
+    "video_urls",
+    "video_url",
+    "reference_video_urls",
     "audio_url",
+    "audio_urls",
+    "reference_audio_url",
     "prompt",
+    "negative_prompt",
+    "description",
     "mode",
     "aspect_ratio",
     "duration",
@@ -63,7 +81,14 @@ export const FULL_WIDTH_PARAMETERS =
     new Set([
         "image_urls",
         "image_url",
+        "reference_image_urls",
+        "first_frame_url",
+        "video_urls",
+        "video_url",
+        "reference_video_urls",
         "audio_url",
+        "audio_urls",
+        "reference_audio_url",
         "prompt",
         "negative_prompt",
         "description"
@@ -751,8 +776,29 @@ export function getParameterLabel(
         image_url:
             "Gambar Referensi",
 
+        reference_image_urls:
+            "Gambar Referensi",
+
+        first_frame_url:
+            "Gambar Referensi",
+
+        video_urls:
+            "Video Referensi",
+
+        video_url:
+            "Video Referensi",
+
+        reference_video_urls:
+            "Video Referensi",
+
         audio_url:
-            "Audio",
+            "Audio Referensi",
+
+        audio_urls:
+            "Audio Referensi",
+
+        reference_audio_url:
+            "Audio Referensi",
 
         prompt:
             "Prompt",

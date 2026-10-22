@@ -1,0 +1,209 @@
+/* =========================================================
+   GEN-Z.AI
+   GENERATE STUDIO — LAYOUT (LEBAR BLOK & RESPONSIF)
+   ---------------------------------------------------------
+   File:
+   generate/assets/css/generate-layout.css
+
+   Dimuat PALING AKHIR, setelah:
+   1. generate-premium.css
+   2. genz-premium.css
+   3. generate-progress-card.css
+   4. generate-light.css
+
+   Tujuan:
+   - Area kerja tidak lagi terlalu lebar ke kiri & kanan
+     (maksimal 1120px di desktop besar, menyempit mulus
+     di tablet & HP).
+   - Padding blok utama dirapatkan agar terasa premium dan
+     tidak menyisakan ruang kosong besar.
+   - Blok media referensi (Gambar / Video / Audio) serta
+     Prompt selalu selebar penuh (grid-column: 1 / -1).
+   - Hanya mengatur ukuran, jarak, dan susunan grid —
+     TIDAK mengatur warna, sehingga aman untuk mode cerah
+     maupun gelap.
+========================================================= */
+
+
+/* =========================================================
+   01. LEBAR AREA KERJA (SEMUA UKURAN LAYAR)
+========================================================= */
+
+.content {
+    width: min(1120px, calc(100% - 56px)) !important;
+    margin-right: auto !important;
+    margin-left: auto !important;
+}
+
+
+/* =========================================================
+   02. BLOK UTAMA — PADDING & RADIUS
+========================================================= */
+
+.generate-neon-block {
+    padding: 24px 24px 28px !important;
+    border-radius: 22px !important;
+}
+
+
+#dynamicFields {
+    gap: 14px !important;
+}
+
+
+#dynamicFields > .generate-field {
+    padding: 17px !important;
+}
+
+
+/* =========================================================
+   03. BLOK MEDIA REFERENSI + PROMPT = LEBAR PENUH
+   Urutan render: Gambar → Video → Audio → Prompt
+   (blok video/audio hanya muncul jika parameter model ada)
+========================================================= */
+
+#dynamicFields > .generate-field[data-parameter="image_urls"],
+#dynamicFields > .generate-field[data-parameter="image_url"],
+#dynamicFields > .generate-field[data-parameter="reference_image_urls"],
+#dynamicFields > .generate-field[data-parameter="first_frame_url"],
+#dynamicFields > .generate-field[data-parameter="video_urls"],
+#dynamicFields > .generate-field[data-parameter="video_url"],
+#dynamicFields > .generate-field[data-parameter="reference_video_urls"],
+#dynamicFields > .generate-field[data-parameter="audio_url"],
+#dynamicFields > .generate-field[data-parameter="audio_urls"],
+#dynamicFields > .generate-field[data-parameter="reference_audio_url"],
+#dynamicFields > .generate-field[data-parameter="prompt"],
+#dynamicFields > .generate-field[data-parameter="negative_prompt"],
+#dynamicFields > .generate-field[data-parameter="description"] {
+    grid-column: 1 / -1 !important;
+}
+
+
+/* Prompt tetap lapang, tapi tidak menggelembung */
+
+#dynamicFields > .generate-field[data-parameter="prompt"] {
+    padding: 19px !important;
+    min-height: 0 !important;
+}
+
+
+/* =========================================================
+   04. DESKTOP BESAR (≥ 1280px)
+========================================================= */
+
+@media (min-width: 1280px) {
+
+    .generate-neon-block {
+        padding: 28px 30px 32px !important;
+        border-radius: 24px !important;
+    }
+
+    .generate-neon-block::before {
+        inset: 9px !important;
+        border-radius: 17px !important;
+    }
+
+    #dynamicFields {
+        gap: 15px !important;
+    }
+
+    #dynamicFields > .generate-field {
+        padding: 17px !important;
+    }
+}
+
+
+/* =========================================================
+   05. LAPTOP KECIL / TABLET LANDSCAPE (≤ 1280px)
+========================================================= */
+
+@media (max-width: 1280px) {
+
+    .content {
+        width: min(1040px, calc(100% - 48px)) !important;
+    }
+
+    .generate-neon-block {
+        padding: 24px 22px 28px !important;
+    }
+}
+
+
+/* =========================================================
+   06. TABLET (≤ 1024px)
+========================================================= */
+
+@media (max-width: 1024px) {
+
+    .content {
+        width: calc(100% - 40px) !important;
+    }
+
+    .generate-neon-block {
+        padding: 22px 20px 26px !important;
+        border-radius: 20px !important;
+    }
+
+    .generate-neon-block::before {
+        inset: 7px !important;
+        border-radius: 15px !important;
+    }
+
+    #dynamicFields {
+        gap: 13px !important;
+    }
+}
+
+
+/* =========================================================
+   07. HP & TABLET PORTRAIT (≤ 768px) — SATU KOLOM
+========================================================= */
+
+@media (max-width: 768px) {
+
+    .content {
+        width: calc(100% - 28px) !important;
+    }
+
+    #dynamicFields {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    #dynamicFields > .generate-field {
+        grid-column: 1 / -1 !important;
+        padding: 15px !important;
+        border-radius: 15px !important;
+    }
+
+    .generate-neon-block {
+        padding: 18px 16px 22px !important;
+        border-radius: 20px !important;
+    }
+
+    .generate-neon-block::before {
+        inset: 6px !important;
+        border-radius: 14px !important;
+    }
+}
+
+
+/* =========================================================
+   08. HP KECIL (≤ 480px)
+========================================================= */
+
+@media (max-width: 480px) {
+
+    .content {
+        width: calc(100% - 20px) !important;
+    }
+
+    .generate-neon-block {
+        padding: 15px 13px 18px !important;
+        border-radius: 17px !important;
+    }
+
+    #dynamicFields > .generate-field {
+        padding: 13px !important;
+    }
+}

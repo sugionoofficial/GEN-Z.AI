@@ -326,7 +326,14 @@ function isFullWidthParameter(
         parameter === "description" ||
         parameter === "image_urls" ||
         parameter === "image_url" ||
-        parameter === "audio_url"
+        parameter === "reference_image_urls" ||
+        parameter === "first_frame_url" ||
+        parameter === "video_urls" ||
+        parameter === "video_url" ||
+        parameter === "reference_video_urls" ||
+        parameter === "audio_url" ||
+        parameter === "audio_urls" ||
+        parameter === "reference_audio_url"
     );
 }
 
@@ -386,14 +393,14 @@ export function forceContainerVisible(
 
     container.style.setProperty(
         "column-gap",
-        "20px",
+        "16px",
         "important"
     );
 
 
     container.style.setProperty(
         "row-gap",
-        "18px",
+        "14px",
         "important"
     );
 
