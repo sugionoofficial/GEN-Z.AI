@@ -192,7 +192,7 @@ test("halaman riwayat menukar referensi privat jadi signed URL", () => {
     assert.match(source, /await resolvePrivateMediaRefs\(\s*state\.historyData\s*\)/);
 
     const html = read("history/index.html");
-    assert.match(html, /history-data\.js\?v=20261023-private-refs/);
+    assert.match(html, /history-data\.js\?v=20261023-media-refresh/);
 });
 
 test("policy storage mengizinkan user membaca output miliknya", () => {
@@ -343,4 +343,21 @@ test("payload tanpa referensi privat tidak menyentuh Storage API", async () => {
 
     assert.equal(result, body);
     assert.equal(fetchImpl.calls.length, 0);
+});
+
+test("signed URL diperbarui otomatis sebelum kedaluwarsa", () => {
+    const data = read("history/assets/js/history-data.js");
+
+    assert.match(data, /PRIVATE_MEDIA_REFRESH_MS\s*=\s*\n?\s*5 \* 60 \* 1000/);
+    assert.match(data, /async function refreshPrivateMediaRefs\(\)/);
+    assert.match(data, /item\.__privateMediaRefs\s*=\s*\n?\s*item\.__privateMediaRefs \|\| \{\}/);
+    assert.match(data, /function ensurePrivateMediaWatch\(\)/);
+    assert.match(data, /window\.setInterval\(/);
+    assert.match(data, /App\.refreshPrivateMediaRefs\s*=/);
+
+    // Setelah token diperbarui, tabel dirender ulang.
+    assert.match(data, /typeof App\.renderHistory ===\s*\n?\s*"function"/);
+
+    const html = read("history/index.html");
+    assert.match(html, /history-data\.js\?v=20261023-media-refresh/);
 });

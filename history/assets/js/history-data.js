@@ -138,6 +138,13 @@
         new Map();
 
     /*
+     * Signed URL hanya berlaku 1 jam. Halaman riwayat bisa dibiarkan
+     * terbuka lebih lama, jadi token diperbarui jauh sebelum habis.
+     */
+    const PRIVATE_MEDIA_REFRESH_MS =
+        5 * 60 * 1000;
+
+    /*
      * Kolom yang bisa berisi referensi media privat.
      * `result_url`       = hasil upscale
      * `image_reference_url` / `video_reference_url` = input yang dipakai
@@ -208,7 +215,8 @@
 
     async function signPrivateMediaUrl(
         client,
-        ref
+        ref,
+        options = {}
     ) {
 
         const parsed =
@@ -218,10 +226,14 @@
             return "";
         }
 
+        const force =
+            options.force === true;
+
         const cached =
             privateMediaCache.get(ref);
 
         if (
+            !force &&
             cached &&
             cached.expiresAt > Date.now()
         ) {
@@ -320,10 +332,24 @@
                 tasks.push(
                     (async () => {
 
+                        const cleanRef =
+                            ref.trim();
+
+                        /*
+                         * Simpan referensi asli supaya bisa
+                         * ditandatangani ulang saat token
+                         * mendekati kedaluwarsa.
+                         */
+                        item.__privateMediaRefs =
+                            item.__privateMediaRefs || {};
+
+                        item.__privateMediaRefs[field] =
+                            cleanRef;
+
                         const url =
                             await signPrivateMediaUrl(
                                 client,
-                                ref.trim()
+                                cleanRef
                             );
 
                         /*
@@ -343,6 +369,10 @@
 
                             item.media_expired =
                                 true;
+
+                        } else {
+
+                            delete item.media_expired;
                         }
                     })()
                 );
@@ -355,8 +385,144 @@
 
         await Promise.all(tasks);
 
+        ensurePrivateMediaWatch();
+
         return items;
     }
+
+    /*
+     * Perbarui signed URL yang mendekati kedaluwarsa tanpa reload
+     * halaman. Hanya baris yang punya referensi tersimpan.
+     */
+    async function refreshPrivateMediaRefs() {
+
+        const state =
+            getState();
+
+        const items =
+            Array.isArray(state.historyData)
+                ? state.historyData
+                : [];
+
+        const client =
+            getSupabaseClient();
+
+        if (!client || !items.length) {
+            return false;
+        }
+
+        const now =
+            Date.now();
+
+        const tasks = [];
+        let changed = false;
+
+        items.forEach(item => {
+
+            const refs =
+                item?.__privateMediaRefs;
+
+            if (!refs || typeof refs !== "object") {
+                return;
+            }
+
+            Object.entries(refs).forEach(([field, ref]) => {
+
+                if (
+                    typeof ref !== "string" ||
+                    !isPrivateMediaRef(ref)
+                ) {
+
+                    return;
+                }
+
+                const cached =
+                    privateMediaCache.get(ref);
+
+                const needsRefresh =
+                    !cached ||
+                    cached.expiresAt - now <=
+                        PRIVATE_MEDIA_REFRESH_MS;
+
+                if (!needsRefresh) {
+                    return;
+                }
+
+                tasks.push(
+                    (async () => {
+
+                        const url =
+                            await signPrivateMediaUrl(
+                                client,
+                                ref,
+                                { force: true }
+                            );
+
+                        if (!url) {
+
+                            item[field] = "";
+                            item.media_expired = true;
+                            changed = true;
+
+                            return;
+                        }
+
+                        item[field] = url;
+                        delete item.media_expired;
+                        changed = true;
+                    })()
+                );
+            });
+        });
+
+        if (!tasks.length) {
+            return false;
+        }
+
+        await Promise.all(tasks);
+
+        if (
+            changed &&
+            typeof App.renderHistory ===
+                "function"
+        ) {
+
+            App.renderHistory();
+        }
+
+        return changed;
+    }
+
+    App.refreshPrivateMediaRefs =
+        refreshPrivateMediaRefs;
+
+
+    let privateMediaWatchTimer = null;
+
+    function ensurePrivateMediaWatch() {
+
+        if (
+            privateMediaWatchTimer ||
+            typeof window === "undefined" ||
+            typeof window.setInterval !==
+                "function"
+        ) {
+
+            return;
+        }
+
+        privateMediaWatchTimer =
+            window.setInterval(() => {
+
+                refreshPrivateMediaRefs()
+                    .catch(() => {});
+
+            }, PRIVATE_MEDIA_REFRESH_MS);
+    }
+
+    App.ensurePrivateMediaWatch =
+        ensurePrivateMediaWatch;
+
 
     App.resolvePrivateMediaRefs =
         resolvePrivateMediaRefs;

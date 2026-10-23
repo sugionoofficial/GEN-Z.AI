@@ -77,6 +77,10 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
    dipakai provider — **hanya** referensi di folder user yang login
    (`isRefOwnedByUser()`), supaya user tidak bisa menyuruh server
    menandatangani file user lain.
+9. Halaman riwayat membiarkan signed URL diperbarui otomatis: tiap 5 menit
+   `refreshPrivateMediaRefs()` menandatangani ulang token yang tersisa
+   ≤ 5 menit dan me-render ulang tabel, jadi thumbnail tidak mati meski
+   halaman dibiarkan terbuka lebih dari 1 jam.
 
 ## Implementasi
 
