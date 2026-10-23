@@ -264,12 +264,25 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
    ditinjau"* and the **Kirim untuk ditinjau** button stays disabled until every circle
    turns into a green check.
 
-   1. **Verifikasi** (`Verification`) — the only section with a single **Buka
-      verifikasi** button. It is Meta's business/access verification gate, not a form:
-      it opens the same request that Meta Business Suite's Security Center holds. If
-      the portfolio submission is still *Menunggu persetujuan*, this circle cannot turn
-      green yet and the whole submission is held — check the status in
-      `business.facebook.com/settings/security_center` before retrying.
+   1. **Verifikasi** (`Verification`) — *Hubungkan portofolio bisnis yang terverifikasi*
+      (`Link a verified business portfolio`). It is not a form: it is a table of one
+      row per app, showing the app, the linked portfolio and that portfolio's state.
+      For this project it reads **Genzai Dev · Tidak lengkap** (`Incomplete`) with an
+      orange dot while the portfolio verification is still under review, and turns into
+      **Terverifikasi** (`Verified`) once Meta approves it. Only a portfolio with **full
+      control** by the signed-in person can complete this step.
+
+      - **Selesaikan Verifikasi** (`Complete verification`) jumps into the same request
+        held in `business.facebook.com/settings/security_center`; if it says
+        *Pengajuan menunggu persetujuan* there is nothing to fill in — wait, then
+        reopen this page. A decision takes up to 14 business days from the submission
+        date.
+      - **Hapus** (`Remove`) unlinks the app from the portfolio. Never press it while
+        verification is pending: the app would lose the business that is being
+        verified, and the request would have to start over.
+      - Progress is auto-saved (**Disimpan otomatis**), so the other four sections can be
+        completed while this one stays orange; only the final **Kirim untuk ditinjau**
+        waits for the green check.
    2. **Pengaturan aplikasi** (`App settings`) — usually already green. If it is not,
       the missing fields are in **Pengaturan → Dasar**: 1024×1024 icon, category,
       `https://genzai.genzai-f37.workers.dev/privacy/`, and
