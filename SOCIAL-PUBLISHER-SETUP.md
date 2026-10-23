@@ -250,7 +250,10 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
    and make sure the portfolio owns at least one asset. The app is only attached to
    the portfolio when it was created *for* that business — otherwise attach it via
    **Akun → Aplikasi** before retrying. Never verify an empty portfolio: Meta hides
-   the button, which is why it looks like a bug.
+   the button, which is why it looks like a bug. If it still says *not eligible*,
+   do not block on it: request Advanced Access anyway (step 1) — Meta answers either
+   with an approval or with an explicit "business verification required" prompt, and
+   only then is the portfolio verification actually needed.
 4. **App settings → Basic**: Category, App Domains (`genzai.genzai-f37.workers.dev`),
    Privacy Policy URL, and Data Deletion Instructions URL must be filled in. Meta
    hides login while app details are considered incomplete.
