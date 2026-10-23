@@ -975,18 +975,19 @@ async function listRunsForDashboard(config, userId, paginationOptions = {}) {
 }
 
 async function getDashboard(config, userId, env, profile, runsOptions = {}) {
-    const [characters, pages, schedulesResult, runsResult, publisherConfig, userSettings, outfitLibrary, referenceStorageConfigured] = await Promise.all([
+    const [characters, pages, schedulesResult, runsResult, publisherConfig, userSettingsResult, outfitLibrary, referenceStorageConfigured] = await Promise.all([
         supabaseRequest(config, tablePath("social_characters", `select=id,display_name,reference_filename,reference_mime_type,garment_filename,prompt_notes,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
         listSchedulesForDashboard(config, userId),
         listRunsForDashboard(config, userId, runsOptions),
             supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,updated_at&id=eq.true&limit=1")),
-        supabaseRequest(config, tablePath("social_publisher_user_settings", `select=caption_template,external_link,autopublish_enabled,updated_at&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
+        getUserSettingsForDashboard(config, userId),
         listOutfitsForDashboard(config, userId),
         isPrivateReferenceBucket(config)
     ]);
 
     const schedules = schedulesResult?.rows || [];
+    const userSettings = userSettingsResult?.settings ? [userSettingsResult.settings] : [];
     const imageProvider = ["cloudflare", "qwencloud"].includes(publisherConfig?.[0]?.image_provider)
         ? publisherConfig[0].image_provider
         : "gemini";
@@ -1002,6 +1003,8 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         schedules,
         /* false = migration kolom scene/autopublish jadwal belum dijalankan. */
         sceneSchemaReady: schedulesResult?.sceneSchemaReady !== false,
+        /* false = migration kolom autopublish akun belum dijalankan. */
+        autopublishSchemaReady: userSettingsResult?.autopublishSchemaReady !== false,
         runs: runsResult?.runs || [],
         runsPagination: runsResult?.pagination || {
             page: 1,
@@ -1333,6 +1336,11 @@ function isMissingScheduleSceneSchema(error) {
         && mentionsColumn;
 }
 
+/**
+ * Daftar jadwal untuk dashboard. Bila database belum punya kolom baru,
+ * query diulang dengan kolom lama agar halaman tetap terbuka dan hanya
+ * menampilkan peringatan migration.
+ */
 async function listSchedulesForDashboard(config, userId) {
     const query = `owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`;
     try {
@@ -1341,12 +1349,38 @@ async function listSchedulesForDashboard(config, userId) {
             sceneSchemaReady: true
         };
     } catch (error) {
-        if (!isMissingScheduleSceneSchema(error)) throw error;
+        console.warn("[Social Publisher] Select jadwal dengan kolom baru gagal:", error?.message || "unknown error");
         const rows = await supabaseRequest(
             config,
             tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&${query}`)
-        );
+        ).catch(() => {
+            throw error;
+        });
         return { rows: rows || [], sceneSchemaReady: false };
+    }
+}
+
+/**
+ * Pengaturan akun untuk dashboard. `autopublish_enabled` baru ada setelah
+ * supabase/social-autopublish-per-user.sql dijalankan; bila belum, dashboard
+ * memakai kolom lama dan menganggap autopublish akun AKTIF.
+ */
+async function getUserSettingsForDashboard(config, userId) {
+    const query = `owner_id=eq.${encodeURIComponent(userId)}&limit=1`;
+    try {
+        return {
+            settings: (await supabaseRequest(config, tablePath("social_publisher_user_settings", `select=caption_template,external_link,autopublish_enabled,updated_at&${query}`)))?.[0] || null,
+            autopublishSchemaReady: true
+        };
+    } catch (error) {
+        console.warn("[Social Publisher] Select pengaturan akun dengan autopublish_enabled gagal:", error?.message || "unknown error");
+        const rows = await supabaseRequest(
+            config,
+            tablePath("social_publisher_user_settings", `select=caption_template,external_link,updated_at&${query}`)
+        ).catch(() => {
+            throw error;
+        });
+        return { settings: rows?.[0] || null, autopublishSchemaReady: false };
     }
 }
 

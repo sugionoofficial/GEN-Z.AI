@@ -1462,10 +1462,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         renderOutfitSelector(data.characters || []);
         renderOutfits();
         applySchedulePolicyUi();
-        if (data.sceneSchemaReady === false) {
+        const missingMigrations = [];
+        if (data.autopublishSchemaReady === false) missingMigrations.push("supabase/social-autopublish-per-user.sql");
+        if (data.sceneSchemaReady === false) missingMigrations.push("supabase/social-schedule-autopublish-scene.sql");
+        if (missingMigrations.length) {
             showNotice(
                 pageMessage,
-                "Kolom parameter gambar dan autopublish per jadwal belum ada di database. Jalankan supabase/social-schedule-autopublish-scene.sql di Supabase SQL Editor, lalu muat ulang halaman ini.",
+                `Database belum menjalankan ${missingMigrations.join(" dan ")}. Jalankan file tersebut di Supabase SQL Editor, lalu muat ulang halaman ini.`,
                 "warn"
             );
             return;

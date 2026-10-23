@@ -55,6 +55,53 @@ async function updateRun(config, runId, values) {
 
 const SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive";
 
+const LEGACY_SCHEDULE_COLUMNS = "id,owner_id,character_id,page_connection_id,enabled,interval_hours,aspect_ratio,caption_template,timezone";
+
+function isMissingColumnError(error) {
+    const message = String(error?.message || "");
+    return /does not exist|schema cache|column/i.test(message);
+}
+
+/**
+ * Baris jadwal dengan kolom baru. Bila migration kolom scene belum dijalankan,
+ * pakai kolom lama supaya autopost tetap berjalan dengan parameter otomatis.
+ */
+async function getScheduleForRun(config, scheduleId) {
+    try {
+        const rows = await dbRequest(config, table(
+            "social_post_schedules",
+            `select=${LEGACY_SCHEDULE_COLUMNS},autopublish_enabled,scene_location,camera_angle,scene_situation,scene_lighting,scene_atmosphere,scene_condition,scene_details,negative_prompt&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+        ));
+        return rows?.[0] || null;
+    } catch (error) {
+        if (!isMissingColumnError(error)) throw error;
+        console.warn("[Social Publisher] Kolom scene jadwal belum ada; memakai kolom lama.");
+        const rows = await dbRequest(config, table(
+            "social_post_schedules",
+            `select=${LEGACY_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+        ));
+        return rows?.[0] || null;
+    }
+}
+
+/** Pengaturan akun; kolom autopublish_enabled opsional pada database lama. */
+async function getUserSettingsRow(config, ownerId) {
+    try {
+        const rows = await dbRequest(config, table(
+            "social_publisher_user_settings",
+            `select=caption_template,external_link,autopublish_enabled&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`
+        ));
+        return rows;
+    } catch (error) {
+        if (!isMissingColumnError(error)) throw error;
+        console.warn("[Social Publisher] Kolom autopublish_enabled belum ada; autopublish akun dianggap aktif.");
+        return await dbRequest(config, table(
+            "social_publisher_user_settings",
+            `select=caption_template,external_link&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`
+        ));
+    }
+}
+
 function isMissingStudioAccessSchema(error) {
     if (error?.code === "PGRST205" || error?.code === "42P01") return true;
     const message = String(error?.message || "");
@@ -212,11 +259,7 @@ async function processRun(env, config, claimedRun) {
 
     try {
         await updateRun(config, runId, { status: "generating", started_at: now });
-        const schedules = await dbRequest(config, table(
-            "social_post_schedules",
-            `select=id,owner_id,character_id,page_connection_id,enabled,autopublish_enabled,interval_hours,aspect_ratio,caption_template,timezone,scene_location,camera_angle,scene_situation,scene_lighting,scene_atmosphere,scene_condition,scene_details,negative_prompt&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
-        ));
-        const schedule = schedules?.[0];
+        const schedule = await getScheduleForRun(config, scheduleId);
         if (!schedule) throw new Error("Schedule was removed or disabled before processing.");
 
         /* Switch autopublish milik blok jadwal ini. RPC claim sudah menyaringnya;
@@ -252,7 +295,7 @@ async function processRun(env, config, claimedRun) {
             dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,garment_object_key,garment_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             listRecentPostedRuns(config, schedule.id),
-            dbRequest(config, table("social_publisher_user_settings", `select=caption_template,external_link,autopublish_enabled&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
+            getUserSettingsRow(config, schedule.owner_id),
             dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1"))
         ]);
         /* Switch autopublish milik user. RPC claim sudah menyaringnya; guard ini
