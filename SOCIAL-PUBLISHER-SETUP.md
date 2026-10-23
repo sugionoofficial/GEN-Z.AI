@@ -222,15 +222,18 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
 | What the older guides call it | Current App Dashboard path |
 | --- | --- |
 | Alerts / Required actions | **Tindakan yang Diperlukan** (`Required actions`) in the left menu, plus red banners on the app tile in `/apps` |
-| App Review → Permissions and Features | **Tinjauan** (`Review`) → **Izin dan fitur** (`Permissions and features`); on use-case apps the same list is reachable from **Kasus penggunaan** → the use case → *Sesuaikan* (`Customize`) |
+| App Review → Permissions and Features | On use-case apps the permission list lives in **Kasus penggunaan** (`Use cases`) → **Kelola segala sesuatu di Halaman Anda** → *Sesuaikan* (`Customize`); older deep links such as `/app-review/permissions/` now redirect to the app picker, so always open the app first and click through the left sidebar |
 | App Review submission | **Tinjauan** → **App Review** → *Edit* / *Buat pengajuan* |
 | Business Verification | Meta Business Suite → **Keamanan dan kesesuaian** (`Security and compliance`) → **Pusat keamanan** (`Security Center`) → card *Verifikasi bisnis* → **Mulai verifikasi**; direct link `business.facebook.com/settings/security_center` |
 | App Mode / publish | **Terbitkan** (`Publish`) → status *Diterbitkan* |
 | App roles | **Peran aplikasi** (`App roles`) → **Roles** |
 | Login configuration | Product **Facebook Login for Business** → **Konfigurasi** (`Configurations`) |
 
-1. **Izin dan fitur → `public_profile`**: request **Advanced Access** (*Tingkatkan
-   akses* → *Akses lanjutan*). For a **Facebook Login for Business** app this is
+1. **`public_profile` → Advanced Access**: open the app card, then **Kasus penggunaan**
+   → **Kelola segala sesuatu di Halaman Anda** → *Sesuaikan*. Each permission shows a
+   badge: *Akses standar / Siap untuk pengujian* (Standard) or *Akses lanjutan / Siap
+   untuk dipublikasikan* (Advanced). Click **Minta akses lanjutan** (*Increase access*
+   → *Advanced access*). For a **Facebook Login for Business** app this is
    mandatory before anyone without an app role can log in. Set `email` to Advanced
    Access too if the flow asks for it. The Page permissions (`pages_show_list`,
    `pages_read_engagement`, `pages_manage_posts`) also need App Review + Advanced
