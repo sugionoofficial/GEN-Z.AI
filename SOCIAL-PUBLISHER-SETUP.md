@@ -159,6 +159,25 @@ Existing `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` Wo
 
 The `dist/` directory is generated, not committed. For Workers Builds, keep Production configured with build command `node scripts/build-cloudflare-pages.mjs` and deploy command `npx wrangler deploy`. In **Previews Base**, use `npm run preview` as the Preview command; that script builds `dist/` before running `npx wrangler preview`. The package `postinstall` hook also detects Cloudflare Workers Builds on non-`main` branches and builds `dist/` before the Preview command, so branch previews remain resilient when the dashboard omits its optional Build command. To avoid duplicate work, the Previews Base Build command can be left empty. This affects branch previews only, not the Production deploy command.
 
+### Connecting from a phone
+
+The OAuth flow is a normal full-page redirect, so it works on phones as well as on
+desktop — it is not desktop-only. Two phone-specific things break it:
+
+- **In-app browsers.** Meta refuses to render the permission dialog inside embedded
+  WebViews (Facebook, Instagram, Messenger, WhatsApp, TikTok, LINE, and similar).
+  Opening the Studio link from inside those apps means the consent block never
+  appears. Open the page in Chrome or Safari, sign in there, and press
+  **Hubungkan Facebook** from that browser.
+- **Splitting the flow across browsers.** The OAuth `state` cookie is bound to the
+  browser that started the flow, so copying only the Facebook URL into another
+  browser fails with `oauth_error=state`. Always start over from the Studio page in
+  the browser that will finish the flow.
+
+The Studio panel now detects in-app browsers and shows a warning with a
+**Salin tautan halaman ini** button, and every connect attempt also reveals a manual
+**Buka halaman izin Facebook** link in case the automatic redirect is blocked.
+
 ## Admin use
 
 Open **Admin Control → Social Auto Publisher**:

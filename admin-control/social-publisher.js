@@ -52,6 +52,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     const uploadButton = $("upload-character");
     const saveScheduleButton = $("save-schedule");
     const connectButton = $("connect-page");
+    /* Bantuan OAuth: tautan manual + peringatan browser dalam aplikasi. */
+    const connectHelp = $("connect-help");
+    const connectHelpTitle = $("connect-help-title");
+    const connectHelpText = $("connect-help-text");
+    const oauthManualLink = $("oauth-manual-link");
+    const connectCopyButton = $("connect-copy-link");
+    const connectCopyStatus = $("connect-copy-status");
     const outfitSelect = $("outfit-character");
     const outfitStatus = $("outfit-status");
     const saveOutfitButton = $("save-outfit");
@@ -1504,6 +1511,87 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
+    /*
+     * Facebook menolak menampilkan halaman izin OAuth di browser dalam
+     * aplikasi (WebView) seperti Facebook, Instagram, WhatsApp, atau TikTok.
+     * Di HP tautan Studio Medsos sering dibuka dari aplikasi tersebut,
+     * sehingga blok persetujuan Meta tidak muncul sama sekali.
+     */
+    const IN_APP_BROWSER_PATTERNS = [
+        [/FBAN|FBAV|FB_IAB|FBIOS/i, "aplikasi Facebook"],
+        [/Instagram/i, "aplikasi Instagram"],
+        [/Messenger/i, "aplikasi Messenger"],
+        [/WhatsApp/i, "aplikasi WhatsApp"],
+        [/Line\//i, "aplikasi LINE"],
+        [/TikTok|musical_ly|BytedanceWebview/i, "aplikasi TikTok"],
+        [/Snapchat/i, "aplikasi Snapchat"],
+        [/MicroMessenger/i, "aplikasi WeChat"],
+        [/LinkedInApp/i, "aplikasi LinkedIn"],
+        [/Twitter/i, "aplikasi X"],
+        [/GSA\//i, "Google App"]
+    ];
+
+    function detectInAppBrowser() {
+        const agent = String(window.navigator?.userAgent || "");
+        if (!agent) return "";
+        const match = IN_APP_BROWSER_PATTERNS.find(([pattern]) => pattern.test(agent));
+        return match ? match[1] : "";
+    }
+
+    function showConnectHelp({ title, message, url = "", tone = "warn" }) {
+        if (!connectHelp) return;
+        connectHelp.hidden = false;
+        connectHelp.className = `notice ${tone}`;
+        if (connectHelpTitle) connectHelpTitle.textContent = title;
+        if (connectHelpText) connectHelpText.textContent = message;
+        if (oauthManualLink) {
+            if (url) {
+                oauthManualLink.href = url;
+                oauthManualLink.hidden = false;
+            } else {
+                oauthManualLink.removeAttribute("href");
+                oauthManualLink.hidden = true;
+            }
+        }
+    }
+
+    function renderInAppBrowserHint() {
+        const app = detectInAppBrowser();
+        if (!app) return;
+        showConnectHelp({
+            title: "Buka halaman ini di Chrome atau Safari",
+            message: `Anda sedang membuka Studio Medsos di dalam ${app}. Facebook memblokir halaman izin OAuth di browser dalam aplikasi, jadi blok persetujuan tidak akan muncul. Salin tautan halaman ini, buka di Chrome atau Safari, lalu login dan tekan Hubungkan Facebook dari sana.`,
+            tone: "warn"
+        });
+    }
+
+    async function copyCurrentPageLink() {
+        const link = String(window.location.href || "");
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(link);
+            } else {
+                const field = document.createElement("textarea");
+                field.value = link;
+                field.setAttribute("readonly", "");
+                field.style.position = "fixed";
+                field.style.opacity = "0";
+                document.body.append(field);
+                field.select();
+                const copied = document.execCommand?.("copy");
+                field.remove();
+                if (!copied) throw new Error("copy tidak didukung");
+            }
+            status(connectCopyStatus, "Tautan disalin. Tempel di Chrome atau Safari untuk melanjutkan.");
+        } catch {
+            status(
+                connectCopyStatus,
+                "Tidak dapat menyalin otomatis. Salin alamat halaman ini secara manual dari bilah alamat browser.",
+                "warn"
+            );
+        }
+    }
+
     async function connectFacebook() {
         setButtonBusy(connectButton, true, "Menghubungkan…");
         status(connectStatus, "Membuka persetujuan Meta…");
@@ -1511,6 +1599,16 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const result = await api("oauth-start");
             const url = new URL(result.authorization_url);
             if (url.protocol !== "https:" || !["www.facebook.com", "facebook.com"].includes(url.hostname)) throw new Error("URL OAuth tidak valid.");
+
+            /* Tautan manual tetap tersedia kalau pengalihan otomatis diblokir
+               oleh browser HP atau WebView. */
+            status(connectStatus, "Membuka halaman izin Facebook…");
+            showConnectHelp({
+                title: "Halaman izin Facebook belum terbuka?",
+                message: "Pengalihan otomatis bisa diblokir di sebagian browser HP. Ketuk tombol di bawah untuk membuka halaman izin Meta secara manual di tab yang sama.",
+                url: url.toString(),
+                tone: "warn"
+            });
             window.location.assign(url.toString());
         } catch (error) {
             status(connectStatus, error.message, "error");
@@ -1916,7 +2014,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         } else if (params.has("oauth_error")) {
             const code = params.get("oauth_error");
             const messages = {
-                state: "Permintaan OAuth tidak valid. Silakan coba hubungkan ulang.",
+                state: "Permintaan OAuth tidak valid. Ini biasanya terjadi bila proses dimulai di satu browser lalu diselesaikan di browser lain (misalnya tautan Facebook disalin ke Chrome). Ulangi dari tombol Hubungkan Facebook di browser yang sama.",
                 expired: "Permintaan OAuth kedaluwarsa. Silakan coba lagi.",
                 denied: "Izin Facebook tidak diberikan. Silakan coba hubungkan ulang dan setujui izin pengelolaan Page.",
                 config: "Konfigurasi Meta atau kunci enkripsi belum lengkap.",
@@ -1974,6 +2072,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     }
 
     $("connect-page").addEventListener("click", connectFacebook);
+    connectCopyButton?.addEventListener("click", copyCurrentPageLink);
     $("toggle-tutorial")?.addEventListener("click", () => {
         const panel = $("usage-tutorial");
         if (!panel) return;
@@ -2155,6 +2254,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         window.addEventListener("focus", refreshStudioGate);
     }
     showOAuthResult();
+    renderInAppBrowserHint();
     setDefaultStartTime();
     updateCostEstimate();
     attachStudioGateEvents();
