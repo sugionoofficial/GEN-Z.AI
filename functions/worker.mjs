@@ -63,14 +63,12 @@ export default {
         if (
             pathname === "/api/social-publisher" &&
             request.method === "POST" &&
-            ["upload-reference", "upload-garment", "upload-outfit"].includes(url.searchParams.get("action"))
+            ["upload-reference", "upload-outfit"].includes(url.searchParams.get("action"))
         ) {
             const action = url.searchParams.get("action");
             const contentLength = Number(request.headers.get("content-length") || 0);
             if (contentLength > 8 * 1024 * 1024) {
-                const label = action === "upload-reference"
-                    ? "File referensi"
-                    : action === "upload-garment" ? "File pakaian" : "File outfit";
+                const label = action === "upload-reference" ? "File referensi" : "File outfit";
                 return Response.json(
                     { success: false, error: `${label} maksimal 8 MB.` },
                     { status: 413, headers: { "Cache-Control": "no-store" } }
