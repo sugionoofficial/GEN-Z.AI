@@ -41,8 +41,94 @@ import {
    CONSTANTS
 ========================================================= */
 
+/*
+ * Upload user masuk ke bucket PRIVAT `user-uploads`.
+ * URL yang dipakai provider / preview adalah SIGNED URL
+ * berdurasi 1 jam (sama dengan masa retensi file).
+ */
 export const STORAGE_BUCKET =
-    "dashboard-videos";
+    "user-uploads";
+
+
+export const STORAGE_URL_TTL_SECONDS =
+    60 * 60;
+
+/* =========================================================
+   SIGNED URL (BUCKET PRIVAT)
+========================================================= */
+
+async function createMediaUrl(
+    supabase,
+    path,
+    label
+) {
+
+    const signedResult =
+        await supabase.storage
+            .from(
+                STORAGE_BUCKET
+            )
+            .createSignedUrl(
+                path,
+                STORAGE_URL_TTL_SECONDS
+            );
+
+
+    const signedUrl =
+        String(
+            signedResult?.data?.signedUrl ||
+            ""
+        ).trim();
+
+
+    if (
+        !signedUrl
+    ) {
+
+        console.error(
+            "[GEN-Z.AI][Generate Form] Signed URL gagal:",
+            signedResult?.error
+        );
+
+
+        throw new Error(
+            "Upload berhasil tetapi URL " +
+            label +
+            " tidak tersedia."
+        );
+
+    }
+
+
+    /*
+     * Beberapa versi SDK mengembalikan path relatif;
+     * lengkapi dengan origin Supabase bila perlu.
+     */
+
+    if (
+        signedUrl.startsWith(
+            "http"
+        )
+    ) {
+
+        return signedUrl;
+
+    }
+
+
+    return (
+        String(
+            supabase?.supabaseUrl ||
+            ""
+        ).replace(
+            /\/+$/,
+            ""
+        ) +
+        signedUrl
+    );
+
+}
+
 
 
 export const ALLOWED_IMAGE_TYPES =
@@ -629,32 +715,12 @@ export async function uploadImageFile(
     }
 
 
-    const publicResult =
-        supabase.storage
-            .from(
-                STORAGE_BUCKET
-            )
-            .getPublicUrl(
-                path
-            );
-
-
     const publicUrl =
-        String(
-            publicResult?.data?.publicUrl ||
-            ""
-        ).trim();
-
-
-    if (
-        !publicUrl
-    ) {
-
-        throw new Error(
-            "Upload berhasil tetapi URL publik gambar tidak tersedia."
+        await createMediaUrl(
+            supabase,
+            path,
+            "gambar"
         );
-
-    }
 
 
     console.debug(
@@ -800,32 +866,12 @@ export async function uploadAudioFile(
     }
 
 
-    const publicResult =
-        supabase.storage
-            .from(
-                STORAGE_BUCKET
-            )
-            .getPublicUrl(
-                path
-            );
-
-
     const publicUrl =
-        String(
-            publicResult?.data?.publicUrl ||
-            ""
-        ).trim();
-
-
-    if (
-        !publicUrl
-    ) {
-
-        throw new Error(
-            "Upload berhasil tetapi URL publik audio tidak tersedia."
+        await createMediaUrl(
+            supabase,
+            path,
+            "audio"
         );
-
-    }
 
 
     console.debug(
@@ -971,32 +1017,12 @@ export async function uploadVideoFile(
     }
 
 
-    const publicResult =
-        supabase.storage
-            .from(
-                STORAGE_BUCKET
-            )
-            .getPublicUrl(
-                path
-            );
-
-
     const publicUrl =
-        String(
-            publicResult?.data?.publicUrl ||
-            ""
-        ).trim();
-
-
-    if (
-        !publicUrl
-    ) {
-
-        throw new Error(
-            "Upload berhasil tetapi URL publik video tidak tersedia."
+        await createMediaUrl(
+            supabase,
+            path,
+            "video"
         );
-
-    }
 
 
     console.debug(

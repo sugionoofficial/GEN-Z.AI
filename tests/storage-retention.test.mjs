@@ -76,6 +76,50 @@ test("TTL: upload 1 jam, media riwayat 24 jam", () => {
     }
 });
 
+test("upload baru memakai bucket privat + signed URL", () => {
+    const uploadRules = RETENTION_RULES.filter(rule => rule.bucket === "user-uploads");
+    assert.equal(uploadRules.length, 3);
+
+    const inputRule = uploadRules.find(rule => rule.prefix === "generate-input");
+    assert.equal(inputRule.ttlMs, UPLOAD_TTL_MS);
+
+    assert.equal(
+        uploadRules.find(rule => rule.prefix === "upscale-photos").ttlMs,
+        HISTORY_MEDIA_TTL_MS
+    );
+    assert.equal(
+        uploadRules.find(rule => rule.prefix === "upscale-videos").ttlMs,
+        HISTORY_MEDIA_TTL_MS
+    );
+
+    const generateUpload = read("generate/assets/js/generate-form-upload.js");
+    assert.match(generateUpload, /STORAGE_BUCKET =\s*\n?\s*"user-uploads"/);
+    assert.match(generateUpload, /createSignedUrl\(/);
+    assert.match(generateUpload, /STORAGE_URL_TTL_SECONDS =\s*\n?\s*60 \* 60/);
+    assert.doesNotMatch(generateUpload, /getPublicUrl/);
+
+    const upscale = read("upscale/assets/js/upscale-app.js");
+    assert.match(upscale, /bucket: "user-uploads"/);
+    assert.match(upscale, /createSignedUrl\(/);
+    assert.doesNotMatch(upscale, /getPublicUrl/);
+
+    const media = read("generate/assets/js/generate-media.js");
+    assert.match(media, /"user-uploads"/);
+    assert.match(media, /createSignedUrl\(/);
+
+    const bucketSql = read("supabase/user-media-bucket.sql");
+    assert.match(bucketSql, /'user-uploads', 'user-uploads', false/);
+    assert.match(bucketSql, /for select/);
+    assert.match(bucketSql, /for insert/);
+
+    const worker = read(".github/workflows/upscale.yml");
+    assert.match(worker, /for BUCKET in user-uploads dashboard-videos/);
+
+    // Cache-bust modul yang berubah.
+    assert.match(read("generate/index.html"), /generate-app\.js\?v=20261023-private-uploads/);
+    assert.match(read("upscale/index.html"), /upscale-app\.js\?v=20261023-private-uploads/);
+});
+
 test("isExpired menghormati batas TTL", () => {
     assert.equal(isExpired(isoAgo(59 * 60 * 1000), NOW, UPLOAD_TTL_MS), false);
     assert.equal(isExpired(isoAgo(61 * 60 * 1000), NOW, UPLOAD_TTL_MS), true);
@@ -156,6 +200,8 @@ test("runStorageCleanup meringkas semua rule dan tahan error", async () => {
     const nowIso = isoAgo(25 * HOUR);
     const api = {
         async list(bucket, prefix) {
+            // Rule bucket privat tidak punya file pada skenario ini.
+            if (bucket !== "dashboard-videos") return [];
             if (prefix === "upscale-videos") throw new Error("storage down");
             if (prefix === "generate-input") return [folder("user-1")];
             if (prefix === "generate-input/user-1") return [file("a.jpg", nowIso)];

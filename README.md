@@ -358,16 +358,19 @@ Video sumber hingga 100 MB dikompres di browser sebelum diunggah ke Supabase
 Storage yang memiliki batas 50 MB. Kompresi menggunakan MediaRecorder pada
 perangkat pengguna; browser yang tidak mendukung kompresi lokal akan
 menampilkan pesan error dan meminta pengguna mencoba Chrome versi terbaru.
-Jalankan `supabase/upscale-video-upload-policy.sql` di Supabase SQL Editor agar
-akun yang login dapat mengunggah video sementara hanya ke folder Upscale milik
-akunnya sendiri di bucket `dashboard-videos`. File input dan hasil upscale
-disimpan maksimal 24 jam lalu dihapus otomatis oleh cron (lihat bagian
-[Retensi Media](#retensi-media-storage)).
+Video sumber diunggah ke bucket privat `user-uploads` (lihat
+`supabase/user-media-bucket.sql`); `supabase/upscale-video-upload-policy.sql`
+tetap disimpan untuk kompatibilitas folder lama di `dashboard-videos`. File
+input dan hasil upscale disimpan maksimal 24 jam lalu dihapus otomatis oleh
+cron (lihat bagian [Retensi Media](#retensi-media-storage)).
 
 ### Retensi Media (Storage)
 
 Mekanisme penyimpanan media dijelaskan lengkap di `STORAGE-RETENTION.md`. Ringkasnya:
 
+- Jalankan `supabase/user-media-bucket.sql` sekali di Supabase SQL Editor.
+  Semua upload user masuk ke bucket **privat** `user-uploads` dan diakses
+  lewat **signed URL 1 jam** (bukan public URL lagi).
 - Upload foto/video/audio di halaman Generate hanya dipakai **1 jam**, lalu
   dihapus cron Worker.
 - Input dan hasil **Upscale** disimpan **24 jam**; setelah itu filenya dihapus

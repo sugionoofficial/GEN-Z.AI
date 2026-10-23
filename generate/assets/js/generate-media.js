@@ -28,8 +28,16 @@
    CONSTANTS
 ========================================================= */
 
+/*
+ * Upload user masuk ke bucket PRIVAT `user-uploads`.
+ * URL untuk provider memakai SIGNED URL 1 jam.
+ */
 const STORAGE_BUCKET =
-    "dashboard-videos";
+    "user-uploads";
+
+
+const STORAGE_URL_TTL_SECONDS =
+    60 * 60;
 
 
 /*
@@ -330,9 +338,12 @@ function createStoragePath(
         Date.now();
 
 
+    /*
+     * Prefix `generate-input/` dipakai cron retensi (1 jam).
+     */
     return [
+        "generate-input",
         userId,
-        "generate",
         timestamp,
         `${randomId(8)}-${safeName}`
     ].join("/");
@@ -889,33 +900,51 @@ async function uploadFile(
     }
 
 
-    const publicResult =
-        supabase
+    const signedResult =
+        await supabase
             .storage
             .from(
                 STORAGE_BUCKET
             )
-            .getPublicUrl(
-                path
+            .createSignedUrl(
+                path,
+                STORAGE_URL_TTL_SECONDS
             );
 
 
-    const publicUrl =
-        publicResult
-            ?.data
-            ?.publicUrl ||
-        "";
+    const signedUrl =
+        String(
+            signedResult
+                ?.data
+                ?.signedUrl ||
+            ""
+        ).trim();
 
 
     if (
-        !publicUrl
+        !signedUrl
     ) {
 
         throw new Error(
-            "URL media berhasil dibuat tetapi URL publik kosong."
+            "URL media berhasil dibuat tetapi signed URL kosong."
         );
 
     }
+
+
+    const publicUrl =
+        signedUrl.startsWith(
+            "http"
+        )
+            ? signedUrl
+            : String(
+                supabase?.supabaseUrl ||
+                ""
+            ).replace(
+                /\/+$/,
+                ""
+            ) +
+            signedUrl;
 
 
     return {

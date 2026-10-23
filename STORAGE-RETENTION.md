@@ -8,8 +8,9 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
 
 | Media | Lokasi | Umur | Setelah kedaluwarsa |
 |---|---|---|---|
-| Foto / video / audio yang diunggah di halaman **Generate** | `dashboard-videos/generate-input/<user-id>/…` | **1 jam** | File dihapus dari Storage |
-| Input & output **Upscale foto/video** | `dashboard-videos/upscale-photos/…`, `dashboard-videos/upscale-videos/…`, `dashboard-upscales/outputs/…` | **24 jam** | File dihapus, baris History ditandai **KEDALUWARSA** |
+| Foto / video / audio yang diunggah di halaman **Generate** | `user-uploads/generate-input/<user-id>/…` (**privat**) | **1 jam** | File dihapus dari Storage |
+| Input **Upscale** (foto & video) | `user-uploads/upscale-photos/inputs/…`, `user-uploads/upscale-videos/inputs/…` (**privat**) | **24 jam** | File dihapus |
+| Output **Upscale** | `dashboard-videos/upscale-photos/outputs/…`, `dashboard-upscales/outputs/…` (publik) | **24 jam** | File dihapus, baris History ditandai **KEDALUWARSA** |
 | Konten situs (video & thumbnail dashboard yang diunggah admin) | `dashboard-videos/videos/…`, `dashboard-videos/thumbnails/…` | permanen | **Tidak pernah disentuh cron** |
 | Referensi / outfit Studio Medsos | `social-character-references/…` (privat) | permanen | Tidak disentuh cron |
 | Pengumuman & bukti topup | `site-announcements/…`, `topup-proofs/…`, `topup-payment-assets/…` | permanen | Tidak disentuh cron |
@@ -18,12 +19,30 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
 > yang disimpan hanya URL milik provider. Retensi file di sisi provider
 > sepenuhnya diatur provider tersebut.
 
+## Bucket privat & signed URL
+
+1. Semua **upload user** sekarang masuk ke bucket **privat**
+   `user-uploads` (`supabase/user-media-bucket.sql`). Tidak ada public URL
+   untuk file ini.
+2. Setelah upload, aplikasi meminta **signed URL berdurasi 1 jam**
+   (`createSignedUrl`) dan URL itulah yang dikirim ke provider AI /
+   GitHub Actions.
+3. API upscale memvalidasi signed URL tersebut
+   (`lib/generate/upscale-source.js`): origin harus Supabase, path harus
+   `upscale-videos/inputs/<user-id>/…` milik akun yang login, dan hanya
+   parameter `token` yang diizinkan. Path publik lama tetap diterima untuk
+   job yang belum selesai.
+4. Bucket `dashboard-videos` tetap **publik** karena masih menyimpan konten
+   situs (`videos/`, `thumbnails/`) dan output upscale.
+
 ## Implementasi
 
 - Aturan TTL & pembersihan: `lib/storage-retention/cleanup.js`
   - `UPLOAD_TTL_MS` = 1 jam
   - `HISTORY_MEDIA_TTL_MS` = 24 jam
   - `RETENTION_RULES` = daftar bucket + prefix + TTL yang **boleh** dibersihkan
+    (bucket `user-uploads` untuk upload baru, plus `dashboard-videos` dan
+    `dashboard-upscales` untuk sisa file lama)
 - Pembungkus cron: `functions/_shared/storage-retention-cron.js`
 - Penjadwalan: `functions/worker.mjs` → `scheduled()` menjalankan
   `runSocialPublisherCron` **dan** `runStorageRetentionCron` lewat
@@ -77,5 +96,6 @@ console.table(summary.rules);
    thumbnail, tombol download, dan tombol upscale dinonaktifkan.
 2. Tombol **Regenerate** untuk item lama akan meminta unggah ulang referensi,
    karena file input sudah dihapus setelah 1 jam.
-3. Bucket `dashboard-videos` saat ini **publik**; file bisa dibuka siapa pun
-   yang memiliki tautannya sampai cron menghapusnya.
+3. Upload user **tidak lagi publik**: file hanya bisa diakses lewat signed
+   URL 1 jam atau oleh pemilik akun. Output upscale masih publik, tetapi
+   tetap dihapus setelah 24 jam.
