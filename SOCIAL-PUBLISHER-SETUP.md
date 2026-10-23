@@ -360,6 +360,14 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
    - **Allowed-usage checkbox** — tick *"Jika disetujui, saya setuju bahwa data …
      akan digunakan sesuai dengan penggunaan diizinkan"*.
 
+   The one permission whose description must be written differently is
+   `business_management`: Meta's permission reference says that when a permission is
+   requested **as a dependency of a main permission** — `pages_show_list` in this case —
+   the description must name that main permission explicitly. Say it is a dependency,
+   that only portfolio membership is read to decide which Pages are eligible, and that
+   no ad account, credit line, catalogue or billing object is created, claimed or
+   modified. Do not describe business-asset management, because the app does not do any.
+
    Finish with **Simpan**; closing with **Batal** discards the text and re-uploading.
    Repeat for `public_profile`, `pages_show_list`, `pages_read_engagement` and
    `business_management`.
