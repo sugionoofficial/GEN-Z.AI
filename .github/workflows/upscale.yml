@@ -276,10 +276,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
           HISTORY_ID: ${{ inputs.history_id }}
+          USER_ID: ${{ inputs.user_id }}
         run: |
           FILENAME="upscale-${HISTORY_ID}-$(date +%s).mp4"
-          BUCKET="dashboard-upscales"
-          KEY="outputs/${FILENAME}"
+
+          # Output disimpan di bucket PRIVAT, di dalam folder user.
+          BUCKET="user-uploads"
+          KEY="upscale-videos/outputs/${USER_ID}/${FILENAME}"
 
           echo "Uploading to Supabase: ${BUCKET}/${KEY}..."
           ls -lh output.mp4
@@ -303,9 +306,10 @@ jobs:
             exit 1
           fi
 
-          PUBLIC_URL="${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${KEY}"
-          echo "public_url=$PUBLIC_URL" >> $GITHUB_OUTPUT
-          echo "✅ Uploaded: $PUBLIC_URL"
+          # Referensi stabil, ditukar jadi signed URL saat dibaca.
+          RESULT_REF="supabase-private://${BUCKET}/${KEY}"
+          echo "result_ref=$RESULT_REF" >> $GITHUB_OUTPUT
+          echo "✅ Uploaded: ${BUCKET}/${KEY}"
 
       - name: Update history row — success
         if: success()
@@ -313,7 +317,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
           HISTORY_ID: ${{ inputs.history_id }}
-          PUBLIC_URL: ${{ steps.upload.outputs.public_url }}
+          RESULT_REF: ${{ steps.upload.outputs.result_ref }}
         run: |
           curl --fail -X PATCH \
             "${SUPABASE_URL}/rest/v1/generation_history?id=eq.${HISTORY_ID}&status=in.(processing,pending)" \
@@ -323,7 +327,7 @@ jobs:
             -H "Prefer: return=minimal" \
             -d "{
               \"status\": \"success\",
-              \"result_url\": \"${PUBLIC_URL}\",
+              \"result_url\": \"${RESULT_REF}\",
               \"completed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
             }"
 

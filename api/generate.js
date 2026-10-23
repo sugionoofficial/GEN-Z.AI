@@ -25,6 +25,10 @@ import {
     resolveUploadedUpscaleVideoSource
 } from "../lib/generate/upscale-source.js";
 
+import {
+    createPrivateMediaSigner
+} from "../lib/generate/private-media.js";
+
 
 import grokImagineImageToVideo
     from "../models/grok-imagine-image-to-video/index.js";
@@ -114,11 +118,29 @@ const MODEL_REGISTRY = Object.freeze([
    RESPONSE
    ========================================================= */
 
-function json(
+/*
+ * Output upscale disimpan di bucket privat. Response API
+ * menukar referensi `supabase-private://…` menjadi signed URL
+ * berdurasi pendek supaya <img>/<video> bisa memuatnya.
+ */
+const privateMediaSigner =
+    createPrivateMediaSigner({
+        supabaseUrl: SUPABASE_URL,
+        serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+        ttlSeconds: 30 * 60
+    });
+
+
+async function json(
     res,
     statusCode,
     data
 ) {
+
+    const payload =
+        await privateMediaSigner
+            .signDeep(data)
+            .catch(() => data);
 
     res.statusCode =
         statusCode;
@@ -138,7 +160,7 @@ function json(
 
     return res.end(
         JSON.stringify(
-            data
+            payload
         )
     );
 

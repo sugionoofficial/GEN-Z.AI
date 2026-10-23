@@ -163,15 +163,37 @@ const PROVIDER_CREDENTIAL_ENCRYPTION_KEY =
     ).trim();
 
 
+import {
+    createPrivateMediaSigner
+} from "../lib/generate/private-media.js";
+
+
 /* =========================================================
    RESPONSE HELPERS
    ========================================================= */
 
-function json(
+/*
+ * Output upscale disimpan di bucket privat; tukar referensi
+ * `supabase-private://…` menjadi signed URL saat response.
+ */
+const privateMediaSigner =
+    createPrivateMediaSigner({
+        supabaseUrl: SUPABASE_URL,
+        serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+        ttlSeconds: 30 * 60
+    });
+
+
+async function json(
     res,
     statusCode,
     data
 ) {
+    const payload =
+        await privateMediaSigner
+            .signDeep(data)
+            .catch(() => data);
+
     res.statusCode =
         statusCode;
 
@@ -187,7 +209,7 @@ function json(
 
     return res.end(
         JSON.stringify(
-            data
+            payload
         )
     );
 }

@@ -10,7 +10,7 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
 |---|---|---|---|
 | Foto / video / audio yang diunggah di halaman **Generate** | `user-uploads/generate-input/<user-id>/…` (**privat**) | **1 jam** | File dihapus dari Storage |
 | Input **Upscale** (foto & video) | `user-uploads/upscale-photos/inputs/…`, `user-uploads/upscale-videos/inputs/…` (**privat**) | **24 jam** | File dihapus |
-| Output **Upscale** | `dashboard-videos/upscale-photos/outputs/…`, `dashboard-upscales/outputs/…` (publik) | **24 jam** | File dihapus, baris History ditandai **KEDALUWARSA** |
+| Output **Upscale** | `user-uploads/upscale-photos/outputs/<user-id>/…`, `user-uploads/upscale-videos/outputs/<user-id>/…` (**privat**) — sisa file lama masih di `dashboard-videos/upscale-photos/outputs/…` dan `dashboard-upscales/outputs/…` (publik) | **24 jam** | File dihapus, baris History ditandai **KEDALUWARSA** |
 | Konten situs (video & thumbnail dashboard yang diunggah admin) | `dashboard-videos/videos/…`, `dashboard-videos/thumbnails/…` | permanen | **Tidak pernah disentuh cron** |
 | Referensi / outfit Studio Medsos | `social-character-references/…` (privat) | permanen | Tidak disentuh cron |
 | Pengumuman & bukti topup | `site-announcements/…`, `topup-proofs/…`, `topup-payment-assets/…` | permanen | Tidak disentuh cron |
@@ -34,7 +34,38 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
    parameter `token` yang diizinkan. Validasi jalan **sebelum** kredit
    dipotong. Path publik lama tetap diterima untuk job yang belum selesai.
 4. Bucket `dashboard-videos` tetap **publik** karena masih menyimpan konten
-   situs (`videos/`, `thumbnails/`) dan output upscale.
+   situs (`videos/`, `thumbnails/`). Output upscale **baru** tidak lagi
+   ditulis ke sana.
+
+## Output upscale privat (`supabase-private://`)
+
+1. Workflow `upscale-photo.yml` dan `upscale.yml` mengunggah hasil ke bucket
+   privat `user-uploads` di folder **user pemilik**
+   (`upscale-photos/outputs/<user-id>/…`, `upscale-videos/outputs/<user-id>/…`).
+2. `generation_history.result_url` **tidak** menyimpan URL publik dan juga
+   bukan signed URL (signed URL kedaluwarsa 1 jam padahal file hidup 24 jam).
+   Yang disimpan adalah referensi stabil:
+
+   ```
+   supabase-private://user-uploads/upscale-photos/outputs/<user-id>/<file>.jpg
+   ```
+
+3. Referensi itu ditukar menjadi **signed URL 30 menit** saat dibaca:
+   - `api/generate.js` dan `api/generate-status.js` melakukannya otomatis di
+     `json()` (`lib/generate/private-media.js`), dengan cache 10 menit supaya
+     polling status tidak menandatangani ulang terus-menerus;
+   - halaman riwayat menukarnya lewat Supabase client
+     (`history/assets/js/history-data.js`), memakai RLS: user hanya bisa
+     menandatangani file miliknya, ADMIN/OWNER boleh semua
+     (`public.is_media_admin()`).
+4. Kalau penandatanganan gagal (file sudah dihapus cron / bukan haknya),
+   referensi dibiarkan / dikosongkan — tidak ada URL publik yang dipakai
+   sebagai fallback.
+5. Konsekuensi: link hasil upscale **tidak bisa dibagikan** ke orang lain —
+   penerima link tidak punya sesi login pemilik file, dan token kedaluwarsa
+   ±30 menit.
+6. Baris lama dengan URL publik `dashboard-videos` / `dashboard-upscales`
+   tetap berfungsi sampai terhapus cron 24 jam.
 
 ## Implementasi
 
