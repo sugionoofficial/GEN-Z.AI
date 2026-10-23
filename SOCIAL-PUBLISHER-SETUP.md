@@ -291,6 +291,18 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
       | Disclosed personal data to public authorities for national-security requests in the last 12 months? | **Tidak** |
       | Which policies/processes exist for such requests? | Tick only what is real: **Kebijakan minimalisasi data** is defensible (only Page id/name/token are kept). Without written review and challenge procedures, also tick **Bukan semuanya** rather than over-claiming. |
 
+      Each processor is added in its own modal with three required fields
+      (`processor-2`, `-2a`, `-2b`); **Simpan** stays disabled until all three are set:
+
+      | Processor | Nama | Kategori layanan (`-2a`) | Negara pemrosesan (`-2b`) |
+      | --- | --- | --- | --- |
+      | Supabase | `Supabase Inc.` | Data storage / cloud database & file storage | United States **plus** the project's actual Supabase region — read it in Supabase → Project Settings → Infrastructure (commonly Singapore `ap-southeast-1` or US East) |
+      | Cloudflare | `Cloudflare, Inc.` | Cloud hosting / CDN & serverless compute | United States, plus any edge location option the list offers (Cloudflare runs on a global anycast network) |
+
+      Add the second processor afterwards with the same **Tambah** button. Do not list
+      AI providers here: they never receive Meta-derived identifiers, only the images
+      and prompts generated for the user.
+
       Scope answers to the data Meta actually hands over (Page tokens, Page ids/names,
       connected account name) — generated images and captions are the user's own
       content and do not change the answers.
