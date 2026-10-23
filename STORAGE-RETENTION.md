@@ -72,6 +72,11 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
    riwayat dan tombol **Regenerate** tetap berfungsi selama file masih ada
    (1 jam untuk input Generate, 24 jam untuk input Upscale), bukan hanya
    1 jam sejak upload.
+8. Kalau referensi itu ikut terkirim balik ke API (mis. tombol Regenerate),
+   `signUserMediaRefsInPayload()` menukarnya menjadi signed URL sebelum
+   dipakai provider — **hanya** referensi di folder user yang login
+   (`isRefOwnedByUser()`), supaya user tidak bisa menyuruh server
+   menandatangani file user lain.
 
 ## Implementasi
 
