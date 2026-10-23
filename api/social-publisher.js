@@ -2087,7 +2087,7 @@ async function checkPageConnection(config, userId, env, body = {}) {
     } else if (!canPublish) {
         message = `Page "${access.pageName || page.page_name}" terhubung, tetapi akun Facebook yang dipakai belum punya tugas CREATE_CONTENT. Beri akses konten pada Page lalu hubungkan ulang.`;
     } else if (!tasksRead) {
-        message = `Page "${access.pageName || page.page_name}" dapat diakses dan token masih dipakai, tetapi daftar tugas Page tidak dapat dibaca sehingga peran CREATE_CONTENT belum dapat dipastikan. Penerbitan tetap dicoba; bila gagal dengan #200, periksa izin aplikasi Meta.`;
+        message = `Page "${access.pageName || page.page_name}" siap dipakai: token Page masih valid dan penerbitan tetap berjalan. Daftar tugas Page tidak dapat dibaca karena Graph API hanya mengizinkan field tasks pada User token (bukan Page token), sehingga peran CREATE_CONTENT belum dapat dipastikan — ini normal, bukan error. Bila nanti gagal dengan #200, periksa izin aplikasi Meta.`;
     } else {
         message = `Izin posting Page "${access.pageName || page.page_name}" siap (CREATE_CONTENT terdeteksi).`;
     }

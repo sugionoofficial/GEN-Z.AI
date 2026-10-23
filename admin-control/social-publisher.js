@@ -1435,7 +1435,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             status(
                 connectStatus,
                 `${result.message || "Pemeriksaan selesai."}${tokenNote}`,
-                result.can_publish ? "good" : "error"
+                result.can_publish ? "good" : "warn"
             );
             showNotice(pageMessage, result.message || "Pemeriksaan izin Page selesai.", result.can_publish ? "success" : "warn");
             await loadDashboard();
