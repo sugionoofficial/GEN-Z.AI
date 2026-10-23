@@ -229,15 +229,30 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
 | App roles | **Peran aplikasi** (`App roles`) → **Roles** |
 | Login configuration | Product **Facebook Login for Business** → **Konfigurasi** (`Configurations`) |
 
-1. **`public_profile` → Advanced Access**: open the app card, then **Kasus penggunaan**
-   → **Kelola segala sesuatu di Halaman Anda** → *Sesuaikan*. Each permission shows a
-   badge: *Akses standar / Siap untuk pengujian* (Standard) or *Akses lanjutan / Siap
-   untuk dipublikasikan* (Advanced). Click **Minta akses lanjutan** (*Increase access*
-   → *Advanced access*). For a **Facebook Login for Business** app this is
-   mandatory before anyone without an app role can log in. Set `email` to Advanced
-   Access too if the flow asks for it. The Page permissions (`pages_show_list`,
-   `pages_read_engagement`, `pages_manage_posts`) also need App Review + Advanced
-   Access before non-role accounts can publish to a Page.
+1. **Raise the permissions to Advanced Access**: open the app card, then **Kasus
+   penggunaan** → **Kelola Halaman** (the *Manage everything on your Page* use case)
+   → **Izin dan fitur**. The table lists every permission with three relevant
+   columns:
+
+   - **API Calls** — how many successful calls the app made in the last 30 days.
+     App Review requires at least one per permission inside that window, so a `—`
+     means the request will be rejected until the app actually calls it.
+   - **Status** — *Siap untuk pengujian* / *Ready for testing* is Standard access
+     (only app roles can use it, which is exactly the "Fitur Tidak Tersedia" block);
+     *Siap untuk dipublikasikan* / *Ready to publish* is Advanced access.
+   - **Tindakan** (a dropdown) — choose **Minta akses lanjutan** / *Increase access*
+     to move a permission to Advanced. Rows that are not part of the use case show
+     **+ Tambahkan ke Tinjauan Aplikasi** instead.
+
+   For Studio Medsos request Advanced Access for exactly these, and nothing else:
+   `public_profile`, `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`
+   and `business_management`. `public_profile` is mandatory for **Facebook Login for
+   Business** apps before anyone without an app role can log in. Do **not** add
+   `pages_manage_engagement`, `pages_manage_metadata`, `pages_read_user_content`,
+   `Page Mentions`, `Live Video API`, `email` or `Business Asset User Profile Access`
+   — the publisher does not use them, and requesting unused permissions is a common
+   rejection trigger (Meta rejects the whole submission, it does not silently grant
+   fewer permissions).
 2. **Tindakan yang Diperlukan**: clear a pending **Data Use Checkup** (it recurs
    annually) and any red banner on the app tile. A pending checkup alone produces
    exactly this screen. *Empty page = this is not the cause.*
