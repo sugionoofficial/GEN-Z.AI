@@ -1,3 +1,26 @@
+-- =========================================================
+-- GEN-Z.AI — POLICY UPLOAD VIDEO UPSCALE
+-- ---------------------------------------------------------
+-- File: supabase/upscale-video-upload-policy.sql
+--
+-- Jalankan di Supabase SQL Editor agar akun yang login bisa
+-- mengunggah video sumber HANYA ke folder miliknya sendiri:
+--
+--   dashboard-videos/upscale-videos/inputs/<user-id>/...
+--
+-- CATATAN RETENSI (lihat STORAGE-RETENTION.md):
+--   * Video sumber & hasil upscale disimpan maksimal 24 JAM.
+--   * Cron Worker (tiap 5 menit) menghapus objek di
+--     `upscale-videos/`, `upscale-photos/`, dan
+--     `dashboard-upscales/outputs/` yang umurnya > 24 jam.
+--   * Karena itu file di folder ini TIDAK untuk disimpan
+--     permanen — user harus mengunduh hasilnya sebelum
+--     kedaluwarsa.
+--   * Policy di bawah hanya mengatur INSERT; penghapusan
+--     dilakukan server memakai service-role key, sehingga
+--     tidak butuh policy DELETE untuk user.
+-- =========================================================
+
 DROP POLICY IF EXISTS "Users upload own upscale video inputs"
     ON storage.objects;
 

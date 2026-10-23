@@ -360,7 +360,23 @@ perangkat pengguna; browser yang tidak mendukung kompresi lokal akan
 menampilkan pesan error dan meminta pengguna mencoba Chrome versi terbaru.
 Jalankan `supabase/upscale-video-upload-policy.sql` di Supabase SQL Editor agar
 akun yang login dapat mengunggah video sementara hanya ke folder Upscale milik
-akunnya sendiri di bucket `dashboard-videos`.
+akunnya sendiri di bucket `dashboard-videos`. File input dan hasil upscale
+disimpan maksimal 24 jam lalu dihapus otomatis oleh cron (lihat bagian
+[Retensi Media](#retensi-media-storage)).
+
+### Retensi Media (Storage)
+
+Mekanisme penyimpanan media dijelaskan lengkap di `STORAGE-RETENTION.md`. Ringkasnya:
+
+- Upload foto/video/audio di halaman Generate hanya dipakai **1 jam**, lalu
+  dihapus cron Worker.
+- Input dan hasil **Upscale** disimpan **24 jam**; setelah itu filenya dihapus
+  dan baris History ditandai **KEDALUWARSA** (catatan tetap ada, file tidak).
+- Konten situs di `dashboard-videos/videos/` dan `dashboard-videos/thumbnails/`
+  tidak pernah disentuh cron.
+- Pembersihan berjalan otomatis tiap 5 menit lewat `scheduled()` Cloudflare
+  Worker (`lib/storage-retention/cleanup.js`), memakai service-role key dari
+  env — tidak ada key yang ditulis di repo.
 
 ### Informasi Penting untuk Akun
 

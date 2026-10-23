@@ -262,6 +262,29 @@ test("UI: info 1 jam di Generate, 24 jam di History & Upscale", () => {
     assert.match(upscale, /maksimal 24 jam/);
 });
 
+test("sisa catatan lama sudah dirapikan", () => {
+    // Guard 8 MB di Worker hanya untuk action yang masih ada.
+    const worker = read("functions/worker.mjs");
+    assert.doesNotMatch(worker, /upload-garment/);
+    assert.match(worker, /"upload-reference", "upload-outfit"/);
+
+    // Dokumentasi retensi tersedia dan menyebut kedua batas waktu.
+    const doc = read("STORAGE-RETENTION.md");
+    assert.match(doc, /1 jam/);
+    assert.match(doc, /24 jam/);
+    assert.match(doc, /Tidak pernah disentuh cron/i);
+
+    // Policy upscale tidak lagi terlihat seperti penyimpanan permanen.
+    const sql = read("supabase/upscale-video-upload-policy.sql");
+    assert.match(sql, /24 JAM/);
+    assert.match(sql, /STORAGE-RETENTION\.md/);
+    assert.match(sql, /bucket_id = 'dashboard-videos'/);
+
+    // README menautkan dokumen retensi.
+    const readme = read("README.md");
+    assert.match(readme, /STORAGE-RETENTION\.md/);
+});
+
 test("history menandai media yang sudah kedaluwarsa", () => {
     const renderSource = read("history/assets/js/history-render.js");
     const sandbox = {
