@@ -466,6 +466,41 @@ which is enough to smoke-test the publisher end to end.
 with nothing to fix in the dashboard; those cases clear on their own within ~24 hours,
 so retry the same button before reworking the configuration.
 
+### Business verification without a registered company
+
+Meta verifies the **business portfolio**, not the app, and it accepts a **sole
+proprietor** (usaha perorangan) — a PT/CV is not required. What the form actually asks
+for is proof that a real, identifiable business exists and that the applicant may
+represent it. Three routes, cheapest first:
+
+| Route | What to submit | Cost / time | Notes |
+| --- | --- | --- | --- |
+| **NIB usaha perorangan** (recommended) | NIB PDF from OSS, plus KTP, plus NPWP | Free, issued the same day | Register at `oss.go.id` → *Daftar* → business type **Usaha Perorangan** (not PT), enter NIK, pick a KBLI such as `62019` (aplikasi/programming), use the home address as the business address. The NIB carries a legal business name and address, which is exactly what Meta cross-checks. |
+| **Surat Keterangan Usaha / IUMK** | SKU or Izin Usaha Mikro Kecil from the kelurahan, plus KTP | Free/cheap, 1–3 days | Accepted by Meta in many Indonesian cases; weaker than a NIB because it has no registration number. |
+| **No legal document at all** | KTP + recent bank statement or utility bill in the same name/address | Free | Works only when the verification flow lets you pick *business type = individual / perorangan*. If the form insists on a registration number, this route stalls. |
+
+Rules that decide whether the submission passes, regardless of route:
+
+- The legal name, address and phone typed into **Info bisnis** must match the document
+  **exactly** — a mismatch is the most common rejection and Meta will not tell you
+  which field failed.
+- The website field must load over HTTPS. `genzai.genzai-f37.workers.dev` loads fine
+  but is a subdomain of Cloudflare's `workers.dev`; for **domain** verification Meta
+  expects a domain you own. A cheap `.id`/`.com` domain pointed at the same Worker
+  removes that doubt and is also the better look for a product.
+- Free-mail addresses (`@gmail.com`) are accepted for the *owner*, but not as a domain
+  verification method — verify by SMS/phone code instead.
+- If the pending request is rejected, that is not permanent: fix the document and
+  resubmit. Do **not** resubmit while it is still *Pengajuan menunggu persetujuan*.
+
+**If verification is impossible right now**, the app still ships: every account added
+as **Peran aplikasi → Roles → Tester** can complete Facebook Login and publish, because
+app roles bypass the Standard/Access-Advanced gate. That is how this publisher was
+validated end to end. Treat it as a stopgap, not a production model: roles are meant
+for development and testing, the tester must accept an invitation and sign out/in, and
+Meta can change or audit role-based access. Open public signup needs the verified
+portfolio.
+
 ### "Aplikasi tidak aktif" / "App not active" on Facebook
 
 Facebook shows this page **before** our callback runs, so the dashboard receives no
