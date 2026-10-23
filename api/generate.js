@@ -26,7 +26,8 @@ import {
 } from "../lib/generate/upscale-source.js";
 
 import {
-    createPrivateMediaSigner
+    createPrivateMediaSigner,
+    toPrivateMediaRef
 } from "../lib/generate/private-media.js";
 
 
@@ -1838,10 +1839,17 @@ async function createGenerationHistory({
                 null
             ),
 
+        /*
+         * Referensi disimpan sebagai `supabase-private://…`
+         * supaya tetap bisa dipakai setelah signed URL
+         * kedaluwarsa (file masih ada sampai TTL retensi).
+         */
         image_reference_url:
+            toPrivateMediaRef(imageReference, { supabaseUrl: SUPABASE_URL }) ||
             imageReference,
 
         video_reference_url:
+            toPrivateMediaRef(videoReference, { supabaseUrl: SUPABASE_URL }) ||
             videoReference,
 
         ratio:
@@ -4057,7 +4065,9 @@ async function handleUpscalePhotoAction(req, res, body, user) {
         model_id: UPSCALE_PHOTO_MODEL_ID,
         model_name: UPSCALE_PHOTO_MODEL_NAME,
         prompt: null,
-        image_reference_url: sourceUrl,
+        image_reference_url:
+            toPrivateMediaRef(sourceUrl, { supabaseUrl: SUPABASE_URL }) ||
+            sourceUrl,
         video_reference_url: null,
         ratio: null,
         duration: null,

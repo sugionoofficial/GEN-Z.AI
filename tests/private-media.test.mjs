@@ -8,7 +8,8 @@ import {
     createPrivateMediaSigner,
     isPrivateMediaRef,
     parsePrivateMediaRef,
-    signPrivateMediaRef
+    signPrivateMediaRef,
+    toPrivateMediaRef
 } from "../lib/generate/private-media.js";
 
 /*
@@ -189,7 +190,7 @@ test("halaman riwayat menukar referensi privat jadi signed URL", () => {
     assert.match(source, /await resolvePrivateMediaRefs\(\s*state\.historyData\s*\)/);
 
     const html = read("history/index.html");
-    assert.match(html, /history-data\.js\?v=20261023-private-media/);
+    assert.match(html, /history-data\.js\?v=20261023-private-refs/);
 });
 
 test("policy storage mengizinkan user membaca output miliknya", () => {
@@ -202,4 +203,73 @@ test("policy storage mengizinkan user membaca output miliknya", () => {
     assert.match(sql, /create policy "Users read own media uploads"/);
     assert.match(sql, /create policy "Admins read all media uploads"/);
     assert.match(sql, /create or replace function public\.is_media_admin/);
+});
+
+test("toPrivateMediaRef mengubah URL storage menjadi referensi stabil", () => {
+    const signed =
+        `${SUPABASE_URL}/storage/v1/object/sign/user-uploads/generate-input/${USER_ID}/a.jpg?token=x`;
+    const authenticated =
+        `${SUPABASE_URL}/storage/v1/object/authenticated/user-uploads/upscale-photos/outputs/${USER_ID}/b.jpg`;
+
+    assert.equal(
+        toPrivateMediaRef(signed, { supabaseUrl: SUPABASE_URL }),
+        `supabase-private://user-uploads/generate-input/${USER_ID}/a.jpg`
+    );
+
+    assert.equal(
+        toPrivateMediaRef(authenticated, { supabaseUrl: SUPABASE_URL }),
+        `supabase-private://user-uploads/upscale-photos/outputs/${USER_ID}/b.jpg`
+    );
+
+    // Referensi yang sudah privat dinormalisasi ulang.
+    assert.equal(
+        toPrivateMediaRef(PHOTO_REF, { supabaseUrl: SUPABASE_URL }),
+        PHOTO_REF
+    );
+});
+
+test("toPrivateMediaRef menolak URL asing / bucket lain / traversal", () => {
+    const legacy =
+        `${SUPABASE_URL}/storage/v1/object/public/dashboard-videos/videos/a.mp4`;
+    const foreign =
+        `https://evil.example/storage/v1/object/sign/user-uploads/a.jpg?token=x`;
+    const traversal =
+        `${SUPABASE_URL}/storage/v1/object/sign/user-uploads/../../secret.jpg?token=x`;
+    const plain = "https://cdn.example/video.mp4";
+
+    assert.equal(toPrivateMediaRef(legacy, { supabaseUrl: SUPABASE_URL }), null);
+    assert.equal(toPrivateMediaRef(foreign, { supabaseUrl: SUPABASE_URL }), null);
+    assert.equal(toPrivateMediaRef(traversal, { supabaseUrl: SUPABASE_URL }), null);
+    assert.equal(toPrivateMediaRef(plain, { supabaseUrl: SUPABASE_URL }), null);
+    assert.equal(toPrivateMediaRef("", { supabaseUrl: SUPABASE_URL }), null);
+});
+
+test("history menyimpan referensi stabil untuk input generate & upscale", () => {
+    const source = read("api/generate.js");
+
+    assert.match(source, /toPrivateMediaRef\(imageReference, \{ supabaseUrl: SUPABASE_URL \}\)/);
+    assert.match(source, /toPrivateMediaRef\(videoReference, \{ supabaseUrl: SUPABASE_URL \}\)/);
+    assert.match(source, /toPrivateMediaRef\(sourceUrl, \{ supabaseUrl: SUPABASE_URL \}\)/);
+
+    const historyData = read("history/assets/js/history-data.js");
+    assert.match(historyData, /PRIVATE_MEDIA_FIELDS\s*=\s*\[/);
+    assert.match(historyData, /"image_reference_url"/);
+    assert.match(historyData, /"video_reference_url"/);
+});
+
+test("baris riwayat ditandai kedaluwarsa saat signed URL gagal", () => {
+    const data = read("history/assets/js/history-data.js");
+    const render = read("history/assets/js/history-render.js");
+
+    assert.match(data, /item\.media_expired\s*=\s*\n?\s*true/);
+    assert.match(render, /item\?\.media_expired === true/);
+    assert.match(render, /"\/storage\/v1\/object\/sign\/user-uploads\/"/);
+    assert.match(render, /"\/storage\/v1\/object\/authenticated\/user-uploads\/"/);
+
+    const html = read("history/index.html");
+    assert.match(html, /history-render\.js\?v=20261023-private-media/);
+
+    // Unduhan dari signed URL tetap memakai nama file yang rapi.
+    const modal = read("history/assets/js/history-modal.js");
+    assert.match(modal, /\/storage\/v1\/object\/sign\//);
 });

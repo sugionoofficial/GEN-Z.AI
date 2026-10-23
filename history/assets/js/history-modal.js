@@ -682,7 +682,8 @@
             const downloadUrl = new URL(url, window.location.href);
             if (
                 downloadUrl.hostname.endsWith(".supabase.co") &&
-                downloadUrl.pathname.includes("/storage/v1/object/public/")
+                (downloadUrl.pathname.includes("/storage/v1/object/public/") ||
+                    downloadUrl.pathname.includes("/storage/v1/object/sign/"))
             ) {
                 downloadUrl.searchParams.set("download", filename);
             }

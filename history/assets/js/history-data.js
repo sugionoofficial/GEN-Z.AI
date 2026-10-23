@@ -137,6 +137,17 @@
     const privateMediaCache =
         new Map();
 
+    /*
+     * Kolom yang bisa berisi referensi media privat.
+     * `result_url`       = hasil upscale
+     * `image_reference_url` / `video_reference_url` = input yang dipakai
+     */
+    const PRIVATE_MEDIA_FIELDS = [
+        "result_url",
+        "image_reference_url",
+        "video_reference_url"
+    ];
+
 
     function parsePrivateMediaRef(value) {
 
@@ -285,45 +296,64 @@
             return items;
         }
 
-        const pending =
-            items.filter(item => {
+        const tasks = [];
+
+        items.forEach(item => {
+
+            if (!item || typeof item !== "object") {
+                return;
+            }
+
+            PRIVATE_MEDIA_FIELDS.forEach(field => {
 
                 const ref =
-                    item?.result_url;
+                    item[field];
 
-                return (
-                    typeof ref === "string" &&
-                    isPrivateMediaRef(ref)
+                if (
+                    typeof ref !== "string" ||
+                    !isPrivateMediaRef(ref)
+                ) {
+
+                    return;
+                }
+
+                tasks.push(
+                    (async () => {
+
+                        const url =
+                            await signPrivateMediaUrl(
+                                client,
+                                ref.trim()
+                            );
+
+                        /*
+                         * Kosongkan kalau gagal: lebih baik UI
+                         * menampilkan placeholder daripada
+                         * "supabase-private://" mentah.
+                         */
+                        item[field] =
+                            url || "";
+
+                        /*
+                         * Gagal sign = file sudah dihapus cron
+                         * retensi. Beri tanda supaya baris
+                         * ditandai KEDALUWARSA.
+                         */
+                        if (!url) {
+
+                            item.media_expired =
+                                true;
+                        }
+                    })()
                 );
             });
+        });
 
-        if (!pending.length) {
+        if (!tasks.length) {
             return items;
         }
 
-        await Promise.all(
-            pending.map(async item => {
-
-                const ref =
-                    String(
-                        item.result_url || ""
-                    ).trim();
-
-                const url =
-                    await signPrivateMediaUrl(
-                        client,
-                        ref
-                    );
-
-                /*
-                 * Kosongkan kalau gagal: lebih baik UI
-                 * menampilkan placeholder daripada
-                 * "supabase-private://" mentah.
-                 */
-                item.result_url =
-                    url || "";
-            })
-        );
+        await Promise.all(tasks);
 
         return items;
     }

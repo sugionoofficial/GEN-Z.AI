@@ -66,6 +66,12 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
    ±30 menit.
 6. Baris lama dengan URL publik `dashboard-videos` / `dashboard-upscales`
    tetap berfungsi sampai terhapus cron 24 jam.
+7. Referensi input (`generation_history.image_reference_url` /
+   `video_reference_url`) juga disimpan sebagai `supabase-private://…`
+   (`toPrivateMediaRef()`), bukan signed URL. Efeknya: thumbnail referensi di
+   riwayat dan tombol **Regenerate** tetap berfungsi selama file masih ada
+   (1 jam untuk input Generate, 24 jam untuk input Upscale), bukan hanya
+   1 jam sejak upload.
 
 ## Implementasi
 

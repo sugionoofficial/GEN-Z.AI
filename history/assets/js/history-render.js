@@ -750,7 +750,10 @@
         "/storage/v1/object/sign/dashboard-videos/",
         "/storage/v1/object/sign/dashboard-upscales/",
         "/storage/v1/object/authenticated/dashboard-videos/",
-        "/storage/v1/object/authenticated/dashboard-upscales/"
+        "/storage/v1/object/authenticated/dashboard-upscales/",
+        /* Bucket privat (output upscale baru) */
+        "/storage/v1/object/sign/user-uploads/",
+        "/storage/v1/object/authenticated/user-uploads/"
     ];
 
     function isManagedMediaUrl(
@@ -779,6 +782,17 @@
     function isExpiredMedia(
         item
     ) {
+
+        /*
+         * history-data.js menandai `media_expired` ketika signed URL
+         * gagal dibuat (file sudah dihapus cron retensi).
+         */
+        if (
+            item?.media_expired === true
+        ) {
+
+            return true;
+        }
 
         const url =
             getResultUrl(
