@@ -32,1634 +32,14 @@
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
     <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
     <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
-</head>
-
-<body>
-
-    <!-- =========================================================
-         BACKGROUND
-         ========================================================= -->
-
-    <div class="ambient ambient-one"></div>
-    <div class="ambient ambient-two"></div>
-    <div class="ambient ambient-three"></div>
-
-
-    <!-- =========================================================
-         MAIN
-         ========================================================= -->
-
-    <main class="login-container">
-
-        <section
-            class="login-card"
-            aria-label="GEN-Z.AI Login"
-        >
-
-            <!-- =================================================
-                 BRAND PANEL
-                 ================================================= -->
-
-            <div class="brand-panel">
-
-                <div class="brand-content">
-
-                    <div
-                        class="brand-logo"
-                        aria-label="GEN-Z.AI"
-                    >
-
-                        <span class="logo-gen">
-                            GEN
-                        </span>
-
-                        <span class="logo-dash">
-                            -
-                        </span>
-
-                        <span class="logo-zai">
-                            Z.AI
-                        </span>
-
-                    </div>
-
-
-                    <div class="brand-line"></div>
-
-
-                    <div class="brand-kicker">
-                        AI VIDEO GENERATION PLATFORM
-                    </div>
-
-
-                    <p class="brand-description">
-                        Create, generate, and manage AI-powered
-                        video content from one unified platform.
-                    </p>
-
-
-                    <div class="brand-features">
-
-                        <div class="brand-feature">
-
-                            <span class="feature-icon">
-                                ✦
-                            </span>
-
-                            <span>
-                                AI Video Generation
-                            </span>
-
-                        </div>
-
-
-                        <div class="brand-feature">
-
-                            <span class="feature-icon">
-                                ◈
-                            </span>
-
-                            <span>
-                                Multiple AI Providers
-                            </span>
-
-                        </div>
-
-
-                        <div class="brand-feature">
-
-                            <span class="feature-icon">
-                                ◉
-                            </span>
-
-                            <span>
-                                Secure Supabase Authentication
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <div class="brand-footer">
-
-                    <span class="brand-status-dot"></span>
-
-                    <span>
-                        GEN-Z.AI SYSTEM
-                    </span>
-
-                    <span class="brand-footer-separator">
-                        /
-                    </span>
-
-                    <span>
-                        SECURE ACCESS
-                    </span>
-
-                </div>
-
-            </div>
-
-
-            <!-- =================================================
-                 LOGIN PANEL
-                 ================================================= -->
-
-            <div class="login-panel">
-
-                <div class="login-panel-inner">
-
-
-                    <!-- =========================================
-                         HEADER
-                         ========================================= -->
-
-                    <div class="login-header">
-
-                        <div class="login-kicker">
-                            WELCOME BACK
-                        </div>
-
-
-                        <h1>
-                            Masuk ke akun Anda
-                        </h1>
-
-
-                        <p>
-                            Gunakan akun GEN-Z.AI Anda untuk
-                            melanjutkan ke platform.
-                        </p>
-
-                    </div>
-
-
-                    <!-- =========================================
-                         LOGIN FORM
-                         ========================================= -->
-
-                    <form
-                        id="loginForm"
-                        novalidate
-                    >
-
-                        <!-- =====================================
-                             EMAIL
-                             ===================================== -->
-
-                        <div class="input-group">
-
-                            <label for="email">
-                                EMAIL
-                            </label>
-
-
-                            <div class="input-wrapper">
-
-                                <span
-                                    class="input-icon"
-                                    aria-hidden="true"
-                                >
-                                    @
-                                </span>
-
-
-                                <input
-                                    type="email"
-                                    id="email"
-                                    name="email"
-                                    placeholder="nama@email.com"
-                                    autocomplete="email"
-                                    inputmode="email"
-                                    spellcheck="false"
-                                    autocapitalize="none"
-                                    required
-                                >
-
-                            </div>
-
-                        </div>
-
-
-                        <!-- =====================================
-                             PASSWORD
-                             ===================================== -->
-
-                        <div class="input-group password-group">
-
-                            <label for="password">
-                                PASSWORD
-                            </label>
-
-
-                            <div class="input-wrapper">
-
-                                <span
-                                    class="input-icon password-icon"
-                                    aria-hidden="true"
-                                >
-                                    •
-                                </span>
-
-
-                                <input
-                                    type="password"
-                                    id="password"
-                                    name="password"
-                                    placeholder="Masukkan password"
-                                    autocomplete="current-password"
-                                    required
-                                >
-
-
-                                <button
-                                    type="button"
-                                    id="togglePassword"
-                                    class="password-toggle"
-                                    aria-label="Tampilkan password"
-                                    aria-pressed="false"
-                                >
-
-                                    <svg
-                                        id="eyeOpen"
-                                        class="eye-icon"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.8"
-                                        aria-hidden="true"
-                                    >
-
-                                        <path
-                                            d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
-                                        />
-
-                                        <circle
-                                            cx="12"
-                                            cy="12"
-                                            r="2.8"
-                                        />
-
-                                    </svg>
-
-
-                                    <svg
-                                        id="eyeClosed"
-                                        class="eye-icon hidden"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.8"
-                                        aria-hidden="true"
-                                    >
-
-                                        <path
-                                            d="m3 3 18 18"
-                                        />
-
-                                        <path
-                                            d="M10.6 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a19.7 19.7 0 0 1-3.2 3.8"
-                                        />
-
-                                        <path
-                                            d="M6.3 6.4C3.6 8.2 2 12 2 12s3.5 7 10 7a9.8 9.8 0 0 0 4.1-.9"
-                                        />
-
-                                        <path
-                                            d="M9.9 9.9a3 3 0 0 0 4.2 4.2"
-                                        />
-
-                                    </svg>
-
-                                </button>
-
-                            </div>
-
-                        </div>
-
-
-                        <!-- =====================================
-                             FORGOT PASSWORD
-                             ===================================== -->
-
-                        <div class="form-options">
-
-                            <button
-                                type="button"
-                                id="forgotPasswordButton"
-                                class="forgot-password-button"
-                            >
-                                Lupa password?
-                            </button>
-
-                        </div>
-
-
-                        <!-- =====================================
-                             LOGIN BUTTON
-                             ===================================== -->
-
-                        <button
-    type="submit"
-    id="loginButton"
-    class="login-button"
-    aria-label="Login"
->
-    <span id="loginButtonText">LOGIN</span>
-
-    <span
-        id="loginSpinner"
-        class="button-spinner"
-        aria-hidden="true"
-    ></span>
-
-    <span
-        id="loginStatusHologram"
-        class="login-status-hologram"
-        aria-hidden="true"
-    >
-        <span
-            class="login-status-hologram-scan"
-            aria-hidden="true"
-        ></span>
-
-        <span
-            class="login-status-hologram-line"
-            aria-hidden="true"
-        ></span>
-
-        <span
-            class="login-status-hologram-corner top"
-            aria-hidden="true"
-        ></span>
-
-        <span
-            class="login-status-hologram-corner bottom"
-            aria-hidden="true"
-        ></span>
-
-        <span
-            id="loginStatusHologramText"
-            class="login-status-hologram-text"
-        ></span>
-    </span>
-</button>
-
-                        <a
-                            class="register-link-button"
-                            href="register.html"
-                        >
-                            REGISTER
-                        </a>
-
-                        <!-- =====================================
-                             LOGIN MESSAGE
-                             ===================================== -->
-
-                        <div
-                            id="loginMessage"
-                            class="login-message"
-                            role="alert"
-                            aria-live="polite"
-                        ></div>
-
-                    </form>
-
-
-                    <!-- =========================================
-                         SECURITY NOTE
-                         ========================================= -->
-
-                    <div class="security-note">
-
-                        <span
-                            class="security-icon"
-                            aria-hidden="true"
-                        >
-                            ⛨
-                        </span>
-
-                        <span>
-                            Secure authentication powered by
-                            Supabase
-                        </span>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- =====================================================
-             PAGE FOOTER
-             ===================================================== -->
-
-        <div class="page-footer">
-
-            <span>
-                © 2026 GEN-Z.AI
-            </span>
-
-            <span class="footer-dot">
-                •
-            </span>
-
-            <span>
-                AI VIDEO GENERATION
-            </span>
-
-        </div>
-
-    </main>
-
-
-    <!-- =========================================================
-         FORGOT PASSWORD MODAL
-         ========================================================= -->
-
-    <div
-        id="forgotPasswordModal"
-        class="forgot-modal"
-        aria-hidden="true"
-    >
-
-        <div
-            id="forgotPasswordBackdrop"
-            class="forgot-backdrop"
-        ></div>
-
-
-        <section
-            class="forgot-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="forgotPasswordTitle"
-        >
-
-            <button
-                type="button"
-                id="closeForgotPassword"
-                class="modal-close"
-                aria-label="Tutup"
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
-                >
-
-                    <path
-                        d="M6 6l12 12"
-                    />
-
-                    <path
-                        d="M18 6 6 18"
-                    />
-
-                </svg>
-
-            </button>
-
-
-            <div class="modal-icon">
-
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    aria-hidden="true"
-                >
-
-                    <rect
-                        x="3"
-                        y="5"
-                        width="18"
-                        height="14"
-                        rx="3"
-                    />
-
-                    <path
-                        d="m4 7 8 6 8-6"
-                    />
-
-                </svg>
-
-            </div>
-
-
-            <div class="modal-kicker">
-                ACCOUNT RECOVERY
-            </div>
-
-
-            <h2 id="forgotPasswordTitle">
-                Lupa password?
-            </h2>
-
-
-            <p class="modal-description">
-                Masukkan email akun GEN-Z.AI Anda.
-                Kami akan mengirimkan link untuk
-                membuat password baru.
-            </p>
-
-
-            <form
-                id="forgotPasswordForm"
-                novalidate
-            >
-
-                <div class="input-group modal-input-group">
-
-                    <label for="resetEmail">
-                        EMAIL
-                    </label>
-
-
-                    <div class="input-wrapper">
-
-                        <span
-                            class="input-icon"
-                            aria-hidden="true"
-                        >
-                            @
-                        </span>
-
-
-                        <input
-                            type="email"
-                            id="resetEmail"
-                            name="resetEmail"
-                            placeholder="nama@email.com"
-                            autocomplete="email"
-                            inputmode="email"
-                            spellcheck="false"
-                            autocapitalize="none"
-                            required
-                        >
-
-                    </div>
-
-                </div>
-
-
-                <button
-                    type="submit"
-                    id="resetPasswordButton"
-                    class="reset-button"
-                >
-
-                    <span id="resetButtonText">
-                        KIRIM LINK RESET
-                    </span>
-
-                    <span
-                        id="resetSpinner"
-                        class="button-spinner"
-                        aria-hidden="true"
-                    ></span>
-
-                </button>
-
-
-                <div
-                    id="resetMessage"
-                    class="reset-message"
-                    role="alert"
-                    aria-live="polite"
-                ></div>
-
-            </form>
-
-
-            <button
-                type="button"
-                id="backToLogin"
-                class="back-login-button"
-            >
-                ← Kembali ke login
-            </button>
-
-        </section>
-
-    </div>
-
-
-    <!-- =========================================================
-         SUPABASE
-         ========================================================= -->
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
-
-
-    <!-- =========================================================
-         CONFIG
-         ========================================================= -->
-
-    <script src="assets/js/config.js"></script>
-
-
-    <!-- =========================================================
-         LOGIN AUTHENTICATION
-         ========================================================= -->
-
-    <script src="assets/js/auth.js?v=persistent-auth-20261022"></script>
-
-
-    <!-- =========================================================
-         LOGIN UI
-         ========================================================= -->
-
-    <script>
-
-        (function () {
-
-            "use strict";
-
-
-            /* =================================================
-               ELEMENTS
-               ================================================= */
-
-            const emailInput =
-                document.getElementById("email");
-
-            const passwordInput =
-                document.getElementById("password");
-
-            const togglePassword =
-                document.getElementById("togglePassword");
-
-            const eyeOpen =
-                document.getElementById("eyeOpen");
-
-            const eyeClosed =
-                document.getElementById("eyeClosed");
-
-            const loginButton =
-                document.getElementById("loginButton");
-
-            const loginButtonText =
-                document.getElementById("loginButtonText");
-
-            const loginSpinner =
-                document.getElementById("loginSpinner");
-
-            const loginMessage =
-                document.getElementById("loginMessage");
-
-            const forgotButton =
-                document.getElementById(
-                    "forgotPasswordButton"
-                );
-
-            const forgotModal =
-                document.getElementById(
-                    "forgotPasswordModal"
-                );
-
-            const forgotBackdrop =
-                document.getElementById(
-                    "forgotPasswordBackdrop"
-                );
-
-            const closeForgotPassword =
-                document.getElementById(
-                    "closeForgotPassword"
-                );
-
-            const backToLogin =
-                document.getElementById(
-                    "backToLogin"
-                );
-
-            const forgotForm =
-                document.getElementById(
-                    "forgotPasswordForm"
-                );
-
-            const resetEmail =
-                document.getElementById(
-                    "resetEmail"
-                );
-
-            const resetButton =
-                document.getElementById(
-                    "resetPasswordButton"
-                );
-
-            const resetButtonText =
-                document.getElementById(
-                    "resetButtonText"
-                );
-
-            const resetSpinner =
-                document.getElementById(
-                    "resetSpinner"
-                );
-
-            const resetMessage =
-                document.getElementById(
-                    "resetMessage"
-                );
-
-
-            /* =================================================
-               SHOW / HIDE PASSWORD
-               ================================================= */
-
-            if (
-                togglePassword &&
-                passwordInput
-            ) {
-
-                togglePassword.addEventListener(
-                    "click",
-                    function () {
-
-                        const isHidden =
-                            passwordInput.type === "password";
-
-
-                        passwordInput.type =
-                            isHidden
-                                ? "text"
-                                : "password";
-
-
-                        togglePassword.setAttribute(
-                            "aria-pressed",
-                            isHidden
-                                ? "true"
-                                : "false"
-                        );
-
-
-                        togglePassword.setAttribute(
-                            "aria-label",
-                            isHidden
-                                ? "Sembunyikan password"
-                                : "Tampilkan password"
-                        );
-
-
-                        if (eyeOpen) {
-
-                            eyeOpen.classList.toggle(
-                                "hidden",
-                                isHidden
-                            );
-
-                        }
-
-
-                        if (eyeClosed) {
-
-                            eyeClosed.classList.toggle(
-                                "hidden",
-                                !isHidden
-                            );
-
-                        }
-
-                    }
-                );
-
-            }
-
-
-            /* =================================================
-               LOGIN MESSAGE HELPER
-               ================================================= */
-
-            function setLoginMessage(
-                message,
-                type
-            ) {
-
-                if (!loginMessage) {
-                    return;
-                }
-
-
-                loginMessage.textContent =
-                    message;
-
-
-                loginMessage.className =
-                    "login-message";
-
-
-                if (type) {
-
-                    loginMessage.classList.add(
-                        type
-                    );
-
-                }
-
-            }
-
-
-            /* =================================================
-               MODAL MESSAGE HELPER
-               ================================================= */
-
-            function setResetMessage(
-                message,
-                type
-            ) {
-
-                if (!resetMessage) {
-                    return;
-                }
-
-
-                resetMessage.textContent =
-                    message;
-
-
-                resetMessage.className =
-                    "reset-message";
-
-
-                if (message) {
-
-                    resetMessage.classList.add(
-                        "show"
-                    );
-
-                }
-
-
-                if (type) {
-
-                    resetMessage.classList.add(
-                        type
-                    );
-
-                }
-
-            }
-
-
-            function clearResetMessage() {
-
-                if (!resetMessage) {
-                    return;
-                }
-
-
-                resetMessage.textContent = "";
-
-
-                resetMessage.className =
-                    "reset-message";
-
-            }
-
-
-            /* =================================================
-               OPEN FORGOT PASSWORD
-               ================================================= */
-
-            function openForgotModal() {
-
-                if (!forgotModal) {
-                    return;
-                }
-
-
-                clearResetMessage();
-
-
-                /*
-                 * Jika email login sudah diisi,
-                 * otomatis gunakan email tersebut.
-                 */
-
-                if (
-                    resetEmail &&
-                    emailInput &&
-                    emailInput.value.trim()
-                ) {
-
-                    resetEmail.value =
-                        emailInput.value.trim();
-
-                }
-
-
-                forgotModal.classList.add(
-                    "is-open"
-                );
-
-
-                forgotModal.setAttribute(
-                    "aria-hidden",
-                    "false"
-                );
-
-
-                document.body.classList.add(
-                    "modal-open"
-                );
-
-
-                setTimeout(
-                    function () {
-
-                        if (resetEmail) {
-
-                            resetEmail.focus();
-
-                        }
-
-                    },
-                    120
-                );
-
-            }
-
-
-            /* =================================================
-               CLOSE FORGOT PASSWORD
-               ================================================= */
-
-            function closeForgotModal() {
-
-                if (!forgotModal) {
-                    return;
-                }
-
-
-                forgotModal.classList.remove(
-                    "is-open"
-                );
-
-
-                forgotModal.setAttribute(
-                    "aria-hidden",
-                    "true"
-                );
-
-
-                document.body.classList.remove(
-                    "modal-open"
-                );
-
-
-                if (forgotButton) {
-
-                    forgotButton.focus();
-
-                }
-
-            }
-
-
-            if (forgotButton) {
-
-                forgotButton.addEventListener(
-                    "click",
-                    openForgotModal
-                );
-
-            }
-
-
-            if (closeForgotPassword) {
-
-                closeForgotPassword.addEventListener(
-                    "click",
-                    closeForgotModal
-                );
-
-            }
-
-
-            if (backToLogin) {
-
-                backToLogin.addEventListener(
-                    "click",
-                    closeForgotModal
-                );
-
-            }
-
-
-            if (forgotBackdrop) {
-
-                forgotBackdrop.addEventListener(
-                    "click",
-                    closeForgotModal
-                );
-
-            }
-
-
-            /* =================================================
-               ESCAPE
-               ================================================= */
-
-            document.addEventListener(
-                "keydown",
-                function (event) {
-
-                    if (
-                        event.key === "Escape" &&
-                        forgotModal &&
-                        forgotModal.classList.contains(
-                            "is-open"
-                        )
-                    ) {
-
-                        closeForgotModal();
-
-                    }
-
-                }
-            );
-
-
-            /* =================================================
-               PASSWORD RESET
-               ================================================= */
-
-            if (forgotForm) {
-
-                forgotForm.addEventListener(
-                    "submit",
-                    async function (event) {
-
-                        event.preventDefault();
-
-
-                        clearResetMessage();
-
-
-                        const email =
-                            resetEmail
-                                ? resetEmail.value.trim()
-                                : "";
-
-
-                        if (!email) {
-
-                            setResetMessage(
-                                "Masukkan alamat email terlebih dahulu.",
-                                "error"
-                            );
-
-                            if (resetEmail) {
-                                resetEmail.focus();
-                            }
-
-                            return;
-
-                        }
-
-
-                        /*
-                         * Browser email validation.
-                         */
-
-                        if (
-                            !resetEmail.checkValidity()
-                        ) {
-
-                            setResetMessage(
-                                "Masukkan alamat email yang valid.",
-                                "error"
-                            );
-
-                            resetEmail.focus();
-
-                            return;
-
-                        }
-
-
-                        /*
-                         * Pastikan konfigurasi tersedia.
-                         */
-
-                        if (
-                            typeof GENZ_CONFIG ===
-                            "undefined" ||
-                            !GENZ_CONFIG.SUPABASE_URL ||
-                            !GENZ_CONFIG.SUPABASE_KEY
-                        ) {
-
-                            setResetMessage(
-                                "Konfigurasi Supabase tidak tersedia.",
-                                "error"
-                            );
-
-                            return;
-
-                        }
-
-
-                        if (
-                            typeof window.supabase ===
-                            "undefined" ||
-                            typeof window.supabase.createClient !==
-                            "function"
-                        ) {
-
-                            setResetMessage(
-                                "Supabase belum berhasil dimuat.",
-                                "error"
-                            );
-
-                            return;
-
-                        }
-
-
-                        /*
-                         * auth.js menggunakan client internal
-                         * bernama supabaseClient.
-                         *
-                         * Karena const tersebut tidak diekspor
-                         * ke window, halaman login membuat client
-                         * yang sama untuk kebutuhan password reset.
-                         *
-                         * Tidak mengubah sistem login yang sudah
-                         * berjalan di auth.js.
-                         */
-
-                        let resetClient;
-
-
-                        try {
-
-                            resetClient =
-                                window.supabase.createClient(
-                                    GENZ_CONFIG.SUPABASE_URL,
-                                    GENZ_CONFIG.SUPABASE_KEY
-                                );
-
-                        } catch (error) {
-
-                            console.error(
-                                "Gagal membuat Supabase reset client:",
-                                error
-                            );
-
-                            setResetMessage(
-                                "Gagal menginisialisasi layanan reset password.",
-                                "error"
-                            );
-
-                            return;
-
-                        }
-
-
-                        if (resetButton) {
-
-                            resetButton.disabled =
-                                true;
-
-                        }
-
-
-                        if (resetButtonText) {
-
-                            resetButtonText.textContent =
-                                "MENGIRIM...";
-
-                        }
-
-
-                        if (resetSpinner) {
-
-                            resetSpinner.classList.add(
-                                "active"
-                            );
-
-                        }
-
-
-                        try {
-
-                            /*
-                             * Supabase akan mengirim email
-                             * reset password.
-                             *
-                             * Halaman tujuan dibuat eksplisit.
-                             */
-
-                            const redirectUrl =
-                                new URL(
-                                    "reset-password.html",
-                                    window.location.href
-                                ).href;
-
-
-                            const {
-                                error
-                            } =
-                                await resetClient.auth
-                                    .resetPasswordForEmail(
-                                        email,
-                                        {
-                                            redirectTo:
-                                                redirectUrl
-                                        }
-                                    );
-
-
-                            if (error) {
-
-                                throw error;
-
-                            }
-
-
-                            setResetMessage(
-                                "Link reset password telah dikirim. Periksa inbox atau folder spam email Anda.",
-                                "success"
-                            );
-
-
-                            if (resetButtonText) {
-
-                                resetButtonText.textContent =
-                                    "LINK TERKIRIM";
-
-                            }
-
-
-                        } catch (error) {
-
-                            console.error(
-                                "GEN-Z.AI PASSWORD RESET ERROR:",
-                                error
-                            );
-
-
-                            let message =
-                                "Gagal mengirim link reset password.";
-
-
-                            if (
-                                error &&
-                                error.message
-                            ) {
-
-                                message =
-                                    error.message;
-
-                            }
-
-
-                            setResetMessage(
-                                message,
-                                "error"
-                            );
-
-
-                            if (resetButton) {
-
-                                resetButton.disabled =
-                                    false;
-
-                            }
-
-
-                            if (resetButtonText) {
-
-                                resetButtonText.textContent =
-                                    "KIRIM LINK RESET";
-
-                            }
-
-                        } finally {
-
-                            if (resetSpinner) {
-
-                                resetSpinner.classList.remove(
-                                    "active"
-                                );
-
-                            }
-
-                        }
-
-                    }
-                );
-
-            }
-
-
-            /* =================================================
-               INPUT FOCUS CLEANUP
-               ================================================= */
-
-            [
-                emailInput,
-                passwordInput,
-                resetEmail
-            ].forEach(
-                function (input) {
-
-                    if (!input) {
-                        return;
-                    }
-
-
-                    input.addEventListener(
-                        "input",
-                        function () {
-
-                            if (
-                                input === emailInput ||
-                                input === passwordInput
-                            ) {
-
-                                if (
-                                    loginMessage &&
-                                    loginMessage.textContent
-                                ) {
-
-                                    setLoginMessage(
-                                        "",
-                                        ""
-                                    );
-
-                                }
-
-                            }
-
-
-                            if (
-                                input === resetEmail
-                            ) {
-
-                                clearResetMessage();
-
-                            }
-
-                        }
-                    );
-
-                }
-            );
-
-
-            /* =================================================
-               ENTER BEHAVIOR
-               ================================================= */
-
-            if (emailInput) {
-
-                emailInput.addEventListener(
-                    "keydown",
-                    function (event) {
-
-                        if (
-                            event.key === "Enter"
-                        ) {
-
-                            event.preventDefault();
-
-
-                            if (passwordInput) {
-
-                                passwordInput.focus();
-
-                            }
-
-                        }
-
-                    }
-                );
-
-            }
-
-
-            /* =================================================
-               AUTH ERROR NORMALIZATION
-               =================================================
-               
-               auth.js tetap menjadi pemilik proses login.
-               Bagian ini hanya memperbaiki tampilan beberapa
-               error Supabase yang terlalu teknis.
-               ================================================= */
-
-            function normalizeAuthMessage(
-                message
-            ) {
-
-                if (!message) {
-                    return "";
-                }
-
-
-                const lower =
-                    String(message).toLowerCase();
-
-
-                if (
-                    lower.includes(
-                        "invalid login credentials"
-                    )
-                ) {
-
-                    return "Email atau password salah.";
-
-                }
-
-
-                if (
-                    lower.includes(
-                        "email not confirmed"
-                    )
-                ) {
-
-                    return "Email akun belum dikonfirmasi.";
-
-                }
-
-
-                if (
-                    lower.includes(
-                        "too many requests"
-                    )
-                ) {
-
-                    return "Terlalu banyak percobaan. Silakan tunggu beberapa saat.";
-
-                }
-
-
-                return message;
-
-            }
-
-
-            /*
-             * Pantau perubahan text pada loginMessage agar
-             * pesan dari auth.js tetap digunakan tetapi
-             * tampil lebih manusiawi.
-             */
-
-            if (loginMessage) {
-
-                const observer =
-                    new MutationObserver(
-                        function () {
-
-                            const current =
-                                loginMessage.textContent
-                                    .trim();
-
-
-                            if (!current) {
-
-                                loginMessage.className =
-                                    "login-message";
-
-                                return;
-
-                            }
-
-
-                            const normalized =
-                                normalizeAuthMessage(
-                                    current
-                                );
-
-
-                            if (
-                                normalized !==
-                                current
-                            ) {
-
-                                loginMessage.textContent =
-                                    normalized;
-
-                            }
-
-
-                            if (
-                                normalized
-                                    .toLowerCase()
-                                    .includes(
-                                        "berhasil"
-                                    )
-                            ) {
-
-                                loginMessage.className =
-                                    "login-message success";
-
-                            } else {
-
-                                loginMessage.className =
-                                    "login-message error";
-
-                            }
-
-                        }
-                    );
-
-
-                observer.observe(
-                    loginMessage,
-                    {
-                        childList: true,
-                        characterData: true,
-                        subtree: true
-                    }
-                );
-
-            }
-
-
-            /* =================================================
-               INITIAL STATE
-               ================================================= */
-
-            if (forgotModal) {
-
-                forgotModal.setAttribute(
-                    "aria-hidden",
-                    "true"
-                );
-
-            }
-
-
-            if (loginButton) {
-
-                loginButton.addEventListener(
-                    "click",
-                    function () {
-
-                        /*
-                         * auth.js juga mengatur disabled state.
-                         * UI spinner hanya mengikuti proses visual.
-                         */
-
-                        setTimeout(
-                            function () {
-
-                                if (
-                                    loginButton.disabled
-                                ) {
-
-                                    loginButton.classList.add(
-                                        "loading"
-                                    );
-
-
-                                    if (loginButtonText) {
-
-                                        loginButtonText.textContent =
-                                            "MEMPROSES...";
-
-                                    }
-
-
-                                    if (loginSpinner) {
-
-                                        loginSpinner.classList.add(
-                                            "active"
-                                        );
-
-                                    }
-
-                                }
-
-                            },
-                            20
-                        );
-
-                    }
-                );
-
-            }
-
-        })();
-
-    </script>
-
 
     <!-- =========================================================
          PREMIUM LOGIN OVERRIDE
+         ---------------------------------------------------------
+         Wajib ada di head, tepat setelah assets/css/login.css.
+         Kalau blok ini ditaruh di akhir body (setelah script CDN
+         Supabase yang blocking), browser sempat melukis desain lama
+         sehingga terlihat "mampir" ke halaman lain sebelum login.
          ========================================================= -->
 
     <style>
@@ -4210,6 +2590,1634 @@
 }
 
     </style>
+</head>
 
+<body>
+
+    <!-- =========================================================
+         BACKGROUND
+         ========================================================= -->
+
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <div class="ambient ambient-three"></div>
+
+
+    <!-- =========================================================
+         MAIN
+         ========================================================= -->
+
+    <main class="login-container">
+
+        <section
+            class="login-card"
+            aria-label="GEN-Z.AI Login"
+        >
+
+            <!-- =================================================
+                 BRAND PANEL
+                 ================================================= -->
+
+            <div class="brand-panel">
+
+                <div class="brand-content">
+
+                    <div
+                        class="brand-logo"
+                        aria-label="GEN-Z.AI"
+                    >
+
+                        <span class="logo-gen">
+                            GEN
+                        </span>
+
+                        <span class="logo-dash">
+                            -
+                        </span>
+
+                        <span class="logo-zai">
+                            Z.AI
+                        </span>
+
+                    </div>
+
+
+                    <div class="brand-line"></div>
+
+
+                    <div class="brand-kicker">
+                        AI VIDEO GENERATION PLATFORM
+                    </div>
+
+
+                    <p class="brand-description">
+                        Create, generate, and manage AI-powered
+                        video content from one unified platform.
+                    </p>
+
+
+                    <div class="brand-features">
+
+                        <div class="brand-feature">
+
+                            <span class="feature-icon">
+                                ✦
+                            </span>
+
+                            <span>
+                                AI Video Generation
+                            </span>
+
+                        </div>
+
+
+                        <div class="brand-feature">
+
+                            <span class="feature-icon">
+                                ◈
+                            </span>
+
+                            <span>
+                                Multiple AI Providers
+                            </span>
+
+                        </div>
+
+
+                        <div class="brand-feature">
+
+                            <span class="feature-icon">
+                                ◉
+                            </span>
+
+                            <span>
+                                Secure Supabase Authentication
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="brand-footer">
+
+                    <span class="brand-status-dot"></span>
+
+                    <span>
+                        GEN-Z.AI SYSTEM
+                    </span>
+
+                    <span class="brand-footer-separator">
+                        /
+                    </span>
+
+                    <span>
+                        SECURE ACCESS
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 LOGIN PANEL
+                 ================================================= -->
+
+            <div class="login-panel">
+
+                <div class="login-panel-inner">
+
+
+                    <!-- =========================================
+                         HEADER
+                         ========================================= -->
+
+                    <div class="login-header">
+
+                        <div class="login-kicker">
+                            WELCOME BACK
+                        </div>
+
+
+                        <h1>
+                            Masuk ke akun Anda
+                        </h1>
+
+
+                        <p>
+                            Gunakan akun GEN-Z.AI Anda untuk
+                            melanjutkan ke platform.
+                        </p>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         LOGIN FORM
+                         ========================================= -->
+
+                    <form
+                        id="loginForm"
+                        novalidate
+                    >
+
+                        <!-- =====================================
+                             EMAIL
+                             ===================================== -->
+
+                        <div class="input-group">
+
+                            <label for="email">
+                                EMAIL
+                            </label>
+
+
+                            <div class="input-wrapper">
+
+                                <span
+                                    class="input-icon"
+                                    aria-hidden="true"
+                                >
+                                    @
+                                </span>
+
+
+                                <input
+                                    type="email"
+                                    id="email"
+                                    name="email"
+                                    placeholder="nama@email.com"
+                                    autocomplete="email"
+                                    inputmode="email"
+                                    spellcheck="false"
+                                    autocapitalize="none"
+                                    required
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             PASSWORD
+                             ===================================== -->
+
+                        <div class="input-group password-group">
+
+                            <label for="password">
+                                PASSWORD
+                            </label>
+
+
+                            <div class="input-wrapper">
+
+                                <span
+                                    class="input-icon password-icon"
+                                    aria-hidden="true"
+                                >
+                                    •
+                                </span>
+
+
+                                <input
+                                    type="password"
+                                    id="password"
+                                    name="password"
+                                    placeholder="Masukkan password"
+                                    autocomplete="current-password"
+                                    required
+                                >
+
+
+                                <button
+                                    type="button"
+                                    id="togglePassword"
+                                    class="password-toggle"
+                                    aria-label="Tampilkan password"
+                                    aria-pressed="false"
+                                >
+
+                                    <svg
+                                        id="eyeOpen"
+                                        class="eye-icon"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        aria-hidden="true"
+                                    >
+
+                                        <path
+                                            d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
+                                        />
+
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="2.8"
+                                        />
+
+                                    </svg>
+
+
+                                    <svg
+                                        id="eyeClosed"
+                                        class="eye-icon hidden"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        aria-hidden="true"
+                                    >
+
+                                        <path
+                                            d="m3 3 18 18"
+                                        />
+
+                                        <path
+                                            d="M10.6 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a19.7 19.7 0 0 1-3.2 3.8"
+                                        />
+
+                                        <path
+                                            d="M6.3 6.4C3.6 8.2 2 12 2 12s3.5 7 10 7a9.8 9.8 0 0 0 4.1-.9"
+                                        />
+
+                                        <path
+                                            d="M9.9 9.9a3 3 0 0 0 4.2 4.2"
+                                        />
+
+                                    </svg>
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             FORGOT PASSWORD
+                             ===================================== -->
+
+                        <div class="form-options">
+
+                            <button
+                                type="button"
+                                id="forgotPasswordButton"
+                                class="forgot-password-button"
+                            >
+                                Lupa password?
+                            </button>
+
+                        </div>
+
+
+                        <!-- =====================================
+                             LOGIN BUTTON
+                             ===================================== -->
+
+                        <button
+    type="submit"
+    id="loginButton"
+    class="login-button"
+    aria-label="Login"
+>
+    <span id="loginButtonText">LOGIN</span>
+
+    <span
+        id="loginSpinner"
+        class="button-spinner"
+        aria-hidden="true"
+    ></span>
+
+    <span
+        id="loginStatusHologram"
+        class="login-status-hologram"
+        aria-hidden="true"
+    >
+        <span
+            class="login-status-hologram-scan"
+            aria-hidden="true"
+        ></span>
+
+        <span
+            class="login-status-hologram-line"
+            aria-hidden="true"
+        ></span>
+
+        <span
+            class="login-status-hologram-corner top"
+            aria-hidden="true"
+        ></span>
+
+        <span
+            class="login-status-hologram-corner bottom"
+            aria-hidden="true"
+        ></span>
+
+        <span
+            id="loginStatusHologramText"
+            class="login-status-hologram-text"
+        ></span>
+    </span>
+</button>
+
+                        <a
+                            class="register-link-button"
+                            href="register.html"
+                        >
+                            REGISTER
+                        </a>
+
+                        <!-- =====================================
+                             LOGIN MESSAGE
+                             ===================================== -->
+
+                        <div
+                            id="loginMessage"
+                            class="login-message"
+                            role="alert"
+                            aria-live="polite"
+                        ></div>
+
+                    </form>
+
+
+                    <!-- =========================================
+                         SECURITY NOTE
+                         ========================================= -->
+
+                    <div class="security-note">
+
+                        <span
+                            class="security-icon"
+                            aria-hidden="true"
+                        >
+                            ⛨
+                        </span>
+
+                        <span>
+                            Secure authentication powered by
+                            Supabase
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             PAGE FOOTER
+             ===================================================== -->
+
+        <div class="page-footer">
+
+            <span>
+                © 2026 GEN-Z.AI
+            </span>
+
+            <span class="footer-dot">
+                •
+            </span>
+
+            <span>
+                AI VIDEO GENERATION
+            </span>
+
+        </div>
+
+    </main>
+
+
+    <!-- =========================================================
+         FORGOT PASSWORD MODAL
+         ========================================================= -->
+
+    <div
+        id="forgotPasswordModal"
+        class="forgot-modal"
+        aria-hidden="true"
+    >
+
+        <div
+            id="forgotPasswordBackdrop"
+            class="forgot-backdrop"
+        ></div>
+
+
+        <section
+            class="forgot-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="forgotPasswordTitle"
+        >
+
+            <button
+                type="button"
+                id="closeForgotPassword"
+                class="modal-close"
+                aria-label="Tutup"
+            >
+
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                >
+
+                    <path
+                        d="M6 6l12 12"
+                    />
+
+                    <path
+                        d="M18 6 6 18"
+                    />
+
+                </svg>
+
+            </button>
+
+
+            <div class="modal-icon">
+
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    aria-hidden="true"
+                >
+
+                    <rect
+                        x="3"
+                        y="5"
+                        width="18"
+                        height="14"
+                        rx="3"
+                    />
+
+                    <path
+                        d="m4 7 8 6 8-6"
+                    />
+
+                </svg>
+
+            </div>
+
+
+            <div class="modal-kicker">
+                ACCOUNT RECOVERY
+            </div>
+
+
+            <h2 id="forgotPasswordTitle">
+                Lupa password?
+            </h2>
+
+
+            <p class="modal-description">
+                Masukkan email akun GEN-Z.AI Anda.
+                Kami akan mengirimkan link untuk
+                membuat password baru.
+            </p>
+
+
+            <form
+                id="forgotPasswordForm"
+                novalidate
+            >
+
+                <div class="input-group modal-input-group">
+
+                    <label for="resetEmail">
+                        EMAIL
+                    </label>
+
+
+                    <div class="input-wrapper">
+
+                        <span
+                            class="input-icon"
+                            aria-hidden="true"
+                        >
+                            @
+                        </span>
+
+
+                        <input
+                            type="email"
+                            id="resetEmail"
+                            name="resetEmail"
+                            placeholder="nama@email.com"
+                            autocomplete="email"
+                            inputmode="email"
+                            spellcheck="false"
+                            autocapitalize="none"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    id="resetPasswordButton"
+                    class="reset-button"
+                >
+
+                    <span id="resetButtonText">
+                        KIRIM LINK RESET
+                    </span>
+
+                    <span
+                        id="resetSpinner"
+                        class="button-spinner"
+                        aria-hidden="true"
+                    ></span>
+
+                </button>
+
+
+                <div
+                    id="resetMessage"
+                    class="reset-message"
+                    role="alert"
+                    aria-live="polite"
+                ></div>
+
+            </form>
+
+
+            <button
+                type="button"
+                id="backToLogin"
+                class="back-login-button"
+            >
+                ← Kembali ke login
+            </button>
+
+        </section>
+
+    </div>
+
+
+    <!-- =========================================================
+         SUPABASE
+         ========================================================= -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+
+
+    <!-- =========================================================
+         CONFIG
+         ========================================================= -->
+
+    <script src="assets/js/config.js"></script>
+
+
+    <!-- =========================================================
+         LOGIN AUTHENTICATION
+         ========================================================= -->
+
+    <script src="assets/js/auth.js?v=persistent-auth-20261022"></script>
+
+
+    <!-- =========================================================
+         LOGIN UI
+         ========================================================= -->
+
+    <script>
+
+        (function () {
+
+            "use strict";
+
+
+            /* =================================================
+               ELEMENTS
+               ================================================= */
+
+            const emailInput =
+                document.getElementById("email");
+
+            const passwordInput =
+                document.getElementById("password");
+
+            const togglePassword =
+                document.getElementById("togglePassword");
+
+            const eyeOpen =
+                document.getElementById("eyeOpen");
+
+            const eyeClosed =
+                document.getElementById("eyeClosed");
+
+            const loginButton =
+                document.getElementById("loginButton");
+
+            const loginButtonText =
+                document.getElementById("loginButtonText");
+
+            const loginSpinner =
+                document.getElementById("loginSpinner");
+
+            const loginMessage =
+                document.getElementById("loginMessage");
+
+            const forgotButton =
+                document.getElementById(
+                    "forgotPasswordButton"
+                );
+
+            const forgotModal =
+                document.getElementById(
+                    "forgotPasswordModal"
+                );
+
+            const forgotBackdrop =
+                document.getElementById(
+                    "forgotPasswordBackdrop"
+                );
+
+            const closeForgotPassword =
+                document.getElementById(
+                    "closeForgotPassword"
+                );
+
+            const backToLogin =
+                document.getElementById(
+                    "backToLogin"
+                );
+
+            const forgotForm =
+                document.getElementById(
+                    "forgotPasswordForm"
+                );
+
+            const resetEmail =
+                document.getElementById(
+                    "resetEmail"
+                );
+
+            const resetButton =
+                document.getElementById(
+                    "resetPasswordButton"
+                );
+
+            const resetButtonText =
+                document.getElementById(
+                    "resetButtonText"
+                );
+
+            const resetSpinner =
+                document.getElementById(
+                    "resetSpinner"
+                );
+
+            const resetMessage =
+                document.getElementById(
+                    "resetMessage"
+                );
+
+
+            /* =================================================
+               SHOW / HIDE PASSWORD
+               ================================================= */
+
+            if (
+                togglePassword &&
+                passwordInput
+            ) {
+
+                togglePassword.addEventListener(
+                    "click",
+                    function () {
+
+                        const isHidden =
+                            passwordInput.type === "password";
+
+
+                        passwordInput.type =
+                            isHidden
+                                ? "text"
+                                : "password";
+
+
+                        togglePassword.setAttribute(
+                            "aria-pressed",
+                            isHidden
+                                ? "true"
+                                : "false"
+                        );
+
+
+                        togglePassword.setAttribute(
+                            "aria-label",
+                            isHidden
+                                ? "Sembunyikan password"
+                                : "Tampilkan password"
+                        );
+
+
+                        if (eyeOpen) {
+
+                            eyeOpen.classList.toggle(
+                                "hidden",
+                                isHidden
+                            );
+
+                        }
+
+
+                        if (eyeClosed) {
+
+                            eyeClosed.classList.toggle(
+                                "hidden",
+                                !isHidden
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               LOGIN MESSAGE HELPER
+               ================================================= */
+
+            function setLoginMessage(
+                message,
+                type
+            ) {
+
+                if (!loginMessage) {
+                    return;
+                }
+
+
+                loginMessage.textContent =
+                    message;
+
+
+                loginMessage.className =
+                    "login-message";
+
+
+                if (type) {
+
+                    loginMessage.classList.add(
+                        type
+                    );
+
+                }
+
+            }
+
+
+            /* =================================================
+               MODAL MESSAGE HELPER
+               ================================================= */
+
+            function setResetMessage(
+                message,
+                type
+            ) {
+
+                if (!resetMessage) {
+                    return;
+                }
+
+
+                resetMessage.textContent =
+                    message;
+
+
+                resetMessage.className =
+                    "reset-message";
+
+
+                if (message) {
+
+                    resetMessage.classList.add(
+                        "show"
+                    );
+
+                }
+
+
+                if (type) {
+
+                    resetMessage.classList.add(
+                        type
+                    );
+
+                }
+
+            }
+
+
+            function clearResetMessage() {
+
+                if (!resetMessage) {
+                    return;
+                }
+
+
+                resetMessage.textContent = "";
+
+
+                resetMessage.className =
+                    "reset-message";
+
+            }
+
+
+            /* =================================================
+               OPEN FORGOT PASSWORD
+               ================================================= */
+
+            function openForgotModal() {
+
+                if (!forgotModal) {
+                    return;
+                }
+
+
+                clearResetMessage();
+
+
+                /*
+                 * Jika email login sudah diisi,
+                 * otomatis gunakan email tersebut.
+                 */
+
+                if (
+                    resetEmail &&
+                    emailInput &&
+                    emailInput.value.trim()
+                ) {
+
+                    resetEmail.value =
+                        emailInput.value.trim();
+
+                }
+
+
+                forgotModal.classList.add(
+                    "is-open"
+                );
+
+
+                forgotModal.setAttribute(
+                    "aria-hidden",
+                    "false"
+                );
+
+
+                document.body.classList.add(
+                    "modal-open"
+                );
+
+
+                setTimeout(
+                    function () {
+
+                        if (resetEmail) {
+
+                            resetEmail.focus();
+
+                        }
+
+                    },
+                    120
+                );
+
+            }
+
+
+            /* =================================================
+               CLOSE FORGOT PASSWORD
+               ================================================= */
+
+            function closeForgotModal() {
+
+                if (!forgotModal) {
+                    return;
+                }
+
+
+                forgotModal.classList.remove(
+                    "is-open"
+                );
+
+
+                forgotModal.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+
+
+                document.body.classList.remove(
+                    "modal-open"
+                );
+
+
+                if (forgotButton) {
+
+                    forgotButton.focus();
+
+                }
+
+            }
+
+
+            if (forgotButton) {
+
+                forgotButton.addEventListener(
+                    "click",
+                    openForgotModal
+                );
+
+            }
+
+
+            if (closeForgotPassword) {
+
+                closeForgotPassword.addEventListener(
+                    "click",
+                    closeForgotModal
+                );
+
+            }
+
+
+            if (backToLogin) {
+
+                backToLogin.addEventListener(
+                    "click",
+                    closeForgotModal
+                );
+
+            }
+
+
+            if (forgotBackdrop) {
+
+                forgotBackdrop.addEventListener(
+                    "click",
+                    closeForgotModal
+                );
+
+            }
+
+
+            /* =================================================
+               ESCAPE
+               ================================================= */
+
+            document.addEventListener(
+                "keydown",
+                function (event) {
+
+                    if (
+                        event.key === "Escape" &&
+                        forgotModal &&
+                        forgotModal.classList.contains(
+                            "is-open"
+                        )
+                    ) {
+
+                        closeForgotModal();
+
+                    }
+
+                }
+            );
+
+
+            /* =================================================
+               PASSWORD RESET
+               ================================================= */
+
+            if (forgotForm) {
+
+                forgotForm.addEventListener(
+                    "submit",
+                    async function (event) {
+
+                        event.preventDefault();
+
+
+                        clearResetMessage();
+
+
+                        const email =
+                            resetEmail
+                                ? resetEmail.value.trim()
+                                : "";
+
+
+                        if (!email) {
+
+                            setResetMessage(
+                                "Masukkan alamat email terlebih dahulu.",
+                                "error"
+                            );
+
+                            if (resetEmail) {
+                                resetEmail.focus();
+                            }
+
+                            return;
+
+                        }
+
+
+                        /*
+                         * Browser email validation.
+                         */
+
+                        if (
+                            !resetEmail.checkValidity()
+                        ) {
+
+                            setResetMessage(
+                                "Masukkan alamat email yang valid.",
+                                "error"
+                            );
+
+                            resetEmail.focus();
+
+                            return;
+
+                        }
+
+
+                        /*
+                         * Pastikan konfigurasi tersedia.
+                         */
+
+                        if (
+                            typeof GENZ_CONFIG ===
+                            "undefined" ||
+                            !GENZ_CONFIG.SUPABASE_URL ||
+                            !GENZ_CONFIG.SUPABASE_KEY
+                        ) {
+
+                            setResetMessage(
+                                "Konfigurasi Supabase tidak tersedia.",
+                                "error"
+                            );
+
+                            return;
+
+                        }
+
+
+                        if (
+                            typeof window.supabase ===
+                            "undefined" ||
+                            typeof window.supabase.createClient !==
+                            "function"
+                        ) {
+
+                            setResetMessage(
+                                "Supabase belum berhasil dimuat.",
+                                "error"
+                            );
+
+                            return;
+
+                        }
+
+
+                        /*
+                         * auth.js menggunakan client internal
+                         * bernama supabaseClient.
+                         *
+                         * Karena const tersebut tidak diekspor
+                         * ke window, halaman login membuat client
+                         * yang sama untuk kebutuhan password reset.
+                         *
+                         * Tidak mengubah sistem login yang sudah
+                         * berjalan di auth.js.
+                         */
+
+                        let resetClient;
+
+
+                        try {
+
+                            resetClient =
+                                window.supabase.createClient(
+                                    GENZ_CONFIG.SUPABASE_URL,
+                                    GENZ_CONFIG.SUPABASE_KEY
+                                );
+
+                        } catch (error) {
+
+                            console.error(
+                                "Gagal membuat Supabase reset client:",
+                                error
+                            );
+
+                            setResetMessage(
+                                "Gagal menginisialisasi layanan reset password.",
+                                "error"
+                            );
+
+                            return;
+
+                        }
+
+
+                        if (resetButton) {
+
+                            resetButton.disabled =
+                                true;
+
+                        }
+
+
+                        if (resetButtonText) {
+
+                            resetButtonText.textContent =
+                                "MENGIRIM...";
+
+                        }
+
+
+                        if (resetSpinner) {
+
+                            resetSpinner.classList.add(
+                                "active"
+                            );
+
+                        }
+
+
+                        try {
+
+                            /*
+                             * Supabase akan mengirim email
+                             * reset password.
+                             *
+                             * Halaman tujuan dibuat eksplisit.
+                             */
+
+                            const redirectUrl =
+                                new URL(
+                                    "reset-password.html",
+                                    window.location.href
+                                ).href;
+
+
+                            const {
+                                error
+                            } =
+                                await resetClient.auth
+                                    .resetPasswordForEmail(
+                                        email,
+                                        {
+                                            redirectTo:
+                                                redirectUrl
+                                        }
+                                    );
+
+
+                            if (error) {
+
+                                throw error;
+
+                            }
+
+
+                            setResetMessage(
+                                "Link reset password telah dikirim. Periksa inbox atau folder spam email Anda.",
+                                "success"
+                            );
+
+
+                            if (resetButtonText) {
+
+                                resetButtonText.textContent =
+                                    "LINK TERKIRIM";
+
+                            }
+
+
+                        } catch (error) {
+
+                            console.error(
+                                "GEN-Z.AI PASSWORD RESET ERROR:",
+                                error
+                            );
+
+
+                            let message =
+                                "Gagal mengirim link reset password.";
+
+
+                            if (
+                                error &&
+                                error.message
+                            ) {
+
+                                message =
+                                    error.message;
+
+                            }
+
+
+                            setResetMessage(
+                                message,
+                                "error"
+                            );
+
+
+                            if (resetButton) {
+
+                                resetButton.disabled =
+                                    false;
+
+                            }
+
+
+                            if (resetButtonText) {
+
+                                resetButtonText.textContent =
+                                    "KIRIM LINK RESET";
+
+                            }
+
+                        } finally {
+
+                            if (resetSpinner) {
+
+                                resetSpinner.classList.remove(
+                                    "active"
+                                );
+
+                            }
+
+                        }
+
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               INPUT FOCUS CLEANUP
+               ================================================= */
+
+            [
+                emailInput,
+                passwordInput,
+                resetEmail
+            ].forEach(
+                function (input) {
+
+                    if (!input) {
+                        return;
+                    }
+
+
+                    input.addEventListener(
+                        "input",
+                        function () {
+
+                            if (
+                                input === emailInput ||
+                                input === passwordInput
+                            ) {
+
+                                if (
+                                    loginMessage &&
+                                    loginMessage.textContent
+                                ) {
+
+                                    setLoginMessage(
+                                        "",
+                                        ""
+                                    );
+
+                                }
+
+                            }
+
+
+                            if (
+                                input === resetEmail
+                            ) {
+
+                                clearResetMessage();
+
+                            }
+
+                        }
+                    );
+
+                }
+            );
+
+
+            /* =================================================
+               ENTER BEHAVIOR
+               ================================================= */
+
+            if (emailInput) {
+
+                emailInput.addEventListener(
+                    "keydown",
+                    function (event) {
+
+                        if (
+                            event.key === "Enter"
+                        ) {
+
+                            event.preventDefault();
+
+
+                            if (passwordInput) {
+
+                                passwordInput.focus();
+
+                            }
+
+                        }
+
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               AUTH ERROR NORMALIZATION
+               =================================================
+               
+               auth.js tetap menjadi pemilik proses login.
+               Bagian ini hanya memperbaiki tampilan beberapa
+               error Supabase yang terlalu teknis.
+               ================================================= */
+
+            function normalizeAuthMessage(
+                message
+            ) {
+
+                if (!message) {
+                    return "";
+                }
+
+
+                const lower =
+                    String(message).toLowerCase();
+
+
+                if (
+                    lower.includes(
+                        "invalid login credentials"
+                    )
+                ) {
+
+                    return "Email atau password salah.";
+
+                }
+
+
+                if (
+                    lower.includes(
+                        "email not confirmed"
+                    )
+                ) {
+
+                    return "Email akun belum dikonfirmasi.";
+
+                }
+
+
+                if (
+                    lower.includes(
+                        "too many requests"
+                    )
+                ) {
+
+                    return "Terlalu banyak percobaan. Silakan tunggu beberapa saat.";
+
+                }
+
+
+                return message;
+
+            }
+
+
+            /*
+             * Pantau perubahan text pada loginMessage agar
+             * pesan dari auth.js tetap digunakan tetapi
+             * tampil lebih manusiawi.
+             */
+
+            if (loginMessage) {
+
+                const observer =
+                    new MutationObserver(
+                        function () {
+
+                            const current =
+                                loginMessage.textContent
+                                    .trim();
+
+
+                            if (!current) {
+
+                                loginMessage.className =
+                                    "login-message";
+
+                                return;
+
+                            }
+
+
+                            const normalized =
+                                normalizeAuthMessage(
+                                    current
+                                );
+
+
+                            if (
+                                normalized !==
+                                current
+                            ) {
+
+                                loginMessage.textContent =
+                                    normalized;
+
+                            }
+
+
+                            if (
+                                normalized
+                                    .toLowerCase()
+                                    .includes(
+                                        "berhasil"
+                                    )
+                            ) {
+
+                                loginMessage.className =
+                                    "login-message success";
+
+                            } else {
+
+                                loginMessage.className =
+                                    "login-message error";
+
+                            }
+
+                        }
+                    );
+
+
+                observer.observe(
+                    loginMessage,
+                    {
+                        childList: true,
+                        characterData: true,
+                        subtree: true
+                    }
+                );
+
+            }
+
+
+            /* =================================================
+               INITIAL STATE
+               ================================================= */
+
+            if (forgotModal) {
+
+                forgotModal.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+
+            }
+
+
+            if (loginButton) {
+
+                loginButton.addEventListener(
+                    "click",
+                    function () {
+
+                        /*
+                         * auth.js juga mengatur disabled state.
+                         * UI spinner hanya mengikuti proses visual.
+                         */
+
+                        setTimeout(
+                            function () {
+
+                                if (
+                                    loginButton.disabled
+                                ) {
+
+                                    loginButton.classList.add(
+                                        "loading"
+                                    );
+
+
+                                    if (loginButtonText) {
+
+                                        loginButtonText.textContent =
+                                            "MEMPROSES...";
+
+                                    }
+
+
+                                    if (loginSpinner) {
+
+                                        loginSpinner.classList.add(
+                                            "active"
+                                        );
+
+                                    }
+
+                                }
+
+                            },
+                            20
+                        );
+
+                    }
+                );
+
+            }
+
+        })();
+
+    </script>
+
+
+
+    <!-- Style premium login sudah dipindah ke <head> supaya tampilan
+         pertama langsung final (tidak ada kedipan desain lama). -->
 </body>
 </html>
