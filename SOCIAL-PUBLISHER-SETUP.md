@@ -310,9 +310,11 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
      normal speed, no jump cuts, under ~100 MB. The same recording may be reused for
      `pages_show_list`, `pages_read_engagement` and `pages_manage_posts`, but each
      permission must be visibly exercised inside it.
-   - **API test calls row** — must read **Selesai** (`Complete`). It turns green only
-     after at least one successful call in the last 30 days and can take up to 24 hours
-     to register. A spinner or *Belum* here blocks submission.
+   - **API test calls row** — appears only for some permissions (`pages_manage_posts`
+     shows it, `pages_show_list` does not). When present it must read **Selesai**
+     (`Complete`); it turns green only after at least one successful call in the last
+     30 days and can take up to 24 hours to register. A spinner or *Belum* here blocks
+     submission.
    - **Allowed-usage checkbox** — tick *"Jika disetujui, saya setuju bahwa data …
      akan digunakan sesuai dengan penggunaan diizinkan"*.
 
