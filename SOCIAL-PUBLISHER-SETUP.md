@@ -258,31 +258,46 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
    then reads **Tidak dikirim / Permintaan baru** with one row per queued permission
    and a **Berikutnya** button. That wizard is where the actual submission happens:
 
-   1. **Berikutnya** → *Lengkapi pengaturan aplikasi* (`Complete App Settings`). This
-      is a gate, not a form: it only lists what **Pengaturan → Dasar** is still
-      missing. The icon must be 1024×1024, category filled, and both policy URLs
-      present — for this project `https://genzai.genzai-f37.workers.dev/privacy/` and
-      `https://genzai.genzai-f37.workers.dev/terms/`. Fix anything red, reopen the
-      wizard, and it turns green.
-   2. *Jawab pertanyaan penanganan data* (`Answer data handling questions`) when it is
-      shown: the app stores Page access tokens and generated images in Supabase, does
-      not sell data, and deletes Facebook-derived data through
-      `/api/facebook-data-deletion`.
-   3. *Lengkapi verifikasi aplikasi* (`Complete App Verification`): answer **Ya** to
-      "can users sign in with a Meta authentication solution?" (Facebook Login for
-      Business is in use), confirm the platform row (Website →
-      `https://genzai.genzai-f37.workers.dev/`), and describe access in the free-text
-      box: log in at the site, open **Studio Medsos** in the sidebar, then follow the
-      buttons listed below. Meta states it tests with **its own accounts**, so do not
-      paste personal credentials — keep the description as a click path instead.
-   4. *Deskripsi penggunaan* (`Complete Usage Descriptions`) — one block per
-      permission: what the feature is, why the permission is the minimum necessary,
-      and how the data is used. Attach the screencast to each permission (see below).
-   5. Tick the *allowed usage* checkbox for every permission.
-   6. **Kirim untuk ditinjau** (`Submit for Review`) → accept the Platform Onboarding
-      Terms. Status moves from *Tidak dikirim* to *Dalam peninjauan*; Meta's banner
-      currently quotes **20 days** for most submissions, and resubmitting restarts the
-      clock.
+   **Berikutnya** opens **Kirim untuk Tinjauan Aplikasi** (`Submit for App Review`), a
+   five-section checklist. Each section folds open; the footer shows
+   *"Anda harus menyelesaikan semua langkah-langkah sebelum dapat mengajukan untuk
+   ditinjau"* and the **Kirim untuk ditinjau** button stays disabled until every circle
+   turns into a green check.
+
+   1. **Verifikasi** (`Verification`) — the only section with a single **Buka
+      verifikasi** button. It is Meta's business/access verification gate, not a form:
+      it opens the same request that Meta Business Suite's Security Center holds. If
+      the portfolio submission is still *Menunggu persetujuan*, this circle cannot turn
+      green yet and the whole submission is held — check the status in
+      `business.facebook.com/settings/security_center` before retrying.
+   2. **Pengaturan aplikasi** (`App settings`) — usually already green. If it is not,
+      the missing fields are in **Pengaturan → Dasar**: 1024×1024 icon, category,
+      `https://genzai.genzai-f37.workers.dev/privacy/`, and
+      `https://genzai.genzai-f37.workers.dev/terms/`.
+   3. **Penggunaan diizinkan** (`Allowed usage`) — one row per queued permission
+      (`public_profile`, `pages_show_list`, `pages_read_engagement`,
+      `pages_manage_posts`, `business_management`). For each: paste the use-case
+      description, attach the screencast where the permission needs one, and tick the
+      allowed-usage checkbox. This is also where the *Deskripsi penggunaan* text lives,
+      so there is no separate "usage descriptions" step any more.
+   4. **Penanganan data** (`Data handling`) — answer with: Page access tokens are stored
+      encrypted in Supabase; generated images and captions stay in the user's own rows;
+      nothing is sold or shared with third parties; Facebook-derived data is deleted
+      through `https://genzai.genzai-f37.workers.dev/api/facebook-data-deletion`;
+      retention is until the user disconnects the Page or deletes the account.
+   5. **Petunjuk peninjau** (`Reviewer instructions`) — carries a **Perlu tinjauan Anda**
+      badge until it is opened once. One block per platform; fill **Website** with the
+      click path: log in at `https://genzai.genzai-f37.workers.dev/`, open **Studio
+      Medsos** in the sidebar, click **Hubungkan Facebook**, approve the consent dialog,
+      pick the Page, then **Buat posting manual → Buat & bersihkan pratinjau →
+      Terbitkan ke Facebook Page**. Mention that Studio Medsos needs an active
+      `studio_medsos_access` row, and note the demo account that already has it. Meta
+      states it tests with **its own accounts**, so do not paste a personal password.
+
+   When all five show a green check, **Kirim untuk ditinjau** becomes clickable →
+   accept the Platform Onboarding Terms. Status moves from *Tidak dikirim* to *Dalam
+   peninjauan*; Meta's banner currently quotes **20 days** for most submissions, and
+   resubmitting restarts the clock.
 
    A screencast that satisfies all three Page permissions in one recording is enough
    when they are submitted together: open Studio Medsos → **Hubungkan Facebook** →
