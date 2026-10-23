@@ -21,6 +21,7 @@ import crypto from "node:crypto";
 
 import {
     UPLOAD_BUCKET,
+    resolveUploadedUpscalePhotoSource,
     resolveUploadedUpscaleVideoSource
 } from "../lib/generate/upscale-source.js";
 
@@ -3968,6 +3969,21 @@ async function handleUpscalePhotoAction(req, res, body, user) {
 
     if (!sourceUrl) {
         return failure(res, 400, "source_url is required");
+    }
+
+    /*
+     * Sumber harus signed URL bucket privat milik user sendiri
+     * (atau path publik lama yang belum termigrasi). Tanpa ini
+     * user bisa menyuruh server mengunduh file akun lain.
+     */
+    try {
+        resolveUploadedUpscalePhotoSource({
+            sourceUrl,
+            userId: user.id,
+            supabaseUrl: SUPABASE_URL
+        });
+    } catch (err) {
+        return failure(res, err?.status || 400, err?.message || "source_url tidak diizinkan");
     }
 
     if (!UPSCALE_PHOTO_TARGETS.includes(targetResolution)) {
