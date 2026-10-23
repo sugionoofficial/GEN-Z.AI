@@ -253,6 +253,37 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
    — the publisher does not use them, and requesting unused permissions is a common
    rejection trigger (Meta rejects the whole submission, it does not silently grant
    fewer permissions).
+   Clicking **Minta akses lanjutan** does not submit anything yet: it queues the
+   permission in **Tinjauan → Tinjauan Aplikasi** (`App Review → App Review`), which
+   then reads **Tidak dikirim / Permintaan baru** with one row per queued permission
+   and a **Berikutnya** button. That wizard is where the actual submission happens:
+
+   1. **Berikutnya** → app settings gate. The app icon (1024×1024), category, privacy
+      policy URL and terms URL must all be present, otherwise the wizard blocks: for
+      this project use `https://genzai.genzai-f37.workers.dev/privacy/` and
+      `https://genzai.genzai-f37.workers.dev/terms/`.
+   2. **Reviewer instructions** — one block per platform. Tell the reviewer the app is
+      at `https://genzai.genzai-f37.workers.dev/`, that Studio Medsos is reachable from
+      the dashboard, that a test account is provided, and name the exact buttons
+      (**Hubungkan Facebook** → **Terbitkan ke Facebook Page**). Reviewers cannot get
+      past a 2FA prompt or a role-gated app, so give an account that already has a
+      role and no 2FA challenge.
+   3. **Deskripsi per izin** + **screencast** per permission (see below).
+   4. Tick the *allowed usage* checkbox for each permission, then **Kirim** /
+      **Submit for Review**. Meta's own banner currently quotes **20 days** for most
+      submissions.
+
+   A screencast that satisfies all three Page permissions in one recording is enough
+   when they are submitted together: open Studio Medsos → **Hubungkan Facebook** →
+   approve the consent dialog listing the permissions → pick Page **BELA** →
+   **Periksa izin** → fill character/outfit/caption → **Buat & bersihkan pratinjau**
+   → **Terbitkan ke Facebook Page** → show the post on Facebook. Do not cut the
+   consent dialog out of the video.
+
+   Permissions queued as **Permintaan baru** stay unsubmitted until the wizard is
+   finished; the trash icon removes one from the *submission* only, not from the app
+   (that needs **Kasus penggunaan**).
+
 2. **Tindakan yang Diperlukan**: clear a pending **Data Use Checkup** (it recurs
    annually) and any red banner on the app tile. A pending checkup alone produces
    exactly this screen. *Empty page = this is not the cause.*
