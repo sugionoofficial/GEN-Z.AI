@@ -280,11 +280,20 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
       description, attach the screencast where the permission needs one, and tick the
       allowed-usage checkbox. This is also where the *Deskripsi penggunaan* text lives,
       so there is no separate "usage descriptions" step any more.
-   4. **Penanganan data** (`Data handling`) — answer with: Page access tokens are stored
-      encrypted in Supabase; generated images and captions stay in the user's own rows;
-      nothing is sold or shared with third parties; Facebook-derived data is deleted
-      through `https://genzai.genzai-f37.workers.dev/api/facebook-data-deletion`;
-      retention is until the user disconnects the Page or deletes the account.
+   4. **Penanganan data** (`Data handling`) — a questionnaire, not a form. Answers used
+      for this project:
+
+      | Question (`processor-0`, `responsible-1/-2`, `requests-3/-4`) | Answer |
+      | --- | --- |
+      | Do you have data processors / service providers with access to Meta Data Platform data? | **Ya**, and name them: **Supabase Inc.** (Postgres + private storage holding the encrypted Page tokens, characters and outfits) and **Cloudflare, Inc.** (Worker runtime and asset hosting). AI providers only receive generated images/prompts, never the Meta token. |
+      | Who is responsible for all Data Platform data Meta shares with you? | The legal entity behind the **Genzai Dev** business portfolio — written exactly as it appears in Business Info (or the owner's legal name while the entity is unregistered) |
+      | Country of that person/entity | **Indonesia** |
+      | Disclosed personal data to public authorities for national-security requests in the last 12 months? | **Tidak** |
+      | Which policies/processes exist for such requests? | Tick only what is real: **Kebijakan minimalisasi data** is defensible (only Page id/name/token are kept). Without written review and challenge procedures, also tick **Bukan semuanya** rather than over-claiming. |
+
+      Scope answers to the data Meta actually hands over (Page tokens, Page ids/names,
+      connected account name) — generated images and captions are the user's own
+      content and do not change the answers.
    5. **Petunjuk peninjau** (`Reviewer instructions`) — carries a **Perlu tinjauan Anda**
       badge until it is opened once. One block per platform; fill **Website** with the
       click path: log in at `https://genzai.genzai-f37.workers.dev/`, open **Studio
