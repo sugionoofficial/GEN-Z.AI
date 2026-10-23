@@ -224,7 +224,7 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
 | Alerts / Required actions | **Tindakan yang Diperlukan** (`Required actions`) in the left menu, plus red banners on the app tile in `/apps` |
 | App Review → Permissions and Features | **Tinjauan** (`Review`) → **Izin dan fitur** (`Permissions and features`); on use-case apps the same list is reachable from **Kasus penggunaan** → the use case → *Sesuaikan* (`Customize`) |
 | App Review submission | **Tinjauan** → **App Review** → *Edit* / *Buat pengajuan* |
-| Business Verification | Meta Business Suite → **Security Center**, or **Tinjauan** → **Verifikasi bisnis** |
+| Business Verification | Meta Business Suite → **Keamanan dan kesesuaian** (`Security and compliance`) → **Pusat keamanan** (`Security Center`) → card *Verifikasi bisnis* → **Mulai verifikasi**; direct link `business.facebook.com/settings/security_center` |
 | App Mode / publish | **Terbitkan** (`Publish`) → status *Diterbitkan* |
 | App roles | **Peran aplikasi** (`App roles`) → **Roles** |
 | Login configuration | Product **Facebook Login for Business** → **Konfigurasi** (`Configurations`) |
@@ -238,10 +238,19 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
 2. **Tindakan yang Diperlukan**: clear a pending **Data Use Checkup** (it recurs
    annually) and any red banner on the app tile. A pending checkup alone produces
    exactly this screen. *Empty page = this is not the cause.*
-3. **Business Verification** in Meta Business Suite → *Security Center*. Since May
-   2023 every new request for Advanced Access needs a verified business, so step 1
-   cannot be granted without it. The `facebook-domain-verification` meta tag in
-   `index.html` belongs to this flow.
+3. **Business Verification** lives in Meta Business Suite, **not** in the developer
+   dashboard. Open `business.facebook.com/settings/security_center` (or left menu →
+   **Keamanan dan kesesuaian** → **Pusat keamanan**) and click **Mulai verifikasi** on
+   the *Verifikasi bisnis* card. Since May 2023 every new request for Advanced Access
+   needs a verified business, so step 1 cannot be granted without it. The
+   `facebook-domain-verification` meta tag in `index.html` belongs to this flow.
+   If the button is missing, greyed out, or says **Tidak memenuhi syarat**
+   (`Ineligible for verification`): fill every field in **Info bisnis** (legal name,
+   registered address, business phone, website that loads over HTTPS), enable 2FA,
+   and make sure the portfolio owns at least one asset. The app is only attached to
+   the portfolio when it was created *for* that business — otherwise attach it via
+   **Akun → Aplikasi** before retrying. Never verify an empty portfolio: Meta hides
+   the button, which is why it looks like a bug.
 4. **App settings → Basic**: Category, App Domains (`genzai.genzai-f37.workers.dev`),
    Privacy Policy URL, and Data Deletion Instructions URL must be filled in. Meta
    hides login while app details are considered incomplete.
