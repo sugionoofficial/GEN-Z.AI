@@ -437,6 +437,17 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
      full-control user locks the portfolio (and the app attached to it) out of
      management. If the goal is to clear the warning, add a second admin first — ideally
      one on the business domain — and enable 2FA / a passkey for the existing account.
+
+   Every other control on the Security Center page, and what to answer for this project:
+
+   | Control | Answer |
+   | --- | --- |
+   | *Autentikasi Dua Faktor → Siapa yang diharuskan…?* | Keep **Hanya admin**; switch to **Semua orang** once a second member exists. Turn 2FA on for the owner via **Kelola Pengaturan Pribadi Saya**. |
+   | *Passkey Management → Who's required to turn on Passkeys?* | **Admin**, but only after the owner has actually registered a passkey — the requirement blocks sign-in for whoever has none. Optional; skip until 2FA is on. |
+   | *Tambah admin lainnya* | Optional. Add a corporate-domain admin so a lockout is recoverable. |
+   | *Peer Approval → Keamanan domain / Keamanan akun iklan* | Leave unmanaged. Both govern ad delivery; this app runs no ads. |
+   | *Label kampanye (tanda)* | Leave **Default**. Ad-campaign label only. |
+   | *Verifikasi Bisnis → Pilih kasus penggunaan verifikasi Anda* | Already correct: **Aplikasi memerlukan akses ke izin di Meta untuk Developer**. Do not change it, and do not press **Lanjutkan** while the card reads *Pengajuan menunggu persetujuan*. |
 4. **App settings → Basic**: Category, App Domains (`genzai.genzai-f37.workers.dev`),
    Privacy Policy URL, and Data Deletion Instructions URL must be filled in. Meta
    hides login while app details are considered incomplete.
