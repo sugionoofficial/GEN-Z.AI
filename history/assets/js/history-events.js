@@ -1090,6 +1090,24 @@ function handleHistoryBodyClick(
         );
 
 
+    /*
+     * Thumbnail video dimuat lazy (frame pertama baru diambil
+     * saat masuk viewport). Pastikan src sudah terpasang
+     * sebelum play() dipanggil.
+     */
+
+    if (
+        video &&
+        typeof App.hydrateThumbnailVideo ===
+            "function"
+    ) {
+
+        App.hydrateThumbnailVideo(
+            video
+        );
+    }
+
+
     if (
         video
     ) {
@@ -1114,12 +1132,21 @@ function handleHistoryBodyClick(
                         function () {
 
                             /*
-                             * Autoplay/browser
-                             * restriction.
-                             * Fallback di bawah
-                             * tetap tersedia.
+                             * Autoplay diblokir browser atau
+                             * frame belum siap: buka modal video
+                             * sebagai fallback.
                              */
 
+                            const fallbackUrl =
+                                thumbnail.dataset
+                                    .videoUrl;
+
+                            if (fallbackUrl) {
+
+                                openVideo(
+                                    fallbackUrl
+                                );
+                            }
                         }
                     );
 

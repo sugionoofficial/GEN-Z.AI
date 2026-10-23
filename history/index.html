@@ -2135,6 +2135,125 @@ tbody tr {
         href="/assets/css/genz-compact-desktop.css?v=compact-20261022"
     >
 
+    <!-- =====================================================
+         MOBILE ROW — THUMBNAIL SEJAJAR DI KIRI
+         -----------------------------------------------------
+         Sebelumnya di HP thumbnail tampil sendirian di tengah
+         baris sehingga detail (provider/model/tanggal) turun
+         ke bawah. Sekarang thumbnail menempel di kolom kiri
+         dan detail sejajar di kanannya.
+    ====================================================== -->
+
+    <style id="history-mobile-thumbnail-row">
+
+        @media (max-width: 560px) {
+
+            /* Satu kartu per baris di HP supaya thumbnail + detail
+               tidak berdesakan dalam dua kolom sempit. */
+            .table-wrap tbody {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 8px;
+            }
+
+            .table-wrap tbody tr {
+                grid-template-columns: 64px minmax(0, 1fr);
+                grid-template-rows: none;
+                grid-auto-rows: auto;
+                align-items: start;
+                align-content: start;
+                column-gap: 10px;
+                row-gap: 6px;
+                padding: 10px;
+            }
+
+            .table-wrap tbody td {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .table-wrap tbody td.history-thumbnail-cell {
+                grid-column: 1;
+                grid-row: 1 / span 3;
+                align-self: start;
+                justify-self: start;
+                width: auto;
+                order: 1;
+            }
+
+            .table-wrap tbody td.history-provider-cell {
+                display: block;
+                grid-column: 2;
+                grid-row: auto;
+                order: 2;
+            }
+
+            .table-wrap tbody td.history-model-cell {
+                grid-column: 2;
+                grid-row: auto;
+                order: 3;
+            }
+
+            .table-wrap tbody td.history-date-cell {
+                grid-column: 2;
+                grid-row: auto;
+                order: 4;
+            }
+
+            .table-wrap tbody td.history-user-cell {
+                grid-column: 1 / -1;
+                grid-row: auto;
+                order: 5;
+            }
+
+            .table-wrap tbody td.history-prompt-cell {
+                grid-column: 1 / -1;
+                grid-row: auto;
+                order: 6;
+            }
+
+            .table-wrap tbody td.history-credit-cell {
+                grid-column: 1;
+                grid-row: auto;
+                align-self: center;
+                order: 7;
+            }
+
+            .table-wrap tbody td.history-status-cell {
+                grid-column: 2;
+                grid-row: auto;
+                align-self: center;
+                justify-self: end;
+                order: 8;
+            }
+
+            .table-wrap tbody td.history-action-cell {
+                grid-column: 1 / -1;
+                grid-row: auto;
+                flex-wrap: wrap;
+                order: 9;
+            }
+
+            .table-wrap .history-thumbnail {
+                width: 64px;
+                height: 64px;
+                border-radius: 10px;
+            }
+        }
+
+        @media (max-width: 380px) {
+
+            .table-wrap tbody tr {
+                grid-template-columns: 56px minmax(0, 1fr);
+            }
+
+            .table-wrap .history-thumbnail {
+                width: 56px;
+                height: 56px;
+            }
+        }
+
+    </style>
+
 </head>
 
 <body>
@@ -2317,10 +2436,10 @@ tbody tr {
 <script src="./assets/js/history-auth.js?v=persistent-auth-20261022"></script>
 <script src="./assets/js/history-data.js"></script>
 <script src="./assets/js/history-status-sync.js"></script>
-<script src="./assets/js/history-render.js?v=20261022-processing-ref"></script>
+<script src="./assets/js/history-render.js?v=20261023-video-poster"></script>
 <script src="./assets/js/history-runtime.js"></script>
 <script src="./assets/js/history-modal.js?v=generated-download-name-20261017"></script>
-<script src="./assets/js/history-events.js?v=persistent-auth-20261022"></script>
+<script src="./assets/js/history-events.js?v=20261023-video-poster"></script>
 <script src="./assets/js/history-app.js"></script>
 
 <script>
