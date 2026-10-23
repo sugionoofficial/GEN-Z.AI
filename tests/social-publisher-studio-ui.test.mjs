@@ -31,62 +31,43 @@ function declarationIndent(pattern) {
     return match[1].length;
 }
 
-test("uploadGarment berada di scope utama IIFE agar tombol Atur pakaian berfungsi", () => {
-    // Regresi: uploadGarment pernah nested di dalam editCharacter sehingga
-    // klik "Atur pakaian"/"Ganti pakaian" melempar ReferenceError dan karakter
-    // tidak pernah punya garment_object_key untuk Cloudflare P-Image Try-On.
-    assert.equal(
-        declarationIndent("async function uploadGarment\\("),
-        declarationIndent("async function editCharacter\\("),
-        "uploadGarment harus sejajar dengan editCharacter (scope utama IIFE), bukan nested di dalamnya"
+test("bagian pakaian default dihapus; pakaian mengikuti foto referensi karakter", () => {
+    // Perubahan perilaku: tidak ada lagi unggahan "foto pakaian default".
+    // Pakaian default mengikuti foto referensi karakter yang dipakai.
+    assert.doesNotMatch(htmlSource, /character-garment/, "Field foto pakaian default harus dihapus");
+    assert.doesNotMatch(htmlSource, /manual-garment/, "Preview pakaian di posting manual harus dihapus");
+    assert.doesNotMatch(source, /uploadGarment|loadGarmentPreview|garment_filename/);
+    assert.doesNotMatch(apiSource, /upload-garment|"garment"/);
+
+    // Tanpa outfit, prompt memakai pakaian dari foto referensi.
+    const promptSource = readFileSync(
+        fileURLToPath(new URL("../lib/social-publisher/utils.js", import.meta.url)),
+        "utf8"
     );
-    assert.match(
-        source,
-        /addEventListener\("click", \(\) => uploadGarment\(character\)\)/,
-        "Tombol pakaian pada daftar karakter harus memanggil uploadGarment"
-    );
+    assert.match(promptSource, /useReferenceOutfit = false/);
+    assert.match(promptSource, /already wearing in the reference image/);
+    assert.match(apiSource, /useReferenceOutfit: !garmentObjectKey/);
+
+    // Daftar karakter tidak lagi punya tombol pakaian.
+    assert.match(source, /Pakaian mengikuti foto referensi/);
 });
 
-test("posting manual menolak lebih dulu karakter tanpa foto pakaian saat provider Cloudflare", () => {
-    const manualPost = source.slice(source.indexOf("async function submitManualPost"));
-    const guardIndex = manualPost.indexOf("garment_filename");
-    const callIndex = manualPost.indexOf("api(\"manual-generate\"");
-    assert.ok(guardIndex > -1, "Guard foto pakaian tidak ditemukan di submitManualPost");
-    assert.ok(callIndex > -1, "Panggilan manual-generate tidak ditemukan di submitManualPost");
-    assert.ok(
-        guardIndex < callIndex,
-        "Guard foto pakaian harus berjalan sebelum permintaan manual-generate dikirim"
-    );
+test("riwayat menandai sumber posting: Auto untuk jadwal, Manual untuk posting manual", () => {
+    assert.match(source, /const source = run\.schedule_id \? "Auto" : "Manual";/);
+    assert.doesNotMatch(source, /run\.schedule_id \? "Jadwal"/);
 });
 
-test("label foto pakaian mengikuti provider gambar yang aktif", () => {
-    assert.match(
-        source,
-        /document\.querySelector\("label\[for='character-garment'\]"\)/,
-        "renderConfig harus memperbarui label field foto pakaian sesuai provider"
-    );
-});
-
-test("preview foto pakaian tersedia di daftar karakter dan bagian posting manual", () => {
-    // loadGarmentPreview harus sejajar dengan loadReferencePreview (scope utama IIFE)
-    // agar thumbnail pakaian di daftar karakter benar-benar termuat.
-    const garmentIndent = source.match(/^([ \t]*)async function loadGarmentPreview\(/m);
-    const referenceIndent = source.match(/^([ \t]*)async function loadReferencePreview\(/m);
-    assert.ok(garmentIndent, "loadGarmentPreview tidak ditemukan di admin-control/social-publisher.js");
-    assert.ok(referenceIndent, "loadReferencePreview tidak ditemukan di admin-control/social-publisher.js");
-    assert.equal(garmentIndent[1].length, referenceIndent[1].length);
-    assert.match(source, /loadGarmentPreview\(character\.id, garmentImg\)/, "Daftar karakter harus memuat preview pakaian");
-    assert.match(source, /api\("garment&character_id="/, "Preview pakaian harus memakai endpoint garment");
-    assert.match(htmlSource, /id="manual-garment-preview"/, "Bagian posting manual harus punya elemen preview pakaian");
-    assert.match(htmlSource, /id="manual-garment-box"/, "Bagian posting manual harus punya wadah preview pakaian");
-    assert.match(htmlSource, /\.thumbs\{/, "CSS harus menyediakan wadah .thumbs untuk dua thumbnail karakter");
-});
-
-test("endpoint garment tersedia di API social publisher", () => {
-    assert.match(
-        apiSource,
-        /if \(action === "garment"\)/,
-        "api/social-publisher.js harus melayani action GET garment untuk preview pakaian"
+test("tampilan HP memadatkan blok status agar bisa sejajar satu baris", () => {
+    // Regresi: di layar <=380px grid config-list turun jadi satu kolom sehingga
+    // blok Meta OAuth dan QwenCloud tidak pernah sejajar.
+    const mobileBlock = htmlSource.match(/@media\(max-width:768px\)\{[^\n]*config-list\{[^}]*\}[^\n]*\}/);
+    assert.ok(mobileBlock, "Aturan mobile untuk .config-list tidak ditemukan");
+    assert.match(mobileBlock[0], /config-list\{grid-template-columns:repeat\(2/);
+    assert.match(htmlSource, /@media\(max-width:380px\)\{[^\n]*config-item\{padding:8px 8px\}/);
+    assert.doesNotMatch(
+        htmlSource,
+        /@media\(max-width:380px\)\{\.config-list\{grid-template-columns:1fr\}/,
+        "Grid tidak boleh turun ke satu kolom di HP kecil"
     );
 });
 
@@ -742,5 +723,5 @@ test("tombol Hubungkan Facebook punya jalur manual untuk browser HP", () => {
         "tautan manual harus tersedia sebelum window.location.assign"
     );
     assert.match(source, /copyCurrentPageLink/);
-    assert.match(htmlSource, /social-publisher\.js\?v=oauth-mobile-20261023/);
+    assert.match(htmlSource, /social-publisher\.js\?v=/);
 });

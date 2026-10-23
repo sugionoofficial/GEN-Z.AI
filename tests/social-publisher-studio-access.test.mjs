@@ -540,7 +540,6 @@ test("Legacy manual immediate-publish action is not exposed", async () => {
                 display_name: "Alya",
                 reference_object_key: "social-reference/admin-user/reference.jpg",
                 reference_mime_type: "image/jpeg",
-                garment_object_key: "social-garment/admin-user/garment.png",
                 prompt_notes: "Rambut bob"
             }]);
         }
@@ -565,10 +564,7 @@ test("Legacy manual immediate-publish action is not exposed", async () => {
             return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
         }
         if (url.includes("/storage/v1/object/sign/social-character-references/")) {
-            const objectKey = url.includes("social-garment")
-                ? "social-garment/admin-user/garment.png"
-                : "social-reference/admin-user/reference.jpg";
-            return Response.json({ signedURL: `/object/sign/social-character-references/${objectKey}?token=short-lived` });
+            return Response.json({ signedURL: "/object/sign/social-character-references/social-reference/admin-user/reference.jpg?token=short-lived" });
         }
         if (url.includes("generativelanguage.googleapis.com/v1beta/interactions")) {
             assert.equal(options.method, "POST");
@@ -658,7 +654,6 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
                 display_name: "Alya",
                 reference_object_key: "social-reference/admin-user/reference.jpg",
                 reference_mime_type: "image/jpeg",
-                garment_object_key: "social-garment/admin-user/garment.png",
                 prompt_notes: "Rambut bob"
             }]);
         }
@@ -680,10 +675,7 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
             return new Response(new Uint8Array([255, 216, 255, 0]), { status: 200 });
         }
         if (url.includes("/storage/v1/object/sign/social-character-references/")) {
-            const objectKey = url.includes("social-garment")
-                ? "social-garment/admin-user/garment.png"
-                : "social-reference/admin-user/reference.jpg";
-            return Response.json({ signedURL: `/object/sign/social-character-references/${objectKey}?token=short-lived` });
+            return Response.json({ signedURL: "/object/sign/social-character-references/social-reference/admin-user/reference.jpg?token=short-lived" });
         }
         if (url.includes("/rest/v1/social_post_runs?id=eq.manual-run-1")) {
             const update = JSON.parse(options.body);
@@ -717,8 +709,9 @@ test("Manual Social Publisher uses the selected Cloudflare provider and returns 
                         if (model === "pruna/p-image-try-on") {
                             imageRequests += 1;
                             assert.match(input.person_image, /\/social-reference\/admin-user\/reference\.jpg\?token=short-lived$/);
+                            /* Tanpa outfit, pakaian default mengikuti foto referensi. */
                             assert.deepEqual(input.garment_images, [
-                                "https://project.example/storage/v1/object/sign/social-character-references/social-garment/admin-user/garment.png?token=short-lived"
+                                "https://project.example/storage/v1/object/sign/social-character-references/social-reference/admin-user/reference.jpg?token=short-lived"
                             ]);
                             return { image: pngBytes };
                         }
