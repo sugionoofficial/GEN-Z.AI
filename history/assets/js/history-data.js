@@ -117,6 +117,222 @@
     App.isActiveStatus = isActiveStatus;
 
     /* =====================================================
+       PRIVATE MEDIA (output upscale di bucket privat)
+       -----------------------------------------------------
+       Output upscale disimpan di bucket privat
+       `user-uploads` dan DB menyimpan referensi
+       `supabase-private://<bucket>/<object-path>`.
+
+       Halaman riwayat menukarnya menjadi signed URL lewat
+       Supabase client. RLS hanya mengizinkan folder milik
+       user sendiri (admin/owner boleh semua).
+    ===================================================== */
+
+    const PRIVATE_MEDIA_SCHEME =
+        "supabase-private";
+
+    const PRIVATE_MEDIA_TTL_SECONDS =
+        60 * 60;
+
+    const privateMediaCache =
+        new Map();
+
+
+    function parsePrivateMediaRef(value) {
+
+        const raw =
+            String(value || "")
+                .trim();
+
+        if (
+            !raw
+                .toLowerCase()
+                .startsWith(PRIVATE_MEDIA_SCHEME + "://")
+        ) {
+
+            return null;
+        }
+
+        const rest =
+            raw.slice(
+                PRIVATE_MEDIA_SCHEME.length + 3
+            );
+
+        const slash =
+            rest.indexOf("/");
+
+        if (slash <= 0) {
+            return null;
+        }
+
+        const bucket =
+            rest.slice(0, slash).trim();
+
+        const objectPath =
+            rest.slice(slash + 1).trim();
+
+        if (
+            !bucket ||
+            !objectPath ||
+            objectPath.includes("..")
+        ) {
+
+            return null;
+        }
+
+        return {
+            bucket,
+            objectPath
+        };
+    }
+
+
+    function isPrivateMediaRef(value) {
+
+        return Boolean(
+            parsePrivateMediaRef(value)
+        );
+    }
+
+
+    async function signPrivateMediaUrl(
+        client,
+        ref
+    ) {
+
+        const parsed =
+            parsePrivateMediaRef(ref);
+
+        if (!client || !parsed) {
+            return "";
+        }
+
+        const cached =
+            privateMediaCache.get(ref);
+
+        if (
+            cached &&
+            cached.expiresAt > Date.now()
+        ) {
+
+            return cached.url;
+        }
+
+        try {
+
+            const {
+                data,
+                error
+            } = await client
+                .storage
+                .from(parsed.bucket)
+                .createSignedUrl(
+                    parsed.objectPath,
+                    PRIVATE_MEDIA_TTL_SECONDS
+                );
+
+            if (error || !data?.signedUrl) {
+
+                console.warn(
+                    "Gagal membuat signed URL:",
+                    parsed.objectPath,
+                    error?.message || ""
+                );
+
+                return "";
+            }
+
+            privateMediaCache.set(
+                ref,
+                {
+                    url: data.signedUrl,
+                    expiresAt:
+                        Date.now() +
+                        (PRIVATE_MEDIA_TTL_SECONDS - 60) *
+                        1000
+                }
+            );
+
+            return data.signedUrl;
+
+        } catch (err) {
+
+            console.warn(
+                "Gagal membuat signed URL:",
+                parsed.objectPath,
+                err?.message || err
+            );
+
+            return "";
+        }
+    }
+
+
+    async function resolvePrivateMediaRefs(items) {
+
+        if (
+            !Array.isArray(items) ||
+            !items.length
+        ) {
+
+            return items;
+        }
+
+        const client =
+            getSupabaseClient();
+
+        if (!client) {
+            return items;
+        }
+
+        const pending =
+            items.filter(item => {
+
+                const ref =
+                    item?.result_url;
+
+                return (
+                    typeof ref === "string" &&
+                    isPrivateMediaRef(ref)
+                );
+            });
+
+        if (!pending.length) {
+            return items;
+        }
+
+        await Promise.all(
+            pending.map(async item => {
+
+                const ref =
+                    String(
+                        item.result_url || ""
+                    ).trim();
+
+                const url =
+                    await signPrivateMediaUrl(
+                        client,
+                        ref
+                    );
+
+                /*
+                 * Kosongkan kalau gagal: lebih baik UI
+                 * menampilkan placeholder daripada
+                 * "supabase-private://" mentah.
+                 */
+                item.result_url =
+                    url || "";
+            })
+        );
+
+        return items;
+    }
+
+    App.resolvePrivateMediaRefs =
+        resolvePrivateMediaRefs;
+
+
+    /* =====================================================
        LOAD HISTORY
     ===================================================== */
 
@@ -238,6 +454,14 @@
                 Array.isArray(data)
                     ? data
                     : [];
+
+            /*
+             * Tukar referensi media privat menjadi signed URL
+             * sebelum render supaya thumbnail langsung tampil.
+             */
+            await resolvePrivateMediaRefs(
+                state.historyData
+            );
 
             /*
              * Render dilakukan oleh history-render.js.

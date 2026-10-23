@@ -375,6 +375,13 @@ Mekanisme penyimpanan media dijelaskan lengkap di `STORAGE-RETENTION.md`. Ringka
   dihapus cron Worker.
 - Input dan hasil **Upscale** disimpan **24 jam**; setelah itu filenya dihapus
   dan baris History ditandai **KEDALUWARSA** (catatan tetap ada, file tidak).
+- Hasil upscale juga **privat**: workflow mengunggahnya ke
+  `user-uploads/upscale-photos/outputs/<user-id>/…` dan
+  `user-uploads/upscale-videos/outputs/<user-id>/…`. `generation_history`
+  menyimpan referensi `supabase-private://user-uploads/…`, lalu API dan
+  halaman riwayat menukarnya menjadi **signed URL 30 menit** saat dibaca
+  (`lib/generate/private-media.js`). Link hasil tidak bisa dibagikan ke akun
+  lain.
 - Konten situs di `dashboard-videos/videos/` dan `dashboard-videos/thumbnails/`
   tidak pernah disentuh cron.
 - Pembersihan berjalan otomatis tiap 5 menit lewat `scheduled()` Cloudflare
