@@ -732,6 +732,96 @@
     }
 
 
+    /* =====================================================
+       RETENSI MEDIA — 24 JAM
+       -----------------------------------------------------
+       Media hasil yang disimpan di Supabase Storage hanya
+       bertahan 24 jam (dihapus oleh cron retensi). Baris
+       riwayat tetap ada, tetapi thumbnail ditandai
+       KEDALUWARSA dan video tidak bisa diputar lagi.
+    ===================================================== */
+
+    const MEDIA_RETENTION_MS =
+        24 * 60 * 60 * 1000;
+
+    const MANAGED_MEDIA_PREFIXES = [
+        "/storage/v1/object/public/dashboard-videos/",
+        "/storage/v1/object/public/dashboard-upscales/",
+        "/storage/v1/object/sign/dashboard-videos/",
+        "/storage/v1/object/sign/dashboard-upscales/",
+        "/storage/v1/object/authenticated/dashboard-videos/",
+        "/storage/v1/object/authenticated/dashboard-upscales/"
+    ];
+
+    function isManagedMediaUrl(
+        url
+    ) {
+
+        const value =
+            String(
+                url ||
+                ""
+            );
+
+        if (!value) {
+            return false;
+        }
+
+        return MANAGED_MEDIA_PREFIXES.some(
+            function (prefix) {
+                return value.includes(
+                    prefix
+                );
+            }
+        );
+    }
+
+    function isExpiredMedia(
+        item
+    ) {
+
+        const url =
+            getResultUrl(
+                item
+            );
+
+        if (
+            !url ||
+            !isManagedMediaUrl(url)
+        ) {
+            return false;
+        }
+
+        const created =
+            new Date(
+                item?.created_at ||
+                item?.createdAt ||
+                ""
+            ).getTime();
+
+        if (
+            !Number.isFinite(created) ||
+            created <= 0
+        ) {
+            return false;
+        }
+
+        return (
+            Date.now() - created >=
+            MEDIA_RETENTION_MS
+        );
+    }
+
+    App.MEDIA_RETENTION_MS =
+        MEDIA_RETENTION_MS;
+
+    App.isManagedMediaUrl =
+        isManagedMediaUrl;
+
+    App.isExpiredMedia =
+        isExpiredMedia;
+
+
     function getSuccessThumbnailHtml(
         item
     ) {
@@ -751,6 +841,32 @@
                     <span class="thumbnail-empty-icon">
                         🎬
                     </span>
+                </div>
+            `;
+        }
+
+        /*
+         * File media sudah dihapus cron retensi (lebih dari 24 jam).
+         * Thumbnail tidak lagi memuat video supaya browser tidak
+         * menembak URL yang sudah tidak ada.
+         */
+
+        if (isExpiredMedia(item)) {
+
+            return `
+                <div
+                    class="history-thumbnail thumbnail-expired"
+                    aria-label="Media sudah kedaluwarsa"
+                >
+
+                    <span class="thumbnail-expired-icon">
+                        ⏳
+                    </span>
+
+                    <span class="thumbnail-expired-label">
+                        KEDALUWARSA
+                    </span>
+
                 </div>
             `;
         }

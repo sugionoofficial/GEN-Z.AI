@@ -199,6 +199,46 @@
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
     <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
     <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
+
+    <!-- =====================================================
+         INFORMASI RETENSI FILE UPLOAD (1 JAM)
+    ====================================================== -->
+
+    <style id="generate-storage-retention-style">
+
+        .storage-retention-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 14px 0 0;
+            padding: 10px 13px;
+            border: 1px solid rgba(255, 184, 77, .30);
+            border-radius: 11px;
+            background: rgba(255, 184, 77, .06);
+            color: var(--text-3, #9aa4b5);
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .storage-retention-note strong {
+            color: #ffb84d;
+            font-weight: 800;
+        }
+
+        .storage-retention-icon {
+            flex: 0 0 auto;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        @media (max-width: 560px) {
+            .storage-retention-note {
+                font-size: 11px;
+                padding: 9px 11px;
+            }
+        }
+
+    </style>
 </head>
 
 
@@ -561,6 +601,16 @@
                         </div>
 
                     </form>
+
+                    <!-- ===== INFORMASI RETENSI FILE UPLOAD ===== -->
+
+                    <p class="storage-retention-note" id="generateStorageNote" role="note">
+                        <span class="storage-retention-icon" aria-hidden="true">⏱</span>
+                        <span>
+                            Foto, video, dan audio yang kamu unggah hanya bisa dipakai
+                            <strong>1 jam</strong>. Setelah itu file dihapus otomatis dari penyimpanan.
+                        </span>
+                    </p>
 
                 </section>
 

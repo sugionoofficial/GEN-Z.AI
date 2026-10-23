@@ -17,6 +17,7 @@ import sightengineDetect from "../api/sightengine-detect.js";
 import socialPublisher from "../api/social-publisher.js";
 import facebookDataDeletion from "../api/facebook-data-deletion.js";
 import { runSocialPublisherCron } from "./_shared/social-publisher-cron.js";
+import { runStorageRetentionCron } from "./_shared/storage-retention-cron.js";
 import viddraAccount from "../api/viddra/account.js";
 import viddraGenerate from "../api/viddra/generate.js";
 import handleTempmail from "./_shared/tempmail-handler.js";
@@ -99,10 +100,24 @@ export default {
     },
 
     async scheduled(controller, env, context) {
-        const task = runSocialPublisherCron(env, controller?.scheduledTime || new Date())
-            .catch(error => {
-                console.error("[Cloudflare Worker] Social Publisher cron failed:", error?.message || "unknown error");
-            });
+        const scheduledAt = controller?.scheduledTime
+            ? new Date(controller.scheduledTime)
+            : new Date();
+
+        const tasks = [
+            runSocialPublisherCron(env, scheduledAt)
+                .catch(error => {
+                    console.error("[Cloudflare Worker] Social Publisher cron failed:", error?.message || "unknown error");
+                }),
+
+            // Retensi media: upload 1 jam, media riwayat 24 jam.
+            runStorageRetentionCron(env, scheduledAt)
+                .catch(error => {
+                    console.error("[Cloudflare Worker] Storage retention cron failed:", error?.message || "unknown error");
+                })
+        ];
+
+        const task = Promise.allSettled(tasks);
         if (context?.waitUntil) context.waitUntil(task);
         else await task;
     }

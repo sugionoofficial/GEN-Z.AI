@@ -2254,6 +2254,116 @@ tbody tr {
 
     </style>
 
+    <!-- =====================================================
+         INFORMASI & TANDA RETENSI MEDIA (24 JAM)
+    ====================================================== -->
+
+    <style id="history-retention-style">
+
+        .history-retention-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin: 0 0 14px;
+            padding: 11px 14px;
+            border: 1px solid rgba(255, 184, 77, .32);
+            border-radius: 12px;
+            background: rgba(255, 184, 77, .07);
+            color: var(--text-2);
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .history-retention-notice p {
+            margin: 0;
+        }
+
+        .history-retention-notice strong {
+            color: #ffb84d;
+            font-weight: 800;
+        }
+
+        .history-retention-icon {
+            flex: 0 0 auto;
+            font-size: 14px;
+            line-height: 1.35;
+        }
+
+        /* Thumbnail untuk media yang sudah dihapus cron retensi */
+
+        .thumbnail-expired {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            background: linear-gradient(135deg, #14100a, #241a0c, #14100a);
+            border-color: rgba(255, 184, 77, .35);
+            cursor: default;
+        }
+
+        .thumbnail-expired-icon {
+            font-size: 18px;
+            line-height: 1;
+            opacity: .9;
+        }
+
+        .thumbnail-expired-label {
+            font-size: 6.5px;
+            font-weight: 900;
+            letter-spacing: .5px;
+            color: #ffb84d;
+            text-align: center;
+            line-height: 1;
+        }
+
+        /* Detail modal */
+
+        .detail-expired-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 16px;
+            margin-bottom: 4px;
+            border: 1px solid rgba(255, 184, 77, .30);
+            border-radius: 12px;
+            background: rgba(255, 184, 77, .07);
+            color: var(--text-2);
+            font-size: 12.5px;
+            line-height: 1.55;
+        }
+
+        .detail-expired-notice strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #ffb84d;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .detail-expired-notice p {
+            margin: 0;
+        }
+
+        .detail-expired-icon {
+            font-size: 18px;
+            line-height: 1.2;
+        }
+
+        .detail-expired-hint {
+            color: var(--text-3);
+            font-size: 12px;
+        }
+
+        @media (max-width: 560px) {
+            .history-retention-notice {
+                padding: 10px 12px;
+                font-size: 11px;
+            }
+        }
+
+    </style>
+
 </head>
 
 <body>
@@ -2347,6 +2457,16 @@ tbody tr {
             <button class="filter-button" data-filter="pending" type="button">Pending</button>
         </div>
 
+        <!-- ===== INFORMASI RETENSI MEDIA ===== -->
+        <div class="history-retention-notice" id="historyRetentionNotice" role="note">
+            <span class="history-retention-icon" aria-hidden="true">⏳</span>
+            <p>
+                Media hasil generate &amp; upscale disimpan <strong>maksimal 24 jam</strong>.
+                Setelah itu file dihapus otomatis dan riwayatnya ditandai
+                <strong>KEDALUWARSA</strong>.
+            </p>
+        </div>
+
         <div class="message" id="message"></div>
 
         <div class="loading" id="loadingState">
@@ -2436,9 +2556,9 @@ tbody tr {
 <script src="./assets/js/history-auth.js?v=persistent-auth-20261022"></script>
 <script src="./assets/js/history-data.js"></script>
 <script src="./assets/js/history-status-sync.js"></script>
-<script src="./assets/js/history-render.js?v=20261023-video-poster"></script>
+<script src="./assets/js/history-render.js?v=20261023-retention-24h"></script>
 <script src="./assets/js/history-runtime.js"></script>
-<script src="./assets/js/history-modal.js?v=generated-download-name-20261017"></script>
+<script src="./assets/js/history-modal.js?v=20261023-retention-24h"></script>
 <script src="./assets/js/history-events.js?v=20261023-video-poster"></script>
 <script src="./assets/js/history-app.js"></script>
 
