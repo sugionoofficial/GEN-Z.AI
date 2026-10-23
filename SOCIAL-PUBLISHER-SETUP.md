@@ -197,6 +197,275 @@ signed-in role. Changing a role's minimum later only requires editing that map.
 
 A revoked/expired token, missing Meta permission, provider outage, or API error is recorded as a failed run. Reconnect the Page or fix the configuration before expecting later runs to succeed. Generated identity resemblance is not exact; use only images you have the rights and consent to use, and periodically check the posted content.
 
+### "Fitur Tidak Tersedia" / "Feature unavailable: Facebook Login is currently unavailable for this app"
+
+This is the other Meta-side block. It is rendered by `facebook.com` **before** the
+OAuth redirect, so the Worker never receives a request, the callback never runs, and
+no `oauth_error` is recorded — the panel stays on "Hubungkan Facebook" with no
+message. The full Meta text is:
+
+> Fitur Tidak Tersedia — Login Facebook saat ini tidak tersedia untuk aplikasi ini,
+> karena kami sedang memperbarui detail tambahan untuk aplikasi ini. Silakan coba
+> lagi nanti.
+
+That wording means **Meta is withholding the app's Facebook Login product from users
+who have no role in the app**, i.e. the app has not finished the requirements that
+unlock login for everyone.
+
+Meta states this requirement explicitly for this product: *"advanced access to the
+`public_profile` permission is required for Facebook Login for Business apps before
+they go live"* — without it, only accounts with an app role can complete the dialog,
+even when the app shows as published. Fix it in the Meta App Dashboard, in this order.
+
+Where the menus live in the current dashboard (Indonesian UI in parentheses):
+
+| What the older guides call it | Current App Dashboard path |
+| --- | --- |
+| Alerts / Required actions | **Tindakan yang Diperlukan** (`Required actions`) in the left menu, plus red banners on the app tile in `/apps` |
+| App Review → Permissions and Features | On use-case apps the permission list lives in **Kasus penggunaan** (`Use cases`) → **Kelola segala sesuatu di Halaman Anda** → *Sesuaikan* (`Customize`); older deep links such as `/app-review/permissions/` now redirect to the app picker, so always open the app first and click through the left sidebar |
+| App Review submission | **Tinjauan** → **App Review** → *Edit* / *Buat pengajuan* |
+| Business Verification | Meta Business Suite → **Keamanan dan kesesuaian** (`Security and compliance`) → **Pusat keamanan** (`Security Center`) → card *Verifikasi bisnis* → **Mulai verifikasi**; direct link `business.facebook.com/settings/security_center` |
+| App Mode / publish | **Terbitkan** (`Publish`) → status *Diterbitkan* |
+| App roles | **Peran aplikasi** (`App roles`) → **Roles** |
+| Login configuration | Product **Facebook Login for Business** → **Konfigurasi** (`Configurations`) |
+
+1. **Raise the permissions to Advanced Access**: open the app card, then **Kasus
+   penggunaan** → **Kelola Halaman** (the *Manage everything on your Page* use case)
+   → **Izin dan fitur**. The table lists every permission with three relevant
+   columns:
+
+   - **API Calls** — how many successful calls the app made in the last 30 days.
+     App Review requires at least one per permission inside that window, so a `—`
+     means the request will be rejected until the app actually calls it.
+   - **Status** — *Siap untuk pengujian* / *Ready for testing* is Standard access
+     (only app roles can use it, which is exactly the "Fitur Tidak Tersedia" block);
+     *Siap untuk dipublikasikan* / *Ready to publish* is Advanced access.
+   - **Tindakan** (a dropdown) — choose **Minta akses lanjutan** / *Increase access*
+     to move a permission to Advanced. Rows that are not part of the use case show
+     **+ Tambahkan ke Tinjauan Aplikasi** instead.
+
+   For Studio Medsos request Advanced Access for exactly these, and nothing else:
+   `public_profile`, `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`
+   and `business_management`. `public_profile` is mandatory for **Facebook Login for
+   Business** apps before anyone without an app role can log in. Do **not** add
+   `pages_manage_engagement`, `pages_manage_metadata`, `pages_read_user_content`,
+   `Page Mentions`, `Live Video API`, `email` or `Business Asset User Profile Access`
+   — the publisher does not use them, and requesting unused permissions is a common
+   rejection trigger (Meta rejects the whole submission, it does not silently grant
+   fewer permissions).
+   Clicking **Minta akses lanjutan** does not submit anything yet: it queues the
+   permission in **Tinjauan → Tinjauan Aplikasi** (`App Review → App Review`), which
+   then reads **Tidak dikirim / Permintaan baru** with one row per queued permission
+   and a **Berikutnya** button. That wizard is where the actual submission happens:
+
+   **Berikutnya** opens **Kirim untuk Tinjauan Aplikasi** (`Submit for App Review`), a
+   five-section checklist. Each section folds open; the footer shows
+   *"Anda harus menyelesaikan semua langkah-langkah sebelum dapat mengajukan untuk
+   ditinjau"* and the **Kirim untuk ditinjau** button stays disabled until every circle
+   turns into a green check.
+
+   1. **Verifikasi** (`Verification`) — *Hubungkan portofolio bisnis yang terverifikasi*
+      (`Link a verified business portfolio`). It is not a form: it is a table of one
+      row per app, showing the app, the linked portfolio and that portfolio's state.
+      For this project it reads **Genzai Dev · Tidak lengkap** (`Incomplete`) with an
+      orange dot while the portfolio verification is still under review, and turns into
+      **Terverifikasi** (`Verified`) once Meta approves it. Only a portfolio with **full
+      control** by the signed-in person can complete this step.
+
+      - **Selesaikan Verifikasi** (`Complete verification`) jumps into the same request
+        held in `business.facebook.com/settings/security_center`; if it says
+        *Pengajuan menunggu persetujuan* there is nothing to fill in — wait, then
+        reopen this page. A decision takes up to 14 business days from the submission
+        date.
+      - **Hapus** (`Remove`) unlinks the app from the portfolio. Never press it while
+        verification is pending: the app would lose the business that is being
+        verified, and the request would have to start over.
+      - Progress is auto-saved (**Disimpan otomatis**), so the other four sections can be
+        completed while this one stays orange; only the final **Kirim untuk ditinjau**
+        waits for the green check.
+   2. **Pengaturan aplikasi** (`App settings`) — usually already green. If it is not,
+      the missing fields are in **Pengaturan → Dasar**: 1024×1024 icon, category,
+      `https://genzai.genzai-f37.workers.dev/privacy/`, and
+      `https://genzai.genzai-f37.workers.dev/terms/`.
+   3. **Penggunaan diizinkan** (`Allowed usage`) — one row per queued permission
+      (`public_profile`, `pages_show_list`, `pages_read_engagement`,
+      `pages_manage_posts`, `business_management`). For each: paste the use-case
+      description, attach the screencast where the permission needs one, and tick the
+      allowed-usage checkbox. This is also where the *Deskripsi penggunaan* text lives,
+      so there is no separate "usage descriptions" step any more.
+   4. **Penanganan data** (`Data handling`) — a questionnaire, not a form. Answers used
+      for this project:
+
+      | Question (`processor-0`, `responsible-1/-2`, `requests-3/-4`) | Answer |
+      | --- | --- |
+      | Do you have data processors / service providers with access to Meta Data Platform data? | **Ya**, and name them: **Supabase Inc.** (Postgres + private storage holding the encrypted Page tokens, characters and outfits) and **Cloudflare, Inc.** (Worker runtime and asset hosting). AI providers only receive generated images/prompts, never the Meta token. |
+      | Who is responsible for all Data Platform data Meta shares with you? | The legal entity behind the **Genzai Dev** business portfolio — written exactly as it appears in Business Info (or the owner's legal name while the entity is unregistered) |
+      | Country of that person/entity | **Indonesia** |
+      | Disclosed personal data to public authorities for national-security requests in the last 12 months? | **Tidak** |
+      | Which policies/processes exist for such requests? | Tick only what is real: **Kebijakan minimalisasi data** is defensible (only Page id/name/token are kept). Without written review and challenge procedures, also tick **Bukan semuanya** rather than over-claiming. |
+
+      Each processor is added in its own modal with three required fields
+      (`processor-2`, `-2a`, `-2b`); **Simpan** stays disabled until all three are set:
+
+      | Processor | Nama | Kategori layanan (`-2a`) | Negara pemrosesan (`-2b`) |
+      | --- | --- | --- | --- |
+      | Supabase | `Supabase Inc.` | Data storage / cloud database & file storage | United States **plus** the project's actual Supabase region — read it in Supabase → Project Settings → Infrastructure (commonly Singapore `ap-southeast-1` or US East) |
+      | Cloudflare | `Cloudflare, Inc.` | Cloud hosting / CDN & serverless compute | United States, plus any edge location option the list offers (Cloudflare runs on a global anycast network) |
+
+      Add the second processor afterwards with the same **Tambah** button. Do not list
+      AI providers here: they never receive Meta-derived identifiers, only the images
+      and prompts generated for the user.
+
+      Scope answers to the data Meta actually hands over (Page tokens, Page ids/names,
+      connected account name) — generated images and captions are the user's own
+      content and do not change the answers.
+   5. **Petunjuk peninjau** (`Reviewer instructions`) — carries a **Perlu tinjauan Anda**
+      badge until it is opened once. Fields, in order:
+
+      - `instructions-web-2` — the click path: log in at
+        `https://genzai.genzai-f37.workers.dev/`, open **Studio Medsos** in the sidebar,
+        click **Hubungkan Facebook**, approve the consent dialog, pick the Page, then
+        **Buat posting manual → Buat & bersihkan pratinjau → Terbitkan ke Facebook
+        Page**. State the UI language (Indonesian) and translate the buttons, because
+        reviewers cannot read the flow otherwise.
+      - `fblogin-web-1` — **Ya** (Facebook Login for Business is the only login used for
+        the Page connection).
+      - `accesscode-web-1` — a **dedicated demo account**, never the developer's own:
+        email + password for an account that (a) holds a **Tester** role so the consent
+        dialog can still show the in-review permissions while they are still Standard
+        access, (b) has an active `studio_medsos_access` row so no payment gate appears,
+        and (c) has enough credit balance to generate one image. The password must stay
+        valid for a full year, so disable any 2FA prompt on that account.
+      - `accesscode-web-2` — not applicable: web app only, no store download or in-app
+        purchase, all features reachable at the URL above. Say that explicitly instead
+        of leaving a wrong answer.
+      - `geo-web-5` — leave empty unless a real restriction exists; the site is
+        reachable worldwide. Never write "refund" here: this field asks about geographic
+        limits, not billing policy.
+      - `documents-web-1` — optional: attach the same screencast you uploaded per
+        permission so the reviewer has one canonical recording.
+
+      Meta states it tests with **its own accounts**, so do not paste a personal
+      password — a purpose-made demo login is the accepted approach for a gated app.
+
+   When all five show a green check, **Kirim untuk ditinjau** becomes clickable →
+   accept the Platform Onboarding Terms. Status moves from *Tidak dikirim* to *Dalam
+   peninjauan*; Meta's banner currently quotes **20 days** for most submissions, and
+   resubmitting restarts the clock.
+
+   Each permission opens its own modal (**Beritahukan Alasan Anda Meminta <permission>**)
+   with exactly three inputs plus a checkbox:
+
+   - **Reason text area** — one paragraph describing the feature, why this permission
+     is the minimum, and what the user sees. Write it in **English** even though the
+     dashboard is Indonesian; Meta's screen-recording guide recommends an English UI
+     for reviewers.
+   - **Screen recording upload** (drag-drop / *Unggah File*) — mp4 or mov, 1080p,
+     normal speed, no jump cuts, under ~100 MB. The same recording may be reused for
+     `pages_show_list`, `pages_read_engagement` and `pages_manage_posts`, but each
+     permission must be visibly exercised inside it.
+   - **API test calls row** — its presence varies per permission and per app, so never
+     assume it: `pages_manage_posts` and `pages_read_engagement` showed it for this
+     project while `pages_show_list` did not. When it is present it must read
+     **Selesai** (`Complete`); it turns green only after at least one successful call in
+     the last 30 days and can take up to 24 hours to register. A spinner or *Belum*
+     blocks submission.
+   - **Allowed-usage checkbox** — tick *"Jika disetujui, saya setuju bahwa data …
+     akan digunakan sesuai dengan penggunaan diizinkan"*.
+
+   The one permission whose description must be written differently is
+   `business_management`: Meta's permission reference says that when a permission is
+   requested **as a dependency of a main permission** — `pages_show_list` in this case —
+   the description must name that main permission explicitly. Say it is a dependency,
+   that only portfolio membership is read to decide which Pages are eligible, and that
+   no ad account, credit line, catalogue or billing object is created, claimed or
+   modified. Do not describe business-asset management, because the app does not do any.
+
+   Finish with **Simpan**; closing with **Batal** discards the text and re-uploading.
+   Repeat for `public_profile`, `pages_show_list`, `pages_read_engagement` and
+   `business_management`.
+
+   A screencast that satisfies all three Page permissions in one recording is enough
+   when they are submitted together: open Studio Medsos → **Hubungkan Facebook** →
+   approve the consent dialog listing the permissions → pick Page **BELA** →
+   **Periksa izin** → fill character/outfit/caption → **Buat & bersihkan pratinjau**
+   → **Terbitkan ke Facebook Page** → show the post on Facebook. Do not cut the
+   consent dialog out of the video.
+
+   Permissions queued as **Permintaan baru** stay unsubmitted until the wizard is
+   finished; the trash icon removes one from the *submission* only, not from the app
+   (that needs **Kasus penggunaan**).
+
+2. **Tindakan yang Diperlukan**: clear a pending **Data Use Checkup** (it recurs
+   annually) and any red banner on the app tile. A pending checkup alone produces
+   exactly this screen. *Empty page = this is not the cause.*
+3. **Business Verification** lives in Meta Business Suite, **not** in the developer
+   dashboard. Open `business.facebook.com/settings/security_center` (or left menu →
+   **Keamanan dan kesesuaian** → **Pusat keamanan**) and click **Mulai verifikasi** on
+   the *Verifikasi bisnis* card. Since May 2023 every new request for Advanced Access
+   needs a verified business, so step 1 cannot be granted without it. The
+   `facebook-domain-verification` meta tag in `index.html` belongs to this flow.
+   If the button is missing, greyed out, or says **Tidak memenuhi syarat**
+   (`Ineligible for verification`): fill every field in **Info bisnis** (legal name,
+   registered address, business phone, website that loads over HTTPS), enable 2FA,
+   and make sure the portfolio owns at least one asset. The app is only attached to
+   the portfolio when it was created *for* that business — otherwise attach it via
+   **Akun → Aplikasi** before retrying. Never verify an empty portfolio: Meta hides
+   the button, which is why it looks like a bug. If it still says *not eligible*,
+   do not block on it: request Advanced Access anyway (step 1) — Meta answers either
+   with an approval or with an explicit "business verification required" prompt, and
+   only then is the portfolio verification actually needed.
+   On the *Verifikasi Bisnis* card, pick the use case **Aplikasi memerlukan akses ke
+   izin di Meta untuk Developer** (`App requires access to permissions on Meta for
+   developers`). Once submitted the card shows **Pengajuan menunggu persetujuan**
+   (`Submission pending review`) with a start date and a *Lanjutkan* button; that
+   state means nothing is left to do but wait — a decision takes up to 14 business
+   days and arrives by email/notification. Do not resubmit while it is pending.
+   The *Action needed* rows above it are hardening recommendations, not verification
+   blockers, and they do **not** influence the pending review:
+
+   - *1 pengguna dengan domain email publik* (`1 user with a public email domain`) is
+     triggered by the **domain** of the email only — `gmail.com`, `yahoo.com`, etc. —
+     not by the person's name or by any suspicion that the account is fake. Meta's
+     heuristic is that free-mail accounts are easier to take over than a company domain,
+     so it recommends keeping only corporate-domain users in a portfolio. A solo owner
+     using their own Gmail is the normal case for a small business and is safe to leave
+     as-is.
+   - *1 pengguna without passkey enabled* + *0 dari 1 orang harus mengaktifkan
+     autentikasi dua faktor* are the same idea: stronger auth for portfolio members.
+   - Never click **Ambil tindakan** → remove on the only admin. Removing the last
+     full-control user locks the portfolio (and the app attached to it) out of
+     management. If the goal is to clear the warning, add a second admin first — ideally
+     one on the business domain — and enable 2FA / a passkey for the existing account.
+
+   Every other control on the Security Center page, and what to answer for this project:
+
+   | Control | Answer |
+   | --- | --- |
+   | *Autentikasi Dua Faktor → Siapa yang diharuskan…?* | Keep **Hanya admin**; switch to **Semua orang** once a second member exists. Turn 2FA on for the owner via **Kelola Pengaturan Pribadi Saya**. |
+   | *Passkey Management → Who's required to turn on Passkeys?* | **Admin**, but only after the owner has actually registered a passkey — the requirement blocks sign-in for whoever has none. Optional; skip until 2FA is on. |
+   | *Tambah admin lainnya* | Optional. Add a corporate-domain admin so a lockout is recoverable. |
+   | *Peer Approval → Keamanan domain / Keamanan akun iklan* | Leave unmanaged. Both govern ad delivery; this app runs no ads. |
+   | *Label kampanye (tanda)* | Leave **Default**. Ad-campaign label only. |
+   | *Verifikasi Bisnis → Pilih kasus penggunaan verifikasi Anda* | Already correct: **Aplikasi memerlukan akses ke izin di Meta untuk Developer**. Do not change it, and do not press **Lanjutkan** while the card reads *Pengajuan menunggu persetujuan*. |
+4. **App settings → Basic**: Category, App Domains (`genzai.genzai-f37.workers.dev`),
+   Privacy Policy URL, and Data Deletion Instructions URL must be filled in. Meta
+   hides login while app details are considered incomplete.
+5. **Facebook Login for Business → Configurations**: `META_LOGIN_CONFIG_ID` must point
+   at an existing configuration of the **User access token** type that contains
+   `pages_show_list`, `pages_read_engagement`, and `pages_manage_posts` plus the
+   target Page assets. A deleted or empty configuration also shows this screen
+   because `startOAuth` sends `config_id` without a scope list.
+6. **Terbitkan** (`Publish`) once steps 1–5 are green.
+
+While waiting, an account added as **App roles → Roles → Tester** (then accepting the
+invitation and signing out/in of Facebook) can normally still complete the dialog,
+which is enough to smoke-test the publisher end to end.
+
+"Updating additional details" is also occasionally a transient Meta-side restriction
+with nothing to fix in the dashboard; those cases clear on their own within ~24 hours,
+so retry the same button before reworking the configuration.
+
 ### "Aplikasi tidak aktif" / "App not active" on Facebook
 
 Facebook shows this page **before** our callback runs, so the dashboard receives no
