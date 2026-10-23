@@ -292,7 +292,7 @@ async function processRun(env, config, claimedRun) {
         }
 
         const [characters, pageConnections, previousRuns, settingsRows, publisherConfigs] = await Promise.all([
-            dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,garment_object_key,garment_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
+            dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             listRecentPostedRuns(config, schedule.id),
             getUserSettingsRow(config, schedule.owner_id),
@@ -325,13 +325,18 @@ async function processRun(env, config, claimedRun) {
             .map(item => item.scene_plan?.key)
             .filter(Boolean);
         const { outfit, ready: outfitLibraryReady } = await pickScheduledOutfit(config, schedule, previousRuns);
-        const garmentObjectKey = outfit?.object_key || character.garment_object_key || "";
-        const garmentMimeType = outfit?.mime_type || character.garment_mime_type || "";
+        /* Pakaian hanya dari outfit terpilih; tanpa outfit, pakaian mengikuti
+           foto referensi karakter. Tidak ada unggahan pakaian terpisah. */
+        const garmentObjectKey = outfit?.object_key || "";
+        const garmentMimeType = outfit?.mime_type || "";
         const aspectRatio = ["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16";
         imageProvider = ["cloudflare", "qwencloud"].includes(publisherConfigs?.[0]?.image_provider)
             ? publisherConfigs[0].image_provider
             : "gemini";
         imageModel = normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);
+        const referenceImageUrl = imageProvider === "cloudflare"
+            ? await createSignedReferenceUrl(config, character.reference_object_key)
+            : "";
         const garmentBytes = garmentObjectKey && imageProvider !== "cloudflare"
             ? await downloadReferenceObject(config, garmentObjectKey)
             : null;
@@ -349,6 +354,7 @@ async function processRun(env, config, claimedRun) {
             outfitName: outfit?.name,
             outfitNotes: outfit?.notes,
             hasOutfitReference: Boolean(garmentObjectKey),
+            useReferenceOutfit: !garmentObjectKey,
             negativePrompt: schedule.negative_prompt
         });
         const generated = await generateSocialImage({
@@ -359,10 +365,12 @@ async function processRun(env, config, claimedRun) {
             aspectRatio,
             imageProvider,
             ...(imageProvider === "cloudflare" ? {
-                personImageUrl: await createSignedReferenceUrl(config, character.reference_object_key),
-                garmentImageUrls: garmentObjectKey
-                    ? [await createSignedReferenceUrl(config, garmentObjectKey)]
-                    : []
+                personImageUrl: referenceImageUrl,
+                /* Tanpa outfit, foto referensi karakter juga menjadi acuan
+                   pakaian supaya pakaian default mengikuti foto tersebut. */
+                garmentImageUrls: [garmentObjectKey
+                    ? await createSignedReferenceUrl(config, garmentObjectKey)
+                    : referenceImageUrl]
             } : {}),
             ...(imageProvider !== "cloudflare" ? {
                 garmentBytes,

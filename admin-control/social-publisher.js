@@ -281,12 +281,6 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const captionProviderLabel = config.captionProvider === "cloudflare"
             ? "Cloudflare Vision Caption"
             : config.captionProvider === "qwencloud" ? "QwenCloud Vision Caption" : "Gemini Caption API";
-        const garmentLabel = document.querySelector("label[for='character-garment']");
-        if (garmentLabel) {
-            garmentLabel.textContent = config.imageProvider === "cloudflare"
-                ? "Foto pakaian default (opsional bila sudah ada outfit)"
-                : "Foto pakaian default (opsional)";
-        }
         const items = [
             ["Meta OAuth", config.metaOAuthConfigured],
             [imageProviderLabel, config.imageApiConfigured],
@@ -404,17 +398,15 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const container = $("characters-list");
         const select = $("schedule-character");
         const manualSelect = $("manual-character");
-        const cloudflareProvider = state.data?.config?.imageProvider === "cloudflare";
         container.replaceChildren();
         select.replaceChildren(new Option("Pilih karakter…", ""));
         manualSelect.replaceChildren(new Option("Pilih karakter…", ""));
         for (const character of characters) {
             const characterOutfits = (state.data?.outfits || []).filter(outfit => outfit.character_id === character.id);
             const activeOutfitCount = characterOutfits.filter(outfit => outfit.is_active !== false).length;
-            const needsGarment = cloudflareProvider && !character.garment_filename && activeOutfitCount === 0;
-            const optionLabel = needsGarment
-                ? `${character.display_name} · outfit belum diatur`
-                : character.display_name;
+            /* Tanpa outfit, pakaian mengikuti foto referensi karakter, jadi
+               karakter selalu bisa dipakai walau belum punya outfit. */
+            const optionLabel = character.display_name;
             select.add(new Option(optionLabel, character.id));
             manualSelect.add(new Option(optionLabel, character.id));
             const item = document.createElement("div");
@@ -425,29 +417,17 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             img.loading = "lazy";
             img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='54' height='66'%3E%3Crect width='100%25' height='100%25' fill='%231b2737'/%3E%3C/svg%3E";
             loadReferencePreview(character.id, img);
-            const garmentImg = document.createElement("img");
-            garmentImg.className = "thumb";
-            garmentImg.alt = character.garment_filename ? `Foto pakaian ${character.display_name}` : "Foto pakaian belum diatur";
-            garmentImg.loading = "lazy";
-            garmentImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='54' height='66'%3E%3Crect width='100%25' height='100%25' fill='%231b2737'/%3E%3C/svg%3E";
-            garmentImg.dataset.characterId = character.id;
-            if (character.garment_filename) loadGarmentPreview(character.id, garmentImg);
             const thumbs = document.createElement("div");
             thumbs.className = "thumbs";
-            thumbs.append(img, garmentImg);
+            thumbs.append(img);
             const content = document.createElement("div");
             const title = document.createElement("p");
             title.className = "item-title";
             title.textContent = character.display_name;
             const detail = document.createElement("div");
             detail.className = "item-meta";
-            detail.textContent = `${character.reference_filename || "referensi"} · ${activeOutfitCount ? `${activeOutfitCount} outfit aktif` : "Belum ada outfit"} · ${character.garment_filename ? "Pakaian default tersedia" : "Tanpa pakaian default"} · ${character.prompt_notes || "Tanpa catatan tambahan"}`;
+            detail.textContent = `${character.reference_filename || "referensi"} · ${activeOutfitCount ? `${activeOutfitCount} outfit aktif` : "Pakaian mengikuti foto referensi"} · ${character.prompt_notes || "Tanpa catatan tambahan"}`;
             content.append(title, detail);
-            const action = document.createElement("button");
-            action.className = "btn small";
-            action.type = "button";
-            action.textContent = character.garment_filename ? "Ganti pakaian default" : "Pakaian default";
-            action.addEventListener("click", () => uploadGarment(character));
             const outfitAction = document.createElement("button");
             outfitAction.className = "btn small green";
             outfitAction.type = "button";
@@ -462,7 +442,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             notesAction.addEventListener("click", () => editCharacter(character));
             const actions = document.createElement("div");
             actions.className = "item-actions";
-            actions.append(outfitAction, action, notesAction);
+            actions.append(outfitAction, notesAction);
             item.append(thumbs, content, actions);
             container.append(item);
         }
@@ -485,26 +465,6 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         } catch {
             if (!img.dataset.characterId || img.dataset.characterId === characterId) {
                 img.alt = "Preview referensi tidak tersedia";
-            }
-        }
-    }
-
-    async function loadGarmentPreview(characterId, img) {
-        try {
-            const response = await api("garment&character_id=" + encodeURIComponent(characterId), { raw: true });
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            if (img.dataset.characterId && img.dataset.characterId !== characterId) {
-                URL.revokeObjectURL(url);
-                return;
-            }
-            const previousUrl = state.objectUrls.get(`garment:${characterId}`);
-            if (previousUrl) URL.revokeObjectURL(previousUrl);
-            state.objectUrls.set(`garment:${characterId}`, url);
-            img.src = url;
-        } catch {
-            if (!img.dataset.characterId || img.dataset.characterId === characterId) {
-                img.alt = "Preview pakaian tidak tersedia";
             }
         }
     }
@@ -547,7 +507,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             empty.className = "empty";
             empty.style.gridColumn = "1/-1";
             empty.textContent = ready
-                ? "Belum ada outfit untuk karakter ini. Tambahkan minimal satu outfit agar gambar memakai pakaian yang Anda tentukan."
+                ? "Belum ada outfit untuk karakter ini. Tanpa outfit, pakaian mengikuti foto referensi karakter; tambahkan outfit bila ingin pakaian yang Anda tentukan."
                 : "Library outfit belum tersedia di database. Jalankan ulang supabase/social-auto-publisher.sql, lalu muat ulang halaman.";
             container.append(empty);
             return;
@@ -751,17 +711,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const characterId = $("manual-character").value;
         const preview = $("manual-character-preview");
         const placeholder = $("manual-character-placeholder");
-        const garmentBox = $("manual-garment-box");
-        const garmentPreview = $("manual-garment-preview");
         if (state.manualPreview) return;
         preview.dataset.characterId = characterId;
-        garmentPreview.dataset.characterId = characterId;
         if (!characterId) {
             preview.hidden = true;
             preview.removeAttribute("src");
             placeholder.hidden = false;
-            garmentBox.hidden = true;
-            garmentPreview.removeAttribute("src");
             return;
         }
         const character = state.data?.characters?.find(item => item.id === characterId);
@@ -770,15 +725,6 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         preview.hidden = false;
         placeholder.hidden = true;
         loadReferencePreview(characterId, preview);
-        if (character?.garment_filename) {
-            garmentBox.hidden = false;
-            garmentPreview.alt = `Foto pakaian ${character.display_name} yang dipilih`;
-            garmentPreview.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='54' height='66'%3E%3Crect width='100%25' height='100%25' fill='%231b2737'/%3E%3C/svg%3E";
-            loadGarmentPreview(characterId, garmentPreview);
-        } else {
-            garmentBox.hidden = true;
-            garmentPreview.removeAttribute("src");
-        }
     }
 
     async function submitManualPost(event) {
@@ -787,16 +733,6 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const pageConnectionId = $("manual-page").value;
         if (!characterId || !pageConnectionId) {
             status($("manual-post-status"), "Pilih karakter tersimpan dan Facebook Page.", "error");
-            return;
-        }
-        const selectedCharacter = (state.data?.characters || []).find(character => character.id === characterId);
-        const hasActiveOutfit = (state.data?.outfits || []).some(outfit => outfit.character_id === characterId && outfit.is_active !== false);
-        if (state.data?.config?.imageProvider === "cloudflare" && selectedCharacter && !selectedCharacter.garment_filename && !hasActiveOutfit) {
-            status(
-                $("manual-post-status"),
-                `Karakter "${selectedCharacter.display_name}" belum memiliki outfit maupun foto pakaian, sedangkan Cloudflare P-Image Try-On mewajibkannya. Tambahkan outfit pada bagian "Outfit & link order", lalu ulangi pratinjau.`,
-                "error"
-            );
             return;
         }
         const button = $("manual-post-button");
@@ -841,7 +777,6 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             $("manual-generated-result").hidden = false;
             $("manual-character-preview").hidden = true;
             $("manual-character-placeholder").hidden = true;
-            $("manual-garment-box").hidden = true;
             $("manual-generated-caption").textContent = result.preview.caption;
             showManualOutfit(result.preview.outfit);
             const outfitNote = result.preview.outfit?.name
@@ -1011,38 +946,6 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         } catch (error) {
             showNotice(pageMessage, error.message, "error");
         }
-    }
-
-    async function uploadGarment(character) {
-        const input = document.createElement("input");
-        input.type = "file";
-        input.accept = "image/jpeg,image/png,image/webp";
-        input.addEventListener("change", async () => {
-            const file = input.files?.[0];
-            if (!file) return;
-            if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 8 * 1024 * 1024) {
-                showNotice(pageMessage, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
-                return;
-            }
-            if (!window.confirm("Pastikan Anda berhak menggunakan foto pakaian ini. Saat Cloudflare dipilih, foto akan diproses oleh Workers AI/Pruna. Lanjutkan unggah?")) return;
-            try {
-                await api(`upload-garment&character_id=${encodeURIComponent(character.id)}`, {
-                    method: "POST",
-                    body: file,
-                    raw: true,
-                    headers: {
-                        "Content-Type": file.type,
-                        "X-File-Name": encodeURIComponent(file.name),
-                        "X-Garment-Rights": "1"
-                    }
-                });
-                showNotice(pageMessage, "Foto pakaian tersimpan. Cloudflare P-Image Try-On akan memakainya untuk gambar berikutnya.", "success");
-                await loadDashboard();
-            } catch (error) {
-                showNotice(pageMessage, error.message, "error");
-            }
-        }, { once: true });
-        input.click();
     }
 
     function pageName(id) {
@@ -1358,7 +1261,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const label = document.createElement("span");
             label.className = `badge ${run.status || "queued"}`;
             label.textContent = run.status || "queued";
-            const source = run.schedule_id ? "Jadwal" : "Manual";
+            const source = run.schedule_id ? "Auto" : "Manual";
             title.append(label, document.createTextNode(`  ${source} · ${formatDate(run.scheduled_for || run.created_at)}`));
             const detail = document.createElement("div");
             detail.className = "item-meta";
@@ -1658,17 +1561,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         event.preventDefault();
         const name = $("character-name").value.trim();
         const file = $("character-image").files?.[0];
-        const garmentFile = $("character-garment").files?.[0];
         if (!name || !file || !$("character-consent").checked) {
             status(characterStatus, "Isi nama, pilih foto, dan centang konfirmasi hak penggunaan serta subjek dewasa.", "error");
             return;
         }
         if (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024) {
             status(characterStatus, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
-            return;
-        }
-        if (garmentFile && (!/^image\/(jpeg|png|webp)$/.test(garmentFile.type) || garmentFile.size > 8 * 1024 * 1024)) {
-            status(characterStatus, "Foto pakaian harus JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
             return;
         }
         setButtonBusy(uploadButton, true, "Mengunggah…");
@@ -1690,30 +1588,16 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const data = await uploaded.json().catch(() => ({}));
             if (!uploaded.ok || data.success !== true || !data.character?.id) throw new Error(data.error || "Upload referensi gagal.");
             characterCreated = true;
-            if (garmentFile) {
-                await api(`upload-garment&character_id=${encodeURIComponent(data.character.id)}`, {
-                    method: "POST",
-                    body: garmentFile,
-                    raw: true,
-                    headers: {
-                        "Content-Type": garmentFile.type,
-                        "X-File-Name": encodeURIComponent(garmentFile.name),
-                        "X-Garment-Rights": "1"
-                    }
-                });
-            }
             const notes = $("character-notes").value.trim();
             if (notes) {
                 await api("save-character", { method: "POST", body: { id: data.character.id, display_name: name, prompt_notes: notes } });
             }
             $("character-form").reset();
-            status(characterStatus, garmentFile
-                ? "Karakter dan foto pakaian tersimpan di Supabase Storage privat."
-                : "Karakter tersimpan. Tambahkan foto pakaian sebelum memakai Cloudflare P-Image Try-On.", "good");
+            status(characterStatus, "Karakter tersimpan. Pakaian default mengikuti foto referensi; tambahkan outfit + link order bila ingin menggantinya.", "good");
             await loadDashboard();
         } catch (error) {
             status(characterStatus, characterCreated
-                ? `Karakter sudah tersimpan, tetapi foto pakaian/catatan gagal disimpan: ${error.message}`
+                ? `Karakter sudah tersimpan, tetapi catatan gagal disimpan: ${error.message}`
                 : error.message, "error");
             if (characterCreated) await loadDashboard();
         } finally {
@@ -1885,12 +1769,6 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             autopublish_enabled: $("schedule-autopublish").checked,
             enabled: $("schedule-enabled").checked
         };
-        const scheduledCharacter = (state.data?.characters || []).find(character => character.id === body.character_id);
-        if (state.data?.config?.imageProvider === "cloudflare" && scheduledCharacter && !scheduledCharacter.garment_filename
-            && !window.confirm(`Karakter "${scheduledCharacter.display_name}" belum memiliki foto pakaian, sedangkan Cloudflare P-Image Try-On mewajibkannya. Jadwal akan terus gagal sampai foto pakaian diunggah. Tetap simpan jadwal?`)) {
-            status(scheduleStatus, "Jadwal dibatalkan. Unggah foto pakaian pada karakter terlebih dahulu lewat tombol \"Atur pakaian\".", "error");
-            return;
-        }
         setButtonBusy(saveScheduleButton, true, "Menyimpan…");
         status(scheduleStatus, "Menyimpan konfigurasi jadwal…");
         try {
