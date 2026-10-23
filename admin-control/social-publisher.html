@@ -161,6 +161,15 @@
                     <button id="connect-page" class="btn primary" type="button">Hubungkan Facebook</button>
                     <button id="toggle-tutorial" class="btn tutorial-btn" type="button" aria-expanded="false" aria-controls="usage-tutorial">Tutorial</button>
                 </div>
+                <div id="connect-help" class="notice warn" role="status" hidden>
+                    <strong id="connect-help-title">Halaman izin Facebook belum terbuka?</strong>
+                    <p id="connect-help-text" style="margin:6px 0 10px"></p>
+                    <div class="actions" style="margin:0">
+                        <a id="oauth-manual-link" class="btn small primary" href="#" hidden>Buka halaman izin Facebook</a>
+                        <button id="connect-copy-link" class="btn small" type="button">Salin tautan halaman ini</button>
+                    </div>
+                    <p id="connect-copy-status" class="help" style="margin:8px 0 0"></p>
+                </div>
                 <div id="usage-tutorial" class="tutorial-panel" role="region" aria-labelledby="usage-tutorial-title" hidden>
                     <div class="tutorial-head">
                         <div>
@@ -396,6 +405,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
-    <script type="module" src="./social-publisher.js?v=schedule-scene-20261023"></script>
+    <script type="module" src="./social-publisher.js?v=oauth-mobile-20261023"></script>
 </body>
 </html>

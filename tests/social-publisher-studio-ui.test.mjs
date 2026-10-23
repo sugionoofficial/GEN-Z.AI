@@ -724,4 +724,23 @@ test("interaksi klik halaman 1..4 dan dropdown 10/20/50/100 di UI memperbarui da
     }
 });
 
+test("tombol Hubungkan Facebook punya jalur manual untuk browser HP", () => {
+    // Regresi: di browser dalam aplikasi (Facebook/Instagram/WhatsApp) Meta
+    // memblokir halaman izin OAuth sehingga blok persetujuan tidak muncul.
+    assert.match(htmlSource, /id="connect-help"/);
+    assert.match(htmlSource, /id="oauth-manual-link"/);
+    assert.match(htmlSource, /id="connect-copy-link"/);
 
+    assert.match(source, /IN_APP_BROWSER_PATTERNS/);
+    assert.match(source, /detectInAppBrowser/);
+    assert.match(source, /renderInAppBrowserHint\(\);/);
+    // Tautan manual dipasang sebelum pengalihan otomatis dicoba.
+    const connectBody = source.slice(source.indexOf("async function connectFacebook"));
+    assert.match(connectBody, /showConnectHelp\(\{/);
+    assert.ok(
+        connectBody.indexOf("showConnectHelp(") < connectBody.indexOf("window.location.assign("),
+        "tautan manual harus tersedia sebelum window.location.assign"
+    );
+    assert.match(source, /copyCurrentPageLink/);
+    assert.match(htmlSource, /social-publisher\.js\?v=oauth-mobile-20261023/);
+});
