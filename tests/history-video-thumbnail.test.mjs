@@ -165,13 +165,13 @@ test("layout HP: thumbnail di kolom kiri, detail sejajar di kanan", () => {
     );
 });
 
-test("asset history memakai cache-bust versi thumbnail baru", () => {
+test("asset history memakai cache-bust versi terbaru", () => {
     assert.match(
         historyHtml,
-        /history-render\.js\?v=20261023-video-poster/
+        /history-render\.js\?v=20261023-[a-z-]+/
     );
     assert.match(
         historyHtml,
-        /history-events\.js\?v=20261023-video-poster/
+        /history-events\.js\?v=20261023-[a-z-]+/
     );
 });

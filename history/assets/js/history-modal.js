@@ -452,10 +452,32 @@
        menyebabkan rendering blur.
     ===================================================== */
 
+    function isMediaExpired(item) {
+        return typeof App.isExpiredMedia === "function"
+            ? App.isExpiredMedia(item)
+            : false;
+    }
+
     function renderMediaPreview(item) {
         const status = normalizeStatus(item?.status);
         const url = getResultUrl(item);
         if (status !== "success" || !url) return "";
+
+        /*
+         * File sudah dihapus cron retensi 24 jam: jangan tampilkan
+         * <video>/<img> yang akan gagal dimuat.
+         */
+        if (isMediaExpired(item)) {
+            return `
+                <div class="detail-expired-notice" role="note">
+                    <span class="detail-expired-icon" aria-hidden="true">⏳</span>
+                    <div>
+                        <strong>Media sudah kedaluwarsa</strong>
+                        <p>File ini disimpan hanya 24 jam lalu dihapus otomatis. Riwayatnya tetap ada, tapi file tidak bisa dibuka atau diunduh lagi.</p>
+                    </div>
+                </div>
+            `;
+        }
 
         const safeUrl = escapeHtml(url);
         const mediaType = getMediaType(item);
@@ -507,6 +529,19 @@
         const url = getResultUrl(item);
 
         if (status !== "success" || !url) return "";
+
+        if (isMediaExpired(item)) {
+            return `
+                <div class="detail-row detail-action-row">
+                    <div class="detail-label">Action</div>
+                    <div class="detail-value">
+                        <span class="detail-expired-hint">
+                            Media sudah dihapus otomatis setelah 24 jam.
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
 
         const safeId = escapeHtml(String(item.id || "").trim());
         const mediaType = getMediaType(item);
