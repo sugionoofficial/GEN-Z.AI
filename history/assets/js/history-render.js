@@ -814,11 +814,13 @@
             >
 
                 <video
-                    src="${safeUrl}"
                     muted
                     playsinline
                     preload="none"
                     class="thumbnail-media"
+                    data-thumb-src="${safeUrl}"
+                    data-thumb-frame="0.2"
+                    aria-hidden="true"
                 ></video>
 
                 <span class="thumbnail-play">
@@ -880,11 +882,13 @@
             >
 
                 <video
-                    src="${safeUrl}"
                     muted
                     playsinline
-                    preload="metadata"
+                    preload="none"
                     class="thumbnail-media"
+                    data-thumb-src="${safeUrl}"
+                    data-thumb-frame="0.2"
+                    aria-hidden="true"
                 ></video>
 
                 <span class="thumbnail-play">
@@ -1934,6 +1938,21 @@
 
         }
 
+        if (
+            typeof requestAnimationFrame ===
+            "function"
+        ) {
+
+            requestAnimationFrame(
+                hydrateThumbnailVideos
+            );
+
+        } else {
+
+            hydrateThumbnailVideos();
+
+        }
+
     }
 
 
@@ -2197,6 +2216,211 @@
 
 
     /* =====================================================
+       VIDEO THUMBNAIL POSTER
+       -----------------------------------------------------
+       Sebelumnya thumbnail video memakai preload="none" tanpa
+       frame, jadi kotaknya tampil hitam/kosong dan user tidak
+       tahu video mana yang berhasil.
+
+       Sekarang setiap thumbnail video memuat frame pertama
+       (#t=0.2) HANYA saat masuk viewport, supaya tidak memicu
+       ratusan request ke file .mp4 sekaligus.
+    ===================================================== */
+
+    const THUMBNAIL_POSTER_TIME = 0.2;
+
+    let thumbnailObserver = null;
+
+
+    function buildThumbnailPosterUrl(url, seconds) {
+
+        const clean =
+            String(url || "").trim();
+
+        if (!clean) {
+            return "";
+        }
+
+        /*
+         * Fragment #t= hanya untuk thumbnail. Saat video diputar
+         * (inline / modal) URL asli tetap dipakai, jadi playback
+         * tetap mulai dari awal.
+         */
+
+        const base =
+            clean.split("#")[0];
+
+        const time =
+            Number(seconds);
+
+        const target =
+            Number.isFinite(time) && time > 0
+                ? time
+                : THUMBNAIL_POSTER_TIME;
+
+        return base + "#t=" + target;
+    }
+
+
+    function applyThumbnailPosterFrame(video) {
+
+        try {
+
+            const duration =
+                Number(video.duration);
+
+            const target =
+                Number.isFinite(duration) && duration > 0
+                    ? Math.min(THUMBNAIL_POSTER_TIME, duration / 2)
+                    : THUMBNAIL_POSTER_TIME;
+
+            if (
+                Math.abs(
+                    Number(video.currentTime || 0) - target
+                ) > 0.05
+            ) {
+                video.currentTime = target;
+            }
+
+        } catch (_error) {
+            /* Browser tanpa dukungan seek: biarkan frame awal. */
+        }
+    }
+
+
+    function hydrateThumbnailVideo(video) {
+
+        if (!video) {
+            return false;
+        }
+
+        const pendingSrc =
+            video.dataset
+                ? video.dataset.thumbSrc
+                : "";
+
+        if (pendingSrc) {
+
+            delete video.dataset.thumbSrc;
+
+            video.preload =
+                "metadata";
+
+            video.src =
+                buildThumbnailPosterUrl(
+                    pendingSrc,
+                    video.dataset.thumbFrame
+                );
+        }
+
+        if (!video.getAttribute("src")) {
+            return false;
+        }
+
+        if (
+            video.dataset.posterFrameBound !== "1"
+        ) {
+
+            video.dataset.posterFrameBound = "1";
+
+            video.addEventListener(
+                "loadedmetadata",
+                function () {
+                    applyThumbnailPosterFrame(video);
+                },
+                { once: true }
+            );
+        }
+
+        if (video.readyState >= 1) {
+            applyThumbnailPosterFrame(video);
+        }
+
+        return true;
+    }
+
+
+    function hydrateThumbnailVideos() {
+
+        if (typeof document === "undefined") {
+            return;
+        }
+
+        const videos =
+            Array.prototype.slice.call(
+                document.querySelectorAll(
+                    ".history-thumbnail video[data-thumb-src]"
+                )
+            );
+
+        if (!videos.length) {
+            return;
+        }
+
+        if (
+            typeof IntersectionObserver !==
+            "function"
+        ) {
+
+            videos.forEach(
+                hydrateThumbnailVideo
+            );
+
+            return;
+        }
+
+        /*
+         * Observer lama di-disconnect supaya node hasil render
+         * ulang tidak menumpuk di memori.
+         */
+
+        if (thumbnailObserver) {
+            thumbnailObserver.disconnect();
+        }
+
+        thumbnailObserver =
+            new IntersectionObserver(
+                function (entries) {
+
+                    entries.forEach(
+                        function (entry) {
+
+                            if (!entry.isIntersecting) {
+                                return;
+                            }
+
+                            thumbnailObserver.unobserve(
+                                entry.target
+                            );
+
+                            hydrateThumbnailVideo(
+                                entry.target
+                            );
+                        }
+                    );
+                },
+                {
+                    rootMargin:
+                        "200px 0px"
+                }
+            );
+
+        videos.forEach(
+            function (video) {
+                thumbnailObserver.observe(video);
+            }
+        );
+    }
+
+
+    App.hydrateThumbnailVideo =
+        hydrateThumbnailVideo;
+
+    App.hydrateThumbnailVideos =
+        hydrateThumbnailVideos;
+
+
+    /* =====================================================
        VIDEO PRELOAD
     ===================================================== */
 
@@ -2237,12 +2461,19 @@
         ) {
 
             requestAnimationFrame(
-                preloadThumbnailVideos
+                function () {
+
+                    preloadThumbnailVideos();
+
+                    hydrateThumbnailVideos();
+                }
             );
 
         } else {
 
             preloadThumbnailVideos();
+
+            hydrateThumbnailVideos();
 
         }
     }
