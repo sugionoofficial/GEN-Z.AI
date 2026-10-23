@@ -1117,11 +1117,52 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         scheduleCountdown.nodes = [];
     }
 
+    const SCENE_PRESET_FIELDS = [
+        ["schedule-location", "locations", "Acak otomatis"],
+        ["schedule-angle", "angles", "Otomatis — medium shot"],
+        ["schedule-situation", "situations", "Acak otomatis"],
+        ["schedule-atmosphere", "atmospheres", "Acak otomatis"],
+        ["schedule-condition", "conditions", "Acak otomatis"],
+        ["schedule-lighting", "lighting", "Acak otomatis"]
+    ];
+
+    /**
+     * Mengisi dropdown parameter gambar dari `scenePresets` yang dikirim API.
+     * Nilai kosong = otomatis (server mengacak / memakai medium shot).
+     */
+    function populateScenePresets(presets = {}) {
+        for (const [elementId, presetKey, emptyLabel] of SCENE_PRESET_FIELDS) {
+            const select = $(elementId);
+            if (!select) continue;
+            const previous = select.value;
+            const options = Array.isArray(presets?.[presetKey]) ? presets[presetKey] : [];
+            if (!options.length) continue;
+            select.replaceChildren(new Option(emptyLabel, ""));
+            for (const option of options) {
+                select.add(new Option(option.label, option.value));
+            }
+            select.value = options.some(option => option.value === previous) ? previous : "";
+        }
+    }
+
+    function sceneSummary(schedule) {
+        const parts = [];
+        const angle = schedule.camera_angle || "medium shot";
+        parts.push(`angle ${angle}`);
+        if (schedule.scene_location) parts.push(`lokasi ${schedule.scene_location}`);
+        if (schedule.scene_atmosphere) parts.push(`suasana ${schedule.scene_atmosphere}`);
+        if (schedule.scene_condition) parts.push(`kondisi ${schedule.scene_condition}`);
+        if (schedule.scene_lighting) parts.push(`cahaya ${schedule.scene_lighting}`);
+        if (schedule.scene_details) parts.push("detail khusus");
+        if (schedule.negative_prompt) parts.push("negative tambahan");
+        return parts.join(" · ");
+    }
+
     function renderSchedules(schedules = []) {
         const container = $("schedules-list");
         stopScheduleCountdown();
         container.replaceChildren();
-        const autopublishOn = state.data?.autopublishEnabled === true && state.data?.globalEnabled !== false;
+        const accountAutopublishOn = state.data?.autopublishEnabled === true && state.data?.globalEnabled !== false;
         let countdownCards = 0;
         for (const schedule of schedules) {
             const card = document.createElement("article");
@@ -1131,11 +1172,22 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const title = document.createElement("p");
             title.className = "item-title";
             title.textContent = `${characterName(schedule.character_id)} → ${pageName(schedule.page_connection_id)}`;
+            const scheduleAutopublishOn = schedule.autopublish_enabled !== false;
+            const effectiveAutopublish = accountAutopublishOn && scheduleAutopublishOn;
             const detail = document.createElement("div");
             detail.className = "item-meta";
-            detail.textContent = `Setiap ${schedule.interval_hours} jam · rasio ${schedule.aspect_ratio || "9:16"} · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"}`;
-            content.append(title, detail);
-            if (schedule.enabled === true && autopublishOn) {
+            detail.textContent = `Setiap ${schedule.interval_hours} jam · rasio ${schedule.aspect_ratio || "9:16"} · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"} · autopost ${scheduleAutopublishOn ? "ON" : "OFF"}`;
+            const scene = document.createElement("div");
+            scene.className = "item-meta";
+            scene.textContent = sceneSummary(schedule);
+            content.append(title, detail, scene);
+            if (schedule.enabled === true && scheduleAutopublishOn && !accountAutopublishOn) {
+                const paused = document.createElement("div");
+                paused.className = "item-meta";
+                paused.textContent = "Autopost akun sedang dijeda, jadi jadwal ini belum berjalan otomatis.";
+                content.append(paused);
+            }
+            if (schedule.enabled === true && effectiveAutopublish) {
                 const countdown = createScheduleCountdown(schedule);
                 if (countdown) {
                     content.append(countdown);
@@ -1152,6 +1204,14 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             edit.type = "button";
             edit.textContent = "Edit";
             edit.addEventListener("click", () => editSchedule(schedule));
+            const autopublish = document.createElement("button");
+            autopublish.className = `btn small ${scheduleAutopublishOn ? "danger" : "green"}`;
+            autopublish.type = "button";
+            autopublish.textContent = scheduleAutopublishOn ? "Autopost: ON" : "Autopost: OFF";
+            autopublish.title = scheduleAutopublishOn
+                ? "Matikan autopost hanya untuk jadwal ini."
+                : "Aktifkan autopost hanya untuk jadwal ini.";
+            autopublish.addEventListener("click", () => toggleScheduleAutopublish(schedule));
             const toggle = document.createElement("button");
             toggle.className = `btn small ${schedule.enabled ? "danger" : "green"}`;
             toggle.type = "button";
@@ -1162,7 +1222,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             remove.type = "button";
             remove.textContent = "Hapus";
             remove.addEventListener("click", () => deleteSchedule(schedule.id));
-            actions.append(edit, toggle, remove);
+            actions.append(edit, autopublish, toggle, remove);
             card.append(content, actions);
             container.append(card);
         }
@@ -1394,6 +1454,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         renderGlobalState();
         renderPages(data.pages || []);
         renderCharacters(data.characters || []);
+        populateScenePresets(data.scenePresets);
         renderSchedules(data.schedules || []);
         renderRuns(data.runs || [], data.runsPagination || null);
         $("default-caption-template").value = data.postingSettings?.caption_template || "Cerita hari ini ✨";
@@ -1401,6 +1462,14 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         renderOutfitSelector(data.characters || []);
         renderOutfits();
         applySchedulePolicyUi();
+        if (data.sceneSchemaReady === false) {
+            showNotice(
+                pageMessage,
+                "Kolom parameter gambar dan autopublish per jadwal belum ada di database. Jalankan supabase/social-schedule-autopublish-scene.sql di Supabase SQL Editor, lalu muat ulang halaman ini.",
+                "warn"
+            );
+            return;
+        }
         const pagesWithoutPublish = (data.pages || []).filter(page => page.can_publish === false).length;
         if (pagesWithoutPublish) {
             showNotice(
@@ -1566,6 +1635,38 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         };
     }
 
+    function scheduleQuota() {
+        const policy = state.data?.schedulePolicy || {};
+        const parsed = Number(policy.maxSchedules);
+        const maxSchedules = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+        const count = Array.isArray(state.data?.schedules)
+            ? state.data.schedules.length
+            : Number(state.data?.scheduleCount) || 0;
+        return {
+            role: String(policy.role || "").trim().toUpperCase(),
+            maxSchedules,
+            count,
+            reached: Boolean(maxSchedules) && count >= maxSchedules
+        };
+    }
+
+    function applyScheduleQuotaUi() {
+        const badge = $("schedule-quota");
+        const { role, maxSchedules, count, reached } = scheduleQuota();
+        const editing = Boolean($("schedule-id").value);
+        if (badge) {
+            badge.textContent = maxSchedules
+                ? `${count}/${maxSchedules} jadwal${reached ? " · batas tercapai" : ""}`
+                : `${count} jadwal · tanpa batas`;
+            badge.className = `badge${reached ? " failed" : ""}`;
+            badge.title = maxSchedules
+                ? `Role ${role || "ANDA"} maksimal ${maxSchedules} jadwal autopost.${reached ? " Hapus salah satu jadwal untuk membuat yang baru." : ""}`
+                : "Role admin/owner tanpa batas jumlah jadwal.";
+        }
+        /* Tombol simpan hanya dikunci saat membuat jadwal baru, bukan saat mengedit. */
+        saveScheduleButton.disabled = reached && !editing;
+    }
+
     function applySchedulePolicyUi() {
         const { role, min, max } = schedulePolicy();
         const input = $("interval-hours");
@@ -1581,6 +1682,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             input.value = String(Math.min(max, Math.max(min, 24)));
         }
         updateCostEstimate();
+        applyScheduleQuotaUi();
     }
 
     function updateCostEstimate() {
@@ -1605,10 +1707,20 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         $("interval-hours").value = schedule.interval_hours;
         $("first-run").value = utcToLocalWib(schedule.next_run_at);
         $("schedule-aspect-ratio").value = schedule.aspect_ratio || "9:16";
+        $("schedule-location").value = schedule.scene_location || "";
+        $("schedule-angle").value = schedule.camera_angle || "";
+        $("schedule-situation").value = schedule.scene_situation || "";
+        $("schedule-atmosphere").value = schedule.scene_atmosphere || "";
+        $("schedule-condition").value = schedule.scene_condition || "";
+        $("schedule-lighting").value = schedule.scene_lighting || "";
+        $("schedule-details").value = schedule.scene_details || "";
+        $("schedule-negative").value = schedule.negative_prompt || "";
+        $("schedule-autopublish").checked = schedule.autopublish_enabled !== false;
         $("schedule-enabled").checked = schedule.enabled === true;
         saveScheduleButton.textContent = "Simpan perubahan";
         $("cancel-edit").hidden = false;
         updateCostEstimate();
+        applyScheduleQuotaUi();
         window.scrollTo({ top: $("schedule-form").getBoundingClientRect().top + window.scrollY - 18, behavior: "smooth" });
     }
 
@@ -1618,11 +1730,21 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const { min, max } = schedulePolicy();
         $("interval-hours").value = String(min <= 24 && 24 <= max ? 24 : min);
         $("schedule-aspect-ratio").value = "9:16";
+        $("schedule-location").value = "";
+        $("schedule-angle").value = "";
+        $("schedule-situation").value = "";
+        $("schedule-atmosphere").value = "";
+        $("schedule-condition").value = "";
+        $("schedule-lighting").value = "";
+        $("schedule-details").value = "";
+        $("schedule-negative").value = "";
+        $("schedule-autopublish").checked = true;
         $("schedule-enabled").checked = false;
         saveScheduleButton.textContent = "Simpan jadwal";
         $("cancel-edit").hidden = true;
         setDefaultStartTime();
         updateCostEstimate();
+        applyScheduleQuotaUi();
     }
 
     async function submitSchedule(event) {
@@ -1651,6 +1773,15 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             timezone: "Asia/Jakarta",
             aspect_ratio: $("schedule-aspect-ratio").value,
             caption_template: $("default-caption-template").value,
+            scene_location: $("schedule-location").value,
+            camera_angle: $("schedule-angle").value,
+            scene_situation: $("schedule-situation").value,
+            scene_atmosphere: $("schedule-atmosphere").value,
+            scene_condition: $("schedule-condition").value,
+            scene_lighting: $("schedule-lighting").value,
+            scene_details: $("schedule-details").value.trim(),
+            negative_prompt: $("schedule-negative").value.trim(),
+            autopublish_enabled: $("schedule-autopublish").checked,
             enabled: $("schedule-enabled").checked
         };
         const scheduledCharacter = (state.data?.characters || []).find(character => character.id === body.character_id);
@@ -1671,6 +1802,25 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         } finally {
             setButtonBusy(saveScheduleButton, false);
             saveScheduleButton.textContent = $("schedule-id").value ? "Simpan perubahan" : "Simpan jadwal";
+        }
+    }
+
+    async function toggleScheduleAutopublish(schedule) {
+        const enabling = schedule.autopublish_enabled === false;
+        if (!enabling && !window.confirm("Matikan autopost untuk jadwal ini saja? Jadwal lain dan akun lain tidak terpengaruh.")) return;
+        try {
+            await api("set-schedule-autopublish", {
+                method: "POST",
+                body: { id: schedule.id, enabled: enabling }
+            });
+            showNotice(
+                pageMessage,
+                enabling ? "Autopost jadwal ini diaktifkan." : "Autopost jadwal ini dimatikan. Jadwal lain tetap berjalan.",
+                enabling ? "success" : "warn"
+            );
+            await loadDashboard();
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
         }
     }
 

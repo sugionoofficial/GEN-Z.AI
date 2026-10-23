@@ -15,7 +15,8 @@ import {
     parseContentRangeTotal,
     pickRandomOutfit,
     renderCaption,
-    sanitizeHttpsUrl
+    sanitizeHttpsUrl,
+    SCENE_PRESETS
 } from "../lib/social-publisher/utils.js";
 import {
     checkFacebookPageAccess,
@@ -48,6 +49,26 @@ import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-clean
 const GRAPH_VERSION = "v26.0";
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
 const MAX_OUTFITS_PER_CHARACTER = 30;
+const SCHEDULE_COLUMNS = [
+    "id",
+    "character_id",
+    "page_connection_id",
+    "enabled",
+    "autopublish_enabled",
+    "interval_hours",
+    "next_run_at",
+    "timezone",
+    "aspect_ratio",
+    "caption_template",
+    "scene_location",
+    "camera_angle",
+    "scene_situation",
+    "scene_lighting",
+    "scene_atmosphere",
+    "scene_condition",
+    "scene_details",
+    "negative_prompt"
+].join(",");
 const OAUTH_STATE_COOKIE = "__Secure-social-oauth-state";
 const OAUTH_STATE_COOKIE_PATH = "/api/facebook-oauth-callback";
 
@@ -954,10 +975,10 @@ async function listRunsForDashboard(config, userId, paginationOptions = {}) {
 }
 
 async function getDashboard(config, userId, env, profile, runsOptions = {}) {
-    const [characters, pages, schedules, runsResult, publisherConfig, userSettings, outfitLibrary, referenceStorageConfigured] = await Promise.all([
+    const [characters, pages, schedulesResult, runsResult, publisherConfig, userSettings, outfitLibrary, referenceStorageConfigured] = await Promise.all([
         supabaseRequest(config, tablePath("social_characters", `select=id,display_name,reference_filename,reference_mime_type,garment_filename,prompt_notes,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
-        supabaseRequest(config, tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
+        listSchedulesForDashboard(config, userId),
         listRunsForDashboard(config, userId, runsOptions),
             supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,updated_at&id=eq.true&limit=1")),
         supabaseRequest(config, tablePath("social_publisher_user_settings", `select=caption_template,external_link,autopublish_enabled,updated_at&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
@@ -965,6 +986,7 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         isPrivateReferenceBucket(config)
     ]);
 
+    const schedules = schedulesResult?.rows || [];
     const imageProvider = ["cloudflare", "qwencloud"].includes(publisherConfig?.[0]?.image_provider)
         ? publisherConfig[0].image_provider
         : "gemini";
@@ -977,7 +999,9 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         success: true,
         characters: characters || [],
         pages: pages || [],
-        schedules: schedules || [],
+        schedules,
+        /* false = migration kolom scene/autopublish jadwal belum dijalankan. */
+        sceneSchemaReady: schedulesResult?.sceneSchemaReady !== false,
         runs: runsResult?.runs || [],
         runsPagination: runsResult?.pagination || {
             page: 1,
@@ -989,8 +1013,12 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         schedulePolicy: getScheduleIntervalPolicy(profile?.role) || {
             role: String(profile?.role || "").trim().toUpperCase(),
             minIntervalHours: null,
-            maxIntervalHours: null
+            maxIntervalHours: null,
+            maxSchedules: null
         },
+        scheduleCount: schedules.length,
+        /* Pilihan parameter gambar untuk form jadwal (sumber tunggal di lib). */
+        scenePresets: SCENE_PRESETS,
         /* Switch milik user ini saja. Baris yang belum ada dianggap aktif. */
         autopublishEnabled: userSettings?.[0]?.autopublish_enabled !== false,
         /* Master switch untuk seluruh akun; hanya admin/owner yang boleh mengubah. */
@@ -1280,6 +1308,53 @@ function isMissingOutfitSchema(error) {
     return error?.code === "PGRST205" ||
         error?.code === "42P01" ||
         (/social_outfits/i.test(message) && /does not exist|schema cache|relation/i.test(message));
+}
+
+const SCHEDULE_SCENE_COLUMNS = [
+    "autopublish_enabled",
+    "scene_location",
+    "camera_angle",
+    "scene_situation",
+    "scene_lighting",
+    "scene_atmosphere",
+    "scene_condition",
+    "scene_details",
+    "negative_prompt"
+];
+
+/**
+ * True bila database belum menjalankan supabase/social-schedule-autopublish-scene.sql.
+ * Dipakai untuk fallback yang ramah, bukan untuk menyembunyikan error lain.
+ */
+function isMissingScheduleSceneSchema(error) {
+    const message = String(error?.message || "");
+    const mentionsColumn = SCHEDULE_SCENE_COLUMNS.some(column => message.includes(column));
+    return (error?.code === "PGRST204" || error?.code === "42703" || /does not exist|schema cache|column/i.test(message))
+        && mentionsColumn;
+}
+
+async function listSchedulesForDashboard(config, userId) {
+    const query = `owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`;
+    try {
+        return {
+            rows: await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_COLUMNS},created_at,updated_at&${query}`)) || [],
+            sceneSchemaReady: true
+        };
+    } catch (error) {
+        if (!isMissingScheduleSceneSchema(error)) throw error;
+        const rows = await supabaseRequest(
+            config,
+            tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&${query}`)
+        );
+        return { rows: rows || [], sceneSchemaReady: false };
+    }
+}
+
+function rethrowMissingScheduleSceneSchema(error) {
+    if (!isMissingScheduleSceneSchema(error)) throw error;
+    const wrapped = new Error("Kolom parameter gambar dan autopublish jadwal belum tersedia. Jalankan supabase/social-schedule-autopublish-scene.sql di Supabase SQL Editor, lalu simpan lagi.");
+    wrapped.status = 503;
+    throw wrapped;
 }
 
 function normalizeOutfitOrderUrl(value) {
@@ -1607,6 +1682,18 @@ async function saveSchedule(config, userId, body, profile) {
     const aspectRatio = normalizeSocialAspectRatio(body?.aspect_ratio);
     const captionTemplate = cleanText(body?.caption_template, 1000) || "Cerita hari ini dari {location} ✨";
     const id = cleanText(body?.id, 80);
+    /* Parameter detail gambar. String kosong berarti otomatis. */
+    const sceneParams = {
+        scene_location: cleanText(body?.scene_location, 400),
+        camera_angle: cleanText(body?.camera_angle, 200),
+        scene_situation: cleanText(body?.scene_situation, 400),
+        scene_lighting: cleanText(body?.scene_lighting, 300),
+        scene_atmosphere: cleanText(body?.scene_atmosphere, 300),
+        scene_condition: cleanText(body?.scene_condition, 300),
+        scene_details: cleanText(body?.scene_details, 400),
+        negative_prompt: cleanText(body?.negative_prompt, 400)
+    };
+    const scheduleAutopublish = typeof body?.autopublish_enabled === "boolean" ? body.autopublish_enabled : true;
 
     // Autopost cadence is role-based: OWNER, ADMIN, and USER start at 1 hour.
     const intervalPolicy = getScheduleIntervalPolicy(profile?.role);
@@ -1615,7 +1702,7 @@ async function saveSchedule(config, userId, body, profile) {
         error.status = 403;
         throw error;
     }
-    const { role, minIntervalHours, maxIntervalHours } = intervalPolicy;
+    const { role, minIntervalHours, maxIntervalHours, maxSchedules } = intervalPolicy;
     const intervalHours = clampIntervalHours(body?.interval_hours, minIntervalHours, maxIntervalHours);
 
     if (!characterId || !pageConnectionId || !intervalHours || !aspectRatio || !Number.isFinite(nextRunAt) || nextRunAt < Date.now() - 60_000) {
@@ -1655,16 +1742,22 @@ async function saveSchedule(config, userId, body, profile) {
         timezone,
         aspect_ratio: aspectRatio,
         caption_template: captionTemplate,
+        ...sceneParams,
         enabled: body?.enabled === true,
         updated_at: new Date().toISOString()
     };
+    /* Saat mengubah jadwal, switch autopublish hanya ikut berubah bila dikirim
+       eksplisit, supaya edit jadwal tidak diam-diam menyalakannya kembali. */
+    if (!id || typeof body?.autopublish_enabled === "boolean") {
+        values.autopublish_enabled = scheduleAutopublish;
+    }
 
     if (id) {
-        const rows = await supabaseRequest(config, tablePath("social_post_schedules", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template`), {
+        const rows = await supabaseRequest(config, tablePath("social_post_schedules", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&select=${SCHEDULE_COLUMNS}`), {
             method: "PATCH",
             headers: { Prefer: "return=representation" },
             body: JSON.stringify(values)
-        });
+        }).catch(rethrowMissingScheduleSceneSchema);
         if (!rows?.length) {
             const error = new Error("Jadwal tidak ditemukan.");
             error.status = 404;
@@ -1673,11 +1766,26 @@ async function saveSchedule(config, userId, body, profile) {
         return rows[0];
     }
 
-    const rows = await supabaseRequest(config, tablePath("social_post_schedules", "select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template"), {
+    /* Batas jumlah blok jadwal per role: USER maksimal 2, ADMIN/OWNER tanpa batas. */
+    if (maxSchedules) {
+        const existing = await supabaseRequest(
+            config,
+            tablePath("social_post_schedules", `select=id&owner_id=eq.${encodeURIComponent(userId)}`)
+        );
+        if ((existing || []).length >= maxSchedules) {
+            const error = new Error(
+                `Role ${role} maksimal ${maxSchedules} jadwal autopost. Hapus salah satu jadwal yang ada sebelum membuat jadwal baru.`
+            );
+            error.status = 409;
+            throw error;
+        }
+    }
+
+    const rows = await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_COLUMNS}`), {
         method: "POST",
         headers: { Prefer: "return=representation" },
         body: JSON.stringify(values)
-    });
+    }).catch(rethrowMissingScheduleSceneSchema);
     return rows?.[0] || null;
 }
 
@@ -2270,6 +2378,22 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
     }
     if (action === "save-schedule") {
         return json(res, 200, { success: true, schedule: await saveSchedule(config, userId, body, profile) });
+    }
+    if (action === "set-schedule-autopublish") {
+        const id = cleanText(body.id, 80);
+        if (!id) return json(res, 400, { success: false, error: "ID jadwal wajib diisi." });
+        if (typeof body.enabled !== "boolean") return json(res, 400, { success: false, error: "Nilai enabled harus boolean." });
+        const rows = await supabaseRequest(
+            config,
+            tablePath("social_post_schedules", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&select=${SCHEDULE_COLUMNS}`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify({ autopublish_enabled: body.enabled, updated_at: new Date().toISOString() })
+            }
+        ).catch(rethrowMissingScheduleSceneSchema);
+        if (!rows?.length) return json(res, 404, { success: false, error: "Jadwal tidak ditemukan." });
+        return json(res, 200, { success: true, schedule: rows[0] });
     }
     if (action === "delete-schedule") {
         const id = cleanText(body.id, 80);

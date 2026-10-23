@@ -75,6 +75,18 @@ create table if not exists public.social_post_schedules (
     aspect_ratio text not null default '9:16' check (aspect_ratio in ('9:16', '16:9')),
     caption_template text not null default 'Cerita hari ini dari {location} ✨'
         check (char_length(caption_template) <= 1000),
+    -- Switch autopublish milik blok jadwal ini. Mematikan satu jadwal tidak
+    -- memengaruhi jadwal lain.
+    autopublish_enabled boolean not null default true,
+    -- Parameter detail generate gambar. String kosong berarti otomatis.
+    scene_location text not null default '' check (char_length(scene_location) <= 400),
+    camera_angle text not null default '' check (char_length(camera_angle) <= 200),
+    scene_situation text not null default '' check (char_length(scene_situation) <= 400),
+    scene_lighting text not null default '' check (char_length(scene_lighting) <= 300),
+    scene_atmosphere text not null default '' check (char_length(scene_atmosphere) <= 300),
+    scene_condition text not null default '' check (char_length(scene_condition) <= 300),
+    scene_details text not null default '' check (char_length(scene_details) <= 400),
+    negative_prompt text not null default '' check (char_length(negative_prompt) <= 400),
     last_run_at timestamptz,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
@@ -92,6 +104,33 @@ create table if not exists public.social_post_schedules (
 alter table public.social_post_schedules
     add column if not exists aspect_ratio text not null default '9:16'
         check (aspect_ratio in ('9:16', '16:9'));
+
+alter table public.social_post_schedules
+    add column if not exists autopublish_enabled boolean not null default true;
+
+alter table public.social_post_schedules
+    add column if not exists scene_location text not null default '';
+
+alter table public.social_post_schedules
+    add column if not exists camera_angle text not null default '';
+
+alter table public.social_post_schedules
+    add column if not exists scene_situation text not null default '';
+
+alter table public.social_post_schedules
+    add column if not exists scene_lighting text not null default '';
+
+alter table public.social_post_schedules
+    add column if not exists scene_atmosphere text not null default '';
+
+alter table public.social_post_schedules
+    add column if not exists scene_condition text not null default '';
+
+alter table public.social_post_schedules
+    add column if not exists scene_details text not null default '';
+
+alter table public.social_post_schedules
+    add column if not exists negative_prompt text not null default '';
 
 -- Auto publish hanya boleh berjalan selama langganan Studio Medsos aktif.
 -- Jadwal yang dijeda otomatis karena langganan berhenti diberi tanda
@@ -279,6 +318,8 @@ begin
         from public.social_post_schedules s
         where s.enabled = true
           and s.next_run_at <= p_now
+          -- Switch autopublish milik jadwal itu sendiri.
+          and s.autopublish_enabled = true
           -- Switch autopublish milik pemilik jadwal. Baris yang belum ada
           -- dianggap aktif agar jadwal lama tidak ikut berhenti.
           and coalesce(

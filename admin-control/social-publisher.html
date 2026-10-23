@@ -202,7 +202,7 @@
                             <span class="tutorial-num">5</span>
                             <div>
                                 <p class="tutorial-step-title">Buat Posting Manual atau Jadwal Autopost</p>
-                                <p class="tutorial-step-body">Untuk uji coba langsung, gunakan <strong>Buat posting manual</strong> lalu klik <strong>Buat &amp; bersihkan pratinjau</strong> dan <strong>Terbitkan ke Facebook Page</strong>. Untuk otomatis berkala, isi <strong>4. Buat jadwal autopost</strong>, centang <strong>Jadwal ini aktif</strong>, simpan jadwal, dan pastikan tombol <strong>Aktifkan autopublish saya</strong> di bagian atas menyala (<strong>AUTOPUBLISH ON</strong>).</p>
+                                <p class="tutorial-step-body">Untuk uji coba langsung, gunakan <strong>Buat posting manual</strong> lalu klik <strong>Buat &amp; bersihkan pratinjau</strong> dan <strong>Terbitkan ke Facebook Page</strong>. Untuk otomatis berkala, isi <strong>4. Buat jadwal autopost</strong> (termasuk parameter gambar bila perlu), centang <strong>Jadwal ini aktif</strong> dan <strong>Autopost untuk jadwal ini</strong>, lalu simpan. Pastikan juga tombol <strong>Aktifkan autopublish saya</strong> di bagian atas menyala (<strong>AUTOPUBLISH ON</strong>). Setiap blok jadwal punya switch autopost sendiri: mematikan satu jadwal tidak menghentikan jadwal lain. Role USER maksimal 2 jadwal; ADMIN dan OWNER tanpa batas.</p>
                             </div>
                         </div>
                         <div class="tutorial-step">
@@ -341,7 +341,7 @@
             </section>
 
             <section class="card wide" aria-labelledby="schedule-title">
-                <div class="card-head"><div><h3 id="schedule-title">4. Buat jadwal autopost</h3><p class="sub">Atur waktu mulai dan interval. Setiap run memilih outfit aktif secara acak, menghasilkan satu gambar, dan menyisipkan link order outfit ke caption.</p></div></div>
+                <div class="card-head"><div><h3 id="schedule-title">4. Buat jadwal autopost</h3><p class="sub">Atur waktu mulai dan interval. Setiap run memilih outfit aktif secara acak, menghasilkan satu gambar, dan menyisipkan link order outfit ke caption.</p></div><span id="schedule-quota" class="badge">0 jadwal</span></div>
                 <form id="schedule-form" class="fields">
                     <input type="hidden" id="schedule-id">
                     <div class="field"><label for="schedule-character">Karakter</label><select id="schedule-character" required><option value="">Pilih karakter…</option></select></div>
@@ -349,8 +349,23 @@
                     <div class="field"><label for="interval-hours">Posting setiap</label><div style="display:flex;gap:8px;align-items:center"><input id="interval-hours" type="number" min="1" max="168" step="1" value="24" required><span style="font-size:12px;color:var(--muted);white-space:nowrap">jam</span></div><span class="help" id="interval-help">Minimal 1 jam untuk role OWNER, ADMIN, dan USER; maksimal 168 jam. 24 jam = satu post per hari.</span></div>
                     <div class="field"><label for="first-run">Waktu post pertama (WIB)</label><input id="first-run" type="datetime-local" required><span class="help">Berikutnya berulang sesuai interval.</span></div>
                     <div class="field"><label for="schedule-aspect-ratio">Rasio gambar</label><select id="schedule-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
+                    <div class="field full">
+                        <div>
+                            <strong style="font-size:12.5px;color:var(--text)">Parameter detail generate gambar</strong>
+                            <span class="help" style="display:block;margin-top:4px">Kosongkan pilihan untuk otomatis. Angle kamera otomatis memakai <strong>medium shot</strong>; lokasi, aktivitas, suasana, kondisi, dan pencahayaan dipilih acak. Negative prompt otomatis selalu dikirim ke model gambar.</span>
+                        </div>
+                    </div>
+                    <div class="field"><label for="schedule-location">Lokasi</label><select id="schedule-location"><option value="">Acak otomatis</option></select></div>
+                    <div class="field"><label for="schedule-angle">Angle kamera</label><select id="schedule-angle"><option value="">Otomatis — medium shot</option></select></div>
+                    <div class="field"><label for="schedule-situation">Aktivitas</label><select id="schedule-situation"><option value="">Acak otomatis</option></select></div>
+                    <div class="field"><label for="schedule-atmosphere">Suasana</label><select id="schedule-atmosphere"><option value="">Acak otomatis</option></select></div>
+                    <div class="field"><label for="schedule-condition">Kondisi / cuaca</label><select id="schedule-condition"><option value="">Acak otomatis</option></select></div>
+                    <div class="field"><label for="schedule-lighting">Pencahayaan</label><select id="schedule-lighting"><option value="">Acak otomatis</option></select></div>
+                    <div class="field full"><label for="schedule-details">Detail tambahan (opsional)</label><input id="schedule-details" maxlength="400" placeholder="Contoh: memegang skateboard, memakai topi, ada sepeda di belakang"><span class="help">Ditempelkan ke prompt gambar sebagai arahan tambahan untuk jadwal ini.</span></div>
+                    <div class="field full"><label for="schedule-negative">Negative prompt tambahan (opsional)</label><input id="schedule-negative" maxlength="400" placeholder="Contoh: balon udara, keramaian ekstrem"><span class="help">Negative prompt otomatis (blur, watermark, teks, anatomi rusak, wajah plastik) selalu aktif. Isi ini hanya untuk larangan khusus jadwal ini.</span></div>
                     <div class="field full"><div id="cost-estimate" class="note-cost">Estimasi biaya gambar dihitung setelah interval dipilih.</div></div>
-                    <div class="field full"><label class="inline-check"><input id="schedule-enabled" type="checkbox"><span>Jadwal ini aktif. Saat autopublish akun Anda aktif, gambar akan dibuat dan langsung diposting ke Page tanpa persetujuan tambahan.</span></label></div>
+                    <div class="field full"><label class="inline-check"><input id="schedule-autopublish" type="checkbox" checked><span><strong>Autopost untuk jadwal ini.</strong> Saat aktif, jadwal ini ikut diposting otomatis. Mematikan switch ini hanya menghentikan jadwal ini; jadwal lain dan akun lain tidak terpengaruh.</span></label></div>
+                    <div class="field full"><label class="inline-check"><input id="schedule-enabled" type="checkbox"><span>Jadwal ini aktif. Autopost hanya berjalan bila switch autopublish akun dan switch autopublish jadwal ini sama-sama aktif.</span></label></div>
                     <div class="field full"><div class="actions"><button id="save-schedule" class="btn primary" type="submit">Simpan jadwal</button><button id="cancel-edit" class="btn" type="button" hidden>Batal edit</button></div><p id="schedule-status" class="status"></p></div>
                 </form>
                 <div style="height:1px;background:var(--border);margin:22px 0"></div>
@@ -381,6 +396,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
-    <script type="module" src="./social-publisher.js?v=schedule-countdown-20261022"></script>
+    <script type="module" src="./social-publisher.js?v=schedule-scene-20261023"></script>
 </body>
 </html>

@@ -67,6 +67,10 @@ function mockScheduleApi({ role, userId = "user-1" }) {
         if (url.includes("/rest/v1/social_page_connections?select=id,can_publish&")) {
             return Response.json([{ id: "connection-1", can_publish: true }]);
         }
+        /* Cek kuota jumlah jadwal (role USER maksimal 2). */
+        if (url.includes("/rest/v1/social_post_schedules?select=id&owner_id=eq.") && !options.method) {
+            return Response.json([]);
+        }
         if (url.includes("/rest/v1/social_post_schedules") && options.method === "POST") {
             const body = JSON.parse(options.body);
             captured.intervalHours = body.interval_hours;
