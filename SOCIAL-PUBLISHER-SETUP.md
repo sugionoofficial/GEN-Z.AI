@@ -254,6 +254,14 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
    do not block on it: request Advanced Access anyway (step 1) — Meta answers either
    with an approval or with an explicit "business verification required" prompt, and
    only then is the portfolio verification actually needed.
+   On the *Verifikasi Bisnis* card, pick the use case **Aplikasi memerlukan akses ke
+   izin di Meta untuk Developer** (`App requires access to permissions on Meta for
+   developers`). Once submitted the card shows **Pengajuan menunggu persetujuan**
+   (`Submission pending review`) with a start date and a *Lanjutkan* button; that
+   state means nothing is left to do but wait — a decision takes up to 14 business
+   days and arrives by email/notification. Do not resubmit while it is pending.
+   The *Action needed* rows above it (user without passkey, user with a public email
+   domain) are hardening recommendations, not verification blockers.
 4. **App settings → Basic**: Category, App Domains (`genzai.genzai-f37.workers.dev`),
    Privacy Policy URL, and Data Deletion Instructions URL must be filled in. Meta
    hides login while app details are considered incomplete.
