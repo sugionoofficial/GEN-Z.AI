@@ -210,21 +210,38 @@ message. The full Meta text is:
 
 That wording means **Meta is withholding the app's Facebook Login product from users
 who have no role in the app**, i.e. the app has not finished the requirements that
-unlock login for everyone. Fix it in the Meta App Dashboard, in this order:
+unlock login for everyone.
 
-1. **App Review → Permissions and Features**: set `public_profile` and `email` to
-   **Advanced Access** (click *Increase* → *Advanced access*). Without Advanced
-   Access, accounts outside the app roles can never complete the dialog, even when
-   the app is Live. The Page permissions (`pages_show_list`,
-   `pages_read_engagement`, `pages_manage_posts`) need App Review + Advanced Access
-   as well before non-role accounts can publish to a Page.
-2. **Alerts / Required actions** on the app dashboard: clear a pending **Data Use
-   Checkup** (it recurs annually) and any red banner on the app tile. A pending
-   checkup alone produces exactly this screen.
+Meta states this requirement explicitly for this product: *"advanced access to the
+`public_profile` permission is required for Facebook Login for Business apps before
+they go live"* — without it, only accounts with an app role can complete the dialog,
+even when the app shows as published. Fix it in the Meta App Dashboard, in this order.
+
+Where the menus live in the current dashboard (Indonesian UI in parentheses):
+
+| What the older guides call it | Current App Dashboard path |
+| --- | --- |
+| Alerts / Required actions | **Tindakan yang Diperlukan** (`Required actions`) in the left menu, plus red banners on the app tile in `/apps` |
+| App Review → Permissions and Features | **Tinjauan** (`Review`) → **Izin dan fitur** (`Permissions and features`); on use-case apps the same list is reachable from **Kasus penggunaan** → the use case → *Sesuaikan* (`Customize`) |
+| App Review submission | **Tinjauan** → **App Review** → *Edit* / *Buat pengajuan* |
+| Business Verification | Meta Business Suite → **Security Center**, or **Tinjauan** → **Verifikasi bisnis** |
+| App Mode / publish | **Terbitkan** (`Publish`) → status *Diterbitkan* |
+| App roles | **Peran aplikasi** (`App roles`) → **Roles** |
+| Login configuration | Product **Facebook Login for Business** → **Konfigurasi** (`Configurations`) |
+
+1. **Izin dan fitur → `public_profile`**: request **Advanced Access** (*Tingkatkan
+   akses* → *Akses lanjutan*). For a **Facebook Login for Business** app this is
+   mandatory before anyone without an app role can log in. Set `email` to Advanced
+   Access too if the flow asks for it. The Page permissions (`pages_show_list`,
+   `pages_read_engagement`, `pages_manage_posts`) also need App Review + Advanced
+   Access before non-role accounts can publish to a Page.
+2. **Tindakan yang Diperlukan**: clear a pending **Data Use Checkup** (it recurs
+   annually) and any red banner on the app tile. A pending checkup alone produces
+   exactly this screen. *Empty page = this is not the cause.*
 3. **Business Verification** in Meta Business Suite → *Security Center*. Since May
-   2023 every new request for Advanced Access to `email` / `public_profile` needs a
-   verified business, so step 1 cannot complete without it. The
-   `facebook-domain-verification` meta tag in `index.html` is part of this flow.
+   2023 every new request for Advanced Access needs a verified business, so step 1
+   cannot be granted without it. The `facebook-domain-verification` meta tag in
+   `index.html` belongs to this flow.
 4. **App settings → Basic**: Category, App Domains (`genzai.genzai-f37.workers.dev`),
    Privacy Policy URL, and Data Deletion Instructions URL must be filled in. Meta
    hides login while app details are considered incomplete.
@@ -233,7 +250,7 @@ unlock login for everyone. Fix it in the Meta App Dashboard, in this order:
    `pages_show_list`, `pages_read_engagement`, and `pages_manage_posts` plus the
    target Page assets. A deleted or empty configuration also shows this screen
    because `startOAuth` sends `config_id` without a scope list.
-6. **App Mode = Live** (top of the dashboard) once steps 1–5 are green.
+6. **Terbitkan** (`Publish`) once steps 1–5 are green.
 
 While waiting, an account added as **App roles → Roles → Tester** (then accepting the
 invitation and signing out/in of Facebook) can normally still complete the dialog,
