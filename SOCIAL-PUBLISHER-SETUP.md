@@ -421,8 +421,22 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
    (`Submission pending review`) with a start date and a *Lanjutkan* button; that
    state means nothing is left to do but wait — a decision takes up to 14 business
    days and arrives by email/notification. Do not resubmit while it is pending.
-   The *Action needed* rows above it (user without passkey, user with a public email
-   domain) are hardening recommendations, not verification blockers.
+   The *Action needed* rows above it are hardening recommendations, not verification
+   blockers, and they do **not** influence the pending review:
+
+   - *1 pengguna dengan domain email publik* (`1 user with a public email domain`) is
+     triggered by the **domain** of the email only — `gmail.com`, `yahoo.com`, etc. —
+     not by the person's name or by any suspicion that the account is fake. Meta's
+     heuristic is that free-mail accounts are easier to take over than a company domain,
+     so it recommends keeping only corporate-domain users in a portfolio. A solo owner
+     using their own Gmail is the normal case for a small business and is safe to leave
+     as-is.
+   - *1 pengguna without passkey enabled* + *0 dari 1 orang harus mengaktifkan
+     autentikasi dua faktor* are the same idea: stronger auth for portfolio members.
+   - Never click **Ambil tindakan** → remove on the only admin. Removing the last
+     full-control user locks the portfolio (and the app attached to it) out of
+     management. If the goal is to clear the warning, add a second admin first — ideally
+     one on the business domain — and enable 2FA / a passkey for the existing account.
 4. **App settings → Basic**: Category, App Domains (`genzai.genzai-f37.workers.dev`),
    Privacy Policy URL, and Data Deletion Instructions URL must be filled in. Meta
    hides login while app details are considered incomplete.
