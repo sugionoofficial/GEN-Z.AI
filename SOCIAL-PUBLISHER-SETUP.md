@@ -197,6 +197,52 @@ signed-in role. Changing a role's minimum later only requires editing that map.
 
 A revoked/expired token, missing Meta permission, provider outage, or API error is recorded as a failed run. Reconnect the Page or fix the configuration before expecting later runs to succeed. Generated identity resemblance is not exact; use only images you have the rights and consent to use, and periodically check the posted content.
 
+### "Fitur Tidak Tersedia" / "Feature unavailable: Facebook Login is currently unavailable for this app"
+
+This is the other Meta-side block. It is rendered by `facebook.com` **before** the
+OAuth redirect, so the Worker never receives a request, the callback never runs, and
+no `oauth_error` is recorded — the panel stays on "Hubungkan Facebook" with no
+message. The full Meta text is:
+
+> Fitur Tidak Tersedia — Login Facebook saat ini tidak tersedia untuk aplikasi ini,
+> karena kami sedang memperbarui detail tambahan untuk aplikasi ini. Silakan coba
+> lagi nanti.
+
+That wording means **Meta is withholding the app's Facebook Login product from users
+who have no role in the app**, i.e. the app has not finished the requirements that
+unlock login for everyone. Fix it in the Meta App Dashboard, in this order:
+
+1. **App Review → Permissions and Features**: set `public_profile` and `email` to
+   **Advanced Access** (click *Increase* → *Advanced access*). Without Advanced
+   Access, accounts outside the app roles can never complete the dialog, even when
+   the app is Live. The Page permissions (`pages_show_list`,
+   `pages_read_engagement`, `pages_manage_posts`) need App Review + Advanced Access
+   as well before non-role accounts can publish to a Page.
+2. **Alerts / Required actions** on the app dashboard: clear a pending **Data Use
+   Checkup** (it recurs annually) and any red banner on the app tile. A pending
+   checkup alone produces exactly this screen.
+3. **Business Verification** in Meta Business Suite → *Security Center*. Since May
+   2023 every new request for Advanced Access to `email` / `public_profile` needs a
+   verified business, so step 1 cannot complete without it. The
+   `facebook-domain-verification` meta tag in `index.html` is part of this flow.
+4. **App settings → Basic**: Category, App Domains (`genzai.genzai-f37.workers.dev`),
+   Privacy Policy URL, and Data Deletion Instructions URL must be filled in. Meta
+   hides login while app details are considered incomplete.
+5. **Facebook Login for Business → Configurations**: `META_LOGIN_CONFIG_ID` must point
+   at an existing configuration of the **User access token** type that contains
+   `pages_show_list`, `pages_read_engagement`, and `pages_manage_posts` plus the
+   target Page assets. A deleted or empty configuration also shows this screen
+   because `startOAuth` sends `config_id` without a scope list.
+6. **App Mode = Live** (top of the dashboard) once steps 1–5 are green.
+
+While waiting, an account added as **App roles → Roles → Tester** (then accepting the
+invitation and signing out/in of Facebook) can normally still complete the dialog,
+which is enough to smoke-test the publisher end to end.
+
+"Updating additional details" is also occasionally a transient Meta-side restriction
+with nothing to fix in the dashboard; those cases clear on their own within ~24 hours,
+so retry the same button before reworking the configuration.
+
 ### "Aplikasi tidak aktif" / "App not active" on Facebook
 
 Facebook shows this page **before** our callback runs, so the dashboard receives no
