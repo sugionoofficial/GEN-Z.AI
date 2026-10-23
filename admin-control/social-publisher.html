@@ -125,7 +125,7 @@
                 <h2 id="page-title">Karakter yang sama. Cerita baru setiap post.</h2>
                 <p>Unggah foto referensi yang Anda berhak gunakan, lalu simpan beberapa outfit beserta link order-nya. Setiap post memilih satu outfit secara acak: fotonya dipakai sebagai referensi try-on, sedangkan nama outfit dan link order ikut terbit bersama caption dan kalimat buatan AI. Sistem merancang lokasi, sudut kamera, situasi, dan pencahayaan yang bervariasi, membuat satu gambar, lalu menerbitkannya ke Facebook Page sesuai jadwal WIB. Profil pribadi hanya dibagikan dengan konfirmasi manual.</p>
             </div>
-            <div id="global-state" class="state off">AUTOPUBLISH OFF</div>
+            <div id="global-state" class="state off" title="Status autopublish akun Anda">AUTOPUBLISH OFF</div>
         </section>
 
         <div id="studio-price-block" class="studio-price" aria-live="polite">
@@ -144,10 +144,13 @@
         <section class="card" aria-labelledby="config-title">
             <div class="card-head">
                 <div><h3 id="config-title">Status konfigurasi</h3><p class="sub">Kredensial disimpan sebagai secret server; tidak ditampilkan di halaman ini.</p></div>
-                <button id="global-toggle" class="btn danger" type="button" disabled>Aktifkan autopublish</button>
+                <div class="actions" style="margin:0">
+                    <button id="global-toggle" class="btn danger" type="button" disabled>Aktifkan autopublish saya</button>
+                    <button id="master-toggle" class="btn" type="button" hidden>Master switch</button>
+                </div>
             </div>
             <div id="config-list" class="config-list" aria-live="polite"></div>
-            <p class="help" style="margin-top:12px">Aktifkan hanya setelah Meta OAuth, Gemini API, Supabase Storage, dan SQL migration siap. Jadwal tetap bisa disiapkan saat autopublish nonaktif.</p>
+            <p class="help" style="margin-top:12px">Tombol <strong>Aktifkan autopublish saya</strong> hanya mengatur jadwal milik akun Anda; akun lain tidak terpengaruh. Aktifkan hanya setelah Meta OAuth, Gemini API, Supabase Storage, dan SQL migration siap. Jadwal tetap bisa disiapkan saat autopublish nonaktif. Master switch hanya muncul untuk admin/owner dan menghentikan autopost seluruh akun.</p>
         </section>
 
         <div class="grid" style="margin-top:18px">
@@ -199,7 +202,7 @@
                             <span class="tutorial-num">5</span>
                             <div>
                                 <p class="tutorial-step-title">Buat Posting Manual atau Jadwal Autopost</p>
-                                <p class="tutorial-step-body">Untuk uji coba langsung, gunakan <strong>Buat posting manual</strong> lalu klik <strong>Buat &amp; bersihkan pratinjau</strong> dan <strong>Terbitkan ke Facebook Page</strong>. Untuk otomatis berkala, isi <strong>4. Buat jadwal autopost</strong>, centang <strong>Jadwal ini aktif</strong>, simpan jadwal, dan pastikan tombol <strong>Aktifkan autopublish</strong> di bagian atas menyala (<strong>AUTOPUBLISH ON</strong>).</p>
+                                <p class="tutorial-step-body">Untuk uji coba langsung, gunakan <strong>Buat posting manual</strong> lalu klik <strong>Buat &amp; bersihkan pratinjau</strong> dan <strong>Terbitkan ke Facebook Page</strong>. Untuk otomatis berkala, isi <strong>4. Buat jadwal autopost</strong>, centang <strong>Jadwal ini aktif</strong>, simpan jadwal, dan pastikan tombol <strong>Aktifkan autopublish saya</strong> di bagian atas menyala (<strong>AUTOPUBLISH ON</strong>).</p>
                             </div>
                         </div>
                         <div class="tutorial-step">
@@ -347,7 +350,7 @@
                     <div class="field"><label for="first-run">Waktu post pertama (WIB)</label><input id="first-run" type="datetime-local" required><span class="help">Berikutnya berulang sesuai interval.</span></div>
                     <div class="field"><label for="schedule-aspect-ratio">Rasio gambar</label><select id="schedule-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
                     <div class="field full"><div id="cost-estimate" class="note-cost">Estimasi biaya gambar dihitung setelah interval dipilih.</div></div>
-                    <div class="field full"><label class="inline-check"><input id="schedule-enabled" type="checkbox"><span>Jadwal ini aktif. Saat autopublish global aktif, gambar akan dibuat dan langsung diposting ke Page tanpa persetujuan tambahan.</span></label></div>
+                    <div class="field full"><label class="inline-check"><input id="schedule-enabled" type="checkbox"><span>Jadwal ini aktif. Saat autopublish akun Anda aktif, gambar akan dibuat dan langsung diposting ke Page tanpa persetujuan tambahan.</span></label></div>
                     <div class="field full"><div class="actions"><button id="save-schedule" class="btn primary" type="submit">Simpan jadwal</button><button id="cancel-edit" class="btn" type="button" hidden>Batal edit</button></div><p id="schedule-status" class="status"></p></div>
                 </form>
                 <div style="height:1px;background:var(--border);margin:22px 0"></div>

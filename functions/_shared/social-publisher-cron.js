@@ -239,9 +239,22 @@ async function processRun(env, config, claimedRun) {
             dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,garment_object_key,garment_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             listRecentPostedRuns(config, schedule.id),
-            dbRequest(config, table("social_publisher_user_settings", `select=caption_template,external_link&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
+            dbRequest(config, table("social_publisher_user_settings", `select=caption_template,external_link,autopublish_enabled&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1"))
         ]);
+        /* Switch autopublish milik user. RPC claim sudah menyaringnya; guard ini
+           menjaga run yang terlanjur diklaim sebelum migration dijalankan. */
+        if (settingsRows?.[0]?.autopublish_enabled === false) {
+            const message = "Autopublish dinonaktifkan oleh pemilik akun Studio Medsos. Aktifkan kembali untuk melanjutkan autopost.";
+            console.warn(`[Social Publisher] Run ${runId} skipped: ${message}`);
+            await updateRun(config, runId, {
+                status: "failed",
+                error_message: message,
+                finished_at: new Date().toISOString()
+            });
+            return;
+        }
+
         const character = characters?.[0];
         const page = pageConnections?.[0];
         if (!character) throw new Error("Character reference was not found.");
