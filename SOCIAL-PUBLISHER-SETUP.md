@@ -15,7 +15,7 @@ Schedules are saved as UTC timestamps derived from the selected **Asia/Jakarta (
 
 ### 1. Apply the Supabase migration
 
-Run `supabase/social-auto-publisher.sql`, `supabase/social-autopublish-per-user.sql`, and `supabase/social-reference-storage.sql` in the Supabase SQL Editor. The per-user file adds `social_publisher_user_settings.autopublish_enabled` and redefines `claim_due_social_post_schedules` so each account controls only its own autopost; it is safe to run repeatedly, and an account without a settings row is treated as autopublish **on** so existing schedules keep running. The first file creates server-only tables with RLS, including the `social_outfits` library and the `outfit_id`/`outfit_name`/`outfit_order_url` columns on `social_post_runs`; the script is idempotent, so running it again upgrades an existing deployment. The second file creates a dedicated private Storage bucket named `social-character-references`, limited to JPEG, PNG, and WebP references up to 8 MB. The Worker uses the existing Supabase service-role configuration to read and write these objects server-side. Do not make the bucket public.
+Run `supabase/social-auto-publisher.sql`, `supabase/social-autopublish-per-user.sql`, `supabase/social-schedule-autopublish-scene.sql`, and `supabase/social-reference-storage.sql` in the Supabase SQL Editor. The schedule file adds `social_post_schedules.autopublish_enabled` plus the per-schedule image parameters (`scene_location`, `camera_angle`, `scene_situation`, `scene_lighting`, `scene_atmosphere`, `scene_condition`, `scene_details`, `negative_prompt`) and redefines `claim_due_social_post_schedules` so a schedule only fires when its own switch, the account switch, and the platform master switch are all on. The per-user file adds `social_publisher_user_settings.autopublish_enabled` and redefines `claim_due_social_post_schedules` so each account controls only its own autopost; it is safe to run repeatedly, and an account without a settings row is treated as autopublish **on** so existing schedules keep running. The first file creates server-only tables with RLS, including the `social_outfits` library and the `outfit_id`/`outfit_name`/`outfit_order_url` columns on `social_post_runs`; the script is idempotent, so running it again upgrades an existing deployment. The second file creates a dedicated private Storage bucket named `social-character-references`, limited to JPEG, PNG, and WebP references up to 8 MB. The Worker uses the existing Supabase service-role configuration to read and write these objects server-side. Do not make the bucket public.
 
 ### 2. Configure Google Gemini image generation
 
@@ -166,23 +166,25 @@ Open **Admin Control → Social Auto Publisher**:
 1. Click **Hubungkan Facebook** and authorize the Pages you administer.
 2. Upload a licensed/authorized reference photo; confirm the character is an adult or fictional non-child.
 3. Open **Outfit & link order**, choose the character, then upload outfits with a name, photo, optional notes, and an HTTPS order link. Repeat for every look you want the random picker to use.
-4. Create an interval schedule (`OWNER`, `ADMIN`, and `USER` roles may not post faster than once per hour; maximum 168 hours), choose its first run time in WIB, and write a caption template. Supported caption fields: `{name}`, `{location}`, `{outfit}`, `{situation}`, `{lighting}`, `{angle}`. `{outfit}` resolves to the outfit that was randomly selected for that post.
-5. Turn on the schedule, then activate autopublish **for your own account** (`Aktifkan autopublish saya`) once every configuration check is ready. This switch is per account: pausing it never stops other accounts. Only `ADMIN`/`OWNER` see the separate **Master switch**, which stops autopost for every account and is reserved for maintenance or incidents.
-6. Review run status and use **Bagikan ke profil pribadi** to confirm sharing manually when desired.
+4. Create an interval schedule (`OWNER`, `ADMIN`, and `USER` roles may not post faster than once per hour; maximum 168 hours), choose its first run time in WIB, and write a caption template. Supported caption fields: `{name}`, `{location}`, `{outfit}`, `{situation}`, `{lighting}`, `{angle}`, `{atmosphere}`, `{condition}`. `{outfit}` resolves to the outfit that was randomly selected for that post. `USER` accounts may keep at most **2** schedule blocks; `ADMIN` and `OWNER` are unlimited.
+5. Fill the optional image parameters on the schedule block: location, camera angle, activity, atmosphere, weather/condition, lighting, extra detail, and an extra negative prompt. Empty selections fall back automatically — location, activity, atmosphere, condition, and lighting are randomised, an empty camera angle becomes **medium shot**, and the built-in negative prompt (blur, watermark, text, broken anatomy, plastic skin) is always sent. Set the per-schedule **Autopost untuk jadwal ini** checkbox; turning it off stops only that block.
+6. Turn on the schedule, then activate autopublish **for your own account** (`Aktifkan autopublish saya`) once every configuration check is ready. This switch is per account: pausing it never stops other accounts. Only `ADMIN`/`OWNER` see the separate **Master switch**, which stops autopost for every account and is reserved for maintenance or incidents.
+7. Review run status and use **Bagikan ke profil pribadi** to confirm sharing manually when desired.
 
 ### Autopost interval by role
 
 Scheduling speed is enforced on the server, not just in the browser. The limits live
 in `SOCIAL_SCHEDULE_INTERVAL_POLICY` (`lib/social-publisher/utils.js`):
 
-| Role | Minimum interval | Maximum interval |
-| --- | --- | --- |
-| `OWNER` | 1 hour | 168 hours |
-| `ADMIN` | 1 hour | 168 hours |
-| `USER` | 1 hour | 168 hours |
+| Role | Minimum interval | Maximum interval | Max schedule blocks |
+| --- | --- | --- | --- |
+| `OWNER` | 1 hour | 168 hours | unlimited |
+| `ADMIN` | 1 hour | 168 hours | unlimited |
+| `USER` | 1 hour | 168 hours | 2 |
 
-`save-schedule` rejects anything below the role minimum (HTTP 400) and rejects roles
-outside the list (HTTP 403). The dashboard returns the active policy as
+`save-schedule` rejects anything below the role minimum (HTTP 400), rejects roles
+outside the list (HTTP 403), and rejects a new block above the role's schedule limit
+(HTTP 409). The dashboard returns the active policy as
 `schedulePolicy`, so the form renders the right `min`/`max` and help text for the
 signed-in role. Changing a role's minimum later only requires editing that map.
 

@@ -1,4 +1,4 @@
-import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, pickRandomOutfit, renderCaption } from "../../lib/social-publisher/utils.js";
+import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
 import { decryptSecret, generateSocialContextCaption, generateSocialImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
 import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket } from "../../lib/social-publisher/storage.js";
 import { normalizeQwenCloudImageModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
@@ -214,10 +214,23 @@ async function processRun(env, config, claimedRun) {
         await updateRun(config, runId, { status: "generating", started_at: now });
         const schedules = await dbRequest(config, table(
             "social_post_schedules",
-            `select=id,owner_id,character_id,page_connection_id,enabled,interval_hours,aspect_ratio,caption_template,timezone&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+            `select=id,owner_id,character_id,page_connection_id,enabled,autopublish_enabled,interval_hours,aspect_ratio,caption_template,timezone,scene_location,camera_angle,scene_situation,scene_lighting,scene_atmosphere,scene_condition,scene_details,negative_prompt&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
         ));
         const schedule = schedules?.[0];
         if (!schedule) throw new Error("Schedule was removed or disabled before processing.");
+
+        /* Switch autopublish milik blok jadwal ini. RPC claim sudah menyaringnya;
+           guard ini menjaga run yang terklaim sebelum migration dijalankan. */
+        if (schedule.autopublish_enabled === false) {
+            const message = "Autopublish untuk jadwal ini sedang dimatikan. Aktifkan lagi pada blok jadwal di Studio Medsos untuk melanjutkan autopost.";
+            console.warn(`[Social Publisher] Run ${runId} skipped: ${message}`);
+            await updateRun(config, runId, {
+                status: "failed",
+                error_message: message,
+                finished_at: new Date().toISOString()
+            });
+            return;
+        }
 
         /* Auto publish wajib berhenti ketika masa aktif langganan habis. */
         const subscription = await getSubscriptionState(config, schedule.owner_id, Date.now());
@@ -279,8 +292,10 @@ async function processRun(env, config, claimedRun) {
         const garmentBytes = garmentObjectKey && imageProvider !== "cloudflare"
             ? await downloadReferenceObject(config, garmentObjectKey)
             : null;
+        /* Parameter detail dari blok jadwal: kolom kosong otomatis diacak,
+           angle kosong jatuh ke medium shot. */
         const scene = applyOutfitToScene(
-            { ...createScenePlan(recentSceneKeys), aspect_ratio: aspectRatio },
+            { ...createScenePlan(recentSceneKeys, Math.random, sceneOverridesFromSchedule(schedule)), aspect_ratio: aspectRatio },
             outfit
         );
         const prompt = buildImagePrompt({
@@ -290,7 +305,8 @@ async function processRun(env, config, claimedRun) {
             aspectRatio,
             outfitName: outfit?.name,
             outfitNotes: outfit?.notes,
-            hasOutfitReference: Boolean(garmentObjectKey)
+            hasOutfitReference: Boolean(garmentObjectKey),
+            negativePrompt: schedule.negative_prompt
         });
         const generated = await generateSocialImage({
             env,
@@ -377,7 +393,12 @@ async function processRun(env, config, claimedRun) {
         });
         console.log(`[Social Publisher] Posted run ${runId} to Page ${page.page_id}.`);
     } catch (error) {
-        const safeMessage = cleanError(error);
+        let safeMessage = cleanError(error);
+        /* Pesan yang bisa ditindaklanjuti saat migration belum dijalankan. */
+        if (/(autopublish_enabled|scene_location|camera_angle|scene_atmosphere|negative_prompt)/i.test(safeMessage)
+            && /does not exist|schema cache|column/i.test(safeMessage)) {
+            safeMessage = "Kolom jadwal terbaru belum ada di database. Jalankan supabase/social-schedule-autopublish-scene.sql di Supabase SQL Editor, lalu jalankan ulang jadwal ini.";
+        }
         console.error(`[Social Publisher] Run ${runId} failed (${error?.code || "error"}): ${safeMessage}`);
         if (imageProvider === "qwencloud" && (error?.quotaExhausted === true || error?.status === 429)) {
             recordModelUsage(config, imageModel, { quotaError: true, message: safeMessage }).catch(recordError => {
