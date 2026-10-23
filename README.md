@@ -381,7 +381,9 @@ Mekanisme penyimpanan media dijelaskan lengkap di `STORAGE-RETENTION.md`. Ringka
   menyimpan referensi `supabase-private://user-uploads/…`, lalu API dan
   halaman riwayat menukarnya menjadi **signed URL 30 menit** saat dibaca
   (`lib/generate/private-media.js`). Link hasil tidak bisa dibagikan ke akun
-  lain.
+  lain. Referensi input di riwayat juga disimpan dengan cara yang sama,
+  sehingga tombol **Regenerate** tetap punya referensi valid sampai file
+  terhapus cron.
 - Konten situs di `dashboard-videos/videos/` dan `dashboard-videos/thumbnails/`
   tidak pernah disentuh cron.
 - Pembersihan berjalan otomatis tiap 5 menit lewat `scheduled()` Cloudflare
