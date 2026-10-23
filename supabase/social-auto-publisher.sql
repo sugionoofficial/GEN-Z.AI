@@ -184,6 +184,9 @@ create table if not exists public.social_publisher_user_settings (
         check (char_length(caption_template) <= 1000),
     external_link text not null default ''
         check (char_length(external_link) <= 500),
+    -- Switch autopublish milik masing-masing user. Mematikan ini hanya
+    -- menghentikan autopost user tersebut, bukan user lain.
+    autopublish_enabled boolean not null default true,
     updated_at timestamptz not null default now()
 );
 
@@ -276,6 +279,16 @@ begin
         from public.social_post_schedules s
         where s.enabled = true
           and s.next_run_at <= p_now
+          -- Switch autopublish milik pemilik jadwal. Baris yang belum ada
+          -- dianggap aktif agar jadwal lama tidak ikut berhenti.
+          and coalesce(
+              (
+                  select u.autopublish_enabled
+                  from public.social_publisher_user_settings u
+                  where u.owner_id = s.owner_id
+              ),
+              true
+          ) = true
         order by s.next_run_at asc
         limit v_limit
         for update skip locked

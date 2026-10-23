@@ -960,7 +960,7 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         supabaseRequest(config, tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         listRunsForDashboard(config, userId, runsOptions),
             supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,updated_at&id=eq.true&limit=1")),
-        supabaseRequest(config, tablePath("social_publisher_user_settings", `select=caption_template,external_link,updated_at&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
+        supabaseRequest(config, tablePath("social_publisher_user_settings", `select=caption_template,external_link,autopublish_enabled,updated_at&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
         listOutfitsForDashboard(config, userId),
         isPrivateReferenceBucket(config)
     ]);
@@ -991,7 +991,11 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
             minIntervalHours: null,
             maxIntervalHours: null
         },
+        /* Switch milik user ini saja. Baris yang belum ada dianggap aktif. */
+        autopublishEnabled: userSettings?.[0]?.autopublish_enabled !== false,
+        /* Master switch untuk seluruh akun; hanya admin/owner yang boleh mengubah. */
         globalEnabled: publisherConfig?.[0]?.global_enabled === true,
+        canManageGlobalAutopublish: ["ADMIN", "OWNER"].includes(String(profile?.role || "").trim().toUpperCase()),
         postingSettings: userSettings?.[0] || { caption_template: "Cerita hari ini ✨", external_link: "" },
         config: {
             metaOAuthConfigured: Boolean(envValue(env, "META_APP_ID") && envValue(env, "META_APP_SECRET") && envValue(env, "META_REDIRECT_URI") && envValue(env, "META_LOGIN_CONFIG_ID")),
@@ -2149,21 +2153,43 @@ async function discardManualPost(config, userId, body) {
     return { run_id: runId, status: "discarded" };
 }
 
-async function setGlobalEnabled(config, userId, env, enabled) {
-    if (enabled) {
-        const missing = [];
-        const imageProvider = await getSocialImageProvider(config);
-        if (imageProvider === "gemini" && !envValue(env, "GEMINI_API_KEY")) missing.push("GEMINI_API_KEY");
-        if (imageProvider === "cloudflare" && typeof env?.AI?.run !== "function") missing.push("binding Cloudflare Workers AI (AI)");
-        if (!envValue(env, "META_APP_ID") || !envValue(env, "META_APP_SECRET") || !envValue(env, "META_REDIRECT_URI") || !envValue(env, "META_LOGIN_CONFIG_ID")) missing.push("konfigurasi OAuth Meta (termasuk ID Facebook Login for Business)");
-        if (!envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) missing.push("SOCIAL_TOKEN_ENCRYPTION_KEY");
-        if (!await isPrivateReferenceBucket(config)) missing.push("bucket privat Supabase Storage untuk referensi");
-        if (missing.length) {
-            const error = new Error(`Belum dapat mengaktifkan autopost. Lengkapi: ${missing.join(", ")}.`);
-            error.status = 409;
-            throw error;
-        }
+async function assertAutopublishReady(config, env) {
+    const missing = [];
+    const imageProvider = await getSocialImageProvider(config);
+    if (imageProvider === "gemini" && !envValue(env, "GEMINI_API_KEY")) missing.push("GEMINI_API_KEY");
+    if (imageProvider === "cloudflare" && typeof env?.AI?.run !== "function") missing.push("binding Cloudflare Workers AI (AI)");
+    if (!envValue(env, "META_APP_ID") || !envValue(env, "META_APP_SECRET") || !envValue(env, "META_REDIRECT_URI") || !envValue(env, "META_LOGIN_CONFIG_ID")) missing.push("konfigurasi OAuth Meta (termasuk ID Facebook Login for Business)");
+    if (!envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) missing.push("SOCIAL_TOKEN_ENCRYPTION_KEY");
+    if (!await isPrivateReferenceBucket(config)) missing.push("bucket privat Supabase Storage untuk referensi");
+    if (missing.length) {
+        const error = new Error(`Belum dapat mengaktifkan autopost. Lengkapi: ${missing.join(", ")}.`);
+        error.status = 409;
+        throw error;
     }
+}
+
+/**
+ * Switch autopublish MILIK USER INI.
+ * Disimpan di social_publisher_user_settings.owner_id = user, jadi mematikan
+ * autopost hanya berlaku untuk jadwal milik user tersebut. Nilai default untuk
+ * baris yang belum ada adalah aktif, sehingga jadwal lama tetap berjalan.
+ */
+async function setUserAutopublish(config, userId, env, enabled) {
+    if (enabled) await assertAutopublishReady(config, env);
+    const rows = await supabaseRequest(config, tablePath("social_publisher_user_settings", "on_conflict=owner_id&select=owner_id,autopublish_enabled,updated_at"), {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+        body: JSON.stringify({ owner_id: userId, autopublish_enabled: enabled, updated_at: new Date().toISOString() })
+    });
+    return rows?.[0] || { owner_id: userId, autopublish_enabled: enabled };
+}
+
+/**
+ * Master switch global (admin/owner). Menghentikan autopost SEMUA user sekaligus
+ * dan dipakai saat perawatan/insiden, bukan sehari-hari.
+ */
+async function setGlobalEnabled(config, userId, env, enabled) {
+    if (enabled) await assertAutopublishReady(config, env);
 
     const rows = await supabaseRequest(config, tablePath("social_publisher_config", "on_conflict=id&select=id,global_enabled,updated_at"), {
         method: "POST",
@@ -2222,7 +2248,13 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
         const result = await saveModelQuotaSettings(config, body);
         return json(res, 200, { success: true, ...result });
     }
+    if (action === "set-autopublish") {
+        if (typeof body.enabled !== "boolean") return json(res, 400, { success: false, error: "Nilai enabled harus boolean." });
+        const settings = await setUserAutopublish(config, userId, env, body.enabled);
+        return json(res, 200, { success: true, autopublishEnabled: settings.autopublish_enabled !== false });
+    }
     if (action === "set-global-enabled") {
+        requireStudioAdmin(profile);
         if (typeof body.enabled !== "boolean") return json(res, 400, { success: false, error: "Nilai enabled harus boolean." });
         const settings = await setGlobalEnabled(config, userId, env, body.enabled);
         return json(res, 200, { success: true, globalEnabled: settings.global_enabled === true });

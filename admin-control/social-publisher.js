@@ -42,7 +42,10 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     const configMessage = $("config-message");
     const configList = $("config-list");
     const globalState = $("global-state");
+    /* Switch milik user yang sedang login. */
     const globalToggle = $("global-toggle");
+    /* Master switch seluruh akun (admin/owner saja). */
+    const masterToggle = $("master-toggle");
     const connectStatus = $("connect-status");
     const characterStatus = $("character-status");
     const scheduleStatus = $("schedule-status");
@@ -300,20 +303,41 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
 
         const allReady = items.every(([, ok]) => ok === true);
-        globalToggle.disabled = !allReady && !state.data?.globalEnabled;
-        if (!allReady && !state.data?.globalEnabled) {
+        const autopublishOn = state.data?.autopublishEnabled === true;
+        globalToggle.disabled = !allReady && !autopublishOn;
+        if (!allReady && !autopublishOn) {
             showNotice(configMessage, "Autopublish belum dapat diaktifkan. Lengkapi secrets Cloudflare, buat bucket privat Supabase Storage, dan pastikan SQL migration sudah dijalankan.", "warn");
         } else {
             configMessage.hidden = true;
         }
     }
 
-    function renderGlobalState(enabled) {
-        globalState.textContent = enabled ? "AUTOPUBLISH ON" : "AUTOPUBLISH OFF";
-        globalState.className = `state ${enabled ? "on" : "off"}`;
-        globalToggle.textContent = enabled ? "Jeda semua autopost" : "Aktifkan autopublish";
-        globalToggle.classList.toggle("danger", enabled);
-        globalToggle.classList.toggle("green", !enabled);
+    function renderGlobalState() {
+        const mine = state.data?.autopublishEnabled === true;
+        const master = state.data?.globalEnabled !== false;
+        const effective = mine && master;
+
+        globalState.textContent = effective
+            ? "AUTOPUBLISH ON"
+            : mine && !master
+                ? "AUTOPUBLISH DIJEDA ADMIN"
+                : "AUTOPUBLISH OFF";
+        globalState.className = `state ${effective ? "on" : "off"}`;
+
+        globalToggle.textContent = mine ? "Jeda autopost saya" : "Aktifkan autopublish saya";
+        globalToggle.classList.toggle("danger", mine);
+        globalToggle.classList.toggle("green", !mine);
+
+        if (!masterToggle) return;
+        const canManage = state.data?.canManageGlobalAutopublish === true;
+        masterToggle.hidden = !canManage;
+        if (!canManage) return;
+        masterToggle.textContent = master ? "Master switch: ON" : "Master switch: OFF";
+        masterToggle.title = master
+            ? "Klik untuk menjeda autopost SEMUA akun (perawatan/insiden)."
+            : "Klik untuk mengaktifkan kembali autopost semua akun.";
+        masterToggle.classList.toggle("danger", master);
+        masterToggle.classList.toggle("green", !master);
     }
 
     function renderPages(pages = []) {
@@ -1097,7 +1121,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const container = $("schedules-list");
         stopScheduleCountdown();
         container.replaceChildren();
-        const autopublishOn = state.data?.globalEnabled === true;
+        const autopublishOn = state.data?.autopublishEnabled === true && state.data?.globalEnabled !== false;
         let countdownCards = 0;
         for (const schedule of schedules) {
             const card = document.createElement("article");
@@ -1367,7 +1391,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     function render(data) {
         state.data = data;
         renderConfig(data.config || {});
-        renderGlobalState(data.globalEnabled === true);
+        renderGlobalState();
         renderPages(data.pages || []);
         renderCharacters(data.characters || []);
         renderSchedules(data.schedules || []);
@@ -1682,23 +1706,47 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
-    async function toggleGlobal() {
+    async function toggleAutopublish() {
         if (!state.data) return;
-        const enabling = !state.data.globalEnabled;
+        const enabling = !state.data.autopublishEnabled;
         const warning = enabling
-            ? "Autopublish akan membuat dan menerbitkan gambar untuk semua jadwal aktif. Lanjutkan?"
-            : "Jeda semua autopost? Jadwal tersimpan dan dapat diaktifkan kembali.";
+            ? "Autopublish akan membuat dan menerbitkan gambar untuk jadwal aktif MILIK AKUN ANDA. Jadwal akun lain tidak terpengaruh. Lanjutkan?"
+            : "Jeda autopost akun Anda? Jadwal tersimpan dan dapat diaktifkan kembali kapan saja. Jadwal akun lain tidak terpengaruh.";
         if (!window.confirm(warning)) return;
         setButtonBusy(globalToggle, true, "Memperbarui…");
         try {
-            await api("set-global-enabled", { method: "POST", body: { enabled: enabling } });
-            showNotice(pageMessage, enabling ? "Autopublish global aktif." : "Autopublish global dijeda.", enabling ? "success" : "warn");
+            await api("set-autopublish", { method: "POST", body: { enabled: enabling } });
+            showNotice(
+                pageMessage,
+                enabling ? "Autopublish akun Anda aktif." : "Autopublish akun Anda dijeda. Jadwal akun lain tetap berjalan.",
+                enabling ? "success" : "warn"
+            );
             await loadDashboard();
         } catch (error) {
             showNotice(pageMessage, error.message, "error");
         } finally {
             setButtonBusy(globalToggle, false);
-            renderGlobalState(state.data?.globalEnabled === true);
+            renderGlobalState();
+        }
+    }
+
+    async function toggleMasterAutopublish() {
+        if (!state.data || state.data.canManageGlobalAutopublish !== true) return;
+        const enabling = state.data.globalEnabled !== true;
+        const warning = enabling
+            ? "Aktifkan kembali autopost untuk SEMUA akun?"
+            : "Hentikan autopost SEMUA akun? Hanya admin yang bisa melakukan ini; switch milik masing-masing user tidak berubah.";
+        if (!window.confirm(warning)) return;
+        setButtonBusy(masterToggle, true, "Memperbarui…");
+        try {
+            await api("set-global-enabled", { method: "POST", body: { enabled: enabling } });
+            showNotice(pageMessage, enabling ? "Master switch aktif." : "Master switch dimatikan: semua autopost berhenti.", enabling ? "success" : "warn");
+            await loadDashboard();
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
+        } finally {
+            setButtonBusy(masterToggle, false);
+            renderGlobalState();
         }
     }
 
@@ -1819,7 +1867,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         loadRunsPage(nextPage, { perPage: state.runsPerPage, scrollIntoView: true });
     });
     $("refresh").addEventListener("click", loadDashboard);
-    $("global-toggle").addEventListener("click", toggleGlobal);
+    $("global-toggle").addEventListener("click", toggleAutopublish);
+    masterToggle?.addEventListener("click", toggleMasterAutopublish);
     $("cancel-edit").addEventListener("click", resetScheduleForm);
     window.addEventListener("beforeunload", clearObjectUrls);
 

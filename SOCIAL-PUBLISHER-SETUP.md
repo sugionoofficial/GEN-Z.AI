@@ -15,7 +15,7 @@ Schedules are saved as UTC timestamps derived from the selected **Asia/Jakarta (
 
 ### 1. Apply the Supabase migration
 
-Run `supabase/social-auto-publisher.sql` and `supabase/social-reference-storage.sql` in the Supabase SQL Editor. The first file creates server-only tables with RLS, including the `social_outfits` library and the `outfit_id`/`outfit_name`/`outfit_order_url` columns on `social_post_runs`; the script is idempotent, so running it again upgrades an existing deployment. The second file creates a dedicated private Storage bucket named `social-character-references`, limited to JPEG, PNG, and WebP references up to 8 MB. The Worker uses the existing Supabase service-role configuration to read and write these objects server-side. Do not make the bucket public.
+Run `supabase/social-auto-publisher.sql`, `supabase/social-autopublish-per-user.sql`, and `supabase/social-reference-storage.sql` in the Supabase SQL Editor. The per-user file adds `social_publisher_user_settings.autopublish_enabled` and redefines `claim_due_social_post_schedules` so each account controls only its own autopost; it is safe to run repeatedly, and an account without a settings row is treated as autopublish **on** so existing schedules keep running. The first file creates server-only tables with RLS, including the `social_outfits` library and the `outfit_id`/`outfit_name`/`outfit_order_url` columns on `social_post_runs`; the script is idempotent, so running it again upgrades an existing deployment. The second file creates a dedicated private Storage bucket named `social-character-references`, limited to JPEG, PNG, and WebP references up to 8 MB. The Worker uses the existing Supabase service-role configuration to read and write these objects server-side. Do not make the bucket public.
 
 ### 2. Configure Google Gemini image generation
 
@@ -153,7 +153,7 @@ npm run build
 npx wrangler@4 deploy
 ```
 
-Existing `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` Worker configuration is required. The global autopublish switch starts **off**. The queue will not publish until an admin connects a Page, creates an enabled schedule, and turns on autopublish.
+Existing `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` Worker configuration is required. The platform-wide master switch starts **off**. The queue will not publish until an admin connects a Page, creates an enabled schedule, and turns on autopublish for that account.
 
 ### Cloudflare Workers Builds preview command
 
@@ -167,7 +167,7 @@ Open **Admin Control → Social Auto Publisher**:
 2. Upload a licensed/authorized reference photo; confirm the character is an adult or fictional non-child.
 3. Open **Outfit & link order**, choose the character, then upload outfits with a name, photo, optional notes, and an HTTPS order link. Repeat for every look you want the random picker to use.
 4. Create an interval schedule (`OWNER`, `ADMIN`, and `USER` roles may not post faster than once per hour; maximum 168 hours), choose its first run time in WIB, and write a caption template. Supported caption fields: `{name}`, `{location}`, `{outfit}`, `{situation}`, `{lighting}`, `{angle}`. `{outfit}` resolves to the outfit that was randomly selected for that post.
-5. Turn on the schedule, then activate global autopublish after all configuration checks are ready.
+5. Turn on the schedule, then activate autopublish **for your own account** (`Aktifkan autopublish saya`) once every configuration check is ready. This switch is per account: pausing it never stops other accounts. Only `ADMIN`/`OWNER` see the separate **Master switch**, which stops autopost for every account and is reserved for maintenance or incidents.
 6. Review run status and use **Bagikan ke profil pribadi** to confirm sharing manually when desired.
 
 ### Autopost interval by role
