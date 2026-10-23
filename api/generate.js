@@ -27,6 +27,7 @@ import {
 
 import {
     createPrivateMediaSigner,
+    signUserMediaRefsInPayload,
     toPrivateMediaRef
 } from "../lib/generate/private-media.js";
 
@@ -4302,6 +4303,20 @@ export default async function handler(
         );
 
     }
+
+    /*
+     * Referensi media privat (`supabase-private://…`) yang dikirim
+     * balik dari riwayat ditukar menjadi signed URL sebelum dipakai
+     * provider / validasi upscale. Hanya referensi di folder user
+     * yang login yang ditandatangani.
+     */
+    body =
+        await signUserMediaRefsInPayload(body, {
+            userId: user.id,
+            supabaseUrl: SUPABASE_URL,
+            serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+            ttlSeconds: 60 * 60
+        }).catch(() => body);
 
 
     /*

@@ -8,7 +8,9 @@ import {
     createPrivateMediaSigner,
     isPrivateMediaRef,
     parsePrivateMediaRef,
+    isRefOwnedByUser,
     signPrivateMediaRef,
+    signUserMediaRefsInPayload,
     toPrivateMediaRef
 } from "../lib/generate/private-media.js";
 
@@ -272,4 +274,73 @@ test("baris riwayat ditandai kedaluwarsa saat signed URL gagal", () => {
     // Unduhan dari signed URL tetap memakai nama file yang rapi.
     const modal = read("history/assets/js/history-modal.js");
     assert.match(modal, /\/storage\/v1\/object\/sign\//);
+});
+
+test("isRefOwnedByUser hanya mengizinkan folder user sendiri", () => {
+    const own = `supabase-private://user-uploads/generate-input/${USER_ID}/1792000000000-a.jpg`;
+    const other = `supabase-private://user-uploads/generate-input/11111111-2222-3333-4444-555555555555/a.jpg`;
+    const output = `supabase-private://user-uploads/upscale-videos/outputs/${USER_ID}/1792000000000-b.mp4`;
+    const foreignBucket = `supabase-private://dashboard-upscales/outputs/${USER_ID}/a.mp4`;
+
+    assert.equal(isRefOwnedByUser(own, USER_ID), true);
+    assert.equal(isRefOwnedByUser(output, USER_ID), true);
+    assert.equal(isRefOwnedByUser(other, USER_ID), false);
+    assert.equal(isRefOwnedByUser(foreignBucket, USER_ID), false);
+    assert.equal(
+        isRefOwnedByUser(`supabase-private://user-uploads/generate-input/${USER_ID}/../../secret.jpg`, USER_ID),
+        false
+    );
+    assert.equal(isRefOwnedByUser(own, ""), false);
+});
+
+test("referensi di request hanya ditandatangani kalau milik user", async () => {
+    const fetchImpl = fakeFetch({
+        signedURL: "/object/sign/user-uploads/generate-input/x.jpg?token=abc"
+    });
+
+    const body = {
+        action: "generate",
+        parameters: {
+            image_urls: [
+                `supabase-private://user-uploads/generate-input/${USER_ID}/1792000000000-a.jpg`
+            ],
+            video_urls: [
+                "supabase-private://user-uploads/generate-input/11111111-2222-3333-4444-555555555555/b.mp4"
+            ]
+        },
+        prompt: "tetap sama"
+    };
+
+    const signed = await signUserMediaRefsInPayload(body, {
+        userId: USER_ID,
+        supabaseUrl: SUPABASE_URL,
+        serviceKey: SERVICE_KEY,
+        fetchImpl,
+        logger: { warn: () => {} }
+    });
+
+    assert.match(signed.parameters.image_urls[0], /^https:\/\/project\.supabase\.co\/storage\/v1\/object\/sign\//);
+    // File user lain dibiarkan (tidak ditandatangani) → tidak ada kebocoran.
+    assert.equal(signed.parameters.video_urls[0], body.parameters.video_urls[0]);
+    assert.equal(signed.prompt, "tetap sama");
+    assert.equal(fetchImpl.calls.length, 1);
+});
+
+test("payload tanpa referensi privat tidak menyentuh Storage API", async () => {
+    const fetchImpl = fakeFetch();
+
+    const body = {
+        action: "generate",
+        parameters: { image_urls: ["https://cdn.example/a.jpg"] }
+    };
+
+    const result = await signUserMediaRefsInPayload(body, {
+        userId: USER_ID,
+        supabaseUrl: SUPABASE_URL,
+        serviceKey: SERVICE_KEY,
+        fetchImpl
+    });
+
+    assert.equal(result, body);
+    assert.equal(fetchImpl.calls.length, 0);
 });
