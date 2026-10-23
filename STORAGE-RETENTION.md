@@ -29,9 +29,10 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
    GitHub Actions.
 3. API upscale memvalidasi signed URL tersebut
    (`lib/generate/upscale-source.js`): origin harus Supabase, path harus
-   `upscale-videos/inputs/<user-id>/…` milik akun yang login, dan hanya
-   parameter `token` yang diizinkan. Path publik lama tetap diterima untuk
-   job yang belum selesai.
+   file milik akun yang login (`upscale-videos/inputs/<user-id>/…` untuk
+   video, `upscale-photos/inputs/<user-id>/…` untuk foto), dan hanya
+   parameter `token` yang diizinkan. Validasi jalan **sebelum** kredit
+   dipotong. Path publik lama tetap diterima untuk job yang belum selesai.
 4. Bucket `dashboard-videos` tetap **publik** karena masih menyimpan konten
    situs (`videos/`, `thumbnails/`) dan output upscale.
 
