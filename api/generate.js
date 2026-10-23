@@ -19,6 +19,11 @@
 
 import crypto from "node:crypto";
 
+import {
+    UPLOAD_BUCKET,
+    resolveUploadedUpscaleVideoSource
+} from "../lib/generate/upscale-source.js";
+
 
 import grokImagineImageToVideo
     from "../models/grok-imagine-image-to-video/index.js";
@@ -3780,64 +3785,18 @@ async function handleUpscaleAction(req, res, body, user) {
 }
 
 function getUploadedUpscaleVideoSource(sourceUrl, userId) {
-    if (!SUPABASE_URL) {
-        throw new Error("SUPABASE_URL is not configured");
-    }
-
-    let parsedUrl;
-    let supabaseOrigin;
-
-    try {
-        parsedUrl = new URL(sourceUrl);
-        supabaseOrigin = new URL(SUPABASE_URL).origin;
-    } catch {
-        throw new Error("URL video tidak valid.");
-    }
-
-    if (
-        parsedUrl.protocol !== "https:" ||
-        parsedUrl.origin !== supabaseOrigin ||
-        parsedUrl.username ||
-        parsedUrl.password ||
-        parsedUrl.search ||
-        parsedUrl.hash
-    ) {
-        throw new Error("URL video sumber tidak diizinkan.");
-    }
-
-    const storagePrefix =
-        "/storage/v1/object/public/dashboard-videos/";
-
-    if (!parsedUrl.pathname.startsWith(storagePrefix)) {
-        throw new Error("Video harus diunggah melalui Upscale Studio.");
-    }
-
-    let objectPath;
-
-    try {
-        objectPath = decodeURIComponent(
-            parsedUrl.pathname.slice(storagePrefix.length)
-        );
-    } catch {
-        throw new Error("Path video sumber tidak valid.");
-    }
-
-    const safeUserId =
-        String(userId || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const uploadedVideoPath =
-        new RegExp(
-            `^upscale-videos/inputs/${safeUserId}/[0-9]+-[a-z0-9]{8}\\.(mp4|webm|mov|m4v)$`,
-            "i"
-        );
-
-    if (!uploadedVideoPath.test(objectPath)) {
-        throw new Error("Video sumber tidak cocok dengan akun yang login.");
-    }
-
-    return objectPath;
+    /*
+     * Upload user sekarang di bucket privat `user-uploads`
+     * (signed URL). Path publik lama tetap diterima.
+     */
+    return resolveUploadedUpscaleVideoSource({
+        sourceUrl,
+        userId,
+        supabaseUrl: SUPABASE_URL
+    });
 }
 
-async function deleteUploadedUpscaleVideoSource(objectPath) {
+async function deleteUploadedUpscaleVideoSource(objectPath, bucket = UPLOAD_BUCKET) {
     try {
         const encodedPath = objectPath
             .split("/")
@@ -3845,7 +3804,7 @@ async function deleteUploadedUpscaleVideoSource(objectPath) {
             .join("/");
 
         await supabaseRequest(
-            `/storage/v1/object/dashboard-videos/${encodedPath}`,
+            `/storage/v1/object/${bucket}/${encodedPath}`,
             { method: "DELETE" }
         );
     } catch (err) {
@@ -3869,16 +3828,16 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
         return failure(res, 400, "target_resolution must be 1080p, 1k, or 2k");
     }
 
-    let sourceObjectPath;
+    let sourceObject;
     try {
-        sourceObjectPath =
+        sourceObject =
             getUploadedUpscaleVideoSource(sourceUrl, user.id);
     } catch (err) {
         return failure(res, 400, err.message);
     }
 
     if (!github.token) {
-        await deleteUploadedUpscaleVideoSource(sourceObjectPath);
+        await deleteUploadedUpscaleVideoSource(sourceObject.objectPath, sourceObject.bucket);
         return failure(res, 500, "GitHub Actions secret GITHUB_PAT is not configured");
     }
 
@@ -3887,7 +3846,7 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
         creditCost = await getFeatureCreditCost("upscale_video");
     } catch (err) {
         console.error("[upscale-video-upload] Failed to load credit cost:", err);
-        await deleteUploadedUpscaleVideoSource(sourceObjectPath);
+        await deleteUploadedUpscaleVideoSource(sourceObject.objectPath, sourceObject.bucket);
         return failure(res, 500, "Tarif Upscale Video belum tersedia");
     }
 
@@ -3900,7 +3859,7 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
             String(err?.message || "").toUpperCase()
                 .includes("INSUFFICIENT_CREDITS");
 
-        await deleteUploadedUpscaleVideoSource(sourceObjectPath);
+        await deleteUploadedUpscaleVideoSource(sourceObject.objectPath, sourceObject.bucket);
         return failure(
             res,
             insufficient ? 402 : 500,
@@ -3959,7 +3918,7 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
             console.error("[upscale-video-upload] Credit refund failed:", refundError);
         }
 
-        await deleteUploadedUpscaleVideoSource(sourceObjectPath);
+        await deleteUploadedUpscaleVideoSource(sourceObject.objectPath, sourceObject.bucket);
         return failure(res, 500, "Gagal membuat catatan history");
     }
 
@@ -3971,7 +3930,7 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
             userId: user.id,
             creditCost,
             targetResolution,
-            sourceObjectPath
+            sourceObjectPath: sourceObject.objectPath
         });
     } catch (err) {
         console.error("[upscale-video-upload] GitHub dispatch failed:", err);
@@ -3983,7 +3942,7 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
             creditCost
         });
 
-        await deleteUploadedUpscaleVideoSource(sourceObjectPath);
+        await deleteUploadedUpscaleVideoSource(sourceObject.objectPath, sourceObject.bucket);
         return failure(res, 502, "Gagal memulai upscale video di GitHub Actions");
     }
 

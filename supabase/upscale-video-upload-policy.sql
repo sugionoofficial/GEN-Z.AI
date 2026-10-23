@@ -8,6 +8,10 @@
 --
 --   dashboard-videos/upscale-videos/inputs/<user-id>/...
 --
+-- CATATAN: upload video upscale BARU sekarang masuk ke bucket privat
+-- `user-uploads` (lihat supabase/user-media-bucket.sql). Policy di file ini
+-- dipertahankan untuk folder lama `dashboard-videos/upscale-videos/...`.
+--
 -- CATATAN RETENSI (lihat STORAGE-RETENTION.md):
 --   * Video sumber & hasil upscale disimpan maksimal 24 JAM.
 --   * Cron Worker (tiap 5 menit) menghapus objek di

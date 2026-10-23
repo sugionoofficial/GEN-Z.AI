@@ -16,7 +16,9 @@
 
 
 const CONFIG = Object.freeze({
-    bucket: "dashboard-videos",
+    /* Bucket privat: input tidak bisa diakses publik tanpa signed URL. */
+    bucket: "user-uploads",
+    uploadUrlTtlSeconds: 60 * 60,
     photoInputFolder: "upscale-photos/inputs",
     videoInputFolder: "upscale-videos/inputs",
     apiEndpoint: "/api/generate",
@@ -776,13 +778,22 @@ async function uploadMedia(file, mediaType) {
 
     if (error) throw new Error("Upload gagal: " + error.message);
 
-    const { data: { publicUrl } } = supabase.storage
+    const signedResult = await supabase.storage
         .from(CONFIG.bucket)
-        .getPublicUrl(path);
+        .createSignedUrl(path, CONFIG.uploadUrlTtlSeconds);
 
-    if (!publicUrl) throw new Error("URL publik tidak tersedia.");
+    const signedUrl = String(signedResult?.data?.signedUrl || "").trim();
 
-    return { publicUrl };
+    if (!signedUrl) {
+        console.error("[GEN-Z.AI][Upscale] Signed URL gagal:", signedResult?.error);
+        throw new Error("Signed URL media tidak tersedia.");
+    }
+
+    const publicUrl = signedUrl.startsWith("http")
+        ? signedUrl
+        : String(supabase?.supabaseUrl || "").replace(/\/+$/, "") + signedUrl;
+
+    return { publicUrl, path };
 }
 
 
