@@ -695,3 +695,104 @@ test("dashboard tetap tampil saat migration kolom scene belum dijalankan", async
         globalThis.fetch = originalFetch;
     }
 });
+
+test("dashboard tetap tampil saat kolom autopublish akun belum ada", async () => {
+    const originalFetch = globalThis.fetch;
+    const settingsQueries = [];
+    globalThis.fetch = async (input) => {
+        const url = String(input);
+        if (url.endsWith("/auth/v1/user")) return Response.json({ id: "user-1" });
+        if (url.includes("/rest/v1/profiles?select=id,role,status")) {
+            return Response.json([{ id: "user-1", role: "USER", status: "active" }]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access?")) return activeAccessRow("user-1");
+        if (url.includes("/rest/v1/social_characters?")) return Response.json([]);
+        if (url.includes("/rest/v1/social_page_connections?")) return Response.json([]);
+        if (url.includes("/rest/v1/social_post_schedules?")) return Response.json([]);
+        if (url.includes("/rest/v1/social_post_runs?")) return Response.json([]);
+        if (url.includes("/rest/v1/social_outfits?")) return Response.json([]);
+        if (url.includes("/rest/v1/social_publisher_config?")) {
+            return Response.json([{ id: true, global_enabled: true, image_provider: "gemini", image_model: "", updated_at: null }]);
+        }
+        if (url.includes("/rest/v1/social_publisher_user_settings?")) {
+            settingsQueries.push(url);
+            if (url.includes("autopublish_enabled")) {
+                return Response.json(
+                    { message: 'column social_publisher_user_settings.autopublish_enabled does not exist', code: "42703" },
+                    { status: 400 }
+                );
+            }
+            return Response.json([{ caption_template: "Halo", external_link: "", updated_at: null }]);
+        }
+        if (url.includes("/storage/v1/bucket")) return Response.json([{ id: "social-character-references", public: false }]);
+        throw new Error(`Unexpected fetch: ${url}`);
+    };
+    const response = makeResponse();
+    try {
+        await socialPublisherHandler({
+            method: "GET",
+            url: "/api/social-publisher?action=dashboard",
+            query: { action: "dashboard" },
+            headers: { authorization: "Bearer test-token" },
+            env
+        }, response);
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.body.autopublishSchemaReady, false);
+        assert.equal(response.body.autopublishEnabled, true);
+        assert.equal(response.body.postingSettings.caption_template, "Halo");
+        assert.equal(settingsQueries.length, 2);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("cron tetap memakai jadwal lama saat kolom scene belum ada", async () => {
+    const originalFetch = globalThis.fetch;
+    const runPatches = [];
+    let usedLegacySelect = false;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        if (url.endsWith("/rest/v1/rpc/claim_due_social_post_schedules")) {
+            return Response.json([{ run_id: "run-11", schedule_id: "schedule-11" }]);
+        }
+        if (url.includes("/rest/v1/social_post_schedules?")) {
+            if (url.includes("scene_location")) {
+                return Response.json(
+                    { message: "column social_post_schedules.autopublish_enabled does not exist", code: "42703" },
+                    { status: 400 }
+                );
+            }
+            usedLegacySelect = true;
+            return Response.json([{
+                id: "schedule-11",
+                owner_id: "owner-11",
+                character_id: "character-11",
+                page_connection_id: "connection-11",
+                enabled: true,
+                interval_hours: 24,
+                aspect_ratio: "9:16",
+                caption_template: "Cerita",
+                timezone: "Asia/Jakarta"
+            }]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access?")) {
+            return Response.json([]);
+        }
+        if (url.includes("/rest/v1/social_post_runs?id=eq.run-11")) {
+            runPatches.push(JSON.parse(options.body));
+            return new Response(null, { status: 204 });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    };
+
+    try {
+        const result = await runSocialPublisherCron({ ...env });
+        assert.equal(result.claimed, 1);
+        assert.equal(usedLegacySelect, true);
+        assert.equal(runPatches.at(-1).status, "failed");
+        assert.match(runPatches.at(-1).error_message, /belum memiliki langganan|Langganan/i);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
