@@ -307,13 +307,33 @@ Where the menus live in the current dashboard (Indonesian UI in parentheses):
       connected account name) — generated images and captions are the user's own
       content and do not change the answers.
    5. **Petunjuk peninjau** (`Reviewer instructions`) — carries a **Perlu tinjauan Anda**
-      badge until it is opened once. One block per platform; fill **Website** with the
-      click path: log in at `https://genzai.genzai-f37.workers.dev/`, open **Studio
-      Medsos** in the sidebar, click **Hubungkan Facebook**, approve the consent dialog,
-      pick the Page, then **Buat posting manual → Buat & bersihkan pratinjau →
-      Terbitkan ke Facebook Page**. Mention that Studio Medsos needs an active
-      `studio_medsos_access` row, and note the demo account that already has it. Meta
-      states it tests with **its own accounts**, so do not paste a personal password.
+      badge until it is opened once. Fields, in order:
+
+      - `instructions-web-2` — the click path: log in at
+        `https://genzai.genzai-f37.workers.dev/`, open **Studio Medsos** in the sidebar,
+        click **Hubungkan Facebook**, approve the consent dialog, pick the Page, then
+        **Buat posting manual → Buat & bersihkan pratinjau → Terbitkan ke Facebook
+        Page**. State the UI language (Indonesian) and translate the buttons, because
+        reviewers cannot read the flow otherwise.
+      - `fblogin-web-1` — **Ya** (Facebook Login for Business is the only login used for
+        the Page connection).
+      - `accesscode-web-1` — a **dedicated demo account**, never the developer's own:
+        email + password for an account that (a) holds a **Tester** role so the consent
+        dialog can still show the in-review permissions while they are still Standard
+        access, (b) has an active `studio_medsos_access` row so no payment gate appears,
+        and (c) has enough credit balance to generate one image. The password must stay
+        valid for a full year, so disable any 2FA prompt on that account.
+      - `accesscode-web-2` — not applicable: web app only, no store download or in-app
+        purchase, all features reachable at the URL above. Say that explicitly instead
+        of leaving a wrong answer.
+      - `geo-web-5` — leave empty unless a real restriction exists; the site is
+        reachable worldwide. Never write "refund" here: this field asks about geographic
+        limits, not billing policy.
+      - `documents-web-1` — optional: attach the same screencast you uploaded per
+        permission so the reviewer has one canonical recording.
+
+      Meta states it tests with **its own accounts**, so do not paste a personal
+      password — a purpose-made demo login is the accepted approach for a gated app.
 
    When all five show a green check, **Kirim untuk ditinjau** becomes clickable →
    accept the Platform Onboarding Terms. Status moves from *Tidak dikirim* to *Dalam
