@@ -481,5 +481,23 @@ export async function runSocialPublisherCron(env, scheduledTime = new Date()) {
     for (const job of jobs) {
         await processRun(env, config, job);
     }
-    return { claimed: jobs.length, skipped: false };
+
+    /* Run autopost yang terjebak (invocation worker mati mendadak, mis. saat deploy):
+       klaim ulang supaya alur generate → posting tetap terjaga sampai hasil final.
+       Run manual tidak disentuh karena alurnya milik request halaman. */
+    let resumed = [];
+    try {
+        const stuck = await dbRequest(config, "/rest/v1/rpc/claim_stuck_social_post_runs", {
+            method: "POST",
+            body: JSON.stringify({ p_now: new Date(scheduledTime).toISOString(), p_limit: 2 })
+        });
+        resumed = Array.isArray(stuck) ? stuck : [];
+    } catch (error) {
+        console.warn("[Social Publisher] Resume run terjebak dilewati:", error?.message || "unknown error");
+    }
+    for (const job of resumed) {
+        console.log(`[Social Publisher] Melanjutkan run autopost yang terjebak: ${job.run_id}`);
+        await processRun(env, config, job);
+    }
+    return { claimed: jobs.length, resumed: resumed.length, skipped: false };
 }
