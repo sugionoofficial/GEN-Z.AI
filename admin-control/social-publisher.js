@@ -615,8 +615,10 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             status(outfitStatus, "Isi nama outfit dan pilih foto outfit.", "error");
             return;
         }
-        if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 8 * 1024 * 1024) {
-            status(outfitStatus, "Foto outfit harus JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
+        try {
+            await validateImageFile(file);
+        } catch (error) {
+            status(outfitStatus, error.message, "error");
             return;
         }
         if (orderUrl && !safeHttpsLink(orderUrl)) {
@@ -919,6 +921,42 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         openEditModal("character", character);
     }
 
+    const MIN_IMAGE_DIMENSION = 240;
+
+    function readImageDimensions(file) {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                const width = img.naturalWidth;
+                const height = img.naturalHeight;
+                URL.revokeObjectURL(url);
+                resolve({ width, height });
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error("File gambar tidak dapat dibaca."));
+            };
+            img.src = url;
+        });
+    }
+
+    /* Validasi upload foto: tipe + ukuran + resolusi minimal, supaya file kecil
+       (mis. kompresan WhatsApp) tidak ditolak provider gambar di tengah run. */
+    async function validateImageFile(file) {
+        if (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024) {
+            throw new Error("Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.");
+        }
+        const { width, height } = await readImageDimensions(file);
+        if (width < MIN_IMAGE_DIMENSION || height < MIN_IMAGE_DIMENSION) {
+            throw new Error(
+                `Resolusi foto minimal ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION} piksel; file ini ${width}×${height} piksel. ` +
+                "Pakai file asli beresolusi lebih besar agar tidak ditolak provider gambar."
+            );
+        }
+        return { width, height };
+    }
+
     let editModalPreviewUrl = null;
 
     function editModalStatus(message, tone = "") {
@@ -995,9 +1033,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             return;
         }
         const file = $("edit-modal-file").files?.[0] || null;
-        if (file && (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024)) {
-            editModalStatus("Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
-            return;
+        if (file) {
+            try {
+                await validateImageFile(file);
+            } catch (error) {
+                editModalStatus(error.message, "error");
+                return;
+            }
         }
         const saveButton = $("edit-modal-save");
         setButtonBusy(saveButton, true, "Menyimpan…");
@@ -1693,8 +1735,10 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             status(characterStatus, "Isi nama, pilih foto, dan centang konfirmasi hak penggunaan serta subjek dewasa.", "error");
             return;
         }
-        if (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024) {
-            status(characterStatus, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
+        try {
+            await validateImageFile(file);
+        } catch (error) {
+            status(characterStatus, error.message, "error");
             return;
         }
         setButtonBusy(uploadButton, true, "Mengunggah…");
@@ -2144,6 +2188,16 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             editModalPreviewUrl = URL.createObjectURL(file);
             photo.src = editModalPreviewUrl;
             $("edit-modal-file-name").textContent = `File baru: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) — pratinjau ditampilkan, akan diunggah saat Simpan.`;
+            validateImageFile(file).catch(error => {
+                editModalStatus(error.message, "error");
+                event.target.value = "";
+                if (editModalPreviewUrl) {
+                    URL.revokeObjectURL(editModalPreviewUrl);
+                    editModalPreviewUrl = null;
+                }
+                $("edit-modal-file-name").textContent = "Tanpa file baru: foto tidak diganti.";
+                loadEditModalCurrentPhoto();
+            });
         } else {
             $("edit-modal-file-name").textContent = "Tanpa file baru: foto tidak diganti.";
             loadEditModalCurrentPhoto();
