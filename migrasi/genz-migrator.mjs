@@ -115,30 +115,24 @@ Deno.serve(async (req) => {
       const NK = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
       const nk = { apikey: NK, Authorization: 'Bearer ' + NK };
       const NB = Deno.env.get('SUPABASE_URL');
-      const rb = await fetch(OLD_BASE + '/storage/v1/bucket', { headers: hk });
-      const buckets = await rb.json().catch(() => null);
-      if (!rb.ok || !Array.isArray(buckets)) throw new Error('daftar bucket LAMA gagal: HTTP ' + rb.status + ' ' + JSON.stringify(buckets).slice(0, 300));
+      const ob = await old.unsafe('select id, name, public, file_size_limit, allowed_mime_types from storage.buckets order by id');
       const rn = await fetch(NB + '/storage/v1/bucket', { headers: nk });
       const nbuckets = await rn.json().catch(() => null);
       if (!rn.ok || !Array.isArray(nbuckets)) throw new Error('daftar bucket BARU gagal: HTTP ' + rn.status + ' ' + JSON.stringify(nbuckets).slice(0, 300));
       const have = new Set(nbuckets.map((b) => b.id));
-      for (const b of buckets) if (!have.has(b.id)) {
+      for (const b of ob) if (!have.has(b.id)) {
         await fetch(NB + '/storage/v1/bucket', { method: 'POST', headers: { ...nk, 'content-type': 'application/json' }, body: JSON.stringify({ id: b.id, name: b.name, public: !!b.public, file_size_limit: b.file_size_limit || undefined, allowed_mime_types: b.allowed_mime_types || undefined }) });
       }
-      const flat = [];
-      for (const b of buckets) {
-        const rl = await fetch(OLD_BASE + '/storage/v1/object/list/' + encodeURIComponent(b.id), { method: 'POST', headers: { ...hk, 'content-type': 'application/json' }, body: JSON.stringify({ prefix: '', limit: 1000, sortBy: { column: 'name', order: 'asc' } }) });
-        const l = await rl.json().catch(() => null);
-        if (!rl.ok || !Array.isArray(l)) throw new Error('list objek bucket ' + b.id + ' gagal: HTTP ' + rl.status + ' ' + JSON.stringify(l).slice(0, 300));
-        for (const o of l) flat.push({ b: b.id, n: o.name, size: o.metadata?.size || 0, mime: o.metadata?.mimetype || 'application/octet-stream' });
-      }
+      const flat = await old.unsafe("select bucket_id as b, name as n, metadata->>'mimetype' as mime from storage.objects order by bucket_id, name");
       const slice = flat.slice(st.c1, st.c1 + 6);
       let bytes = 0;
       for (const o of slice) {
-        const dl = await fetch(OLD_BASE + '/storage/v1/object/' + encP(o.b, o.n), { headers: hk });
-        if (!dl.ok) throw new Error('unduh gagal ' + o.b + '/' + o.n + ' HTTP ' + dl.status);
+        const mime = o.mime || 'application/octet-stream';
+        let dl = await fetch(OLD_BASE + '/storage/v1/object/' + encP(o.b, o.n), { headers: hk });
+        if (!dl.ok) dl = await fetch(OLD_BASE + '/storage/v1/object/public/' + encP(o.b, o.n));
+        if (!dl.ok) throw new Error('unduh gagal ' + o.b + '/' + o.n + ': API & public HTTP ' + dl.status + ' (bila 402: kuota egress proyek lama habis \u2014 kabari agen)');
         const buf = new Uint8Array(await dl.arrayBuffer());
-        const up = await fetch(NB + '/storage/v1/object/' + encP(o.b, o.n), { method: 'POST', headers: { ...nk, 'content-type': o.mime, 'cache-control': 'max-age=3600', 'x-upsert': 'true' }, body: buf });
+        const up = await fetch(NB + '/storage/v1/object/' + encP(o.b, o.n), { method: 'POST', headers: { ...nk, 'content-type': mime, 'cache-control': 'max-age=3600', 'x-upsert': 'true' }, body: buf });
         if (!up.ok) throw new Error('upload gagal ' + o.b + '/' + o.n + ' HTTP ' + up.status + ' ' + (await up.text()).slice(0, 120));
         bytes += buf.length;
       }
