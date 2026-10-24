@@ -7,6 +7,9 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     const RUNS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
     const DEFAULT_RUNS_PER_PAGE = 10;
     const RUNS_PER_PAGE_STORAGE_KEY = "genz-social-runs-per-page";
+    /* Logo resmi Facebook (huruf f dalam lingkaran biru #1877F2) ditempel inline
+       supaya blok koneksi selalu menampilkan logo asli tanpa aset eksternal. */
+    const FB_LOGO_SVG = '<svg viewBox="0 0 1024 1024" width="40" height="40" role="img" aria-label="Logo Facebook"><path fill="#1877F2" d="M1024 512C1024 229.23 794.77 0 512 0S0 229.23 0 512c0 255.55 187.23 467.37 432 505.78V660.28H301.5V512H432v-39.04c0-128.36 76.47-199.24 193.48-199.24 56.02 0 114.6 9.98 114.6 9.98v126.06h-64.64c-63.66 0-83.64 39.51-83.64 80.03V512h142.2l-22.74 148.28H591.8v357.5C836.77 979.37 1024 767.55 1024 512z"/></svg>';
 
     function readSavedRunsPerPage() {
         try {
@@ -359,11 +362,10 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const item = document.createElement("div");
             item.className = "item";
             const icon = document.createElement("div");
-            icon.className = "thumb";
+            icon.className = "thumb fb-logo";
             icon.style.display = "grid";
             icon.style.placeItems = "center";
-            icon.style.fontSize = "22px";
-            icon.textContent = "f";
+            icon.innerHTML = FB_LOGO_SVG;
             const content = document.createElement("div");
             const title = document.createElement("p");
             title.className = "item-title";
