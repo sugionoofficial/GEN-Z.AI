@@ -765,9 +765,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const charFields = $("manual-character-fields");
         const quoteFields = $("manual-quote-fields");
         const charSelect = $("manual-character");
+        const aspectWrap = $("manual-aspect-wrap");
+        const aspectSelect = $("manual-aspect-ratio");
         if (charFields) charFields.hidden = isQuote;
         if (quoteFields) quoteFields.hidden = !isQuote;
         if (charSelect) charSelect.required = !isQuote;
+        if (aspectWrap) aspectWrap.hidden = isQuote;
+        if (isQuote && aspectSelect) aspectSelect.value = "9:16";
         updateManualCharacterPreview();
     }
 
@@ -783,13 +787,69 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const charSelect = $("schedule-character");
         const quoteFields = $("schedule-quote-fields");
         const sceneFields = $("schedule-scene-fields-wrap");
+        const aspectWrap = $("schedule-aspect-wrap");
+        const aspectSelect = $("schedule-aspect-ratio");
         const songCheck = $("schedule-random-song");
         if (charWrap) charWrap.hidden = isQuote;
         if (charSelect) charSelect.required = !isQuote;
         if (quoteFields) quoteFields.hidden = !isQuote;
         if (sceneFields) sceneFields.hidden = isQuote;
+        if (aspectWrap) aspectWrap.hidden = isQuote;
+        if (isQuote && aspectSelect) aspectSelect.value = "9:16";
         if (!preserveSongToggle && songCheck) {
             songCheck.checked = isQuote;
+        }
+    }
+
+    let activeSongPreviewId = "";
+
+    function stopSongPreviewPlayer() {
+        const player = $("song-preview-player");
+        if (player) {
+            try { player.pause(); } catch {}
+            player.removeAttribute("src");
+        }
+        const prevUrl = state.objectUrls.get("song-audio-preview");
+        if (prevUrl) {
+            URL.revokeObjectURL(prevUrl);
+            state.objectUrls.delete("song-audio-preview");
+        }
+        activeSongPreviewId = "";
+        for (const btn of document.querySelectorAll?.("[data-song-play-btn]") || []) {
+            btn.textContent = "▶ Putar";
+        }
+    }
+
+    async function togglePlaySongPreview(song, button) {
+        const player = $("song-preview-player");
+        if (!player) return;
+        const songKey = String(song.id || song.audio_object_key || "");
+        if (activeSongPreviewId === songKey && !player.paused) {
+            stopSongPreviewPlayer();
+            return;
+        }
+        stopSongPreviewPlayer();
+        activeSongPreviewId = songKey;
+        if (button) button.textContent = "Memuat…";
+        try {
+            const audioKey = String(song.audio_object_key || "");
+            let playUrl = "";
+            if (audioKey.startsWith("builtin:")) {
+                const slug = audioKey.replace(/^builtin:/i, "");
+                playUrl = `/assets/audio/story-music/${encodeURIComponent(slug)}.m4a`;
+            } else if (song.id) {
+                const blob = await api(`song-audio&id=${encodeURIComponent(song.id)}`, { responseRaw: true });
+                playUrl = URL.createObjectURL(blob);
+                state.objectUrls.set("song-audio-preview", playUrl);
+            }
+            if (!playUrl) throw new Error("File audio tidak tersedia untuk lagu ini.");
+            player.src = playUrl;
+            player.onended = () => stopSongPreviewPlayer();
+            await player.play();
+            if (button) button.textContent = "⏸ Berhenti";
+        } catch (error) {
+            stopSongPreviewPlayer();
+            showNotice(pageMessage, error.message || "Gagal memutar pratinjau lagu.", "error");
         }
     }
 
@@ -800,14 +860,14 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const activeCount = songs.filter(song => song.is_active !== false).length;
         const defaultCount = Array.isArray(state.defaultFacebookSongs) && state.defaultFacebookSongs.length
             ? state.defaultFacebookSongs.length
-            : (Array.isArray(state.data?.defaultFacebookSongs) ? state.data.defaultFacebookSongs.length : 15);
+            : (Array.isArray(state.data?.defaultFacebookSongs) ? state.data.defaultFacebookSongs.length : 8);
         const ready = state.songLibraryReady !== false;
 
         const badge = $("songs-ready-badge");
         if (badge) {
             badge.textContent = songs.length
-                ? `${activeCount}/${songs.length} lagu aktif`
-                : `${defaultCount} lagu bawaan siap`;
+                ? `${activeCount}/${songs.length} musik aktif`
+                : `${defaultCount} musik bawaan siap`;
             badge.className = `badge ${ready ? "posted" : ""}`.trim();
         }
         const notice = $("songs-library-notice");
@@ -821,8 +881,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             empty.className = "empty";
             empty.style.gridColumn = "1/-1";
             empty.textContent = ready
-                ? `Belum ada lagu kustom tersimpan. Saat ini ${defaultCount} lagu populer bawaan siap dipakai acak otomatis — atau klik "+ Isi 15 Lagu Populer FB" untuk memasukkannya ke koleksi Anda agar bisa diatur & ditambah link Facebook.`
-                : `Tabel lagu belum diaktifkan di database; ${defaultCount} lagu populer bawaan tetap dipakai otomatis pada setiap posting Kata-kata Mutiara.`;
+                ? `Belum ada file lagu yang Anda unggah. Saat ini ${defaultCount} musik instrumental bawaan siap auto-play acak otomatis di Cerita FB — atau unggah file lagu Anda sendiri (.mp3 / .m4a / video .mp4 FB) di atas.`
+                : `Tabel musik belum diaktifkan di database; ${defaultCount} musik instrumental bawaan tetap aktif otomatis untuk Cerita Kata-kata Mutiara.`;
             container.append(empty);
             return;
         }
@@ -841,10 +901,10 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             body.className = "song-card-body";
             const title = document.createElement("p");
             title.className = "item-title";
-            title.textContent = song.title || "Lagu Facebook";
+            title.textContent = song.title || "Musik Cerita";
             const artist = document.createElement("p");
             artist.className = "song-artist";
-            artist.textContent = song.artist || "Tanpa nama penyanyi";
+            artist.textContent = song.artist || "Musik Instrumental";
             body.append(title, artist);
             head.append(icon, body);
 
@@ -854,6 +914,16 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             stateBadge.className = `badge ${song.is_active === false ? "failed" : "posted"}`;
             stateBadge.textContent = song.is_active === false ? "Nonaktif" : "Aktif";
             stateRow.append(stateBadge);
+            const audioKey = String(song.audio_object_key || "");
+            const sourcePill = document.createElement("span");
+            sourcePill.className = "song-mood-pill";
+            const durText = Number(song.duration_seconds) > 0 ? ` · ${song.duration_seconds}s` : "";
+            sourcePill.textContent = audioKey.startsWith("builtin:")
+                ? `Bawaan${durText}`
+                : audioKey
+                    ? `Upload Anda${durText}`
+                    : "Bawaan";
+            stateRow.append(sourcePill);
             if (song.mood) {
                 const moodPill = document.createElement("span");
                 moodPill.className = "song-mood-pill";
@@ -861,21 +931,17 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 stateRow.append(moodPill);
             }
 
-            const linkEl = document.createElement("a");
-            linkEl.className = "song-link";
-            const fbUrl = safeFacebookSongLink(song.facebook_url);
-            if (fbUrl) {
-                linkEl.href = fbUrl;
-                linkEl.target = "_blank";
-                linkEl.rel = "noopener noreferrer";
-                linkEl.textContent = fbUrl;
-            } else {
-                linkEl.classList.add("missing");
-                linkEl.textContent = "Tanpa tautan Facebook (judul & artis di caption)";
-            }
-
             const actions = document.createElement("div");
             actions.className = "outfit-card-actions";
+            if (audioKey) {
+                const playBtn = document.createElement("button");
+                playBtn.className = "btn small";
+                playBtn.type = "button";
+                playBtn.setAttribute("data-song-play-btn", "1");
+                playBtn.textContent = activeSongPreviewId === String(song.id || audioKey) ? "⏸ Berhenti" : "▶ Putar";
+                playBtn.addEventListener("click", () => togglePlaySongPreview(song, playBtn));
+                actions.append(playBtn);
+            }
             const toggle = document.createElement("button");
             toggle.className = `btn small ${song.is_active === false ? "green" : ""}`;
             toggle.type = "button";
@@ -893,7 +959,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             remove.addEventListener("click", () => deleteSong(song));
             actions.append(toggle, edit, remove);
 
-            card.append(head, stateRow, linkEl, actions);
+            card.append(head, stateRow, actions);
             container.append(card);
         }
     }
@@ -916,7 +982,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     function resetSongForm() {
         $("song-form")?.reset?.();
         if ($("song-id")) $("song-id").value = "";
-        if ($("save-song")) $("save-song").textContent = "Simpan lagu Facebook";
+        if ($("song-file-field")) $("song-file-field").hidden = false;
+        if ($("save-song")) $("save-song").textContent = "Unggah & simpan musik Cerita";
         if ($("cancel-song-edit")) $("cancel-song-edit").hidden = true;
     }
 
@@ -926,8 +993,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if ($("song-title")) $("song-title").value = song.title || "";
         if ($("song-artist")) $("song-artist").value = song.artist || "";
         if ($("song-mood")) $("song-mood").value = song.mood || "";
-        if ($("song-facebook-url")) $("song-facebook-url").value = song.facebook_url || "";
-        if ($("save-song")) $("save-song").textContent = "Simpan perubahan lagu";
+        if ($("song-file-field")) $("song-file-field").hidden = true;
+        if ($("save-song")) $("save-song").textContent = "Simpan perubahan musik";
         if ($("cancel-song-edit")) $("cancel-song-edit").hidden = false;
         $("songs-card")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
         $("song-title")?.focus?.({ preventScroll: true });
@@ -938,43 +1005,66 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const songStatus = $("song-status");
         const saveBtn = $("save-song");
         const id = $("song-id")?.value?.trim() || "";
-        const title = $("song-title")?.value?.trim() || "";
+        const audioFile = $("song-audio-file")?.files?.[0] || null;
+        let title = $("song-title")?.value?.trim() || "";
         const artist = $("song-artist")?.value?.trim() || "";
         const mood = $("song-mood")?.value?.trim() || "";
-        const facebookUrl = $("song-facebook-url")?.value?.trim() || "";
 
+        if (!title && audioFile?.name) {
+            title = audioFile.name.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[_-]+/g, " ").trim();
+        }
         if (!title) {
             status(songStatus, "Judul lagu wajib diisi.", "error");
             return;
         }
-        if (facebookUrl && !safeFacebookSongLink(facebookUrl)) {
-            status(songStatus, "Link lagu harus berupa URL HTTPS resmi Facebook (facebook.com atau fb.watch), atau kosongkan.", "error");
+        if (!id && !audioFile) {
+            status(songStatus, "Pilih file lagu (.mp3, .m4a, .aac) atau video ber-audio (.mp4) terlebih dahulu, atau klik \"+ Isi 8 Musik Bawaan\".", "error");
+            return;
+        }
+        if (audioFile && audioFile.size > 16 * 1024 * 1024) {
+            status(songStatus, "Ukuran file lagu/video maksimal 16 MB.", "error");
             return;
         }
 
         const existingSong = id ? state.songs.find(item => item.id === id) : null;
-        setButtonBusy(saveBtn, true, "Menyimpan…");
-        status(songStatus, "Menyimpan lagu ke koleksi Facebook…");
+        setButtonBusy(saveBtn, true, audioFile ? "Mengunggah audio…" : "Menyimpan…");
+        status(songStatus, audioFile ? "Memeriksa trek audio dan mengunggah musik Cerita…" : "Menyimpan perubahan musik…");
         try {
-            await api("save-song", {
-                method: "POST",
-                body: {
-                    ...(id ? { id } : {}),
-                    title,
-                    artist,
-                    mood,
-                    facebook_url: facebookUrl,
-                    is_active: existingSong ? existingSong.is_active !== false : true
-                }
-            });
+            if (!id && audioFile) {
+                await api("upload-song", {
+                    method: "POST",
+                    body: audioFile,
+                    raw: true,
+                    headers: {
+                        "Content-Type": audioFile.type || "application/octet-stream",
+                        "X-File-Name": encodeURIComponent(audioFile.name),
+                        "X-Song-Title": encodeURIComponent(title),
+                        "X-Song-Artist": encodeURIComponent(artist),
+                        "X-Song-Mood": encodeURIComponent(mood)
+                    }
+                });
+            } else {
+                await api("save-song", {
+                    method: "POST",
+                    body: {
+                        id,
+                        title,
+                        artist,
+                        mood,
+                        is_active: existingSong ? existingSong.is_active !== false : true
+                    }
+                });
+            }
             resetSongForm();
-            status(songStatus, `Lagu "${title}" tersimpan di koleksi acak Facebook.`, "good");
+            status(songStatus, `Musik "${title}" tersimpan dan siap auto-play secara acak di Cerita FB.`, "good");
             await loadFacebookSongs();
         } catch (error) {
-            status(songStatus, error.message || "Gagal menyimpan lagu Facebook.", "error");
+            status(songStatus, error.message || "Gagal menyimpan musik Cerita.", "error");
         } finally {
             setButtonBusy(saveBtn, false);
-            if ($("save-song")) $("save-song").textContent = $("song-id")?.value ? "Simpan perubahan lagu" : "Simpan lagu Facebook";
+            if ($("save-song")) {
+                $("save-song").textContent = $("song-id")?.value ? "Simpan perubahan musik" : "Unggah & simpan musik Cerita";
+            }
         }
     }
 
@@ -987,7 +1077,6 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                     title: song.title,
                     artist: song.artist || "",
                     mood: song.mood || "",
-                    facebook_url: song.facebook_url || "",
                     is_active: song.is_active === false
                 }
             });
@@ -998,10 +1087,11 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     }
 
     async function deleteSong(song) {
-        if (!window.confirm(`Hapus lagu "${song.title}" dari koleksi lagu acak Facebook?`)) return;
+        if (!window.confirm(`Hapus musik "${song.title}" dari koleksi Cerita Facebook?`)) return;
         try {
+            stopSongPreviewPlayer();
             await api("delete-song", { method: "POST", body: { id: song.id } });
-            showNotice(pageMessage, `Lagu "${song.title}" dihapus.`, "success");
+            showNotice(pageMessage, `Musik "${song.title}" dihapus.`, "success");
             await loadFacebookSongs();
         } catch (error) {
             showNotice(pageMessage, error.message, "error");
@@ -1012,7 +1102,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const seedBtn = $("seed-default-songs");
         const songStatus = $("song-status");
         setButtonBusy(seedBtn, true, "Menambahkan…");
-        status(songStatus, "Menambahkan daftar lagu populer Facebook ke koleksi Anda…");
+        status(songStatus, "Menambahkan 8 musik instrumental bawaan siap auto-play…");
         try {
             const result = await api("seed-default-songs", { method: "POST", body: {} });
             state.songs = Array.isArray(result.songs) ? result.songs : state.songs;
@@ -1020,12 +1110,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             status(
                 songStatus,
                 result.added > 0
-                    ? `${result.added} lagu populer ditambahkan ke koleksi lagu Facebook Anda.`
-                    : "Seluruh lagu populer bawaan sudah ada di koleksi Anda.",
+                    ? `${result.added} musik instrumental bawaan siap auto-play ditambahkan ke koleksi Anda.`
+                    : "Seluruh 8 musik instrumental bawaan sudah ada di koleksi Anda.",
                 "good"
             );
         } catch (error) {
-            status(songStatus, error.message || "Gagal mengisi lagu populer.", "error");
+            status(songStatus, error.message || "Gagal mengisi musik bawaan.", "error");
         } finally {
             setButtonBusy(seedBtn, false);
         }
@@ -1040,7 +1130,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (postMode === "quote") {
             preview.hidden = true;
             preview.removeAttribute("src");
-            placeholder.textContent = "Mode Kata-kata Mutiara Estetik aktif — klik Buat & bersihkan pratinjau untuk menghasilkan poster kutipan tanpa karakter dan memilih lagu Facebook acak.";
+            placeholder.textContent = "Mode Cerita Kata-kata Mutiara + Musik Auto-Play aktif — klik Buat & bersihkan pratinjau untuk merender Video Cerita 9:16 lengkap dengan musik auto-play.";
             placeholder.hidden = false;
             return;
         }
@@ -1121,38 +1211,94 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 body: requestBody
             });
             generatedRunId = result.preview.run_id;
-            updateButtonBusyText(button, "Membersihkan metadata…");
+            const isStoryPreview = result.preview.is_story === true && Boolean(result.preview.video_base64);
             const binary = atob(result.preview.image_base64);
             const bytes = new Uint8Array(binary.length);
             for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
             const generatedBlob = new Blob([bytes], { type: result.preview.image_mime_type });
-            const cleaned = await cleanImage(generatedBlob);
-            const objectUrl = URL.createObjectURL(cleaned.blob);
-            const previousUrl = state.objectUrls.get("manual-preview");
-            if (previousUrl) URL.revokeObjectURL(previousUrl);
-            state.objectUrls.set("manual-preview", objectUrl);
-            state.manualPreview = {
-                runId: result.preview.run_id,
-                blob: cleaned.blob,
-                pageName: result.preview.page_name,
-                caption: result.preview.caption
-            };
-            $("manual-generated-preview").src = objectUrl;
+
+            const videoEl = $("manual-generated-video");
+            const imgEl = $("manual-generated-preview");
+            const publishBtn = $("manual-publish-button");
+
+            if (isStoryPreview) {
+                updateButtonBusyText(button, "Menyiapkan Video Cerita & musik…");
+                const videoBinary = atob(result.preview.video_base64);
+                const videoBytes = new Uint8Array(videoBinary.length);
+                for (let index = 0; index < videoBinary.length; index += 1) videoBytes[index] = videoBinary.charCodeAt(index);
+                const videoBlob = new Blob([videoBytes], { type: result.preview.video_mime_type || "video/mp4" });
+                const videoUrl = URL.createObjectURL(videoBlob);
+                const posterUrl = URL.createObjectURL(generatedBlob);
+                const prevVideoUrl = state.objectUrls.get("manual-preview-video");
+                if (prevVideoUrl) URL.revokeObjectURL(prevVideoUrl);
+                const prevPosterUrl = state.objectUrls.get("manual-preview");
+                if (prevPosterUrl) URL.revokeObjectURL(prevPosterUrl);
+                state.objectUrls.set("manual-preview-video", videoUrl);
+                state.objectUrls.set("manual-preview", posterUrl);
+
+                state.manualPreview = {
+                    runId: result.preview.run_id,
+                    blob: videoBlob,
+                    isStory: true,
+                    pageName: result.preview.page_name,
+                    caption: result.preview.caption
+                };
+                if (videoEl) {
+                    videoEl.poster = posterUrl;
+                    videoEl.src = videoUrl;
+                    videoEl.hidden = false;
+                    videoEl.play?.().catch?.(() => {});
+                }
+                if (imgEl) {
+                    imgEl.src = posterUrl;
+                    imgEl.hidden = Boolean(videoEl);
+                }
+                if (publishBtn) publishBtn.textContent = "Terbitkan ke Cerita FB";
+            } else {
+                updateButtonBusyText(button, "Membersihkan metadata…");
+                const cleaned = await cleanImage(generatedBlob);
+                const objectUrl = URL.createObjectURL(cleaned.blob);
+                const previousUrl = state.objectUrls.get("manual-preview");
+                if (previousUrl) URL.revokeObjectURL(previousUrl);
+                state.objectUrls.set("manual-preview", objectUrl);
+                state.manualPreview = {
+                    runId: result.preview.run_id,
+                    blob: cleaned.blob,
+                    isStory: false,
+                    pageName: result.preview.page_name,
+                    caption: result.preview.caption
+                };
+                if (videoEl) {
+                    try { videoEl.pause?.(); } catch {}
+                    videoEl.removeAttribute("src");
+                    videoEl.hidden = true;
+                }
+                if (imgEl) {
+                    imgEl.src = objectUrl;
+                    imgEl.hidden = false;
+                }
+                if (publishBtn) publishBtn.textContent = "Terbitkan ke Facebook Page";
+            }
+
             $("manual-generated-result").hidden = false;
             $("manual-character-preview").hidden = true;
             $("manual-character-placeholder").hidden = true;
-            $("manual-generated-caption").textContent = result.preview.caption;
+            $("manual-generated-caption").textContent = isStoryPreview
+                ? `“${result.preview.quote_text || result.preview.caption}”`
+                : result.preview.caption;
             showManualOutfit(result.preview.outfit);
-            showManualSong(result.preview.song, result.preview.quote_theme);
+            showManualSong(result.preview.song, result.preview.quote_theme, isStoryPreview);
             const outfitNote = result.preview.outfit?.name
                 ? ` Outfit acak: ${result.preview.outfit.name}${result.preview.outfit.order_url ? " (link order disertakan di caption)" : ""}.`
                 : "";
             const songNote = result.preview.song?.title
-                ? ` Lagu FB acak: ${result.preview.song.title}${result.preview.song.artist ? ` — ${result.preview.song.artist}` : ""}.`
+                ? ` Musik auto-play: ${result.preview.song.title}${result.preview.song.artist ? ` — ${result.preview.song.artist}` : ""}.`
                 : "";
             status(
                 $("manual-post-status"),
-                `${isQuote ? "Poster kata-kata mutiara" : "Gambar"} ${result.preview.aspect_ratio} selesai dibuat dan dibersihkan.${outfitNote}${songNote} Periksa pratinjau serta caption sebelum menerbitkan.`,
+                isStoryPreview
+                    ? `Video Cerita 9:16 selesai dibuat dengan teks tajam & musik auto-play.${songNote} Putar pratinjau di sebelah kanan sebelum menerbitkan ke Cerita FB.`
+                    : `Gambar ${result.preview.aspect_ratio} selesai dibuat dan dibersihkan.${outfitNote}${songNote} Periksa pratinjau serta caption sebelum menerbitkan.`,
                 "good"
             );
         } catch (error) {
@@ -1175,20 +1321,29 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             status($("manual-post-status"), "Buat pratinjau gambar terlebih dahulu.", "error");
             return;
         }
-        if (!window.confirm(`Terbitkan gambar dan caption pratinjau ini ke "${state.manualPreview.pageName}"? Post akan langsung terlihat oleh audiens Page.`)) return;
+        const isStory = state.manualPreview.isStory === true;
+        const confirmMsg = isStory
+            ? `Terbitkan Video Cerita kata-kata mutiara + musik auto-play ini langsung ke Cerita (Story) "${state.manualPreview.pageName}"?`
+            : `Terbitkan gambar dan caption pratinjau ini ke "${state.manualPreview.pageName}"? Post akan langsung terlihat oleh audiens Page.`;
+        if (!window.confirm(confirmMsg)) return;
 
         const button = $("manual-publish-button");
         const discardButton = $("manual-discard-button");
         const pageConnectionId = $("manual-page").value;
         if (discardButton) discardButton.disabled = true;
-        setButtonBusy(button, true, "Mengunggah ke Facebook Page…", {
+        setButtonBusy(button, true, isStory ? "Mengunggah Cerita ke Facebook…" : "Mengunggah ke Facebook Page…", {
             premium: true,
-            stages: [
-                { at: 0, text: "Mengunggah ke Facebook Page…" },
-                { at: 5, text: "Menerbitkan posting Page…" }
-            ]
+            stages: isStory
+                ? [
+                    { at: 0, text: "Mengunggah Video Cerita ke FB…" },
+                    { at: 5, text: "Menerbitkan ke Cerita Page…" }
+                ]
+                : [
+                    { at: 0, text: "Mengunggah ke Facebook Page…" },
+                    { at: 5, text: "Menerbitkan posting Page…" }
+                ]
         });
-        status($("manual-post-status"), "Mengirim gambar yang sudah dibersihkan ke Facebook Page…");
+        status($("manual-post-status"), isStory ? "Mengunggah Video Cerita + musik auto-play ke Facebook Page…" : "Mengirim gambar yang sudah dibersihkan ke Facebook Page…");
         try {
             const result = await api("manual-publish", {
                 method: "POST",
@@ -1203,10 +1358,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const postUrl = safeExternalUrl(result.post?.permalink_url);
             status(
                 $("manual-post-status"),
-                `Posting berhasil diterbitkan ke ${result.post?.page_name || "Facebook Page"}.${postUrl ? ` ${postUrl}` : ""}`,
+                isStory
+                    ? `Cerita (Story) berhasil diterbitkan ke ${result.post?.page_name || "Facebook Page"} lengkap dengan musik auto-play.${postUrl ? ` ${postUrl}` : ""}`
+                    : `Posting berhasil diterbitkan ke ${result.post?.page_name || "Facebook Page"}.${postUrl ? ` ${postUrl}` : ""}`,
                 "good"
             );
-            showNotice(pageMessage, "Posting manual berhasil diterbitkan.", "success");
+            showNotice(pageMessage, isStory ? "Cerita Facebook berhasil diterbitkan dengan musik auto-play." : "Posting manual berhasil diterbitkan.", "success");
             clearManualPreview();
             state.runsPage = 1;
             await loadDashboard();
@@ -1255,33 +1412,30 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         line.hidden = false;
     }
 
-    function showManualSong(song, quoteTheme = "") {
+    function showManualSong(song, quoteTheme = "", isStory = false) {
         const line = $("manual-song-line");
         if (!line) return;
         line.replaceChildren();
-        if (!song?.title && !quoteTheme) {
+        if (!song?.title && !quoteTheme && !isStory) {
             line.hidden = true;
             return;
         }
+        if (isStory) {
+            const targetStrong = document.createElement("strong");
+            targetStrong.textContent = "📱 Target: Cerita (Story) FB · Tanpa caption/link/hashtag";
+            line.append(targetStrong);
+        }
         if (quoteTheme) {
+            if (line.childNodes.length) line.append(document.createTextNode(" · "));
             const themeStrong = document.createElement("strong");
-            themeStrong.textContent = `Tema kutipan: ${quoteTheme}`;
+            themeStrong.textContent = `Tema: ${quoteTheme}`;
             line.append(themeStrong);
         }
         if (song?.title) {
-            if (quoteTheme) line.append(document.createTextNode(" · "));
+            if (line.childNodes.length) line.append(document.createTextNode(" · "));
             const songStrong = document.createElement("strong");
-            songStrong.textContent = `🎵 Lagu FB acak: ${song.title}${song.artist ? ` — ${song.artist}` : ""}`;
+            songStrong.textContent = `🎵 Musik auto-play: ${song.title}${song.artist ? ` — ${song.artist}` : ""}`;
             line.append(songStrong);
-            const fbUrl = safeFacebookSongLink(song.facebook_url);
-            if (fbUrl) {
-                const link = document.createElement("a");
-                link.href = fbUrl;
-                link.target = "_blank";
-                link.rel = "noopener noreferrer";
-                link.textContent = fbUrl;
-                line.append(document.createTextNode(" · "), link);
-            }
         }
         line.hidden = false;
     }
@@ -1290,8 +1444,23 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const previewUrl = state.objectUrls.get("manual-preview");
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         state.objectUrls.delete("manual-preview");
+        const videoUrl = state.objectUrls.get("manual-preview-video");
+        if (videoUrl) URL.revokeObjectURL(videoUrl);
+        state.objectUrls.delete("manual-preview-video");
         state.manualPreview = null;
-        $("manual-generated-preview").removeAttribute("src");
+        const videoEl = $("manual-generated-video");
+        if (videoEl) {
+            try { videoEl.pause?.(); } catch {}
+            videoEl.removeAttribute("src");
+            videoEl.removeAttribute("poster");
+            videoEl.hidden = true;
+        }
+        const imgEl = $("manual-generated-preview");
+        if (imgEl) {
+            imgEl.removeAttribute("src");
+            imgEl.hidden = false;
+        }
+        if ($("manual-publish-button")) $("manual-publish-button").textContent = "Terbitkan ke Facebook Page";
         $("manual-generated-result").hidden = true;
         $("manual-outfit-line").hidden = true;
         if ($("manual-song-line")) $("manual-song-line").hidden = true;
@@ -2718,6 +2887,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     $("outfit-form").addEventListener("submit", submitOutfit);
     outfitSelect.addEventListener("change", renderOutfits);
     $("song-form")?.addEventListener("submit", submitSong);
+    $("song-audio-file")?.addEventListener("change", event => {
+        const file = event.target.files?.[0];
+        const titleInput = $("song-title");
+        if (file && titleInput && !titleInput.value.trim()) {
+            titleInput.value = file.name.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[_-]+/g, " ").trim().slice(0, 140);
+        }
+    });
     $("cancel-song-edit")?.addEventListener("click", resetSongForm);
     $("seed-default-songs")?.addEventListener("click", seedDefaultSongs);
     $("manual-post-mode")?.addEventListener("change", event => setManualPostMode(event.target.value));
