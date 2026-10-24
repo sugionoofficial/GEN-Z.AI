@@ -256,7 +256,7 @@
     }
 
     function setFormEnabled(enabled) {
-        for (const id of ["access-status", "duration-days", "started-at", "save-config", "reset-config"]) {
+        for (const id of ["access-status", "duration-days", "started-at", "save-config", "reset-config", "post-limit-input", "save-post-limit"]) {
             document.getElementById(id).disabled = !enabled;
         }
     }
@@ -508,7 +508,44 @@
         document.getElementById("duration-days").value = clampDays(access?.duration_days ?? 30);
         document.getElementById("duration-label").textContent = `${clampDays(access?.duration_days ?? 30)} hari`;
         document.getElementById("started-at").value = toDateTimeLocal(access?.started_at || Date.now());
+        const postLimitInput = document.getElementById("post-limit-input");
+        if (postLimitInput) {
+            postLimitInput.value = user.post_limit === null || user.post_limit === undefined
+                ? ""
+                : String(user.post_limit);
+        }
         renderPreview(access);
+    }
+
+    async function savePostLimit() {
+        const userId = document.getElementById("user-select").value;
+        if (!userId) {
+            setStatusMessage("Pilih user terlebih dahulu.", "error");
+            return;
+        }
+        const input = document.getElementById("post-limit-input");
+        const raw = input.value.trim();
+        const button = document.getElementById("save-post-limit");
+        button.disabled = true;
+        button.textContent = "Menyimpan…";
+        try {
+            const result = await api("studio-admin-set-post-limit", {
+                method: "POST",
+                body: { user_id: userId, post_limit: raw === "" ? null : Number(raw) }
+            });
+            const user = findUser(userId);
+            if (user) user.post_limit = result.profile?.post_limit ?? null;
+            setStatusMessage(
+                `Batas posting ${user?.email || userId} diset ke ${raw === "" ? "default role" : `${raw} jadwal`}.`,
+                "success"
+            );
+        } catch (error) {
+            console.error(error);
+            setStatusMessage(error.message || "Gagal menyimpan batas posting.", "error");
+        } finally {
+            button.disabled = false;
+            button.textContent = "Simpan batas";
+        }
     }
 
     async function loadUsers() {
@@ -809,6 +846,7 @@
             document.getElementById("duration-label").textContent = `${clampDays(durationInput.value)} hari`;
         });
         saveButton.addEventListener("click", () => saveSelectedAccess(document.getElementById("access-status").checked));
+        document.getElementById("save-post-limit").addEventListener("click", savePostLimit);
         deactivateButton.addEventListener("click", () => saveSelectedAccess(false));
         document.getElementById("active-subscribers-list").addEventListener("click", handleSubscriptionClick);
         document.getElementById("adjust-modal").addEventListener("click", event => {

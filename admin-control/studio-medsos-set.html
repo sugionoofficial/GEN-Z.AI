@@ -439,6 +439,15 @@
                     <input class="input" id="started-at" type="datetime-local" value="">
                 </div>
 
+                <div class="field">
+                    <label class="label" for="post-limit-input">Batas maksimal post (jadwal autopost)</label>
+                    <div class="inline">
+                        <input class="input" id="post-limit-input" type="number" min="0" max="999" step="1" placeholder="Kosong = default role">
+                        <button class="btn" id="save-post-limit" type="button">Simpan batas</button>
+                    </div>
+                    <p class="small muted">Berlaku per akun: jumlah maksimal jadwal autopost yang boleh dibuat. Kosongkan untuk memakai default role (USER 2 jadwal, ADMIN/OWNER tanpa batas). Saat batas tercapai, halaman Studio Medsos akun tersebut menampilkan notif merah di bawah tombol Simpan jadwal.</p>
+                </div>
+
                 <div class="actions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
                     <button id="save-config" class="btn primary" type="button">Simpan Setting</button>
                     <button id="reset-config" class="btn" type="button">Nonaktifkan Langganan</button>

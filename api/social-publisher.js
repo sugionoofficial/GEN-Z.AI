@@ -2,7 +2,8 @@ import {
     applyOutfitToScene,
     buildImagePrompt,
     bytesToBase64,
-    clampIntervalHours,
+    clampIntervalMinutes,
+    formatIntervalMinutes,
     composeSocialCaption,
     createScenePlan,
     DEFAULT_SOCIAL_RUNS_PER_PAGE,
@@ -56,6 +57,7 @@ const SCHEDULE_COLUMNS = [
     "enabled",
     "autopublish_enabled",
     "interval_hours",
+    "interval_minutes",
     "next_run_at",
     "timezone",
     "aspect_ratio",
@@ -194,7 +196,7 @@ async function verifyAdmin(req, env) {
 
     const profiles = await supabaseRequest(
         config,
-        tablePath("profiles", `select=id,role,status&id=eq.${encodeURIComponent(authUser.id)}&limit=1`)
+        tablePath("profiles", `select=id,role,status,post_limit&id=eq.${encodeURIComponent(authUser.id)}&limit=1`)
     );
     const profile = profiles?.[0];
     if (!profile) {
@@ -266,7 +268,7 @@ async function listStudioUsers(config) {
     const [profiles, accessRows] = await Promise.all([
         supabaseRequest(
             config,
-            tablePath("profiles", "select=id,email,name,role,status&order=email.asc&limit=1000")
+            tablePath("profiles", "select=id,email,name,role,status,post_limit&order=email.asc&limit=1000")
         ),
         supabaseRequest(
             config,
@@ -1015,10 +1017,11 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         outfits: outfitLibrary.outfits,
         schedulePolicy: getScheduleIntervalPolicy(profile?.role) || {
             role: String(profile?.role || "").trim().toUpperCase(),
-            minIntervalHours: null,
-            maxIntervalHours: null,
+            minIntervalMinutes: null,
+            maxIntervalMinutes: null,
             maxSchedules: null
         },
+        postLimit: resolvePostLimit(profile),
         scheduleCount: schedules.length,
         /* Pilihan parameter gambar untuk form jadwal (sumber tunggal di lib). */
         scenePresets: SCENE_PRESETS,
@@ -1789,6 +1792,13 @@ async function savePostingSettings(config, userId, body = {}) {
     return rows[0];
 }
 
+function resolvePostLimit(profile) {
+    const raw = profile?.post_limit;
+    if (raw === null || raw === undefined || raw === "") return null;
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
 async function saveSchedule(config, userId, body, profile) {
     const characterId = cleanText(body?.character_id, 80);
     const pageConnectionId = cleanText(body?.page_connection_id, 80);
@@ -1810,19 +1820,23 @@ async function saveSchedule(config, userId, body, profile) {
     };
     const scheduleAutopublish = typeof body?.autopublish_enabled === "boolean" ? body.autopublish_enabled : true;
 
-    // Autopost cadence is role-based: OWNER, ADMIN, and USER start at 1 hour.
+    /* Interval autopost berbasis role dalam menit: ADMIN/OWNER tercepat 5 menit,
+       USER tercepat 60 menit (1 jam). */
     const intervalPolicy = getScheduleIntervalPolicy(profile?.role);
     if (!intervalPolicy) {
         const error = new Error("Role akun Anda tidak diizinkan mengatur jadwal autopost. Hubungi owner atau admin.");
         error.status = 403;
         throw error;
     }
-    const { role, minIntervalHours, maxIntervalHours, maxSchedules } = intervalPolicy;
-    const intervalHours = clampIntervalHours(body?.interval_hours, minIntervalHours, maxIntervalHours);
+    const { role, minIntervalMinutes, maxIntervalMinutes, maxSchedules } = intervalPolicy;
+    const requestedMinutes = body?.interval_minutes !== undefined && body?.interval_minutes !== null
+        ? body.interval_minutes
+        : Number(body?.interval_hours) * 60;
+    const intervalMinutes = clampIntervalMinutes(requestedMinutes, minIntervalMinutes, maxIntervalMinutes);
 
-    if (!characterId || !pageConnectionId || !intervalHours || !aspectRatio || !Number.isFinite(nextRunAt) || nextRunAt < Date.now() - 60_000) {
+    if (!characterId || !pageConnectionId || !intervalMinutes || !aspectRatio || !Number.isFinite(nextRunAt) || nextRunAt < Date.now() - 60_000) {
         const error = new Error(
-            `Pilih karakter, Facebook Page, rasio 9:16 atau 16:9, interval ${minIntervalHours}–${maxIntervalHours} jam (minimal ${minIntervalHours} jam untuk role ${role}), dan waktu mulai yang valid.`
+            `Pilih karakter, Facebook Page, rasio 9:16 atau 16:9, interval ${minIntervalMinutes}–${maxIntervalMinutes} menit (minimal ${formatIntervalMinutes(minIntervalMinutes)} untuk role ${role}), dan waktu mulai yang valid.`
         );
         error.status = 400;
         throw error;
@@ -1852,7 +1866,8 @@ async function saveSchedule(config, userId, body, profile) {
         owner_id: userId,
         character_id: characterId,
         page_connection_id: pageConnectionId,
-        interval_hours: intervalHours,
+        interval_hours: Math.min(168, Math.max(1, Math.round(intervalMinutes / 60))),
+        interval_minutes: intervalMinutes,
         next_run_at: new Date(nextRunAt).toISOString(),
         timezone,
         aspect_ratio: aspectRatio,
@@ -1881,17 +1896,19 @@ async function saveSchedule(config, userId, body, profile) {
         return rows[0];
     }
 
-    /* Batas jumlah blok jadwal per role: USER maksimal 2, ADMIN/OWNER tanpa batas. */
-    if (maxSchedules) {
+    /* Batas jumlah blok jadwal: post_limit per akun (diatur admin) memakai prioritas
+       tertinggi; bila kosong, pakai default role (USER 2, ADMIN/OWNER tanpa batas). */
+    const postLimit = resolvePostLimit(profile);
+    const scheduleLimit = postLimit ?? maxSchedules;
+    if (scheduleLimit !== null && scheduleLimit !== undefined) {
         const existing = await supabaseRequest(
             config,
             tablePath("social_post_schedules", `select=id&owner_id=eq.${encodeURIComponent(userId)}`)
         );
-        if ((existing || []).length >= maxSchedules) {
-            const error = new Error(
-                `Role ${role} maksimal ${maxSchedules} jadwal autopost. Hapus salah satu jadwal yang ada sebelum membuat jadwal baru.`
-            );
+        if ((existing || []).length >= scheduleLimit) {
+            const error = new Error(`Batas Posting Anda (${scheduleLimit}). Hubungi admin untuk menambah batas posting`);
             error.status = 409;
+            error.code = "post_limit";
             throw error;
         }
     }
@@ -2459,6 +2476,29 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
     if (action === "studio-admin-save") {
         const access = await saveStudioAccess(config, userId, body);
         return json(res, 200, { success: true, access });
+    }
+    if (action === "studio-admin-set-post-limit") {
+        const targetId = cleanText(body.user_id, 80);
+        if (!targetId) return json(res, 400, { success: false, error: "ID user wajib diisi." });
+        let postLimit = null;
+        if (body.post_limit !== null && body.post_limit !== undefined && body.post_limit !== "") {
+            const parsed = Number(body.post_limit);
+            if (!Number.isInteger(parsed) || parsed < 0 || parsed > 999) {
+                return json(res, 400, { success: false, error: "Batas posting harus bilangan bulat 0–999, atau kosongkan untuk default role." });
+            }
+            postLimit = parsed;
+        }
+        const rows = await supabaseRequest(
+            config,
+            tablePath("profiles", `id=eq.${encodeURIComponent(targetId)}&select=id,email,name,role,status,post_limit`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify({ post_limit: postLimit })
+            }
+        );
+        if (!rows?.length) return json(res, 404, { success: false, error: "User tidak ditemukan." });
+        return json(res, 200, { success: true, profile: rows[0] });
     }
     if (action === "studio-admin-extend") {
         const access = await extendStudioAccess(config, userId, body);
