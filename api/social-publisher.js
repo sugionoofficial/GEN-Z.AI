@@ -1587,6 +1587,93 @@ async function saveCharacter(config, userId, body) {
     return rows[0];
 }
 
+async function replaceReference(req, res, config, userId) {
+    if (!await isPrivateReferenceBucket(config)) {
+        const error = new Error("Bucket privat Supabase Storage untuk foto referensi belum tersedia.");
+        error.status = 503;
+        throw error;
+    }
+
+    const characterId = cleanText(decodeHeader(getHeader(req, "x-character-id")), 80);
+    if (!characterId) {
+        const error = new Error("ID karakter wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+
+    const mime = normalizeMimeType(getHeader(req, "content-type"));
+    const bytes = bytesFromBody(req.body);
+    const filename = cleanText(decodeHeader(getHeader(req, "x-file-name")), 180) || `reference.${extensionForMime(mime)}`;
+    if (!mime || !bytes.length || bytes.length > MAX_REFERENCE_BYTES || !hasValidImageSignature(bytes, mime)) {
+        const error = new Error("File harus berupa JPEG, PNG, atau WebP yang valid dan berukuran maksimal 8 MB.");
+        error.status = 400;
+        throw error;
+    }
+
+    const rows = await supabaseRequest(config, tablePath("social_characters", `select=id,reference_object_key&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`));
+    if (!rows?.length) {
+        const error = new Error("Karakter tidak ditemukan.");
+        error.status = 404;
+        throw error;
+    }
+    const oldKey = rows[0].reference_object_key;
+    const key = `social-reference/${userId}/${characterId}-${Date.now().toString(36)}.${extensionForMime(mime)}`;
+    await uploadReferenceObject(config, key, bytes, mime);
+
+    try {
+        const updated = await supabaseRequest(config, tablePath("social_characters", `id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&select=id`), {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify({
+                reference_object_key: key,
+                reference_filename: filename.replace(/[\\/\0]/g, "").slice(0, 180),
+                reference_mime_type: mime,
+                reference_size_bytes: bytes.length,
+                updated_at: new Date().toISOString()
+            })
+        });
+        if (!updated?.length) {
+            const error = new Error("Karakter tidak ditemukan.");
+            error.status = 404;
+            throw error;
+        }
+    } catch (error) {
+        await deleteReferenceObject(config, key).catch(() => {});
+        throw error;
+    }
+
+    if (oldKey && oldKey !== key) {
+        await deleteReferenceObject(config, oldKey).catch(() => {});
+    }
+    return json(res, 200, { success: true });
+}
+
+async function deleteCharacter(config, userId, body) {
+    const id = cleanText(body?.id, 80);
+    if (!id) {
+        const error = new Error("ID karakter wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+    const schedules = await supabaseRequest(config, tablePath("social_post_schedules", `select=id&character_id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`));
+    if (schedules?.length) {
+        const error = new Error("Karakter masih dipakai jadwal tersimpan. Hapus atau ganti karakter pada jadwal tersebut terlebih dahulu.");
+        error.status = 409;
+        throw error;
+    }
+    const rows = await supabaseRequest(config, tablePath("social_characters", `select=id,reference_object_key&id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`));
+    if (!rows?.length) {
+        const error = new Error("Karakter tidak ditemukan.");
+        error.status = 404;
+        throw error;
+    }
+    await supabaseRequest(config, tablePath("social_characters", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}`), { method: "DELETE" });
+    if (rows[0].reference_object_key) {
+        await deleteReferenceObject(config, rows[0].reference_object_key).catch(() => {});
+    }
+    return { id };
+}
+
 async function savePostingSettings(config, userId, body = {}) {
     const captionTemplate = cleanText(body.caption_template, 1000);
     const externalLink = cleanText(body.external_link, 500);
@@ -2279,6 +2366,7 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
         await ensureStudioAccess(config, userId);
     }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
+    if (action === "replace-reference") return replaceReference(req, res, config, userId);
     if (action === "upload-outfit") return uploadOutfit(req, res, config, userId);
     if (action === "manual-publish") return await publishManualPost(req, res, config, userId, env);
     if (action === "check-page") {
@@ -2335,6 +2423,9 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
     }
     if (action === "save-character") {
         return json(res, 200, { success: true, character: await saveCharacter(config, userId, body) });
+    }
+    if (action === "delete-character") {
+        return json(res, 200, { success: true, ...(await deleteCharacter(config, userId, body)) });
     }
     if (action === "save-outfit") {
         return json(res, 200, { success: true, outfit: await saveOutfit(config, userId, body) });

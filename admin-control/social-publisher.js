@@ -438,11 +438,17 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const notesAction = document.createElement("button");
             notesAction.className = "btn small";
             notesAction.type = "button";
-            notesAction.textContent = "Edit catatan";
+            notesAction.textContent = "Edit";
+            notesAction.title = "Edit nama, catatan, atau ganti foto referensi";
             notesAction.addEventListener("click", () => editCharacter(character));
+            const deleteAction = document.createElement("button");
+            deleteAction.className = "btn small danger";
+            deleteAction.type = "button";
+            deleteAction.textContent = "Hapus";
+            deleteAction.addEventListener("click", () => deleteCharacter(character));
             const actions = document.createElement("div");
             actions.className = "item-actions";
-            actions.append(outfitAction, notesAction);
+            actions.append(outfitAction, notesAction, deleteAction);
             item.append(thumbs, content, actions);
             container.append(item);
         }
@@ -939,13 +945,77 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (displayName === null) return;
         const promptNotes = window.prompt("Ciri karakter yang perlu dijaga", character.prompt_notes || "");
         if (promptNotes === null) return;
+        const name = displayName.trim();
+        if (!name) {
+            showNotice(pageMessage, "Nama karakter tidak boleh kosong.", "error");
+            return;
+        }
         try {
-            await api("save-character", { method: "POST", body: { id: character.id, display_name: displayName, prompt_notes: promptNotes } });
-            showNotice(pageMessage, "Catatan karakter diperbarui.", "success");
-            await loadDashboard();
+            await api("save-character", { method: "POST", body: { id: character.id, display_name: name, prompt_notes: promptNotes.trim() } });
+            showNotice(pageMessage, "Karakter diperbarui.", "success");
         } catch (error) {
             showNotice(pageMessage, error.message, "error");
+            return;
         }
+        if (window.confirm("Ganti foto referensi karakter ini sekaligus? Klik Batal untuk menyimpan tanpa mengganti foto.")) {
+            await pickAndReplaceReference(character.id);
+        }
+        await loadDashboard();
+    }
+
+    function pickAndReplaceReference(characterId) {
+        return new Promise(resolve => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/jpeg,image/png,image/webp";
+            input.hidden = true;
+            document.body.append(input);
+            input.addEventListener("change", async () => {
+                const file = input.files?.[0];
+                input.remove();
+                if (!file) {
+                    resolve(false);
+                    return;
+                }
+                if (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024) {
+                    showNotice(pageMessage, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
+                    resolve(false);
+                    return;
+                }
+                try {
+                    showNotice(pageMessage, "Mengunggah foto referensi baru…", "warn");
+                    await api("replace-reference", {
+                        method: "POST",
+                        body: file,
+                        raw: true,
+                        headers: {
+                            "Content-Type": file.type,
+                            "X-File-Name": encodeURIComponent(file.name),
+                            "X-Character-Id": encodeURIComponent(characterId)
+                        }
+                    });
+                    showNotice(pageMessage, "Foto referensi karakter berhasil diganti.", "success");
+                    resolve(true);
+                } catch (error) {
+                    showNotice(pageMessage, error.message, "error");
+                    resolve(false);
+                }
+            });
+            input.click();
+        });
+    }
+
+    async function deleteCharacter(character) {
+        const outfitCount = (state.data?.outfits || []).filter(outfit => outfit.character_id === character.id).length;
+        if (!window.confirm(`Hapus karakter "${character.display_name}"?${outfitCount ? ` ${outfitCount} outfit karakter ini ikut terhapus.` : ""} Tindakan ini tidak dapat dibatalkan.`)) return;
+        try {
+            await api("delete-character", { method: "POST", body: { id: character.id } });
+            showNotice(pageMessage, `Karakter "${character.display_name}" dihapus.`, "success");
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
+            return;
+        }
+        await loadDashboard();
     }
 
     function pageName(id) {
