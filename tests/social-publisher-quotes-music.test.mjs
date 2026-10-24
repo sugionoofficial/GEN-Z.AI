@@ -21,9 +21,15 @@ import {
     buildQuoteImagePrompt
 } from "../lib/social-publisher/quotes.js";
 import {
+    capStoryMp4Duration,
     encodeStoryMp4,
     extractAudioForStoryMp4,
-    renderQuoteStoryCard
+    formatQuoteAuthorSignature,
+    maxQuoteVideoDurationForTarget,
+    readMp4DurationSec,
+    renderQuoteStoryCard,
+    STORY_MAX_DURATION_FEED_REELS_SEC,
+    STORY_MAX_DURATION_STORY_SEC
 } from "../lib/social-publisher/story-video.js";
 import {
     encryptSecret,
@@ -54,6 +60,24 @@ function makeRes() {
         json(payload) { this.body = payload; return this; },
         end(payload) { this.rawBytes = payload; return this; }
     };
+}
+
+function makeSyntheticAdtsAudio(durationSec) {
+    const frameCount = Math.max(1, Math.round((durationSec * 44100) / 1024));
+    const frameLen = 8;
+    const out = new Uint8Array(frameCount * frameLen);
+    for (let i = 0; i < frameCount; i += 1) {
+        const p = i * frameLen;
+        out[p] = 0xFF;
+        out[p + 1] = 0xF1;
+        out[p + 2] = 0x50; // AAC-LC, 44100 Hz (index 4), stereo
+        out[p + 3] = 0x80; // channel=2, frameLen=8
+        out[p + 4] = 0x01;
+        out[p + 5] = 0x1F;
+        out[p + 6] = 0xFC;
+        out[p + 7] = 0x21;
+    }
+    return out;
 }
 
 test("quotes module normalizes post modes, ships 8 playable built-in Story tracks without search URLs, and rotates playable songs", () => {
@@ -149,6 +173,144 @@ test("buildQuoteImagePrompt enforces strictly text-free scenic background and st
     assert.ok(extractedFromVideo);
     assert.equal(extractedFromVideo.codec, "aac");
     assert.ok(extractedFromVideo.frames.length > 100);
+});
+
+test("story-video renders bottom-right 'quote by: <FB Page>' signature and supports up to 60s for Beranda/Reels while capping Story at 25s", async () => {
+    assert.equal(STORY_MAX_DURATION_FEED_REELS_SEC, 60);
+    assert.equal(STORY_MAX_DURATION_STORY_SEC, 25);
+    assert.equal(maxQuoteVideoDurationForTarget("feed"), 60);
+    assert.equal(maxQuoteVideoDurationForTarget("reels"), 60);
+    assert.equal(maxQuoteVideoDurationForTarget("feed_story"), 60);
+    assert.equal(maxQuoteVideoDurationForTarget("story"), 25);
+
+    assert.equal(
+        formatQuoteAuthorSignature("Irisbela Naresha Aurelia"),
+        "quote by: Irisbela Naresha Aurelia"
+    );
+    assert.equal(
+        formatQuoteAuthorSignature("quote by: Irisbela Naresha Aurelia"),
+        "quote by: Irisbela Naresha Aurelia"
+    );
+    assert.equal(formatQuoteAuthorSignature("   "), "");
+
+    const unsignedCard = await renderQuoteStoryCard({
+        quoteText: "Langkah tenang membawa hati pulang pada syukur.",
+        seed: 7
+    });
+    const signedCard = await renderQuoteStoryCard({
+        quoteText: "Langkah tenang membawa hati pulang pada syukur.",
+        authorName: "Irisbela Naresha Aurelia",
+        seed: 7
+    });
+    assert.equal(signedCard.signatureText, "quote by: Irisbela Naresha Aurelia");
+
+    // Verify bright signature pixels appear in the bottom-right corner and NOT bottom-left
+    let bottomRightChangedPixels = 0;
+    let bottomLeftChangedPixels = 0;
+    for (let y = Math.floor(signedCard.height * 0.86); y < signedCard.height; y += 1) {
+        for (let x = 0; x < signedCard.width; x += 1) {
+            const idx = (y * signedCard.width + x) * 4;
+            const delta = Math.abs(signedCard.rgba[idx] - unsignedCard.rgba[idx])
+                + Math.abs(signedCard.rgba[idx + 1] - unsignedCard.rgba[idx + 1])
+                + Math.abs(signedCard.rgba[idx + 2] - unsignedCard.rgba[idx + 2]);
+            if (delta > 30) {
+                if (x >= Math.floor(signedCard.width * 0.32)) {
+                    bottomRightChangedPixels += 1;
+                } else if (x < Math.floor(signedCard.width * 0.18)) {
+                    bottomLeftChangedPixels += 1;
+                }
+            }
+        }
+    }
+    assert.ok(bottomRightChangedPixels > 400, `Expected crisp bottom-right signature pixels, got ${bottomRightChangedPixels}`);
+    assert.equal(bottomLeftChangedPixels, 0, "Short/medium FB Page signature should stay right-aligned away from the bottom-left edge");
+
+    // Verify 52s audio stays 52s on Beranda/Reels, 75s clamps to 60s, and Story caps at 25s
+    const smallCard = await renderQuoteStoryCard({
+        quoteText: "Sabar itu indah.",
+        authorName: "Irisbela Naresha Aurelia",
+        width: 180,
+        height: 320,
+        seed: 3
+    });
+    const audio52s = makeSyntheticAdtsAudio(52);
+    const audio75s = makeSyntheticAdtsAudio(75);
+
+    const feed52 = encodeStoryMp4({
+        rgba: smallCard.rgba,
+        width: smallCard.width,
+        height: smallCard.height,
+        audioBytes: audio52s,
+        maxDurationSec: maxQuoteVideoDurationForTarget("feed")
+    });
+    assert.equal(feed52.durationSec, 52);
+    assert.equal(Math.round(readMp4DurationSec(feed52.mp4Bytes)), 52);
+
+    const reels60 = encodeStoryMp4({
+        rgba: smallCard.rgba,
+        width: smallCard.width,
+        height: smallCard.height,
+        audioBytes: audio75s,
+        maxDurationSec: maxQuoteVideoDurationForTarget("reels")
+    });
+    assert.equal(reels60.durationSec, 60);
+    assert.equal(Math.round(readMp4DurationSec(reels60.mp4Bytes)), 60);
+
+    const story25 = encodeStoryMp4({
+        rgba: smallCard.rgba,
+        width: smallCard.width,
+        height: smallCard.height,
+        audioBytes: audio52s,
+        maxDurationSec: maxQuoteVideoDurationForTarget("story")
+    });
+    assert.equal(story25.durationSec, 25);
+    assert.equal(Math.round(readMp4DurationSec(story25.mp4Bytes)), 25);
+
+    // capStoryMp4Duration trims a 52s Feed MP4 down to 25s for Story cross-posting (feed_story)
+    const trimmedForStory = capStoryMp4Duration(feed52.mp4Bytes, STORY_MAX_DURATION_STORY_SEC);
+    assert.equal(Math.round(readMp4DurationSec(trimmedForStory)), 25);
+
+    let uploadedFeedDuration = 0;
+    let uploadedStoryDuration = 0;
+    const originalFetch = globalThis.fetch;
+    try {
+        globalThis.fetch = async (input, init = {}) => {
+            const url = String(input);
+            if (url.includes("graph.facebook.com") && url.includes("?fields=")) {
+                return Response.json({ id: "9988", name: "Irisbela Naresha Aurelia", tasks: ["CREATE_CONTENT"] });
+            }
+            if (url.includes("graph-video.facebook.com") && url.endsWith("/9988/videos")) {
+                const source = init.body.get("source");
+                const bytes = new Uint8Array(await source.arrayBuffer());
+                uploadedFeedDuration = Math.round(readMp4DurationSec(bytes));
+                return Response.json({ id: "vid-feed-52", post_id: "9988_52" });
+            }
+            if (url.includes("graph.facebook.com") && url.endsWith("/9988/video_stories")) {
+                const params = init.body instanceof URLSearchParams ? init.body : new URLSearchParams(String(init.body || ""));
+                if (params.get("upload_phase") === "start") {
+                    return Response.json({ video_id: "vid-story-25", upload_url: "https://rupload.facebook.com/video-upload/v26.0/vid-story-25" });
+                }
+                return Response.json({ success: true, post_id: "9988_story_25" });
+            }
+            if (url.startsWith("https://rupload.facebook.com/")) {
+                uploadedStoryDuration = Math.round(readMp4DurationSec(init.body));
+                return Response.json({ success: true });
+            }
+            return Response.json({ permalink_url: "/9988/videos/52/" });
+        };
+
+        await publishFacebookQuoteVideo({
+            env: {},
+            pageId: "9988",
+            pageAccessToken: "token",
+            videoBytes: feed52.mp4Bytes,
+            target: "feed_story"
+        });
+        assert.equal(uploadedFeedDuration, 52, "Beranda leg of feed_story keeps full 52s video");
+        assert.equal(uploadedStoryDuration, 25, "Story leg of feed_story trims to 25s automatically");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
 });
 
 test("generateSocialQuote and generateSocialQuoteImage support Gemini and Cloudflare without character references", async () => {
@@ -555,8 +717,27 @@ test("API social-publisher defaults Quote + Auto-Play Music to permanent Page Fe
         assert.equal(previewRes.body.preview.post_mode, "quote");
         assert.equal(previewRes.body.preview.quote_publish_target, "feed");
         assert.equal(previewRes.body.preview.is_story, false);
+        assert.equal(previewRes.body.preview.quote_signature, "quote by: Ruang Teduh Page");
+        assert.equal(previewRes.body.preview.scene.quote_signature, "quote by: Ruang Teduh Page");
         assert.equal(previewRes.body.preview.video_mime_type, "video/mp4");
         assert.ok(previewRes.body.preview.video_base64.length > 10_000);
+
+        // Also verify uploading a 52s AAC track records duration_seconds = 52 (up to 60s for Beranda/Reels)
+        const uploadLongRes = makeRes();
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=upload-song",
+            headers: {
+                authorization: "Bearer valid-token",
+                "content-type": "audio/aac",
+                "x-file-name": encodeURIComponent("senja-panjang-52s.aac"),
+                "x-song-title": encodeURIComponent("Senja Panjang 52 Detik")
+            },
+            body: makeSyntheticAdtsAudio(52),
+            env
+        }, uploadLongRes);
+        assert.equal(uploadLongRes.statusCode, 201);
+        assert.equal(uploadLongRes.body.song.duration_seconds, 52);
         assert.equal(previewRes.body.preview.song.title, "Gitar Senja Favorit");
         // Strictly clean quote text ONLY — no "Cerita hari ini", no song URLs, no hashtags!
         assert.equal(
@@ -657,6 +838,13 @@ test("API social-publisher defaults Quote + Auto-Play Music to permanent Page Fe
             env
         }, delRes);
         assert.equal(delRes.statusCode, 200);
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=delete-song",
+            headers: { authorization: "Bearer valid-token" },
+            body: { id: uploadLongRes.body.song.id },
+            env
+        }, makeRes());
         assert.equal(audioBucketStore.size, 0, "Deleting custom song also deletes private audio object");
     } finally {
         globalThis.fetch = originalFetch;
@@ -835,6 +1023,7 @@ test("cron runSocialPublisherCron auto-generates 9:16 Video Story with embedded 
         assert.equal(finalPatch.status, "posted");
         assert.equal(finalPatch.post_mode, "quote");
         assert.equal(finalPatch.quote_publish_target, "feed");
+        assert.equal(finalPatch.scene_plan?.quote_signature, "quote by: Malam Tenang Page");
         assert.equal(finalPatch.permalink_url, "https://www.facebook.com/11223344/videos/777/");
         assert.equal(finalPatch.song_id, "song-fresh");
         assert.equal(finalPatch.song_title, "Doa dalam Hening");
