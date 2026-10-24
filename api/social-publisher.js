@@ -26,6 +26,7 @@ import {
     createQuotePlan,
     DEFAULT_FACEBOOK_SONGS,
     findBuiltinStorySong,
+    normalizeQuotePublishTarget,
     normalizeSocialPostMode,
     pickRandomFacebookSong,
     QUOTE_PRESETS,
@@ -43,7 +44,7 @@ import {
     inspectFacebookPageToken,
     makeProfileShareUrl,
     publishFacebookPhoto,
-    publishFacebookVideoStory
+    publishFacebookQuoteVideo
 } from "../lib/social-publisher/providers.js";
 import {
     getModelQuotas,
@@ -99,12 +100,16 @@ const SCHEDULE_COLUMNS = [
     "scene_details",
     "negative_prompt"
 ].join(",");
-const SCHEDULE_FULL_COLUMNS = [
+const SCHEDULE_QUOTE_BASE_COLUMNS = [
     SCHEDULE_COLUMNS,
     "post_mode",
     "quote_theme",
     "quote_visual_style",
     "use_random_song"
+].join(",");
+const SCHEDULE_FULL_COLUMNS = [
+    SCHEDULE_QUOTE_BASE_COLUMNS,
+    "quote_publish_target"
 ].join(",");
 const OAUTH_STATE_COOKIE = "__Secure-social-oauth-state";
 const OAUTH_STATE_COOKIE_PATH = "/api/facebook-oauth-callback";
@@ -931,12 +936,12 @@ async function listRunsForDashboard(config, userId, paginationOptions = {}) {
         try {
             return await supabaseRequestWithHeaders(
                 config,
-                tablePath("social_post_runs", `select=${columns},outfit_name,outfit_order_url,post_mode,quote_text,quote_theme,song_id,song_title,song_artist,song_facebook_url,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`),
+                tablePath("social_post_runs", `select=${columns},outfit_name,outfit_order_url,post_mode,quote_text,quote_theme,quote_publish_target,song_id,song_title,song_artist,song_facebook_url,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`),
                 requestOptions
             );
         } catch (error) {
             const msg = String(error?.message || "");
-            if (/(post_mode|quote_text|quote_theme|song_id|song_title|song_artist|song_facebook_url)/i.test(msg)) {
+            if (/(post_mode|quote_text|quote_theme|quote_publish_target|song_id|song_title|song_artist|song_facebook_url)/i.test(msg)) {
                 try {
                     return await supabaseRequestWithHeaders(
                         config,
@@ -1325,8 +1330,15 @@ const SCHEDULE_QUOTE_COLUMNS = [
     "post_mode",
     "quote_theme",
     "quote_visual_style",
-    "use_random_song"
+    "use_random_song",
+    "quote_publish_target"
 ];
+
+function isMissingQuoteTargetColumn(error) {
+    const message = String(error?.message || "");
+    return (error?.code === "PGRST204" || error?.code === "42703" || /does not exist|schema cache|column/i.test(message))
+        && message.includes("quote_publish_target");
+}
 
 function isMissingScheduleQuoteSchema(error) {
     const message = String(error?.message || "");
@@ -1348,6 +1360,16 @@ async function listSchedulesForDashboard(config, userId) {
             sceneSchemaReady: true
         };
     } catch (error) {
+        if (isMissingQuoteTargetColumn(error)) {
+            try {
+                return {
+                    rows: await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_QUOTE_BASE_COLUMNS},created_at,updated_at&${query}`)) || [],
+                    sceneSchemaReady: true
+                };
+            } catch {
+                // Fall through to scene/legacy columns.
+            }
+        }
         if (isMissingScheduleQuoteSchema(error)) {
             console.warn("[Social Publisher] Kolom quote/musik jadwal belum ada; memakai kolom scene.");
             try {
@@ -1417,7 +1439,7 @@ function isMissingSongSchema(error) {
 function isMissingQuoteRunColumns(error) {
     const message = String(error?.message || "");
     return (error?.code === "PGRST204" || error?.code === "42703" || /does not exist|schema cache|column/i.test(message))
-        && /(post_mode|quote_text|quote_theme|song_id|song_title|song_artist|song_facebook_url)/i.test(message);
+        && /(post_mode|quote_text|quote_theme|quote_publish_target|song_id|song_title|song_artist|song_facebook_url)/i.test(message);
 }
 
 function isMissingSongAudioColumns(error) {
@@ -1766,11 +1788,12 @@ async function pickSongForPost(config, userId, { requirePlayableAudio = false } 
     });
 }
 
-function quoteAndSongRunValues({ postMode = "character", quoteText = "", quoteTheme = "", song = null } = {}) {
+function quoteAndSongRunValues({ postMode = "character", quoteText = "", quoteTheme = "", quotePublishTarget = "", song = null } = {}) {
     return {
         post_mode: postMode,
         quote_text: String(quoteText || "").slice(0, 500),
         quote_theme: String(quoteTheme || "").slice(0, 120),
+        ...(quotePublishTarget ? { quote_publish_target: normalizeQuotePublishTarget(quotePublishTarget, "feed") } : {}),
         song_id: song?.id || null,
         song_title: String(song?.title || "").slice(0, 140),
         song_artist: String(song?.artist || "").slice(0, 120),
@@ -2265,7 +2288,9 @@ async function saveSchedule(config, userId, body, profile) {
         body?.post_mode !== undefined ||
         body?.quote_theme !== undefined ||
         body?.quote_visual_style !== undefined ||
+        body?.quote_publish_target !== undefined ||
         body?.use_random_song !== undefined;
+    const quotePublishTarget = normalizeQuotePublishTarget(body?.quote_publish_target, "feed");
     const characterId = isQuoteMode ? "" : cleanText(body?.character_id, 80);
     const pageConnectionId = cleanText(body?.page_connection_id, 80);
     const nextRunAt = Date.parse(String(body?.next_run_at || ""));
@@ -2291,6 +2316,7 @@ async function saveSchedule(config, userId, body, profile) {
         post_mode: postMode,
         quote_theme: isQuoteMode ? cleanText(body?.quote_theme, 120) : "",
         quote_visual_style: isQuoteMode ? cleanText(body?.quote_visual_style, 240) : "",
+        quote_publish_target: isQuoteMode ? quotePublishTarget : "feed",
         use_random_song: typeof body?.use_random_song === "boolean"
             ? body.use_random_song
             : isQuoteMode
@@ -2375,9 +2401,22 @@ async function saveSchedule(config, userId, body, profile) {
                     method,
                     headers: { Prefer: "return=representation" },
                     body: JSON.stringify(values)
-                }
+            }
             );
         } catch (error) {
+            if (hasExplicitQuoteFields && isMissingQuoteTargetColumn(error)) {
+                const withoutTargetValues = { ...values };
+                delete withoutTargetValues.quote_publish_target;
+                return await supabaseRequest(
+                    config,
+                    tablePath("social_post_schedules", `${querySuffix ? `${querySuffix}&` : ""}select=${SCHEDULE_QUOTE_BASE_COLUMNS}`),
+                    {
+                        method,
+                        headers: { Prefer: "return=representation" },
+                        body: JSON.stringify(withoutTargetValues)
+                    }
+                );
+            }
             if (!isQuoteMode && hasExplicitQuoteFields && isMissingScheduleQuoteSchema(error) && !quoteParams.use_random_song) {
                 const legacyValues = { ...values };
                 for (const key of SCHEDULE_QUOTE_COLUMNS) delete legacyValues[key];
@@ -2440,7 +2479,7 @@ async function patchManualRunWithFallback(config, runId, userId, bodyValues) {
     } catch (error) {
         if (!isMissingQuoteRunColumns(error)) throw error;
         const fallback = { ...bodyValues };
-        for (const key of ["post_mode", "quote_text", "quote_theme", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
+        for (const key of ["post_mode", "quote_text", "quote_theme", "quote_publish_target", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
             delete fallback[key];
         }
         await supabaseRequest(
@@ -2458,6 +2497,7 @@ async function patchManualRunWithFallback(config, runId, userId, bodyValues) {
 async function generateManualPost(config, userId, env, body = {}) {
     const postMode = normalizeSocialPostMode(body.post_mode);
     const isQuoteMode = postMode === "quote";
+    const quotePublishTarget = normalizeQuotePublishTarget(body.quote_publish_target, "feed");
     const useRandomSong = typeof body.use_random_song === "boolean"
         ? body.use_random_song
         : isQuoteMode;
@@ -2582,7 +2622,7 @@ async function generateManualPost(config, userId, env, body = {}) {
         scheduled_for: now,
         started_at: now,
         ...(outfitLibraryReady ? outfitRunValues(outfit) : {}),
-        ...(isQuoteMode || song ? quoteAndSongRunValues({ postMode, song }) : {})
+        ...(isQuoteMode || song ? quoteAndSongRunValues({ postMode, quotePublishTarget: isQuoteMode ? quotePublishTarget : "", song }) : {})
     };
     try {
         runRows = await supabaseRequest(
@@ -2597,7 +2637,7 @@ async function generateManualPost(config, userId, env, body = {}) {
     } catch (insertError) {
         if (!isMissingQuoteRunColumns(insertError)) throw insertError;
         const legacyRunBody = { ...initialRunBody };
-        for (const key of ["post_mode", "quote_text", "quote_theme", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
+        for (const key of ["post_mode", "quote_text", "quote_theme", "quote_publish_target", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
             delete legacyRunBody[key];
         }
         runRows = await supabaseRequest(
@@ -2683,12 +2723,12 @@ async function generateManualPost(config, userId, env, body = {}) {
                 height: storyCard.height,
                 audioBytes
             });
-            // Cerita (Story) Kata-kata Mutiara hanya berisi kalimat mutiara murni — tanpa caption feed/link/hashtag.
+            // Postingan Kata-kata Mutiara + Musik hanya berisi kartu video 9:16 + musik auto-play — tanpa caption feed/link/hashtag.
             const caption = quoteText;
             const sceneRecord = {
                 ...quotePlan,
                 post_mode: "quote",
-                story_target: "facebook_page_story",
+                quote_publish_target: quotePublishTarget,
                 quote_text: quoteText,
                 ...(song ? {
                     song_id: song.id || null,
@@ -2708,6 +2748,7 @@ async function generateManualPost(config, userId, env, body = {}) {
                     postMode: "quote",
                     quoteText,
                     quoteTheme: quotePlan.themeLabel,
+                    quotePublishTarget,
                     song: song ? { ...song, facebook_url: "" } : null
                 }),
                 error_message: null
@@ -2717,7 +2758,8 @@ async function generateManualPost(config, userId, env, body = {}) {
                 run_id: run.id,
                 status: "preview",
                 post_mode: "quote",
-                is_story: true,
+                quote_publish_target: quotePublishTarget,
+                is_story: quotePublishTarget === "story",
                 page_name: page.page_name,
                 image_base64: bytesToBase64(storyCard.pngBytes),
                 image_mime_type: "image/png",
@@ -2881,14 +2923,15 @@ function hasValidMp4Signature(bytes) {
 
 async function publishManualPost(req, res, config, userId, env) {
     const runId = cleanText(getHeader(req, "x-manual-run-id"), 80);
+    const headerQuoteTarget = cleanText(getHeader(req, "x-quote-target"), 40);
     const rawContentType = String(getHeader(req, "content-type") || "").split(";")[0].trim().toLowerCase();
-    const isStoryVideo = rawContentType === "video/mp4";
-    const imageMimeType = isStoryVideo ? "" : normalizeMimeType(rawContentType);
+    const isQuoteVideo = rawContentType === "video/mp4";
+    const imageMimeType = isQuoteVideo ? "" : normalizeMimeType(rawContentType);
     const payloadBytes = bytesFromBody(req.body);
 
-    if (isStoryVideo) {
+    if (isQuoteVideo) {
         if (!runId || !payloadBytes.length || payloadBytes.length > 20 * 1024 * 1024 || !hasValidMp4Signature(payloadBytes)) {
-            const error = new Error("Pratinjau Video Story tidak valid. Buat ulang Cerita sebelum menerbitkan.");
+            const error = new Error("Pratinjau Video Kata Mutiara tidak valid. Buat ulang pratinjau sebelum menerbitkan.");
             error.status = 400;
             throw error;
         }
@@ -2926,14 +2969,19 @@ async function publishManualPost(req, res, config, userId, env) {
         envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")
     );
 
+    const quoteTarget = isQuoteVideo
+        ? normalizeQuotePublishTarget(headerQuoteTarget || run.scene_plan?.quote_publish_target, "feed")
+        : "";
+
     try {
         let published;
-        if (isStoryVideo) {
-            published = await publishFacebookVideoStory({
+        if (isQuoteVideo) {
+            published = await publishFacebookQuoteVideo({
                 env,
                 pageId: page.page_id,
                 pageAccessToken,
-                videoBytes: payloadBytes
+                videoBytes: payloadBytes,
+                target: quoteTarget
             });
         } else {
             const cleanedBlob = await stripImageMetadata(new Blob([payloadBytes], { type: imageMimeType }), imageMimeType);
@@ -2948,29 +2996,29 @@ async function publishManualPost(req, res, config, userId, env) {
             });
         }
         const profileShareUrl = makeProfileShareUrl(published.permalinkUrl);
-        await supabaseRequest(
-            config,
-            tablePath("social_post_runs", `id=eq.${encodeURIComponent(run.id)}&owner_id=eq.${encodeURIComponent(userId)}&status=eq.generating`),
-            {
-                method: "PATCH",
-                headers: { Prefer: "return=minimal" },
-                body: JSON.stringify({
-                    status: "posted",
-                    facebook_photo_id: published.photoId || published.videoId || null,
-                    facebook_post_id: published.postId || null,
-                    permalink_url: published.permalinkUrl || null,
-                    profile_share_url: profileShareUrl || null,
-                    finished_at: new Date().toISOString(),
-                    error_message: null
-                })
-            }
-        );
+        await patchManualRunWithFallback(config, run.id, userId, {
+            status: "posted",
+            ...(isQuoteVideo ? {
+                quote_publish_target: quoteTarget,
+                scene_plan: {
+                    ...(run.scene_plan && typeof run.scene_plan === "object" ? run.scene_plan : {}),
+                    quote_publish_target: quoteTarget
+                }
+            } : {}),
+            facebook_photo_id: published.photoId || published.videoId || null,
+            facebook_post_id: published.postId || null,
+            permalink_url: published.permalinkUrl || null,
+            profile_share_url: profileShareUrl || null,
+            finished_at: new Date().toISOString(),
+            error_message: null
+        });
         return json(res, 200, {
             success: true,
             post: {
                 id: run.id,
                 status: "posted",
-                is_story: isStoryVideo,
+                is_story: published.target === "story",
+                target: published.target || (isQuoteVideo ? quoteTarget : "photo"),
                 page_name: page.page_name,
                 caption: run.caption,
                 permalink_url: published.permalinkUrl || null
@@ -3482,7 +3530,7 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
 
 export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", req.headers?.origin || "*");
-    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-File-Name, X-Character-Name, X-Character-Consent, X-Character-Adult, X-Garment-Rights, X-Outfit-Name, X-Outfit-Order-Url, X-Outfit-Notes, X-Outfit-Rights, X-Manual-Run-Id, X-Song-Title, X-Song-Artist, X-Song-Mood");
+    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-File-Name, X-Character-Name, X-Character-Consent, X-Character-Adult, X-Garment-Rights, X-Outfit-Name, X-Outfit-Order-Url, X-Outfit-Notes, X-Outfit-Rights, X-Manual-Run-Id, X-Quote-Target, X-Song-Title, X-Song-Artist, X-Song-Mood");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Vary", "Origin");
     res.setHeader("Cache-Control", "no-store");

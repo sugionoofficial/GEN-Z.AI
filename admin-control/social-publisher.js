@@ -881,8 +881,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             empty.className = "empty";
             empty.style.gridColumn = "1/-1";
             empty.textContent = ready
-                ? `Belum ada file lagu yang Anda unggah. Saat ini ${defaultCount} musik instrumental bawaan siap auto-play acak otomatis di Cerita FB — atau unggah file lagu Anda sendiri (.mp3 / .m4a / video .mp4 FB) di atas.`
-                : `Tabel musik belum diaktifkan di database; ${defaultCount} musik instrumental bawaan tetap aktif otomatis untuk Cerita Kata-kata Mutiara.`;
+                ? `Belum ada file lagu yang Anda unggah. Saat ini ${defaultCount} musik instrumental bawaan siap auto-play acak otomatis di Postingan Beranda Page, Reels, maupun Cerita — atau unggah file lagu Anda sendiri (.mp3 / .m4a / video .mp4 FB) di atas.`
+                : `Tabel musik belum diaktifkan di database; ${defaultCount} musik instrumental bawaan tetap aktif otomatis untuk Kata-kata Mutiara.`;
             container.append(empty);
             return;
         }
@@ -983,8 +983,29 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         $("song-form")?.reset?.();
         if ($("song-id")) $("song-id").value = "";
         if ($("song-file-field")) $("song-file-field").hidden = false;
-        if ($("save-song")) $("save-song").textContent = "Unggah & simpan musik Cerita";
+        if ($("save-song")) $("save-song").textContent = "Unggah & simpan musik";
         if ($("cancel-song-edit")) $("cancel-song-edit").hidden = true;
+    }
+
+    function normalizeClientQuoteTarget(value) {
+        const clean = String(value || "").trim().toLowerCase();
+        return ["feed", "reels", "story", "feed_story"].includes(clean) ? clean : "feed";
+    }
+
+    function quoteTargetLabel(target) {
+        const t = normalizeClientQuoteTarget(target);
+        if (t === "reels") return "Facebook Reels + Page";
+        if (t === "story") return "Cerita (Story 24 Jam)";
+        if (t === "feed_story") return "Postingan Beranda + Cerita";
+        return "Postingan Beranda Page";
+    }
+
+    function quotePublishButtonText(target) {
+        const t = normalizeClientQuoteTarget(target);
+        if (t === "reels") return "Terbitkan sebagai Reels FB";
+        if (t === "story") return "Terbitkan ke Cerita FB";
+        if (t === "feed_story") return "Terbitkan ke Beranda & Cerita";
+        return "Terbitkan ke Beranda Page";
     }
 
     function editSong(song) {
@@ -1190,9 +1211,11 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         );
         try {
             if (state.manualPreview) await discardManualPreview(false);
+            const selectedQuoteTarget = normalizeClientQuoteTarget($("manual-quote-target")?.value);
             const requestBody = isQuote
                 ? {
                     post_mode: "quote",
+                    quote_publish_target: selectedQuoteTarget,
                     page_connection_id: pageConnectionId,
                     aspect_ratio: $("manual-aspect-ratio").value,
                     quote_theme: $("manual-quote-theme")?.value || "",
@@ -1211,7 +1234,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 body: requestBody
             });
             generatedRunId = result.preview.run_id;
-            const isStoryPreview = result.preview.is_story === true && Boolean(result.preview.video_base64);
+            const isQuoteVideoPreview = Boolean(result.preview.video_base64);
+            const resolvedQuoteTarget = normalizeClientQuoteTarget(result.preview.quote_publish_target || selectedQuoteTarget);
             const binary = atob(result.preview.image_base64);
             const bytes = new Uint8Array(binary.length);
             for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
@@ -1221,8 +1245,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const imgEl = $("manual-generated-preview");
             const publishBtn = $("manual-publish-button");
 
-            if (isStoryPreview) {
-                updateButtonBusyText(button, "Menyiapkan Video Cerita & musik…");
+            if (isQuoteVideoPreview) {
+                updateButtonBusyText(button, "Menyiapkan kartu video & musik auto-play…");
                 const videoBinary = atob(result.preview.video_base64);
                 const videoBytes = new Uint8Array(videoBinary.length);
                 for (let index = 0; index < videoBinary.length; index += 1) videoBytes[index] = videoBinary.charCodeAt(index);
@@ -1239,7 +1263,10 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 state.manualPreview = {
                     runId: result.preview.run_id,
                     blob: videoBlob,
-                    isStory: true,
+                    isQuoteVideo: true,
+                    quoteTarget: resolvedQuoteTarget,
+                    song: result.preview.song || null,
+                    quoteTheme: result.preview.quote_theme || "",
                     pageName: result.preview.page_name,
                     caption: result.preview.caption
                 };
@@ -1253,7 +1280,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                     imgEl.src = posterUrl;
                     imgEl.hidden = Boolean(videoEl);
                 }
-                if (publishBtn) publishBtn.textContent = "Terbitkan ke Cerita FB";
+                if (publishBtn) publishBtn.textContent = quotePublishButtonText(resolvedQuoteTarget);
             } else {
                 updateButtonBusyText(button, "Membersihkan metadata…");
                 const cleaned = await cleanImage(generatedBlob);
@@ -1264,7 +1291,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 state.manualPreview = {
                     runId: result.preview.run_id,
                     blob: cleaned.blob,
-                    isStory: false,
+                    isQuoteVideo: false,
                     pageName: result.preview.page_name,
                     caption: result.preview.caption
                 };
@@ -1283,11 +1310,11 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             $("manual-generated-result").hidden = false;
             $("manual-character-preview").hidden = true;
             $("manual-character-placeholder").hidden = true;
-            $("manual-generated-caption").textContent = isStoryPreview
+            $("manual-generated-caption").textContent = isQuoteVideoPreview
                 ? `“${result.preview.quote_text || result.preview.caption}”`
                 : result.preview.caption;
             showManualOutfit(result.preview.outfit);
-            showManualSong(result.preview.song, result.preview.quote_theme, isStoryPreview);
+            showManualSong(result.preview.song, result.preview.quote_theme, isQuoteVideoPreview ? resolvedQuoteTarget : "");
             const outfitNote = result.preview.outfit?.name
                 ? ` Outfit acak: ${result.preview.outfit.name}${result.preview.outfit.order_url ? " (link order disertakan di caption)" : ""}.`
                 : "";
@@ -1296,8 +1323,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 : "";
             status(
                 $("manual-post-status"),
-                isStoryPreview
-                    ? `Video Cerita 9:16 selesai dibuat dengan teks tajam & musik auto-play.${songNote} Putar pratinjau di sebelah kanan sebelum menerbitkan ke Cerita FB.`
+                isQuoteVideoPreview
+                    ? `Kartu video Kata-kata Mutiara 9:16 selesai dibuat dengan teks tajam & musik auto-play.${songNote} Putar pratinjau di sebelah kanan lalu terbitkan ke ${quoteTargetLabel(resolvedQuoteTarget)}.`
                     : `Gambar ${result.preview.aspect_ratio} selesai dibuat dan dibersihkan.${outfitNote}${songNote} Periksa pratinjau serta caption sebelum menerbitkan.`,
                 "good"
             );
@@ -1318,12 +1345,16 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
     async function publishManualPreview() {
         if (!state.manualPreview) {
-            status($("manual-post-status"), "Buat pratinjau gambar terlebih dahulu.", "error");
+            status($("manual-post-status"), "Buat pratinjau terlebih dahulu.", "error");
             return;
         }
-        const isStory = state.manualPreview.isStory === true;
-        const confirmMsg = isStory
-            ? `Terbitkan Video Cerita kata-kata mutiara + musik auto-play ini langsung ke Cerita (Story) "${state.manualPreview.pageName}"?`
+        const isQuoteVideo = state.manualPreview.isQuoteVideo === true;
+        const quoteTarget = isQuoteVideo
+            ? normalizeClientQuoteTarget($("manual-quote-target")?.value || state.manualPreview.quoteTarget)
+            : "";
+        const targetLabel = isQuoteVideo ? quoteTargetLabel(quoteTarget) : "Facebook Page";
+        const confirmMsg = isQuoteVideo
+            ? `Terbitkan kartu Kata-kata Mutiara + musik auto-play ini ke ${targetLabel} "${state.manualPreview.pageName}"?`
             : `Terbitkan gambar dan caption pratinjau ini ke "${state.manualPreview.pageName}"? Post akan langsung terlihat oleh audiens Page.`;
         if (!window.confirm(confirmMsg)) return;
 
@@ -1331,19 +1362,19 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         const discardButton = $("manual-discard-button");
         const pageConnectionId = $("manual-page").value;
         if (discardButton) discardButton.disabled = true;
-        setButtonBusy(button, true, isStory ? "Mengunggah Cerita ke Facebook…" : "Mengunggah ke Facebook Page…", {
+        setButtonBusy(button, true, isQuoteVideo ? `Menerbitkan ke ${targetLabel}…` : "Mengunggah ke Facebook Page…", {
             premium: true,
-            stages: isStory
+            stages: isQuoteVideo
                 ? [
-                    { at: 0, text: "Mengunggah Video Cerita ke FB…" },
-                    { at: 5, text: "Menerbitkan ke Cerita Page…" }
+                    { at: 0, text: "Mengunggah video + musik ke FB…" },
+                    { at: 5, text: `Menerbitkan ke ${targetLabel}…` }
                 ]
                 : [
                     { at: 0, text: "Mengunggah ke Facebook Page…" },
                     { at: 5, text: "Menerbitkan posting Page…" }
                 ]
         });
-        status($("manual-post-status"), isStory ? "Mengunggah Video Cerita + musik auto-play ke Facebook Page…" : "Mengirim gambar yang sudah dibersihkan ke Facebook Page…");
+        status($("manual-post-status"), isQuoteVideo ? `Mengunggah Kata-kata Mutiara + musik auto-play ke ${targetLabel}…` : "Mengirim gambar yang sudah dibersihkan ke Facebook Page…");
         try {
             const result = await api("manual-publish", {
                 method: "POST",
@@ -1352,18 +1383,19 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 responseRaw: false,
                 headers: {
                     "Content-Type": state.manualPreview.blob.type,
-                    "X-Manual-Run-Id": state.manualPreview.runId
+                    "X-Manual-Run-Id": state.manualPreview.runId,
+                    ...(isQuoteVideo ? { "X-Quote-Target": quoteTarget } : {})
                 }
             });
             const postUrl = safeExternalUrl(result.post?.permalink_url);
             status(
                 $("manual-post-status"),
-                isStory
-                    ? `Cerita (Story) berhasil diterbitkan ke ${result.post?.page_name || "Facebook Page"} lengkap dengan musik auto-play.${postUrl ? ` ${postUrl}` : ""}`
+                isQuoteVideo
+                    ? `Kata-kata Mutiara + musik auto-play berhasil diterbitkan ke ${targetLabel} (${result.post?.page_name || "Facebook Page"}).${postUrl ? ` ${postUrl}` : ""}`
                     : `Posting berhasil diterbitkan ke ${result.post?.page_name || "Facebook Page"}.${postUrl ? ` ${postUrl}` : ""}`,
                 "good"
             );
-            showNotice(pageMessage, isStory ? "Cerita Facebook berhasil diterbitkan dengan musik auto-play." : "Posting manual berhasil diterbitkan.", "success");
+            showNotice(pageMessage, isQuoteVideo ? `Berhasil diterbitkan ke ${targetLabel} dengan musik auto-play.` : "Posting manual berhasil diterbitkan.", "success");
             clearManualPreview();
             state.runsPage = 1;
             await loadDashboard();
@@ -1412,17 +1444,17 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         line.hidden = false;
     }
 
-    function showManualSong(song, quoteTheme = "", isStory = false) {
+    function showManualSong(song, quoteTheme = "", quoteTarget = "") {
         const line = $("manual-song-line");
         if (!line) return;
         line.replaceChildren();
-        if (!song?.title && !quoteTheme && !isStory) {
+        if (!song?.title && !quoteTheme && !quoteTarget) {
             line.hidden = true;
             return;
         }
-        if (isStory) {
+        if (quoteTarget) {
             const targetStrong = document.createElement("strong");
-            targetStrong.textContent = "📱 Target: Cerita (Story) FB · Tanpa caption/link/hashtag";
+            targetStrong.textContent = `📌 Target: ${quoteTargetLabel(quoteTarget)} · Tanpa caption/link/hashtag`;
             line.append(targetStrong);
         }
         if (quoteTheme) {
@@ -1792,12 +1824,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
     function sceneSummary(schedule) {
         if (schedule.post_mode === "quote") {
-            const parts = ["poster estetik tanpa karakter"];
+            const parts = [quoteTargetLabel(schedule.quote_publish_target || "feed")];
             const themeLabel = state.data?.quotePresets?.themes?.find(t => (t.value ?? t.id) === schedule.quote_theme)?.label || schedule.quote_theme;
             const visualLabel = state.data?.quotePresets?.visualStyles?.find(v => (v.value ?? v.id) === schedule.quote_visual_style)?.label || schedule.quote_visual_style;
             parts.push(themeLabel ? `tema ${themeLabel}` : "tema acak");
             parts.push(visualLabel ? `visual ${visualLabel}` : "visual acak");
-            parts.push(schedule.use_random_song !== false ? "🎵 lagu FB acak ON" : "tanpa lagu acak");
+            parts.push(schedule.use_random_song !== false ? "🎵 musik auto-play ON" : "tanpa musik acak");
             if (schedule.scene_details) parts.push("arahan khusus");
             if (schedule.negative_prompt) parts.push("negative tambahan");
             return parts.join(" · ");
@@ -2026,7 +2058,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 const quoteBadge = document.createElement("span");
                 quoteBadge.className = "badge quote-mode";
                 quoteBadge.style.marginLeft = "6px";
-                quoteBadge.textContent = "Kata Mutiara";
+                const runTarget = run.quote_publish_target || run.scene_plan?.quote_publish_target || (run.scene_plan?.story_target ? "story" : "feed");
+                quoteBadge.textContent = `Kata Mutiara · ${quoteTargetLabel(runTarget)}`;
                 title.append(quoteBadge);
             }
             title.append(document.createTextNode(`  ${source} · ${formatDate(run.scheduled_for || run.created_at)}`));
@@ -2531,6 +2564,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         $("interval-minutes").value = schedule.interval_minutes || schedule.interval_hours * 60;
         $("first-run").value = utcToLocalWib(schedule.next_run_at);
         $("schedule-aspect-ratio").value = schedule.aspect_ratio || "9:16";
+        if ($("schedule-quote-target")) $("schedule-quote-target").value = normalizeClientQuoteTarget(schedule.quote_publish_target || "feed");
         if ($("schedule-quote-theme")) $("schedule-quote-theme").value = schedule.quote_theme || "";
         if ($("schedule-quote-visual")) $("schedule-quote-visual").value = schedule.quote_visual_style || "";
         if ($("schedule-random-song")) {
@@ -2559,6 +2593,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         $("schedule-form").reset();
         $("schedule-id").value = "";
         setSchedulePostMode("character");
+        if ($("schedule-quote-target")) $("schedule-quote-target").value = "feed";
         if ($("schedule-quote-theme")) $("schedule-quote-theme").value = "";
         if ($("schedule-quote-visual")) $("schedule-quote-visual").value = "";
         const { min, max } = schedulePolicy();
@@ -2623,6 +2658,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             timezone: "Asia/Jakarta",
             aspect_ratio: $("schedule-aspect-ratio").value,
             caption_template: $("default-caption-template").value,
+            quote_publish_target: isQuote ? normalizeClientQuoteTarget($("schedule-quote-target")?.value) : "feed",
             quote_theme: isQuote ? ($("schedule-quote-theme")?.value || "") : "",
             quote_visual_style: isQuote ? ($("schedule-quote-visual")?.value || "") : "",
             use_random_song: useRandomSong,
@@ -2897,6 +2933,14 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     $("cancel-song-edit")?.addEventListener("click", resetSongForm);
     $("seed-default-songs")?.addEventListener("click", seedDefaultSongs);
     $("manual-post-mode")?.addEventListener("change", event => setManualPostMode(event.target.value));
+    $("manual-quote-target")?.addEventListener("change", event => {
+        const nextTarget = normalizeClientQuoteTarget(event.target.value);
+        if (state.manualPreview?.isQuoteVideo) {
+            state.manualPreview.quoteTarget = nextTarget;
+            if ($("manual-publish-button")) $("manual-publish-button").textContent = quotePublishButtonText(nextTarget);
+            showManualSong(state.manualPreview.song, state.manualPreview.quoteTheme, nextTarget);
+        }
+    });
     for (const tab of document.querySelectorAll?.("[data-manual-mode]") || []) {
         tab.addEventListener("click", () => setManualPostMode(tab.dataset.manualMode));
     }

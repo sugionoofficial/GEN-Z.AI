@@ -97,6 +97,7 @@ create table if not exists public.social_post_schedules (
     post_mode text not null default 'character' check (post_mode in ('character', 'quote')),
     quote_theme text not null default '' check (char_length(quote_theme) <= 120),
     quote_visual_style text not null default '' check (char_length(quote_visual_style) <= 240),
+    quote_publish_target text not null default 'feed' check (quote_publish_target in ('feed', 'reels', 'story', 'feed_story')),
     use_random_song boolean not null default false,
     enabled boolean not null default false,
     -- Autopost cadence: the server enforces a per-role floor (OWNER, ADMIN and
@@ -218,6 +219,9 @@ alter table public.social_post_runs
 
 alter table public.social_post_runs
     add column if not exists quote_theme text not null default '';
+
+alter table public.social_post_runs
+    add column if not exists quote_publish_target text not null default 'feed';
 
 alter table public.social_post_runs
     add column if not exists song_id uuid references public.social_facebook_songs(id) on delete set null;

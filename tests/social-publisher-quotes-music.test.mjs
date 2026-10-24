@@ -6,10 +6,12 @@ import { fileURLToPath } from "node:url";
 
 import {
     SOCIAL_POST_MODES,
+    QUOTE_PUBLISH_TARGETS,
     QUOTE_PRESETS,
     BUILTIN_STORY_SONGS,
     DEFAULT_FACEBOOK_SONGS,
     normalizeSocialPostMode,
+    normalizeQuotePublishTarget,
     sanitizeFacebookSongUrl,
     pickRandomFacebookSong,
     createQuotePlan,
@@ -26,7 +28,8 @@ import {
 import {
     encryptSecret,
     generateSocialQuote,
-    generateSocialQuoteImage
+    generateSocialQuoteImage,
+    publishFacebookQuoteVideo
 } from "../lib/social-publisher/providers.js";
 import socialPublisherHandler from "../api/social-publisher.js";
 import { runSocialPublisherCron } from "../functions/_shared/social-publisher-cron.js";
@@ -230,14 +233,17 @@ test("generateSocialQuote and generateSocialQuoteImage support Gemini and Cloudf
     }
 });
 
-test("API social-publisher supports custom audio upload, preview stream, manual Video Story generation, and Facebook Page Story publishing (video_stories)", async () => {
+test("API social-publisher defaults Quote + Auto-Play Music to permanent Page Feed post (videos) and supports Reels, Story, and Feed+Story targets", async () => {
     const encryptedPageToken = await encryptSecret("fb-page-secret-token", TEST_ENCRYPTION_KEY);
     const songsStore = [];
     const runsStore = [];
     const schedulesStore = [];
     const audioBucketStore = new Map();
     const storyPhases = [];
+    const reelPhases = [];
     let feedPhotoCalls = 0;
+    let feedVideoCalls = 0;
+    let lastFeedVideoDescription = null;
 
     const env = {
         SUPABASE_URL: "https://supabase.example.co",
@@ -431,6 +437,38 @@ test("API social-publisher supports custom audio upload, preview stream, manual 
                 feedPhotoCalls += 1;
                 return Response.json({ id: "photo-1", post_id: "99887766_555111" });
             }
+            if (url.includes("graph-video.facebook.com") && url.endsWith("/99887766/videos")) {
+                feedVideoCalls += 1;
+                const form = init.body;
+                lastFeedVideoDescription = form instanceof FormData ? form.get("description") : "unexpected";
+                assert.equal(form.get("published"), "true");
+                const fileBlob = form.get("source");
+                assert.ok(fileBlob instanceof Blob && fileBlob.size > 10_000);
+                return Response.json({ id: "feed-vid-505", post_id: "99887766_505" });
+            }
+            if (url.includes("graph.facebook.com") && url.includes("/feed-vid-505?")) {
+                return Response.json({ permalink_url: "/99887766/videos/505/" });
+            }
+            if (url.includes("graph.facebook.com") && url.endsWith("/99887766/video_reels")) {
+                const params = new URLSearchParams(String(init.body || ""));
+                const phase = params.get("upload_phase");
+                reelPhases.push(phase);
+                if (phase === "start") {
+                    return Response.json({
+                        video_id: "reel-vid-202",
+                        upload_url: "https://rupload.facebook.com/video-upload/v26.0/reel-vid-202"
+                    });
+                }
+                if (phase === "finish") {
+                    assert.equal(params.get("video_id"), "reel-vid-202");
+                    assert.equal(params.get("video_state"), "PUBLISHED");
+                    assert.equal(params.get("description"), null);
+                    return Response.json({ success: true, post_id: "99887766_reel_202" });
+                }
+            }
+            if (url.includes("graph.facebook.com") && url.includes("/reel-vid-202?")) {
+                return Response.json({ permalink_url: "/reel/202" });
+            }
             if (url.includes("graph.facebook.com") && url.endsWith("/99887766/video_stories")) {
                 const params = new URLSearchParams(String(init.body || ""));
                 const phase = params.get("upload_phase");
@@ -447,7 +485,8 @@ test("API social-publisher supports custom audio upload, preview stream, manual 
                 }
             }
             if (url.startsWith("https://rupload.facebook.com/video-upload/")) {
-                storyPhases.push("binary-upload");
+                if (url.includes("reel-vid-202")) reelPhases.push("binary-upload");
+                else storyPhases.push("binary-upload");
                 assert.equal(init.headers?.offset, "0");
                 assert.ok(Number(init.headers?.file_size) > 10_000);
                 return Response.json({ success: true });
@@ -491,7 +530,12 @@ test("API social-publisher supports custom audio upload, preview stream, manual 
         assert.equal(streamRes.statusCode, 200);
         assert.equal(streamRes.rawBytes.byteLength, SAMPLE_M4A_BYTES.byteLength);
 
-        // 3. Manual quote Story preview generation (9:16 PNG card + MP4 Video Story + ZERO feed clutter)
+        // 3. Manual quote preview generation defaults to permanent Page Feed post ("feed")
+        assert.deepEqual(QUOTE_PUBLISH_TARGETS, ["feed", "reels", "story", "feed_story"]);
+        assert.equal(normalizeQuotePublishTarget(undefined), "feed");
+        assert.equal(normalizeQuotePublishTarget("reels"), "reels");
+        assert.equal(normalizeQuotePublishTarget("unknown"), "feed");
+
         const previewRes = makeRes();
         await socialPublisherHandler({
             method: "POST",
@@ -509,7 +553,8 @@ test("API social-publisher supports custom audio upload, preview stream, manual 
         }, previewRes);
         assert.equal(previewRes.statusCode, 200);
         assert.equal(previewRes.body.preview.post_mode, "quote");
-        assert.equal(previewRes.body.preview.is_story, true);
+        assert.equal(previewRes.body.preview.quote_publish_target, "feed");
+        assert.equal(previewRes.body.preview.is_story, false);
         assert.equal(previewRes.body.preview.video_mime_type, "video/mp4");
         assert.ok(previewRes.body.preview.video_base64.length > 10_000);
         assert.equal(previewRes.body.preview.song.title, "Gitar Senja Favorit");
@@ -520,7 +565,7 @@ test("API social-publisher supports custom audio upload, preview stream, manual 
         );
         assert.doesNotMatch(previewRes.body.preview.caption, /Cerita hari ini|Lagu Facebook|facebook\.com|#foryou|#outfit/i);
 
-        // 4. Publish manual Video Story to Facebook Page Stories (/{page-id}/video_stories)
+        // 4. Default manual publish posts permanent video to Page Feed (graph-video.facebook.com/.../videos) with ZERO caption description
         const mp4Bytes = Buffer.from(previewRes.body.preview.video_base64, "base64");
         const publishRes = makeRes();
         await socialPublisherHandler({
@@ -535,11 +580,37 @@ test("API social-publisher supports custom audio upload, preview stream, manual 
             env
         }, publishRes);
         assert.equal(publishRes.statusCode, 200);
-        assert.equal(publishRes.body.post.is_story, true);
-        assert.equal(feedPhotoCalls, 0, "Quote Story must publish to video_stories, NOT feed photos");
+        assert.equal(publishRes.body.post.target, "feed");
+        assert.equal(publishRes.body.post.is_story, false);
+        assert.equal(publishRes.body.post.permalink_url, "https://www.facebook.com/99887766/videos/505/");
+        assert.equal(feedPhotoCalls, 0, "Quote mode must never publish static feed photos");
+        assert.equal(feedVideoCalls, 1, "Default quote target must publish permanent video post to Page Feed");
+        assert.equal(lastFeedVideoDescription, null, "Feed video post must omit description so zero extra caption/link/hashtag appears");
+
+        // 4b. Verify Reels, Story, and Feed+Story targets via publishFacebookQuoteVideo
+        const reelPub = await publishFacebookQuoteVideo({
+            env,
+            pageId: "99887766",
+            pageAccessToken: "fb-page-secret-token",
+            videoBytes: new Uint8Array(mp4Bytes),
+            target: "reels"
+        });
+        assert.equal(reelPub.target, "reels");
+        assert.equal(reelPub.permalinkUrl, "https://www.facebook.com/reel/202");
+        assert.deepEqual(reelPhases, ["start", "binary-upload", "finish"]);
+
+        const bothPub = await publishFacebookQuoteVideo({
+            env,
+            pageId: "99887766",
+            pageAccessToken: "fb-page-secret-token",
+            videoBytes: new Uint8Array(mp4Bytes),
+            target: "feed_story"
+        });
+        assert.equal(bothPub.target, "feed_story");
+        assert.equal(feedVideoCalls, 2);
         assert.deepEqual(storyPhases, ["start", "binary-upload", "finish"]);
 
-        // 5. Save quote schedule without character_id
+        // 5. Save quote schedule without character_id (defaults to quote_publish_target = "feed")
         const saveSchedRes = makeRes();
         await socialPublisherHandler({
             method: "POST",
@@ -562,6 +633,7 @@ test("API social-publisher supports custom audio upload, preview stream, manual 
         }, saveSchedRes);
         assert.equal(saveSchedRes.statusCode, 200);
         assert.equal(saveSchedRes.body.schedule.post_mode, "quote");
+        assert.equal(saveSchedRes.body.schedule.quote_publish_target, "feed");
         assert.equal(saveSchedRes.body.schedule.character_id, null);
 
         // 6. Seed 8 built-in Story tracks & delete custom uploaded song (removes storage object too)
@@ -738,27 +810,17 @@ test("cron runSocialPublisherCron auto-generates 9:16 Video Story with embedded 
             if (url.includes("graph.facebook.com") && url.includes("/11223344?fields=")) {
                 return Response.json({ id: "11223344", name: "Malam Tenang Page", tasks: ["CREATE_CONTENT", "MANAGE"] });
             }
-            if (url.includes("graph.facebook.com") && url.endsWith("/11223344/video_stories")) {
-                const params = new URLSearchParams(String(init.body || ""));
-                const phase = params.get("upload_phase");
-                cronStoryPhases.push(phase);
-                if (phase === "start") {
-                    return Response.json({
-                        video_id: "cron-story-vid-1",
-                        upload_url: "https://rupload.facebook.com/video-upload/v26.0/cron-story-vid-1"
-                    });
-                }
-                if (phase === "finish") {
-                    return Response.json({ success: true, post_id: "11223344_story_777" });
-                }
+            if (url.includes("graph-video.facebook.com") && url.endsWith("/11223344/videos")) {
+                const form = init.body;
+                assert.equal(form.get("published"), "true");
+                assert.equal(form.get("description"), null);
+                const source = form.get("source");
+                uploadedMp4Size = source ? source.size : 0;
+                cronStoryPhases.push("feed-video-upload");
+                return Response.json({ id: "cron-feed-vid-777", post_id: "11223344_777" });
             }
-            if (url.startsWith("https://rupload.facebook.com/video-upload/")) {
-                cronStoryPhases.push("binary-upload");
-                uploadedMp4Size = Number(init.headers?.file_size || 0);
-                return Response.json({ success: true });
-            }
-            if (url.includes("graph.facebook.com") && url.includes("11223344_story_777")) {
-                return Response.json({ permalink_url: "https://www.facebook.com/stories/11223344/777" });
+            if (url.includes("graph.facebook.com") && url.includes("cron-feed-vid-777")) {
+                return Response.json({ permalink_url: "/11223344/videos/777/" });
             }
             throw new Error(`Unexpected cron fetch URL: ${url}`);
         };
@@ -766,12 +828,14 @@ test("cron runSocialPublisherCron auto-generates 9:16 Video Story with embedded 
         const result = await runSocialPublisherCron(env);
         assert.equal(result.claimed, 1);
         assert.equal(result.skipped, false);
-        assert.deepEqual(cronStoryPhases, ["start", "binary-upload", "finish"]);
-        assert.ok(uploadedMp4Size > 100_000, "Cron Video Story MP4 must contain full video + embedded AAC audio");
+        assert.deepEqual(cronStoryPhases, ["feed-video-upload"]);
+        assert.ok(uploadedMp4Size > 100_000, "Cron Quote MP4 must contain full video + embedded AAC audio");
 
         const finalPatch = updatedRuns.at(-1);
         assert.equal(finalPatch.status, "posted");
         assert.equal(finalPatch.post_mode, "quote");
+        assert.equal(finalPatch.quote_publish_target, "feed");
+        assert.equal(finalPatch.permalink_url, "https://www.facebook.com/11223344/videos/777/");
         assert.equal(finalPatch.song_id, "song-fresh");
         assert.equal(finalPatch.song_title, "Doa dalam Hening");
         assert.equal(finalPatch.song_facebook_url, "");
@@ -802,13 +866,16 @@ test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Cerita Kata-k
     assert.match(html, /id="seed-default-songs"/);
     assert.match(html, /id="manual-post-mode"/);
     assert.match(html, /id="manual-quote-fields"/);
+    assert.match(html, /id="manual-quote-target"/);
     assert.match(html, /id="manual-song-line"/);
     assert.match(html, /id="schedule-post-mode"/);
     assert.match(html, /id="schedule-quote-fields"/);
+    assert.match(html, /id="schedule-quote-target"/);
     assert.match(html, /id="schedule-random-song"/);
 
     assert.match(js, /function setManualPostMode\(/);
     assert.match(js, /function setSchedulePostMode\(/);
+    assert.match(js, /function quoteTargetLabel\(/);
     assert.match(js, /async function loadFacebookSongs\(/);
     assert.match(js, /async function submitSong\(/);
     assert.match(js, /async function seedDefaultSongs\(/);
@@ -820,6 +887,7 @@ test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Cerita Kata-k
 
     assert.match(sql, /create table if not exists public\.social_facebook_songs/i);
     assert.match(sql, /add column if not exists audio_object_key/i);
+    assert.match(sql, /add column if not exists quote_publish_target/i);
     assert.match(sql, /social-story-audio/i);
     assert.match(sql, /alter column character_id drop not null/i);
     assert.match(sql, /add column if not exists post_mode/i);
