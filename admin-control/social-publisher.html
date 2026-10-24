@@ -409,7 +409,7 @@
                             </div>
                             <div id="manual-quote-fields" class="field full subgrid-fields" hidden>
                                 <div class="field full">
-                                    <div class="quote-mode-note">Default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Facebook Page</strong> (atau pilih Reels / Cerita 24 Jam). AI membuat latar pemandangan/senja polos (tanpa teks AI rusak), sistem merender kata-kata mutiara yang <strong>100% tajam &amp; rapi</strong> di tengah kartu 9:16 lengkap dengan tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, dan musik <strong>langsung auto-play</strong> (khusus Beranda/Reels hingga <strong>maks. 60 detik</strong>; Cerita maks. 25 detik) tanpa caption tambahan, link, atau hashtag.</div>
+                                    <div class="quote-mode-note">Default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Facebook Page</strong> (atau pilih Reels / Cerita 24 Jam). Kartu memakai <strong>latar kosong hitam polos (#000000)</strong> agar <strong>0 kuota model gambar terpakai</strong>, kalimat kata-kata mutiara dirangkai oleh <strong>model LLM QwenCloud</strong> (dipilih di SET Studio Medsos) secara 100% tajam di tengah kartu + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, dan musik <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption tambahan, link, atau hashtag.</div>
                                 </div>
                                 <div class="field full">
                                     <label for="manual-quote-target">Target publikasi di Facebook</label>
@@ -420,8 +420,8 @@
                                         <option value="feed_story">Postingan Beranda + Cerita sekaligus</option>
                                     </select>
                                 </div>
-                                <div class="field"><label for="manual-quote-theme">Tema kata-kata mutiara</label><select id="manual-quote-theme"><option value="">Acak otomatis</option></select></div>
-                                <div class="field"><label for="manual-quote-visual">Gaya latar estetik</label><select id="manual-quote-visual"><option value="">Acak otomatis</option></select></div>
+                                <div class="field full"><label for="manual-quote-theme">Tema kata-kata mutiara</label><select id="manual-quote-theme"><option value="">Acak otomatis</option></select></div>
+                                <div class="field" hidden><label for="manual-quote-visual">Gaya latar estetik</label><select id="manual-quote-visual"><option value="">Hitam polos</option></select></div>
                                 <div class="field full">
                                     <label for="manual-custom-quote">Teks kata-kata mutiara manual (opsional)</label>
                                     <textarea id="manual-custom-quote" maxlength="220" placeholder="Kosongkan agar AI merangkai kata-kata mutiara/motivasi orisinal otomatis sesuai tema…"></textarea>
@@ -478,7 +478,7 @@
                     <div class="field" id="schedule-aspect-wrap"><label for="schedule-aspect-ratio">Rasio gambar</label><select id="schedule-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
                     <div id="schedule-quote-fields" class="field full subgrid-fields" hidden>
                         <div class="field full">
-                            <div class="quote-mode-note">Setiap jadwal eksekusi otomatis menerbitkan kartu <strong>Kata-kata Mutiara + Musik Auto-Play 9:16</strong> sesuai target pilihan (default <strong>Postingan Beranda Page permanen</strong>): AI membuat latar alam/senja polos (tanpa teks AI rusak), sistem merender kata-kata mutiara yang tajam di tengah layar + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, lalu menggabungkan lagu acak agar <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption/link/hashtag tambahan.</div>
+                            <div class="quote-mode-note">Setiap jadwal eksekusi otomatis menerbitkan kartu <strong>Kata-kata Mutiara + Musik Auto-Play 9:16</strong> sesuai target pilihan (default <strong>Postingan Beranda Page permanen</strong>): memakai <strong>latar hitam polos (#000000)</strong> tanpa menghabiskan kuota gambar AI sama sekali, merangkai kalimat mutiara lewat <strong>LLM QwenCloud</strong> di tengah layar + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, lalu menggabungkan lagu acak agar <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption/link/hashtag tambahan.</div>
                         </div>
                         <div class="field full">
                             <label for="schedule-quote-target">Target publikasi di Facebook</label>
@@ -489,8 +489,8 @@
                                 <option value="feed_story">Postingan Beranda + Cerita sekaligus</option>
                             </select>
                         </div>
-                        <div class="field"><label for="schedule-quote-theme">Tema kata-kata mutiara</label><select id="schedule-quote-theme"><option value="">Acak otomatis setiap posting</option></select></div>
-                        <div class="field"><label for="schedule-quote-visual">Gaya latar estetik</label><select id="schedule-quote-visual"><option value="">Acak otomatis setiap posting</option></select></div>
+                        <div class="field full"><label for="schedule-quote-theme">Tema kata-kata mutiara</label><select id="schedule-quote-theme"><option value="">Acak otomatis setiap posting</option></select></div>
+                        <div class="field" hidden><label for="schedule-quote-visual">Gaya latar estetik</label><select id="schedule-quote-visual"><option value="">Hitam polos</option></select></div>
                     </div>
                     <div id="schedule-scene-fields-wrap" class="field full subgrid-fields">
                         <div class="field full">
@@ -575,6 +575,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
-    <script type="module" src="./social-publisher.js?v=quote-sig-60s-20261025"></script>
+    <script type="module" src="./social-publisher.js?v=quote-black-llm-20261025"></script>
 </body>
 </html>

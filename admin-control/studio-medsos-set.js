@@ -604,33 +604,20 @@
         return providerSettings?.qwencloud_models || [];
     }
 
+    function currentLlmQuotaEntries() {
+        return providerSettings?.qwencloud_llm_models || [];
+    }
+
     function selectedQuwenModel() {
-        return document.getElementById("qwencloud-image-model").value || "qwen-image-3.0-pro";
+        return document.getElementById("qwencloud-image-model")?.value || "qwen-image-3.0-pro";
     }
 
-    function renderQwenCloudOptions() {
-        const box = document.getElementById("qwencloud-options");
-        const checked = document.querySelector('input[name="image-provider"]:checked')?.value;
-        box.hidden = checked !== "qwencloud";
-        if (box.hidden) return;
-        const entries = currentQuotaEntries();
-        const select = document.getElementById("qwencloud-image-model");
-        const previous = select.value || providerSettings?.image_model || "";
-        select.replaceChildren();
-        for (const entry of entries) {
-            select.add(new Option(quotaOptionLabel(entry), entry.model));
-        }
-        const wanted = entries.some(entry => entry.model === (previous || providerSettings?.image_model))
-            ? (previous || providerSettings?.image_model)
-            : entries[0]?.model;
-        select.value = wanted || "";
-        renderQuotaPanel();
+    function selectedQwenLlmModel() {
+        return document.getElementById("qwencloud-llm-model")?.value || "qwen-plus";
     }
 
-    function renderQuotaPanel() {
-        const panel = document.getElementById("qwencloud-quota-panel");
-        const entry = currentQuotaEntries().find(item => item.model === selectedQuwenModel());
-        const limitInput = document.getElementById("qwencloud-quota-limit");
+    function renderQuotaCard(panel, limitInput, entry) {
+        if (!panel) return;
         if (!entry) {
             panel.replaceChildren();
             return;
@@ -663,15 +650,70 @@
         detail.append(used, status);
         const note = document.createElement("div");
         note.className = "quota-row";
-        const window = document.createElement("span");
-        window.textContent = entry.window_started_at ? `Penghitung sejak ${new Date(entry.window_started_at).toLocaleString("id-ID")}` : "Penghitung belum dimulai";
+        const windowEl = document.createElement("span");
+        windowEl.textContent = entry.window_started_at ? `Penghitung sejak ${new Date(entry.window_started_at).toLocaleString("id-ID")}` : "Penghitung belum dimulai";
         const model = document.createElement("span");
         model.textContent = entry.quota_source === "free-quota"
-            ? "Batas default dari free quota QwenCloud; tersimpan saat pemakaian pertama atau saat batas disimpan"
+            ? `${entry.note ? `${entry.note} · ` : ""}Batas default dari free quota QwenCloud`
             : entry.note || "";
-        note.append(window, model);
+        note.append(windowEl, model);
         panel.append(head, bar, detail, note);
-        if (document.activeElement !== limitInput) limitInput.value = entry.quota_limit > 0 ? String(entry.quota_limit) : "";
+        if (limitInput && document.activeElement !== limitInput) {
+            limitInput.value = entry.quota_limit > 0 ? String(entry.quota_limit) : "";
+        }
+    }
+
+    function renderQwenCloudOptions() {
+        const box = document.getElementById("qwencloud-options");
+        const checked = document.querySelector('input[name="image-provider"]:checked')?.value;
+        if (box) {
+            box.hidden = checked !== "qwencloud";
+            if (!box.hidden) {
+                const entries = currentQuotaEntries();
+                const select = document.getElementById("qwencloud-image-model");
+                const previous = select.value || providerSettings?.image_model || "";
+                select.replaceChildren();
+                for (const entry of entries) {
+                    select.add(new Option(quotaOptionLabel(entry), entry.model));
+                }
+                const wanted = entries.some(entry => entry.model === (previous || providerSettings?.image_model))
+                    ? (previous || providerSettings?.image_model)
+                    : entries[0]?.model;
+                select.value = wanted || "";
+                renderQuotaPanel();
+            }
+        }
+        renderQwenCloudLlmOptions();
+    }
+
+    function renderQwenCloudLlmOptions() {
+        const llmSelect = document.getElementById("qwencloud-llm-model");
+        if (!llmSelect) return;
+        const entries = currentLlmQuotaEntries();
+        const previous = llmSelect.value || providerSettings?.quote_llm_model || "qwen-plus";
+        llmSelect.replaceChildren();
+        for (const entry of entries) {
+            llmSelect.add(new Option(quotaOptionLabel(entry), entry.model));
+        }
+        const wanted = entries.some(entry => entry.model === previous)
+            ? previous
+            : (entries.find(entry => entry.model === providerSettings?.quote_llm_model)?.model || entries[0]?.model || "qwen-plus");
+        llmSelect.value = wanted;
+        renderLlmQuotaPanel();
+    }
+
+    function renderQuotaPanel() {
+        const panel = document.getElementById("qwencloud-quota-panel");
+        const entry = currentQuotaEntries().find(item => item.model === selectedQuwenModel());
+        const limitInput = document.getElementById("qwencloud-quota-limit");
+        renderQuotaCard(panel, limitInput, entry);
+    }
+
+    function renderLlmQuotaPanel() {
+        const panel = document.getElementById("qwencloud-llm-quota-panel");
+        const entry = currentLlmQuotaEntries().find(item => item.model === selectedQwenLlmModel());
+        const limitInput = document.getElementById("qwencloud-llm-quota-limit");
+        renderQuotaCard(panel, limitInput, entry);
     }
 
     async function saveQwenCloudQuota(reset = false) {
@@ -684,7 +726,11 @@
         button.disabled = true;
         try {
             const result = await api("studio-admin-model-quota", { method: "POST", body });
-            providerSettings = { ...providerSettings, qwencloud_models: result.quotas };
+            providerSettings = {
+                ...providerSettings,
+                qwencloud_models: result.quotas || providerSettings?.qwencloud_models,
+                qwencloud_llm_models: result.llm_quotas || providerSettings?.qwencloud_llm_models
+            };
             renderQwenCloudOptions();
             setImageProviderStatus(reset
                 ? `Penghitung pemakaian ${model} direset.`
@@ -696,6 +742,32 @@
         }
     }
 
+    async function saveQwenCloudLlmQuota(reset = false) {
+        const model = selectedQwenLlmModel();
+        const limitRaw = document.getElementById("qwencloud-llm-quota-limit")?.value?.trim() || "";
+        const body = { model };
+        if (reset) body.reset = true;
+        if (!reset && limitRaw !== "") body.quota_limit = Number(limitRaw);
+        const button = document.getElementById(reset ? "reset-qwencloud-llm-quota" : "save-qwencloud-llm-quota");
+        if (button) button.disabled = true;
+        try {
+            const result = await api("studio-admin-model-quota", { method: "POST", body });
+            providerSettings = {
+                ...providerSettings,
+                qwencloud_models: result.quotas || providerSettings?.qwencloud_models,
+                qwencloud_llm_models: result.llm_quotas || providerSettings?.qwencloud_llm_models
+            };
+            renderQwenCloudOptions();
+            setImageProviderStatus(reset
+                ? `Penghitung pemakaian model LLM ${model} direset.`
+                : `Batas tier model LLM ${model} disimpan.`, "success");
+        } catch (error) {
+            setImageProviderStatus(error.message || "Gagal menyimpan batas tier model LLM.", "error");
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
     async function loadImageProvider() {
         const result = await api("studio-admin-image-provider");
         const settings = result.settings || {};
@@ -703,7 +775,8 @@
         const selected = ["cloudflare", "qwencloud"].includes(settings.image_provider) ? settings.image_provider : "gemini";
         document.querySelector(`input[name="image-provider"][value="${selected}"]`).checked = true;
         renderQwenCloudOptions();
-        setImageProviderStatus(`Provider aktif: ${providerLabel(selected)} · ${providerReadiness(selected, settings)}.`);
+        const llmSummary = settings.quote_llm_model ? ` · LLM Kata Mutiara: QwenCloud (${settings.quote_llm_model}, latar hitam hemat kuota gambar)` : "";
+        setImageProviderStatus(`Provider aktif: ${providerLabel(selected)} · ${providerReadiness(selected, settings)}${llmSummary}.`);
     }
 
     async function saveImageProvider() {
@@ -712,20 +785,23 @@
             setImageProviderStatus("Pilih Google Gemini, Cloudflare Workers AI, atau QwenCloud.", "error");
             return;
         }
+        const quoteLlmModel = selectedQwenLlmModel();
         const button = document.getElementById("save-image-provider");
         button.disabled = true;
-        setImageProviderStatus("Menyimpan provider untuk posting manual dan autopost…");
+        setImageProviderStatus("Menyimpan provider gambar dan model LLM Kata-kata Mutiara…");
         try {
             const result = await api("studio-admin-image-provider", {
                 method: "POST",
                 body: {
                     image_provider: selected,
+                    quote_llm_model: quoteLlmModel,
                     ...(selected === "qwencloud" ? { image_model: selectedQuwenModel() } : {})
                 }
             });
             providerSettings = { ...providerSettings, ...result.settings };
             renderQwenCloudOptions();
-            setImageProviderStatus(`${providerLabel(result.settings.image_provider)} disimpan untuk pembuatan gambar dan caption manual maupun autopost.`, "success");
+            const savedLlm = result.settings?.quote_llm_model || quoteLlmModel;
+            setImageProviderStatus(`${providerLabel(result.settings.image_provider)} disimpan untuk Foto Karakter AI, dan LLM QwenCloud (${savedLlm}) disimpan untuk Kata-kata Mutiara berlatar hitam.`, "success");
         } catch (error) {
             console.error(error);
             setImageProviderStatus(error.message || "Gagal menyimpan provider gambar.", "error");
@@ -871,6 +947,9 @@
         document.getElementById("qwencloud-image-model").addEventListener("change", renderQuotaPanel);
         document.getElementById("save-qwencloud-quota").addEventListener("click", () => saveQwenCloudQuota(false));
         document.getElementById("reset-qwencloud-quota").addEventListener("click", () => saveQwenCloudQuota(true));
+        document.getElementById("qwencloud-llm-model")?.addEventListener("change", renderLlmQuotaPanel);
+        document.getElementById("save-qwencloud-llm-quota")?.addEventListener("click", () => saveQwenCloudLlmQuota(false));
+        document.getElementById("reset-qwencloud-llm-quota")?.addEventListener("click", () => saveQwenCloudLlmQuota(true));
 
         loadUsers().catch(error => {
             console.error(error);

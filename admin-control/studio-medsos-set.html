@@ -24,7 +24,7 @@
         .qwencloud-options select,.qwencloud-options input[type="number"]{padding:10px 12px;border-radius:10px;border:1px solid #364761;background:#08131e;color:var(--text);font:inherit}
         .qwencloud-options .price-settings-row{justify-content:flex-start;align-items:center;gap:10px;margin-top:0;flex-wrap:wrap}
         .quota-limit-field{font-size:12px;font-weight:700;color:#dfe9fd}
-        #qwencloud-quota-limit{width:130px}
+        #qwencloud-quota-limit,#qwencloud-llm-quota-limit{width:130px}
         .quota-panel{display:grid;gap:8px;border:1px solid var(--border);border-radius:12px;padding:12px;background:#0d1725}
         .quota-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted)}
         .quota-row strong{color:var(--text)}
@@ -144,7 +144,8 @@
 
             .qwencloud-options .price-settings-row .btn,
             .quota-limit-field,
-            #qwencloud-quota-limit {
+            #qwencloud-quota-limit,
+            #qwencloud-llm-quota-limit {
                 width: 100%;
                 max-width: 100%;
             }
@@ -524,9 +525,9 @@
             </div>
             <div id="qwencloud-options" class="qwencloud-options" hidden>
                 <div class="provider-field">
-                    <label for="qwencloud-image-model">Model gambar QwenCloud</label>
+                    <label for="qwencloud-image-model">Model gambar QwenCloud (Foto Karakter AI)</label>
                     <select id="qwencloud-image-model"></select>
-                    <small class="muted">Model yang mendukung pembuatan image; persentase tier tersedia ditampilkan di samping nama model. Caption tetap memakai qwen3-vl-plus.</small>
+                    <small class="muted">Model yang mendukung pembuatan image karakter; persentase tier tersedia ditampilkan di samping nama model. Caption foto karakter tetap memakai qwen3-vl-plus.</small>
                 </div>
                 <div id="qwencloud-quota-panel" class="quota-panel" aria-live="polite"></div>
                 <div class="price-settings-row">
@@ -537,9 +538,24 @@
                 </div>
                 <small class="muted">QwenCloud tidak membuka API sisa kuota, jadi persentase dihitung dari ledger pemakaian aplikasi terhadap batas tier yang Anda isi. Status otomatis berubah menjadi "Tier habis" bila QwenCloud menolak dengan error kuota (429 / AllocationQuota.FreeTierOnly).</small>
             </div>
-            <p class="footer-note">Provider yang dipilih digunakan untuk gambar dan caption kontekstual: Cloudflare memakai Workers AI (termasuk model vision untuk caption), Gemini memakai GEMINI_API_KEY, dan QwenCloud memakai QWENCLOUD_API_KEY.</p>
+            <div id="qwencloud-llm-options" class="qwencloud-options">
+                <div class="provider-field">
+                    <label for="qwencloud-llm-model">Model LLM QwenCloud (Khusus Kata-kata Mutiara — Latar Hitam Hemat Kuota Gambar)</label>
+                    <select id="qwencloud-llm-model"></select>
+                    <small class="muted">Khusus mode Kata-kata Mutiara + Musik Auto-Play otomatis memakai latar kosong hitam polos (#000000) sehingga <strong>0 kuota model gambar terpakai</strong>, sementara kalimat mutiara dirangkai oleh model LLM QwenCloud pilihan di atas.</small>
+                </div>
+                <div id="qwencloud-llm-quota-panel" class="quota-panel" aria-live="polite"></div>
+                <div class="price-settings-row">
+                    <label class="quota-limit-field" for="qwencloud-llm-quota-limit">Batas tier LLM (request)</label>
+                    <input id="qwencloud-llm-quota-limit" type="number" min="0" step="1" placeholder="contoh: 1000">
+                    <button id="save-qwencloud-llm-quota" class="btn" type="button">Simpan batas tier LLM</button>
+                    <button id="reset-qwencloud-llm-quota" class="btn" type="button">Reset penghitung LLM</button>
+                </div>
+                <small class="muted">Setiap model LLM QwenCloud umumnya memiliki free quota besar (~1.000.000 token ≈ ribuan kalimat kata mutiara). Persentase sisa dihitung terhadap batas request yang Anda atur dan otomatis ditandai "Tier habis" jika model LLM tersebut menolak dengan error kuota (HTTP 429).</small>
+            </div>
+            <p class="footer-note">Provider gambar yang dipilih digunakan untuk Foto Karakter AI &amp; caption kontekstual, sedangkan Kata-kata Mutiara memakai latar hitam polos + model LLM QwenCloud melalui QWENCLOUD_API_KEY.</p>
             <div class="price-settings-row">
-                <button id="save-image-provider" class="btn primary" type="button">Simpan Provider Gambar</button>
+                <button id="save-image-provider" class="btn primary" type="button">Simpan Provider &amp; Model AI</button>
             </div>
             <div id="image-provider-status" class="status-box price-settings-status" role="status" aria-live="polite">Memuat provider gambar…</div>
         </section>
@@ -583,6 +599,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
-    <script src="./studio-medsos-set.js"></script>
+    <script src="./studio-medsos-set.js?v=qwen-llm-quote-20261025"></script>
 </body>
 </html>

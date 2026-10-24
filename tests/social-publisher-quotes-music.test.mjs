@@ -1077,7 +1077,294 @@ test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Cerita Kata-k
     assert.match(sql, /create table if not exists public\.social_facebook_songs/i);
     assert.match(sql, /add column if not exists audio_object_key/i);
     assert.match(sql, /add column if not exists quote_publish_target/i);
+    assert.match(sql, /add column if not exists quote_llm_model/i);
     assert.match(sql, /social-story-audio/i);
     assert.match(sql, /alter column character_id drop not null/i);
     assert.match(sql, /add column if not exists post_mode/i);
+
+    const setHtml = fs.readFileSync(path.join(repoRoot, "admin-control/studio-medsos-set.html"), "utf8");
+    const setJs = fs.readFileSync(path.join(repoRoot, "admin-control/studio-medsos-set.js"), "utf8");
+    assert.match(setHtml, /id="qwencloud-llm-options"/);
+    assert.match(setHtml, /id="qwencloud-llm-model"/);
+    assert.match(setHtml, /id="qwencloud-llm-quota-panel"/);
+    assert.match(setHtml, /id="qwencloud-llm-quota-limit"/);
+    assert.match(setHtml, /id="save-qwencloud-llm-quota"/);
+    assert.match(setHtml, /id="reset-qwencloud-llm-quota"/);
+    assert.match(setJs, /function renderQwenCloudLlmOptions\(/);
+    assert.match(setJs, /function saveQwenCloudLlmQuota\(/);
+    assert.match(setJs, /quote_llm_model/);
 });
+
+test("Solid black Quote card + QwenCloud LLM uses 0 image quota, tracks LLM quota in SET Studio Medsos, and renders crisp quote + FB Page signature", async () => {
+    const blackCard = await renderQuoteStoryCard({
+        solidBlack: true,
+        quoteText: "Jangan tergesa mengutuk gelap, sebab di sanalah bintang paling terang sedang disiapkan.",
+        authorName: "Irisbela Naresha Aurelia"
+    });
+    assert.equal(blackCard.width, 540);
+    assert.equal(blackCard.height, 960);
+    assert.equal(blackCard.signatureText, "quote by: Irisbela Naresha Aurelia");
+    // Top-left corner pixel must be pure solid black (#000000, alpha 255)
+    assert.equal(blackCard.rgba[0], 0);
+    assert.equal(blackCard.rgba[1], 0);
+    assert.equal(blackCard.rgba[2], 0);
+    assert.equal(blackCard.rgba[3], 255);
+    // Center area must contain crisp bright white text pixels (>220 luminance)
+    let centerWhitePixels = 0;
+    for (let y = 360; y <= 600; y++) {
+        for (let x = 60; x <= 480; x++) {
+            const idx = (y * 540 + x) * 4;
+            if (blackCard.rgba[idx] > 220 && blackCard.rgba[idx + 1] > 220 && blackCard.rgba[idx + 2] > 220) {
+                centerWhitePixels++;
+            }
+        }
+    }
+    assert.ok(centerWhitePixels > 500, `Expected crisp white quote text on black canvas, got ${centerWhitePixels} white pixels`);
+
+    // Bottom-right signature band (baseline around y=893) must contain rendered text pixels while bottom-left stays pure black
+    let bottomLeftBright = 0;
+    let bottomRightBright = 0;
+    for (let y = 865; y <= 905; y++) {
+        for (let x = 20; x <= 140; x++) {
+            const idx = (y * 540 + x) * 4;
+            if (blackCard.rgba[idx] > 40) bottomLeftBright++;
+        }
+        for (let x = 220; x <= 515; x++) {
+            const idx = (y * 540 + x) * 4;
+            if (blackCard.rgba[idx] > 120) bottomRightBright++;
+        }
+    }
+    assert.equal(bottomLeftBright, 0, "Bottom-left of pure black quote card must remain completely clean black");
+    assert.ok(bottomRightBright > 80, `Bottom-right must contain 'quote by: Irisbela Naresha Aurelia' signature, got ${bottomRightBright}`);
+
+    // Verify QwenCloud LLM protocols (text-generation + openai-chat <think> stripping) and SET Studio Medsos admin API + zero-image-quota manual preview
+    const originalFetch = globalThis.fetch;
+    let imageGenerationCalls = 0;
+    let qwenLlmCalls = [];
+    const quotaStore = new Map([
+        // Simulate 100% EXHAUSTED image model quota — Quote mode MUST STILL SUCCEED because it uses 0 image quota!
+        ["qwen-image-3.0", { model: "qwen-image-3.0", requests_used: 10, quota_limit: 10, exhausted: true, last_status: "AllocationQuota.FreeTierOnly" }]
+    ]);
+    let savedConfigRow = {
+        id: true,
+        global_enabled: true,
+        image_provider: "qwencloud",
+        image_model: "qwen-image-3.0",
+        quote_llm_model: "qwen-plus"
+    };
+    const runsStore = [];
+
+    globalThis.fetch = async (input, init = {}) => {
+        const url = typeof input === "string" ? input : input.url;
+        const method = (init.method || "GET").toUpperCase();
+
+        if (url.includes("multimodal-generation") || url.includes("text2image") || url.includes("image-synthesis") || url.includes("generateContent")) {
+            imageGenerationCalls++;
+            throw new Error(`Image generation endpoint MUST NOT be called for Quote mode: ${url}`);
+        }
+        if (url.includes("/services/aigc/text-generation/generation")) {
+            const body = JSON.parse(init.body);
+            qwenLlmCalls.push({ protocol: "text-generation", model: body.model });
+            return Response.json({
+                output: {
+                    choices: [{
+                        message: {
+                            content: JSON.stringify({
+                                quoteText: "Tenanglah, yang ditakdirkan untukmu takkan pernah salah menemukan jalan pulang.",
+                                contextualCaption: "Refleksi ketenangan hati."
+                            })
+                        }
+                    }]
+                }
+            });
+        }
+        if (url.includes("/compatible-mode/v1/chat/completions")) {
+            const body = JSON.parse(init.body);
+            qwenLlmCalls.push({ protocol: "openai-chat", model: body.model });
+            return Response.json({
+                choices: [{
+                    message: {
+                        content: `<think>Merangkai kata mutiara...</think>{"quoteText":"Langkah kecil yang jujur jauh lebih mulia daripada seribu rencana yang ditunda.","contextualCaption":"Semangat melangkah."}`
+                    }
+                }]
+            });
+        }
+        if (url === "https://supabase.example.co/auth/v1/user") {
+            return Response.json({ id: "00000000-0000-4000-8000-000000000099", email: "admin@genz.ai" });
+        }
+        if (url.includes("/rest/v1/profiles")) {
+            return Response.json([{ id: "00000000-0000-4000-8000-000000000099", role: "ADMIN", status: "active" }]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access")) {
+            return Response.json([{
+                user_id: "00000000-0000-4000-8000-000000000099",
+                is_active: true,
+                duration_days: 30,
+                started_at: new Date(Date.now() - 86400000).toISOString(),
+                expires_at: new Date(Date.now() + 29 * 86400000).toISOString()
+            }]);
+        }
+        if (url.includes("/rest/v1/social_publisher_config")) {
+            if (method === "POST" || method === "PATCH") {
+                const payload = JSON.parse(init.body);
+                const row = Array.isArray(payload) ? payload[0] : payload;
+                savedConfigRow = { ...savedConfigRow, ...row };
+                return Response.json([savedConfigRow]);
+            }
+            return Response.json([savedConfigRow]);
+        }
+        if (url.includes("/rest/v1/social_publisher_model_quotas")) {
+            if (method === "GET") {
+                const parsed = new URL(url);
+                const modelEq = parsed.searchParams.get("model")?.replace(/^eq\./, "");
+                if (modelEq) {
+                    const found = quotaStore.get(modelEq);
+                    return Response.json(found ? [found] : []);
+                }
+                return Response.json([...quotaStore.values()]);
+            }
+            if (method === "POST") {
+                const payload = JSON.parse(init.body);
+                const item = Array.isArray(payload) ? payload[0] : payload;
+                quotaStore.set(item.model, { ...item });
+                return Response.json([quotaStore.get(item.model)]);
+            }
+            if (method === "PATCH") {
+                const parsed = new URL(url);
+                const modelEq = parsed.searchParams.get("model")?.replace(/^eq\./, "");
+                const payload = JSON.parse(init.body);
+                const prev = quotaStore.get(modelEq) || { model: modelEq };
+                quotaStore.set(modelEq, { ...prev, ...payload });
+                return Response.json([quotaStore.get(modelEq)]);
+            }
+        }
+        if (url.includes("/rest/v1/social_page_connections")) {
+            return Response.json([{
+                id: "page-conn-iris",
+                owner_id: "00000000-0000-4000-8000-000000000099",
+                page_id: "99887766",
+                page_name: "Irisbela Naresha Aurelia",
+                can_publish: true
+            }]);
+        }
+        if (url.includes("/rest/v1/social_publisher_user_settings")) {
+            return Response.json([{ owner_id: "00000000-0000-4000-8000-000000000099", autopublish_enabled: true }]);
+        }
+        if (url.includes("/rest/v1/social_facebook_songs")) {
+            return Response.json([]);
+        }
+        if (url.includes("/rest/v1/social_post_runs")) {
+            if (method === "POST") {
+                const body = JSON.parse(init.body);
+                const row = { id: `run-black-${runsStore.length + 1}`, created_at: new Date().toISOString(), ...body };
+                runsStore.push(row);
+                return Response.json([row], { status: 201 });
+            }
+            if (method === "PATCH") {
+                const body = JSON.parse(init.body);
+                if (runsStore[0]) Object.assign(runsStore[0], body);
+                return Response.json(runsStore);
+            }
+            return Response.json(runsStore);
+        }
+        throw new Error(`Unexpected fetch in solid-black LLM test: ${method} ${url}`);
+    };
+
+    try {
+        const env = {
+            SUPABASE_URL: "https://supabase.example.co",
+            SUPABASE_ANON_KEY: "anon-key",
+            SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
+            SOCIAL_TOKEN_ENCRYPTION_KEY: TEST_ENCRYPTION_KEY,
+            QWENCLOUD_API_KEY: "qwen-dashscope-secret",
+            ASSETS: {
+                async fetch() {
+                    return new Response(SAMPLE_M4A_BYTES, {
+                        status: 200,
+                        headers: { "Content-Type": "audio/mp4" }
+                    });
+                }
+            }
+        };
+
+        // 1. Test <think> block stripping on reasoning LLM (qwq-plus)
+        const reasoningQuote = await generateSocialQuote({
+            env,
+            quotePlan: { themeLabel: "Semangat & Perjuangan", themeDirection: "tentang keberanian melangkah" },
+            recentQuotes: [],
+            imageProvider: "qwencloud",
+            llmModel: "qwq-plus"
+        });
+        assert.equal(reasoningQuote.model, "qwq-plus");
+        assert.match(reasoningQuote.quoteText, /Langkah kecil yang jujur/);
+
+        // 2. Test SET Studio Medsos saving quote_llm_model = qwen3.5-plus + LLM quota limit
+        const saveProviderRes = makeRes();
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=studio-admin-image-provider",
+            headers: { authorization: "Bearer admin-jwt" },
+            body: {
+                image_provider: "qwencloud",
+                image_model: "qwen-image-3.0",
+                quote_llm_model: "qwen3.5-plus"
+            },
+            env
+        }, saveProviderRes);
+        assert.equal(saveProviderRes.statusCode, 200);
+        assert.equal(saveProviderRes.body.settings.quote_llm_model, "qwen3.5-plus");
+
+        const getProviderRes = makeRes();
+        await socialPublisherHandler({
+            method: "GET",
+            url: "/api/social-publisher?action=studio-admin-image-provider",
+            headers: { authorization: "Bearer admin-jwt" },
+            env
+        }, getProviderRes);
+        assert.equal(getProviderRes.statusCode, 200);
+        assert.equal(getProviderRes.body.settings.quote_llm_model, "qwen3.5-plus");
+        assert.equal(getProviderRes.body.settings.qwencloud_llm_models.length, 16);
+
+        const saveQuotaRes = makeRes();
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=studio-admin-model-quota",
+            headers: { authorization: "Bearer admin-jwt" },
+            body: {
+                model: "qwen3.5-plus",
+                quota_limit: 1500
+            },
+            env
+        }, saveQuotaRes);
+        assert.equal(saveQuotaRes.statusCode, 200);
+        const savedLlmEntry = saveQuotaRes.body.llm_quotas.find(item => item.model === "qwen3.5-plus");
+        assert.equal(savedLlmEntry.quota_limit, 1500);
+        assert.equal(savedLlmEntry.percent_available, 100);
+
+        // 3. Generate Manual Quote Preview while image model qwen-image-3.0 is 100% EXHAUSTED!
+        const previewRes = makeRes();
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=manual-generate",
+            headers: { authorization: "Bearer admin-jwt" },
+            body: {
+                post_mode: "quote",
+                quote_publish_target: "feed",
+                page_connection_id: "page-conn-iris",
+                use_random_song: true
+            },
+            env
+        }, previewRes);
+        assert.equal(previewRes.statusCode, 200);
+        assert.equal(imageGenerationCalls, 0, "Zero AI image generation calls must be made in Quote mode");
+        assert.equal(previewRes.body.preview.quote_llm_model, "qwen3.5-plus");
+        assert.equal(previewRes.body.preview.scene.background_mode, "solid_black");
+        assert.equal(previewRes.body.preview.quote_signature, "quote by: Irisbela Naresha Aurelia");
+        assert.match(previewRes.body.preview.quote_text, /Tenanglah, yang ditakdirkan untukmu/);
+        assert.equal(quotaStore.get("qwen3.5-plus")?.requests_used, 1, "LLM quota counter must increment by 1");
+        assert.equal(quotaStore.get("qwen-image-3.0")?.requests_used, 10, "Image model quota counter must NOT be touched");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
