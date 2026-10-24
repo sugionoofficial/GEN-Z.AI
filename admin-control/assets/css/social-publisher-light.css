@@ -767,3 +767,78 @@ html[data-genz-theme="light"][data-genz-theme="light"] body #manual-publish-butt
 html[data-genz-theme="light"][data-genz-theme="light"] body #manual-publish-button .btn-fx-orbit::after {
     background: #000000 !important;
 }
+
+/* =========================================================
+   18. MODE KATA-KATA MUTIARA & KOLEKSI LAGU FACEBOOK
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .mode-tabs {
+    background: #eef2fa !important;
+    border: 1px solid #c8d3e2 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .mode-tab {
+    color: #3c4a60 !important;
+    background: transparent !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .mode-tab:hover {
+    color: #101a2e !important;
+    background: #e1e7f5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .mode-tab.is-active {
+    background: linear-gradient(135deg, #6b5bf6, #5248d8) !important;
+    border-color: #5248d8 !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 14px rgba(91, 75, 214, .25) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .song-card {
+    background: #f8f9fd !important;
+    border: 1px solid #d4dce9 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .song-icon {
+    background: #eef1ff !important;
+    border: 1px solid #c2c9f2 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .song-artist {
+    color: #526077 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .song-link {
+    color: #2c4fc9 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .song-link.missing {
+    color: #6b788e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .song-mood-pill {
+    background: #e7f6fb !important;
+    border: 1px solid #9bd7ea !important;
+    color: #0e5a74 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .badge.quote-mode {
+    background: #eef1ff !important;
+    border-color: #9ba3f5 !important;
+    color: #392fb2 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .manual-song-line {
+    color: #164f78 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .manual-song-line a {
+    color: #2c4fc9 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .quote-mode-note {
+    background: #edf7fc !important;
+    border-left-color: #1094b8 !important;
+    color: #144960 !important;
+}
+

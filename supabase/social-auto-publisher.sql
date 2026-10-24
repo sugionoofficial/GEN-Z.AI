@@ -61,11 +61,31 @@ create table if not exists public.facebook_oauth_states (
 create index if not exists facebook_oauth_states_expiry_idx
     on public.facebook_oauth_states (expires_at);
 
+create table if not exists public.social_facebook_songs (
+    id uuid primary key default gen_random_uuid(),
+    owner_id uuid not null references public.profiles(id) on delete cascade,
+    title text not null check (char_length(title) between 1 and 140),
+    artist text not null default '' check (char_length(artist) <= 120),
+    facebook_url text not null default '' check (char_length(facebook_url) <= 500),
+    mood text not null default '' check (char_length(mood) <= 60),
+    is_active boolean not null default true,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    unique (id, owner_id)
+);
+
+create index if not exists social_facebook_songs_owner_active_idx
+    on public.social_facebook_songs (owner_id, is_active, created_at desc);
+
 create table if not exists public.social_post_schedules (
     id uuid primary key default gen_random_uuid(),
     owner_id uuid not null references public.profiles(id) on delete cascade,
-    character_id uuid not null,
+    character_id uuid,
     page_connection_id uuid not null,
+    post_mode text not null default 'character' check (post_mode in ('character', 'quote')),
+    quote_theme text not null default '' check (char_length(quote_theme) <= 120),
+    quote_visual_style text not null default '' check (char_length(quote_visual_style) <= 240),
+    use_random_song boolean not null default false,
     enabled boolean not null default false,
     -- Autopost cadence: the server enforces a per-role floor (OWNER, ADMIN and
     -- USER start at once per hour); the column keeps the same 1..168h range.
@@ -178,6 +198,27 @@ create table if not exists public.social_post_runs (
 alter table public.social_post_runs
     add column if not exists page_connection_id uuid;
 
+alter table public.social_post_runs
+    add column if not exists post_mode text not null default 'character';
+
+alter table public.social_post_runs
+    add column if not exists quote_text text not null default '';
+
+alter table public.social_post_runs
+    add column if not exists quote_theme text not null default '';
+
+alter table public.social_post_runs
+    add column if not exists song_id uuid references public.social_facebook_songs(id) on delete set null;
+
+alter table public.social_post_runs
+    add column if not exists song_title text not null default '';
+
+alter table public.social_post_runs
+    add column if not exists song_artist text not null default '';
+
+alter table public.social_post_runs
+    add column if not exists song_facebook_url text not null default '';
+
 create index if not exists social_post_runs_owner_created_idx
     on public.social_post_runs (owner_id, created_at desc);
 
@@ -241,6 +282,7 @@ alter table public.social_post_schedules enable row level security;
 alter table public.social_post_runs enable row level security;
 alter table public.social_publisher_config enable row level security;
 alter table public.social_publisher_user_settings enable row level security;
+alter table public.social_facebook_songs enable row level security;
 alter table public.social_publisher_model_quotas enable row level security;
 
 revoke all on table public.social_characters from public, anon, authenticated;
@@ -250,6 +292,7 @@ revoke all on table public.social_post_schedules from public, anon, authenticate
 revoke all on table public.social_post_runs from public, anon, authenticated;
 revoke all on table public.social_publisher_config from public, anon, authenticated;
 revoke all on table public.social_publisher_user_settings from public, anon, authenticated;
+revoke all on table public.social_facebook_songs from public, anon, authenticated;
 revoke all on table public.social_publisher_model_quotas from public, anon, authenticated;
 
 grant select, insert, update, delete on table public.social_characters to service_role;
@@ -259,6 +302,7 @@ grant select, insert, update, delete on table public.social_post_schedules to se
 grant select, insert, update, delete on table public.social_post_runs to service_role;
 grant select, insert, update, delete on table public.social_publisher_config to service_role;
 grant select, insert, update, delete on table public.social_publisher_user_settings to service_role;
+grant select, insert, update, delete on table public.social_facebook_songs to service_role;
 grant select, insert, update, delete on table public.social_publisher_model_quotas to service_role;
 
 create or replace function public.claim_due_social_post_schedules(

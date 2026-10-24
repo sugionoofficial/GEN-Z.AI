@@ -38,7 +38,10 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         runsTotal: 0,
         runsTotalPages: 1,
         objectUrls: new Map(),
-        manualPreview: null
+        manualPreview: null,
+        songs: [],
+        songLibraryReady: true,
+        defaultFacebookSongs: []
     };
     const $ = id => document.getElementById(id);
     const pageMessage = $("page-message");
@@ -695,11 +698,353 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
+    const FACEBOOK_SONG_HOSTS = new Set([
+        "facebook.com",
+        "www.facebook.com",
+        "m.facebook.com",
+        "web.facebook.com",
+        "business.facebook.com",
+        "fb.watch",
+        "fb.com",
+        "www.fb.com"
+    ]);
+
+    function safeFacebookSongLink(value) {
+        try {
+            const url = new URL(String(value || "").trim());
+            if (url.protocol !== "https:" || !FACEBOOK_SONG_HOSTS.has(url.hostname.toLowerCase())) return "";
+            return url.toString();
+        } catch {
+            return "";
+        }
+    }
+
+    function populateQuotePresets(quotePresets = {}) {
+        const themes = Array.isArray(quotePresets?.themes) ? quotePresets.themes : [];
+        const visualStyles = Array.isArray(quotePresets?.visualStyles) ? quotePresets.visualStyles : [];
+
+        for (const [id, emptyText] of [
+            ["manual-quote-theme", "Acak otomatis"],
+            ["schedule-quote-theme", "Acak otomatis setiap post"]
+        ]) {
+            const select = $(id);
+            if (!select || !themes.length) continue;
+            const prev = select.value;
+            select.replaceChildren(new Option(emptyText, ""));
+            for (const item of themes) {
+                const optionValue = item.value ?? item.id ?? "";
+                select.add(new Option(item.label, optionValue));
+            }
+            select.value = themes.some(item => (item.value ?? item.id) === prev) ? prev : "";
+        }
+
+        for (const [id, emptyText] of [
+            ["manual-quote-visual", "Acak otomatis"],
+            ["schedule-quote-visual", "Acak otomatis setiap post"]
+        ]) {
+            const select = $(id);
+            if (!select || !visualStyles.length) continue;
+            const prev = select.value;
+            select.replaceChildren(new Option(emptyText, ""));
+            for (const item of visualStyles) {
+                const optionValue = item.value ?? item.id ?? "";
+                select.add(new Option(item.label, optionValue));
+            }
+            select.value = visualStyles.some(item => (item.value ?? item.id) === prev) ? prev : "";
+        }
+    }
+
+    function setManualPostMode(mode) {
+        const nextMode = mode === "quote" ? "quote" : "character";
+        const isQuote = nextMode === "quote";
+        const modeSelect = $("manual-post-mode");
+        if (modeSelect) modeSelect.value = nextMode;
+        for (const tab of document.querySelectorAll?.("[data-manual-mode]") || []) {
+            tab.classList.toggle("is-active", tab.dataset.manualMode === nextMode);
+        }
+        const charFields = $("manual-character-fields");
+        const quoteFields = $("manual-quote-fields");
+        const charSelect = $("manual-character");
+        if (charFields) charFields.hidden = isQuote;
+        if (quoteFields) quoteFields.hidden = !isQuote;
+        if (charSelect) charSelect.required = !isQuote;
+        updateManualCharacterPreview();
+    }
+
+    function setSchedulePostMode(mode, { preserveSongToggle = false } = {}) {
+        const nextMode = mode === "quote" ? "quote" : "character";
+        const isQuote = nextMode === "quote";
+        const modeSelect = $("schedule-post-mode");
+        if (modeSelect) modeSelect.value = nextMode;
+        for (const tab of document.querySelectorAll?.("[data-schedule-mode]") || []) {
+            tab.classList.toggle("is-active", tab.dataset.scheduleMode === nextMode);
+        }
+        const charWrap = $("schedule-character-wrap");
+        const charSelect = $("schedule-character");
+        const quoteFields = $("schedule-quote-fields");
+        const sceneFields = $("schedule-scene-fields-wrap");
+        const songCheck = $("schedule-random-song");
+        if (charWrap) charWrap.hidden = isQuote;
+        if (charSelect) charSelect.required = !isQuote;
+        if (quoteFields) quoteFields.hidden = !isQuote;
+        if (sceneFields) sceneFields.hidden = isQuote;
+        if (!preserveSongToggle && songCheck) {
+            songCheck.checked = isQuote;
+        }
+    }
+
+    function renderSongs() {
+        const container = $("songs-list");
+        if (!container) return;
+        const songs = Array.isArray(state.songs) ? state.songs : [];
+        const activeCount = songs.filter(song => song.is_active !== false).length;
+        const defaultCount = Array.isArray(state.defaultFacebookSongs) && state.defaultFacebookSongs.length
+            ? state.defaultFacebookSongs.length
+            : (Array.isArray(state.data?.defaultFacebookSongs) ? state.data.defaultFacebookSongs.length : 15);
+        const ready = state.songLibraryReady !== false;
+
+        const badge = $("songs-ready-badge");
+        if (badge) {
+            badge.textContent = songs.length
+                ? `${activeCount}/${songs.length} lagu aktif`
+                : `${defaultCount} lagu bawaan siap`;
+            badge.className = `badge ${ready ? "posted" : ""}`.trim();
+        }
+        const notice = $("songs-library-notice");
+        if (notice) notice.hidden = ready;
+        const seedBtn = $("seed-default-songs");
+        if (seedBtn) seedBtn.disabled = !ready;
+
+        container.replaceChildren();
+        if (!songs.length) {
+            const empty = document.createElement("div");
+            empty.className = "empty";
+            empty.style.gridColumn = "1/-1";
+            empty.textContent = ready
+                ? `Belum ada lagu kustom tersimpan. Saat ini ${defaultCount} lagu populer bawaan siap dipakai acak otomatis — atau klik "+ Isi 15 Lagu Populer FB" untuk memasukkannya ke koleksi Anda agar bisa diatur & ditambah link Facebook.`
+                : `Tabel lagu belum diaktifkan di database; ${defaultCount} lagu populer bawaan tetap dipakai otomatis pada setiap posting Kata-kata Mutiara.`;
+            container.append(empty);
+            return;
+        }
+
+        for (const song of songs) {
+            const card = document.createElement("article");
+            card.className = "song-card";
+
+            const head = document.createElement("div");
+            head.className = "song-card-head";
+            const icon = document.createElement("div");
+            icon.className = "song-icon";
+            icon.setAttribute("aria-hidden", "true");
+            icon.textContent = "🎵";
+            const body = document.createElement("div");
+            body.className = "song-card-body";
+            const title = document.createElement("p");
+            title.className = "item-title";
+            title.textContent = song.title || "Lagu Facebook";
+            const artist = document.createElement("p");
+            artist.className = "song-artist";
+            artist.textContent = song.artist || "Tanpa nama penyanyi";
+            body.append(title, artist);
+            head.append(icon, body);
+
+            const stateRow = document.createElement("div");
+            stateRow.className = "outfit-state";
+            const stateBadge = document.createElement("span");
+            stateBadge.className = `badge ${song.is_active === false ? "failed" : "posted"}`;
+            stateBadge.textContent = song.is_active === false ? "Nonaktif" : "Aktif";
+            stateRow.append(stateBadge);
+            if (song.mood) {
+                const moodPill = document.createElement("span");
+                moodPill.className = "song-mood-pill";
+                moodPill.textContent = song.mood;
+                stateRow.append(moodPill);
+            }
+
+            const linkEl = document.createElement("a");
+            linkEl.className = "song-link";
+            const fbUrl = safeFacebookSongLink(song.facebook_url);
+            if (fbUrl) {
+                linkEl.href = fbUrl;
+                linkEl.target = "_blank";
+                linkEl.rel = "noopener noreferrer";
+                linkEl.textContent = fbUrl;
+            } else {
+                linkEl.classList.add("missing");
+                linkEl.textContent = "Tanpa tautan Facebook (judul & artis di caption)";
+            }
+
+            const actions = document.createElement("div");
+            actions.className = "outfit-card-actions";
+            const toggle = document.createElement("button");
+            toggle.className = `btn small ${song.is_active === false ? "green" : ""}`;
+            toggle.type = "button";
+            toggle.textContent = song.is_active === false ? "Aktifkan" : "Nonaktifkan";
+            toggle.addEventListener("click", () => toggleSong(song));
+            const edit = document.createElement("button");
+            edit.className = "btn small";
+            edit.type = "button";
+            edit.textContent = "Edit";
+            edit.addEventListener("click", () => editSong(song));
+            const remove = document.createElement("button");
+            remove.className = "btn small danger";
+            remove.type = "button";
+            remove.textContent = "Hapus";
+            remove.addEventListener("click", () => deleteSong(song));
+            actions.append(toggle, edit, remove);
+
+            card.append(head, stateRow, linkEl, actions);
+            container.append(card);
+        }
+    }
+
+    async function loadFacebookSongs() {
+        if (!$("songs-list")) return;
+        try {
+            const result = await api("songs");
+            state.songs = Array.isArray(result.songs) ? result.songs : [];
+            state.songLibraryReady = result.songLibraryReady !== false;
+            if (Array.isArray(result.defaultSongs) && result.defaultSongs.length) {
+                state.defaultFacebookSongs = result.defaultSongs;
+            }
+            renderSongs();
+        } catch {
+            renderSongs();
+        }
+    }
+
+    function resetSongForm() {
+        $("song-form")?.reset?.();
+        if ($("song-id")) $("song-id").value = "";
+        if ($("save-song")) $("save-song").textContent = "Simpan lagu Facebook";
+        if ($("cancel-song-edit")) $("cancel-song-edit").hidden = true;
+    }
+
+    function editSong(song) {
+        if (!$("song-form")) return;
+        if ($("song-id")) $("song-id").value = song.id || "";
+        if ($("song-title")) $("song-title").value = song.title || "";
+        if ($("song-artist")) $("song-artist").value = song.artist || "";
+        if ($("song-mood")) $("song-mood").value = song.mood || "";
+        if ($("song-facebook-url")) $("song-facebook-url").value = song.facebook_url || "";
+        if ($("save-song")) $("save-song").textContent = "Simpan perubahan lagu";
+        if ($("cancel-song-edit")) $("cancel-song-edit").hidden = false;
+        $("songs-card")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+        $("song-title")?.focus?.({ preventScroll: true });
+    }
+
+    async function submitSong(event) {
+        event.preventDefault();
+        const songStatus = $("song-status");
+        const saveBtn = $("save-song");
+        const id = $("song-id")?.value?.trim() || "";
+        const title = $("song-title")?.value?.trim() || "";
+        const artist = $("song-artist")?.value?.trim() || "";
+        const mood = $("song-mood")?.value?.trim() || "";
+        const facebookUrl = $("song-facebook-url")?.value?.trim() || "";
+
+        if (!title) {
+            status(songStatus, "Judul lagu wajib diisi.", "error");
+            return;
+        }
+        if (facebookUrl && !safeFacebookSongLink(facebookUrl)) {
+            status(songStatus, "Link lagu harus berupa URL HTTPS resmi Facebook (facebook.com atau fb.watch), atau kosongkan.", "error");
+            return;
+        }
+
+        const existingSong = id ? state.songs.find(item => item.id === id) : null;
+        setButtonBusy(saveBtn, true, "Menyimpan…");
+        status(songStatus, "Menyimpan lagu ke koleksi Facebook…");
+        try {
+            await api("save-song", {
+                method: "POST",
+                body: {
+                    ...(id ? { id } : {}),
+                    title,
+                    artist,
+                    mood,
+                    facebook_url: facebookUrl,
+                    is_active: existingSong ? existingSong.is_active !== false : true
+                }
+            });
+            resetSongForm();
+            status(songStatus, `Lagu "${title}" tersimpan di koleksi acak Facebook.`, "good");
+            await loadFacebookSongs();
+        } catch (error) {
+            status(songStatus, error.message || "Gagal menyimpan lagu Facebook.", "error");
+        } finally {
+            setButtonBusy(saveBtn, false);
+            if ($("save-song")) $("save-song").textContent = $("song-id")?.value ? "Simpan perubahan lagu" : "Simpan lagu Facebook";
+        }
+    }
+
+    async function toggleSong(song) {
+        try {
+            await api("save-song", {
+                method: "POST",
+                body: {
+                    id: song.id,
+                    title: song.title,
+                    artist: song.artist || "",
+                    mood: song.mood || "",
+                    facebook_url: song.facebook_url || "",
+                    is_active: song.is_active === false
+                }
+            });
+            await loadFacebookSongs();
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
+        }
+    }
+
+    async function deleteSong(song) {
+        if (!window.confirm(`Hapus lagu "${song.title}" dari koleksi lagu acak Facebook?`)) return;
+        try {
+            await api("delete-song", { method: "POST", body: { id: song.id } });
+            showNotice(pageMessage, `Lagu "${song.title}" dihapus.`, "success");
+            await loadFacebookSongs();
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
+        }
+    }
+
+    async function seedDefaultSongs() {
+        const seedBtn = $("seed-default-songs");
+        const songStatus = $("song-status");
+        setButtonBusy(seedBtn, true, "Menambahkan…");
+        status(songStatus, "Menambahkan daftar lagu populer Facebook ke koleksi Anda…");
+        try {
+            const result = await api("seed-default-songs", { method: "POST", body: {} });
+            state.songs = Array.isArray(result.songs) ? result.songs : state.songs;
+            renderSongs();
+            status(
+                songStatus,
+                result.added > 0
+                    ? `${result.added} lagu populer ditambahkan ke koleksi lagu Facebook Anda.`
+                    : "Seluruh lagu populer bawaan sudah ada di koleksi Anda.",
+                "good"
+            );
+        } catch (error) {
+            status(songStatus, error.message || "Gagal mengisi lagu populer.", "error");
+        } finally {
+            setButtonBusy(seedBtn, false);
+        }
+    }
+
     function updateManualCharacterPreview() {
+        const postMode = $("manual-post-mode")?.value === "quote" ? "quote" : "character";
         const characterId = $("manual-character").value;
         const preview = $("manual-character-preview");
         const placeholder = $("manual-character-placeholder");
         if (state.manualPreview) return;
+        if (postMode === "quote") {
+            preview.hidden = true;
+            preview.removeAttribute("src");
+            placeholder.textContent = "Mode Kata-kata Mutiara Estetik aktif — klik Buat & bersihkan pratinjau untuk menghasilkan poster kutipan tanpa karakter dan memilih lagu Facebook acak.";
+            placeholder.hidden = false;
+            return;
+        }
+        placeholder.textContent = "Pilih karakter untuk melihat foto referensinya.";
         preview.dataset.characterId = characterId;
         if (!characterId) {
             preview.hidden = true;
@@ -717,32 +1062,63 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
     async function submitManualPost(event) {
         event.preventDefault();
+        const postMode = $("manual-post-mode")?.value === "quote" ? "quote" : "character";
+        const isQuote = postMode === "quote";
         const characterId = $("manual-character").value;
         const pageConnectionId = $("manual-page").value;
-        if (!characterId || !pageConnectionId) {
-            status($("manual-post-status"), "Pilih karakter tersimpan dan Facebook Page.", "error");
+        if ((!isQuote && !characterId) || !pageConnectionId) {
+            status(
+                $("manual-post-status"),
+                isQuote
+                    ? "Pilih Facebook Page tujuan sebelum membuat poster kata-kata mutiara."
+                    : "Pilih karakter tersimpan dan Facebook Page.",
+                "error"
+            );
             return;
         }
         const button = $("manual-post-button");
         let generatedRunId = "";
         setButtonBusy(button, true, "Membuat gambar AI…", {
             premium: true,
-            stages: [
-                { at: 0, text: "Membuat gambar AI…" },
-                { at: 7, text: "Merancang visual & caption…" },
-                { at: 16, text: "Menyempurnakan detail gambar…" }
-            ]
+            stages: isQuote
+                ? [
+                    { at: 0, text: "Membuat gambar AI…" },
+                    { at: 5, text: "Merangkai kata mutiara & lagu FB…" },
+                    { at: 14, text: "Menyempurnakan poster estetik…" }
+                ]
+                : [
+                    { at: 0, text: "Membuat gambar AI…" },
+                    { at: 7, text: "Merancang visual & caption…" },
+                    { at: 16, text: "Menyempurnakan detail gambar…" }
+                ]
         });
-        status($("manual-post-status"), "Membuat satu gambar, membersihkan metadata, dan menyiapkan caption untuk pratinjau…");
+        status(
+            $("manual-post-status"),
+            isQuote
+                ? "Merangkai kata-kata mutiara, membuat poster estetik, memilih lagu Facebook acak, dan membersihkan metadata…"
+                : "Membuat satu gambar, membersihkan metadata, dan menyiapkan caption untuk pratinjau…"
+        );
         try {
             if (state.manualPreview) await discardManualPreview(false);
-            const result = await api("manual-generate", {
-                method: "POST",
-                body: {
+            const requestBody = isQuote
+                ? {
+                    post_mode: "quote",
+                    page_connection_id: pageConnectionId,
+                    aspect_ratio: $("manual-aspect-ratio").value,
+                    quote_theme: $("manual-quote-theme")?.value || "",
+                    quote_visual_style: $("manual-quote-visual")?.value || "",
+                    custom_quote: $("manual-custom-quote")?.value?.trim() || "",
+                    use_random_song: $("manual-quote-random-song") ? $("manual-quote-random-song").checked : true
+                }
+                : {
                     character_id: characterId,
                     page_connection_id: pageConnectionId,
-                    aspect_ratio: $("manual-aspect-ratio").value
-                }
+                    aspect_ratio: $("manual-aspect-ratio").value,
+                    ...($("manual-character-random-song")?.checked ? { use_random_song: true } : {})
+                };
+            const result = await api("manual-generate", {
+                method: "POST",
+                body: requestBody
             });
             generatedRunId = result.preview.run_id;
             updateButtonBusyText(button, "Membersihkan metadata…");
@@ -767,12 +1143,16 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             $("manual-character-placeholder").hidden = true;
             $("manual-generated-caption").textContent = result.preview.caption;
             showManualOutfit(result.preview.outfit);
+            showManualSong(result.preview.song, result.preview.quote_theme);
             const outfitNote = result.preview.outfit?.name
                 ? ` Outfit acak: ${result.preview.outfit.name}${result.preview.outfit.order_url ? " (link order disertakan di caption)" : ""}.`
                 : "";
+            const songNote = result.preview.song?.title
+                ? ` Lagu FB acak: ${result.preview.song.title}${result.preview.song.artist ? ` — ${result.preview.song.artist}` : ""}.`
+                : "";
             status(
                 $("manual-post-status"),
-                `Gambar ${result.preview.aspect_ratio} selesai dibuat dan dibersihkan.${outfitNote} Periksa pratinjau serta caption sebelum menerbitkan.`,
+                `${isQuote ? "Poster kata-kata mutiara" : "Gambar"} ${result.preview.aspect_ratio} selesai dibuat dan dibersihkan.${outfitNote}${songNote} Periksa pratinjau serta caption sebelum menerbitkan.`,
                 "good"
             );
         } catch (error) {
@@ -875,6 +1255,37 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         line.hidden = false;
     }
 
+    function showManualSong(song, quoteTheme = "") {
+        const line = $("manual-song-line");
+        if (!line) return;
+        line.replaceChildren();
+        if (!song?.title && !quoteTheme) {
+            line.hidden = true;
+            return;
+        }
+        if (quoteTheme) {
+            const themeStrong = document.createElement("strong");
+            themeStrong.textContent = `Tema kutipan: ${quoteTheme}`;
+            line.append(themeStrong);
+        }
+        if (song?.title) {
+            if (quoteTheme) line.append(document.createTextNode(" · "));
+            const songStrong = document.createElement("strong");
+            songStrong.textContent = `🎵 Lagu FB acak: ${song.title}${song.artist ? ` — ${song.artist}` : ""}`;
+            line.append(songStrong);
+            const fbUrl = safeFacebookSongLink(song.facebook_url);
+            if (fbUrl) {
+                const link = document.createElement("a");
+                link.href = fbUrl;
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                link.textContent = fbUrl;
+                line.append(document.createTextNode(" · "), link);
+            }
+        }
+        line.hidden = false;
+    }
+
     function clearManualPreview() {
         const previewUrl = state.objectUrls.get("manual-preview");
         if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -883,6 +1294,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         $("manual-generated-preview").removeAttribute("src");
         $("manual-generated-result").hidden = true;
         $("manual-outfit-line").hidden = true;
+        if ($("manual-song-line")) $("manual-song-line").hidden = true;
         updateManualCharacterPreview();
     }
 
@@ -1210,6 +1622,17 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     }
 
     function sceneSummary(schedule) {
+        if (schedule.post_mode === "quote") {
+            const parts = ["poster estetik tanpa karakter"];
+            const themeLabel = state.data?.quotePresets?.themes?.find(t => (t.value ?? t.id) === schedule.quote_theme)?.label || schedule.quote_theme;
+            const visualLabel = state.data?.quotePresets?.visualStyles?.find(v => (v.value ?? v.id) === schedule.quote_visual_style)?.label || schedule.quote_visual_style;
+            parts.push(themeLabel ? `tema ${themeLabel}` : "tema acak");
+            parts.push(visualLabel ? `visual ${visualLabel}` : "visual acak");
+            parts.push(schedule.use_random_song !== false ? "🎵 lagu FB acak ON" : "tanpa lagu acak");
+            if (schedule.scene_details) parts.push("arahan khusus");
+            if (schedule.negative_prompt) parts.push("negative tambahan");
+            return parts.join(" · ");
+        }
         const parts = [];
         const angle = schedule.camera_angle || "medium shot";
         parts.push(`angle ${angle}`);
@@ -1217,6 +1640,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (schedule.scene_atmosphere) parts.push(`suasana ${schedule.scene_atmosphere}`);
         if (schedule.scene_condition) parts.push(`kondisi ${schedule.scene_condition}`);
         if (schedule.scene_lighting) parts.push(`cahaya ${schedule.scene_lighting}`);
+        if (schedule.use_random_song === true) parts.push("🎵 lagu FB acak ON");
         if (schedule.scene_details) parts.push("detail khusus");
         if (schedule.negative_prompt) parts.push("negative tambahan");
         return parts.join(" · ");
@@ -1235,7 +1659,18 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const content = document.createElement("div");
             const title = document.createElement("p");
             title.className = "item-title";
-            title.textContent = `${characterName(schedule.character_id)} → ${pageName(schedule.page_connection_id)}`;
+            const isQuoteSchedule = schedule.post_mode === "quote";
+            if (isQuoteSchedule) {
+                const quoteBadge = document.createElement("span");
+                quoteBadge.className = "badge quote-mode";
+                quoteBadge.textContent = "Kata Mutiara";
+                title.append(
+                    quoteBadge,
+                    document.createTextNode(`  ✨ Kata-kata Mutiara → ${pageName(schedule.page_connection_id)}`)
+                );
+            } else {
+                title.textContent = `${characterName(schedule.character_id)} → ${pageName(schedule.page_connection_id)}`;
+            }
             const scheduleAutopublishOn = schedule.autopublish_enabled !== false;
             const effectiveAutopublish = accountAutopublishOn && scheduleAutopublishOn;
             const detail = document.createElement("div");
@@ -1416,13 +1851,28 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             label.className = `badge ${run.status || "queued"}`;
             label.textContent = run.status || "queued";
             const source = run.schedule_id ? "Auto" : "Manual";
-            title.append(label, document.createTextNode(`  ${source} · ${formatDate(run.scheduled_for || run.created_at)}`));
+            const isQuoteRun = run.post_mode === "quote" || Boolean(run.quote_text) || Boolean(run.scene_plan?.quote_mode);
+            title.append(label);
+            if (isQuoteRun) {
+                const quoteBadge = document.createElement("span");
+                quoteBadge.className = "badge quote-mode";
+                quoteBadge.style.marginLeft = "6px";
+                quoteBadge.textContent = "Kata Mutiara";
+                title.append(quoteBadge);
+            }
+            title.append(document.createTextNode(`  ${source} · ${formatDate(run.scheduled_for || run.created_at)}`));
             const detail = document.createElement("div");
             detail.className = "item-meta";
             const scene = run.scene_plan || {};
+            const songTitle = run.song_title || scene.song_title || "";
+            const songArtist = run.song_artist || scene.song_artist || "";
+            const songSummary = songTitle ? `🎵 ${songTitle}${songArtist ? ` — ${songArtist}` : ""}` : "";
+            const quotePreview = run.quote_text ? `“${run.quote_text}”` : "";
             detail.textContent = run.status === "failed"
                 ? (run.error_message || "Posting gagal; cek konfigurasi API dan Page.")
-                : [scene.location, run.outfit_name || scene.outfit, run.caption].filter(Boolean).join(" · ") || "Menunggu proses.";
+                : isQuoteRun
+                    ? [run.quote_theme || scene.theme_label, quotePreview, songSummary, run.caption].filter(Boolean).join(" · ") || "Menunggu proses."
+                    : [scene.location, run.outfit_name || scene.outfit, songSummary, run.caption].filter(Boolean).join(" · ") || "Menunggu proses.";
             content.append(title, detail);
             if (run.status === "posted" && run.permalink_url) {
                 const share = document.createElement("div");
@@ -1535,17 +1985,22 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
     function render(data) {
         state.data = data;
+        if (Array.isArray(data.defaultFacebookSongs) && data.defaultFacebookSongs.length) {
+            state.defaultFacebookSongs = data.defaultFacebookSongs;
+        }
         renderConfig(data.config || {});
         renderGlobalState();
         renderPages(data.pages || []);
         renderCharacters(data.characters || []);
         populateScenePresets(data.scenePresets);
+        populateQuotePresets(data.quotePresets);
         renderSchedules(data.schedules || []);
         renderRuns(data.runs || [], data.runsPagination || null);
         $("default-caption-template").value = data.postingSettings?.caption_template || "Cerita hari ini ✨";
         $("external-post-link").value = data.postingSettings?.external_link || "";
         renderOutfitSelector(data.characters || []);
         renderOutfits();
+        renderSongs();
         applySchedulePolicyUi();
         const missingMigrations = [];
         if (data.autopublishSchemaReady === false) missingMigrations.push("supabase/social-autopublish-per-user.sql");
@@ -1575,6 +2030,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         try {
             const data = await api(`dashboard&runs_page=${state.runsPage}&runs_limit=${state.runsPerPage}`);
             render(data);
+            await loadFacebookSongs();
         } catch (error) {
             showNotice(pageMessage, error.message || "Gagal memuat Social Publisher.", "error");
             configList.replaceChildren();
@@ -1898,12 +2354,21 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     }
 
     function editSchedule(schedule) {
+        const isQuote = schedule.post_mode === "quote";
         $("schedule-id").value = schedule.id;
-        $("schedule-character").value = schedule.character_id;
+        setSchedulePostMode(isQuote ? "quote" : "character", { preserveSongToggle: true });
+        $("schedule-character").value = schedule.character_id || "";
         $("schedule-page").value = schedule.page_connection_id;
         $("interval-minutes").value = schedule.interval_minutes || schedule.interval_hours * 60;
         $("first-run").value = utcToLocalWib(schedule.next_run_at);
         $("schedule-aspect-ratio").value = schedule.aspect_ratio || "9:16";
+        if ($("schedule-quote-theme")) $("schedule-quote-theme").value = schedule.quote_theme || "";
+        if ($("schedule-quote-visual")) $("schedule-quote-visual").value = schedule.quote_visual_style || "";
+        if ($("schedule-random-song")) {
+            $("schedule-random-song").checked = isQuote
+                ? schedule.use_random_song !== false
+                : schedule.use_random_song === true;
+        }
         $("schedule-location").value = schedule.scene_location || "";
         $("schedule-angle").value = schedule.camera_angle || "";
         $("schedule-situation").value = schedule.scene_situation || "";
@@ -1924,6 +2389,9 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     function resetScheduleForm() {
         $("schedule-form").reset();
         $("schedule-id").value = "";
+        setSchedulePostMode("character");
+        if ($("schedule-quote-theme")) $("schedule-quote-theme").value = "";
+        if ($("schedule-quote-visual")) $("schedule-quote-visual").value = "";
         const { min, max } = schedulePolicy();
         $("interval-minutes").value = String(min <= 1440 && 1440 <= max ? 1440 : min);
         $("schedule-aspect-ratio").value = "9:16";
@@ -1946,9 +2414,21 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
     async function submitSchedule(event) {
         event.preventDefault();
+        const postMode = $("schedule-post-mode")?.value === "quote" ? "quote" : "character";
+        const isQuote = postMode === "quote";
+        const characterId = $("schedule-character").value;
+        const pageConnectionId = $("schedule-page").value;
         const intervalMinutes = Number($("interval-minutes").value);
         const nextRunAt = localWibToUtc($("first-run").value);
         const { role, min, max } = schedulePolicy();
+        if (!pageConnectionId) {
+            status(scheduleStatus, "Pilih Facebook Page tujuan jadwal autopost.", "error");
+            return;
+        }
+        if (!isQuote && !characterId) {
+            status(scheduleStatus, "Pilih karakter untuk jadwal foto karakter AI, atau pindah ke mode Kata-kata Mutiara + Lagu FB.", "error");
+            return;
+        }
         if (!nextRunAt || Date.parse(nextRunAt) <= Date.now()) {
             status(scheduleStatus, "Atur waktu pertama di masa depan sesuai WIB.", "error");
             return;
@@ -1961,15 +2441,22 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             );
             return;
         }
+        const useRandomSong = $("schedule-random-song")
+            ? $("schedule-random-song").checked
+            : isQuote;
         const body = {
             id: $("schedule-id").value || undefined,
-            character_id: $("schedule-character").value,
-            page_connection_id: $("schedule-page").value,
+            post_mode: postMode,
+            character_id: isQuote ? null : characterId,
+            page_connection_id: pageConnectionId,
             interval_minutes: intervalMinutes,
             next_run_at: nextRunAt,
             timezone: "Asia/Jakarta",
             aspect_ratio: $("schedule-aspect-ratio").value,
             caption_template: $("default-caption-template").value,
+            quote_theme: isQuote ? ($("schedule-quote-theme")?.value || "") : "",
+            quote_visual_style: isQuote ? ($("schedule-quote-visual")?.value || "") : "",
+            use_random_song: useRandomSong,
             scene_location: $("schedule-location").value,
             camera_angle: $("schedule-angle").value,
             scene_situation: $("schedule-situation").value,
@@ -1981,6 +2468,14 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             autopublish_enabled: $("schedule-autopublish").checked,
             enabled: $("schedule-enabled").checked
         };
+        if (isQuote) {
+            body.scene_location = "";
+            body.camera_angle = "";
+            body.scene_situation = "";
+            body.scene_atmosphere = "";
+            body.scene_condition = "";
+            body.scene_lighting = "";
+        }
         setButtonBusy(saveScheduleButton, true, "Menyimpan…");
         status(scheduleStatus, "Menyimpan konfigurasi jadwal…");
         try {
@@ -2222,6 +2717,17 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     $("posting-settings-form").addEventListener("submit", savePostingSettings);
     $("outfit-form").addEventListener("submit", submitOutfit);
     outfitSelect.addEventListener("change", renderOutfits);
+    $("song-form")?.addEventListener("submit", submitSong);
+    $("cancel-song-edit")?.addEventListener("click", resetSongForm);
+    $("seed-default-songs")?.addEventListener("click", seedDefaultSongs);
+    $("manual-post-mode")?.addEventListener("change", event => setManualPostMode(event.target.value));
+    for (const tab of document.querySelectorAll?.("[data-manual-mode]") || []) {
+        tab.addEventListener("click", () => setManualPostMode(tab.dataset.manualMode));
+    }
+    $("schedule-post-mode")?.addEventListener("change", event => setSchedulePostMode(event.target.value));
+    for (const tab of document.querySelectorAll?.("[data-schedule-mode]") || []) {
+        tab.addEventListener("click", () => setSchedulePostMode(tab.dataset.scheduleMode));
+    }
     $("manual-character").addEventListener("change", updateManualCharacterPreview);
     $("schedule-form").addEventListener("submit", submitSchedule);
     $("interval-minutes").addEventListener("input", updateCostEstimate);
