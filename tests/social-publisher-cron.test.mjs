@@ -141,7 +141,7 @@ test("Social Publisher cron cleans metadata and composes user caption before aut
             }
         });
 
-        assert.deepEqual(result, { claimed: 1, skipped: false });
+        assert.deepEqual(result, { claimed: 1, resumed: 0, skipped: false });
         assert.match(postedCaption, /Base/);
         assert.match(postedCaption, /Hai guys/);
         assert.match(postedCaption, /https:\/\/example\.com\/promo/);
@@ -206,7 +206,7 @@ test("Social Publisher cron stops autopublish and pauses the schedule when the s
             SUPABASE_SERVICE_ROLE_KEY: "server-only-test-key"
         });
 
-        assert.deepEqual(result, { claimed: 1, skipped: false });
+        assert.deepEqual(result, { claimed: 1, resumed: 0, skipped: false });
         assert.equal(generated, false);
         assert.equal(schedulePatches.length, 1);
         assert.equal(schedulePatches[0].body.enabled, false);
