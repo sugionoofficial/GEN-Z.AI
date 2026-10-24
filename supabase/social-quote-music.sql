@@ -62,6 +62,16 @@ alter table public.social_post_schedules
 alter table public.social_post_schedules
     add column if not exists use_random_song boolean not null default false;
 
+alter table public.social_post_schedules
+    add column if not exists quote_publish_target text not null default 'feed';
+
+alter table public.social_post_schedules
+    drop constraint if exists social_post_schedules_quote_publish_target_check;
+
+alter table public.social_post_schedules
+    add constraint social_post_schedules_quote_publish_target_check
+    check (quote_publish_target in ('feed', 'reels', 'story', 'feed_story'));
+
 do $$
 begin
     if not exists (
@@ -106,6 +116,9 @@ alter table public.social_post_runs
 
 alter table public.social_post_runs
     add column if not exists quote_theme text not null default '';
+
+alter table public.social_post_runs
+    add column if not exists quote_publish_target text not null default 'feed';
 
 alter table public.social_post_runs
     add column if not exists song_id uuid references public.social_facebook_songs(id) on delete set null;

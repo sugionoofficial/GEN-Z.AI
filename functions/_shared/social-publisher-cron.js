@@ -1,6 +1,6 @@
 import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
-import { buildQuoteImagePrompt, createQuotePlan, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule } from "../../lib/social-publisher/quotes.js";
-import { decryptSecret, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookVideoStory } from "../../lib/social-publisher/providers.js";
+import { buildQuoteImagePrompt, createQuotePlan, normalizeQuotePublishTarget, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule } from "../../lib/social-publisher/quotes.js";
+import { decryptSecret, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookQuoteVideo } from "../../lib/social-publisher/providers.js";
 import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
 import { encodeStoryMp4, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
 import { normalizeQwenCloudImageModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
@@ -57,7 +57,7 @@ async function updateRun(config, runId, values) {
     } catch (error) {
         if (!isMissingQuoteRunColumn(error) || !hasQuoteOrSongRunFields(values)) throw error;
         const fallbackValues = { ...values };
-        for (const key of ["post_mode", "quote_text", "quote_theme", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
+        for (const key of ["post_mode", "quote_text", "quote_theme", "quote_publish_target", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
             delete fallbackValues[key];
         }
         await dbRequest(config, table("social_post_runs", `id=eq.${encodeURIComponent(runId)}`), {
@@ -69,15 +69,15 @@ async function updateRun(config, runId, values) {
 }
 
 function hasQuoteOrSongRunFields(values = {}) {
-    return ["post_mode", "quote_text", "quote_theme", "song_id", "song_title", "song_artist", "song_facebook_url"]
+    return ["post_mode", "quote_text", "quote_theme", "quote_publish_target", "song_id", "song_title", "song_artist", "song_facebook_url"]
         .some(key => Object.prototype.hasOwnProperty.call(values, key));
 }
 
 function isMissingQuoteRunColumn(error) {
     if (error?.code === "PGRST204" || error?.code === "42703") {
-        return /(post_mode|quote_text|quote_theme|song_id|song_title|song_artist|song_facebook_url)/i.test(String(error?.message || ""));
+        return /(post_mode|quote_text|quote_theme|quote_publish_target|song_id|song_title|song_artist|song_facebook_url)/i.test(String(error?.message || ""));
     }
-    return /(post_mode|quote_text|quote_theme|song_id|song_title|song_artist|song_facebook_url)/i.test(String(error?.message || ""))
+    return /(post_mode|quote_text|quote_theme|quote_publish_target|song_id|song_title|song_artist|song_facebook_url)/i.test(String(error?.message || ""))
         && /does not exist|schema cache|column/i.test(String(error?.message || ""));
 }
 
@@ -85,16 +85,22 @@ const SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive";
 
 const LEGACY_SCHEDULE_COLUMNS = "id,owner_id,character_id,page_connection_id,enabled,interval_hours,aspect_ratio,caption_template,timezone";
 const SCENE_SCHEDULE_COLUMNS = `${LEGACY_SCHEDULE_COLUMNS},autopublish_enabled,scene_location,camera_angle,scene_situation,scene_lighting,scene_atmosphere,scene_condition,scene_details,negative_prompt`;
-const FULL_SCHEDULE_COLUMNS = `${SCENE_SCHEDULE_COLUMNS},post_mode,quote_theme,quote_visual_style,use_random_song`;
+const QUOTE_BASE_SCHEDULE_COLUMNS = `${SCENE_SCHEDULE_COLUMNS},post_mode,quote_theme,quote_visual_style,use_random_song`;
+const FULL_SCHEDULE_COLUMNS = `${QUOTE_BASE_SCHEDULE_COLUMNS},quote_publish_target`;
 
 function isMissingColumnError(error) {
     const message = String(error?.message || "");
     return /does not exist|schema cache|column/i.test(message);
 }
 
+function isMissingQuoteTargetColumn(error) {
+    const message = String(error?.message || "");
+    return /\bquote_publish_target\b/i.test(message) && isMissingColumnError(error);
+}
+
 function isMissingQuoteScheduleColumn(error) {
     const message = String(error?.message || "");
-    return /\b(post_mode|quote_theme|quote_visual_style|use_random_song)\b/i.test(message)
+    return /\b(post_mode|quote_theme|quote_visual_style|use_random_song|quote_publish_target)\b/i.test(message)
         && isMissingColumnError(error);
 }
 
@@ -111,6 +117,17 @@ async function getScheduleForRun(config, scheduleId) {
         return rows?.[0] || null;
     } catch (error) {
         if (!isMissingColumnError(error)) throw error;
+        if (isMissingQuoteTargetColumn(error)) {
+            try {
+                const rows = await dbRequest(config, table(
+                    "social_post_schedules",
+                    `select=${QUOTE_BASE_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+                ));
+                return rows?.[0] || null;
+            } catch (quoteBaseError) {
+                if (!isMissingColumnError(quoteBaseError)) throw quoteBaseError;
+            }
+        }
         if (isMissingQuoteScheduleColumn(error)) {
             console.warn("[Social Publisher] Kolom quote/musik jadwal belum ada; memakai kolom scene.");
             try {
@@ -440,6 +457,7 @@ async function processRun(env, config, claimedRun) {
         let outfitLibraryReady = false;
         let quoteText = "";
         let quoteThemeLabel = "";
+        const quotePublishTarget = normalizeQuotePublishTarget(schedule.quote_publish_target, "feed");
 
         if (postMode === "quote") {
             const recentPlanKeys = (previousRuns || [])
@@ -491,12 +509,12 @@ async function processRun(env, config, claimedRun) {
                 audioBytes
             });
             storyMp4Bytes = encodedStory.mp4Bytes;
-            // Story Kata-kata Mutiara hanya berisi teks mutiara bersih tanpa caption feed/link/hashtag.
+            // Postingan Kata-kata Mutiara + Musik hanya berisi kartu video 9:16 + musik auto-play tanpa caption feed/link/hashtag.
             caption = quoteText;
             scenePlanRecord = {
                 ...quotePlan,
                 post_mode: "quote",
-                story_target: "facebook_page_story",
+                quote_publish_target: quotePublishTarget,
                 quote_text: quoteText,
                 ...(song ? {
                     song_id: song.id || null,
@@ -614,11 +632,12 @@ async function processRun(env, config, claimedRun) {
             encryptionKey
         );
         const published = postMode === "quote"
-            ? await publishFacebookVideoStory({
+            ? await publishFacebookQuoteVideo({
                 env,
                 pageId: page.page_id,
                 pageAccessToken,
-                videoBytes: storyMp4Bytes
+                videoBytes: storyMp4Bytes,
+                target: quotePublishTarget
             })
             : await publishFacebookPhoto({
                 env,
@@ -645,6 +664,7 @@ async function processRun(env, config, claimedRun) {
                 post_mode: postMode,
                 quote_text: quoteText || "",
                 quote_theme: quoteThemeLabel || "",
+                ...(postMode === "quote" ? { quote_publish_target: quotePublishTarget } : {}),
                 song_id: song?.id || null,
                 song_title: song?.title || "",
                 song_artist: song?.artist || "",
