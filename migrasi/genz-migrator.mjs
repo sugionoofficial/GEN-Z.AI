@@ -70,14 +70,14 @@ Deno.serve(async (req) => {
       const ordCol = (meta.find((m) => /int/.test(m.data_type)) || meta[0]).column_name;
       const stmtCol = ([...meta].reverse().find((m) => /text|char/.test(m.data_type)) || meta[meta.length - 1]).column_name;
       const rows = await old.unsafe(`select "${stmtCol}" as s from ${tbl} order by "${ordCol}" offset ${st.c1} limit ${CHUNK}`);
-      let done = 0; const errs = [];
+      let done = 0; const errs = []; let benign = 0;
       for (const r of rows) {
         const s = String(r.s || '').trim();
         if (!s) continue;
-        try { await nw.unsafe(s); done++; } catch (e) { errs.push(s.slice(0, 60) + ' :: ' + String(e.message).slice(0, 120)); }
+        try { await nw.unsafe(s); done++; } catch (e) { const em = String(e.message || ''); if (/default privileges|already a member of|already exists/i.test(em)) benign++; else errs.push(s.slice(0, 60) + ' :: ' + em.slice(0, 120)); }
       }
       st.c1 += rows.length;
-      const msg = `skema: ${done} statement OK (offset ${st.c1})` + (errs.length ? ` | dilewati ${errs.length}: ` + errs.slice(0, 3).join(' // ') : '');
+      const msg = `skema: ${done} statement OK (offset ${st.c1})` + (benign ? ` | ${benign} dilewati wajar (privileges bawaan platform)` : '') + (errs.length ? ` | dilewati ${errs.length}: ` + errs.slice(0, 3).join(' // ') : '');
       if (rows.length < CHUNK) { st.phase = 'data'; st.c1 = 0; st.c2 = 0; return step(msg + '\n-- SKEMA SELESAI \u2192 lanjut data', 'ok'); }
       return step(msg, errs.length ? 'err' : 'ok');
     }
