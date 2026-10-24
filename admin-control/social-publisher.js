@@ -919,8 +919,18 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         openEditModal("character", character);
     }
 
+    let editModalPreviewUrl = null;
+
     function editModalStatus(message, tone = "") {
         status($("edit-modal-status"), message, tone);
+    }
+
+    function loadEditModalCurrentPhoto() {
+        const meta = state.editModal;
+        if (!meta) return;
+        const photo = $("edit-modal-photo");
+        if (meta.type === "character") loadReferencePreview(meta.id, photo);
+        else loadOutfitPreview(meta.id, photo);
     }
 
     function openEditModal(type, data) {
@@ -937,6 +947,10 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         $("edit-modal-order").value = isCharacter ? "" : (data.order_url || "");
         const fileInput = $("edit-modal-file");
         fileInput.value = "";
+        if (editModalPreviewUrl) {
+            URL.revokeObjectURL(editModalPreviewUrl);
+            editModalPreviewUrl = null;
+        }
         $("edit-modal-file-name").textContent = "Tanpa file baru: foto tidak diganti.";
         const photo = $("edit-modal-photo");
         photo.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='74' height='92'%3E%3Crect width='100%25' height='100%25' fill='%231b2737'/%3E%3C/svg%3E";
@@ -955,8 +969,14 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     }
 
     function closeEditModal() {
+        const needsReload = state.editModal?.needsReload === true;
         state.editModal = null;
+        if (editModalPreviewUrl) {
+            URL.revokeObjectURL(editModalPreviewUrl);
+            editModalPreviewUrl = null;
+        }
         $("edit-modal-overlay").hidden = true;
+        if (needsReload) loadDashboard().catch(() => {});
     }
 
     async function saveEditModal() {
@@ -1004,10 +1024,17 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                             : { "X-Outfit-Id": encodeURIComponent(meta.id) })
                     }
                 });
+                /* Panel tetap terbuka supaya foto yang berhasil diunggah
+                   terlihat sebagai review di blok foto sebelum ditutup. */
+                $("edit-modal-file").value = "";
+                $("edit-modal-file-name").textContent = "Foto baru aktif — pratinjau di atas adalah foto yang berhasil diunggah.";
+                editModalStatus(`${isCharacter ? "Karakter" : "Outfit"} diperbarui; foto baru berhasil diunggah.`, "good");
+                state.editModal.needsReload = true;
+            } else {
+                closeEditModal();
+                showNotice(pageMessage, isCharacter ? "Karakter diperbarui." : "Outfit diperbarui.", "success");
+                await loadDashboard();
             }
-            closeEditModal();
-            showNotice(pageMessage, isCharacter ? "Karakter diperbarui." : "Outfit diperbarui.", "success");
-            await loadDashboard();
         } catch (error) {
             editModalStatus(error.message, "error");
         } finally {
@@ -2072,9 +2099,20 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     });
     $("edit-modal-file").addEventListener("change", event => {
         const file = event.target.files?.[0];
-        $("edit-modal-file-name").textContent = file
-            ? `File baru: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) akan diunggah.`
-            : "Tanpa file baru: foto tidak diganti.";
+        const photo = $("edit-modal-photo");
+        if (editModalPreviewUrl) {
+            URL.revokeObjectURL(editModalPreviewUrl);
+            editModalPreviewUrl = null;
+        }
+        if (file) {
+            /* Review langsung: foto terpilih tampil di blok foto sebelum diunggah. */
+            editModalPreviewUrl = URL.createObjectURL(file);
+            photo.src = editModalPreviewUrl;
+            $("edit-modal-file-name").textContent = `File baru: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) — pratinjau ditampilkan, akan diunggah saat Simpan.`;
+        } else {
+            $("edit-modal-file-name").textContent = "Tanpa file baru: foto tidak diganti.";
+            loadEditModalCurrentPhoto();
+        }
     });
     document.addEventListener("keydown", event => {
         if (event.key === "Escape" && !$("edit-modal-overlay").hidden) closeEditModal();
