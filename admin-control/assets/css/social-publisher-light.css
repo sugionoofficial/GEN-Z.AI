@@ -728,3 +728,42 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .schedule-countdown[
 html[data-genz-theme="light"][data-genz-theme="light"] body .schedule-countdown[data-countdown-state="waiting"] .schedule-countdown-value {
     color: #8a5a00 !important;
 }
+
+/* Panel edit mengambang (karakter & outfit) pada mode cerah. */
+html[data-genz-theme="light"] .edit-modal-overlay{background:rgba(238,242,250,.72)}
+html[data-genz-theme="light"] .edit-modal{background:#ffffff;border-color:#b8c4d8;box-shadow:0 20px 60px rgba(40,54,82,.2)}
+html[data-genz-theme="light"] .edit-modal-close{background:#f8f9fd;border-color:#9aa7bc;color:#172033}
+html[data-genz-theme="light"] .edit-modal-close:hover{background:#eef1f8;border-color:#7c8aa0}
+html[data-genz-theme="light"] .edit-modal-preview{background:#f5f7fd;border-color:#d4dce9}
+html[data-genz-theme="light"] .edit-modal-preview img{border-color:#c6d0df;background:#eef1fa}
+html[data-genz-theme="light"] .edit-modal-field label{color:#425068}
+html[data-genz-theme="light"] .edit-modal-field input,
+html[data-genz-theme="light"] .edit-modal-field textarea{background:#ffffff;border-color:#c6d0df;color:#172033}
+
+/* Tombol posting manual mode cerah dipertegas: hijau dengan font hitam, termasuk state loading. */
+html[data-genz-theme="light"][data-genz-theme="light"] body #manual-publish-button,
+html[data-genz-theme="light"][data-genz-theme="light"] body #manual-publish-button:hover,
+html[data-genz-theme="light"][data-genz-theme="light"] body #manual-publish-button:disabled {
+    border: 1px solid #0a8a48 !important;
+    background: #12b866 !important;
+    color: #000000 !important;
+    box-shadow: 0 6px 16px rgba(18, 184, 102, .28) !important;
+    opacity: 1 !important;
+}
+html[data-genz-theme="light"][data-genz-theme="light"] body #manual-publish-button .btn-fx-text,
+html[data-genz-theme="light"][data-genz-theme="light"] body #manual-publish-button .btn-fx-time {
+    color: #000000 !important;
+}
+html[data-genz-theme="light"][data-genz-theme="light"] body #manual-publish-button .btn-fx-time {
+    background: rgba(0, 0, 0, .12) !important;
+    border-color: rgba(0, 0, 0, .35) !important;
+}
+html[data-genz-theme="light"][data-genz-theme="light"] body #manual-publish-button .btn-fx-orbit {
+    border-color: rgba(0, 0, 0, .3) !important;
+    border-top-color: #000000 !important;
+    border-right-color: #065f46 !important;
+    box-shadow: 0 0 10px rgba(0, 0, 0, .18) !important;
+}
+html[data-genz-theme="light"][data-genz-theme="light"] body #manual-publish-button .btn-fx-orbit::after {
+    background: #000000 !important;
+}
