@@ -1,5 +1,6 @@
 import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
-import { decryptSecret, generateSocialContextCaption, generateSocialImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
+import { buildQuoteImagePrompt, createQuotePlan, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule, renderQuoteCaption } from "../../lib/social-publisher/quotes.js";
+import { decryptSecret, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
 import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket } from "../../lib/social-publisher/storage.js";
 import { normalizeQwenCloudImageModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
 import { stripImageMetadata } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
@@ -46,35 +47,81 @@ function table(tableName, query = "") {
 }
 
 async function updateRun(config, runId, values) {
-    await dbRequest(config, table("social_post_runs", `id=eq.${encodeURIComponent(runId)}`), {
-        method: "PATCH",
-        headers: { Prefer: "return=minimal" },
-        body: JSON.stringify(values)
-    });
+    try {
+        await dbRequest(config, table("social_post_runs", `id=eq.${encodeURIComponent(runId)}`), {
+            method: "PATCH",
+            headers: { Prefer: "return=minimal" },
+            body: JSON.stringify(values)
+        });
+    } catch (error) {
+        if (!isMissingQuoteRunColumn(error) || !hasQuoteOrSongRunFields(values)) throw error;
+        const fallbackValues = { ...values };
+        for (const key of ["post_mode", "quote_text", "quote_theme", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
+            delete fallbackValues[key];
+        }
+        await dbRequest(config, table("social_post_runs", `id=eq.${encodeURIComponent(runId)}`), {
+            method: "PATCH",
+            headers: { Prefer: "return=minimal" },
+            body: JSON.stringify(fallbackValues)
+        });
+    }
+}
+
+function hasQuoteOrSongRunFields(values = {}) {
+    return ["post_mode", "quote_text", "quote_theme", "song_id", "song_title", "song_artist", "song_facebook_url"]
+        .some(key => Object.prototype.hasOwnProperty.call(values, key));
+}
+
+function isMissingQuoteRunColumn(error) {
+    if (error?.code === "PGRST204" || error?.code === "42703") {
+        return /(post_mode|quote_text|quote_theme|song_id|song_title|song_artist|song_facebook_url)/i.test(String(error?.message || ""));
+    }
+    return /(post_mode|quote_text|quote_theme|song_id|song_title|song_artist|song_facebook_url)/i.test(String(error?.message || ""))
+        && /does not exist|schema cache|column/i.test(String(error?.message || ""));
 }
 
 const SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive";
 
 const LEGACY_SCHEDULE_COLUMNS = "id,owner_id,character_id,page_connection_id,enabled,interval_hours,aspect_ratio,caption_template,timezone";
+const SCENE_SCHEDULE_COLUMNS = `${LEGACY_SCHEDULE_COLUMNS},autopublish_enabled,scene_location,camera_angle,scene_situation,scene_lighting,scene_atmosphere,scene_condition,scene_details,negative_prompt`;
+const FULL_SCHEDULE_COLUMNS = `${SCENE_SCHEDULE_COLUMNS},post_mode,quote_theme,quote_visual_style,use_random_song`;
 
 function isMissingColumnError(error) {
     const message = String(error?.message || "");
     return /does not exist|schema cache|column/i.test(message);
 }
 
+function isMissingQuoteScheduleColumn(error) {
+    const message = String(error?.message || "");
+    return /\b(post_mode|quote_theme|quote_visual_style|use_random_song)\b/i.test(message)
+        && isMissingColumnError(error);
+}
+
 /**
- * Baris jadwal dengan kolom baru. Bila migration kolom scene belum dijalankan,
+ * Baris jadwal dengan kolom baru. Bila migration kolom quote/scene belum dijalankan,
  * pakai kolom lama supaya autopost tetap berjalan dengan parameter otomatis.
  */
 async function getScheduleForRun(config, scheduleId) {
     try {
         const rows = await dbRequest(config, table(
             "social_post_schedules",
-            `select=${LEGACY_SCHEDULE_COLUMNS},autopublish_enabled,scene_location,camera_angle,scene_situation,scene_lighting,scene_atmosphere,scene_condition,scene_details,negative_prompt&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+            `select=${FULL_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
         ));
         return rows?.[0] || null;
     } catch (error) {
         if (!isMissingColumnError(error)) throw error;
+        if (isMissingQuoteScheduleColumn(error)) {
+            console.warn("[Social Publisher] Kolom quote/musik jadwal belum ada; memakai kolom scene.");
+            try {
+                const rows = await dbRequest(config, table(
+                    "social_post_schedules",
+                    `select=${SCENE_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+                ));
+                return rows?.[0] || null;
+            } catch (sceneError) {
+                if (!isMissingColumnError(sceneError)) throw sceneError;
+            }
+        }
         console.warn("[Social Publisher] Kolom scene jadwal belum ada; memakai kolom lama.");
         const rows = await dbRequest(config, table(
             "social_post_schedules",
@@ -203,20 +250,28 @@ function isMissingOutfitSchema(error) {
     return /social_outfits/i.test(message) && /does not exist|schema cache|relation/i.test(message);
 }
 
+function isMissingSongSchema(error) {
+    if (error?.code === "PGRST205" || error?.code === "42P01") return true;
+    const message = String(error?.message || "");
+    return /social_facebook_songs/i.test(message) && /does not exist|schema cache|relation/i.test(message);
+}
+
 function isMissingRunOutfitColumn(error) {
     if (error?.code === "PGRST204" || error?.code === "42703") return true;
-    return /outfit_id|column .* does not exist/i.test(String(error?.message || ""));
+    return /outfit_id|quote_text|song_id|column .* does not exist/i.test(String(error?.message || ""));
 }
 
 /**
- * Recent posted runs are used to avoid repeating a composition or an outfit.
- * Deployments that have not run the outfit migration still fall back to the
- * scene only history instead of failing the whole run.
+ * Recent posted runs are used to avoid repeating a composition, outfit, quote, or song.
+ * Deployments that have not run newer migrations still fall back to scene-only history.
  */
-async function listRecentPostedRuns(config, scheduleId) {
+async function listRecentPostedRuns(config, scheduleId, includeQuoteMusic = false) {
     const base = `select=scene_plan&schedule_id=eq.${encodeURIComponent(scheduleId)}&status=eq.posted&order=created_at.desc&limit=12`;
+    const columns = includeQuoteMusic
+        ? "scene_plan,quote_text,song_id,song_title,song_artist"
+        : "scene_plan,outfit_id";
     try {
-        return await dbRequest(config, table("social_post_runs", `select=scene_plan,outfit_id&schedule_id=eq.${encodeURIComponent(scheduleId)}&status=eq.posted&order=created_at.desc&limit=12`));
+        return await dbRequest(config, table("social_post_runs", `select=${columns}&schedule_id=eq.${encodeURIComponent(scheduleId)}&status=eq.posted&order=created_at.desc&limit=12`));
     } catch (error) {
         if (!isMissingRunOutfitColumn(error)) throw error;
         return await dbRequest(config, table("social_post_runs", base));
@@ -241,6 +296,32 @@ async function pickScheduledOutfit(config, schedule, previousRuns) {
     if (!Array.isArray(outfits) || !outfits.length) return { outfit: null, ready: true };
     const recentOutfitIds = (previousRuns || []).map(run => run.outfit_id).filter(Boolean);
     return { outfit: pickRandomOutfit(outfits, recentOutfitIds), ready: true };
+}
+
+/**
+ * Loads active Facebook songs saved by the account (or falls back to the built-in
+ * curated popular Facebook songs list when none are saved yet) and picks one at random,
+ * avoiding songs used by recent posts.
+ */
+async function pickScheduledFacebookSong(config, ownerId, previousRuns = []) {
+    let songs = [];
+    try {
+        songs = await dbRequest(config, table(
+            "social_facebook_songs",
+            `select=id,title,artist,facebook_url,mood,is_active,created_at&owner_id=eq.${encodeURIComponent(ownerId)}&is_active=eq.true&order=created_at.desc`
+        ));
+    } catch (error) {
+        if (!isMissingSongSchema(error)) throw error;
+        songs = [];
+    }
+    const recentSongs = (previousRuns || [])
+        .map(run => ({
+            id: run.song_id || run.scene_plan?.song_id || null,
+            title: run.song_title || run.scene_plan?.song_title || "",
+            artist: run.song_artist || run.scene_plan?.song_artist || ""
+        }))
+        .filter(item => item.id || item.title);
+    return pickRandomFacebookSong(songs, recentSongs, Math.random, { fallbackToDefaults: true });
 }
 
 function cleanError(error) {
@@ -291,10 +372,17 @@ async function processRun(env, config, claimedRun) {
             return;
         }
 
+        const postMode = normalizeSocialPostMode(schedule.post_mode);
+        const shouldUseRandomSong = postMode === "quote"
+            ? schedule.use_random_song !== false
+            : schedule.use_random_song === true;
+
         const [characters, pageConnections, previousRuns, settingsRows, publisherConfigs] = await Promise.all([
-            dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
+            postMode === "quote"
+                ? Promise.resolve([])
+                : dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
-            listRecentPostedRuns(config, schedule.id),
+            listRecentPostedRuns(config, schedule.id, postMode === "quote" || shouldUseRandomSong),
             getUserSettingsRow(config, schedule.owner_id),
             dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1"))
         ]);
@@ -311,101 +399,199 @@ async function processRun(env, config, claimedRun) {
             return;
         }
 
-        const character = characters?.[0];
         const page = pageConnections?.[0];
-        if (!character) throw new Error("Character reference was not found.");
         if (!page) throw new Error("Facebook Page connection was not found; reconnect the Page.");
         if (page.can_publish === false) throw new Error("Facebook Page connection does not have CREATE_CONTENT permission.");
-        if (!await isPrivateReferenceBucket(config)) throw new Error("Private Supabase Storage reference bucket is not configured.");
 
-        const referenceBytes = await downloadReferenceObject(config, character.reference_object_key);
-        if (!referenceBytes.length || referenceBytes.length > 8 * 1024 * 1024) throw new Error("Reference image size is invalid.");
-
-        const recentSceneKeys = (previousRuns || [])
-            .map(item => item.scene_plan?.key)
-            .filter(Boolean);
-        const { outfit, ready: outfitLibraryReady } = await pickScheduledOutfit(config, schedule, previousRuns);
-        /* Pakaian hanya dari outfit terpilih; tanpa outfit, pakaian mengikuti
-           foto referensi karakter. Tidak ada unggahan pakaian terpisah. */
-        const garmentObjectKey = outfit?.object_key || "";
-        const garmentMimeType = outfit?.mime_type || "";
         const aspectRatio = ["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16";
         imageProvider = ["cloudflare", "qwencloud"].includes(publisherConfigs?.[0]?.image_provider)
             ? publisherConfigs[0].image_provider
             : "gemini";
         imageModel = normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);
-        const referenceImageUrl = imageProvider === "cloudflare"
-            ? await createSignedReferenceUrl(config, character.reference_object_key)
-            : "";
-        const garmentBytes = garmentObjectKey && imageProvider !== "cloudflare"
-            ? await downloadReferenceObject(config, garmentObjectKey)
-            : null;
-        /* Parameter detail dari blok jadwal: kolom kosong otomatis diacak,
-           angle kosong jatuh ke medium shot. */
-        const scene = applyOutfitToScene(
-            { ...createScenePlan(recentSceneKeys, Math.random, sceneOverridesFromSchedule(schedule)), aspect_ratio: aspectRatio },
-            outfit
-        );
-        const prompt = buildImagePrompt({
-            characterName: character.display_name,
-            characterNotes: character.prompt_notes,
-            scene,
-            aspectRatio,
-            outfitName: outfit?.name,
-            outfitNotes: outfit?.notes,
-            hasOutfitReference: Boolean(garmentObjectKey),
-            useReferenceOutfit: !garmentObjectKey,
-            negativePrompt: schedule.negative_prompt
-        });
-        const generated = await generateSocialImage({
-            env,
-            prompt,
-            referenceBytes,
-            referenceMimeType: character.reference_mime_type,
-            aspectRatio,
-            imageProvider,
-            ...(imageProvider === "cloudflare" ? {
-                personImageUrl: referenceImageUrl,
-                /* Tanpa outfit, foto referensi karakter juga menjadi acuan
-                   pakaian supaya pakaian default mengikuti foto tersebut. */
-                garmentImageUrls: [garmentObjectKey
-                    ? await createSignedReferenceUrl(config, garmentObjectKey)
-                    : referenceImageUrl]
-            } : {}),
-            ...(imageProvider !== "cloudflare" ? {
-                garmentBytes,
-                garmentMimeType,
-                ...(imageProvider === "qwencloud" ? { imageModel } : {})
-            } : {})
-        });
-        if (!generated?.bytes?.length) throw new Error("Image provider returned an empty image.");
-        if (imageProvider === "qwencloud") {
-            recordModelUsage(config, generated.model).catch(recordError => {
-                console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
-            });
-        }
-
-        const cleanedBlob = await stripImageMetadata(
-            new Blob([generated.bytes], { type: generated.mimeType }),
-            generated.mimeType
-        );
-        const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
-        const contextualCaption = await generateSocialContextCaption({
-            env,
-            imageBytes: cleanedBytes,
-            imageMimeType: cleanedBlob.type,
-            characterName: character.display_name,
-            scene,
-            imageProvider
-        });
         const settings = settingsRows?.[0];
-        const baseCaption = renderCaption(settings?.caption_template || schedule.caption_template, scene, character.display_name);
-        const caption = composeSocialCaption({
-            baseCaption,
-            contextualCaption,
-            externalLink: settings?.external_link,
-            outfit: outfit ? { id: outfit.id, name: outfit.name, order_url: outfit.order_url || "" } : null
-        });
+        const song = shouldUseRandomSong
+            ? await pickScheduledFacebookSong(config, schedule.owner_id, previousRuns)
+            : null;
+
+        let scenePlanRecord = null;
+        let prompt = "";
+        let generated = null;
+        let cleanedBlob = null;
+        let cleanedBytes = null;
+        let caption = "";
+        let outfit = null;
+        let outfitLibraryReady = false;
+        let quoteText = "";
+        let quoteThemeLabel = "";
+
+        if (postMode === "quote") {
+            const recentPlanKeys = (previousRuns || [])
+                .map(item => item.scene_plan?.key)
+                .filter(Boolean);
+            const recentQuotes = (previousRuns || [])
+                .map(item => item.quote_text || item.scene_plan?.quote_text)
+                .filter(Boolean);
+            const quotePlan = {
+                ...createQuotePlan(recentPlanKeys, Math.random, quoteOverridesFromSchedule(schedule)),
+                aspect_ratio: aspectRatio
+            };
+            const quoteResult = await generateSocialQuote({
+                env,
+                quotePlan,
+                recentQuotes,
+                imageProvider
+            });
+            quoteText = quoteResult.quoteText;
+            quoteThemeLabel = quotePlan.themeLabel;
+            prompt = buildQuoteImagePrompt({
+                quoteText,
+                quotePlan,
+                aspectRatio,
+                song,
+                negativePrompt: schedule.negative_prompt
+            });
+            generated = await generateSocialQuoteImage({
+                env,
+                prompt,
+                aspectRatio,
+                imageProvider,
+                imageModel
+            });
+            if (!generated?.bytes?.length) throw new Error("Image provider returned an empty quote image.");
+            if (imageProvider === "qwencloud") {
+                recordModelUsage(config, generated.model).catch(recordError => {
+                    console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
+                });
+            }
+            cleanedBlob = await stripImageMetadata(
+                new Blob([generated.bytes], { type: generated.mimeType }),
+                generated.mimeType
+            );
+            cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+            const scheduleTemplate = String(schedule.caption_template || "").trim();
+            const isLegacyDefaultTemplate = scheduleTemplate === "Cerita hari ini dari {location} ✨";
+            const rawTemplate = (!isLegacyDefaultTemplate && scheduleTemplate)
+                ? scheduleTemplate
+                : (settings?.caption_template || "Renungan hari ini ✨ #KataMutiara #GENZAI");
+            const baseCaption = renderQuoteCaption(rawTemplate, quotePlan, quoteText, song);
+            caption = composeSocialCaption({
+                baseCaption,
+                contextualCaption: quoteResult.contextualCaption,
+                externalLink: settings?.external_link,
+                quoteText,
+                song
+            });
+            scenePlanRecord = {
+                ...quotePlan,
+                post_mode: "quote",
+                quote_text: quoteText,
+                ...(song ? {
+                    song_id: song.id || null,
+                    song_title: song.title || "",
+                    song_artist: song.artist || "",
+                    song_facebook_url: song.facebook_url || ""
+                } : {})
+            };
+        } else {
+            const character = characters?.[0];
+            if (!character) throw new Error("Character reference was not found.");
+            if (!await isPrivateReferenceBucket(config)) throw new Error("Private Supabase Storage reference bucket is not configured.");
+
+            const referenceBytes = await downloadReferenceObject(config, character.reference_object_key);
+            if (!referenceBytes.length || referenceBytes.length > 8 * 1024 * 1024) throw new Error("Reference image size is invalid.");
+
+            const recentSceneKeys = (previousRuns || [])
+                .map(item => item.scene_plan?.key)
+                .filter(Boolean);
+            const outfitSelection = await pickScheduledOutfit(config, schedule, previousRuns);
+            outfit = outfitSelection.outfit;
+            outfitLibraryReady = outfitSelection.ready;
+            /* Pakaian hanya dari outfit terpilih; tanpa outfit, pakaian mengikuti
+               foto referensi karakter. Tidak ada unggahan pakaian terpisah. */
+            const garmentObjectKey = outfit?.object_key || "";
+            const garmentMimeType = outfit?.mime_type || "";
+            const referenceImageUrl = imageProvider === "cloudflare"
+                ? await createSignedReferenceUrl(config, character.reference_object_key)
+                : "";
+            const garmentBytes = garmentObjectKey && imageProvider !== "cloudflare"
+                ? await downloadReferenceObject(config, garmentObjectKey)
+                : null;
+            /* Parameter detail dari blok jadwal: kolom kosong otomatis diacak,
+               angle kosong jatuh ke medium shot. */
+            const scene = applyOutfitToScene(
+                { ...createScenePlan(recentSceneKeys, Math.random, sceneOverridesFromSchedule(schedule)), aspect_ratio: aspectRatio },
+                outfit
+            );
+            prompt = buildImagePrompt({
+                characterName: character.display_name,
+                characterNotes: character.prompt_notes,
+                scene,
+                aspectRatio,
+                outfitName: outfit?.name,
+                outfitNotes: outfit?.notes,
+                hasOutfitReference: Boolean(garmentObjectKey),
+                useReferenceOutfit: !garmentObjectKey,
+                negativePrompt: schedule.negative_prompt
+            });
+            generated = await generateSocialImage({
+                env,
+                prompt,
+                referenceBytes,
+                referenceMimeType: character.reference_mime_type,
+                aspectRatio,
+                imageProvider,
+                ...(imageProvider === "cloudflare" ? {
+                    personImageUrl: referenceImageUrl,
+                    /* Tanpa outfit, foto referensi karakter juga menjadi acuan
+                       pakaian supaya pakaian default mengikuti foto tersebut. */
+                    garmentImageUrls: [garmentObjectKey
+                        ? await createSignedReferenceUrl(config, garmentObjectKey)
+                        : referenceImageUrl]
+                } : {}),
+                ...(imageProvider !== "cloudflare" ? {
+                    garmentBytes,
+                    garmentMimeType,
+                    ...(imageProvider === "qwencloud" ? { imageModel } : {})
+                } : {})
+            });
+            if (!generated?.bytes?.length) throw new Error("Image provider returned an empty image.");
+            if (imageProvider === "qwencloud") {
+                recordModelUsage(config, generated.model).catch(recordError => {
+                    console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
+                });
+            }
+
+            cleanedBlob = await stripImageMetadata(
+                new Blob([generated.bytes], { type: generated.mimeType }),
+                generated.mimeType
+            );
+            cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+            const contextualCaption = await generateSocialContextCaption({
+                env,
+                imageBytes: cleanedBytes,
+                imageMimeType: cleanedBlob.type,
+                characterName: character.display_name,
+                scene,
+                imageProvider
+            });
+            const baseCaption = renderCaption(settings?.caption_template || schedule.caption_template, scene, character.display_name);
+            caption = composeSocialCaption({
+                baseCaption,
+                contextualCaption,
+                externalLink: settings?.external_link,
+                outfit: outfit ? { id: outfit.id, name: outfit.name, order_url: outfit.order_url || "" } : null,
+                song
+            });
+            scenePlanRecord = song
+                ? {
+                    ...scene,
+                    song_id: song.id || null,
+                    song_title: song.title || "",
+                    song_artist: song.artist || "",
+                    song_facebook_url: song.facebook_url || ""
+                }
+                : scene;
+        }
 
         const encryptionKey = value(env, "SOCIAL_TOKEN_ENCRYPTION_KEY");
         if (!encryptionKey) throw new Error("SOCIAL_TOKEN_ENCRYPTION_KEY is not configured.");
@@ -426,7 +612,7 @@ async function processRun(env, config, claimedRun) {
 
         await updateRun(config, runId, {
             status: "posted",
-            scene_plan: scene,
+            scene_plan: scenePlanRecord,
             generated_prompt: prompt,
             caption,
             image_model: generated.model,
@@ -434,6 +620,15 @@ async function processRun(env, config, claimedRun) {
                 outfit_id: outfit?.id || null,
                 outfit_name: outfit?.name || null,
                 outfit_order_url: outfit?.order_url || null
+            } : {}),
+            ...(postMode === "quote" || song ? {
+                post_mode: postMode,
+                quote_text: quoteText || "",
+                quote_theme: quoteThemeLabel || "",
+                song_id: song?.id || null,
+                song_title: song?.title || "",
+                song_artist: song?.artist || "",
+                song_facebook_url: song?.facebook_url || ""
             } : {}),
             facebook_photo_id: published.photoId || null,
             facebook_post_id: published.postId || null,

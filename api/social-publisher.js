@@ -20,11 +20,25 @@ import {
     SCENE_PRESETS
 } from "../lib/social-publisher/utils.js";
 import {
+    buildQuoteImagePrompt,
+    cleanQuoteText,
+    createQuotePlan,
+    DEFAULT_FACEBOOK_SONGS,
+    normalizeSocialPostMode,
+    pickRandomFacebookSong,
+    QUOTE_PRESETS,
+    quoteOverridesFromSchedule,
+    renderQuoteCaption,
+    sanitizeFacebookSongUrl
+} from "../lib/social-publisher/quotes.js";
+import {
     checkFacebookPageAccess,
     decryptSecret,
     encryptSecret,
     generateSocialContextCaption,
     generateSocialImage,
+    generateSocialQuote,
+    generateSocialQuoteImage,
     inspectFacebookPageToken,
     makeProfileShareUrl,
     publishFacebookPhoto
@@ -50,6 +64,7 @@ import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-clean
 const GRAPH_VERSION = "v26.0";
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
 const MAX_OUTFITS_PER_CHARACTER = 50;
+const MAX_FACEBOOK_SONGS_PER_USER = 100;
 const SCHEDULE_COLUMNS = [
     "id",
     "character_id",
@@ -70,6 +85,13 @@ const SCHEDULE_COLUMNS = [
     "scene_condition",
     "scene_details",
     "negative_prompt"
+].join(",");
+const SCHEDULE_FULL_COLUMNS = [
+    SCHEDULE_COLUMNS,
+    "post_mode",
+    "quote_theme",
+    "quote_visual_style",
+    "use_random_song"
 ].join(",");
 const OAUTH_STATE_COOKIE = "__Secure-social-oauth-state";
 const OAUTH_STATE_COOKIE_PATH = "/api/facebook-oauth-callback";
@@ -896,12 +918,31 @@ async function listRunsForDashboard(config, userId, paginationOptions = {}) {
         try {
             return await supabaseRequestWithHeaders(
                 config,
-                tablePath("social_post_runs", `select=${columns},outfit_name,outfit_order_url,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`),
+                tablePath("social_post_runs", `select=${columns},outfit_name,outfit_order_url,post_mode,quote_text,quote_theme,song_id,song_title,song_artist,song_facebook_url,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`),
                 requestOptions
             );
         } catch (error) {
+            const msg = String(error?.message || "");
+            if (/(post_mode|quote_text|quote_theme|song_id|song_title|song_artist|song_facebook_url)/i.test(msg)) {
+                try {
+                    return await supabaseRequestWithHeaders(
+                        config,
+                        tablePath("social_post_runs", `select=${columns},outfit_name,outfit_order_url,facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`),
+                        requestOptions
+                    );
+                } catch (outfitError) {
+                    if (outfitError?.code === "PGRST204" || outfitError?.code === "42703" || /outfit_(name|order_url)|column .* does not exist/i.test(outfitError?.message || "")) {
+                        return await supabaseRequestWithHeaders(
+                            config,
+                            tablePath("social_post_runs", `select=${columns},facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`),
+                            requestOptions
+                        );
+                    }
+                    throw outfitError;
+                }
+            }
             // PGRST204/42703: the outfit snapshot columns are added by the outfit migration.
-            if (error?.code === "PGRST204" || error?.code === "42703" || /outfit_(name|order_url)|column .* does not exist/i.test(error?.message || "")) {
+            if (error?.code === "PGRST204" || error?.code === "42703" || /outfit_(name|order_url)|column .* does not exist/i.test(msg)) {
                 return await supabaseRequestWithHeaders(
                     config,
                     tablePath("social_post_runs", `select=${columns},facebook_post_id,permalink_url,profile_share_url,error_message,finished_at,created_at${tail}`),
@@ -1025,6 +1066,9 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         scheduleCount: schedules.length,
         /* Pilihan parameter gambar untuk form jadwal (sumber tunggal di lib). */
         scenePresets: SCENE_PRESETS,
+        /* Pilihan tema kata-kata mutiara, latar estetik, & daftar lagu populer FB. */
+        quotePresets: QUOTE_PRESETS,
+        defaultFacebookSongs: DEFAULT_FACEBOOK_SONGS,
         /* Switch milik user ini saja. Baris yang belum ada dianggap aktif. */
         autopublishEnabled: userSettings?.[0]?.autopublish_enabled !== false,
         /* Master switch untuk seluruh akun; hanya admin/owner yang boleh mengubah. */
@@ -1264,6 +1308,20 @@ function isMissingScheduleSceneSchema(error) {
         && mentionsColumn;
 }
 
+const SCHEDULE_QUOTE_COLUMNS = [
+    "post_mode",
+    "quote_theme",
+    "quote_visual_style",
+    "use_random_song"
+];
+
+function isMissingScheduleQuoteSchema(error) {
+    const message = String(error?.message || "");
+    const mentionsColumn = SCHEDULE_QUOTE_COLUMNS.some(column => message.includes(column));
+    return (error?.code === "PGRST204" || error?.code === "42703" || /does not exist|schema cache|column/i.test(message))
+        && mentionsColumn;
+}
+
 /**
  * Daftar jadwal untuk dashboard. Bila database belum punya kolom baru,
  * query diulang dengan kolom lama agar halaman tetap terbuka dan hanya
@@ -1273,11 +1331,23 @@ async function listSchedulesForDashboard(config, userId) {
     const query = `owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`;
     try {
         return {
-            rows: await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_COLUMNS},created_at,updated_at&${query}`)) || [],
+            rows: await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_FULL_COLUMNS},created_at,updated_at&${query}`)) || [],
             sceneSchemaReady: true
         };
     } catch (error) {
-        console.warn("[Social Publisher] Select jadwal dengan kolom baru gagal:", error?.message || "unknown error");
+        if (isMissingScheduleQuoteSchema(error)) {
+            console.warn("[Social Publisher] Kolom quote/musik jadwal belum ada; memakai kolom scene.");
+            try {
+                return {
+                    rows: await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_COLUMNS},created_at,updated_at&${query}`)) || [],
+                    sceneSchemaReady: true
+                };
+            } catch (sceneError) {
+                console.warn("[Social Publisher] Select jadwal dengan kolom scene gagal:", sceneError?.message || "unknown error");
+            }
+        } else {
+            console.warn("[Social Publisher] Select jadwal dengan kolom baru gagal:", error?.message || "unknown error");
+        }
         const rows = await supabaseRequest(
             config,
             tablePath("social_post_schedules", `select=id,character_id,page_connection_id,enabled,interval_hours,next_run_at,timezone,aspect_ratio,caption_template,created_at,updated_at&${query}`)
@@ -1313,10 +1383,240 @@ async function getUserSettingsForDashboard(config, userId) {
 }
 
 function rethrowMissingScheduleSceneSchema(error) {
+    if (isMissingScheduleQuoteSchema(error)) {
+        const wrapped = new Error("Kolom mode Kata-kata Mutiara dan Lagu Facebook belum tersedia di database. Jalankan supabase/social-quote-music.sql di Supabase SQL Editor, lalu simpan lagi.");
+        wrapped.status = 503;
+        throw wrapped;
+    }
     if (!isMissingScheduleSceneSchema(error)) throw error;
     const wrapped = new Error("Kolom parameter gambar dan autopublish jadwal belum tersedia. Jalankan supabase/social-schedule-autopublish-scene.sql di Supabase SQL Editor, lalu simpan lagi.");
     wrapped.status = 503;
     throw wrapped;
+}
+
+function isMissingSongSchema(error) {
+    const message = String(error?.message || "");
+    return error?.code === "PGRST205" ||
+        error?.code === "42P01" ||
+        (/social_facebook_songs/i.test(message) && /does not exist|schema cache|relation/i.test(message));
+}
+
+function isMissingQuoteRunColumns(error) {
+    const message = String(error?.message || "");
+    return (error?.code === "PGRST204" || error?.code === "42703" || /does not exist|schema cache|column/i.test(message))
+        && /(post_mode|quote_text|quote_theme|song_id|song_title|song_artist|song_facebook_url)/i.test(message);
+}
+
+async function listFacebookSongs(config, userId, { activeOnly = false } = {}) {
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_facebook_songs", [
+            "select=id,title,artist,facebook_url,mood,is_active,created_at,updated_at",
+            `owner_id=eq.${encodeURIComponent(userId)}`,
+            activeOnly ? "is_active=eq.true" : "",
+            "order=created_at.desc"
+        ].filter(Boolean).join("&"))
+    );
+    return Array.isArray(rows) ? rows : [];
+}
+
+async function listFacebookSongsForUser(config, userId) {
+    try {
+        return { songs: await listFacebookSongs(config, userId), ready: true };
+    } catch (error) {
+        if (isMissingSongSchema(error)) return { songs: [], ready: false };
+        throw error;
+    }
+}
+
+async function saveFacebookSong(config, userId, body = {}) {
+    const id = cleanText(body.id, 80);
+    const title = cleanText(body.title, 140);
+    const artist = cleanText(body.artist, 120);
+    const mood = cleanText(body.mood, 60);
+    const rawUrl = cleanText(body.facebook_url, 500);
+    const isActive = typeof body.is_active === "boolean" ? body.is_active : true;
+
+    if (!title) {
+        const error = new Error("Judul lagu wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+
+    let safeUrl = "";
+    if (rawUrl) {
+        safeUrl = sanitizeFacebookSongUrl(rawUrl);
+        if (!safeUrl) {
+            const error = new Error("Link lagu harus menggunakan URL HTTPS resmi Facebook (facebook.com atau fb.watch), atau kosongkan bila hanya menyimpan judul lagu.");
+            error.status = 400;
+            throw error;
+        }
+    }
+
+    const now = new Date().toISOString();
+    const payload = {
+        title,
+        artist,
+        facebook_url: safeUrl,
+        mood,
+        is_active: isActive,
+        updated_at: now
+    };
+
+    try {
+        if (id) {
+            const updated = await supabaseRequest(
+                config,
+                tablePath("social_facebook_songs", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id,title,artist,facebook_url,mood,is_active,created_at,updated_at`),
+                {
+                    method: "PATCH",
+                    headers: { Prefer: "return=representation" },
+                    body: JSON.stringify(payload)
+                }
+            );
+            if (!updated?.length) {
+                const error = new Error("Lagu Facebook tidak ditemukan.");
+                error.status = 404;
+                throw error;
+            }
+            return updated[0];
+        }
+
+        const existing = await listFacebookSongs(config, userId);
+        if (existing.length >= MAX_FACEBOOK_SONGS_PER_USER) {
+            const error = new Error(`Koleksi lagu penuh (maksimal ${MAX_FACEBOOK_SONGS_PER_USER} lagu per akun). Hapus lagu lama terlebih dahulu.`);
+            error.status = 409;
+            throw error;
+        }
+
+        const created = await supabaseRequest(
+            config,
+            tablePath("social_facebook_songs", "select=id,title,artist,facebook_url,mood,is_active,created_at,updated_at"),
+            {
+                method: "POST",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify({
+                    owner_id: userId,
+                    ...payload
+                })
+            }
+        );
+        return created?.[0] || null;
+    } catch (error) {
+        if (isMissingSongSchema(error)) {
+            const wrapped = new Error("Tabel koleksi lagu Facebook belum tersedia. Jalankan supabase/social-quote-music.sql di Supabase SQL Editor.");
+            wrapped.status = 503;
+            throw wrapped;
+        }
+        throw error;
+    }
+}
+
+async function deleteFacebookSong(config, userId, body = {}) {
+    const id = cleanText(body.id, 80);
+    if (!id) {
+        const error = new Error("ID lagu wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+    try {
+        await supabaseRequest(
+            config,
+            tablePath("social_facebook_songs", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}`),
+            { method: "DELETE" }
+        );
+        return { id };
+    } catch (error) {
+        if (isMissingSongSchema(error)) {
+            const wrapped = new Error("Tabel koleksi lagu Facebook belum tersedia. Jalankan supabase/social-quote-music.sql di Supabase SQL Editor.");
+            wrapped.status = 503;
+            throw wrapped;
+        }
+        throw error;
+    }
+}
+
+async function seedDefaultFacebookSongs(config, userId) {
+    try {
+        const existing = await listFacebookSongs(config, userId);
+        const existingKeys = new Set(
+            existing.map(song => `${String(song.title || "").trim().toLowerCase()}::${String(song.artist || "").trim().toLowerCase()}`)
+        );
+        const availableSlots = Math.max(0, MAX_FACEBOOK_SONGS_PER_USER - existing.length);
+        const toInsert = DEFAULT_FACEBOOK_SONGS
+            .filter(song => !existingKeys.has(`${song.title.toLowerCase()}::${song.artist.toLowerCase()}`))
+            .slice(0, availableSlots)
+            .map(song => ({
+                owner_id: userId,
+                title: song.title,
+                artist: song.artist,
+                mood: song.mood || "",
+                facebook_url: sanitizeFacebookSongUrl(song.facebook_url),
+                is_active: true
+            }));
+
+        if (toInsert.length > 0) {
+            await supabaseRequest(
+                config,
+                tablePath("social_facebook_songs"),
+                {
+                    method: "POST",
+                    headers: { Prefer: "return=minimal" },
+                    body: JSON.stringify(toInsert)
+                }
+            );
+        }
+        const songs = await listFacebookSongs(config, userId);
+        return { added: toInsert.length, songs };
+    } catch (error) {
+        if (isMissingSongSchema(error)) {
+            const wrapped = new Error("Tabel koleksi lagu Facebook belum tersedia. Jalankan supabase/social-quote-music.sql di Supabase SQL Editor.");
+            wrapped.status = 503;
+            throw wrapped;
+        }
+        throw error;
+    }
+}
+
+async function pickSongForPost(config, userId) {
+    let songs = [];
+    try {
+        songs = await listFacebookSongs(config, userId, { activeOnly: true });
+    } catch (error) {
+        if (!isMissingSongSchema(error)) throw error;
+        songs = [];
+    }
+
+    let recentSongs = [];
+    try {
+        const recentRuns = await supabaseRequest(
+            config,
+            tablePath("social_post_runs", `select=song_id,song_title,song_artist,scene_plan&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=8`)
+        );
+        recentSongs = (recentRuns || [])
+            .map(run => ({
+                id: run.song_id || run.scene_plan?.song_id || null,
+                title: run.song_title || run.scene_plan?.song_title || "",
+                artist: run.song_artist || run.scene_plan?.song_artist || ""
+            }))
+            .filter(item => item.id || item.title);
+    } catch {
+        // Riwayat lagu hanya untuk variasi; jangan memblokir posting bila kolom belum ada.
+    }
+
+    return pickRandomFacebookSong(songs, recentSongs, Math.random, { fallbackToDefaults: true });
+}
+
+function quoteAndSongRunValues({ postMode = "character", quoteText = "", quoteTheme = "", song = null } = {}) {
+    return {
+        post_mode: postMode,
+        quote_text: String(quoteText || "").slice(0, 500),
+        quote_theme: String(quoteTheme || "").slice(0, 120),
+        song_id: song?.id || null,
+        song_title: String(song?.title || "").slice(0, 140),
+        song_artist: String(song?.artist || "").slice(0, 120),
+        song_facebook_url: sanitizeFacebookSongUrl(song?.facebook_url)
+    };
 }
 
 function normalizeOutfitOrderUrl(value) {
@@ -1800,12 +2100,22 @@ function resolvePostLimit(profile) {
 }
 
 async function saveSchedule(config, userId, body, profile) {
-    const characterId = cleanText(body?.character_id, 80);
+    const postMode = normalizeSocialPostMode(body?.post_mode);
+    const isQuoteMode = postMode === "quote";
+    const hasExplicitQuoteFields = isQuoteMode ||
+        body?.post_mode !== undefined ||
+        body?.quote_theme !== undefined ||
+        body?.quote_visual_style !== undefined ||
+        body?.use_random_song !== undefined;
+    const characterId = isQuoteMode ? "" : cleanText(body?.character_id, 80);
     const pageConnectionId = cleanText(body?.page_connection_id, 80);
     const nextRunAt = Date.parse(String(body?.next_run_at || ""));
     const timezone = cleanText(body?.timezone, 80) || "Asia/Jakarta";
     const aspectRatio = normalizeSocialAspectRatio(body?.aspect_ratio);
-    const captionTemplate = cleanText(body?.caption_template, 1000) || "Cerita hari ini dari {location} ✨";
+    const defaultCaption = isQuoteMode
+        ? "Renungan hari ini ✨ #KataMutiara #GENZAI"
+        : "Cerita hari ini dari {location} ✨";
+    const captionTemplate = cleanText(body?.caption_template, 1000) || defaultCaption;
     const id = cleanText(body?.id, 80);
     /* Parameter detail gambar. String kosong berarti otomatis. */
     const sceneParams = {
@@ -1817,6 +2127,14 @@ async function saveSchedule(config, userId, body, profile) {
         scene_condition: cleanText(body?.scene_condition, 300),
         scene_details: cleanText(body?.scene_details, 400),
         negative_prompt: cleanText(body?.negative_prompt, 400)
+    };
+    const quoteParams = {
+        post_mode: postMode,
+        quote_theme: isQuoteMode ? cleanText(body?.quote_theme, 120) : "",
+        quote_visual_style: isQuoteMode ? cleanText(body?.quote_visual_style, 240) : "",
+        use_random_song: typeof body?.use_random_song === "boolean"
+            ? body.use_random_song
+            : isQuoteMode
     };
     const scheduleAutopublish = typeof body?.autopublish_enabled === "boolean" ? body.autopublish_enabled : true;
 
@@ -1834,9 +2152,11 @@ async function saveSchedule(config, userId, body, profile) {
         : Number(body?.interval_hours) * 60;
     const intervalMinutes = clampIntervalMinutes(requestedMinutes, minIntervalMinutes, maxIntervalMinutes);
 
-    if (!characterId || !pageConnectionId || !intervalMinutes || !aspectRatio || !Number.isFinite(nextRunAt) || nextRunAt < Date.now() - 60_000) {
+    if ((!isQuoteMode && !characterId) || !pageConnectionId || !intervalMinutes || !aspectRatio || !Number.isFinite(nextRunAt) || nextRunAt < Date.now() - 60_000) {
         const error = new Error(
-            `Pilih karakter, Facebook Page, rasio 9:16 atau 16:9, interval ${minIntervalMinutes}–${maxIntervalMinutes} menit (minimal ${formatIntervalMinutes(minIntervalMinutes)} untuk role ${role}), dan waktu mulai yang valid.`
+            isQuoteMode
+                ? `Pilih Facebook Page, rasio 9:16 atau 16:9, interval ${minIntervalMinutes}–${maxIntervalMinutes} menit (minimal ${formatIntervalMinutes(minIntervalMinutes)} untuk role ${role}), dan waktu mulai yang valid.`
+                : `Pilih karakter, Facebook Page, rasio 9:16 atau 16:9, interval ${minIntervalMinutes}–${maxIntervalMinutes} menit (minimal ${formatIntervalMinutes(minIntervalMinutes)} untuk role ${role}), dan waktu mulai yang valid.`
         );
         error.status = 400;
         throw error;
@@ -1848,11 +2168,13 @@ async function saveSchedule(config, userId, body, profile) {
     }
 
     const [characters, pages] = await Promise.all([
-        supabaseRequest(config, tablePath("social_characters", `select=id&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
+        isQuoteMode
+            ? Promise.resolve([{ id: null }])
+            : supabaseRequest(config, tablePath("social_characters", `select=id&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)),
         supabaseRequest(config, tablePath("social_page_connections", `select=id,can_publish&id=eq.${encodeURIComponent(pageConnectionId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`))
     ]);
     if (!characters?.length || !pages?.length) {
-        const error = new Error("Karakter atau koneksi Page tidak ditemukan.");
+        const error = new Error(isQuoteMode ? "Koneksi Facebook Page tidak ditemukan." : "Karakter atau koneksi Page tidak ditemukan.");
         error.status = 404;
         throw error;
     }
@@ -1864,7 +2186,7 @@ async function saveSchedule(config, userId, body, profile) {
 
     const values = {
         owner_id: userId,
-        character_id: characterId,
+        character_id: isQuoteMode ? null : characterId,
         page_connection_id: pageConnectionId,
         interval_hours: Math.min(168, Math.max(1, Math.round(intervalMinutes / 60))),
         interval_minutes: intervalMinutes,
@@ -1873,6 +2195,7 @@ async function saveSchedule(config, userId, body, profile) {
         aspect_ratio: aspectRatio,
         caption_template: captionTemplate,
         ...sceneParams,
+        ...(hasExplicitQuoteFields ? quoteParams : {}),
         enabled: body?.enabled === true,
         updated_at: new Date().toISOString()
     };
@@ -1882,12 +2205,39 @@ async function saveSchedule(config, userId, body, profile) {
         values.autopublish_enabled = scheduleAutopublish;
     }
 
+    const selectColumns = hasExplicitQuoteFields ? SCHEDULE_FULL_COLUMNS : SCHEDULE_COLUMNS;
+
+    async function writeScheduleRow(method, querySuffix = "") {
+        try {
+            return await supabaseRequest(
+                config,
+                tablePath("social_post_schedules", `${querySuffix ? `${querySuffix}&` : ""}select=${selectColumns}`),
+                {
+                    method,
+                    headers: { Prefer: "return=representation" },
+                    body: JSON.stringify(values)
+                }
+            );
+        } catch (error) {
+            if (!isQuoteMode && hasExplicitQuoteFields && isMissingScheduleQuoteSchema(error) && !quoteParams.use_random_song) {
+                const legacyValues = { ...values };
+                for (const key of SCHEDULE_QUOTE_COLUMNS) delete legacyValues[key];
+                return await supabaseRequest(
+                    config,
+                    tablePath("social_post_schedules", `${querySuffix ? `${querySuffix}&` : ""}select=${SCHEDULE_COLUMNS}`),
+                    {
+                        method,
+                        headers: { Prefer: "return=representation" },
+                        body: JSON.stringify(legacyValues)
+                    }
+                ).catch(rethrowMissingScheduleSceneSchema);
+            }
+            return rethrowMissingScheduleSceneSchema(error);
+        }
+    }
+
     if (id) {
-        const rows = await supabaseRequest(config, tablePath("social_post_schedules", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&select=${SCHEDULE_COLUMNS}`), {
-            method: "PATCH",
-            headers: { Prefer: "return=representation" },
-            body: JSON.stringify(values)
-        }).catch(rethrowMissingScheduleSceneSchema);
+        const rows = await writeScheduleRow("PATCH", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}`);
         if (!rows?.length) {
             const error = new Error("Jadwal tidak ditemukan.");
             error.status = 404;
@@ -1913,20 +2263,54 @@ async function saveSchedule(config, userId, body, profile) {
         }
     }
 
-    const rows = await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_COLUMNS}`), {
-        method: "POST",
-        headers: { Prefer: "return=representation" },
-        body: JSON.stringify(values)
-    }).catch(rethrowMissingScheduleSceneSchema);
+    const rows = await writeScheduleRow("POST");
     return rows?.[0] || null;
 }
 
+async function patchManualRunWithFallback(config, runId, userId, bodyValues) {
+    try {
+        await supabaseRequest(
+            config,
+            tablePath("social_post_runs", `id=eq.${encodeURIComponent(runId)}&owner_id=eq.${encodeURIComponent(userId)}`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify(bodyValues)
+            }
+        );
+    } catch (error) {
+        if (!isMissingQuoteRunColumns(error)) throw error;
+        const fallback = { ...bodyValues };
+        for (const key of ["post_mode", "quote_text", "quote_theme", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
+            delete fallback[key];
+        }
+        await supabaseRequest(
+            config,
+            tablePath("social_post_runs", `id=eq.${encodeURIComponent(runId)}&owner_id=eq.${encodeURIComponent(userId)}`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify(fallback)
+            }
+        );
+    }
+}
+
 async function generateManualPost(config, userId, env, body = {}) {
-    const characterId = cleanText(body.character_id, 80);
+    const postMode = normalizeSocialPostMode(body.post_mode);
+    const isQuoteMode = postMode === "quote";
+    const useRandomSong = typeof body.use_random_song === "boolean"
+        ? body.use_random_song
+        : isQuoteMode;
+    const characterId = isQuoteMode ? "" : cleanText(body.character_id, 80);
     const pageConnectionId = cleanText(body.page_connection_id, 80);
     const aspectRatio = normalizeSocialAspectRatio(body.aspect_ratio);
-    if (!characterId || !pageConnectionId) {
-        const error = new Error("Pilih karakter tersimpan dan Facebook Page sebelum membuat pratinjau.");
+    if ((!isQuoteMode && !characterId) || !pageConnectionId) {
+        const error = new Error(
+            isQuoteMode
+                ? "Pilih Facebook Page sebelum membuat pratinjau kata-kata mutiara."
+                : "Pilih karakter tersimpan dan Facebook Page sebelum membuat pratinjau."
+        );
         error.status = 400;
         throw error;
     }
@@ -1955,26 +2339,32 @@ async function generateManualPost(config, userId, env, body = {}) {
         error.status = 503;
         throw error;
     }
-    if (!await isPrivateReferenceBucket(config)) {
+    if (!isQuoteMode && !await isPrivateReferenceBucket(config)) {
         const error = new Error("Bucket privat Supabase Storage untuk foto karakter belum tersedia.");
         error.status = 503;
         throw error;
     }
 
     const [characters, pages] = await Promise.all([
-        supabaseRequest(
-            config,
-            tablePath("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
-        ),
+        isQuoteMode
+            ? Promise.resolve([])
+            : supabaseRequest(
+                config,
+                tablePath("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(characterId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+            ),
         supabaseRequest(
             config,
             tablePath("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(pageConnectionId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
         )
     ]);
-    const character = characters?.[0];
+    const character = characters?.[0] || null;
     const page = pages?.[0];
-    if (!character || !page) {
-        const error = new Error("Karakter atau koneksi Facebook Page tidak ditemukan untuk akun ini.");
+    if ((!isQuoteMode && !character) || !page) {
+        const error = new Error(
+            isQuoteMode
+                ? "Koneksi Facebook Page tidak ditemukan untuk akun ini."
+                : "Karakter atau koneksi Facebook Page tidak ditemukan untuk akun ini."
+        );
         error.status = 404;
         throw error;
     }
@@ -1984,13 +2374,16 @@ async function generateManualPost(config, userId, env, body = {}) {
         throw error;
     }
 
-    /* Pakaian hanya berasal dari outfit yang dipilih. Tanpa outfit, pakaian
-       mengikuti foto referensi karakter (tidak ada unggahan pakaian terpisah). */
-    const { outfit, ready: outfitLibraryReady } = await pickOutfitForPost(config, userId, characterId);
+    /* Pakaian hanya berasal dari outfit yang dipilih pada mode karakter. */
+    const outfitSelection = isQuoteMode
+        ? { outfit: null, ready: false }
+        : await pickOutfitForPost(config, userId, characterId);
+    const outfit = outfitSelection.outfit;
+    const outfitLibraryReady = outfitSelection.ready;
     const garmentObjectKey = outfit?.object_key || "";
     const garmentMimeType = outfit?.mime_type || "";
 
-    const [settingsRows, previousPreviews] = await Promise.all([
+    const [settingsRows, previousPreviews, song] = await Promise.all([
         supabaseRequest(
             config,
             tablePath("social_publisher_user_settings", `select=caption_template,external_link&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
@@ -1998,7 +2391,8 @@ async function generateManualPost(config, userId, env, body = {}) {
         supabaseRequest(
             config,
             tablePath("social_post_runs", "select=id&status=eq.generating&schedule_id=is.null&owner_id=eq." + encodeURIComponent(userId))
-        )
+        ),
+        useRandomSong ? pickSongForPost(config, userId) : Promise.resolve(null)
     ]);
     for (const previous of previousPreviews || []) {
         await supabaseRequest(
@@ -2015,25 +2409,48 @@ async function generateManualPost(config, userId, env, body = {}) {
             }
         );
     }
-    const postingSettings = settingsRows?.[0] || { caption_template: "Cerita hari ini ✨", external_link: "" };
+    const postingSettings = settingsRows?.[0] || {
+        caption_template: isQuoteMode ? "Renungan hari ini ✨ #KataMutiara #GENZAI" : "Cerita hari ini ✨",
+        external_link: ""
+    };
     const now = new Date().toISOString();
-    const runRows = await supabaseRequest(
-        config,
-        tablePath("social_post_runs", "select=id,status,scheduled_for,created_at"),
-        {
-            method: "POST",
-            headers: { Prefer: "return=representation" },
-            body: JSON.stringify({
-                owner_id: userId,
-                schedule_id: null,
-                page_connection_id: pageConnectionId,
-                status: "generating",
-                scheduled_for: now,
-                started_at: now,
-                ...(outfitLibraryReady ? outfitRunValues(outfit) : {})
-            })
+    let runRows;
+    const initialRunBody = {
+        owner_id: userId,
+        schedule_id: null,
+        page_connection_id: pageConnectionId,
+        status: "generating",
+        scheduled_for: now,
+        started_at: now,
+        ...(outfitLibraryReady ? outfitRunValues(outfit) : {}),
+        ...(isQuoteMode || song ? quoteAndSongRunValues({ postMode, song }) : {})
+    };
+    try {
+        runRows = await supabaseRequest(
+            config,
+            tablePath("social_post_runs", "select=id,status,scheduled_for,created_at"),
+            {
+                method: "POST",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify(initialRunBody)
+            }
+        );
+    } catch (insertError) {
+        if (!isMissingQuoteRunColumns(insertError)) throw insertError;
+        const legacyRunBody = { ...initialRunBody };
+        for (const key of ["post_mode", "quote_text", "quote_theme", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
+            delete legacyRunBody[key];
         }
-    );
+        runRows = await supabaseRequest(
+            config,
+            tablePath("social_post_runs", "select=id,status,scheduled_for,created_at"),
+            {
+                method: "POST",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify(legacyRunBody)
+            }
+        );
+    }
     const run = runRows?.[0];
     if (!run?.id) {
         const error = new Error("Run posting manual gagal dicatat.");
@@ -2042,6 +2459,119 @@ async function generateManualPost(config, userId, env, body = {}) {
     }
 
     try {
+        if (isQuoteMode) {
+            let recentQuotes = [];
+            try {
+                const recentQuoteRuns = await supabaseRequest(
+                    config,
+                    tablePath("social_post_runs", `select=quote_text,scene_plan&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=8`)
+                );
+                recentQuotes = (recentQuoteRuns || [])
+                    .map(item => item.quote_text || item.scene_plan?.quote_text)
+                    .filter(Boolean);
+            } catch {
+                // Jangan blokir pratinjau bila riwayat kutipan belum tersedia.
+            }
+            const quotePlan = {
+                ...createQuotePlan([], Math.random, quoteOverridesFromSchedule({
+                    quote_theme: body.quote_theme,
+                    quote_visual_style: body.quote_visual_style,
+                    scene_details: body.scene_details
+                })),
+                aspect_ratio: aspectRatio
+            };
+            const manualCustomQuote = cleanQuoteText(body.custom_quote);
+            const quoteResult = manualCustomQuote
+                ? {
+                    quoteText: manualCustomQuote,
+                    contextualCaption: "Semoga kutipan hari ini memberi ketenangan dan semangat baru untuk langkahmu."
+                }
+                : await generateSocialQuote({
+                    env,
+                    quotePlan,
+                    recentQuotes,
+                    imageProvider
+                });
+            const quoteText = quoteResult.quoteText;
+            const prompt = buildQuoteImagePrompt({
+                quoteText,
+                quotePlan,
+                aspectRatio,
+                song,
+                negativePrompt: body.negative_prompt
+            });
+            const generated = await generateSocialQuoteImage({
+                env,
+                prompt,
+                aspectRatio,
+                imageProvider,
+                imageModel
+            });
+            if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar kata-kata mutiara.");
+            if (imageProvider === "qwencloud") {
+                recordModelUsage(config, generated.model).catch(recordError => {
+                    console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
+                });
+            }
+            const cleanedBlob = await stripImageMetadata(
+                new Blob([generated.bytes], { type: generated.mimeType }),
+                generated.mimeType
+            );
+            const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+            const baseCaption = renderQuoteCaption(postingSettings.caption_template, quotePlan, quoteText, song);
+            const caption = composeSocialCaption({
+                baseCaption,
+                contextualCaption: quoteResult.contextualCaption,
+                externalLink: postingSettings.external_link,
+                quoteText,
+                song
+            });
+            const sceneRecord = {
+                ...quotePlan,
+                post_mode: "quote",
+                quote_text: quoteText,
+                ...(song ? {
+                    song_id: song.id || null,
+                    song_title: song.title || "",
+                    song_artist: song.artist || "",
+                    song_facebook_url: song.facebook_url || ""
+                } : {})
+            };
+
+            await patchManualRunWithFallback(config, run.id, userId, {
+                status: "generating",
+                scene_plan: sceneRecord,
+                generated_prompt: prompt,
+                caption,
+                image_model: generated.model,
+                ...quoteAndSongRunValues({
+                    postMode: "quote",
+                    quoteText,
+                    quoteTheme: quotePlan.themeLabel,
+                    song
+                }),
+                error_message: null
+            });
+
+            return {
+                run_id: run.id,
+                status: "preview",
+                post_mode: "quote",
+                page_name: page.page_name,
+                image_base64: bytesToBase64(cleanedBytes),
+                image_mime_type: cleanedBlob.type,
+                image_model: generated.model,
+                aspect_ratio: aspectRatio,
+                scene: sceneRecord,
+                quote_text: quoteText,
+                quote_theme: quotePlan.themeLabel,
+                contextual_caption: quoteResult.contextualCaption,
+                caption,
+                outfit: null,
+                song: song || null
+            };
+        }
+
         const referenceBytes = await downloadReferenceObject(config, character.reference_object_key);
         if (!referenceBytes.length || referenceBytes.length > MAX_REFERENCE_BYTES) {
             throw new Error("Ukuran foto referensi karakter tidak valid.");
@@ -2111,26 +2641,29 @@ async function generateManualPost(config, userId, env, body = {}) {
             baseCaption,
             contextualCaption,
             externalLink: postingSettings.external_link,
-            outfit: outfitCaptionSource(outfit)
+            outfit: outfitCaptionSource(outfit),
+            song
         });
-
-        await supabaseRequest(
-            config,
-            tablePath("social_post_runs", `id=eq.${encodeURIComponent(run.id)}&owner_id=eq.${encodeURIComponent(userId)}`),
-            {
-                method: "PATCH",
-                headers: { Prefer: "return=minimal" },
-                body: JSON.stringify({
-                    status: "generating",
-                    scene_plan: scene,
-                    generated_prompt: prompt,
-                    caption,
-                    image_model: generated.model,
-                    ...(outfitLibraryReady ? outfitRunValues(outfit) : {}),
-                    error_message: null
-                })
+        const sceneRecord = song
+            ? {
+                ...scene,
+                song_id: song.id || null,
+                song_title: song.title || "",
+                song_artist: song.artist || "",
+                song_facebook_url: song.facebook_url || ""
             }
-        );
+            : scene;
+
+        await patchManualRunWithFallback(config, run.id, userId, {
+            status: "generating",
+            scene_plan: sceneRecord,
+            generated_prompt: prompt,
+            caption,
+            image_model: generated.model,
+            ...(outfitLibraryReady ? outfitRunValues(outfit) : {}),
+            ...(song ? quoteAndSongRunValues({ postMode: "character", song }) : {}),
+            error_message: null
+        });
         return {
             run_id: run.id,
             status: "preview",
@@ -2139,10 +2672,11 @@ async function generateManualPost(config, userId, env, body = {}) {
             image_mime_type: cleanedBlob.type,
             image_model: generated.model,
             aspect_ratio: aspectRatio,
-            scene,
+            scene: sceneRecord,
             contextual_caption: contextualCaption,
             caption,
-            outfit: outfitCaptionSource(outfit)
+            outfit: outfitCaptionSource(outfit),
+            ...(song ? { song } : {})
         };
     } catch (error) {
         if (imageProvider === "qwencloud" && (error?.quotaExhausted === true || error?.status === 429)) {
@@ -2543,6 +3077,15 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
     if (action === "delete-outfit") {
         return json(res, 200, { success: true, ...(await deleteOutfit(config, userId, body)) });
     }
+    if (action === "save-song") {
+        return json(res, 200, { success: true, song: await saveFacebookSong(config, userId, body) });
+    }
+    if (action === "delete-song") {
+        return json(res, 200, { success: true, ...(await deleteFacebookSong(config, userId, body)) });
+    }
+    if (action === "seed-default-songs") {
+        return json(res, 200, { success: true, ...(await seedDefaultFacebookSongs(config, userId)) });
+    }
     if (action === "save-schedule") {
         return json(res, 200, { success: true, schedule: await saveSchedule(config, userId, body, profile) });
     }
@@ -2642,6 +3185,15 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
             success: true,
             outfitLibraryReady: ready,
             outfits: characterId ? outfits.filter(outfit => outfit.character_id === characterId) : outfits
+        });
+    }
+    if (action === "songs") {
+        const { songs, ready } = await listFacebookSongsForUser(config, userId);
+        return json(res, 200, {
+            success: true,
+            songLibraryReady: ready,
+            songs,
+            defaultSongs: DEFAULT_FACEBOOK_SONGS
         });
     }
     if (action === "oauth-start") {
