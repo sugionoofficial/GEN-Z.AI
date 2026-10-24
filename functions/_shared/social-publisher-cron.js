@@ -3,7 +3,7 @@ import { buildQuoteImagePrompt, createQuotePlan, normalizeQuotePublishTarget, no
 import { decryptSecret, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookQuoteVideo } from "../../lib/social-publisher/providers.js";
 import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
 import { encodeStoryMp4, maxQuoteVideoDurationForTarget, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
-import { normalizeQwenCloudImageModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
+import { normalizeQwenCloudImageModel, normalizeQwenCloudLlmModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
 import { stripImageMetadata } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
 function value(env, key) {
@@ -413,7 +413,8 @@ async function processRun(env, config, claimedRun) {
             dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             listRecentPostedRuns(config, schedule.id, postMode === "quote" || shouldUseRandomSong),
             getUserSettingsRow(config, schedule.owner_id),
-            dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1"))
+            dbRequest(config, table("social_publisher_config", "select=image_provider,image_model,quote_llm_model&id=eq.true&limit=1"))
+                .catch(() => dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1")))
         ]);
         /* Switch autopublish milik user. RPC claim sudah menyaringnya; guard ini
            menjaga run yang terlanjur diklaim sebelum migration dijalankan. */
@@ -439,6 +440,7 @@ async function processRun(env, config, claimedRun) {
             ? publisherConfigs[0].image_provider
             : "gemini";
         imageModel = normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);
+        const quoteLlmModel = normalizeQwenCloudLlmModel(publisherConfigs?.[0]?.quote_llm_model);
         const settings = settingsRows?.[0];
         const song = shouldUseRandomSong
             ? await pickScheduledFacebookSong(config, schedule.owner_id, previousRuns, {
@@ -470,38 +472,29 @@ async function processRun(env, config, claimedRun) {
                 ...createQuotePlan(recentPlanKeys, Math.random, quoteOverridesFromSchedule(schedule)),
                 aspect_ratio: "9:16"
             };
+            const quoteAiProvider = value(env, "QWENCLOUD_API_KEY") ? "qwencloud" : imageProvider;
             const quoteResult = await generateSocialQuote({
                 env,
                 quotePlan,
                 recentQuotes,
-                imageProvider
+                imageProvider: quoteAiProvider,
+                llmModel: quoteLlmModel
             });
-            quoteText = quoteResult.quoteText;
-            quoteThemeLabel = quotePlan.themeLabel;
-            prompt = buildQuoteImagePrompt({
-                quotePlan,
-                aspectRatio: "9:16",
-                negativePrompt: schedule.negative_prompt
-            });
-            generated = await generateSocialQuoteImage({
-                env,
-                prompt,
-                aspectRatio: "9:16",
-                imageProvider,
-                imageModel
-            });
-            if (!generated?.bytes?.length) throw new Error("Image provider returned an empty quote background image.");
-            if (imageProvider === "qwencloud") {
-                recordModelUsage(config, generated.model).catch(recordError => {
-                    console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
+            const resolvedQuoteModel = quoteResult.model || quoteLlmModel || "solid-black";
+            if (quoteAiProvider === "qwencloud") {
+                recordModelUsage(config, resolvedQuoteModel).catch(recordError => {
+                    console.error("Could not record QwenCloud LLM usage:", recordError?.message || "unknown error");
                 });
             }
+            quoteText = quoteResult.quoteText;
+            quoteThemeLabel = quotePlan.themeLabel;
+            prompt = "solid-black-background (#000000)";
+            generated = { model: resolvedQuoteModel };
             const audioBytes = await resolveStorySongAudioBytes(env, config, song);
             const storyCard = await renderQuoteStoryCard({
-                backgroundBytes: generated.bytes,
+                solidBlack: true,
                 quoteText,
-                authorName: page.page_name,
-                seed: Math.floor(Math.random() * 1000)
+                authorName: page.page_name
             });
             const encodedStory = encodeStoryMp4({
                 rgba: storyCard.rgba,
@@ -511,12 +504,14 @@ async function processRun(env, config, claimedRun) {
                 maxDurationSec: maxQuoteVideoDurationForTarget(quotePublishTarget)
             });
             storyMp4Bytes = encodedStory.mp4Bytes;
-            // Postingan Kata-kata Mutiara + Musik hanya berisi kartu video 9:16 + musik auto-play tanpa caption feed/link/hashtag.
+            // Postingan Kata-kata Mutiara + Musik memakai latar hitam polos (#000000) tanpa kuota gambar + teks LLM QwenCloud.
             caption = quoteText;
             scenePlanRecord = {
                 ...quotePlan,
+                background_mode: "solid_black",
                 post_mode: "quote",
                 quote_publish_target: quotePublishTarget,
+                quote_llm_model: resolvedQuoteModel,
                 quote_text: quoteText,
                 quote_signature: storyCard.signatureText || "",
                 ...(song ? {
@@ -689,8 +684,11 @@ async function processRun(env, config, claimedRun) {
             safeMessage = "Kolom jadwal terbaru belum ada di database. Jalankan supabase/social-schedule-autopublish-scene.sql di Supabase SQL Editor, lalu jalankan ulang jadwal ini.";
         }
         console.error(`[Social Publisher] Run ${runId} failed (${error?.code || "error"}): ${safeMessage}`);
-        if (imageProvider === "qwencloud" && (error?.quotaExhausted === true || error?.status === 429)) {
-            recordModelUsage(config, imageModel, { quotaError: true, message: safeMessage }).catch(recordError => {
+        const failedQuotaModel = error?.llmModel
+            ? error.llmModel
+            : (imageProvider === "qwencloud" && normalizeSocialPostMode(job?.post_mode) !== "quote" ? imageModel : "");
+        if (failedQuotaModel && (error?.quotaExhausted === true || error?.status === 429)) {
+            recordModelUsage(config, failedQuotaModel, { quotaError: true, message: safeMessage }).catch(recordError => {
                 console.error("Could not record QwenCloud quota failure:", recordError?.message || "unknown error");
             });
         }

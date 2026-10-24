@@ -1146,15 +1146,40 @@ html[data-genz-theme="light"][data-genz-theme="light"] body :is(.subtitle, .mute
     color: #4a566b !important;
 }
 
-html[data-genz-theme="light"][data-genz-theme="light"] body :is(.switch-row, .provider-option, .qwencloud-options, .status-box, .subscription-item) {
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.switch-row, .provider-option, .qwencloud-options, .quota-panel, .status-box, .subscription-item) {
     border: 1px solid #e2e8f1 !important;
     background: #f8fafd !important;
 }
 
-html[data-genz-theme="light"][data-genz-theme="light"] body :is(.input, .select) {
+html[data-genz-theme="light"][data-genz-theme="light"] body :is(.input, .select, .qwencloud-options select, .qwencloud-options input[type="number"]) {
     border: 1px solid #c8d3e2 !important;
     background: #ffffff !important;
     color: #101a2e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .quota-limit-field {
+    color: #1f2b40 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .quota-bar {
+    background: #e2e8f2 !important;
+    border-color: #cbd5e4 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .quota-badge.ok {
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .quota-badge.low {
+    color: #965d06 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .quota-badge.empty {
+    color: #a3182a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .quota-badge.unknown {
+    color: #4a566b !important;
 }
 
 html[data-genz-theme="light"][data-genz-theme="light"] body .btn {

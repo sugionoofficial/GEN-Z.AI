@@ -1189,13 +1189,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
         const button = $("manual-post-button");
         let generatedRunId = "";
-        setButtonBusy(button, true, "Membuat gambar AI…", {
+        setButtonBusy(button, true, isQuote ? "Merangkai kata mutiara via LLM…" : "Membuat gambar AI…", {
             premium: true,
             stages: isQuote
                 ? [
-                    { at: 0, text: "Membuat gambar AI…" },
-                    { at: 5, text: "Merangkai kata mutiara & lagu FB…" },
-                    { at: 14, text: "Menyempurnakan poster estetik…" }
+                    { at: 0, text: "Merangkai kata mutiara via LLM…" },
+                    { at: 3, text: "Merender kartu latar hitam & tanda tangan…" },
+                    { at: 7, text: "Menggabungkan musik auto-play…" }
                 ]
                 : [
                     { at: 0, text: "Membuat gambar AI…" },
@@ -1206,7 +1206,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         status(
             $("manual-post-status"),
             isQuote
-                ? "Merangkai kata-kata mutiara, membuat poster estetik, memilih lagu Facebook acak, dan membersihkan metadata…"
+                ? "Merangkai kata-kata mutiara lewat LLM QwenCloud di atas latar hitam polos (tanpa memakai kuota gambar) dan menyematkan lagu acak…"
                 : "Membuat satu gambar, membersihkan metadata, dan menyiapkan caption untuk pratinjau…"
         );
         try {
@@ -1852,12 +1852,9 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (schedule.post_mode === "quote") {
             const parts = [quoteTargetLabel(schedule.quote_publish_target || "feed")];
             const themeLabel = state.data?.quotePresets?.themes?.find(t => (t.value ?? t.id) === schedule.quote_theme)?.label || schedule.quote_theme;
-            const visualLabel = state.data?.quotePresets?.visualStyles?.find(v => (v.value ?? v.id) === schedule.quote_visual_style)?.label || schedule.quote_visual_style;
             parts.push(themeLabel ? `tema ${themeLabel}` : "tema acak");
-            parts.push(visualLabel ? `visual ${visualLabel}` : "visual acak");
+            parts.push("latar hitam hemat kuota");
             parts.push(schedule.use_random_song !== false ? "🎵 musik auto-play ON" : "tanpa musik acak");
-            if (schedule.scene_details) parts.push("arahan khusus");
-            if (schedule.negative_prompt) parts.push("negative tambahan");
             return parts.join(" · ");
         }
         const parts = [];

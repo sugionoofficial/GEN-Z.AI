@@ -247,6 +247,7 @@ create table if not exists public.social_publisher_config (
     image_provider text not null default 'gemini'
         check (image_provider in ('gemini', 'cloudflare', 'qwencloud')),
     image_model text not null default '',
+    quote_llm_model text not null default 'qwen-plus',
     updated_by uuid references public.profiles(id) on delete set null,
     updated_at timestamptz not null default now()
 );
@@ -257,6 +258,9 @@ alter table public.social_publisher_config
 
 alter table public.social_publisher_config
     add column if not exists image_model text not null default '';
+
+alter table public.social_publisher_config
+    add column if not exists quote_llm_model text not null default 'qwen-plus';
 
 alter table public.social_publisher_config
     drop constraint if exists social_publisher_config_image_provider_check;

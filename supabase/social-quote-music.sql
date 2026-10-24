@@ -183,4 +183,7 @@ begin
     end if;
 end $$;
 
+alter table public.social_publisher_config
+    add column if not exists quote_llm_model text not null default 'qwen-plus';
+
 notify pgrst, 'reload schema';

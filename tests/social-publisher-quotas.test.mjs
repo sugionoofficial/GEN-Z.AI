@@ -161,3 +161,50 @@ test("qwenCloudProtocolFor maps model families to their wire protocol", async ()
     assert.equal(qwenCloudProtocolFor("vidu/vidu-image_reference2image"), "async");
     assert.equal(qwenCloudProtocolFor("tidak-ada"), "sync");
 });
+
+test("QWENCLOUD_LLM_MODELS exposes 16 LLM models with protocol mapping and shared quota ledger support", async () => {
+    const {
+        QWENCLOUD_LLM_MODELS,
+        DEFAULT_QWENCLOUD_LLM_MODEL,
+        normalizeQwenCloudLlmModel,
+        isQwenCloudLlmModel,
+        normalizeQwenCloudQuotaModel,
+        qwenCloudLlmProtocolFor
+    } = await import("../lib/social-publisher/quotas.js");
+
+    assert.equal(QWENCLOUD_LLM_MODELS.length, 16);
+    assert.equal(DEFAULT_QWENCLOUD_LLM_MODEL, "qwen-plus");
+    assert.equal(normalizeQwenCloudLlmModel("qwen3.5-plus"), "qwen3.5-plus");
+    assert.equal(normalizeQwenCloudLlmModel("invalid-llm"), "qwen-plus");
+    assert.equal(isQwenCloudLlmModel("qwen-flash"), true);
+    assert.equal(isQwenCloudLlmModel("qwen-image-3.0"), false);
+    assert.equal(normalizeQwenCloudQuotaModel("qwen3-max"), "qwen3-max");
+    assert.equal(normalizeQwenCloudQuotaModel("qwen-image-3.0"), "qwen-image-3.0");
+    assert.equal(normalizeQwenCloudQuotaModel("unknown-model"), "qwen-image-3.0-pro");
+
+    assert.equal(qwenCloudLlmProtocolFor("qwen-plus"), "text");
+    assert.equal(qwenCloudLlmProtocolFor("qwq-plus"), "compat");
+    assert.equal(qwenCloudLlmProtocolFor("qwen3-vl-plus"), "multimodal");
+
+    let upserted = null;
+    const { restore } = captureFetch((url, options) => {
+        if (options.method === "POST") {
+            upserted = JSON.parse(options.body);
+            return Response.json([upserted]);
+        }
+        return Response.json([]);
+    });
+    try {
+        await recordModelUsage(config, "qwen3.5-plus");
+        assert.equal(upserted.model, "qwen3.5-plus");
+        assert.equal(upserted.quota_limit, 1000);
+        assert.equal(upserted.requests_used, 1);
+
+        await setModelQuotaLimit(config, "qwen3.5-plus", 2500);
+        assert.equal(upserted.model, "qwen3.5-plus");
+        assert.equal(upserted.quota_limit, 2500);
+    } finally {
+        restore();
+    }
+});
+
