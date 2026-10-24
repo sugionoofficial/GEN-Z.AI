@@ -370,7 +370,7 @@
                     <input type="hidden" id="schedule-id">
                     <div class="field"><label for="schedule-character">Karakter</label><select id="schedule-character" required><option value="">Pilih karakter…</option></select></div>
                     <div class="field"><label for="schedule-page">Facebook Page</label><select id="schedule-page" required><option value="">Pilih Page…</option></select></div>
-                    <div class="field"><label for="interval-hours">Posting setiap</label><div style="display:flex;gap:8px;align-items:center"><input id="interval-hours" type="number" min="1" max="168" step="1" value="24" required><span style="font-size:12px;color:var(--muted);white-space:nowrap">jam</span></div><span class="help" id="interval-help">Minimal 1 jam untuk role OWNER, ADMIN, dan USER; maksimal 168 jam. 24 jam = satu post per hari.</span></div>
+                    <div class="field"><label for="interval-minutes">Posting setiap</label><div style="display:flex;gap:8px;align-items:center"><input id="interval-minutes" type="number" min="5" max="10080" step="1" value="1440" required><span style="font-size:12px;color:var(--muted);white-space:nowrap">menit</span></div><span class="help" id="interval-help">Minimal 5 menit untuk role ADMIN/OWNER dan 60 menit (1 jam) untuk USER; maksimal 10080 menit (7 hari). 1440 menit = satu post per hari.</span></div>
                     <div class="field"><label for="first-run">Waktu post pertama (WIB)</label><input id="first-run" type="datetime-local" required><span class="help">Berikutnya berulang sesuai interval.</span></div>
                     <div class="field"><label for="schedule-aspect-ratio">Rasio gambar</label><select id="schedule-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
                     <div class="field full">
@@ -390,7 +390,7 @@
                     <div class="field full"><div id="cost-estimate" class="note-cost">Estimasi biaya gambar dihitung setelah interval dipilih.</div></div>
                     <div class="field full"><label class="inline-check"><input id="schedule-autopublish" type="checkbox" checked><span><strong>Autopost untuk jadwal ini.</strong> Saat aktif, jadwal ini ikut diposting otomatis. Mematikan switch ini hanya menghentikan jadwal ini; jadwal lain dan akun lain tidak terpengaruh.</span></label></div>
                     <div class="field full"><label class="inline-check"><input id="schedule-enabled" type="checkbox"><span>Jadwal ini aktif. Autopost hanya berjalan bila switch autopublish akun dan switch autopublish jadwal ini sama-sama aktif.</span></label></div>
-                    <div class="field full"><div class="actions"><button id="save-schedule" class="btn primary" type="submit">Simpan jadwal</button><button id="cancel-edit" class="btn" type="button" hidden>Batal edit</button></div><p id="schedule-status" class="status"></p></div>
+                    <div class="field full"><div class="actions"><button id="save-schedule" class="btn primary" type="submit">Simpan jadwal</button><button id="cancel-edit" class="btn" type="button" hidden>Batal edit</button></div><p id="schedule-limit-notice" class="status error" hidden></p><p id="schedule-status" class="status"></p></div>
                 </form>
                 <div style="height:1px;background:var(--border);margin:22px 0"></div>
                 <div id="schedules-list" class="schedule-grid"><div class="empty">Belum ada jadwal.</div></div>

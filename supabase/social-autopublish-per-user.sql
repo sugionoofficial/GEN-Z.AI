@@ -74,7 +74,7 @@ begin
       and created_at < p_now - interval '30 minutes';
 
     for v_schedule in
-        select s.id, s.owner_id, s.interval_hours, s.next_run_at
+        select s.id, s.owner_id, s.interval_minutes, s.next_run_at
         from public.social_post_schedules s
         where s.enabled = true
           and s.next_run_at <= p_now
@@ -102,7 +102,7 @@ begin
         );
 
         update public.social_post_schedules
-        set next_run_at = p_now + make_interval(hours => v_schedule.interval_hours),
+        set next_run_at = p_now + make_interval(mins => v_schedule.interval_minutes),
             last_run_at = p_now,
             updated_at = p_now
         where id = v_schedule.id;

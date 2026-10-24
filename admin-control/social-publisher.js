@@ -1193,7 +1193,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const effectiveAutopublish = accountAutopublishOn && scheduleAutopublishOn;
             const detail = document.createElement("div");
             detail.className = "item-meta";
-            detail.textContent = `Setiap ${schedule.interval_hours} jam · rasio ${schedule.aspect_ratio || "9:16"} · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"} · autopost ${scheduleAutopublishOn ? "ON" : "OFF"}`;
+            detail.textContent = `Setiap ${formatIntervalLabel(schedule.interval_minutes || schedule.interval_hours * 60)} · rasio ${schedule.aspect_ratio || "9:16"} · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"} · autopost ${scheduleAutopublishOn ? "ON" : "OFF"}`;
             const scene = document.createElement("div");
             scene.className = "item-meta";
             scene.textContent = sceneSummary(schedule);
@@ -1735,12 +1735,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
     function schedulePolicy() {
         const policy = state.data?.schedulePolicy || {};
-        const min = Number.isInteger(Number(policy.minIntervalHours)) && Number(policy.minIntervalHours) > 0
-            ? Number(policy.minIntervalHours)
-            : 1;
-        const max = Number.isInteger(Number(policy.maxIntervalHours)) && Number(policy.maxIntervalHours) >= min
-            ? Number(policy.maxIntervalHours)
-            : 168;
+        const min = Number.isInteger(Number(policy.minIntervalMinutes)) && Number(policy.minIntervalMinutes) > 0
+            ? Number(policy.minIntervalMinutes)
+            : 60;
+        const max = Number.isInteger(Number(policy.maxIntervalMinutes)) && Number(policy.maxIntervalMinutes) >= min
+            ? Number(policy.maxIntervalMinutes)
+            : 10080;
         return {
             role: String(policy.role || "").trim().toUpperCase(),
             min,
@@ -1748,10 +1748,28 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         };
     }
 
+    function formatIntervalLabel(minutes) {
+        const value = Number(minutes);
+        if (!Number.isFinite(value) || value <= 0) return "—";
+        if (value < 60) return `${value} menit`;
+        const hours = Math.floor(value / 60);
+        const rest = value % 60;
+        return rest ? `${hours} jam ${rest} menit` : `${hours} jam`;
+    }
+
+    function accountPostLimit() {
+        const raw = state.data?.postLimit;
+        if (raw === null || raw === undefined || raw === "") return null;
+        const parsed = Number(raw);
+        return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+    }
+
     function scheduleQuota() {
         const policy = state.data?.schedulePolicy || {};
         const parsed = Number(policy.maxSchedules);
-        const maxSchedules = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+        const roleMax = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+        /* Batas per akun (diatur admin) menang atas default role. */
+        const maxSchedules = accountPostLimit() ?? roleMax;
         const count = Array.isArray(state.data?.schedules)
             ? state.data.schedules.length
             : Number(state.data?.scheduleCount) || 0;
@@ -1773,26 +1791,43 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 : `${count} jadwal · tanpa batas`;
             badge.className = `badge${reached ? " failed" : ""}`;
             badge.title = maxSchedules
-                ? `Role ${role || "ANDA"} maksimal ${maxSchedules} jadwal autopost.${reached ? " Hapus salah satu jadwal untuk membuat yang baru." : ""}`
+                ? `Akun ini maksimal ${maxSchedules} jadwal autopost.${reached ? " Hapus salah satu jadwal untuk membuat yang baru." : ""}`
                 : "Role admin/owner tanpa batas jumlah jadwal.";
         }
         /* Tombol simpan hanya dikunci saat membuat jadwal baru, bukan saat mengedit. */
         saveScheduleButton.disabled = reached && !editing;
+        updatePostLimitUi();
+    }
+
+    function updatePostLimitUi() {
+        const notice = $("schedule-limit-notice");
+        if (!notice) return;
+        const limit = accountPostLimit();
+        const count = Array.isArray(state.data?.schedules)
+            ? state.data.schedules.length
+            : Number(state.data?.scheduleCount) || 0;
+        if (limit !== null && count >= limit) {
+            notice.hidden = false;
+            notice.textContent = `Batas Posting Anda (${limit}). Hubungi admin untuk menambah batas posting`;
+        } else {
+            notice.hidden = true;
+            notice.textContent = "";
+        }
     }
 
     function applySchedulePolicyUi() {
         const { role, min, max } = schedulePolicy();
-        const input = $("interval-hours");
+        const input = $("interval-minutes");
         input.min = String(min);
         input.max = String(max);
         const help = $("interval-help");
         if (help) {
             const roleLabel = role ? `role ${role}` : "role Anda";
-            help.textContent = `Minimal ${min} jam untuk ${roleLabel}, maksimal ${max} jam. ${min} jam = batas tercepat (satu post tiap jam); 24 jam = satu post per hari.`;
+            help.textContent = `Minimal ${formatIntervalLabel(min)} untuk ${roleLabel}, maksimal ${formatIntervalLabel(max)}. 1440 menit = satu post per hari.`;
         }
         const value = Number(input.value);
         if (!Number.isInteger(value) || value < min || value > max) {
-            input.value = String(Math.min(max, Math.max(min, 24)));
+            input.value = String(Math.min(max, Math.max(min, 1440)));
         }
         updateCostEstimate();
         applyScheduleQuotaUi();
@@ -1800,14 +1835,14 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
     function updateCostEstimate() {
         const { role, min, max } = schedulePolicy();
-        const interval = Number($("interval-hours").value);
+        const interval = Number($("interval-minutes").value);
         if (!Number.isInteger(interval) || interval < min || interval > max) {
-            $("cost-estimate").textContent = `Interval harus bilangan bulat antara ${min} sampai ${max} jam untuk role ${role || "Anda"} (minimal ${min} jam).`;
+            $("cost-estimate").textContent = `Interval harus bilangan bulat antara ${min} sampai ${max} menit untuk role ${role || "Anda"} (minimal ${formatIntervalLabel(min)}).`;
             return;
         }
-        const imagesPerMonth = 30 * 24 / interval;
-        const cadence = interval === 1 ? "satu post per jam" : `satu post setiap ${interval} jam`;
-        const riskNote = interval < 6
+        const imagesPerMonth = 30 * 24 * 60 / interval;
+        const cadence = `satu post setiap ${formatIntervalLabel(interval)}`;
+        const riskNote = interval < 360
             ? " Interval di bawah 6 jam berarti lebih dari 4 post per hari per jadwal; pastikan kuota provider dan kebijakan Facebook Page Anda mendukung."
             : "";
         $("cost-estimate").textContent = `Perkiraan volume Nano Banana 2 Lite: ${imagesPerMonth.toFixed(1)} gambar/bulan (${cadence}) pada 1 gambar per jadwal. Biaya bergantung pada tier dan kuota model untuk API key Anda, serta belum termasuk satu panggilan Gemini 2.5 Flash untuk caption per gambar, retry, atau pajak. Periksa harga dan kuota di Google AI Studio sebelum mengaktifkan autopost.${riskNote}`;
@@ -1817,7 +1852,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         $("schedule-id").value = schedule.id;
         $("schedule-character").value = schedule.character_id;
         $("schedule-page").value = schedule.page_connection_id;
-        $("interval-hours").value = schedule.interval_hours;
+        $("interval-minutes").value = schedule.interval_minutes || schedule.interval_hours * 60;
         $("first-run").value = utcToLocalWib(schedule.next_run_at);
         $("schedule-aspect-ratio").value = schedule.aspect_ratio || "9:16";
         $("schedule-location").value = schedule.scene_location || "";
@@ -1841,7 +1876,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         $("schedule-form").reset();
         $("schedule-id").value = "";
         const { min, max } = schedulePolicy();
-        $("interval-hours").value = String(min <= 24 && 24 <= max ? 24 : min);
+        $("interval-minutes").value = String(min <= 1440 && 1440 <= max ? 1440 : min);
         $("schedule-aspect-ratio").value = "9:16";
         $("schedule-location").value = "";
         $("schedule-angle").value = "";
@@ -1862,17 +1897,17 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
     async function submitSchedule(event) {
         event.preventDefault();
-        const intervalHours = Number($("interval-hours").value);
+        const intervalMinutes = Number($("interval-minutes").value);
         const nextRunAt = localWibToUtc($("first-run").value);
         const { role, min, max } = schedulePolicy();
         if (!nextRunAt || Date.parse(nextRunAt) <= Date.now()) {
             status(scheduleStatus, "Atur waktu pertama di masa depan sesuai WIB.", "error");
             return;
         }
-        if (!Number.isInteger(intervalHours) || intervalHours < min || intervalHours > max) {
+        if (!Number.isInteger(intervalMinutes) || intervalMinutes < min || intervalMinutes > max) {
             status(
                 scheduleStatus,
-                `Interval harus bilangan bulat ${min}–${max} jam untuk role ${role || "Anda"}. Minimal ${min} jam (satu post per jam).`,
+                `Interval harus bilangan bulat ${min}–${max} menit untuk role ${role || "Anda"}. Minimal ${formatIntervalLabel(min)}.`,
                 "error"
             );
             return;
@@ -1881,7 +1916,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             id: $("schedule-id").value || undefined,
             character_id: $("schedule-character").value,
             page_connection_id: $("schedule-page").value,
-            interval_hours: intervalHours,
+            interval_minutes: intervalMinutes,
             next_run_at: nextRunAt,
             timezone: "Asia/Jakarta",
             aspect_ratio: $("schedule-aspect-ratio").value,
@@ -2130,7 +2165,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     outfitSelect.addEventListener("change", renderOutfits);
     $("manual-character").addEventListener("change", updateManualCharacterPreview);
     $("schedule-form").addEventListener("submit", submitSchedule);
-    $("interval-hours").addEventListener("input", updateCostEstimate);
+    $("interval-minutes").addEventListener("input", updateCostEstimate);
     if ($("runs-per-page")) {
         $("runs-per-page").value = String(state.runsPerPage);
         $("runs-per-page").addEventListener("change", event => {
