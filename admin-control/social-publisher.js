@@ -2094,7 +2094,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         countdown.classList.add("running");
         title.textContent = "Status akun aktif sebagai langganan";
         message.textContent = "Masa aktif langganan Anda masih berjalan. Halaman akan terbuka setelah Anda menutup pengingat ini.";
-        value.textContent = `${state.durationDays} hari`;
+        value.textContent = `${hours >= 12 ? days + 1 : days} hari`;
         countdown.textContent = `${days} hari ${String(hours).padStart(2, "0")} jam ${String(minutes).padStart(2, "0")} menit ${String(seconds).padStart(2, "0")} detik`;
         okButton.disabled = false;
         gate.hidden = studioGateDismissed;
