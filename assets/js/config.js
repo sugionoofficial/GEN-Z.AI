@@ -36,10 +36,10 @@ const GENZ_CONFIG = Object.freeze({
         window.location.origin,
 
     SUPABASE_URL:
-        "https://boeamhglmvkatnycluaa.supabase.co",
+        "https://ycovbqmezhrvzobxqnyp.supabase.co",
 
     SUPABASE_KEY:
-        "sb_publishable_blGIFRNPbB2qAa1vXQBXcw_txqDQldb"
+        "sb_publishable_dnOcQubqXG_iGvUMTPCuUw_fU0gkaYm"
 
 });
 

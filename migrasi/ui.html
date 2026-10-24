@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Migrator GEN-Z.AI</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:780px;margin:32px auto;padding:0 16px;line-height:1.6;color:#132a20}
+h1{font-size:24px}
+label{font-weight:600;display:block;margin-top:10px}
+input{width:100%;padding:12px;margin:6px 0;border:1px solid #cbd5d1;border-radius:8px;font-size:14px;box-sizing:border-box}
+button{background:#0a7a4b;color:#fff;border:0;padding:16px 30px;font-size:17px;font-weight:700;border-radius:12px;cursor:pointer;margin-top:14px}
+button:disabled{background:#9ca3af;cursor:wait}
+.warn{background:#fff7ed;border:1px solid #fdba74;padding:10px 14px;border-radius:10px;font-size:14px}
+.err{color:#b3261e;font-weight:700}
+.ok{color:#0a7a4b;font-weight:700}
+pre{background:#0f172a;color:#d1fae5;padding:14px;border-radius:10px;max-height:46vh;overflow:auto;font-size:12.5px;white-space:pre-wrap}
+.spin{display:inline-block;width:16px;height:16px;border:3px solid #0a7a4b;border-top-color:transparent;border-radius:50%;animation:r 1s linear infinite;vertical-align:-3px}
+@keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<h1>🚀 Migrator GEN-Z.AI → Proyek Baru</h1>
+
+<div id="formbox">
+  <p>Isi 3 kolom lalu klik <b>MULAI MIGRASI</b>. Proses berjalan sendiri sampai SELESAI (skema → 48 tabel → 71 file storage → finalisasi). <b>Jangan tutup tab ini.</b></p>
+  <label>Kode akses</label>
+  <input id="pass" value="GENZ-MIGRASI-2410">
+  <label>Koneksi DB LAMA (pooler)</label>
+  <input id="oldconn" value="postgresql://postgres.boeamhglmvkatnycluaa:PASSWORD_ANDA@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres">
+  <label>Secret key proyek LAMA</label>
+  <input id="oldkey" placeholder="sb_secret_... / service_role lama" type="password">
+  <br>
+  <button id="go">MULAI MIGRASI ▶</button>
+  <p class="warn">⚠️ Ganti <b>PASSWORD_ANDA</b> dengan password DB proyek LAMA yang Anda reset di dashboard lama (huruf+angka saja). Data hanya mengalir lama→baru; tidak ada yang dihapus di proyek lama.</p>
+</div>
+
+<div id="runbox" style="display:none">
+  <h2 id="status"><span class="spin"></span> bekerja…</h2>
+  <p id="errmsg" class="err"></p>
+  <pre id="log"></pre>
+  <button id="retry" style="display:none">🔄 ULANGI LANGKAH INI</button>
+  <p id="doneinfo" style="display:none" class="ok">Migrasi selesai! Kabari agen Arena untuk verifikasi menyeluruh, lalu setel 4 hal di Dashboard → Authentication (Anonymous ON, Manual linking ON, require reauthentication ON, rate limit email_sent 2/jam) dan deploy Worker.</p>
+</div>
+
+<noscript><p class="err">Browser ini harus mengaktifkan JavaScript.</p></noscript>
+
+<script>
+var FN = 'https://ycovbqmezhrvzobxqnyp.supabase.co/functions/v1/genz-migrator';
+var S = null;
+var el = function (id) { return document.getElementById(id); };
+
+el('go').onclick = function () {
+  S = { pass: el('pass').value, oldconn: el('oldconn').value, oldkey: el('oldkey').value, phase: 'schema', c1: '0', c2: '0', log: '', fmt: 'json' };
+  el('formbox').style.display = 'none';
+  el('runbox').style.display = '';
+  send();
+};
+el('retry').onclick = function () { send(); };
+
+function fail(msg) {
+  el('status').innerHTML = '⚠️ Terhenti';
+  el('errmsg').textContent = msg;
+  el('retry').style.display = '';
+  el('go').disabled = false;
+}
+
+async function send() {
+  el('retry').style.display = 'none';
+  el('errmsg').textContent = '';
+  el('status').innerHTML = '<span class="spin"></span> bekerja… jangan tutup tab';
+  try {
+    var res = await fetch(FN, { method: 'POST', body: new URLSearchParams(S) });
+    var j = JSON.parse(await res.text());
+    el('log').textContent = j.log || '';
+    el('log').scrollTop = el('log').scrollHeight;
+    S.phase = j.phase; S.c1 = String(j.c1); S.c2 = String(j.c2); S.log = j.log || '';
+    if (j.done) {
+      el('status').textContent = ' SELESAI';
+      var c = j.counts || {};
+      el('log').textContent = (j.log || '') + '\n\n=== JUMLAH BARIS PROYEK BARU ===\nauth.users          : ' + c.u + '  (harap 6)\npublic.profiles     : ' + c.p + '  (harap 6)\npublic.models       : ' + c.m + '  (harap 24)\ngeneration_history  : ' + c.gh + '  (harap 246+)\nsocial_post_runs    : ' + c.spr + '  (harap 117+)\nstorage.buckets     : ' + c.b + '  (harap 7)\nstorage.objects     : ' + c.o + '  (harap 71)';
+      el('doneinfo').style.display = '';
+      return;
+    }
+    if (!j.ok) { fail(j.msg || 'error tidak dikenal'); el('log').textContent = (j.log || '') + '\n\nERROR: ' + j.msg; return; }
+    el('status').textContent = '⏳ ' + (j.msg || 'melanjutkan…');
+    setTimeout(send, 400);
+  } catch (e) {
+    fail('Gagal menghubungi fungsi migrator: ' + String(e && e.message || e) + ' — periksa koneksi internet, lalu klik ULANGI.');
+  }
+}
+</script>
+</body>
+</html>
