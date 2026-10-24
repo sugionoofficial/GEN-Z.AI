@@ -1368,3 +1368,145 @@ test("Solid black Quote card + QwenCloud LLM uses 0 image quota, tracks LLM quot
     }
 });
 
+test("Uploaded 320kbps MP3 audio streams cleanly via Cloudflare runHandlerAdapter (200 Blob + 206 Range), parses past large ID3 cover art, and converts Response to Blob in Studio Medsos player", async () => {
+    const { runHandlerAdapter } = await import("../functions/_shared/handler-adapter.js");
+
+    // 1. Verify UI JS never passes raw Response into URL.createObjectURL in togglePlaySongPreview
+    const uiHtml = fs.readFileSync(path.join(repoRoot, "admin-control/social-publisher.html"), "utf8");
+    const uiJs = fs.readFileSync(path.join(repoRoot, "admin-control/social-publisher.js"), "utf8");
+    assert.match(uiHtml, /id="song-preview-bar"/);
+    assert.match(uiHtml, /id="song-preview-player"\s+controls/);
+    assert.match(uiJs, /const response = await api\(`song-audio&id=\$\{encodeURIComponent\(song\.id\)\}`, \{ raw: true \}\);\s*const rawBlob = await response\.blob\(\);/);
+    assert.doesNotMatch(uiJs, /const blob = await api\(`song-audio[^`]*`[^)]*\);\s*playUrl = URL\.createObjectURL\(blob\)/);
+
+    // 2. Build a realistic 320kbps 44.1kHz stereo MP3 with ID3v2 + 40 KB cover art containing false 0xFF 0xFB bytes
+    const coverArtSize = 40 * 1024;
+    const id3Payload = new Uint8Array(coverArtSize);
+    // Inject false MP3-like sync bytes inside ID3/junk area
+    id3Payload[500] = 0xFF;
+    id3Payload[501] = 0xFB;
+    id3Payload[502] = 0xE0;
+    id3Payload[503] = 0x00;
+
+    const id3Header = new Uint8Array(10);
+    id3Header[0] = 0x49; id3Header[1] = 0x44; id3Header[2] = 0x33; // "ID3"
+    id3Header[3] = 3; id3Header[4] = 0; id3Header[5] = 0;
+    id3Header[6] = (coverArtSize >>> 21) & 0x7F;
+    id3Header[7] = (coverArtSize >>> 14) & 0x7F;
+    id3Header[8] = (coverArtSize >>> 7) & 0x7F;
+    id3Header[9] = coverArtSize & 0x7F;
+
+    // Also place 20 KB of non-ID3 junk with an isolated false sync word before real MP3 frames
+    const junkAfterId3 = new Uint8Array(20 * 1024);
+    junkAfterId3[1234] = 0xFF;
+    junkAfterId3[1235] = 0xFB;
+    junkAfterId3[1236] = 0xE0;
+    junkAfterId3[1237] = 0x00;
+
+    // 320kbps MPEG-1 Layer 3 @ 44100Hz frameLen = floor(144000 * 320 / 44100) = 1044 bytes
+    const mp3FrameLen = 1044;
+    const mp3FrameCount = 400; // ~10.4s
+    const mp3FramesBuf = new Uint8Array(mp3FrameLen * mp3FrameCount);
+    for (let i = 0; i < mp3FrameCount; i += 1) {
+        const p = i * mp3FrameLen;
+        mp3FramesBuf[p] = 0xFF;
+        mp3FramesBuf[p + 1] = 0xFB; // MPEG-1 Layer 3, no CRC
+        mp3FramesBuf[p + 2] = 0xE0; // brIdx=14 (320kbps), srIdx=0 (44100Hz), padding=0
+        mp3FramesBuf[p + 3] = 0x00; // stereo
+    }
+
+    const fullMp3 = new Uint8Array(id3Header.byteLength + id3Payload.byteLength + junkAfterId3.byteLength + mp3FramesBuf.byteLength);
+    let offset = 0;
+    fullMp3.set(id3Header, offset); offset += id3Header.byteLength;
+    fullMp3.set(id3Payload, offset); offset += id3Payload.byteLength;
+    fullMp3.set(junkAfterId3, offset); offset += junkAfterId3.byteLength;
+    fullMp3.set(mp3FramesBuf, offset);
+
+    const extracted = extractAudioForStoryMp4(fullMp3, { maxDurationSec: 60 });
+    assert.ok(extracted, "MP3 with large ID3 cover art + junk must extract cleanly");
+    assert.equal(extracted.codec, "mp3");
+    assert.equal(extracted.frames.length, mp3FrameCount);
+    assert.ok(extracted.durationSec > 10 && extracted.durationSec < 11);
+
+    // 3. Test Cloudflare Worker runHandlerAdapter streaming song-audio (full 200 Blob + 206 Range)
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input) => {
+        const url = typeof input === "string" ? input : input.url;
+        if (url.endsWith("/auth/v1/user")) {
+            return Response.json({ id: "user-mp3-1", email: "creator@example.com" });
+        }
+        if (url.includes("/rest/v1/profiles")) {
+            return Response.json([{ id: "user-mp3-1", role: "ADMIN", status: "active" }]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access")) {
+            return Response.json([{
+                user_id: "user-mp3-1",
+                is_active: true,
+                duration_days: 30,
+                started_at: new Date(Date.now() - 86400000).toISOString(),
+                expires_at: new Date(Date.now() + 29 * 86400000).toISOString()
+            }]);
+        }
+        if (url.includes("/rest/v1/social_facebook_songs")) {
+            return Response.json([{
+                id: "160a81a6-fbdc-4329-bc4c-f658ada34786",
+                audio_object_key: "story-audio/user-mp3-1/160a81a6-fbdc-4329-bc4c-f658ada34786.mp3",
+                audio_mime_type: "audio/mpeg"
+            }]);
+        }
+        if (url.includes("/storage/v1/object/authenticated/social-story-audio/")) {
+            return new Response(fullMp3, {
+                status: 200,
+                headers: { "Content-Type": "audio/mpeg" }
+            });
+        }
+        throw new Error(`Unexpected fetch in song-audio adapter test: ${url}`);
+    };
+
+    try {
+        const env = {
+            SUPABASE_URL: "https://supabase.example.co",
+            SUPABASE_ANON_KEY: "anon-key",
+            SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+            SOCIAL_TOKEN_ENCRYPTION_KEY: TEST_ENCRYPTION_KEY
+        };
+
+        const fullResp = await runHandlerAdapter(
+            socialPublisherHandler,
+            new Request("https://genz.example/api/social-publisher?action=song-audio&id=160a81a6-fbdc-4329-bc4c-f658ada34786", {
+                headers: { Authorization: "Bearer valid-jwt" }
+            }),
+            null,
+            env
+        );
+        assert.equal(fullResp.status, 200);
+        assert.equal(fullResp.headers.get("content-type"), "audio/mpeg");
+        assert.equal(fullResp.headers.get("accept-ranges"), "bytes");
+        const downloadedBlob = await fullResp.blob();
+        assert.equal(downloadedBlob.size, fullMp3.byteLength);
+        const objectUrl = URL.createObjectURL(downloadedBlob);
+        assert.match(objectUrl, /^blob:/);
+        URL.revokeObjectURL(objectUrl);
+
+        // Verify HTTP Range request (206 Partial Content) for native <audio> seeking
+        const rangeResp = await runHandlerAdapter(
+            socialPublisherHandler,
+            new Request("https://genz.example/api/social-publisher?action=song-audio&id=160a81a6-fbdc-4329-bc4c-f658ada34786", {
+                headers: {
+                    Authorization: "Bearer valid-jwt",
+                    Range: "bytes=0-4095"
+                }
+            }),
+            null,
+            env
+        );
+        assert.equal(rangeResp.status, 206);
+        assert.equal(rangeResp.headers.get("content-range"), `bytes 0-4095/${fullMp3.byteLength}`);
+        const rangeBytes = new Uint8Array(await rangeResp.arrayBuffer());
+        assert.equal(rangeBytes.byteLength, 4096);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+

@@ -803,11 +803,25 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
     let activeSongPreviewId = "";
 
-    function stopSongPreviewPlayer() {
+    const songPreviewBlobs = new Map();
+    const SILENT_WAV_DATA_URI = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+
+    function syncSongPlayButtons() {
+        const player = $("song-preview-player");
+        const isPlaying = Boolean(player && !player.paused && !player.ended && activeSongPreviewId);
+        for (const btn of document.querySelectorAll?.("[data-song-play-btn]") || []) {
+            const btnKey = btn.getAttribute("data-song-key") || "";
+            btn.textContent = isPlaying && btnKey && btnKey === activeSongPreviewId ? "⏸ Berhenti" : "▶ Putar";
+        }
+    }
+
+    function stopSongPreviewPlayer({ hideBar = true } = {}) {
         const player = $("song-preview-player");
         if (player) {
             try { player.pause(); } catch {}
+            player.muted = false;
             player.removeAttribute("src");
+            try { player.load?.(); } catch {}
         }
         const prevUrl = state.objectUrls.get("song-audio-preview");
         if (prevUrl) {
@@ -815,41 +829,109 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             state.objectUrls.delete("song-audio-preview");
         }
         activeSongPreviewId = "";
-        for (const btn of document.querySelectorAll?.("[data-song-play-btn]") || []) {
-            btn.textContent = "▶ Putar";
-        }
+        const bar = $("song-preview-bar");
+        if (bar && hideBar) bar.hidden = true;
+        syncSongPlayButtons();
+    }
+
+    function inferSongMimeType(song, headerContentType = "", blobType = "") {
+        const cleanHeader = String(headerContentType || "").split(";")[0].trim().toLowerCase();
+        if (cleanHeader && cleanHeader !== "application/octet-stream") return cleanHeader;
+        const cleanBlob = String(blobType || "").split(";")[0].trim().toLowerCase();
+        if (cleanBlob && cleanBlob !== "application/octet-stream") return cleanBlob;
+        const songMime = String(song?.audio_mime_type || "").split(";")[0].trim().toLowerCase();
+        if (songMime) return songMime;
+        const key = String(song?.audio_object_key || "").toLowerCase();
+        if (key.endsWith(".mp3")) return "audio/mpeg";
+        if (key.endsWith(".aac")) return "audio/aac";
+        if (key.endsWith(".mp4")) return "video/mp4";
+        return "audio/mp4";
     }
 
     async function togglePlaySongPreview(song, button) {
         const player = $("song-preview-player");
         if (!player) return;
+        const bar = $("song-preview-bar");
+        const titleEl = $("song-preview-title");
+        const songStatus = $("song-status");
         const songKey = String(song.id || song.audio_object_key || "");
         if (activeSongPreviewId === songKey && !player.paused) {
             stopSongPreviewPlayer();
             return;
         }
-        stopSongPreviewPlayer();
+        stopSongPreviewPlayer({ hideBar: false });
         activeSongPreviewId = songKey;
-        if (button) button.textContent = "Memuat…";
+        if (bar) bar.hidden = false;
+        if (titleEl) {
+            titleEl.textContent = `🎵 Memuat audio: ${song.title || "Musik Pilihan"}${song.artist ? ` — ${song.artist}` : ""}…`;
+        }
+        if (button) button.textContent = "⏳ Memuat…";
+
+        const audioKey = String(song.audio_object_key || "");
+        const cachedBlob = song.id ? songPreviewBlobs.get(song.id) : null;
+        // Unlock HTMLAudioElement synchronously inside the user gesture before any network await (critical for iOS Safari & Mobile Chrome)
+        if (!audioKey.startsWith("builtin:") && !cachedBlob && song.id) {
+            try {
+                player.muted = true;
+                player.src = SILENT_WAV_DATA_URI;
+                const unlockPromise = player.play?.();
+                if (unlockPromise?.catch) unlockPromise.catch(() => {});
+            } catch {}
+        }
+
         try {
-            const audioKey = String(song.audio_object_key || "");
             let playUrl = "";
             if (audioKey.startsWith("builtin:")) {
                 const slug = audioKey.replace(/^builtin:/i, "");
                 playUrl = `/assets/audio/story-music/${encodeURIComponent(slug)}.m4a`;
+            } else if (cachedBlob) {
+                playUrl = URL.createObjectURL(cachedBlob);
+                state.objectUrls.set("song-audio-preview", playUrl);
             } else if (song.id) {
-                const blob = await api(`song-audio&id=${encodeURIComponent(song.id)}`, { responseRaw: true });
-                playUrl = URL.createObjectURL(blob);
+                const response = await api(`song-audio&id=${encodeURIComponent(song.id)}`, { raw: true });
+                const rawBlob = await response.blob();
+                if (!rawBlob || !rawBlob.size) {
+                    throw new Error("File audio kosong atau gagal diunduh dari penyimpanan.");
+                }
+                const resolvedMime = inferSongMimeType(song, response.headers?.get?.("content-type"), rawBlob.type);
+                const typedBlob = rawBlob.type === resolvedMime ? rawBlob : new Blob([rawBlob], { type: resolvedMime });
+                songPreviewBlobs.set(song.id, typedBlob);
+                playUrl = URL.createObjectURL(typedBlob);
                 state.objectUrls.set("song-audio-preview", playUrl);
             }
             if (!playUrl) throw new Error("File audio tidak tersedia untuk lagu ini.");
+            if (activeSongPreviewId !== songKey) return;
+
+            try { player.pause?.(); } catch {}
+            player.muted = false;
             player.src = playUrl;
+            player.onplay = () => syncSongPlayButtons();
+            player.onpause = () => syncSongPlayButtons();
             player.onended = () => stopSongPreviewPlayer();
-            await player.play();
-            if (button) button.textContent = "⏸ Berhenti";
+            try { player.load?.(); } catch {}
+
+            if (titleEl) {
+                titleEl.textContent = `🎵 Sedang memutar: ${song.title || "Musik Pilihan"}${song.artist ? ` — ${song.artist}` : ""}`;
+            }
+
+            try {
+                await player.play();
+                syncSongPlayButtons();
+            } catch (playErr) {
+                // Keep visible native <audio controls> bar ready so strict mobile browsers can play on single tap
+                syncSongPlayButtons();
+                if (titleEl) {
+                    titleEl.textContent = `🎵 Siap diputar: ${song.title || "Musik Pilihan"} (klik tombol ▶ pada pemutar di bawah)`;
+                }
+                if (songStatus) {
+                    status(songStatus, "Audio berhasil dimuat. Tekan tombol ▶ pada bar pemutar musik di bawah untuk mendengarkan.", "good");
+                }
+            }
         } catch (error) {
             stopSongPreviewPlayer();
-            showNotice(pageMessage, error.message || "Gagal memutar pratinjau lagu.", "error");
+            const msg = error?.message || "Gagal memutar pratinjau lagu.";
+            if (songStatus) status(songStatus, msg, "error");
+            showNotice(pageMessage, msg, "error");
         }
     }
 
@@ -937,8 +1019,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 const playBtn = document.createElement("button");
                 playBtn.className = "btn small";
                 playBtn.type = "button";
+                const songKey = String(song.id || audioKey);
+                const playerEl = $("song-preview-player");
+                const isCurrentlyPlaying = Boolean(playerEl && !playerEl.paused && !playerEl.ended && activeSongPreviewId === songKey);
                 playBtn.setAttribute("data-song-play-btn", "1");
-                playBtn.textContent = activeSongPreviewId === String(song.id || audioKey) ? "⏸ Berhenti" : "▶ Putar";
+                playBtn.setAttribute("data-song-key", songKey);
+                playBtn.textContent = isCurrentlyPlaying ? "⏸ Berhenti" : "▶ Putar";
                 playBtn.addEventListener("click", () => togglePlaySongPreview(song, playBtn));
                 actions.append(playBtn);
             }
@@ -985,6 +1071,9 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if ($("song-file-field")) $("song-file-field").hidden = false;
         if ($("save-song")) $("save-song").textContent = "Unggah & simpan musik";
         if ($("cancel-song-edit")) $("cancel-song-edit").hidden = true;
+        if (activeSongPreviewId === "__local_file__") {
+            stopSongPreviewPlayer();
+        }
     }
 
     function normalizeClientQuoteTarget(value) {
@@ -1052,7 +1141,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         status(songStatus, audioFile ? "Memeriksa trek audio dan mengunggah musik Cerita…" : "Menyimpan perubahan musik…");
         try {
             if (!id && audioFile) {
-                await api("upload-song", {
+                const uploadResult = await api("upload-song", {
                     method: "POST",
                     body: audioFile,
                     raw: true,
@@ -1064,6 +1153,29 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                         "X-Song-Mood": encodeURIComponent(mood)
                     }
                 });
+                if (uploadResult?.song?.id) {
+                    const cachedType = inferSongMimeType(uploadResult.song, "", audioFile.type);
+                    const cachedBlob = audioFile.type === cachedType ? audioFile : new Blob([audioFile], { type: cachedType });
+                    songPreviewBlobs.set(uploadResult.song.id, cachedBlob);
+                    const bar = $("song-preview-bar");
+                    const player = $("song-preview-player");
+                    const titleEl = $("song-preview-title");
+                    stopSongPreviewPlayer({ hideBar: false });
+                    const readyUrl = URL.createObjectURL(cachedBlob);
+                    state.objectUrls.set("song-audio-preview", readyUrl);
+                    activeSongPreviewId = String(uploadResult.song.id);
+                    if (titleEl) {
+                        titleEl.textContent = `🎵 Siap diputar: ${title}${artist ? ` — ${artist}` : ""}`;
+                    }
+                    if (player) {
+                        player.src = readyUrl;
+                        player.onplay = () => syncSongPlayButtons();
+                        player.onpause = () => syncSongPlayButtons();
+                        player.onended = () => stopSongPreviewPlayer();
+                        try { player.load?.(); } catch {}
+                    }
+                    if (bar) bar.hidden = false;
+                }
             } else {
                 await api("save-song", {
                     method: "POST",
@@ -1111,6 +1223,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (!window.confirm(`Hapus musik "${song.title}" dari koleksi Cerita Facebook?`)) return;
         try {
             stopSongPreviewPlayer();
+            if (song.id) songPreviewBlobs.delete(song.id);
             await api("delete-song", { method: "POST", body: { id: song.id } });
             showNotice(pageMessage, `Musik "${song.title}" dihapus.`, "success");
             await loadFacebookSongs();
@@ -2952,7 +3065,23 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (file && titleInput && !titleInput.value.trim()) {
             titleInput.value = file.name.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[_-]+/g, " ").trim().slice(0, 140);
         }
+        if (file) {
+            const bar = $("song-preview-bar");
+            const player = $("song-preview-player");
+            const titleEl = $("song-preview-title");
+            stopSongPreviewPlayer({ hideBar: false });
+            const localUrl = URL.createObjectURL(file);
+            state.objectUrls.set("song-audio-preview", localUrl);
+            activeSongPreviewId = "__local_file__";
+            if (titleEl) titleEl.textContent = `🎵 Pratinjau file dipilih: ${file.name}`;
+            if (player) {
+                player.src = localUrl;
+                try { player.load?.(); } catch {}
+            }
+            if (bar) bar.hidden = false;
+        }
     });
+    $("song-preview-close")?.addEventListener("click", () => stopSongPreviewPlayer());
     $("cancel-song-edit")?.addEventListener("click", resetSongForm);
     $("seed-default-songs")?.addEventListener("click", seedDefaultSongs);
     $("manual-post-mode")?.addEventListener("change", event => setManualPostMode(event.target.value));

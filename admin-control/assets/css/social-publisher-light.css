@@ -799,6 +799,15 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .song-card {
     border: 1px solid #d4dce9 !important;
 }
 
+html[data-genz-theme="light"][data-genz-theme="light"] body .song-preview-bar {
+    background: #f3f6fc !important;
+    border: 1px solid #c3cee6 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .song-preview-title {
+    color: #162238 !important;
+}
+
 html[data-genz-theme="light"][data-genz-theme="light"] body .song-icon {
     background: #eef1ff !important;
     border: 1px solid #c2c9f2 !important;
