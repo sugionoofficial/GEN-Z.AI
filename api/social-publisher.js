@@ -3486,6 +3486,41 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
         });
     }
     if (action === "song-audio") {
+        const sendAudioBytes = (rawBytes, contentType, cacheControl) => {
+            const audioBytes = rawBytes instanceof Uint8Array
+                ? rawBytes
+                : new Uint8Array(rawBytes.buffer || rawBytes, rawBytes.byteOffset || 0, rawBytes.byteLength ?? rawBytes.length ?? 0);
+            const total = audioBytes.byteLength;
+            res.setHeader("Content-Type", contentType);
+            res.setHeader("Accept-Ranges", "bytes");
+            res.setHeader("X-Content-Type-Options", "nosniff");
+            res.setHeader("Cache-Control", cacheControl);
+
+            const rangeHeader = String(getHeader(req, "range") || "").trim();
+            const rangeMatch = rangeHeader.match(/^bytes=(\d*)-(\d*)$/i);
+            if (rangeMatch && total > 0) {
+                let start = rangeMatch[1] !== "" ? Number(rangeMatch[1]) : 0;
+                let end = rangeMatch[2] !== "" ? Number(rangeMatch[2]) : total - 1;
+                if (rangeMatch[1] === "" && rangeMatch[2] !== "") {
+                    const suffixLen = Number(rangeMatch[2]);
+                    start = Math.max(0, total - suffixLen);
+                    end = total - 1;
+                }
+                if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start >= total || end < start) {
+                    res.setHeader("Content-Range", `bytes */${total}`);
+                    return res.status(416).end();
+                }
+                end = Math.min(end, total - 1);
+                const slice = audioBytes.subarray(start, end + 1);
+                res.setHeader("Content-Range", `bytes ${start}-${end}/${total}`);
+                res.setHeader("Content-Length", String(slice.byteLength));
+                return res.status(206).end(slice);
+            }
+
+            res.setHeader("Content-Length", String(total));
+            return res.status(200).end(audioBytes);
+        };
+
         const id = cleanText(getQuery(req, "id"), 80);
         const slug = cleanText(getQuery(req, "slug"), 80);
         if (slug) {
@@ -3493,11 +3528,7 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
             if (!builtin) return json(res, 404, { success: false, error: "Musik bawaan tidak ditemukan." });
             const bytes = await loadBuiltinStoryAudio(env, builtin.audio_object_key);
             if (!bytes?.length) return json(res, 404, { success: false, error: "File musik bawaan tidak ditemukan." });
-            res.setHeader("Content-Type", builtin.audio_mime_type || "audio/mp4");
-            res.setHeader("Content-Length", String(bytes.length));
-            res.setHeader("X-Content-Type-Options", "nosniff");
-            res.setHeader("Cache-Control", "private, max-age=3600");
-            return res.status(200).end(bytes);
+            return sendAudioBytes(bytes, builtin.audio_mime_type || "audio/mp4", "private, max-age=3600");
         }
         if (!id) return json(res, 400, { success: false, error: "ID lagu wajib diisi." });
         const rows = await supabaseRequest(
@@ -3509,25 +3540,28 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
             return json(res, 404, { success: false, error: "File audio lagu tidak ditemukan." });
         }
         let bytes;
-        let mimeType = song.audio_mime_type || "audio/mp4";
-        if (String(song.audio_object_key).startsWith("builtin:")) {
-            const builtin = findBuiltinStorySong(song.audio_object_key);
-            bytes = await loadBuiltinStoryAudio(env, song.audio_object_key);
+        let mimeType = song.audio_mime_type || "";
+        const keyStr = String(song.audio_object_key);
+        if (!mimeType) {
+            if (/\.mp3$/i.test(keyStr)) mimeType = "audio/mpeg";
+            else if (/\.aac$/i.test(keyStr)) mimeType = "audio/aac";
+            else if (/\.mp4$/i.test(keyStr)) mimeType = "video/mp4";
+            else mimeType = "audio/mp4";
+        }
+        if (keyStr.startsWith("builtin:")) {
+            const builtin = findBuiltinStorySong(keyStr);
+            bytes = await loadBuiltinStoryAudio(env, keyStr);
             mimeType = builtin?.audio_mime_type || mimeType;
         } else {
             try {
-                bytes = await downloadStoryAudioObject(config, song.audio_object_key);
+                bytes = await downloadStoryAudioObject(config, keyStr);
             } catch (error) {
                 if (error?.status === 404) return json(res, 404, { success: false, error: "File audio tidak tersedia di Supabase Storage." });
                 throw error;
             }
         }
         if (!bytes?.length) return json(res, 404, { success: false, error: "File audio kosong." });
-        res.setHeader("Content-Type", mimeType);
-        res.setHeader("Content-Length", String(bytes.length));
-        res.setHeader("X-Content-Type-Options", "nosniff");
-        res.setHeader("Cache-Control", "private, no-store");
-        return res.status(200).end(bytes);
+        return sendAudioBytes(bytes, mimeType, "private, no-store");
     }
     if (action === "oauth-start") {
         return json(res, 200, { success: true, ...(await startOAuth(config, userId, env, res)) });

@@ -84,6 +84,7 @@ function createResponseAdapter(request) {
     let statusCode = 200;
     let committed = false;
     let ended = false;
+    let writeChain = Promise.resolve();
     let responseReady;
     let resolveResponse;
 
@@ -91,43 +92,61 @@ function createResponseAdapter(request) {
         resolveResponse = resolve;
     });
 
-    function commit() {
+    function toChunkBytes(chunk) {
+        if (chunk === undefined || chunk === null) return null;
+        if (typeof chunk === "string") return encoder.encode(chunk);
+        if (chunk instanceof ArrayBuffer) return new Uint8Array(chunk);
+        if (ArrayBuffer.isView(chunk)) {
+            return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+        }
+        return encoder.encode(String(chunk));
+    }
+
+    function commit(directBody) {
         if (committed) return;
         committed = true;
         const noBody = [204, 205, 304].includes(statusCode);
-        resolveResponse(new Response(noBody ? null : stream.readable, {
+        const bodyInit = noBody
+            ? null
+            : directBody !== undefined
+                ? directBody
+                : stream.readable;
+        resolveResponse(new Response(bodyInit, {
             status: statusCode,
             headers
         }));
     }
 
     function writeChunk(chunk) {
-        if (chunk === undefined || chunk === null) return;
-        const bytes = typeof chunk === "string"
-            ? encoder.encode(chunk)
-            : chunk instanceof ArrayBuffer
-                ? new Uint8Array(chunk)
-                : ArrayBuffer.isView(chunk)
-                    ? new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-                    : encoder.encode(String(chunk));
+        const bytes = toChunkBytes(chunk);
+        if (!bytes) return;
 
-        writer.write(bytes).catch(error => {
-            if (!ended) {
-                console.error("[Cloudflare adapter] Response stream write failed:", error);
-            }
-        });
+        writeChain = writeChain
+            .then(() => writer.write(bytes))
+            .catch(error => {
+                if (!ended) {
+                    console.error("[Cloudflare adapter] Response stream write failed:", error);
+                }
+            });
     }
 
     function end(chunk) {
         if (ended) return response;
-        if (chunk !== undefined) writeChunk(chunk);
         ended = true;
-        commit();
-        writer.close().catch(error => {
-            if (!request.signal.aborted) {
-                console.error("[Cloudflare adapter] Response stream close failed:", error);
-            }
-        });
+        if (!committed) {
+            const directBytes = toChunkBytes(chunk);
+            commit(directBytes ?? null);
+            writer.close().catch(() => {});
+            return response;
+        }
+        if (chunk !== undefined) writeChunk(chunk);
+        writeChain
+            .then(() => writer.close())
+            .catch(error => {
+                if (!request.signal.aborted) {
+                    console.error("[Cloudflare adapter] Response stream close failed:", error);
+                }
+            });
         return response;
     }
 

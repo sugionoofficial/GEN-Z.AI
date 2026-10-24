@@ -48,6 +48,7 @@
         .outfit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px}.outfit-card{display:flex;flex-direction:column;gap:9px;padding:11px;border:1px solid #29384d;border-radius:13px;background:#0b1421}.outfit-card img{width:100%;height:170px;object-fit:cover;border-radius:9px;border:1px solid #35445a;background:#1b2737}.outfit-card .item-title{margin:0}.outfit-order{font-size:11px;line-height:1.45;color:#8fd8ff;overflow-wrap:anywhere}.outfit-order.missing{color:#91a1b8}.outfit-card-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}.outfit-state{display:flex;align-items:center;justify-content:space-between;gap:8px}.outfit-hint{margin:10px 0 0;padding:10px 12px;border-left:3px solid var(--accent);border-radius:0 8px 8px 0;background:#1a1b33;color:#cfc9ff;font-size:11px;line-height:1.55}.manual-outfit-line{margin-top:8px;font-size:11px;line-height:1.5;color:#d9d3ff;overflow-wrap:anywhere}.manual-outfit-line a{color:#8fd8ff}
         .mode-tabs{display:inline-flex;flex-wrap:wrap;gap:7px;padding:5px;border-radius:12px;border:1px solid #2e3e57;background:#09111e}.mode-tab{appearance:none;border:1px solid transparent;background:transparent;color:#aebcd2;padding:8px 13px;border-radius:9px;font:inherit;font-size:12px;font-weight:750;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .16s ease}.mode-tab:hover{color:#fff;background:rgba(124,108,255,.12)}.mode-tab.is-active{background:linear-gradient(135deg,#7061f5,#5750d9);border-color:#8f85ff;color:#fff;box-shadow:0 6px 16px rgba(112,97,245,.32)}
         .song-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:11px}.song-card{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid #29384d;border-radius:13px;background:#0b1421}.song-card-head{display:flex;align-items:flex-start;gap:10px}.song-icon{flex:0 0 auto;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(124,108,255,.24),rgba(70,217,232,.18));border:1px solid rgba(143,133,255,.4);font-size:16px}.song-card-body{min-width:0;flex:1}.song-artist{font-size:11.5px;color:var(--muted);margin:2px 0 0;overflow-wrap:anywhere}.song-link{font-size:11px;line-height:1.45;color:#8fd8ff;overflow-wrap:anywhere;text-decoration:none}.song-link:hover{text-decoration:underline}.song-link.missing{color:#91a1b8}.song-mood-pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(70,217,232,.12);border:1px solid rgba(70,217,232,.32);color:#9beeff}
+        .song-preview-bar{margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid rgba(143,133,255,.42);background:rgba(13,23,37,.92);display:grid;gap:8px}.song-preview-bar[hidden]{display:none!important}.song-preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.song-preview-title{font-size:12.5px;font-weight:700;color:#eef4ff;overflow-wrap:anywhere}.song-preview-bar audio{width:100%;height:38px;border-radius:8px}
         .badge.quote-mode{border-color:#6d5ef2;background:rgba(124,108,255,.18);color:#dcd7ff}.manual-song-line{margin-top:6px;font-size:11px;line-height:1.5;color:#a8f0ff;overflow-wrap:anywhere}.manual-song-line a{color:#8fd8ff}.quote-mode-note{padding:11px 13px;border-left:3px solid var(--cyan);border-radius:0 9px 9px 0;background:rgba(16,36,52,.78);color:#cdeeff;font-size:11.5px;line-height:1.55}
         .subgrid-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.subgrid-fields[hidden]{display:none}
         @media(max-width:768px){.subgrid-fields{grid-template-columns:1fr}.song-grid{grid-template-columns:1fr}.mode-tabs{width:100%}.mode-tab{flex:1 1 auto;justify-content:center}}
@@ -351,7 +352,13 @@
                         <p id="song-status" class="status" role="status" aria-live="polite"></p>
                     </div>
                 </form>
-                <audio id="song-preview-player" preload="none" hidden></audio>
+                <div id="song-preview-bar" class="song-preview-bar" hidden>
+                    <div class="song-preview-head">
+                        <span id="song-preview-title" class="song-preview-title">🎵 Memutar pratinjau audio…</span>
+                        <button id="song-preview-close" class="btn small" type="button">✕ Tutup pemutar</button>
+                    </div>
+                    <audio id="song-preview-player" controls preload="metadata"></audio>
+                </div>
                 <div style="height:1px;background:var(--border);margin:20px 0"></div>
                 <div id="songs-list" class="song-grid"><div class="empty" style="grid-column:1/-1">Memuat koleksi musik…</div></div>
             </section>
@@ -575,6 +582,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
-    <script type="module" src="./social-publisher.js?v=quote-black-llm-20261025"></script>
+    <script type="module" src="./social-publisher.js?v=audio-play-fix-20261025"></script>
 </body>
 </html>
