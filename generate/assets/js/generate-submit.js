@@ -56,15 +56,7 @@ function setDiagStage(
         );
 
 
-    try {
-
-        document.title =
-            "[DIAG] " +
-            label;
-
-    } catch {
-        /* ignore */
-    }
+    /* Judul tab tidak lagi diubah oleh diagnostik. */
 
 
     try {
