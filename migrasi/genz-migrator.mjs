@@ -83,10 +83,16 @@ Deno.serve(async (req) => {
     }
 
     if (st.phase === 'data') {
-      if (st.c2 >= TABLES.length) { st.phase = 'storage'; st.c1 = 0; return step('-- DATA SELESAI \u2192 lanjut storage', 'ok'); }
-      const t = TABLES[st.c2];
+      const extra = await old.unsafe("select table_name from information_schema.tables where table_schema='public' and table_type='BASE TABLE' order by table_name");
+      const haveSet = new Set(TABLES);
+      const adds = extra.map((r) => 'public.' + r.table_name).filter((n) => !haveSet.has(n) && !/^public\._bk/.test(n));
+      const bi = TABLES.indexOf('storage.buckets');
+      const LIST = TABLES.slice(0, bi).concat(adds, TABLES.slice(bi));
+      if (st.c2 >= LIST.length) { st.phase = 'storage'; st.c1 = 0; return step('-- DATA SELESAI \u2192 lanjut storage', 'ok'); }
+      const t = LIST[st.c2];
       const lim = WIDE[t.replace('public.', '')] || 50;
-      const rows = await old.unsafe(`select * from ${t} offset ${st.c1} limit ${lim}`);
+      let rows;
+      try { rows = await old.unsafe(`select * from ${t} offset ${st.c1} limit ${lim}`); } catch (e) { if (/does not exist/i.test(String(e.message || ''))) { st.c2++; st.c1 = 0; return step(`\u26a0 ${t}: tidak ada di proyek lama \u2014 dilewati`, 'ok'); } throw e; }
       if (!rows.length) { st.c2++; st.c1 = 0; return step(`\u2713 ${t}: kosong/selesai`, 'ok'); }
       const cols = Object.keys(rows[0]).filter((c) => !(SKIP_COLS[t] || []).includes(c));
       const ph = rows.map((_, i) => '(' + cols.map((_, j) => '$' + (i * cols.length + j + 1)).join(',') + ')').join(',');
