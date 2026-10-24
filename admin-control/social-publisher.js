@@ -655,37 +655,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
-    async function editOutfit(outfit) {
-        const name = window.prompt("Nama outfit", outfit.name || "");
-        if (name === null) return;
-        const orderUrl = window.prompt("Link order outfit (HTTPS, boleh dikosongkan)", outfit.order_url || "");
-        if (orderUrl === null) return;
-        const notes = window.prompt("Catatan outfit (boleh dikosongkan)", outfit.notes || "");
-        if (notes === null) return;
-        if (orderUrl.trim() && !safeHttpsLink(orderUrl)) {
-            showNotice(pageMessage, "Link order harus berupa URL HTTPS yang valid.", "error");
-            return;
-        }
-        try {
-            await api("save-outfit", {
-                method: "POST",
-                body: {
-                    id: outfit.id,
-                    name: name.trim() || outfit.name,
-                    order_url: orderUrl.trim(),
-                    notes: notes.trim(),
-                    is_active: outfit.is_active !== false
-                }
-            });
-            showNotice(pageMessage, "Outfit diperbarui.", "success");
-        } catch (error) {
-            showNotice(pageMessage, error.message, "error");
-            return;
-        }
-        if (window.confirm("Ganti foto outfit ini sekaligus? Klik Batal untuk menyimpan tanpa mengganti foto.")) {
-            await pickAndReplaceOutfitPhoto(outfit.id);
-        }
-        await loadDashboard();
+    function editOutfit(outfit) {
+        openEditModal("outfit", outfit);
     }
 
     async function toggleOutfit(outfit) {
@@ -944,100 +915,103 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
     }
 
-    async function editCharacter(character) {
-        const displayName = window.prompt("Nama karakter", character.display_name || "");
-        if (displayName === null) return;
-        const promptNotes = window.prompt("Ciri karakter yang perlu dijaga", character.prompt_notes || "");
-        if (promptNotes === null) return;
-        const name = displayName.trim();
+    function editCharacter(character) {
+        openEditModal("character", character);
+    }
+
+    function editModalStatus(message, tone = "") {
+        status($("edit-modal-status"), message, tone);
+    }
+
+    function openEditModal(type, data) {
+        const isCharacter = type === "character";
+        state.editModal = { type, id: data.id, isActive: data.is_active !== false };
+        $("edit-modal-title").textContent = isCharacter
+            ? `Edit karakter · ${data.display_name || ""}`
+            : `Edit outfit · ${data.name || ""}`;
+        $("edit-modal-name").value = isCharacter ? (data.display_name || "") : (data.name || "");
+        const notes = $("edit-modal-notes");
+        notes.maxLength = isCharacter ? 1200 : 400;
+        notes.value = isCharacter ? (data.prompt_notes || "") : (data.notes || "");
+        $("edit-modal-order-field").hidden = isCharacter;
+        $("edit-modal-order").value = isCharacter ? "" : (data.order_url || "");
+        const fileInput = $("edit-modal-file");
+        fileInput.value = "";
+        $("edit-modal-file-name").textContent = "Tanpa file baru: foto tidak diganti.";
+        const photo = $("edit-modal-photo");
+        photo.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='74' height='92'%3E%3Crect width='100%25' height='100%25' fill='%231b2737'/%3E%3C/svg%3E";
+        if (isCharacter) {
+            photo.dataset.characterId = data.id;
+            delete photo.dataset.outfitId;
+            loadReferencePreview(data.id, photo);
+        } else {
+            photo.dataset.outfitId = data.id;
+            delete photo.dataset.characterId;
+            loadOutfitPreview(data.id, photo);
+        }
+        editModalStatus("");
+        $("edit-modal-overlay").hidden = false;
+        $("edit-modal-name").focus({ preventScroll: true });
+    }
+
+    function closeEditModal() {
+        state.editModal = null;
+        $("edit-modal-overlay").hidden = true;
+    }
+
+    async function saveEditModal() {
+        const meta = state.editModal;
+        if (!meta) return;
+        const isCharacter = meta.type === "character";
+        const name = $("edit-modal-name").value.trim();
         if (!name) {
-            showNotice(pageMessage, "Nama karakter tidak boleh kosong.", "error");
+            editModalStatus("Nama tidak boleh kosong.", "error");
             return;
         }
-        try {
-            await api("save-character", { method: "POST", body: { id: character.id, display_name: name, prompt_notes: promptNotes.trim() } });
-            showNotice(pageMessage, "Karakter diperbarui.", "success");
-        } catch (error) {
-            showNotice(pageMessage, error.message, "error");
+        const notes = $("edit-modal-notes").value.trim();
+        const orderUrl = $("edit-modal-order").value.trim();
+        if (!isCharacter && orderUrl && !safeHttpsLink(orderUrl)) {
+            editModalStatus("Link order harus berupa URL HTTPS yang valid.", "error");
             return;
         }
-        if (window.confirm("Ganti foto referensi karakter ini sekaligus? Klik Batal untuk menyimpan tanpa mengganti foto.")) {
-            await pickAndReplaceReference(character.id);
+        const file = $("edit-modal-file").files?.[0] || null;
+        if (file && (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024)) {
+            editModalStatus("Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
+            return;
         }
-        await loadDashboard();
-    }
-
-    function pickImageFile() {
-        return new Promise(resolve => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = "image/jpeg,image/png,image/webp";
-            input.hidden = true;
-            document.body.append(input);
-            let settled = false;
-            const finish = file => {
-                if (settled) return;
-                settled = true;
-                input.remove();
-                resolve(file || null);
-            };
-            input.addEventListener("change", () => finish(input.files?.[0]));
-            input.addEventListener("cancel", () => finish(null));
-            input.click();
-        });
-    }
-
-    async function pickAndReplaceReference(characterId) {
-        const file = await pickImageFile();
-        if (!file) return false;
-        if (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024) {
-            showNotice(pageMessage, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
-            return false;
-        }
+        const saveButton = $("edit-modal-save");
+        setButtonBusy(saveButton, true, "Menyimpan…");
         try {
-            showNotice(pageMessage, "Mengunggah foto referensi baru…", "warn");
-            await api("replace-reference", {
-                method: "POST",
-                body: file,
-                raw: true,
-                headers: {
-                    "Content-Type": file.type,
-                    "X-File-Name": encodeURIComponent(file.name),
-                    "X-Character-Id": encodeURIComponent(characterId)
-                }
-            });
-            showNotice(pageMessage, "Foto referensi karakter berhasil diganti.", "success");
-            return true;
+            if (isCharacter) {
+                await api("save-character", { method: "POST", body: { id: meta.id, display_name: name, prompt_notes: notes } });
+            } else {
+                await api("save-outfit", {
+                    method: "POST",
+                    body: { id: meta.id, name, order_url: orderUrl, notes, is_active: meta.isActive }
+                });
+            }
+            if (file) {
+                editModalStatus("Data tersimpan; mengunggah foto baru…");
+                await api(isCharacter ? "replace-reference" : "replace-outfit-photo", {
+                    method: "POST",
+                    body: file,
+                    raw: true,
+                    headers: {
+                        "Content-Type": file.type,
+                        "X-File-Name": encodeURIComponent(file.name),
+                        ...(isCharacter
+                            ? { "X-Character-Id": encodeURIComponent(meta.id) }
+                            : { "X-Outfit-Id": encodeURIComponent(meta.id) })
+                    }
+                });
+            }
+            closeEditModal();
+            showNotice(pageMessage, isCharacter ? "Karakter diperbarui." : "Outfit diperbarui.", "success");
+            await loadDashboard();
         } catch (error) {
-            showNotice(pageMessage, error.message, "error");
-            return false;
-        }
-    }
-
-    async function pickAndReplaceOutfitPhoto(outfitId) {
-        const file = await pickImageFile();
-        if (!file) return false;
-        if (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024) {
-            showNotice(pageMessage, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
-            return false;
-        }
-        try {
-            showNotice(pageMessage, "Mengunggah foto outfit baru…", "warn");
-            await api("replace-outfit-photo", {
-                method: "POST",
-                body: file,
-                raw: true,
-                headers: {
-                    "Content-Type": file.type,
-                    "X-File-Name": encodeURIComponent(file.name),
-                    "X-Outfit-Id": encodeURIComponent(outfitId)
-                }
-            });
-            showNotice(pageMessage, "Foto outfit berhasil diganti.", "success");
-            return true;
-        } catch (error) {
-            showNotice(pageMessage, error.message, "error");
-            return false;
+            editModalStatus(error.message, "error");
+        } finally {
+            setButtonBusy(saveButton, false);
         }
     }
 
@@ -1406,6 +1380,27 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         }
         if (!visibleRuns.length) container.innerHTML = '<div class="empty">Belum ada run. Aktifkan jadwal untuk mulai.</div>';
         renderRunsPaginationControls();
+    }
+
+    const autopostWatch = { knownPosted: null, reloading: false };
+
+    async function pollAutopostSuccess() {
+        if (autopostWatch.reloading || document.visibilityState !== "visible") return;
+        try {
+            const result = await api("runs&page=1&limit=15");
+            const postedAuto = (result.runs || []).filter(run => run.schedule_id && run.status === "posted");
+            if (autopostWatch.knownPosted === null) {
+                autopostWatch.knownPosted = new Set(postedAuto.map(run => run.id));
+                return;
+            }
+            const fresh = postedAuto.find(run => !autopostWatch.knownPosted.has(run.id));
+            if (!fresh) return;
+            autopostWatch.reloading = true;
+            showNotice(pageMessage, "Posting otomatis berhasil terbit — halaman dimuat ulang otomatis…", "success");
+            window.setTimeout(() => window.location.reload(), 1500);
+        } catch {
+            /* Polling gagal: coba lagi pada interval berikutnya. */
+        }
     }
 
     async function loadRunsPage(targetPage = state.runsPage, { perPage = state.runsPerPage, scrollIntoView = false } = {}) {
@@ -2069,6 +2064,21 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
     $("character-form").addEventListener("submit", uploadCharacter);
     $("manual-post-form").addEventListener("submit", submitManualPost);
     $("manual-publish-button").addEventListener("click", publishManualPreview);
+    $("edit-modal-close").addEventListener("click", closeEditModal);
+    $("edit-modal-cancel").addEventListener("click", closeEditModal);
+    $("edit-modal-save").addEventListener("click", saveEditModal);
+    $("edit-modal-overlay").addEventListener("click", event => {
+        if (event.target === event.currentTarget) closeEditModal();
+    });
+    $("edit-modal-file").addEventListener("change", event => {
+        const file = event.target.files?.[0];
+        $("edit-modal-file-name").textContent = file
+            ? `File baru: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) akan diunggah.`
+            : "Tanpa file baru: foto tidak diganti.";
+    });
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !$("edit-modal-overlay").hidden) closeEditModal();
+    });
     $("manual-discard-button").addEventListener("click", async () => {
         try {
             await discardManualPreview();
@@ -2235,6 +2245,8 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         refreshStudioPricing();
         window.setInterval(updateStudioGate, 1000);
         window.setInterval(refreshStudioGate, 60000);
+        window.setInterval(pollAutopostSuccess, 20000);
+        pollAutopostSuccess();
         window.addEventListener("focus", refreshStudioGate);
     }
     showOAuthResult();
