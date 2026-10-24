@@ -7,19 +7,22 @@ import { fileURLToPath } from "node:url";
 import {
     SOCIAL_POST_MODES,
     QUOTE_PRESETS,
+    BUILTIN_STORY_SONGS,
     DEFAULT_FACEBOOK_SONGS,
     normalizeSocialPostMode,
     sanitizeFacebookSongUrl,
     pickRandomFacebookSong,
-    formatFacebookSongCaption,
     createQuotePlan,
     quoteOverridesFromSchedule,
     cleanQuoteText,
     pickFallbackQuote,
-    buildQuoteImagePrompt,
-    renderQuoteCaption
+    buildQuoteImagePrompt
 } from "../lib/social-publisher/quotes.js";
-import { composeSocialCaption } from "../lib/social-publisher/utils.js";
+import {
+    encodeStoryMp4,
+    extractAudioForStoryMp4,
+    renderQuoteStoryCard
+} from "../lib/social-publisher/story-video.js";
 import {
     encryptSecret,
     generateSocialQuote,
@@ -33,19 +36,24 @@ const repoRoot = path.resolve(__dirname, "..");
 
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0ioAAAAASUVORK5CYII=";
 const TEST_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString("base64");
+const SAMPLE_M4A_BYTES = new Uint8Array(
+    fs.readFileSync(path.join(repoRoot, "assets/audio/story-music/senja-akustik.m4a"))
+);
 
 function makeRes() {
     return {
         statusCode: 200,
         headers: {},
         body: null,
-        setHeader(name, value) { this.headers[name] = value; },
+        rawBytes: null,
+        setHeader(name, value) { this.headers[name.toLowerCase()] = value; },
         status(code) { this.statusCode = code; return this; },
-        json(payload) { this.body = payload; return this; }
+        json(payload) { this.body = payload; return this; },
+        end(payload) { this.rawBytes = payload; return this; }
     };
 }
 
-test("quotes module normalizes post modes, validates Facebook song URLs, and rotates songs without immediate repeats", () => {
+test("quotes module normalizes post modes, ships 8 playable built-in Story tracks without search URLs, and rotates playable songs", () => {
     assert.deepEqual(SOCIAL_POST_MODES, ["character", "quote"]);
     assert.equal(normalizeSocialPostMode("quote"), "quote");
     assert.equal(normalizeSocialPostMode("QUOTE"), "quote");
@@ -53,94 +61,91 @@ test("quotes module normalizes post modes, validates Facebook song URLs, and rot
     assert.equal(normalizeSocialPostMode(""), "character");
     assert.equal(normalizeSocialPostMode("anything-else"), null);
 
+    assert.equal(BUILTIN_STORY_SONGS.length, 8);
+    assert.equal(DEFAULT_FACEBOOK_SONGS.length, 8);
+    for (const track of BUILTIN_STORY_SONGS) {
+        assert.match(track.audio_object_key, /^builtin:/);
+        assert.equal(track.facebook_url, "");
+        const assetFile = path.join(repoRoot, track.asset_path.replace(/^\/+/, ""));
+        assert.equal(fs.existsSync(assetFile), true, `Missing built-in Story track: ${assetFile}`);
+    }
+
     assert.equal(sanitizeFacebookSongUrl(""), "");
     assert.equal(
         sanitizeFacebookSongUrl("https://www.facebook.com/reel/1234567890"),
         "https://www.facebook.com/reel/1234567890"
     );
-    assert.equal(
-        sanitizeFacebookSongUrl("https://fb.watch/abcXYZ123/"),
-        "https://fb.watch/abcXYZ123/"
-    );
-    assert.equal(sanitizeFacebookSongUrl("http://www.facebook.com/reel/123"), "");
     assert.equal(sanitizeFacebookSongUrl("https://open.spotify.com/track/123"), "");
 
     const customSongs = [
-        { id: "song-1", title: "Monokrom", artist: "Tulus", facebook_url: "https://www.facebook.com/reel/111", is_active: true },
-        { id: "song-2", title: "Rehat", artist: "Kunto Aji", facebook_url: "https://www.facebook.com/reel/222", is_active: true },
-        { id: "song-3", title: "Inactive", artist: "Test", facebook_url: "", is_active: false }
+        { id: "song-link-only", title: "Link Saja", artist: "Test", audio_object_key: "", is_active: true },
+        { id: "song-1", title: "Lagu Upload 1", artist: "Kreator A", audio_object_key: "story-audio/u1/s1.m4a", duration_seconds: 15, is_active: true },
+        { id: "song-2", title: "Lagu Upload 2", artist: "Kreator B", audio_object_key: "story-audio/u1/s2.mp3", duration_seconds: 18, is_active: true }
     ];
 
-    const picked = pickRandomFacebookSong(customSongs, ["song-1"], () => 0);
+    // requirePlayableAudio skips rows without audio_object_key and avoids recently used song-1.
+    const picked = pickRandomFacebookSong(customSongs, ["song-1"], () => 0, { requirePlayableAudio: true });
     assert.equal(picked.id, "song-2");
-    assert.equal(picked.title, "Rehat");
+    assert.equal(picked.title, "Lagu Upload 2");
+    assert.equal(picked.audio_object_key, "story-audio/u1/s2.mp3");
 
-    // Empty custom list falls back automatically to curated built-in songs.
+    // Empty playable custom list falls back automatically to built-in playable Story tracks.
     const fallbackPicked = pickRandomFacebookSong(
-        [],
-        [{ song_title: DEFAULT_FACEBOOK_SONGS[0].title, song_artist: DEFAULT_FACEBOOK_SONGS[0].artist }],
-        () => 0
+        [{ id: "song-link-only", title: "Link Saja", audio_object_key: "", is_active: true }],
+        [{ song_title: BUILTIN_STORY_SONGS[0].title, song_artist: BUILTIN_STORY_SONGS[0].artist }],
+        () => 0,
+        { requirePlayableAudio: true }
     );
     assert.ok(fallbackPicked?.title);
-    assert.notEqual(fallbackPicked.title, DEFAULT_FACEBOOK_SONGS[0].title);
+    assert.match(fallbackPicked.audio_object_key, /^builtin:/);
+    assert.notEqual(fallbackPicked.title, BUILTIN_STORY_SONGS[0].title);
 });
 
-test("createQuotePlan, buildQuoteImagePrompt, renderQuoteCaption, and composeSocialCaption produce aesthetic non-character posters & song blocks", () => {
+test("buildQuoteImagePrompt enforces strictly text-free scenic background and story-video renders crisp 540x960 H.264+AAC MP4", async () => {
     const plan = createQuotePlan([], () => 0, quoteOverridesFromSchedule({
         quote_theme: "senja",
         quote_visual_style: QUOTE_PRESETS.visualStyles[0].value,
         scene_details: "cahaya hangat di tepi danau"
     }));
-    assert.equal(plan.mode, "quote");
-    assert.equal(plan.themeId, "senja");
-    assert.equal(plan.visualPrompt, QUOTE_PRESETS.visualStyles[0].value);
-
     const cleanedQuote = cleanQuoteText('"Pelan tidak apa-apa, asal langkahmu tetap menuju pulang."');
     assert.equal(cleanedQuote, "Pelan tidak apa-apa, asal langkahmu tetap menuju pulang.");
-
-    const fallback = pickFallbackQuote("senja", [cleanedQuote], () => 0);
-    assert.ok(fallback.length > 10);
+    assert.ok(pickFallbackQuote("senja", [cleanedQuote], () => 0).length > 10);
 
     const prompt = buildQuoteImagePrompt({
-        quoteText: cleanedQuote,
         quotePlan: plan,
         aspectRatio: "9:16",
         negativePrompt: "mobil, gedung"
     });
-    assert.match(prompt, /Pelan tidak apa-apa, asal langkahmu tetap menuju pulang\./);
+    assert.match(prompt, /NO TEXT AT ALL/i);
     assert.match(prompt, /NO people, NO characters, NO human faces/i);
-    assert.match(prompt, /cahaya hangat di tepi danau/);
-    assert.match(prompt, /mobil, gedung/);
+    assert.doesNotMatch(prompt, /Pelan tidak apa-apa/, "AI background prompt must NEVER contain quote text");
 
-    const song = {
-        id: "song-rehat",
-        title: "Rehat",
-        artist: "Kunto Aji",
-        facebook_url: "https://www.facebook.com/reel/987654321"
-    };
-    const songBlock = formatFacebookSongCaption(song);
-    assert.match(songBlock, /🎵 Lagu Facebook: Rehat — Kunto Aji/);
-    assert.match(songBlock, /🎧 Musik di Facebook: https:\/\/www\.facebook\.com\/reel\/987654321/);
-
-    const baseTemplate = "Renungan sore ({theme}) bersama {song} oleh {artist} #KataMutiara #Senja";
-    const rendered = renderQuoteCaption(baseTemplate, plan, cleanedQuote, song);
-    assert.match(rendered, /Tenang, Senja & Penyembuhan Diri/);
-    assert.match(rendered, /Rehat/);
-    assert.match(rendered, /Kunto Aji/);
-
-    const fullCaption = composeSocialCaption({
-        contextualCaption: "Semoga sore ini menenangkan langkahmu.",
-        baseCaption: rendered,
-        externalLink: "https://genzai.id/renungan",
+    const card = await renderQuoteStoryCard({
+        backgroundBytes: Buffer.from(TINY_PNG_BASE64, "base64"),
         quoteText: cleanedQuote,
-        song
+        seed: 2
     });
-    assert.match(fullCaption, /“Pelan tidak apa-apa, asal langkahmu tetap menuju pulang\.”/);
-    assert.match(fullCaption, /Semoga sore ini menenangkan langkahmu\./);
-    assert.match(fullCaption, /🎵 Lagu Facebook: Rehat — Kunto Aji/);
-    assert.match(fullCaption, /🎧 Musik di Facebook: https:\/\/www\.facebook\.com\/reel\/987654321/);
-    assert.match(fullCaption, /https:\/\/genzai\.id\/renungan/);
-    assert.match(fullCaption, /#KataMutiara #Senja$/);
+    assert.equal(card.width, 540);
+    assert.equal(card.height, 960);
+    assert.ok(card.pngBytes.byteLength > 5_000);
+
+    const encoded = encodeStoryMp4({
+        rgba: card.rgba,
+        width: card.width,
+        height: card.height,
+        audioBytes: SAMPLE_M4A_BYTES
+    });
+    assert.equal(encoded.hasAudio, true);
+    assert.equal(Math.round(encoded.durationSec), 15);
+    assert.equal(Buffer.from(encoded.mp4Bytes.subarray(4, 8)).toString("ascii"), "ftyp");
+    assert.equal(Buffer.from(encoded.mp4Bytes).includes(Buffer.from("avc1")), true);
+    assert.equal(Buffer.from(encoded.mp4Bytes).includes(Buffer.from("mp4a")), true);
+
+    // Extracting audio from a full .mp4 video (e.g. downloaded from Facebook Reels/Stories) also succeeds.
+    const extractedFromVideo = extractAudioForStoryMp4(encoded.mp4Bytes);
+    assert.ok(extractedFromVideo);
+    assert.equal(extractedFromVideo.codec, "aac");
+    assert.ok(extractedFromVideo.frames.length > 100);
 });
 
 test("generateSocialQuote and generateSocialQuoteImage support Gemini and Cloudflare without character references", async () => {
@@ -163,7 +168,7 @@ test("generateSocialQuote and generateSocialQuoteImage support Gemini and Cloudf
                 return Response.json({
                     outputs: [{
                         type: "text",
-                        text: "QUOTE: Langkah kecil hari ini tetap lebih jauh daripada diam di tempat kemarin.\nCAPTION: Teruslah melangkah meski pelan, waktumu sedang tumbuh."
+                        text: "QUOTE: Langkah kecil hari ini tetap lebih jauh daripada diam di tempat kemarin.\nCAPTION: Teruslah melangkah meski pelan."
                     }]
                 });
             }
@@ -180,24 +185,22 @@ test("generateSocialQuote and generateSocialQuoteImage support Gemini and Cloudf
             geminiQuote.quoteText,
             "Langkah kecil hari ini tetap lebih jauh daripada diam di tempat kemarin."
         );
-        assert.match(geminiQuote.contextualCaption, /Teruslah melangkah/);
 
         const geminiImage = await generateSocialQuoteImage({
             env: { GEMINI_API_KEY: "test-gemini-key" },
-            prompt: buildQuoteImagePrompt({ quoteText: geminiQuote.quoteText, quotePlan: plan }),
+            prompt: buildQuoteImagePrompt({ quotePlan: plan }),
             aspectRatio: "9:16",
             imageProvider: "gemini"
         });
         assert.equal(geminiImage.mimeType, "image/png");
         assert.ok(geminiImage.bytes.byteLength > 0);
 
-        // Cloudflare Workers AI fallback without GEMINI_API_KEY
         const cfEnv = {
             AI: {
                 async run(model) {
                     if (model.includes("llama")) {
                         return {
-                            response: "QUOTE: Tenang bukan berarti menyerah, melainkan memberi ruang agar hati kembali utuh.\nCAPTION: Tarik napas sejenak dan percayakan sisanya pada doa."
+                            response: "QUOTE: Tenang bukan berarti menyerah, melainkan memberi ruang agar hati kembali utuh."
                         };
                     }
                     if (model.includes("flux")) {
@@ -216,7 +219,7 @@ test("generateSocialQuote and generateSocialQuoteImage support Gemini and Cloudf
         assert.match(cfQuote.quoteText, /Tenang bukan berarti menyerah/);
         const cfImage = await generateSocialQuoteImage({
             env: cfEnv,
-            prompt: "Poster estetik",
+            prompt: "Latar senja polos tanpa teks",
             aspectRatio: "9:16",
             imageProvider: "cloudflare"
         });
@@ -227,12 +230,14 @@ test("generateSocialQuote and generateSocialQuoteImage support Gemini and Cloudf
     }
 });
 
-test("API social-publisher supports Facebook song CRUD/seed, manual quote preview/publish, and quote schedule creation", async () => {
+test("API social-publisher supports custom audio upload, preview stream, manual Video Story generation, and Facebook Page Story publishing (video_stories)", async () => {
     const encryptedPageToken = await encryptSecret("fb-page-secret-token", TEST_ENCRYPTION_KEY);
     const songsStore = [];
     const runsStore = [];
     const schedulesStore = [];
-    let publishedPhotoCalls = 0;
+    const audioBucketStore = new Map();
+    const storyPhases = [];
+    let feedPhotoCalls = 0;
 
     const env = {
         SUPABASE_URL: "https://supabase.example.co",
@@ -279,8 +284,8 @@ test("API social-publisher supports Facebook song CRUD/seed, manual quote previe
                 return Response.json([{
                     owner_id: "user-quote-1",
                     autopublish_enabled: true,
-                    caption_template: "Renungan hari ini #KataMutiara #Inspirasi",
-                    external_link: ""
+                    caption_template: "Cerita hari ini...!!! #foryou #outfit #fashion",
+                    external_link: "https://spam-link.example.com"
                 }]);
             }
             if (url.includes("/rest/v1/social_page_connections?")) {
@@ -294,10 +299,28 @@ test("API social-publisher supports Facebook song CRUD/seed, manual quote previe
                     can_publish: true
                 }]);
             }
+            if (url.includes("/storage/v1/object/authenticated/social-story-audio/")) {
+                const key = decodeURIComponent(url.split("/social-story-audio/")[1]);
+                const bytes = audioBucketStore.get(key);
+                if (!bytes) return new Response("Not found", { status: 404 });
+                return new Response(bytes, { status: 200, headers: { "Content-Type": "audio/mp4" } });
+            }
+            if (url.includes("/storage/v1/object/social-story-audio") && method === "DELETE") {
+                const payload = JSON.parse(init.body || "{}");
+                for (const p of payload.prefixes || []) audioBucketStore.delete(p);
+                return Response.json({ message: "Deleted" });
+            }
+            if (url.includes("/storage/v1/object/social-story-audio/")) {
+                const key = decodeURIComponent(url.split("/social-story-audio/")[1]);
+                audioBucketStore.set(key, new Uint8Array(init.body));
+                return Response.json({ Key: key });
+            }
             if (url.includes("/rest/v1/social_facebook_songs")) {
                 if (method === "GET") {
-                    if (url.includes("select=id") && !url.includes("title")) {
-                        return Response.json(songsStore.map(s => ({ id: s.id })));
+                    const parsed = new URL(url);
+                    const idFilter = parsed.searchParams.get("id")?.replace(/^eq\./, "");
+                    if (idFilter) {
+                        return Response.json(songsStore.filter(s => s.id === idFilter));
                     }
                     return Response.json([...songsStore]);
                 }
@@ -306,7 +329,7 @@ test("API social-publisher supports Facebook song CRUD/seed, manual quote previe
                     const items = Array.isArray(payload) ? payload : [payload];
                     const inserted = items.map((item, idx) => {
                         const row = {
-                            id: `song-${songsStore.length + idx + 1}`,
+                            id: item.id || `song-${songsStore.length + idx + 1}`,
                             created_at: new Date().toISOString(),
                             updated_at: new Date().toISOString(),
                             ...item
@@ -397,7 +420,7 @@ test("API social-publisher supports Facebook song CRUD/seed, manual quote previe
                 return Response.json({
                     outputs: [{
                         type: "text",
-                        text: "QUOTE: Setiap senja mengajarkan bahwa yang indah pun tahu cara berpamitan dengan tenang.\nCAPTION: Semoga hatimu hangat malam ini."
+                        text: "QUOTE: Setiap senja mengajarkan bahwa yang indah pun tahu cara berpamitan dengan tenang."
                     }]
                 });
             }
@@ -405,64 +428,70 @@ test("API social-publisher supports Facebook song CRUD/seed, manual quote previe
                 return Response.json({ id: "99887766", name: "Ruang Teduh Page", tasks: ["CREATE_CONTENT", "MANAGE"] });
             }
             if (url.includes("graph.facebook.com") && url.endsWith("/99887766/photos")) {
-                publishedPhotoCalls += 1;
+                feedPhotoCalls += 1;
                 return Response.json({ id: "photo-1", post_id: "99887766_555111" });
             }
-            if (url.includes("graph.facebook.com") && url.includes("99887766_555111")) {
-                return Response.json({ permalink_url: "https://www.facebook.com/99887766/posts/555111" });
+            if (url.includes("graph.facebook.com") && url.endsWith("/99887766/video_stories")) {
+                const params = new URLSearchParams(String(init.body || ""));
+                const phase = params.get("upload_phase");
+                storyPhases.push(phase);
+                if (phase === "start") {
+                    return Response.json({
+                        video_id: "story-vid-101",
+                        upload_url: "https://rupload.facebook.com/video-upload/v26.0/story-vid-101"
+                    });
+                }
+                if (phase === "finish") {
+                    assert.equal(params.get("video_id"), "story-vid-101");
+                    return Response.json({ success: true, post_id: "99887766_story_9001" });
+                }
             }
-            if (url.includes("/storage/v1/bucket/")) {
-                return Response.json({ id: "social-character-references", public: false });
+            if (url.startsWith("https://rupload.facebook.com/video-upload/")) {
+                storyPhases.push("binary-upload");
+                assert.equal(init.headers?.offset, "0");
+                assert.ok(Number(init.headers?.file_size) > 10_000);
+                return Response.json({ success: true });
+            }
+            if (url.includes("graph.facebook.com") && url.includes("99887766_story_9001")) {
+                return Response.json({ permalink_url: "https://www.facebook.com/stories/99887766/9001" });
             }
             return Response.json([]);
         };
 
-        // 1. Reject non-Facebook URL on save-song
-        const badSongRes = makeRes();
+        // 1. Upload custom song (.m4a) into private bucket social-story-audio
+        const uploadSongRes = makeRes();
         await socialPublisherHandler({
             method: "POST",
-            url: "/api/social-publisher?action=save-song",
-            headers: { authorization: "Bearer valid-token" },
-            body: {
-                title: "Lagu Salah",
-                artist: "Artis",
-                facebook_url: "https://youtube.com/watch?v=123"
+            url: "/api/social-publisher?action=upload-song",
+            headers: {
+                authorization: "Bearer valid-token",
+                "content-type": "audio/mp4",
+                "x-file-name": encodeURIComponent("lagu-favorit-senja.m4a"),
+                "x-song-title": encodeURIComponent("Gitar Senja Favorit"),
+                "x-song-artist": encodeURIComponent("Akustik Nusantara"),
+                "x-song-mood": encodeURIComponent("Tenang & Syukur")
             },
+            body: SAMPLE_M4A_BYTES,
             env
-        }, badSongRes);
-        assert.equal(badSongRes.statusCode, 400);
-        assert.match(badSongRes.body.error, /Facebook/);
+        }, uploadSongRes);
+        assert.equal(uploadSongRes.statusCode, 201);
+        assert.equal(uploadSongRes.body.song.title, "Gitar Senja Favorit");
+        assert.match(uploadSongRes.body.song.audio_object_key, /^story-audio\/user-quote-1\//);
+        assert.equal(uploadSongRes.body.song.duration_seconds, 15);
+        assert.equal(audioBucketStore.size, 1);
 
-        // 2. Save valid Facebook song
-        const saveSongRes = makeRes();
-        await socialPublisherHandler({
-            method: "POST",
-            url: "/api/social-publisher?action=save-song",
-            headers: { authorization: "Bearer valid-token" },
-            body: {
-                title: "Zona Nyaman",
-                artist: "Fourtwnty",
-                mood: "Santai & Kopi",
-                facebook_url: "https://www.facebook.com/reel/420420"
-            },
-            env
-        }, saveSongRes);
-        assert.equal(saveSongRes.statusCode, 200);
-        assert.equal(saveSongRes.body.song.title, "Zona Nyaman");
-
-        // 3. List Facebook songs
-        const listSongsRes = makeRes();
+        // 2. Stream uploaded song audio back for Studio Medsos preview player
+        const streamRes = makeRes();
         await socialPublisherHandler({
             method: "GET",
-            url: "/api/social-publisher?action=songs",
+            url: `/api/social-publisher?action=song-audio&id=${encodeURIComponent(uploadSongRes.body.song.id)}`,
             headers: { authorization: "Bearer valid-token" },
             env
-        }, listSongsRes);
-        assert.equal(listSongsRes.statusCode, 200);
-        assert.equal(listSongsRes.body.songs.length, 1);
-        assert.equal(listSongsRes.body.songLibraryReady, true);
+        }, streamRes);
+        assert.equal(streamRes.statusCode, 200);
+        assert.equal(streamRes.rawBytes.byteLength, SAMPLE_M4A_BYTES.byteLength);
 
-        // 4. Manual quote preview generation without character_id
+        // 3. Manual quote Story preview generation (9:16 PNG card + MP4 Video Story + ZERO feed clutter)
         const previewRes = makeRes();
         await socialPublisherHandler({
             method: "POST",
@@ -480,30 +509,37 @@ test("API social-publisher supports Facebook song CRUD/seed, manual quote previe
         }, previewRes);
         assert.equal(previewRes.statusCode, 200);
         assert.equal(previewRes.body.preview.post_mode, "quote");
-        assert.match(previewRes.body.preview.quote_text, /Setiap senja mengajarkan/);
-        assert.equal(previewRes.body.preview.song.title, "Zona Nyaman");
-        assert.match(previewRes.body.preview.caption, /🎵 Lagu Facebook: Zona Nyaman — Fourtwnty/);
-        assert.match(previewRes.body.preview.caption, /https:\/\/www\.facebook\.com\/reel\/420420/);
+        assert.equal(previewRes.body.preview.is_story, true);
+        assert.equal(previewRes.body.preview.video_mime_type, "video/mp4");
+        assert.ok(previewRes.body.preview.video_base64.length > 10_000);
+        assert.equal(previewRes.body.preview.song.title, "Gitar Senja Favorit");
+        // Strictly clean quote text ONLY — no "Cerita hari ini", no song URLs, no hashtags!
+        assert.equal(
+            previewRes.body.preview.caption,
+            "Setiap senja mengajarkan bahwa yang indah pun tahu cara berpamitan dengan tenang."
+        );
+        assert.doesNotMatch(previewRes.body.preview.caption, /Cerita hari ini|Lagu Facebook|facebook\.com|#foryou|#outfit/i);
 
-        // 5. Publish manual quote preview to Facebook Page
-        const cleanedBytes = Buffer.from(TINY_PNG_BASE64, "base64");
+        // 4. Publish manual Video Story to Facebook Page Stories (/{page-id}/video_stories)
+        const mp4Bytes = Buffer.from(previewRes.body.preview.video_base64, "base64");
         const publishRes = makeRes();
         await socialPublisherHandler({
             method: "POST",
             url: "/api/social-publisher?action=manual-publish",
             headers: {
                 authorization: "Bearer valid-token",
-                "content-type": "image/png",
+                "content-type": "video/mp4",
                 "x-manual-run-id": previewRes.body.preview.run_id
             },
-            body: cleanedBytes,
+            body: mp4Bytes,
             env
         }, publishRes);
         assert.equal(publishRes.statusCode, 200);
-        assert.equal(publishedPhotoCalls, 1);
-        assert.equal(publishRes.body.post.permalink_url, "https://www.facebook.com/99887766/posts/555111");
+        assert.equal(publishRes.body.post.is_story, true);
+        assert.equal(feedPhotoCalls, 0, "Quote Story must publish to video_stories, NOT feed photos");
+        assert.deepEqual(storyPhases, ["start", "binary-upload", "finish"]);
 
-        // 6. Save quote schedule without character_id
+        // 5. Save quote schedule without character_id
         const saveSchedRes = makeRes();
         await socialPublisherHandler({
             method: "POST",
@@ -527,11 +563,8 @@ test("API social-publisher supports Facebook song CRUD/seed, manual quote previe
         assert.equal(saveSchedRes.statusCode, 200);
         assert.equal(saveSchedRes.body.schedule.post_mode, "quote");
         assert.equal(saveSchedRes.body.schedule.character_id, null);
-        assert.equal(saveSchedRes.body.schedule.quote_theme, "senja");
-        assert.equal(saveSchedRes.body.schedule.quote_visual_style, QUOTE_PRESETS.visualStyles[1].value);
-        assert.equal(saveSchedRes.body.schedule.use_random_song, true);
 
-        // 7. Seed curated songs & delete song
+        // 6. Seed 8 built-in Story tracks & delete custom uploaded song (removes storage object too)
         const seedRes = makeRes();
         await socialPublisherHandler({
             method: "POST",
@@ -541,26 +574,28 @@ test("API social-publisher supports Facebook song CRUD/seed, manual quote previe
             env
         }, seedRes);
         assert.equal(seedRes.statusCode, 200);
-        assert.ok(seedRes.body.added >= 10);
+        assert.equal(seedRes.body.added, 8);
 
         const delRes = makeRes();
         await socialPublisherHandler({
             method: "POST",
             url: "/api/social-publisher?action=delete-song",
             headers: { authorization: "Bearer valid-token" },
-            body: { id: saveSongRes.body.song.id },
+            body: { id: uploadSongRes.body.song.id },
             env
         }, delRes);
         assert.equal(delRes.statusCode, 200);
+        assert.equal(audioBucketStore.size, 0, "Deleting custom song also deletes private audio object");
     } finally {
         globalThis.fetch = originalFetch;
     }
 });
 
-test("cron runSocialPublisherCron auto-generates and publishes quote schedule with non-repeating random Facebook song", async () => {
+test("cron runSocialPublisherCron auto-generates 9:16 Video Story with embedded audio and publishes to /{page-id}/video_stories", async () => {
     const encryptedPageToken = await encryptSecret("fb-cron-token", TEST_ENCRYPTION_KEY);
     const updatedRuns = [];
-    let publishedMessage = "";
+    const cronStoryPhases = [];
+    let uploadedMp4Size = 0;
 
     const env = {
         SUPABASE_URL: "https://supabase.example.co",
@@ -609,7 +644,7 @@ test("cron runSocialPublisherCron auto-generates and publishes quote schedule wi
                     character_id: null,
                     page_connection_id: "page-cron-1",
                     aspect_ratio: "9:16",
-                    caption_template: "Kutipan malam #KataMutiara",
+                    caption_template: "Cerita hari ini...!!! #foryou #outfit #fashion",
                     autopublish_enabled: true,
                     enabled: true,
                     post_mode: "quote",
@@ -635,14 +670,30 @@ test("cron runSocialPublisherCron auto-generates and publishes quote schedule wi
                 return Response.json([{
                     owner_id: "user-cron-1",
                     autopublish_enabled: true,
-                    caption_template: "Kutipan malam #KataMutiara",
+                    caption_template: "Cerita hari ini...!!! #foryou #outfit #fashion",
                     external_link: "https://genzai.id"
                 }]);
             }
             if (url.includes("/rest/v1/social_facebook_songs?")) {
                 return Response.json([
-                    { id: "song-used", title: "Monokrom", artist: "Tulus", facebook_url: "https://www.facebook.com/reel/1", is_active: true },
-                    { id: "song-fresh", title: "Bertaut", artist: "Nadin Amizah", facebook_url: "https://www.facebook.com/reel/777", is_active: true }
+                    {
+                        id: "song-used",
+                        title: "Senja Akustik Hangat",
+                        artist: "Studio Instrumental",
+                        audio_object_key: "builtin:senja-akustik",
+                        audio_mime_type: "audio/mp4",
+                        duration_seconds: 15,
+                        is_active: true
+                    },
+                    {
+                        id: "song-fresh",
+                        title: "Doa dalam Hening",
+                        artist: "Studio Instrumental",
+                        audio_object_key: "builtin:doa-hening",
+                        audio_mime_type: "audio/mp4",
+                        duration_seconds: 15,
+                        is_active: true
+                    }
                 ]);
             }
             if (url.includes("/rest/v1/social_publisher_model_quotas")) {
@@ -652,9 +703,9 @@ test("cron runSocialPublisherCron auto-generates and publishes quote schedule wi
                 if (method === "GET") {
                     return Response.json([{
                         song_id: "song-used",
-                        song_title: "Monokrom",
+                        song_title: "Senja Akustik Hangat",
                         quote_text: "Kutipan sebelumnya.",
-                        scene_plan: { song_id: "song-used", song_title: "Monokrom" }
+                        scene_plan: { song_id: "song-used", song_title: "Senja Akustik Hangat" }
                     }]);
                 }
                 if (method === "POST") {
@@ -680,20 +731,34 @@ test("cron runSocialPublisherCron auto-generates and publishes quote schedule wi
                 return Response.json({
                     outputs: [{
                         type: "text",
-                        text: "QUOTE: Doa yang dipanjatkan diam-diam tetap terdengar paling jelas oleh langit.\nCAPTION: Selamat beristirahat, semoga esok lebih lapang."
+                        text: "QUOTE: Doa yang dipanjatkan diam-diam tetap terdengar paling jelas oleh langit."
                     }]
                 });
             }
             if (url.includes("graph.facebook.com") && url.includes("/11223344?fields=")) {
                 return Response.json({ id: "11223344", name: "Malam Tenang Page", tasks: ["CREATE_CONTENT", "MANAGE"] });
             }
-            if (url.includes("graph.facebook.com") && url.endsWith("/11223344/photos")) {
-                const form = init.body;
-                publishedMessage = String(form.get("caption") || form.get("message") || "");
-                return Response.json({ id: "photo-cron-1", post_id: "11223344_888999" });
+            if (url.includes("graph.facebook.com") && url.endsWith("/11223344/video_stories")) {
+                const params = new URLSearchParams(String(init.body || ""));
+                const phase = params.get("upload_phase");
+                cronStoryPhases.push(phase);
+                if (phase === "start") {
+                    return Response.json({
+                        video_id: "cron-story-vid-1",
+                        upload_url: "https://rupload.facebook.com/video-upload/v26.0/cron-story-vid-1"
+                    });
+                }
+                if (phase === "finish") {
+                    return Response.json({ success: true, post_id: "11223344_story_777" });
+                }
             }
-            if (url.includes("graph.facebook.com") && url.includes("11223344_888999")) {
-                return Response.json({ permalink_url: "https://www.facebook.com/11223344/posts/888999" });
+            if (url.startsWith("https://rupload.facebook.com/video-upload/")) {
+                cronStoryPhases.push("binary-upload");
+                uploadedMp4Size = Number(init.headers?.file_size || 0);
+                return Response.json({ success: true });
+            }
+            if (url.includes("graph.facebook.com") && url.includes("11223344_story_777")) {
+                return Response.json({ permalink_url: "https://www.facebook.com/stories/11223344/777" });
             }
             throw new Error(`Unexpected cron fetch URL: ${url}`);
         };
@@ -701,26 +766,27 @@ test("cron runSocialPublisherCron auto-generates and publishes quote schedule wi
         const result = await runSocialPublisherCron(env);
         assert.equal(result.claimed, 1);
         assert.equal(result.skipped, false);
+        assert.deepEqual(cronStoryPhases, ["start", "binary-upload", "finish"]);
+        assert.ok(uploadedMp4Size > 100_000, "Cron Video Story MP4 must contain full video + embedded AAC audio");
 
         const finalPatch = updatedRuns.at(-1);
         assert.equal(finalPatch.status, "posted");
         assert.equal(finalPatch.post_mode, "quote");
         assert.equal(finalPatch.song_id, "song-fresh");
-        assert.equal(finalPatch.song_title, "Bertaut");
-        assert.equal(finalPatch.song_artist, "Nadin Amizah");
-        assert.equal(finalPatch.song_facebook_url, "https://www.facebook.com/reel/777");
-        assert.match(finalPatch.quote_text, /Doa yang dipanjatkan diam-diam/);
-
-        assert.match(publishedMessage, /“Doa yang dipanjatkan diam-diam tetap terdengar paling jelas oleh langit\.”/);
-        assert.match(publishedMessage, /🎵 Lagu Facebook: Bertaut — Nadin Amizah/);
-        assert.match(publishedMessage, /🎧 Musik di Facebook: https:\/\/www\.facebook\.com\/reel\/777/);
-        assert.match(publishedMessage, /#KataMutiara$/);
+        assert.equal(finalPatch.song_title, "Doa dalam Hening");
+        assert.equal(finalPatch.song_facebook_url, "");
+        assert.equal(
+            finalPatch.caption,
+            "Doa yang dipanjatkan diam-diam tetap terdengar paling jelas oleh langit."
+        );
+        assert.doesNotMatch(finalPatch.caption, /Cerita hari ini|Lagu Facebook|facebook\.com|#foryou|#outfit/i);
+        assert.doesNotMatch(finalPatch.generated_prompt, /Doa yang dipanjatkan/, "AI background prompt must not ask AI to draw quote text");
     } finally {
         globalThis.fetch = originalFetch;
     }
 });
 
-test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Kata-kata Mutiara + Lagu Acak Facebook controls", () => {
+test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Cerita Kata-kata Mutiara + Musik Auto-Play controls", () => {
     const html = fs.readFileSync(path.join(repoRoot, "admin-control/social-publisher.html"), "utf8");
     const js = fs.readFileSync(path.join(repoRoot, "admin-control/social-publisher.js"), "utf8");
     const lightCss = fs.readFileSync(path.join(repoRoot, "admin-control/assets/css/social-publisher-light.css"), "utf8");
@@ -731,6 +797,8 @@ test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Kata-kata Mut
 
     assert.match(html, /id="songs-card"/);
     assert.match(html, /id="song-form"/);
+    assert.match(html, /id="song-audio-file"/);
+    assert.match(html, /id="manual-generated-video"/);
     assert.match(html, /id="seed-default-songs"/);
     assert.match(html, /id="manual-post-mode"/);
     assert.match(html, /id="manual-quote-fields"/);
@@ -751,7 +819,8 @@ test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Kata-kata Mut
     assert.match(lightCss, /\.badge\.quote-mode/);
 
     assert.match(sql, /create table if not exists public\.social_facebook_songs/i);
+    assert.match(sql, /add column if not exists audio_object_key/i);
+    assert.match(sql, /social-story-audio/i);
     assert.match(sql, /alter column character_id drop not null/i);
     assert.match(sql, /add column if not exists post_mode/i);
-    assert.match(sql, /add column if not exists song_facebook_url/i);
 });

@@ -63,14 +63,19 @@ export default {
         if (
             pathname === "/api/social-publisher" &&
             request.method === "POST" &&
-            ["upload-reference", "upload-outfit"].includes(url.searchParams.get("action"))
+            ["upload-reference", "upload-outfit", "upload-song"].includes(url.searchParams.get("action"))
         ) {
             const action = url.searchParams.get("action");
             const contentLength = Number(request.headers.get("content-length") || 0);
-            if (contentLength > 8 * 1024 * 1024) {
-                const label = action === "upload-reference" ? "File referensi" : "File outfit";
+            const maxBytes = action === "upload-song" ? 16 * 1024 * 1024 : 8 * 1024 * 1024;
+            if (contentLength > maxBytes) {
+                const label = action === "upload-reference"
+                    ? "File referensi"
+                    : action === "upload-outfit"
+                        ? "File outfit"
+                        : "File lagu/audio";
                 return Response.json(
-                    { success: false, error: `${label} maksimal 8 MB.` },
+                    { success: false, error: `${label} maksimal ${action === "upload-song" ? "16" : "8"} MB.` },
                     { status: 413, headers: { "Cache-Control": "no-store" } }
                 );
             }

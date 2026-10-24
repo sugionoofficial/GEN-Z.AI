@@ -8,11 +8,36 @@ create table if not exists public.social_facebook_songs (
     artist text not null default '' check (char_length(artist) <= 120),
     facebook_url text not null default '' check (char_length(facebook_url) <= 500),
     mood text not null default '' check (char_length(mood) <= 60),
+    audio_object_key text not null default '',
+    audio_mime_type text not null default '',
+    duration_seconds numeric(5,1) not null default 15,
     is_active boolean not null default true,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     unique (id, owner_id)
 );
+
+alter table public.social_facebook_songs
+    add column if not exists audio_object_key text not null default '';
+
+alter table public.social_facebook_songs
+    add column if not exists audio_mime_type text not null default '';
+
+alter table public.social_facebook_songs
+    add column if not exists duration_seconds numeric(5,1) not null default 15;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+    'social-story-audio',
+    'social-story-audio',
+    false,
+    16777216,
+    array['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/vnd.dlna.adts', 'video/mp4']
+)
+on conflict (id) do update set
+    public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 create index if not exists social_facebook_songs_owner_active_idx
     on public.social_facebook_songs (owner_id, is_active, created_at desc);

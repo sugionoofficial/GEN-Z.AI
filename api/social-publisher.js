@@ -20,15 +20,16 @@ import {
     SCENE_PRESETS
 } from "../lib/social-publisher/utils.js";
 import {
+    BUILTIN_STORY_SONGS,
     buildQuoteImagePrompt,
     cleanQuoteText,
     createQuotePlan,
     DEFAULT_FACEBOOK_SONGS,
+    findBuiltinStorySong,
     normalizeSocialPostMode,
     pickRandomFacebookSong,
     QUOTE_PRESETS,
     quoteOverridesFromSchedule,
-    renderQuoteCaption,
     sanitizeFacebookSongUrl
 } from "../lib/social-publisher/quotes.js";
 import {
@@ -41,7 +42,8 @@ import {
     generateSocialQuoteImage,
     inspectFacebookPageToken,
     makeProfileShareUrl,
-    publishFacebookPhoto
+    publishFacebookPhoto,
+    publishFacebookVideoStory
 } from "../lib/social-publisher/providers.js";
 import {
     getModelQuotas,
@@ -55,14 +57,25 @@ import {
 import {
     createSignedReferenceUrl,
     deleteReferenceObject,
+    deleteStoryAudioObject,
     downloadReferenceObject,
+    downloadStoryAudioObject,
     isPrivateReferenceBucket,
-    uploadReferenceObject
+    loadBuiltinStoryAudio,
+    resolveStorySongAudioBytes,
+    uploadReferenceObject,
+    uploadStoryAudioObject
 } from "../lib/social-publisher/storage.js";
+import {
+    encodeStoryMp4,
+    extractAudioForStoryMp4,
+    renderQuoteStoryCard
+} from "../lib/social-publisher/story-video.js";
 import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
 const GRAPH_VERSION = "v26.0";
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
+const MAX_SONG_AUDIO_BYTES = 16 * 1024 * 1024;
 const MAX_OUTFITS_PER_CHARACTER = 50;
 const MAX_FACEBOOK_SONGS_PER_USER = 100;
 const SCHEDULE_COLUMNS = [
@@ -1407,17 +1420,32 @@ function isMissingQuoteRunColumns(error) {
         && /(post_mode|quote_text|quote_theme|song_id|song_title|song_artist|song_facebook_url)/i.test(message);
 }
 
+function isMissingSongAudioColumns(error) {
+    const message = String(error?.message || "");
+    return (error?.code === "PGRST204" || error?.code === "42703" || /does not exist|schema cache|column/i.test(message))
+        && /(audio_object_key|audio_mime_type|duration_seconds)/i.test(message);
+}
+
 async function listFacebookSongs(config, userId, { activeOnly = false } = {}) {
-    const rows = await supabaseRequest(
-        config,
-        tablePath("social_facebook_songs", [
-            "select=id,title,artist,facebook_url,mood,is_active,created_at,updated_at",
-            `owner_id=eq.${encodeURIComponent(userId)}`,
-            activeOnly ? "is_active=eq.true" : "",
-            "order=created_at.desc"
-        ].filter(Boolean).join("&"))
-    );
-    return Array.isArray(rows) ? rows : [];
+    const baseFilters = [
+        `owner_id=eq.${encodeURIComponent(userId)}`,
+        activeOnly ? "is_active=eq.true" : "",
+        "order=created_at.desc"
+    ].filter(Boolean).join("&");
+    try {
+        const rows = await supabaseRequest(
+            config,
+            tablePath("social_facebook_songs", `select=id,title,artist,facebook_url,mood,audio_object_key,audio_mime_type,duration_seconds,is_active,created_at,updated_at&${baseFilters}`)
+        );
+        return Array.isArray(rows) ? rows : [];
+    } catch (error) {
+        if (!isMissingSongAudioColumns(error)) throw error;
+        const rows = await supabaseRequest(
+            config,
+            tablePath("social_facebook_songs", `select=id,title,artist,facebook_url,mood,is_active,created_at,updated_at&${baseFilters}`)
+        );
+        return Array.isArray(rows) ? rows : [];
+    }
 }
 
 async function listFacebookSongsForUser(config, userId) {
@@ -1429,12 +1457,108 @@ async function listFacebookSongsForUser(config, userId) {
     }
 }
 
+function normalizeUploadedAudioMeta(filename, headerMimeType, codec) {
+    const lowerName = String(filename || "").toLowerCase();
+    const rawMime = String(headerMimeType || "").split(";")[0].trim().toLowerCase();
+    if (codec === "mp3" || rawMime === "audio/mpeg" || rawMime === "audio/mp3" || lowerName.endsWith(".mp3")) {
+        return { mimeType: "audio/mpeg", ext: "mp3" };
+    }
+    if (rawMime === "video/mp4" || lowerName.endsWith(".mp4")) {
+        return { mimeType: "video/mp4", ext: "mp4" };
+    }
+    if (rawMime === "audio/aac" || rawMime === "audio/vnd.dlna.adts" || lowerName.endsWith(".aac")) {
+        return { mimeType: "audio/aac", ext: "aac" };
+    }
+    return { mimeType: "audio/mp4", ext: "m4a" };
+}
+
+function titleFromAudioFilename(filename) {
+    const base = String(filename || "")
+        .replace(/^.*[\\/]/, "")
+        .replace(/\.[a-z0-9]{2,5}$/i, "")
+        .replace(/[_-]+/g, " ")
+        .trim();
+    return cleanText(base, 140) || "Musik Cerita Pilihan";
+}
+
+async function uploadFacebookSongAudio(req, res, config, userId) {
+    const bytes = bytesFromBody(req.body);
+    if (!bytes.length || bytes.length > MAX_SONG_AUDIO_BYTES) {
+        const error = new Error("File lagu/audio kosong atau melebihi batas 16 MB.");
+        error.status = 400;
+        throw error;
+    }
+
+    const rawFilename = cleanText(decodeHeader(getHeader(req, "x-file-name")), 180) || "lagu.m4a";
+    const title = cleanText(decodeHeader(getHeader(req, "x-song-title")), 140) || titleFromAudioFilename(rawFilename);
+    const artist = cleanText(decodeHeader(getHeader(req, "x-song-artist")), 120);
+    const mood = cleanText(decodeHeader(getHeader(req, "x-song-mood")), 60);
+
+    let extracted = null;
+    try {
+        extracted = extractAudioForStoryMp4(bytes, { maxDurationSec: 30 });
+    } catch {
+        extracted = null;
+    }
+    if (!extracted || !extracted.frames?.length) {
+        const error = new Error("Format audio tidak didukung atau video tidak memiliki suara. Unggah file .mp3, .m4a, .aac, atau video .mp4 ber-audio (mis. unduhan Reels/Story FB).");
+        error.status = 400;
+        throw error;
+    }
+
+    const existing = await listFacebookSongs(config, userId);
+    if (existing.length >= MAX_FACEBOOK_SONGS_PER_USER) {
+        const error = new Error(`Koleksi lagu penuh (maksimal ${MAX_FACEBOOK_SONGS_PER_USER} lagu per akun). Hapus lagu lama terlebih dahulu.`);
+        error.status = 409;
+        throw error;
+    }
+
+    const { mimeType, ext } = normalizeUploadedAudioMeta(rawFilename, getHeader(req, "content-type"), extracted.codec);
+    const id = crypto.randomUUID();
+    const objectKey = `story-audio/${userId}/${id}.${ext}`;
+    const durationSeconds = Math.max(3, Math.min(30, Math.round(extracted.durationSec || 15)));
+
+    await uploadStoryAudioObject(config, objectKey, bytes, mimeType);
+    try {
+        const created = await supabaseRequest(
+            config,
+            tablePath("social_facebook_songs", "select=id,title,artist,facebook_url,mood,audio_object_key,audio_mime_type,duration_seconds,is_active,created_at,updated_at"),
+            {
+                method: "POST",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify({
+                    id,
+                    owner_id: userId,
+                    title,
+                    artist,
+                    mood,
+                    facebook_url: "",
+                    audio_object_key: objectKey,
+                    audio_mime_type: mimeType,
+                    duration_seconds: durationSeconds,
+                    is_active: true
+                })
+            }
+        );
+        return json(res, 201, { success: true, song: created?.[0] || null });
+    } catch (error) {
+        await deleteStoryAudioObject(config, objectKey).catch(() => {});
+        if (isMissingSongAudioColumns(error) || isMissingSongSchema(error)) {
+            const wrapped = new Error("Kolom audio lagu Cerita belum tersedia di database. Jalankan supabase/social-quote-music.sql di Supabase SQL Editor.");
+            wrapped.status = 503;
+            throw wrapped;
+        }
+        throw error;
+    }
+}
+
 async function saveFacebookSong(config, userId, body = {}) {
     const id = cleanText(body.id, 80);
     const title = cleanText(body.title, 140);
     const artist = cleanText(body.artist, 120);
     const mood = cleanText(body.mood, 60);
     const rawUrl = cleanText(body.facebook_url, 500);
+    const builtinChoice = cleanText(body.builtin_slug, 60);
     const isActive = typeof body.is_active === "boolean" ? body.is_active : true;
 
     if (!title) {
@@ -1447,18 +1571,24 @@ async function saveFacebookSong(config, userId, body = {}) {
     if (rawUrl) {
         safeUrl = sanitizeFacebookSongUrl(rawUrl);
         if (!safeUrl) {
-            const error = new Error("Link lagu harus menggunakan URL HTTPS resmi Facebook (facebook.com atau fb.watch), atau kosongkan bila hanya menyimpan judul lagu.");
+            const error = new Error("Link lagu harus menggunakan URL HTTPS resmi Facebook (facebook.com atau fb.watch), atau kosongkan.");
             error.status = 400;
             throw error;
         }
     }
 
+    const builtinSong = builtinChoice ? findBuiltinStorySong(builtinChoice) : null;
     const now = new Date().toISOString();
     const payload = {
         title,
         artist,
         facebook_url: safeUrl,
         mood,
+        ...(builtinSong ? {
+            audio_object_key: builtinSong.audio_object_key,
+            audio_mime_type: builtinSong.audio_mime_type,
+            duration_seconds: builtinSong.duration_seconds
+        } : {}),
         is_active: isActive,
         updated_at: now
     };
@@ -1467,7 +1597,7 @@ async function saveFacebookSong(config, userId, body = {}) {
         if (id) {
             const updated = await supabaseRequest(
                 config,
-                tablePath("social_facebook_songs", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id,title,artist,facebook_url,mood,is_active,created_at,updated_at`),
+                tablePath("social_facebook_songs", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id,title,artist,facebook_url,mood,audio_object_key,audio_mime_type,duration_seconds,is_active,created_at,updated_at`),
                 {
                     method: "PATCH",
                     headers: { Prefer: "return=representation" },
@@ -1475,7 +1605,7 @@ async function saveFacebookSong(config, userId, body = {}) {
                 }
             );
             if (!updated?.length) {
-                const error = new Error("Lagu Facebook tidak ditemukan.");
+                const error = new Error("Lagu tidak ditemukan.");
                 error.status = 404;
                 throw error;
             }
@@ -1489,14 +1619,18 @@ async function saveFacebookSong(config, userId, body = {}) {
             throw error;
         }
 
+        const fallbackBuiltin = builtinSong || BUILTIN_STORY_SONGS[existing.length % BUILTIN_STORY_SONGS.length];
         const created = await supabaseRequest(
             config,
-            tablePath("social_facebook_songs", "select=id,title,artist,facebook_url,mood,is_active,created_at,updated_at"),
+            tablePath("social_facebook_songs", "select=id,title,artist,facebook_url,mood,audio_object_key,audio_mime_type,duration_seconds,is_active,created_at,updated_at"),
             {
                 method: "POST",
                 headers: { Prefer: "return=representation" },
                 body: JSON.stringify({
                     owner_id: userId,
+                    audio_object_key: fallbackBuiltin.audio_object_key,
+                    audio_mime_type: fallbackBuiltin.audio_mime_type,
+                    duration_seconds: fallbackBuiltin.duration_seconds,
                     ...payload
                 })
             }
@@ -1520,11 +1654,24 @@ async function deleteFacebookSong(config, userId, body = {}) {
         throw error;
     }
     try {
+        let existingKey = "";
+        try {
+            const rows = await supabaseRequest(
+                config,
+                tablePath("social_facebook_songs", `select=audio_object_key&id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+            );
+            existingKey = String(rows?.[0]?.audio_object_key || "").trim();
+        } catch {
+            existingKey = "";
+        }
         await supabaseRequest(
             config,
             tablePath("social_facebook_songs", `id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}`),
             { method: "DELETE" }
         );
+        if (existingKey && !existingKey.startsWith("builtin:")) {
+            await deleteStoryAudioObject(config, existingKey).catch(() => {});
+        }
         return { id };
     } catch (error) {
         if (isMissingSongSchema(error)) {
@@ -1540,18 +1687,27 @@ async function seedDefaultFacebookSongs(config, userId) {
     try {
         const existing = await listFacebookSongs(config, userId);
         const existingKeys = new Set(
-            existing.map(song => `${String(song.title || "").trim().toLowerCase()}::${String(song.artist || "").trim().toLowerCase()}`)
+            existing.flatMap(song => [
+                `${String(song.title || "").trim().toLowerCase()}::${String(song.artist || "").trim().toLowerCase()}`,
+                String(song.audio_object_key || "").trim().toLowerCase()
+            ]).filter(Boolean)
         );
         const availableSlots = Math.max(0, MAX_FACEBOOK_SONGS_PER_USER - existing.length);
-        const toInsert = DEFAULT_FACEBOOK_SONGS
-            .filter(song => !existingKeys.has(`${song.title.toLowerCase()}::${song.artist.toLowerCase()}`))
+        const toInsert = BUILTIN_STORY_SONGS
+            .filter(song =>
+                !existingKeys.has(`${song.title.toLowerCase()}::${song.artist.toLowerCase()}`) &&
+                !existingKeys.has(String(song.audio_object_key || "").toLowerCase())
+            )
             .slice(0, availableSlots)
             .map(song => ({
                 owner_id: userId,
                 title: song.title,
                 artist: song.artist,
                 mood: song.mood || "",
-                facebook_url: sanitizeFacebookSongUrl(song.facebook_url),
+                facebook_url: "",
+                audio_object_key: song.audio_object_key,
+                audio_mime_type: song.audio_mime_type,
+                duration_seconds: song.duration_seconds,
                 is_active: true
             }));
 
@@ -1578,7 +1734,7 @@ async function seedDefaultFacebookSongs(config, userId) {
     }
 }
 
-async function pickSongForPost(config, userId) {
+async function pickSongForPost(config, userId, { requirePlayableAudio = false } = {}) {
     let songs = [];
     try {
         songs = await listFacebookSongs(config, userId, { activeOnly: true });
@@ -1604,7 +1760,10 @@ async function pickSongForPost(config, userId) {
         // Riwayat lagu hanya untuk variasi; jangan memblokir posting bila kolom belum ada.
     }
 
-    return pickRandomFacebookSong(songs, recentSongs, Math.random, { fallbackToDefaults: true });
+    return pickRandomFacebookSong(songs, recentSongs, Math.random, {
+        fallbackToDefaults: true,
+        requirePlayableAudio
+    });
 }
 
 function quoteAndSongRunValues({ postMode = "character", quoteText = "", quoteTheme = "", song = null } = {}) {
@@ -2392,7 +2551,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             config,
             tablePath("social_post_runs", "select=id&status=eq.generating&schedule_id=is.null&owner_id=eq." + encodeURIComponent(userId))
         ),
-        useRandomSong ? pickSongForPost(config, userId) : Promise.resolve(null)
+        useRandomSong ? pickSongForPost(config, userId, { requirePlayableAudio: isQuoteMode }) : Promise.resolve(null)
     ]);
     for (const previous of previousPreviews || []) {
         await supabaseRequest(
@@ -2478,13 +2637,13 @@ async function generateManualPost(config, userId, env, body = {}) {
                     quote_visual_style: body.quote_visual_style,
                     scene_details: body.scene_details
                 })),
-                aspect_ratio: aspectRatio
+                aspect_ratio: "9:16"
             };
             const manualCustomQuote = cleanQuoteText(body.custom_quote);
             const quoteResult = manualCustomQuote
                 ? {
                     quoteText: manualCustomQuote,
-                    contextualCaption: "Semoga kutipan hari ini memberi ketenangan dan semangat baru untuk langkahmu."
+                    contextualCaption: ""
                 }
                 : await generateSocialQuote({
                     env,
@@ -2494,47 +2653,48 @@ async function generateManualPost(config, userId, env, body = {}) {
                 });
             const quoteText = quoteResult.quoteText;
             const prompt = buildQuoteImagePrompt({
-                quoteText,
                 quotePlan,
-                aspectRatio,
-                song,
+                aspectRatio: "9:16",
                 negativePrompt: body.negative_prompt
             });
             const generated = await generateSocialQuoteImage({
                 env,
                 prompt,
-                aspectRatio,
+                aspectRatio: "9:16",
                 imageProvider,
                 imageModel
             });
-            if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar kata-kata mutiara.");
+            if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan latar kata-kata mutiara.");
             if (imageProvider === "qwencloud") {
                 recordModelUsage(config, generated.model).catch(recordError => {
                     console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
                 });
             }
-            const cleanedBlob = await stripImageMetadata(
-                new Blob([generated.bytes], { type: generated.mimeType }),
-                generated.mimeType
-            );
-            const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
-            const baseCaption = renderQuoteCaption(postingSettings.caption_template, quotePlan, quoteText, song);
-            const caption = composeSocialCaption({
-                baseCaption,
-                contextualCaption: quoteResult.contextualCaption,
-                externalLink: postingSettings.external_link,
+
+            const audioBytes = await resolveStorySongAudioBytes(env, config, song);
+            const storyCard = await renderQuoteStoryCard({
+                backgroundBytes: generated.bytes,
                 quoteText,
-                song
+                seed: Math.floor(Math.random() * 1000)
             });
+            const encodedStory = encodeStoryMp4({
+                rgba: storyCard.rgba,
+                width: storyCard.width,
+                height: storyCard.height,
+                audioBytes
+            });
+            // Cerita (Story) Kata-kata Mutiara hanya berisi kalimat mutiara murni — tanpa caption feed/link/hashtag.
+            const caption = quoteText;
             const sceneRecord = {
                 ...quotePlan,
                 post_mode: "quote",
+                story_target: "facebook_page_story",
                 quote_text: quoteText,
                 ...(song ? {
                     song_id: song.id || null,
                     song_title: song.title || "",
                     song_artist: song.artist || "",
-                    song_facebook_url: song.facebook_url || ""
+                    song_facebook_url: ""
                 } : {})
             };
 
@@ -2548,7 +2708,7 @@ async function generateManualPost(config, userId, env, body = {}) {
                     postMode: "quote",
                     quoteText,
                     quoteTheme: quotePlan.themeLabel,
-                    song
+                    song: song ? { ...song, facebook_url: "" } : null
                 }),
                 error_message: null
             });
@@ -2557,18 +2717,22 @@ async function generateManualPost(config, userId, env, body = {}) {
                 run_id: run.id,
                 status: "preview",
                 post_mode: "quote",
+                is_story: true,
                 page_name: page.page_name,
-                image_base64: bytesToBase64(cleanedBytes),
-                image_mime_type: cleanedBlob.type,
+                image_base64: bytesToBase64(storyCard.pngBytes),
+                image_mime_type: "image/png",
+                video_base64: bytesToBase64(encodedStory.mp4Bytes),
+                video_mime_type: "video/mp4",
+                duration_seconds: encodedStory.durationSec,
                 image_model: generated.model,
-                aspect_ratio: aspectRatio,
+                aspect_ratio: "9:16",
                 scene: sceneRecord,
                 quote_text: quoteText,
                 quote_theme: quotePlan.themeLabel,
-                contextual_caption: quoteResult.contextualCaption,
+                contextual_caption: "",
                 caption,
                 outfit: null,
-                song: song || null
+                song: song ? { ...song, facebook_url: "" } : null
             };
         }
 
@@ -2710,11 +2874,25 @@ async function generateManualPost(config, userId, env, body = {}) {
     }
 }
 
+function hasValidMp4Signature(bytes) {
+    if (!bytes || bytes.length < 32) return false;
+    return bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
+}
+
 async function publishManualPost(req, res, config, userId, env) {
     const runId = cleanText(getHeader(req, "x-manual-run-id"), 80);
-    const imageMimeType = normalizeMimeType(getHeader(req, "content-type"));
-    const imageBytes = bytesFromBody(req.body);
-    if (!runId || !imageMimeType || !imageBytes.length || imageBytes.length > 12 * 1024 * 1024 || !hasValidImageSignature(imageBytes, imageMimeType)) {
+    const rawContentType = String(getHeader(req, "content-type") || "").split(";")[0].trim().toLowerCase();
+    const isStoryVideo = rawContentType === "video/mp4";
+    const imageMimeType = isStoryVideo ? "" : normalizeMimeType(rawContentType);
+    const payloadBytes = bytesFromBody(req.body);
+
+    if (isStoryVideo) {
+        if (!runId || !payloadBytes.length || payloadBytes.length > 20 * 1024 * 1024 || !hasValidMp4Signature(payloadBytes)) {
+            const error = new Error("Pratinjau Video Story tidak valid. Buat ulang Cerita sebelum menerbitkan.");
+            error.status = 400;
+            throw error;
+        }
+    } else if (!runId || !imageMimeType || !payloadBytes.length || payloadBytes.length > 12 * 1024 * 1024 || !hasValidImageSignature(payloadBytes, imageMimeType)) {
         const error = new Error("Pratinjau tidak valid. Buat ulang gambar sebelum menerbitkan.");
         error.status = 400;
         throw error;
@@ -2742,8 +2920,6 @@ async function publishManualPost(req, res, config, userId, env) {
         throw error;
     }
 
-    const cleanedBlob = await stripImageMetadata(new Blob([imageBytes], { type: imageMimeType }), imageMimeType);
-    const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
     const pageAccessToken = await decryptSecret(
         page.page_token_ciphertext,
         page.page_token_iv,
@@ -2751,14 +2927,26 @@ async function publishManualPost(req, res, config, userId, env) {
     );
 
     try {
-        const published = await publishFacebookPhoto({
-            env,
-            pageId: page.page_id,
-            pageAccessToken,
-            caption: run.caption,
-            imageBytes: cleanedBytes,
-            imageMimeType: cleanedBlob.type
-        });
+        let published;
+        if (isStoryVideo) {
+            published = await publishFacebookVideoStory({
+                env,
+                pageId: page.page_id,
+                pageAccessToken,
+                videoBytes: payloadBytes
+            });
+        } else {
+            const cleanedBlob = await stripImageMetadata(new Blob([payloadBytes], { type: imageMimeType }), imageMimeType);
+            const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+            published = await publishFacebookPhoto({
+                env,
+                pageId: page.page_id,
+                pageAccessToken,
+                caption: run.caption,
+                imageBytes: cleanedBytes,
+                imageMimeType: cleanedBlob.type
+            });
+        }
         const profileShareUrl = makeProfileShareUrl(published.permalinkUrl);
         await supabaseRequest(
             config,
@@ -2768,7 +2956,7 @@ async function publishManualPost(req, res, config, userId, env) {
                 headers: { Prefer: "return=minimal" },
                 body: JSON.stringify({
                     status: "posted",
-                    facebook_photo_id: published.photoId || null,
+                    facebook_photo_id: published.photoId || published.videoId || null,
                     facebook_post_id: published.postId || null,
                     permalink_url: published.permalinkUrl || null,
                     profile_share_url: profileShareUrl || null,
@@ -2782,6 +2970,7 @@ async function publishManualPost(req, res, config, userId, env) {
             post: {
                 id: run.id,
                 status: "posted",
+                is_story: isStoryVideo,
                 page_name: page.page_name,
                 caption: run.caption,
                 permalink_url: published.permalinkUrl || null
@@ -2989,6 +3178,7 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
     if (action === "replace-reference") return replaceReference(req, res, config, userId);
     if (action === "upload-outfit") return uploadOutfit(req, res, config, userId);
     if (action === "replace-outfit-photo") return replaceOutfitPhoto(req, res, config, userId);
+    if (action === "upload-song") return uploadFacebookSongAudio(req, res, config, userId);
     if (action === "manual-publish") return await publishManualPost(req, res, config, userId, env);
     if (action === "check-page") {
         return json(res, 200, { success: true, ...(await checkPageConnection(config, userId, env, req.body && typeof req.body === "object" ? req.body : {})) });
@@ -3196,6 +3386,50 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
             defaultSongs: DEFAULT_FACEBOOK_SONGS
         });
     }
+    if (action === "song-audio") {
+        const id = cleanText(getQuery(req, "id"), 80);
+        const slug = cleanText(getQuery(req, "slug"), 80);
+        if (slug) {
+            const builtin = findBuiltinStorySong(slug);
+            if (!builtin) return json(res, 404, { success: false, error: "Musik bawaan tidak ditemukan." });
+            const bytes = await loadBuiltinStoryAudio(env, builtin.audio_object_key);
+            if (!bytes?.length) return json(res, 404, { success: false, error: "File musik bawaan tidak ditemukan." });
+            res.setHeader("Content-Type", builtin.audio_mime_type || "audio/mp4");
+            res.setHeader("Content-Length", String(bytes.length));
+            res.setHeader("X-Content-Type-Options", "nosniff");
+            res.setHeader("Cache-Control", "private, max-age=3600");
+            return res.status(200).end(bytes);
+        }
+        if (!id) return json(res, 400, { success: false, error: "ID lagu wajib diisi." });
+        const rows = await supabaseRequest(
+            config,
+            tablePath("social_facebook_songs", `select=audio_object_key,audio_mime_type&id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+        );
+        const song = rows?.[0];
+        if (!song || !song.audio_object_key) {
+            return json(res, 404, { success: false, error: "File audio lagu tidak ditemukan." });
+        }
+        let bytes;
+        let mimeType = song.audio_mime_type || "audio/mp4";
+        if (String(song.audio_object_key).startsWith("builtin:")) {
+            const builtin = findBuiltinStorySong(song.audio_object_key);
+            bytes = await loadBuiltinStoryAudio(env, song.audio_object_key);
+            mimeType = builtin?.audio_mime_type || mimeType;
+        } else {
+            try {
+                bytes = await downloadStoryAudioObject(config, song.audio_object_key);
+            } catch (error) {
+                if (error?.status === 404) return json(res, 404, { success: false, error: "File audio tidak tersedia di Supabase Storage." });
+                throw error;
+            }
+        }
+        if (!bytes?.length) return json(res, 404, { success: false, error: "File audio kosong." });
+        res.setHeader("Content-Type", mimeType);
+        res.setHeader("Content-Length", String(bytes.length));
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.status(200).end(bytes);
+    }
     if (action === "oauth-start") {
         return json(res, 200, { success: true, ...(await startOAuth(config, userId, env, res)) });
     }
@@ -3248,7 +3482,7 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
 
 export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", req.headers?.origin || "*");
-    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-File-Name, X-Character-Name, X-Character-Consent, X-Character-Adult, X-Garment-Rights, X-Outfit-Name, X-Outfit-Order-Url, X-Outfit-Notes, X-Outfit-Rights, X-Manual-Run-Id");
+    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-File-Name, X-Character-Name, X-Character-Consent, X-Character-Adult, X-Garment-Rights, X-Outfit-Name, X-Outfit-Order-Url, X-Outfit-Notes, X-Outfit-Rights, X-Manual-Run-Id, X-Song-Title, X-Song-Artist, X-Song-Mood");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Vary", "Origin");
     res.setHeader("Cache-Control", "no-store");

@@ -1,7 +1,8 @@
 import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
-import { buildQuoteImagePrompt, createQuotePlan, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule, renderQuoteCaption } from "../../lib/social-publisher/quotes.js";
-import { decryptSecret, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto } from "../../lib/social-publisher/providers.js";
-import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket } from "../../lib/social-publisher/storage.js";
+import { buildQuoteImagePrompt, createQuotePlan, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule } from "../../lib/social-publisher/quotes.js";
+import { decryptSecret, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookVideoStory } from "../../lib/social-publisher/providers.js";
+import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
+import { encodeStoryMp4, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
 import { normalizeQwenCloudImageModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
 import { stripImageMetadata } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
@@ -303,16 +304,24 @@ async function pickScheduledOutfit(config, schedule, previousRuns) {
  * curated popular Facebook songs list when none are saved yet) and picks one at random,
  * avoiding songs used by recent posts.
  */
-async function pickScheduledFacebookSong(config, ownerId, previousRuns = []) {
+async function pickScheduledFacebookSong(config, ownerId, previousRuns = [], { requirePlayableAudio = false } = {}) {
     let songs = [];
     try {
         songs = await dbRequest(config, table(
             "social_facebook_songs",
-            `select=id,title,artist,facebook_url,mood,is_active,created_at&owner_id=eq.${encodeURIComponent(ownerId)}&is_active=eq.true&order=created_at.desc`
+            `select=id,title,artist,facebook_url,mood,audio_object_key,audio_mime_type,duration_seconds,is_active,created_at&owner_id=eq.${encodeURIComponent(ownerId)}&is_active=eq.true&order=created_at.desc`
         ));
     } catch (error) {
-        if (!isMissingSongSchema(error)) throw error;
-        songs = [];
+        if (isMissingColumnError(error) && !isMissingSongSchema(error)) {
+            songs = await dbRequest(config, table(
+                "social_facebook_songs",
+                `select=id,title,artist,facebook_url,mood,is_active,created_at&owner_id=eq.${encodeURIComponent(ownerId)}&is_active=eq.true&order=created_at.desc`
+            ));
+        } else if (isMissingSongSchema(error)) {
+            songs = [];
+        } else {
+            throw error;
+        }
     }
     const recentSongs = (previousRuns || [])
         .map(run => ({
@@ -321,7 +330,10 @@ async function pickScheduledFacebookSong(config, ownerId, previousRuns = []) {
             artist: run.song_artist || run.scene_plan?.song_artist || ""
         }))
         .filter(item => item.id || item.title);
-    return pickRandomFacebookSong(songs, recentSongs, Math.random, { fallbackToDefaults: true });
+    return pickRandomFacebookSong(songs, recentSongs, Math.random, {
+        fallbackToDefaults: true,
+        requirePlayableAudio
+    });
 }
 
 function cleanError(error) {
@@ -403,14 +415,18 @@ async function processRun(env, config, claimedRun) {
         if (!page) throw new Error("Facebook Page connection was not found; reconnect the Page.");
         if (page.can_publish === false) throw new Error("Facebook Page connection does not have CREATE_CONTENT permission.");
 
-        const aspectRatio = ["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16";
+        const aspectRatio = postMode === "quote"
+            ? "9:16"
+            : (["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16");
         imageProvider = ["cloudflare", "qwencloud"].includes(publisherConfigs?.[0]?.image_provider)
             ? publisherConfigs[0].image_provider
             : "gemini";
         imageModel = normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);
         const settings = settingsRows?.[0];
         const song = shouldUseRandomSong
-            ? await pickScheduledFacebookSong(config, schedule.owner_id, previousRuns)
+            ? await pickScheduledFacebookSong(config, schedule.owner_id, previousRuns, {
+                requirePlayableAudio: postMode === "quote"
+            })
             : null;
 
         let scenePlanRecord = null;
@@ -418,6 +434,7 @@ async function processRun(env, config, claimedRun) {
         let generated = null;
         let cleanedBlob = null;
         let cleanedBytes = null;
+        let storyMp4Bytes = null;
         let caption = "";
         let outfit = null;
         let outfitLibraryReady = false;
@@ -433,7 +450,7 @@ async function processRun(env, config, claimedRun) {
                 .filter(Boolean);
             const quotePlan = {
                 ...createQuotePlan(recentPlanKeys, Math.random, quoteOverridesFromSchedule(schedule)),
-                aspect_ratio: aspectRatio
+                aspect_ratio: "9:16"
             };
             const quoteResult = await generateSocialQuote({
                 env,
@@ -444,52 +461,48 @@ async function processRun(env, config, claimedRun) {
             quoteText = quoteResult.quoteText;
             quoteThemeLabel = quotePlan.themeLabel;
             prompt = buildQuoteImagePrompt({
-                quoteText,
                 quotePlan,
-                aspectRatio,
-                song,
+                aspectRatio: "9:16",
                 negativePrompt: schedule.negative_prompt
             });
             generated = await generateSocialQuoteImage({
                 env,
                 prompt,
-                aspectRatio,
+                aspectRatio: "9:16",
                 imageProvider,
                 imageModel
             });
-            if (!generated?.bytes?.length) throw new Error("Image provider returned an empty quote image.");
+            if (!generated?.bytes?.length) throw new Error("Image provider returned an empty quote background image.");
             if (imageProvider === "qwencloud") {
                 recordModelUsage(config, generated.model).catch(recordError => {
                     console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
                 });
             }
-            cleanedBlob = await stripImageMetadata(
-                new Blob([generated.bytes], { type: generated.mimeType }),
-                generated.mimeType
-            );
-            cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
-            const scheduleTemplate = String(schedule.caption_template || "").trim();
-            const isLegacyDefaultTemplate = scheduleTemplate === "Cerita hari ini dari {location} ✨";
-            const rawTemplate = (!isLegacyDefaultTemplate && scheduleTemplate)
-                ? scheduleTemplate
-                : (settings?.caption_template || "Renungan hari ini ✨ #KataMutiara #GENZAI");
-            const baseCaption = renderQuoteCaption(rawTemplate, quotePlan, quoteText, song);
-            caption = composeSocialCaption({
-                baseCaption,
-                contextualCaption: quoteResult.contextualCaption,
-                externalLink: settings?.external_link,
+            const audioBytes = await resolveStorySongAudioBytes(env, config, song);
+            const storyCard = await renderQuoteStoryCard({
+                backgroundBytes: generated.bytes,
                 quoteText,
-                song
+                seed: Math.floor(Math.random() * 1000)
             });
+            const encodedStory = encodeStoryMp4({
+                rgba: storyCard.rgba,
+                width: storyCard.width,
+                height: storyCard.height,
+                audioBytes
+            });
+            storyMp4Bytes = encodedStory.mp4Bytes;
+            // Story Kata-kata Mutiara hanya berisi teks mutiara bersih tanpa caption feed/link/hashtag.
+            caption = quoteText;
             scenePlanRecord = {
                 ...quotePlan,
                 post_mode: "quote",
+                story_target: "facebook_page_story",
                 quote_text: quoteText,
                 ...(song ? {
                     song_id: song.id || null,
                     song_title: song.title || "",
                     song_artist: song.artist || "",
-                    song_facebook_url: song.facebook_url || ""
+                    song_facebook_url: ""
                 } : {})
             };
         } else {
@@ -600,14 +613,21 @@ async function processRun(env, config, claimedRun) {
             page.page_token_iv,
             encryptionKey
         );
-        const published = await publishFacebookPhoto({
-            env,
-            pageId: page.page_id,
-            pageAccessToken,
-            caption,
-            imageBytes: cleanedBytes,
-            imageMimeType: cleanedBlob.type
-        });
+        const published = postMode === "quote"
+            ? await publishFacebookVideoStory({
+                env,
+                pageId: page.page_id,
+                pageAccessToken,
+                videoBytes: storyMp4Bytes
+            })
+            : await publishFacebookPhoto({
+                env,
+                pageId: page.page_id,
+                pageAccessToken,
+                caption,
+                imageBytes: cleanedBytes,
+                imageMimeType: cleanedBlob.type
+            });
         const profileShareUrl = makeProfileShareUrl(published.permalinkUrl);
 
         await updateRun(config, runId, {
@@ -628,9 +648,9 @@ async function processRun(env, config, claimedRun) {
                 song_id: song?.id || null,
                 song_title: song?.title || "",
                 song_artist: song?.artist || "",
-                song_facebook_url: song?.facebook_url || ""
+                song_facebook_url: postMode === "quote" ? "" : (song?.facebook_url || "")
             } : {}),
-            facebook_photo_id: published.photoId || null,
+            facebook_photo_id: published.photoId || published.videoId || null,
             facebook_post_id: published.postId || null,
             permalink_url: published.permalinkUrl || null,
             profile_share_url: profileShareUrl || null,
