@@ -5,9 +5,9 @@ import test from "node:test";
 import vm from "node:vm";
 
 const ROOT = process.cwd();
-const SUPABASE_URL = "https://boeamhglmvkatnycluaa.supabase.co";
-const SUPABASE_KEY = "sb_publishable_blGIFRNPbB2qAa1vXQBXcw_txqDQldb";
-const AUTH_STORAGE_KEY = "sb-boeamhglmvkatnycluaa-auth-token";
+const SUPABASE_URL = "https://ycovbqmezhrvzobxqnyp.supabase.co";
+const SUPABASE_KEY = "sb_publishable_dnOcQubqXG_iGvUMTPCuUw_fU0gkaYm";
+const AUTH_STORAGE_KEY = "sb-ycovbqmezhrvzobxqnyp-auth-token";
 const BACKUP_STORAGE_KEY = "genz-auth-session-v1";
 const PROFILE_CACHE_KEY = "genz-auth-profile-cache-v1";
 

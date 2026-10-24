@@ -353,7 +353,7 @@ test("history menandai media yang sudah kedaluwarsa", () => {
         id: "1",
         task_id: "t1",
         status: "success",
-        result_url: "https://boeamhglmvkatnycluaa.supabase.co/storage/v1/object/public/dashboard-upscales/outputs/old.mp4"
+        result_url: "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/public/dashboard-upscales/outputs/old.mp4"
     };
 
     const expired = App.getThumbnailHtml({

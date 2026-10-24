@@ -430,3 +430,6 @@ FodyWeavers.xsd
 .env*
 /dist/
 .wrangler/
+
+# Backup lokal Supabase (berisi PII & hash password — JANGAN di-commit)
+supabase/backup/
