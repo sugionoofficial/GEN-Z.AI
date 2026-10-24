@@ -48,7 +48,7 @@ import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-clean
 
 const GRAPH_VERSION = "v26.0";
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
-const MAX_OUTFITS_PER_CHARACTER = 30;
+const MAX_OUTFITS_PER_CHARACTER = 50;
 const SCHEDULE_COLUMNS = [
     "id",
     "character_id",
@@ -1500,6 +1500,75 @@ async function uploadOutfit(req, res, config, userId) {
     }
 }
 
+async function replaceOutfitPhoto(req, res, config, userId) {
+    if (!await isPrivateReferenceBucket(config)) {
+        const error = new Error("Bucket privat Supabase Storage untuk foto referensi belum tersedia.");
+        error.status = 503;
+        throw error;
+    }
+
+    const outfitId = cleanText(decodeHeader(getHeader(req, "x-outfit-id")), 80);
+    if (!outfitId) {
+        const error = new Error("ID outfit wajib diisi.");
+        error.status = 400;
+        throw error;
+    }
+
+    const mime = normalizeMimeType(getHeader(req, "content-type"));
+    const bytes = bytesFromBody(req.body);
+    const filename = cleanText(decodeHeader(getHeader(req, "x-file-name")), 180)
+        || `outfit.${extensionForMime(mime)}`;
+    if (!mime || !bytes.length || bytes.length > MAX_REFERENCE_BYTES || !hasValidImageSignature(bytes, mime)) {
+        const error = new Error("File outfit harus berupa JPEG, PNG, atau WebP yang valid dan berukuran maksimal 8 MB.");
+        error.status = 400;
+        throw error;
+    }
+
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_outfits", `select=id,object_key&id=eq.${encodeURIComponent(outfitId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+    );
+    if (!rows?.length) {
+        const error = new Error("Outfit tidak ditemukan.");
+        error.status = 404;
+        throw error;
+    }
+    const oldKey = rows[0].object_key;
+    const key = `social-outfit/${userId}/${crypto.randomUUID()}.${extensionForMime(mime)}`;
+    await uploadReferenceObject(config, key, bytes, mime);
+
+    try {
+        const updated = await supabaseRequest(
+            config,
+            tablePath("social_outfits", `id=eq.${encodeURIComponent(outfitId)}&owner_id=eq.${encodeURIComponent(userId)}&select=id`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify({
+                    object_key: key,
+                    filename: filename.replace(/[\\/\0]/g, "").slice(0, 180),
+                    mime_type: mime,
+                    size_bytes: bytes.length,
+                    updated_at: new Date().toISOString()
+                })
+            }
+        );
+        if (!updated?.length) {
+            const error = new Error("Outfit tidak ditemukan.");
+            error.status = 404;
+            throw error;
+        }
+    } catch (error) {
+        await deleteReferenceObject(config, key).catch(() => {});
+        throw error;
+    }
+
+    if (oldKey && oldKey !== key) {
+        await deleteReferenceObject(config, oldKey).catch(() => {});
+    }
+    return json(res, 200, { success: true });
+}
+
 async function saveOutfit(config, userId, body = {}) {
     const id = cleanText(body.id, 80);
     const name = cleanText(body.name, 80);
@@ -2368,6 +2437,7 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
     if (action === "replace-reference") return replaceReference(req, res, config, userId);
     if (action === "upload-outfit") return uploadOutfit(req, res, config, userId);
+    if (action === "replace-outfit-photo") return replaceOutfitPhoto(req, res, config, userId);
     if (action === "manual-publish") return await publishManualPost(req, res, config, userId, env);
     if (action === "check-page") {
         return json(res, 200, { success: true, ...(await checkPageConnection(config, userId, env, req.body && typeof req.body === "object" ? req.body : {})) });

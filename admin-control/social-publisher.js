@@ -678,10 +678,14 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 }
             });
             showNotice(pageMessage, "Outfit diperbarui.", "success");
-            await loadDashboard();
         } catch (error) {
             showNotice(pageMessage, error.message, "error");
+            return;
         }
+        if (window.confirm("Ganti foto outfit ini sekaligus? Klik Batal untuk menyimpan tanpa mengganti foto.")) {
+            await pickAndReplaceOutfitPhoto(outfit.id);
+        }
+        await loadDashboard();
     }
 
     async function toggleOutfit(outfit) {
@@ -963,46 +967,78 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         await loadDashboard();
     }
 
-    function pickAndReplaceReference(characterId) {
+    function pickImageFile() {
         return new Promise(resolve => {
             const input = document.createElement("input");
             input.type = "file";
             input.accept = "image/jpeg,image/png,image/webp";
             input.hidden = true;
             document.body.append(input);
-            input.addEventListener("change", async () => {
-                const file = input.files?.[0];
+            let settled = false;
+            const finish = file => {
+                if (settled) return;
+                settled = true;
                 input.remove();
-                if (!file) {
-                    resolve(false);
-                    return;
-                }
-                if (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024) {
-                    showNotice(pageMessage, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
-                    resolve(false);
-                    return;
-                }
-                try {
-                    showNotice(pageMessage, "Mengunggah foto referensi baru…", "warn");
-                    await api("replace-reference", {
-                        method: "POST",
-                        body: file,
-                        raw: true,
-                        headers: {
-                            "Content-Type": file.type,
-                            "X-File-Name": encodeURIComponent(file.name),
-                            "X-Character-Id": encodeURIComponent(characterId)
-                        }
-                    });
-                    showNotice(pageMessage, "Foto referensi karakter berhasil diganti.", "success");
-                    resolve(true);
-                } catch (error) {
-                    showNotice(pageMessage, error.message, "error");
-                    resolve(false);
-                }
-            });
+                resolve(file || null);
+            };
+            input.addEventListener("change", () => finish(input.files?.[0]));
+            input.addEventListener("cancel", () => finish(null));
             input.click();
         });
+    }
+
+    async function pickAndReplaceReference(characterId) {
+        const file = await pickImageFile();
+        if (!file) return false;
+        if (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024) {
+            showNotice(pageMessage, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
+            return false;
+        }
+        try {
+            showNotice(pageMessage, "Mengunggah foto referensi baru…", "warn");
+            await api("replace-reference", {
+                method: "POST",
+                body: file,
+                raw: true,
+                headers: {
+                    "Content-Type": file.type,
+                    "X-File-Name": encodeURIComponent(file.name),
+                    "X-Character-Id": encodeURIComponent(characterId)
+                }
+            });
+            showNotice(pageMessage, "Foto referensi karakter berhasil diganti.", "success");
+            return true;
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
+            return false;
+        }
+    }
+
+    async function pickAndReplaceOutfitPhoto(outfitId) {
+        const file = await pickImageFile();
+        if (!file) return false;
+        if (!/image\/(jpeg|png|webp)/.test(file.type) || file.size > 8 * 1024 * 1024) {
+            showNotice(pageMessage, "Pilih JPEG, PNG, atau WebP berukuran maksimal 8 MB.", "error");
+            return false;
+        }
+        try {
+            showNotice(pageMessage, "Mengunggah foto outfit baru…", "warn");
+            await api("replace-outfit-photo", {
+                method: "POST",
+                body: file,
+                raw: true,
+                headers: {
+                    "Content-Type": file.type,
+                    "X-File-Name": encodeURIComponent(file.name),
+                    "X-Outfit-Id": encodeURIComponent(outfitId)
+                }
+            });
+            showNotice(pageMessage, "Foto outfit berhasil diganti.", "success");
+            return true;
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
+            return false;
+        }
     }
 
     async function deleteCharacter(character) {
