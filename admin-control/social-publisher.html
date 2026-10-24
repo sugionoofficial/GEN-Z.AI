@@ -329,7 +329,7 @@
                     <div class="field full" id="song-file-field">
                         <label for="song-audio-file">File lagu / video ber-audio (MP3 / M4A / AAC / MP4)</label>
                         <input id="song-audio-file" type="file" accept=".mp3,.m4a,.aac,.mp4,audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,video/mp4">
-                        <span class="help">Format <code>.mp3</code>, <code>.m4a</code>, <code>.aac</code>, atau video <code>.mp4</code> (mis. unduhan Reels/Story FB) · maksimal 16 MB · dipotong rapi otomatis maksimal 30 detik.</span>
+                        <span class="help">Format <code>.mp3</code>, <code>.m4a</code>, <code>.aac</code>, atau video <code>.mp4</code> (mis. unduhan Reels/Story FB) · maksimal 16 MB · otomatis mengikuti durasi musik hingga <strong>maksimal 60 detik</strong> khusus Beranda/Reels (dan maksimal 25 detik khusus Cerita FB).</span>
                     </div>
                     <div class="field">
                         <label for="song-title">Judul lagu</label>
@@ -409,7 +409,7 @@
                             </div>
                             <div id="manual-quote-fields" class="field full subgrid-fields" hidden>
                                 <div class="field full">
-                                    <div class="quote-mode-note">Default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Facebook Page</strong> (atau pilih Reels / Cerita 24 Jam). AI membuat latar pemandangan/senja polos (tanpa teks AI rusak), sistem merender kata-kata mutiara yang <strong>100% tajam &amp; rapi</strong> di tengah kartu 9:16, dan musik <strong>langsung auto-play</strong> tanpa caption tambahan, tanpa link, dan tanpa hashtag.</div>
+                                    <div class="quote-mode-note">Default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Facebook Page</strong> (atau pilih Reels / Cerita 24 Jam). AI membuat latar pemandangan/senja polos (tanpa teks AI rusak), sistem merender kata-kata mutiara yang <strong>100% tajam &amp; rapi</strong> di tengah kartu 9:16 lengkap dengan tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, dan musik <strong>langsung auto-play</strong> (khusus Beranda/Reels hingga <strong>maks. 60 detik</strong>; Cerita maks. 25 detik) tanpa caption tambahan, link, atau hashtag.</div>
                                 </div>
                                 <div class="field full">
                                     <label for="manual-quote-target">Target publikasi di Facebook</label>
@@ -478,7 +478,7 @@
                     <div class="field" id="schedule-aspect-wrap"><label for="schedule-aspect-ratio">Rasio gambar</label><select id="schedule-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
                     <div id="schedule-quote-fields" class="field full subgrid-fields" hidden>
                         <div class="field full">
-                            <div class="quote-mode-note">Setiap jadwal eksekusi otomatis menerbitkan kartu <strong>Kata-kata Mutiara + Musik Auto-Play 9:16</strong> sesuai target pilihan (default <strong>Postingan Beranda Page permanen</strong>): AI membuat latar alam/senja polos (tanpa teks AI rusak), sistem merender kata-kata mutiara yang tajam di tengah layar, lalu menggabungkan lagu acak agar <strong>langsung auto-play</strong> tanpa caption/link/hashtag tambahan.</div>
+                            <div class="quote-mode-note">Setiap jadwal eksekusi otomatis menerbitkan kartu <strong>Kata-kata Mutiara + Musik Auto-Play 9:16</strong> sesuai target pilihan (default <strong>Postingan Beranda Page permanen</strong>): AI membuat latar alam/senja polos (tanpa teks AI rusak), sistem merender kata-kata mutiara yang tajam di tengah layar + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, lalu menggabungkan lagu acak agar <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption/link/hashtag tambahan.</div>
                         </div>
                         <div class="field full">
                             <label for="schedule-quote-target">Target publikasi di Facebook</label>
@@ -575,6 +575,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
-    <script type="module" src="./social-publisher.js?v=quote-feed-music-20261025"></script>
+    <script type="module" src="./social-publisher.js?v=quote-sig-60s-20261025"></script>
 </body>
 </html>

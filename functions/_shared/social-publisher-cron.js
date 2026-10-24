@@ -2,7 +2,7 @@ import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScene
 import { buildQuoteImagePrompt, createQuotePlan, normalizeQuotePublishTarget, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule } from "../../lib/social-publisher/quotes.js";
 import { decryptSecret, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookQuoteVideo } from "../../lib/social-publisher/providers.js";
 import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
-import { encodeStoryMp4, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
+import { encodeStoryMp4, maxQuoteVideoDurationForTarget, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
 import { normalizeQwenCloudImageModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
 import { stripImageMetadata } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
@@ -500,13 +500,15 @@ async function processRun(env, config, claimedRun) {
             const storyCard = await renderQuoteStoryCard({
                 backgroundBytes: generated.bytes,
                 quoteText,
+                authorName: page.page_name,
                 seed: Math.floor(Math.random() * 1000)
             });
             const encodedStory = encodeStoryMp4({
                 rgba: storyCard.rgba,
                 width: storyCard.width,
                 height: storyCard.height,
-                audioBytes
+                audioBytes,
+                maxDurationSec: maxQuoteVideoDurationForTarget(quotePublishTarget)
             });
             storyMp4Bytes = encodedStory.mp4Bytes;
             // Postingan Kata-kata Mutiara + Musik hanya berisi kartu video 9:16 + musik auto-play tanpa caption feed/link/hashtag.
@@ -516,6 +518,7 @@ async function processRun(env, config, claimedRun) {
                 post_mode: "quote",
                 quote_publish_target: quotePublishTarget,
                 quote_text: quoteText,
+                quote_signature: storyCard.signatureText || "",
                 ...(song ? {
                     song_id: song.id || null,
                     song_title: song.title || "",

@@ -70,7 +70,9 @@ import {
 import {
     encodeStoryMp4,
     extractAudioForStoryMp4,
-    renderQuoteStoryCard
+    maxQuoteVideoDurationForTarget,
+    renderQuoteStoryCard,
+    STORY_MAX_DURATION_FEED_REELS_SEC
 } from "../lib/social-publisher/story-video.js";
 import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
@@ -1518,7 +1520,7 @@ async function uploadFacebookSongAudio(req, res, config, userId) {
 
     let extracted = null;
     try {
-        extracted = extractAudioForStoryMp4(bytes, { maxDurationSec: 30 });
+        extracted = extractAudioForStoryMp4(bytes, { maxDurationSec: STORY_MAX_DURATION_FEED_REELS_SEC });
     } catch {
         extracted = null;
     }
@@ -1538,7 +1540,7 @@ async function uploadFacebookSongAudio(req, res, config, userId) {
     const { mimeType, ext } = normalizeUploadedAudioMeta(rawFilename, getHeader(req, "content-type"), extracted.codec);
     const id = crypto.randomUUID();
     const objectKey = `story-audio/${userId}/${id}.${ext}`;
-    const durationSeconds = Math.max(3, Math.min(30, Math.round(extracted.durationSec || 15)));
+    const durationSeconds = Math.max(3, Math.min(STORY_MAX_DURATION_FEED_REELS_SEC, Math.round(extracted.durationSec || 15)));
 
     await uploadStoryAudioObject(config, objectKey, bytes, mimeType);
     try {
@@ -2715,13 +2717,15 @@ async function generateManualPost(config, userId, env, body = {}) {
             const storyCard = await renderQuoteStoryCard({
                 backgroundBytes: generated.bytes,
                 quoteText,
+                authorName: page.page_name,
                 seed: Math.floor(Math.random() * 1000)
             });
             const encodedStory = encodeStoryMp4({
                 rgba: storyCard.rgba,
                 width: storyCard.width,
                 height: storyCard.height,
-                audioBytes
+                audioBytes,
+                maxDurationSec: maxQuoteVideoDurationForTarget(quotePublishTarget)
             });
             // Postingan Kata-kata Mutiara + Musik hanya berisi kartu video 9:16 + musik auto-play — tanpa caption feed/link/hashtag.
             const caption = quoteText;
@@ -2730,6 +2734,7 @@ async function generateManualPost(config, userId, env, body = {}) {
                 post_mode: "quote",
                 quote_publish_target: quotePublishTarget,
                 quote_text: quoteText,
+                quote_signature: storyCard.signatureText || "",
                 ...(song ? {
                     song_id: song.id || null,
                     song_title: song.title || "",
@@ -2761,6 +2766,7 @@ async function generateManualPost(config, userId, env, body = {}) {
                 quote_publish_target: quotePublishTarget,
                 is_story: quotePublishTarget === "story",
                 page_name: page.page_name,
+                quote_signature: storyCard.signatureText || "",
                 image_base64: bytesToBase64(storyCard.pngBytes),
                 image_mime_type: "image/png",
                 video_base64: bytesToBase64(encodedStory.mp4Bytes),

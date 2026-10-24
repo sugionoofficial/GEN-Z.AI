@@ -1077,7 +1077,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 });
             }
             resetSongForm();
-            status(songStatus, `Musik "${title}" tersimpan dan siap auto-play secara acak di Cerita FB.`, "good");
+            status(songStatus, `Musik "${title}" tersimpan dan siap auto-play secara acak (maks. 60 detik di Beranda/Reels, maks. 25 detik di Cerita).`, "good");
             await loadFacebookSongs();
         } catch (error) {
             status(songStatus, error.message || "Gagal menyimpan musik Cerita.", "error");
@@ -1265,6 +1265,9 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                     blob: videoBlob,
                     isQuoteVideo: true,
                     quoteTarget: resolvedQuoteTarget,
+                    pageConnectionId,
+                    durationSeconds: Number(result.preview.duration_seconds) || 0,
+                    quoteSignature: result.preview.quote_signature || (result.preview.page_name ? `quote by: ${result.preview.page_name}` : ""),
                     song: result.preview.song || null,
                     quoteTheme: result.preview.quote_theme || "",
                     pageName: result.preview.page_name,
@@ -1314,7 +1317,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 ? `“${result.preview.quote_text || result.preview.caption}”`
                 : result.preview.caption;
             showManualOutfit(result.preview.outfit);
-            showManualSong(result.preview.song, result.preview.quote_theme, isQuoteVideoPreview ? resolvedQuoteTarget : "");
+            showManualSong(
+                result.preview.song,
+                result.preview.quote_theme,
+                isQuoteVideoPreview ? resolvedQuoteTarget : "",
+                isQuoteVideoPreview ? state.manualPreview.durationSeconds : 0,
+                isQuoteVideoPreview ? state.manualPreview.quoteSignature : ""
+            );
             const outfitNote = result.preview.outfit?.name
                 ? ` Outfit acak: ${result.preview.outfit.name}${result.preview.outfit.order_url ? " (link order disertakan di caption)" : ""}.`
                 : "";
@@ -1349,6 +1358,15 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             return;
         }
         const isQuoteVideo = state.manualPreview.isQuoteVideo === true;
+        const pageConnectionId = $("manual-page").value;
+        if (isQuoteVideo && state.manualPreview.pageConnectionId && pageConnectionId && pageConnectionId !== state.manualPreview.pageConnectionId) {
+            status(
+                $("manual-post-status"),
+                `Facebook Page diubah setelah pratinjau dibuat (tanda tangan pojok kanan bawah saat ini: "${state.manualPreview.quoteSignature || `quote by: ${state.manualPreview.pageName}`}"). Klik "Buat & bersihkan pratinjau" ulang agar tanda tangan sesuai akun FB yang memposting.`,
+                "error"
+            );
+            return;
+        }
         const quoteTarget = isQuoteVideo
             ? normalizeClientQuoteTarget($("manual-quote-target")?.value || state.manualPreview.quoteTarget)
             : "";
@@ -1360,7 +1378,6 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
 
         const button = $("manual-publish-button");
         const discardButton = $("manual-discard-button");
-        const pageConnectionId = $("manual-page").value;
         if (discardButton) discardButton.disabled = true;
         setButtonBusy(button, true, isQuoteVideo ? `Menerbitkan ke ${targetLabel}…` : "Mengunggah ke Facebook Page…", {
             premium: true,
@@ -1444,18 +1461,27 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         line.hidden = false;
     }
 
-    function showManualSong(song, quoteTheme = "", quoteTarget = "") {
+    function showManualSong(song, quoteTheme = "", quoteTarget = "", durationSeconds = 0, quoteSignature = "") {
         const line = $("manual-song-line");
         if (!line) return;
         line.replaceChildren();
-        if (!song?.title && !quoteTheme && !quoteTarget) {
+        if (!song?.title && !quoteTheme && !quoteTarget && !quoteSignature) {
             line.hidden = true;
             return;
         }
         if (quoteTarget) {
             const targetStrong = document.createElement("strong");
-            targetStrong.textContent = `📌 Target: ${quoteTargetLabel(quoteTarget)} · Tanpa caption/link/hashtag`;
+            const durInfo = durationSeconds > 0
+                ? ` · Durasi: ${quoteTarget === "story" ? Math.min(25, durationSeconds) : durationSeconds}s`
+                : "";
+            targetStrong.textContent = `📌 Target: ${quoteTargetLabel(quoteTarget)}${durInfo} · Tanpa caption/link/hashtag`;
             line.append(targetStrong);
+        }
+        if (quoteSignature) {
+            if (line.childNodes.length) line.append(document.createTextNode(" · "));
+            const sigStrong = document.createElement("strong");
+            sigStrong.textContent = `✍️ ${quoteSignature}`;
+            line.append(sigStrong);
         }
         if (quoteTheme) {
             if (line.childNodes.length) line.append(document.createTextNode(" · "));
@@ -2938,7 +2964,13 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         if (state.manualPreview?.isQuoteVideo) {
             state.manualPreview.quoteTarget = nextTarget;
             if ($("manual-publish-button")) $("manual-publish-button").textContent = quotePublishButtonText(nextTarget);
-            showManualSong(state.manualPreview.song, state.manualPreview.quoteTheme, nextTarget);
+            showManualSong(
+                state.manualPreview.song,
+                state.manualPreview.quoteTheme,
+                nextTarget,
+                state.manualPreview.durationSeconds,
+                state.manualPreview.quoteSignature
+            );
         }
     });
     for (const tab of document.querySelectorAll?.("[data-manual-mode]") || []) {
