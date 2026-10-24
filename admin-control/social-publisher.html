@@ -163,12 +163,12 @@
             <div class="card-head">
                 <div><h3 id="config-title">Status konfigurasi</h3><p class="sub">Kredensial disimpan sebagai secret server; tidak ditampilkan di halaman ini.</p></div>
                 <div class="actions" style="margin:0">
-                    <button id="global-toggle" class="btn danger" type="button" disabled>Aktifkan autopublish saya</button>
-                    <button id="master-toggle" class="btn" type="button" hidden>Master switch</button>
+                    <button id="global-toggle" class="btn danger" type="button" aria-pressed="false" disabled>Autopost saya: OFF</button>
+                    <button id="master-toggle" class="btn danger" type="button" aria-pressed="false" hidden>Master switch: OFF</button>
                 </div>
             </div>
             <div id="config-list" class="config-list" aria-live="polite"></div>
-            <p class="help" style="margin-top:12px">Tombol <strong>Aktifkan autopublish saya</strong> hanya mengatur jadwal milik akun Anda; akun lain tidak terpengaruh. Aktifkan hanya setelah Meta OAuth, Gemini API, Supabase Storage, dan SQL migration siap. Jadwal tetap bisa disiapkan saat autopublish nonaktif. Master switch hanya muncul untuk admin/owner dan menghentikan autopost seluruh akun.</p>
+            <p class="help" style="margin-top:12px">Tombol <strong>Autopost saya</strong> hanya mengatur jadwal milik akun Anda; akun lain tidak terpengaruh. Aktifkan hanya setelah Meta OAuth, Gemini API, Supabase Storage, dan SQL migration siap. Jadwal tetap bisa disiapkan saat autopublish nonaktif. Master switch hanya muncul untuk admin/owner dan menghentikan autopost seluruh akun.</p>
         </section>
 
         <div class="grid" style="margin-top:18px">
@@ -229,7 +229,7 @@
                             <span class="tutorial-num">5</span>
                             <div>
                                 <p class="tutorial-step-title">Buat Posting Manual atau Jadwal Autopost</p>
-                                <p class="tutorial-step-body">Untuk uji coba langsung, gunakan <strong>Buat posting manual</strong> lalu klik <strong>Buat &amp; bersihkan pratinjau</strong> dan <strong>Terbitkan ke Facebook Page</strong>. Untuk otomatis berkala, isi <strong>4. Buat jadwal autopost</strong> (termasuk parameter gambar bila perlu), centang <strong>Jadwal ini aktif</strong> dan <strong>Autopost untuk jadwal ini</strong>, lalu simpan. Pastikan juga tombol <strong>Aktifkan autopublish saya</strong> di bagian atas menyala (<strong>AUTOPUBLISH ON</strong>). Setiap blok jadwal punya switch autopost sendiri: mematikan satu jadwal tidak menghentikan jadwal lain. Role USER maksimal 2 jadwal; ADMIN dan OWNER tanpa batas.</p>
+                                <p class="tutorial-step-body">Untuk uji coba langsung, gunakan <strong>Buat posting manual</strong> lalu klik <strong>Buat &amp; bersihkan pratinjau</strong> dan <strong>Terbitkan ke Facebook Page</strong>. Untuk otomatis berkala, isi <strong>4. Buat jadwal autopost</strong> (termasuk parameter gambar bila perlu), centang <strong>Jadwal ini aktif</strong> dan <strong>Autopost untuk jadwal ini</strong>, lalu simpan. Pastikan juga tombol <strong>Autopost saya: ON</strong> di bagian atas menyala (<strong>AUTOPUBLISH ON</strong>). Setiap blok jadwal punya switch autopost sendiri: mematikan satu jadwal tidak menghentikan jadwal lain. Role USER maksimal 2 jadwal; ADMIN dan OWNER tanpa batas.</p>
                             </div>
                         </div>
                         <div class="tutorial-step">

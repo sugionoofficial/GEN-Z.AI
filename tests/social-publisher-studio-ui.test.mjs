@@ -25,6 +25,20 @@ const apiSource = readFileSync(
     "utf8"
 );
 
+test("switch autopost saya dan master hijau saat ON, merah saat OFF", () => {
+    assert.match(htmlSource, /id="global-toggle" class="btn danger"[^>]*>Autopost saya: OFF<\/button>/);
+    assert.match(htmlSource, /id="master-toggle" class="btn danger"[^>]*>Master switch: OFF<\/button>/);
+
+    const render = source.match(/function renderGlobalState\(\) \{([\s\S]*?)\n    \}\n\n    function renderPages/);
+    assert.ok(render, "Renderer status switch tidak ditemukan");
+    assert.match(render[1], /globalToggle\.textContent = mine \? "Autopost saya: ON" : "Autopost saya: OFF"/);
+    assert.match(render[1], /globalToggle\.classList\.toggle\("green", mine\)/);
+    assert.match(render[1], /globalToggle\.classList\.toggle\("danger", !mine\)/);
+    assert.match(render[1], /masterToggle\.textContent = master \? "Master switch: ON" : "Master switch: OFF"/);
+    assert.match(render[1], /masterToggle\.classList\.toggle\("green", master\)/);
+    assert.match(render[1], /masterToggle\.classList\.toggle\("danger", !master\)/);
+});
+
 function declarationIndent(pattern) {
     const match = source.match(new RegExp(`^([ \\t]*)${pattern}`, "m"));
     assert.ok(match, `Deklarasi ${pattern} tidak ditemukan di admin-control/social-publisher.js`);

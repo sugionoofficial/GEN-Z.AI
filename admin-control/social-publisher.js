@@ -328,9 +328,11 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                 : "AUTOPUBLISH OFF";
         globalState.className = `state ${effective ? "on" : "off"}`;
 
-        globalToggle.textContent = mine ? "Jeda autopost saya" : "Aktifkan autopublish saya";
-        globalToggle.classList.toggle("danger", mine);
-        globalToggle.classList.toggle("green", !mine);
+        globalToggle.textContent = mine ? "Autopost saya: ON" : "Autopost saya: OFF";
+        globalToggle.title = mine ? "Klik untuk menjeda autopost akun Anda." : "Klik untuk mengaktifkan autopost akun Anda.";
+        globalToggle.setAttribute("aria-pressed", String(mine));
+        globalToggle.classList.toggle("green", mine);
+        globalToggle.classList.toggle("danger", !mine);
 
         if (!masterToggle) return;
         const canManage = state.data?.canManageGlobalAutopublish === true;
@@ -340,8 +342,9 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
         masterToggle.title = master
             ? "Klik untuk menjeda autopost SEMUA akun (perawatan/insiden)."
             : "Klik untuk mengaktifkan kembali autopost semua akun.";
-        masterToggle.classList.toggle("danger", master);
-        masterToggle.classList.toggle("green", !master);
+        masterToggle.setAttribute("aria-pressed", String(master));
+        masterToggle.classList.toggle("green", master);
+        masterToggle.classList.toggle("danger", !master);
     }
 
     function renderPages(pages = []) {
