@@ -1,7 +1,7 @@
 import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
 import { buildQuoteImagePrompt, createQuotePlan, normalizeQuotePublishTarget, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule } from "../../lib/social-publisher/quotes.js";
 import { decryptSecret, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookQuoteVideo } from "../../lib/social-publisher/providers.js";
-import { createSignedReferenceUrl, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
+import { createSignedReferenceUrl, downloadModelReference, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
 import { encodeStoryMp4, maxQuoteVideoDurationForTarget, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
 import { normalizeQwenCloudImageModel, normalizeQwenCloudLlmModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
 import { stripImageMetadata } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
@@ -526,8 +526,12 @@ async function processRun(env, config, claimedRun) {
             if (!character) throw new Error("Character reference was not found.");
             if (!await isPrivateReferenceBucket(config)) throw new Error("Private Supabase Storage reference bucket is not configured.");
 
-            const referenceBytes = await downloadReferenceObject(config, character.reference_object_key);
+            /* Supabase memperkecil gambar lebih dulu agar Worker tidak men-decode
+               foto besar di dalam cron (penyebab Error 1102 resource limits). */
+            const referenceSource = await downloadModelReference(config, character.reference_object_key);
+            const referenceBytes = referenceSource.bytes;
             if (!referenceBytes.length || referenceBytes.length > 8 * 1024 * 1024) throw new Error("Reference image size is invalid.");
+            const referenceMimeType = referenceSource.mimeType || character.reference_mime_type;
 
             const recentSceneKeys = (previousRuns || [])
                 .map(item => item.scene_plan?.key)
@@ -543,9 +547,11 @@ async function processRun(env, config, claimedRun) {
                 ? await createSignedReferenceUrl(config, character.reference_object_key)
                 : "";
             /* Cloudflare FLUX.2 klein memakai foto outfit sebagai `input_image_1`. */
-            const garmentBytes = garmentObjectKey
-                ? await downloadReferenceObject(config, garmentObjectKey)
+            const garmentSource = garmentObjectKey
+                ? await downloadModelReference(config, garmentObjectKey)
                 : null;
+            const garmentBytes = garmentSource?.bytes || null;
+            const garmentMime = garmentSource?.mimeType || garmentMimeType;
             /* Parameter detail dari blok jadwal: kolom kosong otomatis diacak,
                angle kosong jatuh ke medium shot. */
             const scene = applyOutfitToScene(
@@ -567,7 +573,7 @@ async function processRun(env, config, claimedRun) {
                 env,
                 prompt,
                 referenceBytes,
-                referenceMimeType: character.reference_mime_type,
+                referenceMimeType,
                 aspectRatio,
                 imageProvider,
                 ...(imageProvider === "cloudflare" ? {
@@ -580,10 +586,10 @@ async function processRun(env, config, claimedRun) {
                 } : {}),
                 ...(imageProvider === "cloudflare" ? {
                     garmentBytes,
-                    garmentMimeType
+                    garmentMimeType: garmentMime
                 } : {
                     garmentBytes,
-                    garmentMimeType,
+                    garmentMimeType: garmentMime,
                     ...(imageProvider === "qwencloud" ? { imageModel } : {})
                 })
             });
@@ -716,7 +722,14 @@ async function processRun(env, config, claimedRun) {
  * diterbitkan — baris itu juga harus ditutup, bukan menunggu selamanya.
  */
 const AUTO_ABANDONED_TTL_MS = 30 * 60 * 1000;
-const MANUAL_ABANDONED_TTL_MS = 6 * 60 * 60 * 1000;
+/*
+ * Pratinjau manual dibagi dua: yang belum punya caption berarti proses
+ * generate-nya mati di tengah jalan (mis. Error 1102) dan bisa ditutup cepat;
+ * yang sudah punya caption memang menunggu keputusan pengguna, jadi diberi
+ * waktu jauh lebih panjang.
+ */
+const MANUAL_STALLED_TTL_MS = 15 * 60 * 1000;
+const MANUAL_PREVIEW_TTL_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Tutup run yang sudah tidak mungkin diselesaikan lagi.
@@ -755,7 +768,6 @@ async function failAbandonedRuns(config, now, { filter, message, label }) {
 async function sweepAbandonedRuns(config, now) {
     const nowMs = new Date(now).getTime();
     const autoThreshold = new Date(nowMs - AUTO_ABANDONED_TTL_MS).toISOString();
-    const manualThreshold = new Date(nowMs - MANUAL_ABANDONED_TTL_MS).toISOString();
 
     const autoMessage = "Proses autopost tidak selesai dan tidak dapat dilanjutkan lagi (di luar jendela 30 menit). Jadwal berikutnya tetap berjalan sesuai interval.";
     const autoGenerating = await failAbandonedRuns(config, now, {
@@ -768,12 +780,20 @@ async function sweepAbandonedRuns(config, now) {
         message: autoMessage,
         label: "autopost"
     });
-    const manual = await failAbandonedRuns(config, now, {
-        filter: `status=eq.generating&schedule_id=is.null&created_at=lt.${encodeURIComponent(manualThreshold)}`,
+    const stalledThreshold = new Date(nowMs - MANUAL_STALLED_TTL_MS).toISOString();
+    const manualPreviewThreshold = new Date(nowMs - MANUAL_PREVIEW_TTL_MS).toISOString();
+
+    const manualStalled = await failAbandonedRuns(config, now, {
+        filter: `status=eq.generating&schedule_id=is.null&caption=is.null&created_at=lt.${encodeURIComponent(stalledThreshold)}`,
+        message: "Pembuatan pratinjau manual tidak selesai (permintaan terputus, biasanya karena Worker kehabisan resource). Silakan buat pratinjau baru.",
+        label: "manual"
+    });
+    const manualPreview = await failAbandonedRuns(config, now, {
+        filter: `status=eq.generating&schedule_id=is.null&caption=not.is.null&created_at=lt.${encodeURIComponent(manualPreviewThreshold)}`,
         message: "Pratinjau manual kedaluwarsa karena tidak diterbitkan maupun dibuang. Buat pratinjau baru.",
         label: "manual"
     });
-    return { auto: autoGenerating + autoQueued, manual };
+    return { auto: autoGenerating + autoQueued, manual: manualStalled + manualPreview };
 }
 
 export async function runSocialPublisherCron(env, scheduledTime = new Date()) {
