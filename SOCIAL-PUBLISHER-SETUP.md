@@ -40,6 +40,13 @@ npx wrangler@4 secret put GEMINI_API_KEY
 
 Atur secret ini jika memilih Google Gemini. Provider Cloudflare Workers AI dan QwenCloud tidak memerlukan `GEMINI_API_KEY`.
 
+The Gemini provider calls **Nano Banana 2 Lite** (`gemini-3.1-flash-lite-image`) and sends the character reference plus the outfit photo, so identity is preserved. Two facts matter before choosing it:
+
+- **There is no free tier for image output.** Google lists the free-tier image price as "Not available" for every Nano Banana model; a project with billing and prepaid balance is required (~$0.0336 per 1K image). A key from a project without billing answers `402 Payment Required`, which the provider now reports as "tidak tersedia di tier gratis … billing aktif dan saldo prepaid" instead of a bare HTTP error.
+- **Google Flow / Gemini app usage is not a supported integration path.** Those surfaces are free for humans, but they have no API: reaching them from this Worker would mean automating the web UI with someone's Google session, which Google's terms prohibit, breaks on every UI change, cannot handle unattended scheduled posts, and puts the whole Google account at risk. This project therefore only talks to official APIs.
+
+Free image generation stays on Cloudflare Workers AI (FLUX.2 klein 4B/9B, free daily Neuron allowance) — that is the default provider.
+
 ### 2b. Configure QwenCloud image generation (optional)
 
 Create an API key on the QwenCloud platform and add it as a Worker secret:

@@ -823,3 +823,52 @@ test("QwenCloud async task failure surfaces the task message", async () => {
         globalThis.fetch = originalFetch;
     }
 });
+
+test("Gemini image generation explains that Nano Banana has no free tier", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({
+        error: { message: "Payment Required: prepay credits before calling an image model." }
+    }, { status: 402 });
+    try {
+        await assert.rejects(
+            generateSocialImage({
+                env: { GEMINI_API_KEY: "test-key" },
+                prompt: "test image",
+                referenceBytes: new Uint8Array([1, 2, 3]),
+                referenceMimeType: "image/jpeg"
+            }),
+            error => {
+                assert.equal(error.status, 402);
+                assert.match(error.message, /tidak tersedia di tier gratis/);
+                assert.match(error.message, /billing aktif dan saldo prepaid/);
+                return true;
+            }
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("Gemini 403 tanpa izin model dijelaskan tanpa menyalahkan API key", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({
+        error: { message: "Permission denied: model is not enabled for this project." }
+    }, { status: 403 });
+    try {
+        await assert.rejects(
+            generateSocialImage({
+                env: { GEMINI_API_KEY: "test-key" },
+                prompt: "test image",
+                referenceBytes: new Uint8Array([1, 2, 3]),
+                referenceMimeType: "image/jpeg"
+            }),
+            error => {
+                assert.equal(error.status, 403);
+                assert.match(error.message, /Generative Language API aktif/);
+                return true;
+            }
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
