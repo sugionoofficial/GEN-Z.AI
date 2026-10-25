@@ -44,7 +44,8 @@ import {
     inspectFacebookPageToken,
     makeProfileShareUrl,
     publishFacebookPhoto,
-    publishFacebookQuoteVideo
+    publishFacebookQuoteVideo,
+    testCloudflareImageProvider
 } from "../lib/social-publisher/providers.js";
 import {
     getModelQuotas,
