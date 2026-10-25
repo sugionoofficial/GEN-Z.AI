@@ -1355,6 +1355,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             const generatedBlob = new Blob([bytes], { type: result.preview.image_mime_type });
 
             const videoEl = $("manual-generated-video");
+            const audioEl = $("manual-generated-audio");
             const imgEl = $("manual-generated-preview");
             const publishBtn = $("manual-publish-button");
 
@@ -1387,14 +1388,19 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                     caption: result.preview.caption
                 };
                 if (videoEl) {
-                    videoEl.poster = posterUrl;
-                    videoEl.src = videoUrl;
-                    videoEl.hidden = false;
-                    videoEl.play?.().catch?.(() => {});
+                    try { videoEl.pause?.(); } catch {}
+                    videoEl.removeAttribute("src");
+                    videoEl.removeAttribute("poster");
+                    videoEl.hidden = true;
                 }
                 if (imgEl) {
                     imgEl.src = posterUrl;
-                    imgEl.hidden = Boolean(videoEl);
+                    imgEl.hidden = false;
+                }
+                if (audioEl) {
+                    audioEl.src = videoUrl;
+                    audioEl.hidden = false;
+                    audioEl.load?.();
                 }
                 if (publishBtn) publishBtn.textContent = quotePublishButtonText(resolvedQuoteTarget);
             } else {
@@ -1415,6 +1421,11 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
                     try { videoEl.pause?.(); } catch {}
                     videoEl.removeAttribute("src");
                     videoEl.hidden = true;
+                }
+                if (audioEl) {
+                    try { audioEl.pause?.(); } catch {}
+                    audioEl.removeAttribute("src");
+                    audioEl.hidden = true;
                 }
                 if (imgEl) {
                     imgEl.src = objectUrl;
@@ -1446,7 +1457,7 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             status(
                 $("manual-post-status"),
                 isQuoteVideoPreview
-                    ? `Kartu video Kata-kata Mutiara 9:16 selesai dibuat dengan teks tajam & musik auto-play.${songNote} Putar pratinjau di sebelah kanan lalu terbitkan ke ${quoteTargetLabel(resolvedQuoteTarget)}.`
+                    ? `Kartu video Kata-kata Mutiara 9:16 selesai dibuat. Kartu dan kontrol audio pratinjau tampil di sebelah kanan.${songNote} Terbitkan ke ${quoteTargetLabel(resolvedQuoteTarget)} setelah diperiksa.`
                     : `Gambar ${result.preview.aspect_ratio} selesai dibuat dan dibersihkan.${outfitNote}${songNote} Periksa pratinjau serta caption sebelum menerbitkan.`,
                 "good"
             );
@@ -1625,6 +1636,12 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             videoEl.removeAttribute("src");
             videoEl.removeAttribute("poster");
             videoEl.hidden = true;
+        }
+        const audioEl = $("manual-generated-audio");
+        if (audioEl) {
+            try { audioEl.pause?.(); } catch {}
+            audioEl.removeAttribute("src");
+            audioEl.hidden = true;
         }
         const imgEl = $("manual-generated-preview");
         if (imgEl) {

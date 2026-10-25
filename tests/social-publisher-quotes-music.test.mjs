@@ -1052,6 +1052,7 @@ test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Cerita Kata-k
     assert.match(html, /id="song-form"/);
     assert.match(html, /id="song-audio-file"/);
     assert.match(html, /id="manual-generated-video"/);
+    assert.match(html, /id="manual-generated-audio" class="manual-preview-audio" controls/);
     assert.match(html, /id="seed-default-songs"/);
     assert.match(html, /id="manual-post-mode"/);
     assert.match(html, /id="manual-quote-fields"/);
@@ -1068,6 +1069,9 @@ test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Cerita Kata-k
     assert.match(js, /async function loadFacebookSongs\(/);
     assert.match(js, /async function submitSong\(/);
     assert.match(js, /async function seedDefaultSongs\(/);
+    assert.match(js, /audioEl\.src = videoUrl/);
+    assert.match(js, /audioEl\.hidden = false/);
+    assert.match(js, /imgEl\.hidden = false/);
     assert.doesNotMatch(js, /from\s+["']\.\.\/lib\//, "Browser JS must not import ../lib/ outside dist/");
 
     assert.match(lightCss, /\.song-card/);
