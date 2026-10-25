@@ -1254,16 +1254,16 @@ export async function renderCleanedPreview(
 
 
     const image =
-        elements?.cleanImagePreview ||
+        elements?.imagePreview ||
         document.getElementById(
-            "metadata-clean-image-preview"
+            "metadata-image-preview"
         );
 
 
     const video =
-        elements?.cleanVideoPreview ||
+        elements?.videoPreview ||
         document.getElementById(
-            "metadata-clean-video-preview"
+            "metadata-video-preview"
         );
 
 
@@ -1314,6 +1314,14 @@ export async function renderCleanedPreview(
             ""
         )
             .toLowerCase();
+
+
+    /* Hasil cleaning menggantikan media pada preview utama. */
+    const empty =
+        elements?.previewEmpty ||
+        document.getElementById("metadata-preview-empty");
+
+    hideElement(empty);
 
 
     /*

@@ -1386,8 +1386,8 @@ export async function cleanMetadata() {
 
         setPreviewStatus(
             cleaningNotice
-                ? `METADATA CLEANING SELESAI. ${cleaningNotice}`
-                : "METADATA CLEANING SELESAI. HASIL ADALAH FILE BARU."
+                ? `METADATA CLEANING SUCCESS. ${cleaningNotice}`
+                : "METADATA CLEANING SUCCESS. HASIL ADALAH FILE BARU."
         );
 
 

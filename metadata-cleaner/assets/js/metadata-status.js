@@ -2603,8 +2603,9 @@ function renderProvenanceOverlayStamp(
 
 
     label.textContent =
-        "AI DETECTION";
+        "AI DETECTED";
 
+    stamp.classList.remove("is-clear");
 
     renderProvenanceOverlayModel(
         stamp,
@@ -3403,7 +3404,7 @@ export function renderDetectionResult() {
         sightengineHasScore
     ) {
 
-        clearOverlayStamp();
+        renderNoDetectionStamp();
 
 
         setStatus(
@@ -3428,7 +3429,7 @@ export function renderDetectionResult() {
         openKeyClear
     ) {
 
-        clearOverlayStamp();
+        renderNoDetectionStamp();
 
         const confidence =
             openKeyConfidence !== null
@@ -3501,7 +3502,7 @@ export function renderDetectionResult() {
        keduanya tidak memberikan detection signal.
     ===================================================== */
 
-    clearOverlayStamp();
+    renderNoDetectionStamp();
 
 
     setStatus(
@@ -3519,7 +3520,8 @@ export function renderDetectionResult() {
 
 function renderOverlayStamp(
     sightengine,
-    isVisualDetection = false
+    isVisualDetection = false,
+    isClear = false
 ) {
 
     const overlay =
@@ -3603,10 +3605,11 @@ function renderOverlayStamp(
 
 
     label.textContent =
-        isVisualDetection
-            ? "VISUAL AI SIGNAL"
-            : "AI DETECTION";
+        isClear
+            ? "NO DETECTED"
+            : "AI DETECTED";
 
+    stamp.classList.toggle("is-clear", isClear);
 
     renderOverlayModel(
         stamp,
@@ -3703,6 +3706,17 @@ function renderOverlayModel(
     stamp.appendChild(
         modelLabel
     );
+
+}
+
+
+/* =========================================================
+   CLEAR / NO-DETECTION STAMP
+========================================================= */
+
+function renderNoDetectionStamp() {
+
+    renderOverlayStamp(null, false, true);
 
 }
 
