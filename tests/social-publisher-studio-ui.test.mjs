@@ -434,7 +434,7 @@ test("interaksi klik halaman 1..4 dan dropdown 10/20/50/100 di UI memperbarui da
         if (!elementsById.has(id)) elementsById.set(id, new MockElement("div", id));
     }
     elementsById.get("runs-per-page").value = "10";
-    elementsById.get("interval-hours").value = "24";
+    elementsById.get("interval-minutes").value = "1440";
     elementsById.get("manual-post-button").textContent = "Buat & bersihkan pratinjau";
     elementsById.get("manual-publish-button").textContent = "Terbitkan ke Facebook Page";
     elementsById.get("usage-tutorial").hidden = true;
@@ -492,6 +492,7 @@ test("interaksi klik halaman 1..4 dan dropdown 10/20/50/100 di UI memperbarui da
     };
 
     const mockDocument = {
+        addEventListener() {},
         getElementById: id => elementsById.get(id) || null,
         createElement: tag => new MockElement(tag),
         createTextNode: text => Object.assign(new MockElement("#text"), { textContent: String(text) }),

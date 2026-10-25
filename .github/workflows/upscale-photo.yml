@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.10"
 
@@ -48,14 +48,14 @@ jobs:
           sudo apt-get install -y -qq ffmpeg
 
       - name: Cache pip
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-realesrgan-v4
 
       - name: Cache Real-ESRGAN model
         id: cache-model
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/realesrgan
           key: realesrgan-x4plus-v2
