@@ -79,6 +79,7 @@ import {
     STORY_MAX_DURATION_FEED_REELS_SEC
 } from "../lib/social-publisher/story-video.js";
 import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
+import { describeApiFailure, loggableErrorDetails } from "../lib/social-publisher/api-error.js";
 
 const GRAPH_VERSION = "v26.0";
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024;
@@ -3685,18 +3686,19 @@ export default async function handler(req, res) {
         return await handlePost(req, res, config, userId, env, action, profile);
     } catch (rawError) {
         const error = migrationError(rawError);
-        const payload = { success: false, error: error.message };
+        /*
+         * `status === 503` dengan `error.message` kosong dulu menghasilkan
+         * `{"success":false}` tanpa `error`, sehingga klien hanya bisa
+         * menampilkan "Permintaan gagal (HTTP 503)". Pesan sekarang selalu ada.
+         */
+        const { status, message, missingMessage } = describeApiFailure(error, 500);
+        const payload = { success: false, error: message };
         if (error?.code) payload.code = String(error.code);
         if (error?.retrySafe === false) payload.retry_safe = false;
         if (error?.needsReconnect === true) payload.needs_reconnect = true;
-        if (error.status && error.status < 500) {
-            return json(res, error.status, payload);
+        if (missingMessage || status >= 500) {
+            console.error("Social Publisher API error:", status, loggableErrorDetails(error));
         }
-        console.error("Social Publisher API error:", error?.message || "unknown error");
-        const status = Number(error?.status) || 500;
-        return json(res, status, {
-            ...payload,
-            error: status === 500 ? error.message || "Terjadi kesalahan internal." : error.message
-        });
+        return json(res, status, payload);
     }
 }

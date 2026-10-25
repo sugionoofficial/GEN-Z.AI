@@ -72,6 +72,15 @@ Every model result is validated before use: if the returned PNG/JPEG is valid by
 
 Measured on a free Workers account (October 2026), healthy run: FLUX.2 klein 4B `identity` OK in ~4.9 s (459 KB JPEG), FLUX.2 klein 9B `identity9b` OK in ~3.0 s (500 KB JPEG), FLUX.1 schnell `t2i` OK in ~2.3 s (698 KB JPEG), SDXL `sdxl` (text-to-image only) OK in ~2.3 s (926 KB PNG), Pruna `tryon` fails with `2021: Insufficient AI Gateway credits` (expected without AI Gateway credits).
 
+### "Permintaan gagal (HTTP 503)" while generating
+
+That message meant "the response was not the JSON our API always sends", so the cause was invisible. Two things changed:
+
+- the admin pages now read the response as text, print the status with the most likely cause, and include a short snippet of the real body (`admin-control/assets/js/http-failure.js`);
+- the API handler always returns a non-empty `error` string, even when the underlying error object had no message, and logs the full detail on the Worker side.
+
+A 503 that arrives **within a couple of seconds** of clicking usually means the Worker was being redeployed or the edge rejected the request — wait about a minute and try again; nothing was generated or charged. A 503 after a long wait means the request ran out of time. GET requests are retried once automatically; `manual-generate` and publish are deliberately **not** retried automatically so a slow response can never create two posts or spend the image quota twice.
+
 ### Picture quality on the free path
 
 FLUX.2 [klein] 4B is a distilled, latency-optimised model: the free path produces a *photographic-looking* image, not a camera-accurate portrait. Two limits are structural, not bugs:
