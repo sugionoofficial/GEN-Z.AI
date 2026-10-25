@@ -11,7 +11,7 @@
    - Menampilkan preview hasil cleaning
    - Menampilkan result panel
    - Mengaktifkan DOWNLOAD
-   - Premium cleaning loading 10 detik
+   - Cleaning progress follows the actual operation
    - Race protection
    - Error handling
 
@@ -31,9 +31,9 @@
    ↓
    Premium loader aktif
    ↓
-   Cleaning + timer 10 detik berjalan
+   Cleaning and loader progress run together
    ↓
-   Keduanya selesai
+   Cleaning completes
    ↓
    Loader ditutup
    ↓
@@ -120,11 +120,11 @@ import {
 ========================================================= */
 
 import {
-    CLEANING_DURATION,
+    CLEANING_PROGRESS_ESTIMATE,
     createPremiumCleaningLoader,
     runPremiumCleaningTimer,
     removePremiumCleaningLoader
-} from "./metadata-clean-loader.js";
+} from "./metadata-clean-loader.js?v=metadata-loader-smooth-mobile-spin-20261025";
 
 
 /* =========================================================
@@ -1087,8 +1087,8 @@ export async function cleanMetadata() {
                     ? "IMAGE"
                     : "VIDEO",
 
-            loadingDuration:
-                `${CLEANING_DURATION / 1000}s`
+            progressEstimate:
+                `${CLEANING_PROGRESS_ESTIMATE / 1000}s`
         }
     );
 
@@ -1099,7 +1099,7 @@ export async function cleanMetadata() {
 
 
         /* =====================================================
-           START REAL CLEANING + 10 SECOND TIMER
+           START REAL CLEANING WITH LIVE PROGRESS
            ===================================================== */
 
         const cleaningPromise =
@@ -1112,31 +1112,14 @@ export async function cleanMetadata() {
                 );
 
 
-        const timerPromise =
-            cleaningLoader
-                ? runPremiumCleaningTimer(
-                    cleaningLoader,
-                    CLEANING_DURATION
-                )
-                : Promise.resolve();
-
-
-        /*
-           Cleaning dan timer berjalan BERSAMA.
-
-           Artinya:
-           - cleaner selesai cepat → tetap tunggu 10 detik
-           - cleaner lebih lama dari 10 detik → tunggu cleaner
-           - hasil tidak boleh ditampilkan sebelum keduanya selesai
-        */
-
-        [
-            rawResult
-        ] =
-            await Promise.all([
+        /* Track progress while the actual cleaning promise is running. */
+        rawResult = cleaningLoader
+            ? await runPremiumCleaningTimer(
+                cleaningLoader,
                 cleaningPromise,
-                timerPromise
-            ]);
+                CLEANING_PROGRESS_ESTIMATE
+            )
+            : await cleaningPromise;
 
 
         console.info(
@@ -1209,8 +1192,7 @@ export async function cleanMetadata() {
         ) {
 
             /*
-               runPremiumCleaningTimer()
-               selesai pada sekitar 10 detik.
+               proses cleaning sudah selesai.
 
                Pastikan visual progress terakhir
                berada pada tahap finalisasi.

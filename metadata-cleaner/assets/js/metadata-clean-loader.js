@@ -7,11 +7,9 @@
 
    Fungsi:
    - Create premium cleaning loader
-   - Update progress
+   - Update progress while the real operation runs
    - Update stage
-   - Run minimum loading timer
    - Remove loader
-   - Delay helper
 ========================================================= */
 
 
@@ -19,12 +17,12 @@
    CONSTANTS
 ========================================================= */
 
-const CLEANING_DURATION =
+const CLEANING_PROGRESS_ESTIMATE =
     10000;
 
 
 const CLEANING_TICK =
-    100;
+    50;
 
 
 /* =========================================================
@@ -79,14 +77,9 @@ const CLEANING_STAGES = [
 
 
 /* =========================================================
-   WAIT HELPER
+   LEGACY DELAY HELPER
    ---------------------------------------------------------
-   FIX:
-   Sebelumnya runPremiumCleaningTimer()
-   memanggil wait(duration), tetapi fungsi wait()
-   tidak pernah didefinisikan.
-
-   Sekarang delay dibuat lokal di module ini.
+   Kept for API compatibility; progress no longer waits on it.
 ========================================================= */
 
 function wait(
@@ -410,16 +403,14 @@ function updatePremiumCleaningLoader(
 
 async function runPremiumCleaningTimer(
     loader,
-    duration = CLEANING_DURATION
+    processPromise,
+    estimatedDuration = CLEANING_PROGRESS_ESTIMATE
 ) {
 
-    const safeDuration =
-        Math.max(
-            0,
-            Number(
-                duration
-            ) || CLEANING_DURATION
-        );
+    const safeDuration = Math.max(
+        1,
+        Number(estimatedDuration) || CLEANING_PROGRESS_ESTIMATE
+    );
 
 
     const start =
@@ -495,28 +486,8 @@ async function runPremiumCleaningTimer(
             );
 
 
-        /* -------------------------------------------------
-           WAIT MINIMUM CLEANING DURATION
-           ------------------------------------------------
-           FIX UTAMA:
-           wait() sekarang sudah didefinisikan.
-        ------------------------------------------------- */
-
-        await wait(
-            safeDuration
-        );
-
-
-        /* -------------------------------------------------
-           FINAL TIMER STATE
-        ------------------------------------------------- */
-
-        updatePremiumCleaningLoader(
-            loader,
-            96,
-            "FINALIZING",
-            "Menyiapkan file untuk download..."
-        );
+        /* Return on real work completion; never wait for the estimate. */
+        return await processPromise;
 
 
     } finally {
@@ -583,7 +554,7 @@ function removePremiumCleaningLoader(
 
 export {
 
-    CLEANING_DURATION,
+    CLEANING_PROGRESS_ESTIMATE,
 
     CLEANING_TICK,
 
@@ -610,7 +581,7 @@ export {
 
 window.GENZMetadataCleaningLoader = {
 
-    CLEANING_DURATION,
+    CLEANING_PROGRESS_ESTIMATE,
 
     CLEANING_TICK,
 
