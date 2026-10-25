@@ -249,6 +249,17 @@ Open **Admin Control → Social Auto Publisher**:
 6. Turn on the schedule, then activate autopublish **for your own account** (`Aktifkan autopublish saya`) once every configuration check is ready. This switch is per account: pausing it never stops other accounts. Only `ADMIN`/`OWNER` see the separate **Master switch**, which stops autopost for every account and is reserved for maintenance or incidents.
 7. Review run status and use **Bagikan ke profil pribadi** to confirm sharing manually when desired.
 
+### "Error 1102: Worker exceeded resource limits" when generating
+
+This is the Worker running out of CPU/memory, not a network problem. The cause was the image pipeline: the reference photo (928 KB in a real account) and the outfit photo (752 KB) were both **decoded inside the Worker** with `jpeg-js`/`pngjs`. Decoding two multi-megapixel photos allocates tens of megabytes each (RGBA plus JPEG component buffers), which is enough to break the 128 MB isolate limit — and because the outfit is picked at random, the same click could succeed one minute and fail the next.
+
+Two changes remove the pressure:
+
+- **Supabase downscales first.** References and outfit photos are now requested through Supabase image transformations (`/storage/v1/render/image/sign/…?width=512&height=512&resize=contain`), so the Worker receives an image that is already ≤512 px and `prepareReferenceImage` returns it untouched — no decode, no re-encode, almost no memory. If Image Transformations are unavailable on the project (the render endpoint answers 4xx), the code logs it and falls back to the previous download-then-decode path, so nothing breaks.
+- **Decoding is bounded.** The fallback path now passes `maxResolutionInMP: 24` and `maxMemoryUsageInMB: 64` to `jpeg-js` and refuses PNGs above 24 MP before decoding, so an oversized photo produces a readable message instead of killing the request.
+
+If 1102 still appears after this, the remaining lever is the model call itself (see `CLOUDFLARE_IDENTITY_SIZE`) rather than the image preparation.
+
 ### Runs stuck in "generating"
 
 A manual preview deliberately stays `generating` until you publish or discard it, and its image bytes live **only in the browser tab** — nothing is uploaded at preview time. Refreshing the page therefore removes the preview and its "Buang pratinjau" button, so the history row used to hang forever. Scheduled runs could hang the same way when the cron invocation died mid-flight (for example during a deploy).
@@ -256,7 +267,7 @@ A manual preview deliberately stays `generating` until you publish or discard it
 Three things now keep that from happening:
 
 - **Every history row that is still running shows a `Batalkan` button.** It calls the `cancel-run` action, which only touches a run you own that is still `generating`, and marks it `failed` with a clear reason.
-- **The cron sweeps abandoned runs every minute.** Autopost runs past the 30-minute resume window (`claim_stuck_social_post_runs` only revives younger runs) are marked failed, as are queued autopost runs of the same age; manual previews are marked failed after 6 hours. Autopost sweeping uses `started_at`, so a run that was just resumed is never killed while it is working.
+- **The cron sweeps abandoned runs every minute.** Autopost runs past the 30-minute resume window (`claim_stuck_social_post_runs` only revives younger runs) are marked failed, as are queued autopost runs of the same age. Manual runs are split by state: one that never got a caption means generation died mid-flight and is closed after **15 minutes**, while a preview that already has a caption is genuinely waiting for you and gets **6 hours**. Autopost sweeping uses `started_at`, so a run that was just resumed is never killed while it is working.
 - **The page tells you when a preview is orphaned** — after a refresh, the run list shows a notice pointing at the cancellable row instead of silently leaving it there.
 
 A manual run that already has a caption is labelled **pratinjau siap** rather than `generating`, because nothing is running any more: the image is waiting for you to publish or discard it.

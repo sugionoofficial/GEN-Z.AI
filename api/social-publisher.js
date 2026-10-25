@@ -63,6 +63,7 @@ import {
     createSignedReferenceUrl,
     deleteReferenceObject,
     deleteStoryAudioObject,
+    downloadModelReference,
     downloadReferenceObject,
     downloadStoryAudioObject,
     isPrivateReferenceBucket,
@@ -2825,17 +2826,27 @@ async function generateManualPost(config, userId, env, body = {}) {
             };
         }
 
-        const referenceBytes = await downloadReferenceObject(config, character.reference_object_key);
+        /*
+         * Diambil lewat `downloadModelReference`: Supabase memperkecil gambar
+         * lebih dulu sehingga Worker tidak perlu men-decode foto 4–12 MP di
+         * dalam request (itu yang memicu Error 1102 "Worker exceeded resource
+         * limits" pada foto 928 KB + outfit 752 KB).
+         */
+        const referenceSource = await downloadModelReference(config, character.reference_object_key);
+        const referenceBytes = referenceSource.bytes;
         if (!referenceBytes.length || referenceBytes.length > MAX_REFERENCE_BYTES) {
             throw new Error("Ukuran foto referensi karakter tidak valid.");
         }
+        const referenceMimeType = referenceSource.mimeType || character.reference_mime_type;
         /*
          * Outfit juga diunduh untuk Cloudflare: FLUX.2 klein menerima foto
          * pakaian sebagai `input_image_1` agar potongan pakaian konsisten.
          */
-        const garmentBytes = garmentObjectKey
-            ? await downloadReferenceObject(config, garmentObjectKey)
+        const garmentSource = garmentObjectKey
+            ? await downloadModelReference(config, garmentObjectKey)
             : null;
+        const garmentBytes = garmentSource?.bytes || null;
+        const garmentMime = garmentSource?.mimeType || garmentMimeType;
         const scene = applyOutfitToScene(
             { ...createScenePlan([]), aspect_ratio: aspectRatio },
             outfit
@@ -2857,7 +2868,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             env,
             prompt,
             referenceBytes,
-            referenceMimeType: character.reference_mime_type,
+            referenceMimeType,
             aspectRatio,
             imageProvider,
             ...(imageProvider === "cloudflare" ? {
@@ -2870,10 +2881,10 @@ async function generateManualPost(config, userId, env, body = {}) {
             } : {}),
             ...(imageProvider === "cloudflare" ? {
                 garmentBytes,
-                garmentMimeType
+                garmentMimeType: garmentMime
             } : {
                 garmentBytes,
-                garmentMimeType,
+                garmentMimeType: garmentMime,
                 ...(imageProvider === "qwencloud" ? { imageModel } : {})
             })
         });

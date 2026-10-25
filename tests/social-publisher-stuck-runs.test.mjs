@@ -44,27 +44,32 @@ test("cron menandai run autopost dan pratinjau manual yang menggantung sebagai g
     const now = new Date("2026-10-26T02:00:00.000Z");
     try {
         const result = await runSocialPublisherCron(env, now);
-        assert.deepEqual(result.swept, { auto: 2, manual: 1 });
+        assert.deepEqual(result.swept, { auto: 2, manual: 2 });
 
         const autoGenerating = patches.find(item => item.url.includes("status=eq.generating&schedule_id=not.is.null"));
         const autoQueued = patches.find(item => item.url.includes("status=eq.queued&schedule_id=not.is.null"));
-        const manual = patches.find(item => item.url.includes("schedule_id=is.null"));
+        const manualStalled = patches.find(item => item.url.includes("schedule_id=is.null&caption=is.null"));
+        const manualPreview = patches.find(item => item.url.includes("caption=not.is.null"));
 
         assert.ok(autoGenerating, "run autopost generating harus disapu");
         assert.ok(autoQueued, "run autopost queued yang telat harus disapu");
-        assert.ok(manual, "pratinjau manual yatim harus disapu");
+        assert.ok(manualStalled, "pratinjau manual yang generate-nya mati harus disapu cepat");
+        assert.ok(manualPreview, "pratinjau yang menunggu keputusan pengguna disapu lebih lambat");
 
         /* Autopost memakai started_at (diperbarui saat run dilanjutkan) supaya
            run yang baru dilanjutkan tidak ikut tersapu di tengah proses. */
         assert.match(decodeURIComponent(autoGenerating.url), /started_at=lt\.2026-10-26T01:30:00\.000Z/);
-        assert.match(decodeURIComponent(manual.url), /created_at=lt\.2026-10-25T20:00:00\.000Z/);
+        /* Generate yang mati ditutup setelah 15 menit, pratinjau siap setelah 6 jam. */
+        assert.match(decodeURIComponent(manualStalled.url), /created_at=lt\.2026-10-26T01:45:00\.000Z/);
+        assert.match(decodeURIComponent(manualPreview.url), /created_at=lt\.2026-10-25T20:00:00\.000Z/);
 
         for (const patch of patches) {
             assert.equal(patch.body.status, "failed");
             assert.ok(String(patch.body.error_message || "").length > 20, "pesan gagal harus menjelaskan");
             assert.equal(patch.body.finished_at, "2026-10-26T02:00:00.000Z");
         }
-        assert.match(manual.body.error_message, /Pratinjau manual kedaluwarsa/);
+        assert.match(manualPreview.body.error_message, /Pratinjau manual kedaluwarsa/);
+        assert.match(manualStalled.body.error_message, /tidak selesai/);
         assert.match(autoGenerating.body.error_message, /tidak dapat dilanjutkan/);
     } finally {
         restore();
