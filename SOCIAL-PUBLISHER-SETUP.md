@@ -72,6 +72,23 @@ Every model result is validated before use: if the returned PNG/JPEG is valid by
 
 Measured on a free Workers account (October 2026), healthy run: FLUX.2 klein 4B `identity` OK in ~4.9 s (459 KB JPEG), FLUX.2 klein 9B `identity9b` OK in ~3.0 s (500 KB JPEG), FLUX.1 schnell `t2i` OK in ~2.3 s (698 KB JPEG), SDXL `sdxl` (text-to-image only) OK in ~2.3 s (926 KB PNG), Pruna `tryon` fails with `2021: Insufficient AI Gateway credits` (expected without AI Gateway credits).
 
+### Picture quality on the free path
+
+FLUX.2 [klein] 4B is a distilled, latency-optimised model: the free path produces a *photographic-looking* image, not a camera-accurate portrait. Two limits are structural, not bugs:
+
+- character frames are rendered at **576×1024** (9:16) or **1024×576** (16:9), which is small for a full-body shot;
+- the reference photo is downscaled to **512 px** on the long side because FLUX.2 klein requires input images below 512×512, so fine facial detail is reduced before the model ever sees it.
+
+The prompt now carries photographic direction (50 mm lens, natural skin detail, shallow depth of field, explicit "not a 3D render/CGI/cartoon") because diffusion models follow photography terms far better than the word "realistic" alone.
+
+If your account accepts larger frames, raise the output size without touching code by setting a Worker variable:
+
+```
+CLOUDFLARE_IDENTITY_SIZE = "768x1344"
+```
+
+Accepted format is `<width>x<height>`, each side 256–2048. An unusable value is ignored, and if the model rejects the requested size the request is retried at the default 576×1024, so the character is never lost — you just get a warning in the run output.
+
 SDXL once returned a 2 KB PNG for the same 576×1024 frame (reported as `OK` before the content check existed) and returned 926 KB on the next run, so that was a transient model fault rather than a configuration problem. The blank-image guard keeps that class of output from ever being reported as success again. At roughly 670 Neurons per 1024×1024 FLUX.2 klein edit, the 10,000 Neuron daily allowance covers about 14 character images per day; once it is exhausted the run degrades to SDXL img2img instead of failing, and resets at 00:00 UTC.
 
 When Cloudflare is selected, neither image generation nor contextual caption generation requires `GEMINI_API_KEY`. This implementation generates **one** image per run to limit usage. If the free daily Neuron allowance is exhausted, `@cf/...` requests fail until the quota resets at 00:00 UTC; the API maps that to HTTP 429 so the UI can show it.

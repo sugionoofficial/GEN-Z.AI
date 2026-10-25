@@ -1052,6 +1052,12 @@ test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Cerita Kata-k
     assert.match(html, /id="song-form"/);
     assert.match(html, /id="song-audio-file"/);
     assert.match(html, /id="manual-generated-video"/);
+    /*
+     * Regresi: `video.manual-preview{display:block}` mengalahkan `[hidden]`,
+     * sehingga pemutar video kosong ikut tampil di bawah hasil foto karakter.
+     */
+    assert.match(html, /video\.manual-preview\[hidden\][^{]*\{[^}]*display:none!important/);
+    assert.match(html, /audio\.manual-preview-audio\[hidden\][^{]*\{[^}]*display:none!important/);
     assert.match(html, /id="manual-generated-audio" class="manual-preview-audio" controls/);
     assert.match(html, /id="seed-default-songs"/);
     assert.match(html, /id="manual-post-mode"/);

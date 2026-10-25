@@ -100,6 +100,13 @@
         .fb-logo{background:transparent;border-color:transparent;border-radius:50%}
         video.manual-preview{display:block;width:100%;max-width:260px;aspect-ratio:9/16;border-radius:12px;border:1px solid var(--border);background:#0b111b;object-fit:cover}
         audio.manual-preview-audio{display:block;width:100%;max-width:260px;margin-top:10px}
+        /*
+         * `display:block` di atas mengalahkan aturan bawaan `[hidden]{display:none}`
+         * (selector kelas+tipe lebih spesifik daripada atribut). Akibatnya elemen
+         * video/audio yang masih `hidden` tetap tergambar sebagai kotak gelap
+         * kosong dengan kontrol 0:00 di bawah hasil generate foto karakter.
+         */
+        video.manual-preview[hidden],audio.manual-preview-audio[hidden],img.manual-preview[hidden]{display:none!important}
 
     </style>
     <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261022">
