@@ -40,6 +40,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         runsTotalPages: 1,
         objectUrls: new Map(),
         manualPreview: null,
+        orphanNoticeShown: false,
         songs: [],
         songLibraryReady: true,
         defaultFacebookSongs: []
@@ -2179,6 +2180,39 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         nav.append(next);
     }
 
+    async function cancelRun(run, button) {
+        const source = run.schedule_id ? "run autopost" : "pratinjau manual";
+        if (!window.confirm(`Batalkan ${source} ini? Statusnya akan menjadi gagal dan tidak bisa dilanjutkan.`)) return;
+        setButtonBusy(button, true, "Membatalkan…");
+        try {
+            await api("cancel-run", { method: "POST", body: { run_id: run.id } });
+            showNotice(pageMessage, "Run dibatalkan. Riwayat diperbarui.", "success");
+            await loadRunsPage(state.runsPage);
+        } catch (error) {
+            setButtonBusy(button, false);
+            showNotice(pageMessage, error.message || "Gagal membatalkan run.", "error");
+        }
+    }
+
+    /*
+     * Pratinjau manual menyimpan byte gambar hanya di memori halaman. Setelah
+     * refresh, tombol "Buang pratinjau" hilang dan barisnya tertinggal sebagai
+     * "generating". Beri tahu pengguna bahwa baris itu bisa dibatalkan dari
+     * riwayat, alih-alih membiarkannya diam-diam menggantung.
+     */
+    function noticeOrphanPreview(runs = []) {
+        if (state.manualPreview || state.orphanNoticeShown) return;
+        const orphan = runs.find(run => run.status === "generating" && !run.schedule_id);
+        if (!orphan) return;
+        state.orphanNoticeShown = true;
+        showNotice(
+            pageMessage,
+            "Ada pratinjau manual yang belum diselesaikan (halaman di-refresh sehingga gambarnya hilang). "
+            + "Tekan Batalkan pada baris tersebut di Riwayat Pembuatan & Posting agar tidak menggantung.",
+            "warn"
+        );
+    }
+
     function renderRuns(runs = [], pagination = null) {
         const container = $("runs-list");
         container.replaceChildren();
@@ -2216,7 +2250,14 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             title.className = "item-title";
             const label = document.createElement("span");
             label.className = `badge ${run.status || "queued"}`;
-            label.textContent = run.status || "queued";
+            /*
+             * Run manual yang sudah punya caption bukan "sedang diproses":
+             * gambar sudah jadi di browser dan menunggu diterbitkan/dibuang.
+             * Label lama menyebutnya "generating" sehingga pratinjau yang
+             * ditinggal setelah refresh tampak seperti proses yang macet.
+             */
+            const awaitingPublish = run.status === "generating" && !run.schedule_id && Boolean(run.caption);
+            label.textContent = awaitingPublish ? "pratinjau siap" : (run.status || "queued");
             const source = run.schedule_id ? "Auto" : "Manual";
             const isQuoteRun = run.post_mode === "quote" || Boolean(run.quote_text) || Boolean(run.scene_plan?.quote_mode);
             title.append(label);
@@ -2267,10 +2308,24 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                 }
                 content.append(share);
             }
+            if (run.status === "generating" || run.status === "queued") {
+                const actions = document.createElement("div");
+                actions.className = "item-actions";
+                const cancel = document.createElement("button");
+                cancel.type = "button";
+                cancel.className = "btn small";
+                cancel.textContent = "Batalkan";
+                cancel.addEventListener("click", () => cancelRun(run, cancel));
+                actions.append(cancel);
+                item.append(content, actions);
+                container.append(item);
+                continue;
+            }
             item.append(content);
             container.append(item);
         }
         if (!visibleRuns.length) container.innerHTML = '<div class="empty">Belum ada run. Aktifkan jadwal untuk mulai.</div>';
+        noticeOrphanPreview(runs);
         renderRunsPaginationControls();
     }
 

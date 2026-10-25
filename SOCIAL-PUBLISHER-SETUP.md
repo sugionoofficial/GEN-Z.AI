@@ -249,6 +249,18 @@ Open **Admin Control → Social Auto Publisher**:
 6. Turn on the schedule, then activate autopublish **for your own account** (`Aktifkan autopublish saya`) once every configuration check is ready. This switch is per account: pausing it never stops other accounts. Only `ADMIN`/`OWNER` see the separate **Master switch**, which stops autopost for every account and is reserved for maintenance or incidents.
 7. Review run status and use **Bagikan ke profil pribadi** to confirm sharing manually when desired.
 
+### Runs stuck in "generating"
+
+A manual preview deliberately stays `generating` until you publish or discard it, and its image bytes live **only in the browser tab** — nothing is uploaded at preview time. Refreshing the page therefore removes the preview and its "Buang pratinjau" button, so the history row used to hang forever. Scheduled runs could hang the same way when the cron invocation died mid-flight (for example during a deploy).
+
+Three things now keep that from happening:
+
+- **Every history row that is still running shows a `Batalkan` button.** It calls the `cancel-run` action, which only touches a run you own that is still `generating`, and marks it `failed` with a clear reason.
+- **The cron sweeps abandoned runs every minute.** Autopost runs past the 30-minute resume window (`claim_stuck_social_post_runs` only revives younger runs) are marked failed, as are queued autopost runs of the same age; manual previews are marked failed after 6 hours. Autopost sweeping uses `started_at`, so a run that was just resumed is never killed while it is working.
+- **The page tells you when a preview is orphaned** — after a refresh, the run list shows a notice pointing at the cancellable row instead of silently leaving it there.
+
+A manual run that already has a caption is labelled **pratinjau siap** rather than `generating`, because nothing is running any more: the image is waiting for you to publish or discard it.
+
 ### Autopost interval by role
 
 Scheduling speed is enforced on the server, not just in the browser. The limits live
