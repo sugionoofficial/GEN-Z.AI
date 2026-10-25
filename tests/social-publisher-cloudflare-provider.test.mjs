@@ -639,3 +639,49 @@ test("tes provider menandai single point of failure saat 4B siap tetapi 9B gagal
     assert.match(result.checks.find(check => check.id === "identity9b").error, /gangguan sementara/);
     resetCloudflareIdentityFallbackCooldown();
 });
+
+test("tes provider memakai foto uji nyata bila tersedia dan melaporkan sumbernya", async () => {
+    const originalFetch = globalThis.fetch;
+    let requested = "";
+    globalThis.fetch = async (input) => {
+        requested = String(input);
+        const bytes = makeReference({ width: 640, height: 960 });
+        return new Response(bytes, { status: 200, headers: { "content-type": "image/jpeg" } });
+    };
+    try {
+        const { AI } = createFakeAI({
+            [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }),
+            [IDENTITY_FALLBACK_MODEL]: () => ({ image: JPEG_BASE64 }),
+            [FLUX_MODEL]: () => ({ image: JPEG_BASE64 }),
+            [SDXL_MODEL]: () => ({ image: JPEG_BASE64 })
+        });
+        const result = await testCloudflareImageProvider({ env: { AI } });
+        assert.match(requested, /huggingface\.co/);
+        assert.equal(result.test_reference_source, "sample-photo");
+        assert.equal(result.checks[0].input, "sample-photo");
+        assert.equal(result.identity_ready, true);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("tes provider tetap berjalan dengan gambar sintetis bila foto contoh gagal diunduh", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+        throw new Error("network blocked");
+    };
+    try {
+        const { AI } = createFakeAI({
+            [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }),
+            [IDENTITY_FALLBACK_MODEL]: () => ({ image: JPEG_BASE64 }),
+            [FLUX_MODEL]: () => ({ image: JPEG_BASE64 }),
+            [SDXL_MODEL]: () => ({ image: JPEG_BASE64 })
+        });
+        const result = await testCloudflareImageProvider({ env: { AI } });
+        assert.equal(result.test_reference_source, "synthetic");
+        assert.equal(result.checks[0].input, "synthetic");
+        assert.equal(result.identity_ready, true);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

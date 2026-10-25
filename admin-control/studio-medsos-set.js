@@ -827,6 +827,9 @@
         } else {
             lines.push("Kedua model FLUX.2 klein gagal — wajah karakter TIDAK akan konsisten, lihat error di bawah.");
         }
+        if (test?.test_reference_source === "synthetic") {
+            lines.push("Foto uji identitas memakai gambar sintetis (foto contoh tidak dapat diunduh), jadi hasil OK belum membuktikan kemiripan wajah.");
+        }
         if (test?.identity_single_point) {
             const cooldown = test?.identity_fallback_cooldown_minutes;
             lines.push(
