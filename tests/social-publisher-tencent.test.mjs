@@ -6,11 +6,13 @@ import jpeg from "jpeg-js";
 
 import {
     generateTencentSocialImage,
-    tencentImageSizeForRatio
+    tencentImageSizeForRatio,
+    TENCENT_V35_ENDPOINT
 } from "../lib/social-publisher/tencent.js";
 import { generateSocialImage, testTencentImageProvider } from "../lib/social-publisher/providers.js";
 
 const ENDPOINT = "https://tokenhub-intl.tencentcloudmaas.com/v1/wand/hunyuan-image/v3-generation";
+const V35_ENDPOINT = "https://tokenhub-intl.tencentcloudmaas.com/v1/wand/hunyuan-image/v35-generation";
 
 function photo({ width = 400, height = 600 } = {}) {
     const data = new Uint8Array(width * height * 4);
@@ -52,7 +54,8 @@ test("Hy-Image-3.0 dipanggil dengan foto referensi dan outfit sebagai base64", a
             referenceMimeType: "image/jpeg",
             garmentBytes: photo({ width: 300, height: 300 }),
             garmentMimeType: "image/jpeg",
-            aspectRatio: "9:16"
+            aspectRatio: "9:16",
+            model: "hy-image-v3"
         });
 
         assert.equal(authHeader, "Bearer tencent-key");
@@ -71,9 +74,9 @@ test("Hy-Image-3.0 dipanggil dengan foto referensi dan outfit sebagai base64", a
 });
 
 test("rasio 16:9 memakai 1024x576 agar tetap di dalam batas area API", () => {
-    assert.deepEqual(tencentImageSizeForRatio("16:9"), { width: 1024, height: 576 });
-    assert.deepEqual(tencentImageSizeForRatio("9:16"), { width: 576, height: 1024 });
-    const { width, height } = tencentImageSizeForRatio("9:16");
+    assert.deepEqual(tencentImageSizeForRatio("16:9", "hy-image-v3"), { width: 1024, height: 576 });
+    assert.deepEqual(tencentImageSizeForRatio("9:16", "hy-image-v3"), { width: 576, height: 1024 });
+    const { width, height } = tencentImageSizeForRatio("9:16", "hy-image-v3");
     assert.ok(width >= 512 && height >= 512, "batas minimum sisi Hy-Image-3.0");
     assert.ok(width * height <= 1024 * 1024, "luas maksimum Hy-Image-3.0");
 });
@@ -128,7 +131,7 @@ test("422 moderasi konten dijelaskan dengan saran mengubah prompt", async () => 
     try {
         await assert.rejects(
             generateTencentSocialImage({
-                env: { TENCENT_TOKENHUB_KEY: "k" },
+                env: { TENCENT_TOKENHUB_KEY: "k", TENCENT_IMAGE_MODEL: "hy-image-v3" },
                 prompt: "Karakter di pantai",
                 referenceBytes: photo(),
                 referenceMimeType: "image/jpeg"
@@ -180,7 +183,7 @@ test("URL hasil yang menolak akses anonim diunduh ulang dengan Bearer", async ()
     });
     try {
         const result = await generateTencentSocialImage({
-            env: { TENCENT_TOKENHUB_KEY: "k" },
+            env: { TENCENT_TOKENHUB_KEY: "k", TENCENT_IMAGE_MODEL: "hy-image-v3" },
             prompt: "Karakter di taman",
             referenceBytes: photo(),
             referenceMimeType: "image/jpeg"
@@ -194,12 +197,15 @@ test("URL hasil yang menolak akses anonim diunduh ulang dengan Bearer", async ()
 
 test("endpoint dan model bisa dioverride lewat Worker variable", async () => {
     let seenUrl = "";
-    let seenModel = "";
+    let seenBody = null;
     const restore = mockFetch(async (url, options = {}) => {
         if (url === "https://proxy.example/tencent") {
             seenUrl = url;
-            seenModel = JSON.parse(options.body).model;
-            return Response.json({ data: [{ url: "https://aigc-image.example/x.png" }] });
+            seenBody = JSON.parse(options.body);
+            return Response.json({
+                choices: [{ delta: { image: { url: "https://aigc-image.example/x.png" } } }],
+                request_id: "req-ovr"
+            });
         }
         if (url === "https://aigc-image.example/x.png") {
             return new Response(photo({ width: 300, height: 300 }), { headers: { "content-type": "image/jpeg" } });
@@ -218,10 +224,119 @@ test("endpoint dan model bisa dioverride lewat Worker variable", async () => {
             referenceMimeType: "image/jpeg"
         });
         assert.equal(seenUrl, "https://proxy.example/tencent");
-        assert.equal(seenModel, "hy-image-v3.5-preview");
+        assert.equal(seenBody.model, "hy-image-v3.5-preview");
     } finally {
         restore();
     }
+});
+
+test("hy-image-v3.5-preview memakai protokol messages dengan gambar referensi", async () => {
+    const output = photo({ width: 1080, height: 1920 });
+    let seenUrl = "";
+    let body = null;
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url === V35_ENDPOINT) {
+            seenUrl = url;
+            body = JSON.parse(options.body);
+            return Response.json({
+                object: "image.chat.completion.chunk",
+                choices: [{ index: 0, delta: { type: "image", image: { url: "https://aigc-image.example/v35.png", width: 1080, height: 1920 } }, finish_reason: null }],
+                request_id: "req-v35"
+            });
+        }
+        if (url === "https://aigc-image.example/v35.png") {
+            return new Response(output, { headers: { "content-type": "image/png" } });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+    try {
+        const result = await generateTencentSocialImage({
+            env: { TENCENT_TOKENHUB_KEY: "k" },
+            prompt: "Karakter di galeri seni",
+            referenceBytes: photo(),
+            referenceMimeType: "image/jpeg",
+            garmentBytes: photo({ width: 300, height: 300 }),
+            garmentMimeType: "image/jpeg",
+            aspectRatio: "9:16"
+        });
+        assert.equal(seenUrl, V35_ENDPOINT, "Model default harus memakai endpoint v35");
+        assert.equal(body.model, "hy-image-v3.5-preview");
+        assert.equal(body.size, "1080x1920");
+        assert.equal(body.messages[0].role, "user");
+        const parts = body.messages[0].content;
+        assert.equal(parts[0].type, "text");
+        assert.equal(parts.filter(part => part.type === "image_url").length, 2, "referensi + outfit");
+        assert.match(parts[1].image_url.url, /^data:image\/jpeg;base64,/);
+        assert.equal(result.model, "hy-image-v3.5-preview");
+        assert.equal(result.images_sent, 2);
+        assert.ok(result.bytes.length > 0);
+    } finally {
+        restore();
+    }
+});
+
+test("jawaban v3.5 berbentuk SSE tetap terbaca", async () => {
+    const output = photo({ width: 300, height: 500 });
+    const sse = [
+        'data: {"choices":[{"index":0,"delta":{"type":"text"},"finish_reason":null}],"request_id":"req-sse"}',
+        'data: {"choices":[{"index":0,"delta":{"type":"image","image":{"url":"https://aigc-image.example/sse.png"}},"finish_reason":null}],"request_id":"req-sse"}',
+        "data: [DONE]"
+    ].join("\n\n");
+    const restore = mockFetch(async (url) => {
+        if (url === V35_ENDPOINT) {
+            return new Response(sse, { headers: { "content-type": "text/event-stream" } });
+        }
+        if (url === "https://aigc-image.example/sse.png") {
+            return new Response(output, { headers: { "content-type": "image/jpeg" } });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+    try {
+        const result = await generateTencentSocialImage({
+            env: { TENCENT_TOKENHUB_KEY: "k" },
+            prompt: "Karakter di taman",
+            referenceBytes: photo(),
+            referenceMimeType: "image/jpeg"
+        });
+        assert.ok(result.bytes.length > 0);
+        assert.equal(result.model, "hy-image-v3.5-preview");
+    } finally {
+        restore();
+    }
+});
+
+test("frame error v3.5 dilaporkan sebagai penolakan, bukan gambar kosong", async () => {
+    const restore = mockFetch(async () => Response.json({
+        choices: [{ index: 0, delta: {}, finish_reason: "error" }],
+        error: { type: "invalid_request_error", code: "content_filter", message: "input moderation rejected" },
+        request_id: "req-filter"
+    }));
+    try {
+        await assert.rejects(
+            generateTencentSocialImage({
+                env: { TENCENT_TOKENHUB_KEY: "k" },
+                prompt: "Karakter di taman",
+                referenceBytes: photo(),
+                referenceMimeType: "image/jpeg"
+            }),
+            error => {
+                assert.equal(error.status, 422);
+                assert.match(error.message, /input moderation rejected/);
+                assert.match(error.message, /req-filter/);
+                return true;
+            }
+        );
+    } finally {
+        restore();
+    }
+});
+
+test("ukuran v3.5 memakai 1080x1920 dan 1920x1080", () => {
+    assert.deepEqual(tencentImageSizeForRatio("9:16", "hy-image-v3.5-preview"), { width: 1080, height: 1920 });
+    assert.deepEqual(tencentImageSizeForRatio("16:9", "hy-image-v3.5-preview"), { width: 1920, height: 1080 });
+    const { width, height } = tencentImageSizeForRatio("9:16");
+    assert.ok(width >= 256 && height <= 8192, "batas v3.5");
+    assert.ok(width * height <= 16777216, "luas maksimum v3.5");
 });
 
 test("tombol tes Tencent mengembalikan ringkasan gambar yang benar-benar dibuat", async () => {
@@ -236,7 +351,7 @@ test("tombol tes Tencent mengembalikan ringkasan gambar yang benar-benar dibuat"
         throw new Error(`Unexpected fetch: ${url}`);
     });
     try {
-        const result = await testTencentImageProvider({ env: { TENCENT_TOKENHUB_KEY: "k" } });
+        const result = await testTencentImageProvider({ env: { TENCENT_TOKENHUB_KEY: "k", TENCENT_IMAGE_MODEL: "hy-image-v3" } });
         assert.equal(result.ok, true);
         assert.equal(result.model, "hy-image-v3");
         assert.ok(result.bytes > 0);
@@ -252,7 +367,7 @@ test("tombol tes Tencent meneruskan error asli, bukan melaporkan OK", async () =
         error: { message: "postpaid billing is not enabled for this model" }
     }, { status: 403 }));
     try {
-        const result = await testTencentImageProvider({ env: { TENCENT_TOKENHUB_KEY: "k" } });
+        const result = await testTencentImageProvider({ env: { TENCENT_TOKENHUB_KEY: "k", TENCENT_IMAGE_MODEL: "hy-image-v3" } });
         assert.equal(result.ok, false);
         assert.equal(result.status, 403);
         assert.match(result.error, /postpaid billing is not enabled/);

@@ -119,7 +119,7 @@ test("Tencent Cloud tersedia sebagai opsi provider gambar", () => {
     assert.match(apiSource, /TENCENT_TOKENHUB_KEY/, "API harus memeriksa secret TENCENT_TOKENHUB_KEY");
     assert.match(apiSource, /tencent_configured/, "Status kesiapan Tencent harus dikirim ke admin");
     assert.match(setJs, /tencent_configured/, "Status kesiapan Tencent harus ditampilkan di admin");
-    assert.match(setJs, /Tencent Cloud \(Hy Image 3\.0\)/, "Studio Medsos harus melabeli provider Tencent");
+    assert.match(setJs, /Tencent Cloud \(Hy Image 3\.5 Preview\)/, "Studio Medsos harus melabeli provider Tencent");
     assert.match(
         readFileSync(fileURLToPath(new URL("../lib/social-publisher/providers.js", import.meta.url)), "utf8"),
         /generateTencentSocialImage/,

@@ -57,25 +57,28 @@ npx wrangler@4 secret put QWENCLOUD_API_KEY
 
 QwenCloud uses the image generation catalog for edited images (default `qwen-image-3.0-pro`; the dropdown in **Admin Panel → SET Studio Medsos** lists all sixteen image-generation models: `qwen-image-3.0-pro`, `qwen-image-3.0`, `qwen-image-2.1-pro`, `qwen-image-2.1-turbo`, `qwen-image-2.0-pro`, `qwen-mt-image-2.0`, `wan2.7-image-pro`, `wan2.7-image`, `wan2.6-image`, `wan2.5-i2i-preview`, `wan2.6-t2i`, `wan2.5-t2i-preview`, `wan2.2-t2i-plus`, `wan2.2-t2i-flash`, `z-image-turbo`, and `vidu/vidu-image_reference2image`). Tier limits are seeded from each model's free quota (for example 10 images for qwen-image-3.0-pro, 50 for the wan2.7/2.6/2.5 family, 100 for wan2.2-t2i/z-image-turbo) and can be overridden per model. Images are requested through the DashScope-compatible endpoint at `https://maas.qwencloudapi.com/api/v1` (overridable with `QWENCLOUD_BASE_URL`) using each model family's wire protocol: the qwen-image family calls the synchronous `multimodal-generation/generation` endpoint, while wan/z-image/vidu models start with the asynchronous `image-generation/generation` endpoint (`X-DashScope-Async: enable` plus task polling); when a model rejects one protocol with the DashScope "url error, please check url" endpoint-mismatch error, the other protocol is retried once automatically. Captions use `qwen3-vl-plus`. The character reference photo is sent as a Base64 data URL; when an outfit is selected its photo is included as a second input image so the outfit is followed, and without an outfit the model keeps the clothing shown in the reference photo. Output size follows the chosen aspect ratio (`1152*2048` for 9:16, `2048*1152` for 16:9). Per-model price and rate limits are shown in the dropdown notes; check QwenCloud model availability, pricing, and quotas for your account before use.
 
-### 2c. Configure Tencent Cloud Hy Image (optional)
+### 2c. Configure Tencent Cloud Hy Image (optional, paid)
 
-Tencent Cloud reaches Hunyuan Image through TokenHub, and unlike the Gemini or QwenCloud paths it needs **one secret only**:
+**Status jujur (Oktober 2026): Tencent bukan jalur gratis untuk gambar.** Di console TokenHub (Singapore → Online Inference → Vision Models) kuota **New User Free Trial hanya muncul untuk enam model `hy-3d-*`** (3D: format, retopology, rigging, texture, component, uv). Semua model gambar — `hy-image-v3.5-preview`, `wand-vega-image-1.5-pro`, `seedream-image-v5.0-flash` — tampil tanpa billing method, artinya perlu **postpaid** dulu, dan klaim trial/aktivasi postpaid **membekukan $10** di akun. Jalur gratis tetap Cloudflare Workers AI (10.000 neuron/hari).
+
+Karena itu provider ini disediakan untuk uji coba berbayar, bukan untuk produksi gratis.
 
 ```sh
 npx wrangler@4 secret put TENCENT_TOKENHUB_KEY
 ```
 
-Get the key from the **TokenHub console** (`https://console.tencentcloud.com/tokenhub/apikey`), not from *Access Management → API Keys* — a SecretId/SecretKey pair does not authenticate against TokenHub.
+**Menaruh secret tanpa terminal (HP):** Cloudflare dashboard → **Workers & Pages → genzai → Settings → Variables and Secrets → Add → type Secret**, nama `TENCENT_TOKENHUB_KEY`, tempel key, lalu **Deploy**. Optional variables: `TENCENT_IMAGE_MODEL` (default `hy-image-v3.5-preview`; isi `hy-image-v3` bila akun hanya punya Hy-Image-3.0) dan `TENCENT_IMAGE_ENDPOINT`.
 
-**Adding the secret without a terminal (phone):** Cloudflare dashboard → **Workers & Pages → genzai → Settings → Variables and Secrets → Add → type Secret**, name `TENCENT_TOKENHUB_KEY`, paste the key, then **Deploy**. The secret is used server-side, so nothing needs to be typed into the admin page.
+**Menguji tanpa curl:** tombol **Tes Tencent** di provider card memanggil model sekali memakai foto contoh wajah sungguhan sebagai referensi, lalu menampilkan ukuran, KB, durasi, atau error aslinya. Satu klik = satu gambar berbayar.
 
-**Testing without curl:** the provider card now has a **Tes Tencent** button next to *Tes Cloudflare AI*. It calls Hy Image once through the Worker using a real sample portrait as the reference image, then shows the model, size, KB, duration, or the raw Tencent error (`401` wrong key, `403` postpaid not enabled for the model, `429` concurrency, `402`/balance). Each click produces **one billed image**, so use it deliberately.
+Two wire protocols are supported, chosen by the model name:
 
-The key is a **TokenHub API key** — sending a SecretId gets `401` and the Worker reports that distinction instead of a generic auth failure. Optional Worker variables: `TENCENT_IMAGE_ENDPOINT` (default `https://tokenhub-intl.tencentcloudmaas.com/v1/wand/hunyuan-image/v3-generation`) and `TENCENT_IMAGE_MODEL` (default `hy-image-v3`, i.e. Hy-Image-3.0). `hy-image-v3.5-preview` uses a different messages protocol and is **not** wired to this endpoint yet.
+| Model | Endpoint | Body | Size |
+|---|---|---|---|
+| `hy-image-v3.5-preview` (default) | `/v1/wand/hunyuan-image/v35-generation` | Chat/Messages: `messages[0].content = [text, image_url…]` | 1080×1920 (9:16) / 1920×1080 (16:9), max 4K |
+| `hy-image-v3` | `/v1/wand/hunyuan-image/v3-generation` | `{prompt, images[], size, revise}` | 576×1024 / 1024×576 (area ≤ 1.048.576) |
 
-The provider sends the character reference photo and, when an outfit is selected, the outfit photo as `images[0..2]` Base64 data URLs (the v3 API accepts at most **3**), then downloads the resulting `data[0].url` (valid 12 hours; re-requested with the Bearer header when the CDN answers 401/403). Output size is capped by the v3 API — sides between 512 and 2048 px and total area ≤ 1,048,576 px — so the Worker asks for `576x1024` on 9:16 and `1024x576` on 16:9 instead of the 1152×2048 used by other providers.
-
-Hy Image bills per generated image (around $0.02–0.024 for the 3.5 preview; check the TokenHub console for `hy-image-v3`), so the free path stays Cloudflare Workers AI. TokenHub advertises a **New User Free Trial** per model for new accounts; whether `hy-image-v3` is covered depends on your account and is only visible after the first billed call, so watch the usage page rather than assuming it is free.
+The v3.5 answer is an `image.chat.completion.chunk` frame sequence; the Worker reads `choices[0].delta.image.url`, accepting both a single JSON body and `data:`-prefixed SSE lines, and reports an `error` frame (for example `content_filter`) as a rejection with its `request_id` instead of an empty image. Both models accept the character reference photo (and the outfit photo when one is selected), so the face stays anchored to the upload instead of being invented. Result URLs live 12 hours and may reject anonymous access, so the Worker downloads them (retrying with the Bearer header on 401/403) and re-checks the bytes with the blank-image guard.
 
 Tencent generates images only. Contextual captions and quote text fall back to the Workers AI text/vision models when the `AI` binding exists; without that binding the caption is left empty (the post still uploads) and quote mode reports a clear error instead of silently producing nothing.
 
