@@ -45,7 +45,8 @@ import {
     makeProfileShareUrl,
     publishFacebookPhoto,
     publishFacebookQuoteVideo,
-    testCloudflareImageProvider
+    testCloudflareImageProvider,
+    testTencentImageProvider
 } from "../lib/social-publisher/providers.js";
 import {
     getModelQuotas,
@@ -3420,9 +3421,19 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
          * supaya penyebab kegagalan (binding, kuota Neuron, kredit AI Gateway,
          * model tidak tersedia) langsung terlihat.
          */
+        const provider = String(body?.provider || "cloudflare").toLowerCase();
+        if (provider === "tencent") {
+            /*
+             * Tes Tencent: satu gambar berbayar per klik. Foto contoh wajah
+             * sungguhan dipakai sebagai referensi supaya jalur identitas ikut
+             * diuji, dan error asli Tencent dikembalikan apa adanya.
+             */
+            const result = await testTencentImageProvider({ env });
+            return json(res, 200, { success: true, provider, test: result });
+        }
         const includeTryOn = body?.include_try_on === true;
         const result = await testCloudflareImageProvider({ env, includeTryOn });
-        return json(res, 200, { success: true, test: result });
+        return json(res, 200, { success: true, provider: "cloudflare", test: result });
     }
     if (action === "studio-admin-model-quota") {
         const result = await saveModelQuotaSettings(config, body);
