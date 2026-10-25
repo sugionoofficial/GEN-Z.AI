@@ -207,45 +207,67 @@ test("Gemini image generation preserves quota HTTP 429 and explains zero free-ti
     }
 });
 
-test("Cloudflare Workers AI sends private person and garment URLs to P-Image Try-On", async () => {
+test("Cloudflare Workers AI sends private person and garment URLs to P-Image Try-On when FLUX.2 klein fails", async () => {
     const outputBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-    let model;
-    let input;
+    let tryOnInput;
     const result = await generateSocialImage({
         env: {
             AI: {
                 async run(modelId, parameters) {
-                    model = modelId;
-                    input = parameters;
+                    if (modelId === "@cf/black-forest-labs/flux-2-klein-4b") {
+                        throw new Error("No such model");
+                    }
+                    tryOnInput = parameters;
                     return { image: outputBytes };
                 }
             }
         },
         prompt: "Keep the same character in a city cafe.",
+        referenceBytes: new Uint8Array([255, 216, 255, 1]),
+        referenceMimeType: "image/jpeg",
         personImageUrl: "https://storage.example/person?token=person-token",
         garmentImageUrls: ["https://storage.example/garment?token=garment-token"],
         aspectRatio: "16:9",
         imageProvider: "cloudflare"
     });
 
-    assert.equal(model, "pruna/p-image-try-on");
-    assert.equal(input.person_image, "https://storage.example/person?token=person-token");
-    assert.deepEqual(input.garment_images, ["https://storage.example/garment?token=garment-token"]);
+    assert.equal(result.model, "pruna/p-image-try-on");
+    assert.equal(tryOnInput.person_image, "https://storage.example/person?token=person-token");
+    assert.deepEqual(tryOnInput.garment_images, ["https://storage.example/garment?token=garment-token"]);
     assert.deepEqual([...result.bytes], [...outputBytes]);
     assert.equal(result.mimeType, "image/png");
-    assert.equal(result.model, model);
 });
 
-test("Cloudflare P-Image Try-On rejects missing garment references", async () => {
-    await assert.rejects(
-        generateSocialImage({
-            env: { AI: { async run() { throw new Error("must not run"); } } },
-            imageProvider: "cloudflare",
-            personImageUrl: "https://storage.example/person?token=person-token",
-            garmentImageUrls: []
-        }),
-        /memerlukan foto karakter dan minimal satu foto (outfit\/)?pakaian/
-    );
+test("Cloudflare tanpa foto pakaian melewati try-on dan tetap memakai foto referensi", async () => {
+    const calls = [];
+    const outputBytes = new Uint8Array([255, 216, 255, 0]);
+    const result = await generateSocialImage({
+        env: {
+            AI: {
+                async run(model, parameters) {
+                    calls.push({ model, parameters });
+                    if (model === "@cf/black-forest-labs/flux-2-klein-4b") {
+                        throw new Error("No such model");
+                    }
+                    return { image: Buffer.from(outputBytes).toString("base64") };
+                }
+            }
+        },
+        prompt: "Karakter di taman kota",
+        imageProvider: "cloudflare",
+        referenceBytes: new Uint8Array([255, 216, 255, 1]),
+        referenceMimeType: "image/jpeg",
+        personImageUrl: "https://storage.example/person?token=person-token",
+        garmentImageUrls: []
+    });
+
+    assert.deepEqual(calls.map(call => call.model), [
+        "@cf/black-forest-labs/flux-2-klein-4b",
+        "@cf/stabilityai/stable-diffusion-xl-base-1.0"
+    ]);
+    assert.equal(result.model, "@cf/stabilityai/stable-diffusion-xl-base-1.0");
+    assert.deepEqual([...result.bytes], [...outputBytes]);
+    assert.match(result.warnings.join(" "), /FLUX.2 klein .* gagal/);
 });
 
 test("Cloudflare Workers AI supports streamed image output", async () => {

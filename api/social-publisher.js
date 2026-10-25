@@ -2827,7 +2827,11 @@ async function generateManualPost(config, userId, env, body = {}) {
         if (!referenceBytes.length || referenceBytes.length > MAX_REFERENCE_BYTES) {
             throw new Error("Ukuran foto referensi karakter tidak valid.");
         }
-        const garmentBytes = garmentObjectKey && imageProvider !== "cloudflare"
+        /*
+         * Outfit juga diunduh untuk Cloudflare: FLUX.2 klein menerima foto
+         * pakaian sebagai `input_image_1` agar potongan pakaian konsisten.
+         */
+        const garmentBytes = garmentObjectKey
             ? await downloadReferenceObject(config, garmentObjectKey)
             : null;
         const scene = applyOutfitToScene(
@@ -2862,13 +2866,27 @@ async function generateManualPost(config, userId, env, body = {}) {
                     ? await createSignedReferenceUrl(config, garmentObjectKey)
                     : referenceImageUrl]
             } : {}),
-            ...(imageProvider !== "cloudflare" ? {
+            ...(imageProvider === "cloudflare" ? {
+                garmentBytes,
+                garmentMimeType
+            } : {
                 garmentBytes,
                 garmentMimeType,
                 ...(imageProvider === "qwencloud" ? { imageModel } : {})
-            } : {})
+            })
         });
         if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar.");
+        /*
+         * Cloudflare bisa turun ke model gratis (SDXL img2img / FLUX schnell)
+         * ketika try-on Pruna tidak tersedia di akun ini. Alasannya diteruskan
+         * ke UI agar admin tahu model mana yang benar-benar dipakai.
+         */
+        const imageNote = Array.isArray(generated?.warnings) && generated.warnings.length
+            ? generated.warnings.join(" ").slice(0, 600)
+            : "";
+        if (imageNote) {
+            console.warn("[Social Publisher] Cloudflare image fallback:", imageNote);
+        }
         if (imageProvider === "qwencloud") {
             recordModelUsage(config, generated.model).catch(recordError => {
                 console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
@@ -2922,6 +2940,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             image_base64: bytesToBase64(cleanedBytes),
             image_mime_type: cleanedBlob.type,
             image_model: generated.model,
+            ...(imageNote ? { image_note: imageNote } : {}),
             aspect_ratio: aspectRatio,
             scene: sceneRecord,
             contextual_caption: contextualCaption,
@@ -3336,6 +3355,17 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
         const settings = await saveSocialImageProvider(config, userId, body, env);
         return json(res, 200, { success: true, settings });
     }
+    if (action === "studio-admin-image-provider-test") {
+        /*
+         * Tes provider Cloudflare: memanggil model gratis `@cf/...` dan (opsional)
+         * try-on Pruna, lalu melaporkan error asli tiap model. Dipakai panel admin
+         * supaya penyebab kegagalan (binding, kuota Neuron, kredit AI Gateway,
+         * model tidak tersedia) langsung terlihat.
+         */
+        const includeTryOn = body?.include_try_on === true;
+        const result = await testCloudflareImageProvider({ env, includeTryOn });
+        return json(res, 200, { success: true, test: result });
+    }
     if (action === "studio-admin-model-quota") {
         const result = await saveModelQuotaSettings(config, body);
         return json(res, 200, { success: true, ...result });
@@ -3443,6 +3473,11 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
                 qwencloud_llm_models: llmQuotaSummaryRows(quotasByModel),
                 gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
                 cloudflare_configured: typeof env?.AI?.run === "function",
+                cloudflare_identity_model: "@cf/black-forest-labs/flux-2-klein-4b",
+                cloudflare_free_model: "@cf/black-forest-labs/flux-1-schnell",
+                cloudflare_img2img_model: "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+                cloudflare_tryon_model: "pruna/p-image-try-on",
+                cloudflare_tryon_needs_credits: true,
                 qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY"))
             }
         });
