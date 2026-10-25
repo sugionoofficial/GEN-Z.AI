@@ -6,6 +6,7 @@ import {
     generateSocialContextCaption,
     generateSocialImage,
     generateSocialQuoteImage,
+    resetCloudflareTryOnCooldown,
     testCloudflareImageProvider
 } from "../lib/social-publisher/providers.js";
 import {
@@ -162,6 +163,7 @@ test("tanpa foto pakaian FLUX.2 klein tetap memakai foto referensi karakter saja
 });
 
 test("FLUX.2 klein gagal -> try-on Pruna -> SDXL img2img, identitas tetap dijaga", async () => {
+    resetCloudflareTryOnCooldown();
     const { AI, calls } = createFakeAI({
         [IDENTITY_MODEL]: () => {
             throw new Error("Account limited: out of neurons");
@@ -211,10 +213,12 @@ test("FLUX.2 klein gagal -> try-on Pruna -> SDXL img2img, identitas tetap dijaga
     assert.equal(img2imgPayload.strength, 0.45);
     assert.equal(img2imgPayload.width, 576);
     assert.equal(img2imgPayload.height, 1024);
-    assert.equal(second.warnings.length, 2);
+    assert.ok(second.warnings.some(item => /FLUX\.2 klein .* gagal/.test(item)));
+    assert.ok(second.warnings.some(item => /Try-on Pruna/.test(item)));
 });
 
 test("semua model ber-referensi gagal -> error jelas, tanpa gambar teks-ke-gambar", async () => {
+    resetCloudflareTryOnCooldown();
     const { AI, calls } = createFakeAI({
         [IDENTITY_MODEL]: () => {
             throw new Error("Account limited: out of neurons");
@@ -239,7 +243,8 @@ test("semua model ber-referensi gagal -> error jelas, tanpa gambar teks-ke-gamba
         error => {
             assert.equal(error.status, 429);
             assert.match(error.message, /Karakter konsisten tidak dapat dibuat/);
-            assert.equal(error.warnings.length, 3);
+            assert.ok(error.warnings.length >= 3);
+            assert.ok(error.warnings.some(item => /Try-on Pruna dinonaktifkan 6 jam/.test(item)));
             return true;
         }
     );
@@ -382,4 +387,111 @@ test("tes provider tetap melaporkan hasil walau model identitas tidak tersedia",
     assert.equal(result.identity_ready, false);
     assert.equal(result.free_tier_ready, true);
     assert.match(result.checks[0].error, /tidak tersedia/);
+});
+
+test("try-on yang kehabisan kredit AI Gateway tidak dicoba lagi pada pembuatan berikutnya", async () => {
+    resetCloudflareTryOnCooldown();
+    const billingError = new Error("2021: Insufficient AI Gateway credits");
+    const first = createFakeAI({
+        [IDENTITY_MODEL]: () => {
+            throw new Error("Account limited: out of neurons");
+        },
+        [TRYON_MODEL]: () => {
+            throw billingError;
+        },
+        [IMG2IMG_MODEL]: () => new Uint8Array([0xff, 0xd8, 0xff, 0x02])
+    });
+    const firstRun = await generateSocialImage({
+        env: { AI: first.AI },
+        prompt: "Karakter di pasar",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg",
+        personImageUrl: "https://storage.example/person.jpg",
+        garmentImageUrls: ["https://storage.example/outfit.jpg"]
+    });
+    assert.equal(firstRun.model, IMG2IMG_MODEL);
+    assert.ok(firstRun.warnings.some(item => /Try-on Pruna dinonaktifkan 6 jam/.test(item)));
+    assert.deepEqual(first.calls.map(call => call.model), [IDENTITY_MODEL, TRYON_MODEL, IMG2IMG_MODEL]);
+
+    /* Percobaan kedua: Pruna harus dilewati total, tanpa request tambahan. */
+    const second = createFakeAI({
+        [IDENTITY_MODEL]: () => {
+            throw new Error("Account limited: out of neurons");
+        },
+        [TRYON_MODEL]: () => {
+            throw new Error("tidak boleh dipanggil");
+        },
+        [IMG2IMG_MODEL]: () => new Uint8Array([0xff, 0xd8, 0xff, 0x03])
+    });
+    const secondRun = await generateSocialImage({
+        env: { AI: second.AI },
+        prompt: "Karakter di pantai",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg",
+        personImageUrl: "https://storage.example/person.jpg",
+        garmentImageUrls: ["https://storage.example/outfit.jpg"]
+    });
+    assert.equal(secondRun.model, IMG2IMG_MODEL);
+    assert.equal(second.calls.some(call => call.model === TRYON_MODEL), false);
+    assert.ok(secondRun.warnings.some(item => /dilewati sementara \(\d+ menit lagi\)/.test(item)));
+
+    resetCloudflareTryOnCooldown();
+});
+
+test("try-on yang berhasil memulihkan status dan dipakai lagi", async () => {
+    resetCloudflareTryOnCooldown();
+    const { AI, calls } = createFakeAI({
+        [IDENTITY_MODEL]: () => {
+            throw new Error("No such model");
+        },
+        [TRYON_MODEL]: () => ({ state: "Completed", result: { image: JPEG_BASE64 } }),
+        [IMG2IMG_MODEL]: () => new Uint8Array([0xff, 0xd8, 0xff, 0x04])
+    });
+    const result = await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di kafe",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg",
+        personImageUrl: "https://storage.example/person.jpg",
+        garmentImageUrls: ["https://storage.example/outfit.jpg"]
+    });
+    assert.equal(result.model, TRYON_MODEL);
+    assert.equal(calls.some(call => call.model === TRYON_MODEL), true);
+});
+
+test("tes provider menguji jalur cadangan SDXL img2img dengan gambar referensi", async () => {
+    let img2imgPayload = null;
+    const { AI } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [FLUX_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [IMG2IMG_MODEL]: (payload) => {
+            img2imgPayload = payload;
+            throw new Error("input tensor image is not present in the model");
+        }
+    });
+    const result = await testCloudflareImageProvider({ env: { AI } });
+    assert.equal(result.identity_ready, true);
+    assert.equal(result.img2img_ready, false);
+    assert.equal(result.checks.find(check => check.id === "img2img").ok, false);
+    assert.ok(img2imgPayload.image_b64.length > 0, "tes harus mengirim gambar referensi");
+    assert.equal(img2imgPayload.strength, 0.45);
+});
+
+test("tes provider memberi tahu berapa menit try-on masih dinonaktifkan", async () => {
+    resetCloudflareTryOnCooldown();
+    const { AI } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [FLUX_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [IMG2IMG_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [TRYON_MODEL]: () => {
+            throw new Error("2021: Insufficient AI Gateway credits");
+        }
+    });
+    const result = await testCloudflareImageProvider({ env: { AI }, includeTryOn: true });
+    assert.equal(result.try_on_ready, false);
+    assert.ok(result.try_on_cooldown_minutes > 0);
+    resetCloudflareTryOnCooldown();
 });
