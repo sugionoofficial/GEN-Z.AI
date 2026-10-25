@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
     buildImagePrompt,
-    clampIntervalHours,
+    clampIntervalMinutes,
     composeSocialCaption,
     createScenePlan,
     localDateTimeToUtc,
@@ -128,11 +128,11 @@ test("caption template interpolates scene placeholders", () => {
 });
 
 test("schedule interval and reference MIME validation are bounded", () => {
-    assert.equal(clampIntervalHours(1), 1);
-    assert.equal(clampIntervalHours(168), 168);
-    assert.equal(clampIntervalHours(0), null);
-    assert.equal(clampIntervalHours(1.5), null);
-    assert.equal(clampIntervalHours(169), null);
+    assert.equal(clampIntervalMinutes(5, 5, 10080), 5);
+    assert.equal(clampIntervalMinutes(10080, 5, 10080), 10080);
+    assert.equal(clampIntervalMinutes(0, 5, 10080), null);
+    assert.equal(clampIntervalMinutes(4, 5, 10080), null);
+    assert.equal(clampIntervalMinutes(10081, 5, 10080), null);
     assert.equal(normalizeMimeType("image/jpeg; charset=binary"), "image/jpeg");
     assert.equal(normalizeMimeType("text/html"), null);
 });

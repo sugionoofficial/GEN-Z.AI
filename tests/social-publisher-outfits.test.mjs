@@ -671,7 +671,7 @@ test("scheduled autopost picks an outfit at random and adds its order link to th
             }
         });
 
-        assert.deepEqual(result, { claimed: 1, skipped: false });
+        assert.deepEqual(result, { claimed: 1, resumed: 0, skipped: false });
         assert.match(postedCaption, /Cerita Aurora Linen/);
         assert.match(postedCaption, /✨ Outfit: Aurora Linen/);
         assert.match(postedCaption, /https:\/\/shop\.example\.com\/aurora/);
@@ -743,8 +743,8 @@ test("dashboard exposes outfit metadata without leaking storage keys", async () 
         assert.equal(response.statusCode, 200, JSON.stringify(response.body));
         assert.equal(response.body.config.outfitLibraryReady, true);
         assert.equal(response.body.schedulePolicy.role, "OWNER");
-        assert.equal(response.body.schedulePolicy.minIntervalHours, 1);
-        assert.equal(response.body.schedulePolicy.maxIntervalHours, 168);
+        assert.equal(response.body.schedulePolicy.minIntervalMinutes, 5);
+        assert.equal(response.body.schedulePolicy.maxIntervalMinutes, 10080);
         assert.equal(response.body.outfits.length, 1);
         assert.equal(response.body.outfits[0].name, "Aurora Linen");
         assert.equal(response.body.outfits[0].order_url, "https://shop.example.com/aurora");

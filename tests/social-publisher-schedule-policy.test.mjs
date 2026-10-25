@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import socialPublisherHandler from "../api/social-publisher.js";
 import {
-    clampIntervalHours,
+    clampIntervalMinutes,
     getScheduleIntervalPolicy,
     normalizeSocialRole,
     SOCIAL_SCHEDULE_INTERVAL_POLICY
@@ -138,13 +138,13 @@ async function postSchedule(body) {
     return response;
 }
 
-test("OWNER, ADMIN, and USER all have a one-hour minimum autopost interval", () => {
-    for (const role of ["OWNER", "ADMIN", "USER"]) {
+test("schedule interval policy uses role-specific minute limits", () => {
+    for (const [role, minimum] of [["OWNER", 5], ["ADMIN", 5], ["USER", 60]]) {
         const policy = getScheduleIntervalPolicy(role);
         assert.ok(policy, `${role} harus diizinkan`);
         assert.equal(policy.role, role);
-        assert.equal(policy.minIntervalHours, 1);
-        assert.equal(policy.maxIntervalHours, 168);
+        assert.equal(policy.minIntervalMinutes, minimum);
+        assert.equal(policy.maxIntervalMinutes, 10080);
     }
     assert.equal(normalizeSocialRole("owner"), "OWNER");
     assert.equal(normalizeSocialRole(" Admin "), "ADMIN");
@@ -155,15 +155,14 @@ test("OWNER, ADMIN, and USER all have a one-hour minimum autopost interval", () 
     assert.deepEqual(Object.keys(SOCIAL_SCHEDULE_INTERVAL_POLICY).sort(), ["ADMIN", "OWNER", "USER"]);
 });
 
-test("interval clamping respects the per-role floor and keeps the legacy default", () => {
-    assert.equal(clampIntervalHours(1), 1);
-    assert.equal(clampIntervalHours(0), null);
-    assert.equal(clampIntervalHours(1.5), null);
-    assert.equal(clampIntervalHours(168), 168);
-    assert.equal(clampIntervalHours(169), null);
-    // 1 hour is the floor for every allowed role, so 30 minutes worth is rejected.
-    assert.equal(clampIntervalHours(0.5, 1, 168), null);
-    assert.equal(clampIntervalHours(1, 1, 168), 1);
+test("interval clamping respects the role-specific minute floor and seven-day ceiling", () => {
+    assert.equal(clampIntervalMinutes(5, 5, 10080), 5);
+    assert.equal(clampIntervalMinutes(60, 60, 10080), 60);
+    assert.equal(clampIntervalMinutes(4, 5, 10080), null);
+    assert.equal(clampIntervalMinutes(59, 60, 10080), null);
+    assert.equal(clampIntervalMinutes(10080, 5, 10080), 10080);
+    assert.equal(clampIntervalMinutes(10081, 5, 10080), null);
+    assert.equal(clampIntervalMinutes(5.5, 5, 10080), null);
 });
 
 for (const role of ["OWNER", "ADMIN", "USER"]) {
@@ -185,7 +184,7 @@ for (const role of ["OWNER", "ADMIN", "USER"]) {
         try {
             const response = await postSchedule(scheduleBody({ interval_hours: 0 }));
             assert.equal(response.statusCode, 400);
-            assert.match(response.body.error, /1–168 jam/);
+            assert.match(response.body.error, /menit/);
             assert.match(response.body.error, new RegExp(`role ${role}`));
             assert.equal(mock.captured.intervalHours, null, "Jadwal tidak boleh tersimpan saat interval di bawah batas");
         } finally {
@@ -211,7 +210,7 @@ test("save-schedule still enforces the seven-day upper bound", async () => {
     try {
         const response = await postSchedule(scheduleBody({ interval_hours: 169 }));
         assert.equal(response.statusCode, 400);
-        assert.match(response.body.error, /1–168 jam/);
+        assert.match(response.body.error, /5–10080 menit/);
     } finally {
         mock.restore();
     }
@@ -219,9 +218,10 @@ test("save-schedule still enforces the seven-day upper bound", async () => {
 
 test("studio UI reads the role policy and blocks values below the minimum", () => {
     assert.match(uiSource, /state\.data\?\.schedulePolicy/, "UI harus membaca schedulePolicy dari dashboard");
-    assert.match(uiSource, /minIntervalHours/, "UI harus memakai batas minimum dari server");
-    assert.match(uiSource, /maxIntervalHours/, "UI harus memakai batas maksimum dari server");
+    assert.match(uiSource, /minIntervalMinutes/, "UI harus memakai batas minimum dari server");
+    assert.match(uiSource, /maxIntervalMinutes/, "UI harus memakai batas maksimum dari server");
     assert.match(uiSource, /input\.min = String\(min\)/, "Input interval harus di-set ke minimum role");
-    assert.match(uiSource, /Minimal \$\{min\} jam/, "Pesan validasi harus menyebut batas minimum");
+    assert.match(uiSource, /Minimal \$\{formatIntervalLabel\(min\)\}/, "Pesan validasi harus menyebut batas minimum");
+    assert.match(uiHtml, /id="interval-minutes"/, "Input interval harus memakai satuan menit");
     assert.match(uiHtml, /id="interval-help"/, "Help text interval harus punya id agar bisa diperbarui");
 });

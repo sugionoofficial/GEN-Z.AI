@@ -2499,7 +2499,7 @@ async function saveSchedule(config, userId, body, profile) {
             tablePath("social_post_schedules", `select=id&owner_id=eq.${encodeURIComponent(userId)}`)
         );
         if ((existing || []).length >= scheduleLimit) {
-            const error = new Error(`Batas Posting Anda (${scheduleLimit}). Hubungi admin untuk menambah batas posting`);
+            const error = new Error(`Batas Posting Anda maksimal ${scheduleLimit} jadwal. Hubungi admin untuk menambah batas posting`);
             error.status = 409;
             error.code = "post_limit";
             throw error;
