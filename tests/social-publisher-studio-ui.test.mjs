@@ -99,11 +99,32 @@ test("QwenCloud tersedia sebagai opsi provider gambar", () => {
         "utf8"
     );
     assert.match(setHtml, /name="image-provider" value="qwencloud"/, "Admin SET Studio Medsos harus punya radio QwenCloud");
-    assert.match(apiSource, /\["gemini", "cloudflare", "qwencloud"\]/, "Validasi provider harus menerima qwencloud");
+    assert.match(apiSource, /\["gemini", "cloudflare", "qwencloud", "tencent"\]/, "Validasi provider harus menerima qwencloud");
     assert.match(apiSource, /QWENCLOUD_API_KEY/, "API harus memeriksa secret QWENCLOUD_API_KEY");
     assert.match(setJs, /qwencloud_configured/, "Status kesiapan QwenCloud harus ditampilkan di admin");
     assert.match(source, /QwenCloud \(/, "Studio Medsos harus melabeli provider QwenCloud");
     assert.match(cronSource, /"qwencloud"/, "Cron autopost harus mendukung provider qwencloud");
+});
+
+test("Tencent Cloud tersedia sebagai opsi provider gambar", () => {
+    const setHtml = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.html", import.meta.url)),
+        "utf8"
+    );
+    const setJs = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.js", import.meta.url)),
+        "utf8"
+    );
+    assert.match(setHtml, /name="image-provider" value="tencent"/, "Admin SET Studio Medsos harus punya radio Tencent Cloud");
+    assert.match(apiSource, /TENCENT_TOKENHUB_KEY/, "API harus memeriksa secret TENCENT_TOKENHUB_KEY");
+    assert.match(apiSource, /tencent_configured/, "Status kesiapan Tencent harus dikirim ke admin");
+    assert.match(setJs, /tencent_configured/, "Status kesiapan Tencent harus ditampilkan di admin");
+    assert.match(setJs, /Tencent Cloud \(Hy Image 3\.0\)/, "Studio Medsos harus melabeli provider Tencent");
+    assert.match(
+        readFileSync(fileURLToPath(new URL("../lib/social-publisher/providers.js", import.meta.url)), "utf8"),
+        /generateTencentSocialImage/,
+        "generateSocialImage harus meneruskan ke provider Tencent"
+    );
 });
 
 test("dropdown model QwenCloud dan panel kuota tier tersedia di SET Studio Medsos", () => {

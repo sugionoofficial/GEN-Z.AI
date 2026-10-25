@@ -1058,7 +1058,7 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
 
     const schedules = schedulesResult?.rows || [];
     const userSettings = userSettingsResult?.settings ? [userSettingsResult.settings] : [];
-    const imageProvider = ["cloudflare", "qwencloud"].includes(publisherConfig?.[0]?.image_provider)
+    const imageProvider = ["cloudflare", "qwencloud", "tencent"].includes(publisherConfig?.[0]?.image_provider)
         ? publisherConfig[0].image_provider
         : "gemini";
     const providerConfigured = imageProvider === "cloudflare"
@@ -1129,7 +1129,7 @@ async function getSocialImageSettings(config) {
     ));
     const value = rows?.[0]?.image_provider;
     return {
-        provider: ["gemini", "cloudflare", "qwencloud"].includes(value) ? value : "gemini",
+        provider: ["gemini", "cloudflare", "qwencloud", "tencent"].includes(value) ? value : "gemini",
         imageModel: normalizeQwenCloudImageModel(rows?.[0]?.image_model),
         quoteLlmModel: normalizeQwenCloudLlmModel(rows?.[0]?.quote_llm_model)
     };
@@ -1141,8 +1141,8 @@ async function getSocialImageProvider(config) {
 
 async function saveSocialImageProvider(config, adminId, body, env) {
     const imageProvider = String(body?.image_provider || "").trim();
-    if (!["gemini", "cloudflare", "qwencloud"].includes(imageProvider)) {
-        const error = new Error("Pilih Gemini, Cloudflare, atau QwenCloud sebagai penyedia gambar.");
+    if (!["gemini", "cloudflare", "qwencloud", "tencent"].includes(imageProvider)) {
+        const error = new Error("Pilih Gemini, Cloudflare, QwenCloud, atau Tencent Cloud sebagai penyedia gambar.");
         error.status = 400;
         throw error;
     }
@@ -1165,6 +1165,11 @@ async function saveSocialImageProvider(config, adminId, body, env) {
     }
     if (imageProvider === "qwencloud" && !envValue(env, "QWENCLOUD_API_KEY")) {
         const error = new Error("QWENCLOUD_API_KEY diperlukan untuk gambar dan caption saat provider QwenCloud dipilih.");
+        error.status = 409;
+        throw error;
+    }
+    if (imageProvider === "tencent" && !envValue(env, "TENCENT_TOKENHUB_KEY") && !envValue(env, "TENCENT_API_KEY")) {
+        const error = new Error("TENCENT_TOKENHUB_KEY diperlukan saat provider Tencent Cloud dipilih. Buat API key di console TokenHub lalu simpan sebagai secret Worker.");
         error.status = 409;
         throw error;
     }
@@ -1209,6 +1214,7 @@ async function saveSocialImageProvider(config, adminId, body, env) {
         image_model: rows[0].image_model,
         quote_llm_model: normalizeQwenCloudLlmModel(rows[0].quote_llm_model || quoteLlmModel),
         gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
+        tencent_configured: Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY")),
         cloudflare_configured: typeof env?.AI?.run === "function",
         qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY"))
     };
@@ -3524,6 +3530,7 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
                 qwencloud_models: quotaSummaryRows(quotasByModel),
                 qwencloud_llm_models: llmQuotaSummaryRows(quotasByModel),
                 gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
+        tencent_configured: Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY")),
                 cloudflare_configured: typeof env?.AI?.run === "function",
                 cloudflare_identity_model: "@cf/black-forest-labs/flux-2-klein-4b",
                 cloudflare_free_model: "@cf/black-forest-labs/flux-1-schnell",
