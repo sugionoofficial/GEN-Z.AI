@@ -15,7 +15,8 @@ import {
     readImageDimensions,
     detectImageKind,
     inspectImageContent,
-    isBlankImage
+    isBlankImage,
+    cropFaceRegion
 } from "../lib/social-publisher/reference-image.js";
 
 const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
@@ -169,7 +170,9 @@ test("tanpa foto pakaian FLUX.2 klein tetap memakai foto referensi karakter saja
     assert.equal(result.model, IDENTITY_MODEL);
     const { text } = await readMultipartBody(calls[0].payload);
     assert.match(text, /name="input_image_0"/);
-    assert.doesNotMatch(text, /name="input_image_1"/);
+    /* Tanpa outfit, slot gambar kedua dipakai potret dekat wajah (bukan pakaian). */
+    assert.doesNotMatch(text, /name="outfit.jpg"/);
+    assert.match(text, /filename="face.jpg"/);
     assert.match(text, /Pakaian tetap seperti pada gambar 1/);
 });
 
@@ -821,4 +824,86 @@ test("CLOUDFLARE_IDENTITY_SIZE tidak masuk akal diabaikan tanpa mengganggu", asy
     const { text } = await readMultipartBody(calls[0].payload);
     assert.match(text, /name="width"\r\n\r\n576/);
     assert.equal(result.warnings.length, 0);
+});
+
+test("foto badan penuh memakai potret wajah sebagai acuan tambahan", async () => {
+    const { AI, calls } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 })
+    });
+    await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference({ width: 900, height: 1400 }),
+        referenceMimeType: "image/jpeg",
+        garmentBytes: makeReference({ width: 600, height: 900 }),
+        garmentMimeType: "image/jpeg"
+    });
+    const { text } = await readMultipartBody(calls[0].payload);
+    assert.match(text, /name="input_image_0"/);
+    assert.match(text, /name="input_image_1"/);
+    assert.match(text, /name="input_image_2"[\s\S]*filename="face.jpg"/);
+    assert.match(text, /potret dekat wajah orang yang sama/);
+    assert.match(text, /gambar 3 adalah potret dekat/);
+    /* Foto pakaian tidak boleh dijadikan sumber wajah. */
+    assert.match(text, /JANGAN meniru wajah, kulit, atau bentuk tubuh orang pada gambar 2/);
+});
+
+test("foto yang sudah dekat tidak dipotong lagi", async () => {
+    const { AI, calls } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 })
+    });
+    await generateSocialImage({
+        env: { AI },
+        prompt: "Potret dekat",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference({ width: 600, height: 640 }),
+        referenceMimeType: "image/jpeg"
+    });
+    const { text } = await readMultipartBody(calls[0].payload);
+    assert.doesNotMatch(text, /filename="face.jpg"/);
+    assert.doesNotMatch(text, /potret dekat wajah orang yang sama/);
+});
+
+test("CLOUDFLARE_IDENTITY_FACE_CROP=0 mematikan potret wajah", async () => {
+    const { AI, calls } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 })
+    });
+    await generateSocialImage({
+        env: { AI, CLOUDFLARE_IDENTITY_FACE_CROP: "0" },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference({ width: 900, height: 1400 }),
+        referenceMimeType: "image/jpeg"
+    });
+    const { text } = await readMultipartBody(calls[0].payload);
+    assert.doesNotMatch(text, /filename="face.jpg"/);
+});
+
+test("cropFaceRegion memotong area atas-tengah dan menolak foto persegi", async () => {
+    const tall = makeReference({ width: 400, height: 800 });
+    const crop = cropFaceRegion(tall, "image/jpeg");
+    assert.ok(crop, "foto jangkung harus dipotong");
+    assert.ok(crop.width < 400, "lebar hasil potongan lebih kecil dari aslinya");
+    assert.ok(crop.height < 800, "tinggi hasil potongan lebih kecil dari aslinya");
+    assert.equal(crop.mimeType, "image/jpeg");
+    assert.deepEqual(readImageDimensions(crop.bytes), { width: crop.width, height: crop.height });
+
+    assert.equal(cropFaceRegion(makeReference({ width: 600, height: 620 }), "image/jpeg"), null);
+});
+
+test("hasil generate melaporkan ukuran acuan wajah yang dipakai", async () => {
+    const { AI } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 })
+    });
+    const result = await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference({ width: 900, height: 1400 }),
+        referenceMimeType: "image/jpeg"
+    });
+    assert.ok(result.face_crop, "foto badan penuh harus memakai acuan wajah");
+    assert.ok(result.face_crop.width > 0);
+    assert.match(result.face_crop.reference, /^384x512$|^\d+x\d+$/);
 });

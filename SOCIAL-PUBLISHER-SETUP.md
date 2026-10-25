@@ -81,6 +81,19 @@ That message meant "the response was not the JSON our API always sends", so the 
 
 A 503 that arrives **within a couple of seconds** of clicking usually means the Worker was being redeployed or the edge rejected the request — wait about a minute and try again; nothing was generated or charged. A 503 after a long wait means the request ran out of time. GET requests are retried once automatically; `manual-generate` and publish are deliberately **not** retried automatically so a slow response can never create two posts or spend the image quota twice.
 
+### Keeping the face recognizable
+
+The character path always runs the reference-conditioned model (`@cf/black-forest-labs/flux-2-klein-4b`), never a text-to-image model — you can confirm this per post in the run record (`image_model`). If a result does not look like the reference, the usual cause is the reference itself: a full-body photo downscaled to 512 px leaves the face about 40 px wide, and the outfit photo (often a catalogue shot of a *different* model) competes for the same "person" slot.
+
+Two things address that now:
+
+- **The prompt names each image explicitly** — image 1 is the person, image 2 is only the clothing, and the model is told not to copy the face or body of the clothing model.
+- **A face crop is sent as an extra reference.** When the reference is a full-body shape (height/width ≥ 1.25), the top-centre region is cropped and passed as an additional input image, so the face arrives at a much larger effective size. Square/portrait close-ups are left alone.
+
+Set the Worker variable `CLOUDFLARE_IDENTITY_FACE_CROP = "0"` to compare results without the extra reference; the provider test row reports `face_crop` so you can see which images were actually sent.
+
+The most effective change is still the upload itself: **use an upper-body or close-up portrait as the character reference**. FLUX.2 klein 4B is a small distilled model — it keeps hairstyle, skin tone, and general facial structure, but it is not a face-swap engine.
+
 ### Picture quality on the free path
 
 FLUX.2 [klein] 4B is a distilled, latency-optimised model: the free path produces a *photographic-looking* image, not a camera-accurate portrait. Two limits are structural, not bugs:
