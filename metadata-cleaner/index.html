@@ -496,6 +496,8 @@ document.title = "GEN-Z.AI Generator Web";
                             type="button"
                             id="metadata-check-button"
                             class="metadata-button metadata-button-primary"
+                            data-workflow-action="check"
+                            aria-label="CHECK"
                             disabled
                         >
                             CHECK
@@ -702,19 +704,19 @@ document.title = "GEN-Z.AI Generator Web";
                     </div>
 
 
-                    <div
-                        class="metadata-action-row"
-                    >
-
+                    <!-- Hidden compatibility controls keep existing
+                         cleaner and credit-state modules unchanged. The
+                         visible workflow action stays in the CHECK panel. -->
+                    <div class="hidden" hidden aria-hidden="true">
                         <button
                             type="button"
                             id="metadata-clean-button"
                             class="metadata-button metadata-button-primary"
+                            tabindex="-1"
                             disabled
                         >
                             BERSIHKAN METADATA
                         </button>
-
                     </div>
 
                     <p class="feature-credit-cost-note">
@@ -763,19 +765,16 @@ document.title = "GEN-Z.AI Generator Web";
                         </div>
 
 
-                        <div
-                            class="metadata-action-row metadata-download-row"
-                        >
-
+                        <div class="hidden" hidden aria-hidden="true">
                             <button
                                 type="button"
                                 id="metadata-download-button"
                                 class="metadata-button metadata-button-download"
+                                tabindex="-1"
                                 disabled
                             >
                                 DOWNLOAD
                             </button>
-
                         </div>
 
                     </div>
@@ -797,7 +796,7 @@ document.title = "GEN-Z.AI Generator Web";
 
     <script
         type="module"
-        src="./assets/js/metadata-app.js?v=metadata-shared-preview-stamp-20261025"
+        src="./assets/js/metadata-app.js?v=metadata-single-action-button-20261025"
     ></script>
 
 

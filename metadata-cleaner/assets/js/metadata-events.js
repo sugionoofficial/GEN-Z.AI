@@ -377,6 +377,52 @@ async function onDrop(
 
 
 /* =========================================================
+   SHARED WORKFLOW ACTION
+========================================================= */
+
+function updateWorkflowButton() {
+
+    const button = elements.checkButton;
+
+    if (!button) return;
+
+    const phase = state.cleanedBlob
+        ? "download"
+        : state.checked
+            ? "clean"
+            : "check";
+
+    const labels = {
+        check: "CHECK",
+        clean: "BERSIHKAN METADATA",
+        download: "DOWNLOAD"
+    };
+
+    button.dataset.workflowAction = phase;
+    button.textContent = labels[phase];
+    button.setAttribute("aria-label", labels[phase]);
+    button.disabled = !state.file || button.getAttribute?.("aria-busy") === "true";
+    button.setAttribute("aria-disabled", String(button.disabled));
+}
+
+
+async function onWorkflowAction(event) {
+
+    if (state.cleanedBlob) {
+        await onDownload(event);
+        return;
+    }
+
+    if (state.checked) {
+        await onClean(event);
+        return;
+    }
+
+    await onCheck(event);
+}
+
+
+/* =========================================================
    CHECK
 ========================================================= */
 
@@ -594,6 +640,7 @@ async function onCheck(
             "aria-busy"
         );
 
+        updateWorkflowButton();
 
         console.log(
             "[GEN-Z.AI] CHECK BUTTON FINAL STATE:",
@@ -630,11 +677,14 @@ async function onClean(
     event?.stopPropagation?.();
 
 
-    const button =
+    const cleanControl =
         elements.cleanButton;
 
+    const button =
+        elements.checkButton || cleanControl;
 
-    if (!button) {
+
+    if (!cleanControl || !button) {
 
         console.error(
             "[GEN-Z.AI] CLEAN button tidak ditemukan."
@@ -645,7 +695,8 @@ async function onClean(
 
 
     if (
-        button.disabled
+        cleanControl.disabled ||
+        button.getAttribute?.("aria-busy") === "true"
     ) {
 
         console.warn(
@@ -676,6 +727,10 @@ async function onClean(
     button.disabled =
         true;
 
+    button.setAttribute(
+        "aria-disabled",
+        "true"
+    );
 
     button.setAttribute(
         "aria-busy",
@@ -705,6 +760,10 @@ async function onClean(
             "aria-busy"
         );
 
+        if (elements.checkButton) {
+            updateWorkflowButton();
+        }
+
     }
 
 }
@@ -722,18 +781,22 @@ function onDownload(
     event?.stopPropagation?.();
 
 
-    const button =
+    const downloadControl =
         elements.downloadButton;
 
+    const button =
+        elements.checkButton || downloadControl;
 
-    if (!button) {
+
+    if (!downloadControl || !button) {
 
         return;
     }
 
 
     if (
-        button.disabled
+        downloadControl.disabled ||
+        button.getAttribute?.("aria-busy") === "true"
     ) {
 
         return;
@@ -759,8 +822,9 @@ function onDownload(
 
     const originalText =
         button.textContent;
-
     button.disabled = true;
+    button.setAttribute?.("aria-disabled", "true");
+    button.setAttribute?.("aria-busy", "true");
     button.textContent = "MENYIAPKAN UNDUHAN...";
     setPreviewStatus(
         "MENYIAPKAN HASIL CLEANING UNTUK DIUNDUH."
@@ -797,8 +861,13 @@ function onDownload(
         )
         .finally(
             () => {
-                button.disabled = false;
+                button.removeAttribute?.("aria-busy");
                 button.textContent = originalText;
+                if (elements.checkButton) {
+                    updateWorkflowButton();
+                } else {
+                    button.disabled = false;
+                }
             }
         );
 
@@ -964,10 +1033,11 @@ if (
             "true"
         );
 
+        updateWorkflowButton();
 
         elements.checkButton.addEventListener(
             "click",
-            onCheck
+            onWorkflowAction
         );
 
 

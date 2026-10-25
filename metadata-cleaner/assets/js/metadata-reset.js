@@ -244,6 +244,16 @@ function resetForNewFile() {
         "is-clear",
         "is-unknown"
     );
+
+    const workflowButton = elements.checkButton;
+    if (workflowButton) {
+        workflowButton.textContent = "CHECK";
+        workflowButton.dataset.workflowAction = "check";
+        workflowButton.setAttribute("aria-label", "CHECK");
+        workflowButton.disabled = true;
+        workflowButton.setAttribute("aria-disabled", "true");
+        workflowButton.removeAttribute("aria-busy");
+    }
 }
 
 
