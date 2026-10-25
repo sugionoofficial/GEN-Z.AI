@@ -99,6 +99,8 @@
         .edit-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
         .fb-logo{background:transparent;border-color:transparent;border-radius:50%}
         video.manual-preview{display:block;width:100%;max-width:260px;aspect-ratio:9/16;border-radius:12px;border:1px solid var(--border);background:#0b111b;object-fit:cover}
+        audio.manual-preview-audio{display:block;width:100%;max-width:260px;margin-top:10px}
+
     </style>
     <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261022">
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -450,6 +452,7 @@
                             <div id="manual-generated-result" hidden>
                                 <img id="manual-generated-preview" class="manual-preview" alt="Pratinjau gambar hasil generasi yang sudah dibersihkan">
                                 <video id="manual-generated-video" class="manual-preview" controls playsinline loop hidden></video>
+                                <audio id="manual-generated-audio" class="manual-preview-audio" controls preload="metadata" aria-label="Pratinjau musik untuk kartu kata mutiara" hidden></audio>
                                 <p id="manual-generated-caption" class="manual-preview-caption"></p>
                                 <p id="manual-outfit-line" class="manual-outfit-line" hidden></p>
                                 <p id="manual-song-line" class="manual-song-line" hidden></p>
@@ -582,6 +585,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
-    <script type="module" src="./social-publisher.js?v=audio-play-fix-20261025"></script>
+    <script type="module" src="./social-publisher.js?v=quote-preview-card-audio-20261025"></script>
 </body>
 </html>
