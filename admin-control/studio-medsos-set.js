@@ -586,7 +586,7 @@
     function providerLabel(value) {
         if (value === "cloudflare") return "Cloudflare Workers AI";
         if (value === "qwencloud") return "QwenCloud (Qwen Image)";
-        if (value === "tencent") return "Tencent Cloud (Hy Image 3.0)";
+        if (value === "tencent") return "Tencent Cloud (Hy Image 3.5 Preview)";
         return "Google Gemini";
     }
 
@@ -600,9 +600,8 @@
             return settings.qwencloud_configured ? "QwenCloud membuat gambar dan caption" : "QWENCLOUD_API_KEY belum tersedia";
         }
         if (value === "tencent") {
-            return settings.tencent_configured
-                ? "Tencent Hy Image 3.0 membuat gambar (foto karakter + outfit sebagai referensi); caption memakai model vision Cloudflare"
-                : "TENCENT_TOKENHUB_KEY belum tersedia";
+            if (!settings.tencent_configured) return "TENCENT_TOKENHUB_KEY belum tersedia";
+            return "Hy Image 3.5 Preview membuat gambar (foto karakter + outfit sebagai referensi, 1080×1920). Berbayar: aktifkan postpaid untuk model vision di console TokenHub; caption memakai model vision Cloudflare";
         }
         return settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
     }
