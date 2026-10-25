@@ -103,9 +103,21 @@
             },
             ...(body ? { body: JSON.stringify(body) } : {})
         });
-        const result = await response.json().catch(() => ({}));
+        /* `response.json()` dulu menelan halaman error non-JSON dan pengguna
+           hanya melihat "Permintaan gagal (HTTP 503)" tanpa penjelasan. */
+        const bodyText = await response.text().catch(() => "");
+        let result = {};
+        try {
+            result = bodyText ? JSON.parse(bodyText) : {};
+        } catch {
+            result = {};
+        }
         if (!response.ok || result.success !== true) {
-            throw new Error(result.error || `Permintaan gagal (HTTP ${response.status}).`);
+            throw new Error(
+                result.error
+                || window.GENZHttpFailure?.describeHttpFailure?.(response.status, bodyText)
+                || `Permintaan gagal (HTTP ${response.status}).`
+            );
         }
         return result;
     }

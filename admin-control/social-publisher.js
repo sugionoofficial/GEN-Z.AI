@@ -1,4 +1,5 @@
 import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
+import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure.js";
 
 (() => {
     "use strict";
@@ -122,9 +123,21 @@ import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image
             if (response.status === 401 && attempt === 0 && window.GENZSession?.ensureFreshSession) {
                 continue;
             }
-            const data = await response.json().catch(() => ({}));
+            /* Dibaca sebagai teks dulu: halaman error Cloudflare bukan JSON dan
+               dulu berakhir jadi pesan "Permintaan gagal (HTTP 503)" tanpa sebab. */
+            const bodyText = await response.text().catch(() => "");
+            if (method === "GET" && attempt === 0 && isPlatformFailure(response.status, bodyText)) {
+                await new Promise(resolve => setTimeout(resolve, 1200));
+                continue;
+            }
+            let data = {};
+            try {
+                data = bodyText ? JSON.parse(bodyText) : {};
+            } catch {
+                data = {};
+            }
             if (!response.ok || data.success !== true) {
-                const error = new Error(data.error || `Permintaan gagal (HTTP ${response.status}).`);
+                const error = new Error(data.error || describeHttpFailure(response.status, bodyText));
                 error.code = data.code || "";
                 error.status = response.status;
                 error.retrySafe = data.retry_safe !== false;
