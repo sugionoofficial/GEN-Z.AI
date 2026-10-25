@@ -140,6 +140,10 @@ Neuron/hari), lalu `pruna/p-image-try-on` bila kredit AI Gateway tersedia, lalu
 `@cf/stabilityai/stable-diffusion-xl-base-1.0` img2img. Bila ketiganya gagal, gambar
 tidak dibuat sehingga tidak ada karakter dengan wajah berbeda. Foto referensi
 diperkecil otomatis ke maksimal 512 px (JPEG/PNG) karena itu syarat input FLUX.2 klein.
+Bila `pruna/...` menolak dengan error kredit (`2021`), provider mengingatnya 6 jam dan melewati panggilan itu
+pada pembuatan berikutnya. `@cf/stabilityai/stable-diffusion-xl-base-1.0` berstatus Beta dengan harga
+`$0.00 per step` sehingga tidak memakai kuota Neuron, tetapi lambat (terukur ±43 detik). Kuota 10.000 Neuron/hari
+setara ±14 gambar karakter FLUX.2 klein; setelah habis, pembuatan turun ke SDXL img2img dan pulih pada 00:00 UTC.
 Latar Kata-kata Mutiara memakai `@cf/black-forest-labs/flux-1-schnell`. Caption memakai
 `@cf/meta/llama-3.2-11b-vision-instruct` dengan fallback model teks, tanpa memerlukan
 `GEMINI_API_KEY`. Model pihak ketiga (`pruna/...`) ditagih lewat Unified Billing AI Gateway
