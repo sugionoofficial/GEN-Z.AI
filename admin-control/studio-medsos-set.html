@@ -512,7 +512,7 @@
                     <input type="radio" name="image-provider" value="cloudflare">
                     <span>
                         <strong>Cloudflare Workers AI</strong>
-                        <small>Virtual try-on memakai Pruna P-Image Try-On melalui binding AI. Setiap karakter perlu memiliki foto pakaian; foto referensi dikirim lewat URL privat berumur pendek untuk diproses model.</small>
+                        <small>Memakai binding <code>AI</code> di Worker. Model gratis <code>@cf/...</code> (FLUX.1 schnell &amp; SDXL img2img) tercakup kuota 10.000 Neuron/hari. Virtual try-on Pruna P-Image (<code>pruna/p-image-try-on</code>) adalah model pihak ketiga yang butuh kredit AI Gateway/Unified Billing; bila kredit belum ada, aplikasi otomatis turun ke model gratis dan menampilkan alasannya.</small>
                     </span>
                 </label>
                 <label class="provider-option">
@@ -556,6 +556,7 @@
             <p class="footer-note">Provider gambar yang dipilih digunakan untuk Foto Karakter AI &amp; caption kontekstual, sedangkan Kata-kata Mutiara memakai latar hitam polos + model LLM QwenCloud melalui QWENCLOUD_API_KEY.</p>
             <div class="price-settings-row">
                 <button id="save-image-provider" class="btn primary" type="button">Simpan Provider &amp; Model AI</button>
+                <button id="test-image-provider" class="btn" type="button">Tes Cloudflare AI</button>
             </div>
             <div id="image-provider-status" class="status-box price-settings-status" role="status" aria-live="polite">Memuat provider gambar…</div>
         </section>

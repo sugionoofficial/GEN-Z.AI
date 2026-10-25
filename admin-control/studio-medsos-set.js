@@ -579,7 +579,9 @@
 
     function providerReadiness(value, settings = {}) {
         if (value === "cloudflare") {
-            return settings.cloudflare_configured ? "Workers AI membuat gambar dan caption" : "Workers AI binding belum tersedia";
+            if (!settings.cloudflare_configured) return "Workers AI binding belum tersedia";
+            const freeModel = settings.cloudflare_free_model || "@cf/black-forest-labs/flux-1-schnell";
+            return `Workers AI membuat gambar dan caption · gratis: ${freeModel} · try-on ${settings.cloudflare_tryon_model || "pruna/p-image-try-on"} butuh kredit AI Gateway`;
         }
         if (value === "qwencloud") {
             return settings.qwencloud_configured ? "QwenCloud membuat gambar dan caption" : "QWENCLOUD_API_KEY belum tersedia";
@@ -810,6 +812,44 @@
         }
     }
 
+    function formatProviderTest(test) {
+        const rows = (test?.checks || []).map(check => {
+            const status = check.ok
+                ? `OK · ${check.mime_type || "gambar"} · ${Math.round((check.bytes || 0) / 1024)} KB · ${check.elapsed_ms} ms`
+                : `GAGAL · ${check.error || "kesalahan provider"}`;
+            return `${check.model}: ${status}`;
+        });
+        const summary = test?.free_tier_ready
+            ? "Jalur gratis @cf siap dipakai."
+            : "Jalur gratis @cf belum bisa dipakai — lihat error di atas.";
+        const tryOn = test?.try_on_ready === true
+            ? "Try-on Pruna aktif."
+            : test?.try_on_ready === false
+                ? "Try-on Pruna tidak aktif (wajar bila kredit AI Gateway belum diisi)."
+                : "";
+        return [summary, tryOn, ...rows].filter(Boolean).join(" — ");
+    }
+
+    async function testImageProvider() {
+        const button = document.getElementById("test-image-provider");
+        if (button) button.disabled = true;
+        setImageProviderStatus("Menguji Cloudflare Workers AI (FLUX, SDXL img2img, try-on)…");
+        try {
+            const result = await api("studio-admin-image-provider-test", {
+                method: "POST",
+                body: { include_try_on: true }
+            });
+            const test = result.test || {};
+            const allFailed = (test.checks || []).every(check => check.ok !== true);
+            setImageProviderStatus(formatProviderTest(test), allFailed ? "error" : "success");
+        } catch (error) {
+            console.error(error);
+            setImageProviderStatus(error.message || "Tes provider Cloudflare gagal.", "error");
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
     function renderPricingStatus(pricing, prefix = "Harga saat ini", type = "") {
         const values = PRICE_PERIODS.map(({ key, label }) => {
             const price = pricing[`price_${key}_idr`];
@@ -941,6 +981,7 @@
         });
         savePriceButton.addEventListener("click", savePricing);
         saveImageProviderButton.addEventListener("click", saveImageProvider);
+        document.getElementById("test-image-provider")?.addEventListener("click", testImageProvider);
         for (const radio of document.querySelectorAll('input[name="image-provider"]')) {
             radio.addEventListener("change", renderQwenCloudOptions);
         }

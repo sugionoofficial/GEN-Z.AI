@@ -236,16 +236,29 @@ test("Cloudflare Workers AI sends private person and garment URLs to P-Image Try
     assert.equal(result.model, model);
 });
 
-test("Cloudflare P-Image Try-On rejects missing garment references", async () => {
-    await assert.rejects(
-        generateSocialImage({
-            env: { AI: { async run() { throw new Error("must not run"); } } },
-            imageProvider: "cloudflare",
-            personImageUrl: "https://storage.example/person?token=person-token",
-            garmentImageUrls: []
-        }),
-        /memerlukan foto karakter dan minimal satu foto (outfit\/)?pakaian/
-    );
+test("Cloudflare tanpa foto pakaian memakai model teks-ke-gambar gratis, bukan try-on", async () => {
+    const calls = [];
+    const outputBytes = new Uint8Array([255, 216, 255, 0]);
+    const result = await generateSocialImage({
+        env: {
+            AI: {
+                async run(model, parameters) {
+                    calls.push({ model, parameters });
+                    return { image: Buffer.from(outputBytes).toString("base64") };
+                }
+            }
+        },
+        prompt: "Karakter di taman kota",
+        imageProvider: "cloudflare",
+        personImageUrl: "https://storage.example/person?token=person-token",
+        garmentImageUrls: []
+    });
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].model, "@cf/black-forest-labs/flux-1-schnell");
+    assert.equal(result.model, "@cf/black-forest-labs/flux-1-schnell");
+    assert.deepEqual([...result.bytes], [...outputBytes]);
+    assert.match(result.warnings.join(" "), /try-on Pruna dilewati/i);
 });
 
 test("Cloudflare Workers AI supports streamed image output", async () => {

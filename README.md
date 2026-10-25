@@ -133,10 +133,14 @@ Google Gemini memerlukan `GEMINI_API_KEY`, sementara Cloudflare memakai binding
 digunakan untuk melindungi token Facebook. Admin dapat memilih Google Gemini atau
 Cloudflare Workers AI sebagai provider gambar dan caption di
 **Admin Panel → SET Studio Medsos**. Pilihan
-Cloudflare memakai binding `AI` dengan model `pruna/p-image-try-on` untuk mencoba pakaian
-pada foto karakter dan `@cf/meta/llama-3.2-11b-vision-instruct` untuk caption, tanpa memerlukan
-`GEMINI_API_KEY`. Akun Cloudflare harus menerima lisensi model Llama sebelum penggunaan
-pertama. Kuota dan biaya
+Cloudflare memakai binding `AI`: `pruna/p-image-try-on` untuk mencoba pakaian pada foto
+karakter bila kredit AI Gateway tersedia, lalu otomatis turun ke `@cf/stabilityai/stable-diffusion-xl-base-1.0`
+(img2img dari foto referensi) dan `@cf/black-forest-labs/flux-1-schnell` (text-to-image) yang
+tercakup kuota gratis 10.000 Neuron/hari. Caption memakai `@cf/meta/llama-3.2-11b-vision-instruct`
+dengan fallback model teks, tanpa memerlukan `GEMINI_API_KEY`. Model pihak ketiga (`pruna/...`)
+ditagih lewat Unified Billing AI Gateway sehingga tidak termasuk kuota gratis dan gagal di
+Workers Free tanpa kredit; model gratis `@cf/...` tetap berjalan. Akun Cloudflare harus
+menerima lisensi model Llama sebelum penggunaan pertama. Kuota dan biaya
 bergantung pada tier dan ketersediaan model partner di akun provider masing-masing.
 Minimal satu outfit aktif (atau foto pakaian default) diperlukan untuk setiap karakter
 yang dipakai saat provider Cloudflare aktif. URL bertanda tangan Supabase yang berumur
