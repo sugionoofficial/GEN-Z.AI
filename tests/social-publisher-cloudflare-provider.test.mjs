@@ -145,6 +145,13 @@ test("FLUX.2 klein dipakai lebih dulu dengan input_image_0 dari foto referensi",
     assert.match(text, /pasar pagi/);
     assert.match(text, /name="width"\r\n\r\n576/);
     assert.match(text, /name="height"\r\n\r\n1024/);
+    /*
+     * Kata "realistis" saja tidak cukup: klein 4B menghasilkan kulit plastik
+     * bila prompt tidak memuat istilah fotografi.
+     */
+    assert.match(text, /lensa 50mm/);
+    assert.match(text, /detail kulit natural/);
+    assert.match(text, /render 3D, CGI/);
     assert.deepEqual(result.warnings, []);
 });
 
@@ -756,4 +763,62 @@ test("inspectImageContent membedakan gambar kosong dan gambar berisi", async () 
     assert.equal(normal.sampled, false, "gambar normal tidak perlu di-decode");
     assert.equal(isBlankImage(normal), false);
     assert.ok(normal.bytes_per_pixel > 0.3);
+});
+
+test("CLOUDFLARE_IDENTITY_SIZE menaikkan resolusi keluaran identitas", async () => {
+    const { AI, calls } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 })
+    });
+    await generateSocialImage({
+        env: { AI, CLOUDFLARE_IDENTITY_SIZE: "768x1344" },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+    const { text } = await readMultipartBody(calls[0].payload);
+    assert.match(text, /name="width"\r\n\r\n768/);
+    assert.match(text, /name="height"\r\n\r\n1344/);
+});
+
+test("ukuran besar yang ditolak model diulang pada ukuran default", async () => {
+    let attempt = 0;
+    const { AI, calls } = createFakeAI({
+        [IDENTITY_MODEL]: async (payload) => {
+            attempt += 1;
+            const { text } = await readMultipartBody(payload);
+            if (/name="width"\r\n\r\n768/.test(text)) {
+                throw new Error("3030: Model input is not valid: width 768 is not supported");
+            }
+            return { image: JPEG_BASE64 };
+        }
+    });
+    const result = await generateSocialImage({
+        env: { AI, CLOUDFLARE_IDENTITY_SIZE: "768x1344" },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+    assert.equal(result.model, IDENTITY_MODEL);
+    assert.equal(attempt, 2);
+    assert.equal(calls.length, 2);
+    assert.ok(result.warnings.some(item => /768x1344 ditolak/.test(item)));
+    assert.ok(result.warnings.some(item => /kembali ke 576x1024/.test(item)));
+});
+
+test("CLOUDFLARE_IDENTITY_SIZE tidak masuk akal diabaikan tanpa mengganggu", async () => {
+    const { AI, calls } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 })
+    });
+    const result = await generateSocialImage({
+        env: { AI, CLOUDFLARE_IDENTITY_SIZE: "99999x99999" },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+    const { text } = await readMultipartBody(calls[0].payload);
+    assert.match(text, /name="width"\r\n\r\n576/);
+    assert.equal(result.warnings.length, 0);
 });

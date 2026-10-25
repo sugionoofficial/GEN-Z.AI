@@ -141,7 +141,10 @@ bila kredit AI Gateway tersedia. Bila semuanya gagal, gambar
 tidak dibuat sehingga tidak ada karakter dengan wajah berbeda. Foto referensi
 diperkecil otomatis ke maksimal 512 px (JPEG/PNG) karena itu syarat input FLUX.2 klein.
 Bila `pruna/...` menolak dengan error kredit (`2021`), provider mengingatnya 6 jam dan melewati panggilan itu
-pada pembuatan berikutnya. Setiap hasil model divalidasi: PNG/JPEG yang valid secara format tetapi nyaris kosong (mis. 2 KB untuk bingkai
+pada pembuatan berikutnya. Kualitas gratis bersifat fotografis, bukan potret akurat kamera: bingkai karakter dirender 576×1024 dan foto referensi
+diperkecil ke 512 px (syarat input FLUX.2 klein), sehingga detail wajah terbatas. Ukuran keluaran bisa dinaikkan tanpa
+mengubah kode lewat Worker variable `CLOUDFLARE_IDENTITY_SIZE` (mis. `768x1344`); bila model menolak ukuran itu,
+permintaan diulang otomatis pada 576×1024. Setiap hasil model divalidasi: PNG/JPEG yang valid secara format tetapi nyaris kosong (mis. 2 KB untuk bingkai
 576×1024, standar deviasi luminansi ≈ 0) dianggap gagal sehingga rantai berlanjut, bukan menerbitkan gambar kosong.
 Cadangan identitas adalah `@cf/black-forest-labs/flux-2-klein-9b` (protokol multipart sama, 1.363,64 Neuron
 per MP pertama). Model itu sempat menjawab `3043: Internal server error` sekali lalu pulih pada tes berikutnya,
