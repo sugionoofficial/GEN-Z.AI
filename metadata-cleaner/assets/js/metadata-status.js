@@ -2605,7 +2605,7 @@ function renderProvenanceOverlayStamp(
     label.textContent =
         "AI DETECTED";
 
-    stamp.classList.remove("is-clear");
+    stamp.classList.remove("is-clear", "is-success");
 
     renderProvenanceOverlayModel(
         stamp,
@@ -3521,7 +3521,8 @@ export function renderDetectionResult() {
 function renderOverlayStamp(
     sightengine,
     isVisualDetection = false,
-    isClear = false
+    isClear = false,
+    stampLabel = null
 ) {
 
     const overlay =
@@ -3605,11 +3606,10 @@ function renderOverlayStamp(
 
 
     label.textContent =
-        isClear
-            ? "NO DETECTED"
-            : "AI DETECTED";
+        stampLabel || (isClear ? "NO DETECTED" : "AI DETECTED");
 
     stamp.classList.toggle("is-clear", isClear);
+    stamp.classList.toggle("is-success", stampLabel === "SUCCESS");
 
     renderOverlayModel(
         stamp,
@@ -3721,6 +3721,13 @@ function renderNoDetectionStamp() {
 }
 
 
+export function renderCleaningSuccessStamp() {
+
+    renderOverlayStamp(null, false, false, "SUCCESS");
+
+}
+
+
 /* =========================================================
    CLEAR OVERLAY
 ========================================================= */
@@ -3778,6 +3785,11 @@ function clearOverlayStamp() {
 
     }
 
+
+    overlay.querySelector(".metadata-ai-detect-stamp")?.classList.remove(
+        "is-clear",
+        "is-success"
+    );
 
     const model =
         overlay.querySelector(
