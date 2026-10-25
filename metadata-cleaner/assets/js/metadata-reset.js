@@ -245,6 +245,12 @@ function resetForNewFile() {
         "is-unknown"
     );
 
+    const metadataDescription =
+        document.getElementById("metadata-data-description");
+    if (metadataDescription) {
+        metadataDescription.textContent = "Data yang berhasil dibaca dari file.";
+    }
+
     const workflowButton = elements.checkButton;
     if (workflowButton) {
         workflowButton.textContent = "CHECK";

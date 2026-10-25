@@ -3381,7 +3381,8 @@
 /* =========================================================
    SHARED PREVIEW STATUS + NEON GREEN ACTIONS
 ========================================================= */
-.metadata-ai-detect-stamp.is-clear {
+.metadata-ai-detect-stamp.is-clear,
+.metadata-ai-detect-stamp.is-success {
     border-color: rgba(57, 255, 20, 0.98);
     background: rgba(0, 48, 12, 0.58);
     color: #39ff14;
@@ -3391,12 +3392,14 @@
         inset 0 0 22px rgba(57, 255, 20, 0.20);
 }
 
-.metadata-ai-detect-stamp.is-clear::before {
+.metadata-ai-detect-stamp.is-clear::before,
+.metadata-ai-detect-stamp.is-success::before {
     border-color: rgba(57, 255, 20, 0.55);
     box-shadow: 0 0 20px rgba(57, 255, 20, 0.42);
 }
 
-.metadata-ai-detect-stamp.is-clear > span:first-child {
+.metadata-ai-detect-stamp.is-clear > span:first-child,
+.metadata-ai-detect-stamp.is-success > span:first-child {
     color: #39ff14;
     text-shadow:
         0 0 6px rgba(57, 255, 20, 1),
@@ -3404,7 +3407,8 @@
         0 0 38px rgba(57, 255, 20, 0.62);
 }
 
-.metadata-ai-detect-stamp.is-clear::after {
+.metadata-ai-detect-stamp.is-clear::after,
+.metadata-ai-detect-stamp.is-success::after {
     background: linear-gradient(90deg, transparent, rgba(207, 255, 196, 0.50), transparent);
 }
 

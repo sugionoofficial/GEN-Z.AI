@@ -483,14 +483,16 @@ html[data-genz-theme="light"] body #metadata-download-button:disabled {
     opacity: 1 !important;
 }
 
-html[data-genz-theme="light"] body .metadata-ai-detect-stamp.is-clear {
+html[data-genz-theme="light"] body .metadata-ai-detect-stamp.is-clear,
+html[data-genz-theme="light"] body .metadata-ai-detect-stamp.is-success {
     border-color: #39ff14 !important;
     background: rgba(5, 36, 10, .94) !important;
     color: #39ff14 !important;
     box-shadow: 0 0 12px rgba(57, 255, 20, .78), 0 0 30px rgba(57, 255, 20, .45) !important;
 }
 
-html[data-genz-theme="light"] body .metadata-ai-detect-stamp.is-clear > span:first-child {
+html[data-genz-theme="light"] body .metadata-ai-detect-stamp.is-clear > span:first-child,
+html[data-genz-theme="light"] body .metadata-ai-detect-stamp.is-success > span:first-child {
     color: #39ff14 !important;
     text-shadow: 0 0 6px #39ff14, 0 0 18px rgba(57, 255, 20, .92), 0 0 38px rgba(57, 255, 20, .62) !important;
 }

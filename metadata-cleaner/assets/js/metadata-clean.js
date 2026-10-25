@@ -105,7 +105,9 @@ import {
 
 import {
     renderDetectionResult,
-    renderMetadata
+    renderMetadata,
+    renderCleaningSuccessStamp,
+    setStatus
 } from "./metadata-status.js";
 
 import {
@@ -1197,24 +1199,6 @@ export async function cleanMetadata() {
             return false;
         }
 
-        state.metadata =
-            cleanedMetadata.metadata;
-
-        state.aiIndicators =
-            cleanedMetadata.aiIndicators;
-
-        state.provenance =
-            cleanedMetadata.provenance;
-
-        renderMetadata();
-        renderDetectionResult();
-        renderOpenKeyResult(
-            state.openkeyDetection,
-            state.aiIndicators,
-            state.provenance
-        );
-
-
         /*
            Update loader ke READY sebelum
            menampilkan hasil.
@@ -1381,9 +1365,37 @@ export async function cleanMetadata() {
 
 
         /*
-           Status sukses.
+           Refresh the metadata panel from the verified cleaned copy.
+           Visual AI findings remain available in their own analysis panel,
+           but the shared preview stamp reports cleaning completion.
         */
+        state.metadata = cleanedMetadata.metadata;
+        state.aiIndicators = cleanedMetadata.aiIndicators;
+        state.provenance = cleanedMetadata.provenance;
 
+        renderMetadata();
+        renderDetectionResult();
+        renderOpenKeyResult(
+            state.openkeyDetection,
+            state.aiIndicators,
+            state.provenance
+        );
+
+        const metadataDescription =
+            document.getElementById("metadata-data-description");
+        if (metadataDescription) {
+            metadataDescription.textContent =
+                "Data terbaru dari salinan hasil cleaning yang sudah diverifikasi.";
+        }
+
+        setStatus(
+            "CLEAR",
+            "CLEANING SUCCESS",
+            "Metadata pada salinan hasil sudah diperbarui dan diverifikasi. Hasil analisis visual sebelumnya tetap ditampilkan terpisah."
+        );
+        renderCleaningSuccessStamp();
+
+        /* Status sukses. */
         setPreviewStatus(
             cleaningNotice
                 ? `METADATA CLEANING SUCCESS. ${cleaningNotice}`
