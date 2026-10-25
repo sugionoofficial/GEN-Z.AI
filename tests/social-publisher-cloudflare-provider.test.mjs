@@ -13,7 +13,9 @@ import {
 import {
     prepareReferenceImage,
     readImageDimensions,
-    detectImageKind
+    detectImageKind,
+    inspectImageContent,
+    isBlankImage
 } from "../lib/social-publisher/reference-image.js";
 
 const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
@@ -684,4 +686,74 @@ test("tes provider tetap berjalan dengan gambar sintetis bila foto contoh gagal 
     } finally {
         globalThis.fetch = originalFetch;
     }
+});
+
+function makeBlankPng(width = 576, height = 1024) {
+    const png = new PNG({ width, height });
+    png.data.fill(0);
+    return new Uint8Array(PNG.sync.write(png));
+}
+
+test("gambar nyaris kosong (2 KB PNG) ditolak, bukan dilaporkan OK", async () => {
+    const blank = makeBlankPng();
+    assert.ok(blank.length < 10_000, "fixture harus menyerupai PNG kosong yang kecil");
+    const { AI, calls } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: Buffer.from(blank).toString("base64") }),
+        [IDENTITY_FALLBACK_MODEL]: () => ({ image: Buffer.from(makeReference()).toString("base64") })
+    });
+    const result = await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+
+    assert.equal(result.model, IDENTITY_FALLBACK_MODEL);
+    assert.equal(calls.length, 2);
+    assert.ok(result.warnings.some(item => /nyaris kosong/.test(item)));
+    assert.ok(result.warnings.some(item => /2 KB untuk 576x1024/.test(item)));
+});
+
+test("gambar normal tetap diterima tanpa decode tambahan", async () => {
+    const normal = makeReference({ width: 576, height: 1024 });
+    const { AI } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: Buffer.from(normal).toString("base64") })
+    });
+    const result = await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+    assert.equal(result.model, IDENTITY_MODEL);
+    assert.deepEqual(result.warnings, []);
+});
+
+test("tes provider menandai model yang mengembalikan gambar kosong sebagai gagal", async () => {
+    const blank = makeBlankPng();
+    const { AI } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [IDENTITY_FALLBACK_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [FLUX_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [SDXL_MODEL]: () => ({ image: Buffer.from(blank).toString("base64") })
+    });
+    const result = await testCloudflareImageProvider({ env: { AI } });
+    const sdxl = result.checks.find(check => check.id === "sdxl");
+    assert.equal(sdxl.ok, false);
+    assert.match(sdxl.error, /nyaris kosong/);
+    assert.equal(result.sdxl_ready, false);
+});
+
+test("inspectImageContent membedakan gambar kosong dan gambar berisi", async () => {
+    const blank = inspectImageContent(makeBlankPng());
+    assert.equal(blank.sampled, true);
+    assert.equal(blank.stddev, 0);
+    assert.equal(isBlankImage(blank), true);
+
+    const normal = inspectImageContent(makeReference({ width: 576, height: 1024 }));
+    assert.equal(normal.sampled, false, "gambar normal tidak perlu di-decode");
+    assert.equal(isBlankImage(normal), false);
+    assert.ok(normal.bytes_per_pixel > 0.3);
 });
