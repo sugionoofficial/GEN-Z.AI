@@ -671,7 +671,7 @@ test("scheduled autopost picks an outfit at random and adds its order link to th
             }
         });
 
-        assert.deepEqual(result, { claimed: 1, resumed: 0, skipped: false });
+        assert.deepEqual(result, { claimed: 1, resumed: 0, swept: { auto: 0, manual: 0 }, skipped: false });
         assert.match(postedCaption, /Cerita Aurora Linen/);
         assert.match(postedCaption, /✨ Outfit: Aurora Linen/);
         assert.match(postedCaption, /https:\/\/shop\.example\.com\/aurora/);

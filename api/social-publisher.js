@@ -3241,6 +3241,41 @@ async function discardManualPost(config, userId, body) {
     return { run_id: runId, status: "discarded" };
 }
 
+/**
+ * Batalkan run yang menggantung di status `generating` (mis. permintaan mati
+ * saat deploy, atau pratinjau manual yang halamannya sudah di-refresh sehingga
+ * byte gambarnya hilang). Tanpa aksi ini baris seperti itu tertinggal selamanya
+ * di riwayat dan mengunci jadwal autopost terkait.
+ */
+async function cancelPostRun(config, userId, body = {}) {
+    const runId = cleanText(body?.run_id, 80);
+    if (!runId) {
+        const error = new Error("ID run tidak valid.");
+        error.status = 400;
+        throw error;
+    }
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_post_runs", `id=eq.${encodeURIComponent(runId)}&owner_id=eq.${encodeURIComponent(userId)}&status=eq.generating&select=id,schedule_id`),
+        {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify({
+                status: "failed",
+                error_message: "Dibatalkan dari riwayat oleh pengguna.",
+                finished_at: new Date().toISOString()
+            })
+        }
+    );
+    if (!rows?.length) {
+        const error = new Error("Run tidak ditemukan, bukan milik akun ini, atau sudah selesai diproses.");
+        error.status = 409;
+        throw error;
+    }
+    const row = rows[0];
+    return { run_id: runId, status: "cancelled", schedule_id: row.schedule_id || null };
+}
+
 async function assertAutopublishReady(config, env) {
     const missing = [];
     const imageProvider = await getSocialImageProvider(config);
@@ -3309,6 +3344,10 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
     if (action === "manual-discard") {
         const discarded = await discardManualPost(config, userId, body);
         return json(res, 200, { success: true, discarded });
+    }
+    if (action === "cancel-run") {
+        const cancelled = await cancelPostRun(config, userId, body);
+        return json(res, 200, { success: true, cancelled });
     }
     if (action === "save-posting-settings") {
         const postingSettings = await savePostingSettings(config, userId, body);

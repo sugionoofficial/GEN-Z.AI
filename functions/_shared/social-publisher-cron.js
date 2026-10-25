@@ -706,12 +706,86 @@ async function processRun(env, config, claimedRun) {
     }
 }
 
+/*
+ * Batas waktu run yang tidak mungkin selesai lagi.
+ *
+ * Run autopost hanya boleh dilanjutkan `claim_stuck_social_post_runs` selama 30
+ * menit sejak dibuat; setelah itu run tersebut yatim dan dulu tertinggal
+ * "generating" selamanya di riwayat. Pratinjau manual menyimpan byte gambar
+ * hanya di browser, jadi begitu halaman di-refresh pratinjaunya mustahil
+ * diterbitkan — baris itu juga harus ditutup, bukan menunggu selamanya.
+ */
+const AUTO_ABANDONED_TTL_MS = 30 * 60 * 1000;
+const MANUAL_ABANDONED_TTL_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Tutup run yang sudah tidak mungkin diselesaikan lagi.
+ *
+ * Filter memakai kolom waktu yang benar untuk tiap jenis: autopost memakai
+ * `started_at` (diperbarui setiap kali run diklaim/dilanjutkan) supaya run yang
+ * baru dilanjutkan tidak ikut tersapu, sedangkan pratinjau manual memakai
+ * `created_at` karena tidak punya mekanisme lanjut.
+ */
+async function failAbandonedRuns(config, now, { filter, message, label }) {
+    try {
+        const rows = await dbRequest(
+            config,
+            table("social_post_runs", `${filter}&select=id`),
+            {
+                method: "PATCH",
+                headers: { Prefer: "return=representation" },
+                body: JSON.stringify({
+                    status: "failed",
+                    error_message: message,
+                    finished_at: new Date(now).toISOString()
+                })
+            }
+        );
+        const failed = Array.isArray(rows) ? rows.length : 0;
+        if (failed) {
+            console.warn(`[Social Publisher] ${failed} run ${label} yang menggantung ditandai gagal.`);
+        }
+        return failed;
+    } catch (error) {
+        console.warn(`[Social Publisher] Sapuan run ${label} dilewati:`, error?.message || "unknown error");
+        return 0;
+    }
+}
+
+async function sweepAbandonedRuns(config, now) {
+    const nowMs = new Date(now).getTime();
+    const autoThreshold = new Date(nowMs - AUTO_ABANDONED_TTL_MS).toISOString();
+    const manualThreshold = new Date(nowMs - MANUAL_ABANDONED_TTL_MS).toISOString();
+
+    const autoMessage = "Proses autopost tidak selesai dan tidak dapat dilanjutkan lagi (di luar jendela 30 menit). Jadwal berikutnya tetap berjalan sesuai interval.";
+    const autoGenerating = await failAbandonedRuns(config, now, {
+        filter: `status=eq.generating&schedule_id=not.is.null&started_at=lt.${encodeURIComponent(autoThreshold)}`,
+        message: autoMessage,
+        label: "autopost"
+    });
+    const autoQueued = await failAbandonedRuns(config, now, {
+        filter: `status=eq.queued&schedule_id=not.is.null&created_at=lt.${encodeURIComponent(autoThreshold)}`,
+        message: autoMessage,
+        label: "autopost"
+    });
+    const manual = await failAbandonedRuns(config, now, {
+        filter: `status=eq.generating&schedule_id=is.null&created_at=lt.${encodeURIComponent(manualThreshold)}`,
+        message: "Pratinjau manual kedaluwarsa karena tidak diterbitkan maupun dibuang. Buat pratinjau baru.",
+        label: "manual"
+    });
+    return { auto: autoGenerating + autoQueued, manual };
+}
+
 export async function runSocialPublisherCron(env, scheduledTime = new Date()) {
     const config = getConfig(env);
     if (!config.url || !config.serviceRoleKey) {
         console.warn("[Social Publisher] Cron skipped: Supabase credentials are not configured.");
         return { claimed: 0, skipped: true };
     }
+
+    /* Bersihkan run yatim lebih dulu supaya riwayat tidak menumpuk status
+       "generating" abadi dan jadwal terkait bisa lanjut. */
+    const swept = await sweepAbandonedRuns(config, scheduledTime);
 
     const claims = await dbRequest(config, "/rest/v1/rpc/claim_due_social_post_schedules", {
         method: "POST",
@@ -739,5 +813,5 @@ export async function runSocialPublisherCron(env, scheduledTime = new Date()) {
         console.log(`[Social Publisher] Melanjutkan run autopost yang terjebak: ${job.run_id}`);
         await processRun(env, config, job);
     }
-    return { claimed: jobs.length, resumed: resumed.length, skipped: false };
+    return { claimed: jobs.length, resumed: resumed.length, swept, skipped: false };
 }
