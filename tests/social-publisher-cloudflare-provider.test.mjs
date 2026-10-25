@@ -6,6 +6,7 @@ import {
     generateSocialContextCaption,
     generateSocialImage,
     generateSocialQuoteImage,
+    resetCloudflareIdentityFallbackCooldown,
     resetCloudflareTryOnCooldown,
     testCloudflareImageProvider
 } from "../lib/social-publisher/providers.js";
@@ -221,7 +222,8 @@ test("SDXL tidak pernah dipakai sebagai cadangan identitas karena menolak input 
     assert.deepEqual(calls.map(call => call.model), [IDENTITY_MODEL, IDENTITY_FALLBACK_MODEL]);
 });
 
-test("FLUX.2 klein 4B gagal kapasitas -> 9B dipakai dengan multipart yang sama", async () => {
+test("FLUX.2 klein 4B gagal kapasitas (setelah 1 retry) -> 9B dipakai dengan multipart yang sama", async () => {
+    resetCloudflareIdentityFallbackCooldown();
     const { AI, calls } = createFakeAI({
         [IDENTITY_MODEL]: () => {
             throw new Error("3040: Out of capacity");
@@ -239,8 +241,9 @@ test("FLUX.2 klein 4B gagal kapasitas -> 9B dipakai dengan multipart yang sama",
         garmentMimeType: "image/jpeg"
     });
     assert.equal(result.model, IDENTITY_FALLBACK_MODEL);
-    assert.deepEqual(calls.map(call => call.model), [IDENTITY_MODEL, IDENTITY_FALLBACK_MODEL]);
-    const { text } = await readMultipartBody(calls[1].payload);
+    /* 4B dicoba dua kali (retry untuk 3040), lalu 9B. */
+    assert.deepEqual(calls.map(call => call.model), [IDENTITY_MODEL, IDENTITY_MODEL, IDENTITY_FALLBACK_MODEL]);
+    const { text } = await readMultipartBody(calls[2].payload);
     assert.match(text, /name="input_image_0"/);
     assert.match(text, /name="input_image_1"/);
     assert.match(text, /name="width"\r\n\r\n1024/);
@@ -532,4 +535,107 @@ test("tes provider memberi tahu berapa menit try-on masih dinonaktifkan", async 
     assert.equal(result.try_on_ready, false);
     assert.ok(result.try_on_cooldown_minutes > 0);
     resetCloudflareTryOnCooldown();
+});
+
+test("FLUX.2 klein 4B dicoba ulang sekali saat error sementara (3043/3040)", async () => {
+    resetCloudflareIdentityFallbackCooldown();
+    let attempts = 0;
+    const { AI, calls } = createFakeAI({
+        [IDENTITY_MODEL]: () => {
+            attempts += 1;
+            if (attempts === 1) throw new Error("3043: Internal server error");
+            return { image: JPEG_BASE64 };
+        }
+    });
+    const result = await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di halte bus",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+    assert.equal(result.model, IDENTITY_MODEL);
+    assert.equal(attempts, 2, "percobaan kedua harus terjadi");
+    assert.equal(calls.length, 2);
+    assert.ok(result.warnings.some(item => /gagal sementara/.test(item)));
+});
+
+test("error konfigurasi 4B tidak dicoba ulang (tidak membuang waktu)", async () => {
+    resetCloudflareIdentityFallbackCooldown();
+    let attempts = 0;
+    const { AI } = createFakeAI({
+        [IDENTITY_MODEL]: () => {
+            attempts += 1;
+            throw new Error("3030: Model input is not valid: input tensor `image` is not present in the model");
+        },
+        [IDENTITY_FALLBACK_MODEL]: () => ({ image: JPEG_BASE64 })
+    });
+    const result = await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di halte bus",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+    assert.equal(result.model, IDENTITY_FALLBACK_MODEL);
+    assert.equal(attempts, 1, "error non-transien tidak boleh diulang");
+});
+
+test("cadangan 9B yang error 3043 dilewati 30 menit setelah itu", async () => {
+    resetCloudflareIdentityFallbackCooldown();
+    const first = createFakeAI({
+        [IDENTITY_MODEL]: () => {
+            throw new Error("3040: Out of capacity");
+        },
+        [IDENTITY_FALLBACK_MODEL]: () => {
+            throw new Error("3043: Internal server error");
+        }
+    });
+    const firstError = await generateSocialImage({
+        env: { AI: first.AI },
+        prompt: "Karakter di pasar",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    }).then(() => null, error => error);
+    assert.ok(firstError);
+    assert.ok(firstError.warnings.some(item => /dilewati 30 menit/.test(item)));
+
+    const second = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [IDENTITY_FALLBACK_MODEL]: () => {
+            throw new Error("tidak boleh dipanggil");
+        }
+    });
+    const secondRun = await generateSocialImage({
+        env: { AI: second.AI },
+        prompt: "Karakter di pantai",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+    assert.equal(secondRun.model, IDENTITY_MODEL);
+    assert.equal(second.calls.some(call => call.model === IDENTITY_FALLBACK_MODEL), false);
+    assert.ok(secondRun.warnings.some(item => /9B dilewati sementara \(\d+ menit lagi\)/.test(item)));
+    resetCloudflareIdentityFallbackCooldown();
+});
+
+test("tes provider menandai single point of failure saat 4B siap tetapi 9B gagal", async () => {
+    resetCloudflareIdentityFallbackCooldown();
+    const { AI } = createFakeAI({
+        [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [IDENTITY_FALLBACK_MODEL]: () => {
+            throw new Error("3043: Internal server error");
+        },
+        [FLUX_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [SDXL_MODEL]: () => ({ image: JPEG_BASE64 })
+    });
+    const result = await testCloudflareImageProvider({ env: { AI } });
+    assert.equal(result.identity_ready, true);
+    assert.equal(result.identity_fallback_ready, false);
+    assert.equal(result.identity_chain_ready, true);
+    assert.equal(result.identity_single_point, true);
+    assert.ok(result.identity_fallback_cooldown_minutes > 0);
+    assert.match(result.checks.find(check => check.id === "identity9b").error, /gangguan sementara/);
+    resetCloudflareIdentityFallbackCooldown();
 });

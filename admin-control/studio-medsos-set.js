@@ -827,6 +827,13 @@
         } else {
             lines.push("Kedua model FLUX.2 klein gagal — wajah karakter TIDAK akan konsisten, lihat error di bawah.");
         }
+        if (test?.identity_single_point) {
+            const cooldown = test?.identity_fallback_cooldown_minutes;
+            lines.push(
+                "PERINGATAN: tidak ada cadangan identitas — kalau 4B sedang penuh atau error, karakter tidak bisa dibuat"
+                + (cooldown ? ` (9B dicoba lagi otomatis dalam ${cooldown} menit).` : ".")
+            );
+        }
         if (test?.t2i_ready === false) {
             lines.push("FLUX.1 schnell gagal, jadi latar Kata-kata Mutiara tidak bisa dibuat.");
         }
