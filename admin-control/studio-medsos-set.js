@@ -892,6 +892,47 @@
         }
     }
 
+    /**
+     * Tes Tencent dari HP: tidak perlu curl. Worker memanggil Hy Image dengan
+     * foto contoh wajah sungguhan, jadi hasilnya sekaligus membuktikan API key
+     * dan status billing model. Satu klik = satu gambar berbayar.
+     */
+    async function testTencentProvider() {
+        const button = document.getElementById("test-tencent-provider");
+        const status = document.getElementById("image-provider-status");
+        if (button) button.disabled = true;
+        if (status) {
+            status.className = "status-box price-settings-status";
+            status.textContent = "Menguji Tencent Hy Image (1 gambar berbayar)…";
+        }
+        try {
+            const result = await api("studio-admin-image-provider-test", {
+                method: "POST",
+                body: { provider: "tencent" }
+            });
+            const test = result.test || {};
+            if (test.ok) {
+                const kb = Math.max(1, Math.round(Number(test.bytes || 0) / 1024));
+                const seconds = (Number(test.elapsed_ms || 0) / 1000).toFixed(1);
+                const size = test.width && test.height ? `${test.width}×${test.height}` : "ukuran tidak terbaca";
+                setImageProviderStatus(
+                    `Tencent ${test.model} OK — ${kb} KB, ${size}, ${seconds} detik, ${test.images_sent} gambar referensi (sumber: ${test.test_reference_source}).`,
+                    "success"
+                );
+            } else {
+                setImageProviderStatus(
+                    `Tencent ${test.model || "Hy Image"} gagal${test.status ? ` (HTTP ${test.status})` : ""}: ${test.error || "tanpa pesan"}`,
+                    "error"
+                );
+            }
+        } catch (error) {
+            console.error(error);
+            setImageProviderStatus(error.message || "Tes Tencent gagal.", "error");
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
     function renderPricingStatus(pricing, prefix = "Harga saat ini", type = "") {
         const values = PRICE_PERIODS.map(({ key, label }) => {
             const price = pricing[`price_${key}_idr`];
@@ -1024,6 +1065,7 @@
         savePriceButton.addEventListener("click", savePricing);
         saveImageProviderButton.addEventListener("click", saveImageProvider);
         document.getElementById("test-image-provider")?.addEventListener("click", testImageProvider);
+        document.getElementById("test-tencent-provider")?.addEventListener("click", testTencentProvider);
         for (const radio of document.querySelectorAll('input[name="image-provider"]')) {
             radio.addEventListener("change", renderQwenCloudOptions);
         }

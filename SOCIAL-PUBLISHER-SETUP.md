@@ -65,7 +65,13 @@ Tencent Cloud reaches Hunyuan Image through TokenHub, and unlike the Gemini or Q
 npx wrangler@4 secret put TENCENT_TOKENHUB_KEY
 ```
 
-The key is a **TokenHub API key** (start with `sk-`/`th-...` in the TokenHub console), *not* a Tencent Cloud SecretId/SecretKey pair — sending a SecretId gets `401` and the Worker reports that distinction instead of a generic auth failure. Optional Worker variables: `TENCENT_IMAGE_ENDPOINT` (default `https://tokenhub-intl.tencentcloudmaas.com/v1/wand/hunyuan-image/v3-generation`) and `TENCENT_IMAGE_MODEL` (default `hy-image-v3`, i.e. Hy-Image-3.0). `hy-image-v3.5-preview` uses a different messages protocol and is **not** wired to this endpoint yet.
+Get the key from the **TokenHub console** (`https://console.tencentcloud.com/tokenhub/apikey`), not from *Access Management → API Keys* — a SecretId/SecretKey pair does not authenticate against TokenHub.
+
+**Adding the secret without a terminal (phone):** Cloudflare dashboard → **Workers & Pages → genzai → Settings → Variables and Secrets → Add → type Secret**, name `TENCENT_TOKENHUB_KEY`, paste the key, then **Deploy**. The secret is used server-side, so nothing needs to be typed into the admin page.
+
+**Testing without curl:** the provider card now has a **Tes Tencent** button next to *Tes Cloudflare AI*. It calls Hy Image once through the Worker using a real sample portrait as the reference image, then shows the model, size, KB, duration, or the raw Tencent error (`401` wrong key, `403` postpaid not enabled for the model, `429` concurrency, `402`/balance). Each click produces **one billed image**, so use it deliberately.
+
+The key is a **TokenHub API key** — sending a SecretId gets `401` and the Worker reports that distinction instead of a generic auth failure. Optional Worker variables: `TENCENT_IMAGE_ENDPOINT` (default `https://tokenhub-intl.tencentcloudmaas.com/v1/wand/hunyuan-image/v3-generation`) and `TENCENT_IMAGE_MODEL` (default `hy-image-v3`, i.e. Hy-Image-3.0). `hy-image-v3.5-preview` uses a different messages protocol and is **not** wired to this endpoint yet.
 
 The provider sends the character reference photo and, when an outfit is selected, the outfit photo as `images[0..2]` Base64 data URLs (the v3 API accepts at most **3**), then downloads the resulting `data[0].url` (valid 12 hours; re-requested with the Bearer header when the CDN answers 401/403). Output size is capped by the v3 API — sides between 512 and 2048 px and total area ≤ 1,048,576 px — so the Worker asks for `576x1024` on 9:16 and `1024x576` on 16:9 instead of the 1152×2048 used by other providers.
 

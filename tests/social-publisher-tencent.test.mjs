@@ -1,12 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import jpeg from "jpeg-js";
 
 import {
     generateTencentSocialImage,
     tencentImageSizeForRatio
 } from "../lib/social-publisher/tencent.js";
-import { generateSocialImage } from "../lib/social-publisher/providers.js";
+import { generateSocialImage, testTencentImageProvider } from "../lib/social-publisher/providers.js";
 
 const ENDPOINT = "https://tokenhub-intl.tencentcloudmaas.com/v1/wand/hunyuan-image/v3-generation";
 
@@ -220,4 +222,53 @@ test("endpoint dan model bisa dioverride lewat Worker variable", async () => {
     } finally {
         restore();
     }
+});
+
+test("tombol tes Tencent mengembalikan ringkasan gambar yang benar-benar dibuat", async () => {
+    const output = photo({ width: 576, height: 1024 });
+    const restore = mockFetch(async (url) => {
+        if (url === ENDPOINT) {
+            return Response.json({ data: [{ url: "https://aigc-image.example/test.png" }] });
+        }
+        if (url === "https://aigc-image.example/test.png") {
+            return new Response(output, { headers: { "content-type": "image/jpeg" } });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+    try {
+        const result = await testTencentImageProvider({ env: { TENCENT_TOKENHUB_KEY: "k" } });
+        assert.equal(result.ok, true);
+        assert.equal(result.model, "hy-image-v3");
+        assert.ok(result.bytes > 0);
+        assert.equal(result.images_sent, 1);
+        assert.ok(["sample-photo", "synthetic"].includes(result.test_reference_source));
+    } finally {
+        restore();
+    }
+});
+
+test("tombol tes Tencent meneruskan error asli, bukan melaporkan OK", async () => {
+    const restore = mockFetch(async () => Response.json({
+        error: { message: "postpaid billing is not enabled for this model" }
+    }, { status: 403 }));
+    try {
+        const result = await testTencentImageProvider({ env: { TENCENT_TOKENHUB_KEY: "k" } });
+        assert.equal(result.ok, false);
+        assert.equal(result.status, 403);
+        assert.match(result.error, /postpaid billing is not enabled/);
+    } finally {
+        restore();
+    }
+});
+
+test("tombol Tes Tencent ada di admin dan memanggil aksi tes dengan provider tencent", () => {
+    const read = path => readFileSync(fileURLToPath(new URL(`../${path}`, import.meta.url)), "utf8");
+    const html = read("admin-control/studio-medsos-set.html");
+    const js = read("admin-control/studio-medsos-set.js");
+    const api = read("api/social-publisher.js");
+    assert.match(html, /id="test-tencent-provider"/, "Tombol Tes Tencent harus ada di panel admin");
+    assert.match(js, /test-tencent-provider"\)\?\.addEventListener\("click", testTencentProvider\)/);
+    assert.match(js, /body: \{ provider: "tencent" \}/, "Handler harus mengirim provider tencent");
+    assert.match(api, /testTencentImageProvider\(\{ env \}\)/, "API harus memakai jalur tes Tencent");
+    assert.match(api, /String\(body\?\.provider \|\| "cloudflare"\)/, "Aksi tes harus menerima pilihan provider");
 });
