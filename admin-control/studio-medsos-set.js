@@ -586,6 +586,7 @@
     function providerLabel(value) {
         if (value === "cloudflare") return "Cloudflare Workers AI";
         if (value === "qwencloud") return "QwenCloud (Qwen Image)";
+        if (value === "tencent") return "Tencent Cloud (Hy Image 3.0)";
         return "Google Gemini";
     }
 
@@ -597,6 +598,11 @@
         }
         if (value === "qwencloud") {
             return settings.qwencloud_configured ? "QwenCloud membuat gambar dan caption" : "QWENCLOUD_API_KEY belum tersedia";
+        }
+        if (value === "tencent") {
+            return settings.tencent_configured
+                ? "Tencent Hy Image 3.0 membuat gambar (foto karakter + outfit sebagai referensi); caption memakai model vision Cloudflare"
+                : "TENCENT_TOKENHUB_KEY belum tersedia";
         }
         return settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
     }
@@ -786,7 +792,7 @@
         const result = await api("studio-admin-image-provider");
         const settings = result.settings || {};
         providerSettings = settings;
-        const selected = ["cloudflare", "qwencloud"].includes(settings.image_provider) ? settings.image_provider : "gemini";
+        const selected = ["cloudflare", "qwencloud", "tencent"].includes(settings.image_provider) ? settings.image_provider : "gemini";
         document.querySelector(`input[name="image-provider"][value="${selected}"]`).checked = true;
         renderQwenCloudOptions();
         const llmSummary = settings.quote_llm_model ? ` · LLM Kata Mutiara: QwenCloud (${settings.quote_llm_model}, latar hitam hemat kuota gambar)` : "";
