@@ -20,7 +20,8 @@ const JPEG_BASE64 = Buffer.from(JPEG_BYTES).toString("base64");
 const REMOTE_URL = "https://cdn.example/generated.jpg";
 
 const IDENTITY_MODEL = "@cf/black-forest-labs/flux-2-klein-4b";
-const IMG2IMG_MODEL = "@cf/stabilityai/stable-diffusion-xl-base-1.0";
+const IDENTITY_FALLBACK_MODEL = "@cf/black-forest-labs/flux-2-klein-9b";
+const SDXL_MODEL = "@cf/stabilityai/stable-diffusion-xl-base-1.0";
 const TRYON_MODEL = "pruna/p-image-try-on";
 const FLUX_MODEL = "@cf/black-forest-labs/flux-1-schnell";
 
@@ -162,14 +163,13 @@ test("tanpa foto pakaian FLUX.2 klein tetap memakai foto referensi karakter saja
     assert.match(text, /Pakaian tetap seperti pada gambar 1/);
 });
 
-test("FLUX.2 klein gagal -> try-on Pruna -> SDXL img2img, identitas tetap dijaga", async () => {
+test("FLUX.2 klein 4B gagal -> try-on Pruna, identitas tetap dijaga", async () => {
     resetCloudflareTryOnCooldown();
     const { AI, calls } = createFakeAI({
         [IDENTITY_MODEL]: () => {
             throw new Error("Account limited: out of neurons");
         },
-        [TRYON_MODEL]: () => ({ state: "Completed", result: { image: REMOTE_URL } }),
-        [IMG2IMG_MODEL]: () => ({ image: JPEG_BASE64 })
+        [TRYON_MODEL]: () => ({ state: "Completed", result: { image: REMOTE_URL } })
     });
     const fetchMock = captureFetch();
     try {
@@ -184,37 +184,68 @@ test("FLUX.2 klein gagal -> try-on Pruna -> SDXL img2img, identitas tetap dijaga
         });
         assert.equal(result.model, TRYON_MODEL);
         assert.equal(result.bytes.length, JPEG_BYTES.length);
-        assert.deepEqual(calls.map(call => call.model), [IDENTITY_MODEL, TRYON_MODEL]);
-        assert.match(result.warnings[0], /FLUX.2 klein .* gagal/);
+        /* 4B gagal -> 9B juga gagal (fake) -> try-on Pruna berhasil. */
+        assert.deepEqual(calls.map(call => call.model), [IDENTITY_MODEL, IDENTITY_FALLBACK_MODEL, TRYON_MODEL]);
+        assert.match(result.warnings[0], /FLUX\.2 klein 4B gagal/);
     } finally {
         fetchMock.restore();
     }
+});
 
-    const fallback = createFakeAI({
+test("SDXL tidak pernah dipakai sebagai cadangan identitas karena menolak input gambar", async () => {
+    resetCloudflareTryOnCooldown();
+    const { AI, calls } = createFakeAI({
         [IDENTITY_MODEL]: () => {
-            throw new Error("Input image must be smaller than 512x512");
+            throw new Error("Account limited: out of neurons");
         },
-        [TRYON_MODEL]: () => {
-            throw new Error("Third-party model requires AI Gateway unified billing credits");
+        [IDENTITY_FALLBACK_MODEL]: () => {
+            throw new Error("Account limited: out of neurons");
         },
-        [IMG2IMG_MODEL]: () => new Uint8Array([0xff, 0xd8, 0xff, 0x01])
+        [SDXL_MODEL]: () => {
+            throw new Error("3030: Model input is not valid: input tensor `image` is not present in the model");
+        }
     });
-    const second = await generateSocialImage({
-        env: { AI: fallback.AI },
-        prompt: "Karakter di pantai",
+    await assert.rejects(
+        () => generateSocialImage({
+            env: { AI },
+            prompt: "Karakter di pasar",
+            imageProvider: "cloudflare",
+            referenceBytes: makeReference(),
+            referenceMimeType: "image/jpeg"
+        }),
+        error => {
+            assert.match(error.message, /Karakter konsisten tidak dapat dibuat/);
+            return true;
+        }
+    );
+    assert.deepEqual(calls.map(call => call.model), [IDENTITY_MODEL, IDENTITY_FALLBACK_MODEL]);
+});
+
+test("FLUX.2 klein 4B gagal kapasitas -> 9B dipakai dengan multipart yang sama", async () => {
+    const { AI, calls } = createFakeAI({
+        [IDENTITY_MODEL]: () => {
+            throw new Error("3040: Out of capacity");
+        },
+        [IDENTITY_FALLBACK_MODEL]: () => ({ image: JPEG_BASE64 })
+    });
+    const result = await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di stasiun",
         imageProvider: "cloudflare",
+        aspectRatio: "16:9",
         referenceBytes: makeReference(),
         referenceMimeType: "image/jpeg",
-        personImageUrl: "https://storage.example/person.jpg",
-        garmentImageUrls: ["https://storage.example/outfit.jpg"]
+        garmentBytes: makeReference({ width: 400, height: 400 }),
+        garmentMimeType: "image/jpeg"
     });
-    assert.equal(second.model, IMG2IMG_MODEL);
-    const img2imgPayload = fallback.calls.find(call => call.model === IMG2IMG_MODEL).payload;
-    assert.equal(img2imgPayload.strength, 0.45);
-    assert.equal(img2imgPayload.width, 576);
-    assert.equal(img2imgPayload.height, 1024);
-    assert.ok(second.warnings.some(item => /FLUX\.2 klein .* gagal/.test(item)));
-    assert.ok(second.warnings.some(item => /Try-on Pruna/.test(item)));
+    assert.equal(result.model, IDENTITY_FALLBACK_MODEL);
+    assert.deepEqual(calls.map(call => call.model), [IDENTITY_MODEL, IDENTITY_FALLBACK_MODEL]);
+    const { text } = await readMultipartBody(calls[1].payload);
+    assert.match(text, /name="input_image_0"/);
+    assert.match(text, /name="input_image_1"/);
+    assert.match(text, /name="width"\r\n\r\n1024/);
+    assert.match(text, /name="height"\r\n\r\n576/);
+    assert.match(result.warnings[0], /4B gagal/);
 });
 
 test("semua model ber-referensi gagal -> error jelas, tanpa gambar teks-ke-gambar", async () => {
@@ -226,8 +257,8 @@ test("semua model ber-referensi gagal -> error jelas, tanpa gambar teks-ke-gamba
         [TRYON_MODEL]: () => {
             throw new Error("Third-party model requires AI Gateway unified billing credits");
         },
-        [IMG2IMG_MODEL]: () => {
-            throw new Error("input tensor image is not present in the model");
+        [IDENTITY_FALLBACK_MODEL]: () => {
+            throw new Error("3040: Out of capacity");
         }
     });
     await assert.rejects(
@@ -340,7 +371,7 @@ test("latar Kata-kata Mutiara tetap memakai FLUX lalu SDXL sesuai rasio", async 
         [FLUX_MODEL]: () => {
             throw new Error("No such model");
         },
-        [IMG2IMG_MODEL]: () => ({ image: JPEG_BASE64 })
+        [SDXL_MODEL]: () => ({ image: JPEG_BASE64 })
     });
     const second = await generateSocialQuoteImage({
         env: { AI: fallback.AI },
@@ -348,18 +379,17 @@ test("latar Kata-kata Mutiara tetap memakai FLUX lalu SDXL sesuai rasio", async 
         aspectRatio: "16:9",
         imageProvider: "cloudflare"
     });
-    assert.equal(second.model, IMG2IMG_MODEL);
+    assert.equal(second.model, SDXL_MODEL);
     assert.equal(fallback.calls[1].payload.width, 1024);
     assert.equal(fallback.calls[1].payload.height, 576);
 });
 
-test("tes provider melaporkan jalur identitas, gratis, dan try-on per model", async () => {
+test("tes provider melaporkan jalur identitas, cadangan, dan try-on per model", async () => {
     const { AI } = createFakeAI({
         [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [IDENTITY_FALLBACK_MODEL]: () => ({ image: JPEG_BASE64 }),
         [FLUX_MODEL]: () => ({ image: JPEG_BASE64 }),
-        [IMG2IMG_MODEL]: () => {
-            throw new Error("Account limited: out of neurons");
-        },
+        [SDXL_MODEL]: () => ({ image: JPEG_BASE64 }),
         [TRYON_MODEL]: () => {
             throw new Error("Third-party models require AI Gateway unified billing credits");
         }
@@ -367,12 +397,13 @@ test("tes provider melaporkan jalur identitas, gratis, dan try-on per model", as
     const result = await testCloudflareImageProvider({ env: { AI }, includeTryOn: true });
     assert.equal(result.binding_ready, true);
     assert.equal(result.identity_ready, true);
+    assert.equal(result.identity_fallback_ready, true);
+    assert.equal(result.identity_chain_ready, true);
     assert.equal(result.free_tier_ready, true);
     assert.equal(result.try_on_ready, false);
-    assert.equal(result.checks.length, 4);
-    assert.equal(result.checks[0].model, IDENTITY_MODEL);
-    assert.equal(result.checks[0].ok, true);
-    assert.match(result.checks[3].error, /Unified Billing/);
+    assert.equal(result.checks.length, 5);
+    assert.deepEqual(result.checks.map(check => check.id), ["identity", "identity9b", "t2i", "sdxl", "tryon"]);
+    assert.match(result.checks[4].error, /Unified Billing/);
 });
 
 test("tes provider tetap melaporkan hasil walau model identitas tidak tersedia", async () => {
@@ -380,28 +411,32 @@ test("tes provider tetap melaporkan hasil walau model identitas tidak tersedia",
         [IDENTITY_MODEL]: () => {
             throw new Error("No such model");
         },
+        [IDENTITY_FALLBACK_MODEL]: () => ({ image: JPEG_BASE64 }),
         [FLUX_MODEL]: () => ({ image: JPEG_BASE64 }),
-        [IMG2IMG_MODEL]: () => ({ image: JPEG_BASE64 })
+        [SDXL_MODEL]: () => ({ image: JPEG_BASE64 })
     });
     const result = await testCloudflareImageProvider({ env: { AI } });
     assert.equal(result.identity_ready, false);
+    assert.equal(result.identity_fallback_ready, true);
+    assert.equal(result.identity_chain_ready, true);
     assert.equal(result.free_tier_ready, true);
     assert.match(result.checks[0].error, /tidak tersedia/);
 });
 
 test("try-on yang kehabisan kredit AI Gateway tidak dicoba lagi pada pembuatan berikutnya", async () => {
     resetCloudflareTryOnCooldown();
-    const billingError = new Error("2021: Insufficient AI Gateway credits");
     const first = createFakeAI({
         [IDENTITY_MODEL]: () => {
             throw new Error("Account limited: out of neurons");
         },
-        [TRYON_MODEL]: () => {
-            throw billingError;
+        [IDENTITY_FALLBACK_MODEL]: () => {
+            throw new Error("Account limited: out of neurons");
         },
-        [IMG2IMG_MODEL]: () => new Uint8Array([0xff, 0xd8, 0xff, 0x02])
+        [TRYON_MODEL]: () => {
+            throw new Error("2021: Insufficient AI Gateway credits");
+        }
     });
-    const firstRun = await generateSocialImage({
+    const firstError = await generateSocialImage({
         env: { AI: first.AI },
         prompt: "Karakter di pasar",
         imageProvider: "cloudflare",
@@ -409,20 +444,21 @@ test("try-on yang kehabisan kredit AI Gateway tidak dicoba lagi pada pembuatan b
         referenceMimeType: "image/jpeg",
         personImageUrl: "https://storage.example/person.jpg",
         garmentImageUrls: ["https://storage.example/outfit.jpg"]
-    });
-    assert.equal(firstRun.model, IMG2IMG_MODEL);
-    assert.ok(firstRun.warnings.some(item => /Try-on Pruna dinonaktifkan 6 jam/.test(item)));
-    assert.deepEqual(first.calls.map(call => call.model), [IDENTITY_MODEL, TRYON_MODEL, IMG2IMG_MODEL]);
+    }).then(() => null, error => error);
 
-    /* Percobaan kedua: Pruna harus dilewati total, tanpa request tambahan. */
+    assert.ok(firstError, "semua model gagal, jadi run harus gagal");
+    assert.ok(firstError.warnings.some(item => /Try-on Pruna dinonaktifkan 6 jam/.test(item)));
+    assert.deepEqual(first.calls.map(call => call.model), [IDENTITY_MODEL, IDENTITY_FALLBACK_MODEL, TRYON_MODEL]);
+
+    /* Percobaan kedua: Pruna harus dilewati total walaupun identitas 4B masih gagal. */
     const second = createFakeAI({
         [IDENTITY_MODEL]: () => {
             throw new Error("Account limited: out of neurons");
         },
+        [IDENTITY_FALLBACK_MODEL]: () => ({ image: JPEG_BASE64 }),
         [TRYON_MODEL]: () => {
             throw new Error("tidak boleh dipanggil");
-        },
-        [IMG2IMG_MODEL]: () => new Uint8Array([0xff, 0xd8, 0xff, 0x03])
+        }
     });
     const secondRun = await generateSocialImage({
         env: { AI: second.AI },
@@ -433,7 +469,7 @@ test("try-on yang kehabisan kredit AI Gateway tidak dicoba lagi pada pembuatan b
         personImageUrl: "https://storage.example/person.jpg",
         garmentImageUrls: ["https://storage.example/outfit.jpg"]
     });
-    assert.equal(secondRun.model, IMG2IMG_MODEL);
+    assert.equal(secondRun.model, IDENTITY_FALLBACK_MODEL);
     assert.equal(second.calls.some(call => call.model === TRYON_MODEL), false);
     assert.ok(secondRun.warnings.some(item => /dilewati sementara \(\d+ menit lagi\)/.test(item)));
 
@@ -446,8 +482,7 @@ test("try-on yang berhasil memulihkan status dan dipakai lagi", async () => {
         [IDENTITY_MODEL]: () => {
             throw new Error("No such model");
         },
-        [TRYON_MODEL]: () => ({ state: "Completed", result: { image: JPEG_BASE64 } }),
-        [IMG2IMG_MODEL]: () => new Uint8Array([0xff, 0xd8, 0xff, 0x04])
+        [TRYON_MODEL]: () => ({ state: "Completed", result: { image: JPEG_BASE64 } })
     });
     const result = await generateSocialImage({
         env: { AI },
@@ -462,30 +497,33 @@ test("try-on yang berhasil memulihkan status dan dipakai lagi", async () => {
     assert.equal(calls.some(call => call.model === TRYON_MODEL), true);
 });
 
-test("tes provider menguji jalur cadangan SDXL img2img dengan gambar referensi", async () => {
-    let img2imgPayload = null;
+test("tes provider menguji SDXL hanya sebagai latar teks-ke-gambar, tanpa input gambar", async () => {
+    let sdxlPayload = null;
     const { AI } = createFakeAI({
         [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [IDENTITY_FALLBACK_MODEL]: () => ({ image: JPEG_BASE64 }),
         [FLUX_MODEL]: () => ({ image: JPEG_BASE64 }),
-        [IMG2IMG_MODEL]: (payload) => {
-            img2imgPayload = payload;
-            throw new Error("input tensor image is not present in the model");
+        [SDXL_MODEL]: (payload) => {
+            sdxlPayload = payload;
+            throw new Error("3030: Model input is not valid: input tensor `image` is not present in the model");
         }
     });
     const result = await testCloudflareImageProvider({ env: { AI } });
     assert.equal(result.identity_ready, true);
-    assert.equal(result.img2img_ready, false);
-    assert.equal(result.checks.find(check => check.id === "img2img").ok, false);
-    assert.ok(img2imgPayload.image_b64.length > 0, "tes harus mengirim gambar referensi");
-    assert.equal(img2imgPayload.strength, 0.45);
+    assert.equal(result.sdxl_ready, false);
+    assert.equal(sdxlPayload.image_b64, undefined, "SDXL tidak boleh dikirimi gambar");
+    assert.equal(sdxlPayload.num_steps, 2);
+    assert.equal(result.checks.find(check => check.id === "sdxl").ok, false);
+    assert.match(result.checks.find(check => check.id === "sdxl").error, /tidak menerima input gambar/);
 });
 
 test("tes provider memberi tahu berapa menit try-on masih dinonaktifkan", async () => {
     resetCloudflareTryOnCooldown();
     const { AI } = createFakeAI({
         [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [IDENTITY_FALLBACK_MODEL]: () => ({ image: JPEG_BASE64 }),
         [FLUX_MODEL]: () => ({ image: JPEG_BASE64 }),
-        [IMG2IMG_MODEL]: () => ({ image: JPEG_BASE64 }),
+        [SDXL_MODEL]: () => ({ image: JPEG_BASE64 }),
         [TRYON_MODEL]: () => {
             throw new Error("2021: Insufficient AI Gateway credits");
         }

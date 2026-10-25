@@ -214,7 +214,7 @@ test("Cloudflare Workers AI sends private person and garment URLs to P-Image Try
         env: {
             AI: {
                 async run(modelId, parameters) {
-                    if (modelId === "@cf/black-forest-labs/flux-2-klein-4b") {
+                    if (modelId.startsWith("@cf/black-forest-labs/flux-2-klein-")) {
                         throw new Error("No such model");
                     }
                     tryOnInput = parameters;
@@ -263,9 +263,9 @@ test("Cloudflare tanpa foto pakaian melewati try-on dan tetap memakai foto refer
 
     assert.deepEqual(calls.map(call => call.model), [
         "@cf/black-forest-labs/flux-2-klein-4b",
-        "@cf/stabilityai/stable-diffusion-xl-base-1.0"
+        "@cf/black-forest-labs/flux-2-klein-9b"
     ]);
-    assert.equal(result.model, "@cf/stabilityai/stable-diffusion-xl-base-1.0");
+    assert.equal(result.model, "@cf/black-forest-labs/flux-2-klein-9b");
     assert.deepEqual([...result.bytes], [...outputBytes]);
     assert.match(result.warnings.join(" "), /FLUX.2 klein .* gagal/);
 });

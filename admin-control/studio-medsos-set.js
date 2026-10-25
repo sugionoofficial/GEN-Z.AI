@@ -821,12 +821,14 @@
         });
         const lines = [];
         if (test?.identity_ready) {
-            lines.push("Karakter konsisten dari foto referensi siap (FLUX.2 klein).");
+            lines.push("Karakter konsisten dari foto referensi siap (FLUX.2 klein 4B).");
+        } else if (test?.identity_fallback_ready) {
+            lines.push("FLUX.2 klein 4B gagal, tetapi cadangan FLUX.2 klein 9B siap (lebih mahal per gambar).");
         } else {
-            lines.push("FLUX.2 klein gagal — wajah karakter TIDAK akan konsisten, lihat error di bawah.");
+            lines.push("Kedua model FLUX.2 klein gagal — wajah karakter TIDAK akan konsisten, lihat error di bawah.");
         }
-        if (test?.img2img_ready === false) {
-            lines.push("Jalur cadangan SDXL img2img juga gagal, jadi tidak ada cadangan saat kuota Neuron habis.");
+        if (test?.t2i_ready === false) {
+            lines.push("FLUX.1 schnell gagal, jadi latar Kata-kata Mutiara tidak bisa dibuat.");
         }
         if (test?.try_on_ready === true) {
             lines.push("Try-on Pruna aktif (kredit AI Gateway tersedia).");
@@ -837,7 +839,7 @@
                 : "Try-on Pruna tidak aktif (wajar bila kredit AI Gateway belum diisi).");
         }
         if (test?.free_tier_ready === false) {
-            lines.push("Semua model gratis @cf gagal — periksa kuota Neuron harian.");
+            lines.push("Semua model gagal — periksa kuota Neuron harian.");
         }
         return [...lines, ...rows].join(" — ");
     }
