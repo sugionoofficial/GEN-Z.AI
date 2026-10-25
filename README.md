@@ -142,7 +142,11 @@ tidak dibuat sehingga tidak ada karakter dengan wajah berbeda. Foto referensi
 diperkecil otomatis ke maksimal 512 px (JPEG/PNG) karena itu syarat input FLUX.2 klein.
 Bila `pruna/...` menolak dengan error kredit (`2021`), provider mengingatnya 6 jam dan melewati panggilan itu
 pada pembuatan berikutnya. Cadangan identitas adalah `@cf/black-forest-labs/flux-2-klein-9b` (protokol multipart sama, 1.363,64 Neuron
-per MP pertama). `@cf/stabilityai/stable-diffusion-xl-base-1.0` TIDAK dipakai sebagai cadangan identitas karena
+per MP pertama), namun pada akun uji model itu menjawab `3043: Internal server error`, jadi sifatnya best-effort
+dan dilewati 30 menit setelah gangguan. Model utama (4B) dicoba ulang sekali setelah 700 ms untuk error sementara
+(`3040` kapasitas penuh, `3043`, 5xx), sedangkan error konfigurasi (`3030`, model tidak ada) tidak diulang.
+Bila 9B tidak tersedia, tes provider melaporkan `identity_single_point` — artinya gangguan kapasitas pada 4B
+membuat karakter tidak bisa dibuat sama sekali. `@cf/stabilityai/stable-diffusion-xl-base-1.0` TIDAK dipakai sebagai cadangan identitas karena
 model itu menolak input gambar (`3030: input tensor image is not present in the model`); SDXL hanya dipakai
 untuk latar Kata-kata Mutiara yang tidak memuat karakter. Kuota 10.000 Neuron/hari setara ±14 gambar karakter
 FLUX.2 klein 4B; setelah habis, sistem mencoba 9B lalu pulih pada 00:00 UTC.
