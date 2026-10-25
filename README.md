@@ -133,18 +133,21 @@ Google Gemini memerlukan `GEMINI_API_KEY`, sementara Cloudflare memakai binding
 digunakan untuk melindungi token Facebook. Admin dapat memilih Google Gemini atau
 Cloudflare Workers AI sebagai provider gambar dan caption di
 **Admin Panel → SET Studio Medsos**. Pilihan
-Cloudflare memakai binding `AI`: `pruna/p-image-try-on` untuk mencoba pakaian pada foto
-karakter bila kredit AI Gateway tersedia, lalu otomatis turun ke `@cf/stabilityai/stable-diffusion-xl-base-1.0`
-(img2img dari foto referensi) dan `@cf/black-forest-labs/flux-1-schnell` (text-to-image) yang
-tercakup kuota gratis 10.000 Neuron/hari. Caption memakai `@cf/meta/llama-3.2-11b-vision-instruct`
-dengan fallback model teks, tanpa memerlukan `GEMINI_API_KEY`. Model pihak ketiga (`pruna/...`)
-ditagih lewat Unified Billing AI Gateway sehingga tidak termasuk kuota gratis dan gagal di
-Workers Free tanpa kredit; model gratis `@cf/...` tetap berjalan. Akun Cloudflare harus
-menerima lisensi model Llama sebelum penggunaan pertama. Kuota dan biaya
-bergantung pada tier dan ketersediaan model partner di akun provider masing-masing.
-Minimal satu outfit aktif (atau foto pakaian default) diperlukan untuk setiap karakter
-yang dipakai saat provider Cloudflare aktif. URL bertanda tangan Supabase yang berumur
-pendek dikirim ke model Pruna untuk memproses foto karakter dan outfit terpilih. Provider
+Cloudflare memakai binding `AI` dengan pipeline yang selalu memakai foto referensi
+karakter agar wajah konsisten: `@cf/black-forest-labs/flux-2-klein-4b` (foto karakter
+sebagai `input_image_0`, outfit sebagai `input_image_1`, gratis lewat kuota 10.000
+Neuron/hari), lalu `pruna/p-image-try-on` bila kredit AI Gateway tersedia, lalu
+`@cf/stabilityai/stable-diffusion-xl-base-1.0` img2img. Bila ketiganya gagal, gambar
+tidak dibuat sehingga tidak ada karakter dengan wajah berbeda. Foto referensi
+diperkecil otomatis ke maksimal 512 px (JPEG/PNG) karena itu syarat input FLUX.2 klein.
+Latar Kata-kata Mutiara memakai `@cf/black-forest-labs/flux-1-schnell`. Caption memakai
+`@cf/meta/llama-3.2-11b-vision-instruct` dengan fallback model teks, tanpa memerlukan
+`GEMINI_API_KEY`. Model pihak ketiga (`pruna/...`) ditagih lewat Unified Billing AI Gateway
+sehingga tidak termasuk kuota gratis dan gagal di Workers Free tanpa kredit; model gratis
+`@cf/...` tetap berjalan. Akun Cloudflare harus menerima lisensi model Llama sebelum
+penggunaan pertama. Kuota dan biaya bergantung pada tier dan ketersediaan model partner
+di akun provider masing-masing.
+Provider
 Gemini dan QwenCloud juga menerima foto outfit terpilih sebagai referensi kedua agar
 bahan, warna, dan potongan pakaian tetap konsisten. Periksa biaya dan ketentuan model sebelum digunakan.
 Service role key hanya digunakan server dan tidak boleh dikirim ke browser.

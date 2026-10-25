@@ -512,7 +512,7 @@
                     <input type="radio" name="image-provider" value="cloudflare">
                     <span>
                         <strong>Cloudflare Workers AI</strong>
-                        <small>Memakai binding <code>AI</code> di Worker. Model gratis <code>@cf/...</code> (FLUX.1 schnell &amp; SDXL img2img) tercakup kuota 10.000 Neuron/hari. Virtual try-on Pruna P-Image (<code>pruna/p-image-try-on</code>) adalah model pihak ketiga yang butuh kredit AI Gateway/Unified Billing; bila kredit belum ada, aplikasi otomatis turun ke model gratis dan menampilkan alasannya.</small>
+                        <small>Karakter selalu memakai foto referensi: <code>@cf/black-forest-labs/flux-2-klein-4b</code> menerima foto karakter (dan foto outfit) sebagai <code>input_image</code> sehingga wajah tetap konsisten, tercakup kuota 10.000 Neuron/hari (±14–25 gambar/hari). Virtual try-on <code>pruna/p-image-try-on</code> opsional dan butuh kredit AI Gateway/Unified Billing. Bila semua model ber-referensi gagal, gambar tidak dibuat (tidak ada lagi gambar orang lain).</small>
                     </span>
                 </label>
                 <label class="provider-option">

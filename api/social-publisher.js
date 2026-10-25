@@ -2827,7 +2827,11 @@ async function generateManualPost(config, userId, env, body = {}) {
         if (!referenceBytes.length || referenceBytes.length > MAX_REFERENCE_BYTES) {
             throw new Error("Ukuran foto referensi karakter tidak valid.");
         }
-        const garmentBytes = garmentObjectKey && imageProvider !== "cloudflare"
+        /*
+         * Outfit juga diunduh untuk Cloudflare: FLUX.2 klein menerima foto
+         * pakaian sebagai `input_image_1` agar potongan pakaian konsisten.
+         */
+        const garmentBytes = garmentObjectKey
             ? await downloadReferenceObject(config, garmentObjectKey)
             : null;
         const scene = applyOutfitToScene(
@@ -2862,11 +2866,14 @@ async function generateManualPost(config, userId, env, body = {}) {
                     ? await createSignedReferenceUrl(config, garmentObjectKey)
                     : referenceImageUrl]
             } : {}),
-            ...(imageProvider !== "cloudflare" ? {
+            ...(imageProvider === "cloudflare" ? {
+                garmentBytes,
+                garmentMimeType
+            } : {
                 garmentBytes,
                 garmentMimeType,
                 ...(imageProvider === "qwencloud" ? { imageModel } : {})
-            } : {})
+            })
         });
         if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar.");
         /*
@@ -3466,6 +3473,7 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
                 qwencloud_llm_models: llmQuotaSummaryRows(quotasByModel),
                 gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
                 cloudflare_configured: typeof env?.AI?.run === "function",
+                cloudflare_identity_model: "@cf/black-forest-labs/flux-2-klein-4b",
                 cloudflare_free_model: "@cf/black-forest-labs/flux-1-schnell",
                 cloudflare_img2img_model: "@cf/stabilityai/stable-diffusion-xl-base-1.0",
                 cloudflare_tryon_model: "pruna/p-image-try-on",

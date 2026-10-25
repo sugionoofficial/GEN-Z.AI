@@ -542,7 +542,8 @@ async function processRun(env, config, claimedRun) {
             const referenceImageUrl = imageProvider === "cloudflare"
                 ? await createSignedReferenceUrl(config, character.reference_object_key)
                 : "";
-            const garmentBytes = garmentObjectKey && imageProvider !== "cloudflare"
+            /* Cloudflare FLUX.2 klein memakai foto outfit sebagai `input_image_1`. */
+            const garmentBytes = garmentObjectKey
                 ? await downloadReferenceObject(config, garmentObjectKey)
                 : null;
             /* Parameter detail dari blok jadwal: kolom kosong otomatis diacak,
@@ -577,11 +578,14 @@ async function processRun(env, config, claimedRun) {
                         ? await createSignedReferenceUrl(config, garmentObjectKey)
                         : referenceImageUrl]
                 } : {}),
-                ...(imageProvider !== "cloudflare" ? {
+                ...(imageProvider === "cloudflare" ? {
+                    garmentBytes,
+                    garmentMimeType
+                } : {
                     garmentBytes,
                     garmentMimeType,
                     ...(imageProvider === "qwencloud" ? { imageModel } : {})
-                } : {})
+                })
             });
             if (!generated?.bytes?.length) throw new Error("Image provider returned an empty image.");
             if (imageProvider === "qwencloud") {
