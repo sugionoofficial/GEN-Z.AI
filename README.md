@@ -345,7 +345,18 @@ The floating support chat is loaded across the site's HTML pages. Run the latest
 `supabase/support-chat.sql` in the Supabase SQL Editor (also when updating an
 existing chat installation) and enable **Anonymous Sign-Ins** under
 Authentication → Providers → Anonymous so visitors without an account can open
-a support conversation. Authenticated administrators and owners can reply to
+a support conversation.
+
+Visitors without an account are **not** given an account just for opening the
+chat panel. The panel first shows a short explanation and a **Mulai chat**
+button; only after that button is pressed does Supabase anonymous sign-in run,
+i.e. only when the visitor is about to send a message to the admin. Accounts
+created that way (akun tamu) carry no profile, so they are hidden from the admin
+user list in `api/admin-users.js`. The Cloudflare Worker cron
+`functions/_shared/support-guest-cleanup-cron.js` removes them once they are
+useless: no conversation at all, or no activity for seven days. It never
+touches real registered accounts, never deletes a guest with an open
+conversation, and gives new guest accounts a 24-hour grace period. Authenticated administrators and owners can reply to
 open conversations from the same floating chat inbox. Unread visitor messages
 show a blinking green `BARU` badge in the admin inbox; new admin replies also
 show a green notification on the visitor's chat icon, including while the chat

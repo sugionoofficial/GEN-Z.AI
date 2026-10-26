@@ -18,6 +18,7 @@ import socialPublisher from "../api/social-publisher.js";
 import facebookDataDeletion from "../api/facebook-data-deletion.js";
 import { runSocialPublisherCron } from "./_shared/social-publisher-cron.js";
 import { runStorageRetentionCron } from "./_shared/storage-retention-cron.js";
+import { runSupportGuestCleanupCron } from "./_shared/support-guest-cleanup-cron.js";
 import viddraAccount from "../api/viddra/account.js";
 import viddraGenerate from "../api/viddra/generate.js";
 import handleTempmail from "./_shared/tempmail-handler.js";
@@ -117,6 +118,12 @@ export default {
             runStorageRetentionCron(env, scheduledAt)
                 .catch(error => {
                     console.error("[Cloudflare Worker] Storage retention cron failed:", error?.message || "unknown error");
+                }),
+
+            // Akun tamu live chat: hapus yang tanpa percakapan / 7 hari idle.
+            runSupportGuestCleanupCron(env, scheduledAt)
+                .catch(error => {
+                    console.error("[Cloudflare Worker] Support guest cleanup cron failed:", error?.message || "unknown error");
                 })
         ];
 
