@@ -166,6 +166,29 @@ test("Puter.js tersedia sebagai opsi provider gambar dengan label jujur", () => 
     );
     assert.match(setupDoc, /PUTER_AUTH_TOKEN/, "Dokumen setup harus memuat panduan secret Puter");
     assert.match(setupDoc, /User-Pays/, "Dokumen setup harus menyebut model User-Pays secara jujur");
+    /* Regresi (2026-10-26): check constraint database menolak 'puter'
+       sehingga Simpan Provider gagal 400. Skema + migrasi harus menerima. */
+    const migration = readFileSync(
+        fileURLToPath(new URL("../supabase/social-auto-publisher.sql", import.meta.url)),
+        "utf8"
+    );
+    const puterConstraint = /image_provider in \('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter'\)/g;
+    assert.equal(
+        (migration.match(puterConstraint) || []).length,
+        3,
+        "Tiga titik check constraint image_provider di social-auto-publisher.sql harus menerima puter"
+    );
+    const puterMigration = readFileSync(
+        fileURLToPath(new URL("../supabase/social-puter-image-provider.sql", import.meta.url)),
+        "utf8"
+    );
+    assert.match(puterMigration, /drop constraint if exists social_publisher_config_image_provider_check/, "Migrasi puter harus idempoten");
+    assert.match(puterMigration, /'puter'/, "Migrasi puter harus memuat nilai puter");
+    assert.match(
+        apiSource,
+        /social-puter-image-provider\.sql/,
+        "API harus mengarahkan ke migrasi saat constraint database belum diperbarui"
+    );
     assert.match(providersSource, /generatePuterSocialImage/, "generateSocialImage harus meneruskan ke provider Puter");
     assert.match(cronSource, /"puter"/, "Cron autopost harus mendukung provider puter");
     assert.doesNotMatch(
@@ -195,7 +218,7 @@ test("dropdown model QwenCloud dan panel kuota tier tersedia di SET Studio Medso
     assert.match(setJs, /percent_available/, "Admin JS harus menampilkan persentase tier tersedia");
     assert.match(setJs, /Tier habis/, "Admin JS harus menandai model yang tier-nya habis");
     assert.match(apiSource, /action === "studio-admin-model-quota"/, "API harus melayani penyimpanan kuota per model");
-    assert.match(migration, /check \(image_provider in \('gemini', 'cloudflare', 'qwencloud', 'tencent'\)\)/, "Migration harus menerima provider qwencloud dan tencent");
+    assert.match(migration, /check \(image_provider in \('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter'\)\)/, "Migration harus menerima provider qwencloud, tencent, dan puter");
     assert.match(migration, /add column if not exists image_model/, "Migration harus menambah kolom image_model");
     assert.match(migration, /create table if not exists public\.social_publisher_model_quotas/, "Migration harus membuat ledger kuota model");
 });

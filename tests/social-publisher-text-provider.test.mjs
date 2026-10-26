@@ -192,7 +192,7 @@ test("pilihan teks tencent tanpa key memberi error 503 yang menyebut secretnya",
 test("migrasi menyediakan kolom text_provider dan mengizinkan provider tencent", () => {
     assert.match(MIGRATION, /add column if not exists text_provider text not null default 'auto'/);
     assert.match(MIGRATION, /social_publisher_config_text_provider_check/);
-    assert.match(MIGRATION, /check \(image_provider in \('gemini', 'cloudflare', 'qwencloud', 'tencent'\)\)/);
+    assert.match(MIGRATION, /check \(image_provider in \('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter'\)\)/);
     assert.match(MIGRATION, /check \(text_provider in \('auto', 'tencent', 'cloudflare', 'gemini', 'qwencloud'\)\)/);
 });
 
