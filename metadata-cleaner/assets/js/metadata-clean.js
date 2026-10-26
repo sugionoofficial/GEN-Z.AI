@@ -245,19 +245,96 @@ async function verifyCleanedMetadata(
         );
     }
 
-    const provenance =
-        await inspectProvenance(cleanedFile);
+    /*
+       Pemeriksaan provenance adalah VERIFIKASI, bukan bagian dari proses
+       pembersihan. Kalau pemeriksaan ini tidak bisa dijalankan penuh (berkas
+       sangat besar atau modul gagal), hasil cleaning tetap boleh diunduh,
+       tetapi statusnya harus jujur: "tidak diperiksa penuh", bukan "bersih".
+    */
+    let provenance;
+    let provenanceLimited = "";
 
+    try {
+
+        provenance =
+            await inspectProvenance(
+                cleanedFile
+            );
+
+    } catch (
+        error
+    ) {
+
+        const message =
+            String(
+                error?.message ||
+                error ||
+                "kesalahan tidak dikenal"
+            ).slice(0, 200);
+
+        console.warn(
+            "[GEN-Z.AI][CLEAN] Pemeriksaan provenance gagal:",
+            error
+        );
+
+        provenance = {
+
+            checked:
+                false,
+            supported:
+                false,
+            format:
+                "unknown",
+            detected:
+                false,
+            aiDetected:
+                false,
+            status:
+                "NOT_CHECKED",
+            verified:
+                false,
+            verificationStatus:
+                "NOT_VERIFIED",
+            findings: [],
+            softwareAgent:
+                null,
+            error:
+                message
+
+        };
+
+        provenanceLimited =
+            `Provenance tidak dapat diperiksa: ${message} `;
+
+    }
+
+    /* Sinyal residu yang benar-benar ditemukan tetap menggagalkan cleaning. */
     if (provenance.detected || provenance.softwareAgent) {
         throw new Error(
             "SoftwareAgent atau C2PA/Content Credentials masih ditemukan pada file hasil cleaning. File tidak ditandai bersih."
         );
     }
 
+    if (
+        !provenanceLimited &&
+        provenance.partial
+    ) {
+
+        provenanceLimited =
+            provenance.note
+            || "Provenance hanya diperiksa sebagian karena berkas terlalu besar.";
+
+    }
+
+
     return {
         metadata: normalizedMetadata,
         aiIndicators: detectAIIndicators(normalizedMetadata),
-        provenance
+        provenance,
+        provenanceLimited:
+            String(
+                provenanceLimited
+            ).trim()
     };
 }
 
@@ -1370,18 +1447,41 @@ export async function cleanMetadata() {
                 "Data terbaru dari salinan hasil cleaning yang sudah diverifikasi.";
         }
 
-        setStatus(
-            "CLEAR",
-            "CLEANING SUCCESS",
-            "Metadata pada salinan hasil sudah diperbarui dan diverifikasi. Hasil analisis visual sebelumnya tetap ditampilkan terpisah."
-        );
+        const provenanceLimited =
+            String(
+                cleanedMetadata.provenanceLimited ||
+                ""
+            ).trim();
+
+        if (provenanceLimited) {
+            /*
+               Jangan mengklaim "bersih" untuk bagian yang tidak diperiksa.
+               Status memakai indikator netral (bukan CLEAR) supaya warnings
+               terbaca sebagai peringatan, bukan sukses penuh.
+            */
+            setStatus(
+                "PARTIAL",
+                "CLEANING SELESAI — PROVENANCE TERBATAS",
+                `Metadata lokal pada salinan hasil sudah dibersihkan dan diverifikasi. ${provenanceLimited} Hasil analisis visual sebelumnya tetap ditampilkan terpisah.`
+            );
+            /* Stamp tidak boleh berbunyi "SUCCESS" penuh untuk pemeriksaan sebagian. */
+            renderCleaningSuccessStamp("PARTIAL");
+        } else {
+            setStatus(
+                "CLEAR",
+                "CLEANING SUCCESS",
+                "Metadata pada salinan hasil sudah diperbarui dan diverifikasi. Hasil analisis visual sebelumnya tetap ditampilkan terpisah."
+            );
+        }
         renderCleaningSuccessStamp();
 
         /* Status sukses. */
         setPreviewStatus(
-            cleaningNotice
-                ? `METADATA CLEANING SUCCESS. ${cleaningNotice}`
-                : "METADATA CLEANING SUCCESS. HASIL ADALAH FILE BARU."
+            provenanceLimited
+                ? `METADATA BERSIH (SEBAGIAN DIVERIFIKASI). ${cleaningNotice ? `${cleaningNotice} ` : ""}${provenanceLimited}`
+                : cleaningNotice
+                    ? `METADATA CLEANING SUCCESS. ${cleaningNotice}`
+                    : "METADATA CLEANING SUCCESS. HASIL ADALAH FILE BARU."
         );
 
 

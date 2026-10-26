@@ -483,6 +483,21 @@ export function createEmptyProvenance() {
         verificationStatus:
             "NOT_VERIFIED",
 
+        partial:
+            false,
+
+        note:
+            "",
+
+        fileSize:
+            0,
+
+        scannedBytes:
+            0,
+
+        error:
+            "",
+
 
         /* -----------------------------------------------
            C2PA
@@ -601,6 +616,46 @@ function normalizeProvenance(
                 ? "VERIFIED"
                 : "NOT_VERIFIED"
         );
+
+    /*
+       Pemindaian terbatas pada berkas besar. Field ini harus ikut
+       dinormalisasi, kalau tidak panel metadata kehilangan konteks dan
+       "NOT DETECTED" terbaca seperti bukti berkas bersih.
+    */
+    normalized.partial =
+        provenance.partial === true;
+
+    normalized.note =
+        typeof provenance.note === "string"
+            ? provenance.note
+            : "";
+
+    normalized.fileSize =
+        Number.isFinite(
+            Number(
+                provenance.fileSize
+            )
+        )
+            ? Number(
+                provenance.fileSize
+            )
+            : 0;
+
+    normalized.scannedBytes =
+        Number.isFinite(
+            Number(
+                provenance.scannedBytes
+            )
+        )
+            ? Number(
+                provenance.scannedBytes
+            )
+            : 0;
+
+    normalized.error =
+        typeof provenance.error === "string"
+            ? provenance.error
+            : "";
 
 
     /* -----------------------------------------------------
