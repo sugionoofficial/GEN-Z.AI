@@ -590,6 +590,41 @@
         return "Google Gemini";
     }
 
+    function textProviderLabel(value) {
+        if (value === "tencent") return "Tencent TokenHub (deepseek-v4.1-flash + hy3)";
+        if (value === "cloudflare") return "Cloudflare Workers AI (llama 3.2)";
+        if (value === "gemini") return "Google Gemini";
+        if (value === "qwencloud") return "QwenCloud";
+        return "Otomatis";
+    }
+
+    /**
+     * Keterangan singkat untuk pilihan penulis teks. Sengaja jujur: menyebut
+     * kuota trial dan apa yang terjadi bila habis.
+     */
+    function textProviderReadiness(value, settings = {}) {
+        const tencentReady = settings.tencent_configured === true;
+        if (value === "tencent") {
+            return tencentReady
+                ? "Tencent siap: caption bisa melihat gambar, kata-kata mutiara dari hy3 (kuota trial 1 juta token); bila kuota habis otomatis pindah ke Cloudflare"
+                : "TENCENT_TOKENHUB_KEY belum tersedia, jadi Tencent belum bisa menulis teks";
+        }
+        if (value === "cloudflare") {
+            return settings.cloudflare_configured
+                ? "Cloudflare llama 3.2 siap untuk caption dan kata-kata mutiara"
+                : "Binding Workers AI belum tersedia";
+        }
+        if (value === "gemini") {
+            return settings.gemini_configured ? "Gemini siap" : "GEMINI_API_KEY belum tersedia";
+        }
+        if (value === "qwencloud") {
+            return settings.qwencloud_configured ? "QwenCloud siap" : "QWENCLOUD_API_KEY belum tersedia";
+        }
+        return tencentReady
+            ? "Otomatis: tulisan memakai Tencent (gratis selama kuota trial), lalu Cloudflare bila gagal"
+            : "Otomatis: Tencent belum ada key, jadi tulisan memakai provider gambar";
+    }
+
     function providerReadiness(value, settings = {}) {
         if (value === "cloudflare") {
             if (!settings.cloudflare_configured) return "Workers AI binding belum tersedia";
@@ -793,9 +828,19 @@
         providerSettings = settings;
         const selected = ["cloudflare", "qwencloud", "tencent"].includes(settings.image_provider) ? settings.image_provider : "gemini";
         document.querySelector(`input[name="image-provider"][value="${selected}"]`).checked = true;
+        const textSelected = ["auto", "tencent", "cloudflare", "gemini", "qwencloud"].includes(settings.text_provider)
+            ? settings.text_provider
+            : "auto";
+        const textRadio = document.querySelector(`input[name="text-provider"][value="${textSelected}"]`);
+        if (textRadio) textRadio.checked = true;
         renderQwenCloudOptions();
-        const llmSummary = settings.quote_llm_model ? ` · LLM Kata Mutiara: QwenCloud (${settings.quote_llm_model}, latar hitam hemat kuota gambar)` : "";
-        setImageProviderStatus(`Provider aktif: ${providerLabel(selected)} · ${providerReadiness(selected, settings)}${llmSummary}.`);
+        setImageProviderStatus(
+            `Gambar: ${providerLabel(selected)} · Teks: ${textProviderLabel(textSelected)} — ${textProviderReadiness(textSelected, settings)}.`
+        );
+    }
+
+    function selectedTextProvider() {
+        return document.querySelector('input[name="text-provider"]:checked')?.value || "auto";
     }
 
     async function saveImageProvider() {
@@ -809,18 +854,30 @@
         button.disabled = true;
         setImageProviderStatus("Menyimpan provider gambar dan model LLM Kata-kata Mutiara…");
         try {
+            const textChoice = selectedTextProvider();
             const result = await api("studio-admin-image-provider", {
                 method: "POST",
                 body: {
                     image_provider: selected,
+                    text_provider: textChoice,
                     quote_llm_model: quoteLlmModel,
                     ...(selected === "qwencloud" ? { image_model: selectedQuwenModel() } : {})
                 }
             });
             providerSettings = { ...providerSettings, ...result.settings };
             renderQwenCloudOptions();
-            const savedLlm = result.settings?.quote_llm_model || quoteLlmModel;
-            setImageProviderStatus(`${providerLabel(result.settings.image_provider)} disimpan untuk Foto Karakter AI, dan LLM QwenCloud (${savedLlm}) disimpan untuk Kata-kata Mutiara berlatar hitam.`, "success");
+            const savedText = result.settings?.text_provider || textChoice;
+            if (result.settings?.text_provider_saved === false) {
+                setImageProviderStatus(
+                    `Provider gambar ${providerLabel(result.settings.image_provider)} tersimpan, tetapi pilihan provider teks BELUM tersimpan karena kolom text_provider belum ada di database. Jalankan ulang migrasi supabase/social-auto-publisher.sql.`,
+                    "error"
+                );
+                return;
+            }
+            setImageProviderStatus(
+                `Tersimpan — gambar: ${providerLabel(result.settings.image_provider)}; teks: ${textProviderLabel(savedText)} (${textProviderReadiness(savedText, result.settings)}).`,
+                "success"
+            );
         } catch (error) {
             console.error(error);
             setImageProviderStatus(error.message || "Gagal menyimpan provider gambar.", "error");

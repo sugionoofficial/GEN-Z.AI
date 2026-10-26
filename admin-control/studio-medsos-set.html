@@ -530,6 +530,38 @@
                     </span>
                 </label>
             </div>
+            <h3 style="margin:22px 0 0;font-size:15px">Provider penulisan teks (caption &amp; kata-kata mutiara)</h3>
+            <p class="small muted" style="margin:6px 0 0">Terpisah dari provider gambar, supaya gambar tetap dari jalur gratis sementara tulisan memakai kuota yang gratis juga.</p>
+            <div class="provider-options">
+                <label class="provider-option">
+                    <input type="radio" name="text-provider" value="auto">
+                    <span>
+                        <strong>Otomatis (disarankan)</strong>
+                        <small>Pakai Tencent TokenHub bila <code>TENCENT_TOKENHUB_KEY</code> tersedia (kuota trial 1 juta token per model), lalu kembali ke provider gambar bila tidak.</small>
+                    </span>
+                </label>
+                <label class="provider-option">
+                    <input type="radio" name="text-provider" value="tencent">
+                    <span>
+                        <strong>Tencent TokenHub</strong>
+                        <small>Caption dari <code>deepseek-v4.1-flash</code> (bisa melihat gambar) dan kata-kata mutiara dari <code>hy3</code>. Gratis selama kuota trial; bila habis, caption &amp; mutiara otomatis pindah ke Cloudflare dan alasannya dicatat di log.</small>
+                    </span>
+                </label>
+                <label class="provider-option">
+                    <input type="radio" name="text-provider" value="cloudflare">
+                    <span>
+                        <strong>Cloudflare Workers AI</strong>
+                        <small>llama-3.2-11b-vision untuk caption dan kata-kata mutiara. Gratis, tanpa secret tambahan, tetapi bahasanya lebih kaku.</small>
+                    </span>
+                </label>
+                <label class="provider-option">
+                    <input type="radio" name="text-provider" value="gemini">
+                    <span>
+                        <strong>Google Gemini</strong>
+                        <small>Memakai GEMINI_API_KEY. Berbayar per permintaan pada tier berbayar.</small>
+                    </span>
+                </label>
+            </div>
             <div id="qwencloud-options" class="qwencloud-options" hidden>
                 <div class="provider-field">
                     <label for="qwencloud-image-model">Model gambar QwenCloud (Foto Karakter AI)</label>
