@@ -640,6 +640,11 @@
                 <button id="test-tencent-provider" class="btn" type="button">Tes Tencent</button>
                 <button id="test-puter-provider" class="btn" type="button">Tes Puter (1 gambar kuota akun Anda)</button>
             </div>
+            <div class="price-settings-row" style="justify-content:flex-start;flex-wrap:wrap;gap:10px">
+                <a class="btn" style="text-decoration:none" href="https://dash.cloudflare.com/f374e7e2d001dd43253c8d47182e3882/workers/services/view/genzai/settings" target="_blank" rel="noopener">Buka pengaturan secret Worker genzai</a>
+                <button id="copy-puter-secret-name" class="btn" type="button">Salin nama secret: PUTER_AUTH_TOKEN</button>
+            </div>
+            <p class="footer-note">Pemasangan secret Puter (sekali saja, dari HP): ketuk <strong>Buka pengaturan secret Worker genzai</strong> → tab <strong>Variables and Secrets</strong> → <strong>Add</strong> (atau <strong>Edit</strong> bila sudah ada) → tipe <strong>Secret</strong>, tempel nama yang disalin ke kolom Name, isi Value dengan token dari <code>puter.com/dashboard#account</code>, lalu simpan. Token hanya disimpan di akun Cloudflare Anda — jangan pernah dikirim ke siapa pun.</p>
             <div id="image-provider-status" class="status-box price-settings-status" role="status" aria-live="polite">Memuat provider gambar…</div>
         </section>
 
@@ -684,6 +689,6 @@
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
     <script type="module" src="./assets/js/http-failure.js?v=http-failure-20261026"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script src="./studio-medsos-set.js?v=puter-provider-20261026"></script>
+    <script src="./studio-medsos-set.js?v=puter-secret-helper-20261026"></script>
 </body>
 </html>

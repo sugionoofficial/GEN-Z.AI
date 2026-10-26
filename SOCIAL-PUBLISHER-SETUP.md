@@ -78,6 +78,40 @@ Two wire protocols are supported, chosen by the model name:
 | `hy-image-v3.5-preview` (default) | `/v1/wand/hunyuan-image/v35-generation` | Chat/Messages: `messages[0].content = [text, image_url…]` | 1080×1920 (9:16) / 1920×1080 (16:9), max 4K |
 | `hy-image-v3` | `/v1/wand/hunyuan-image/v3-generation` | `{prompt, images[], size, revise}` | 576×1024 / 1024×576 (area ≤ 1.048.576) |
 
+### 2d. Configure Puter.js (optional, User-Pays)
+
+**Status jujur: bukan gratis tanpa batas.** Provider Puter memanggil driver
+`puter-image-generation` milik Puter dengan token akun **Anda sendiri**. Setiap
+gambar memotong kuota/biaya akun Puter Anda (model *User-Pays*), bukan kredit
+GEN-Z.AI. Jatah bulanan akun gratis kecil dan tidak dipublikasikan angkanya
+(lihat sisa jatah di `puter.com/dashboard#usage`); saat habis, generate gagal
+dengan `insufficient_funds` — tidak ada gambar pengganti.
+
+Buat akun Puter (disarankan Gmail; sebagian domain email ditolak filter
+validasi Puter), lalu di `puter.com/dashboard#account` klik **Create token** dan
+simpan token sebagai secret Worker:
+
+```sh
+npx wrangler@4 secret put PUTER_AUTH_TOKEN
+```
+
+**Menaruh secret tanpa terminal (HP):** panel **Admin Panel → SET Studio Medsos**
+menyediakan tombol **Buka pengaturan secret Worker genzai** (langsung ke
+Settings Worker) dan **Salin nama secret: PUTER_AUTH_TOKEN** (menyalin nama ke
+clipboard) — jadi tinggal **Add/Edit → Secret → tempel nama → tempel token**,
+tanpa mengetik. Alternatif manual: Cloudflare dashboard → **Workers & Pages →
+genzai → Settings → Variables and Secrets → Add → type Secret**, nama
+`PUTER_AUTH_TOKEN`, tempel token, lalu simpan/deploy.
+
+Optional variable: `PUTER_IMAGE_MODEL` (default `gemini-3.1-flash-image`).
+Foto karakter + outfit dikirim sebagai `input_images` sehingga wajah tetap
+menjadi acuan; keluaran 9:16 / 16:9 kualitas 1K. Caption & kata-kata mutiara
+**tidak** memakai Puter (tetap provider teks).
+
+**Menguji tanpa curl:** tombol **Tes Puter (1 gambar kuota akun Anda)** membuat
+satu gambar sungguhan dengan foto contoh sebagai referensi, lalu menampilkan
+ukuran, KB, durasi, atau error aslinya. Satu klik = satu kuota akun Puter Anda.
+
 The v3.5 answer is an `image.chat.completion.chunk` frame sequence; the Worker reads `choices[0].delta.image.url`, accepting both a single JSON body and `data:`-prefixed SSE lines, and reports an `error` frame (for example `content_filter`) as a rejection with its `request_id` instead of an empty image. Both models accept the character reference photo (and the outfit photo when one is selected), so the face stays anchored to the upload instead of being invented. Result URLs live 12 hours and may reject anonymous access, so the Worker downloads them (retrying with the Bearer header on 401/403) and re-checks the bytes with the blank-image guard.
 
 **What the free Tencent quota is actually good for: text.** TokenHub gives every language model a New User Free Trial of **1 million tokens** (claim it in Model Gallery, or the platform auto-claims on the first call), while every image model stays paid. So the Worker uses Tencent for the copy and Cloudflare for the picture:
