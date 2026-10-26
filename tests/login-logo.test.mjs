@@ -28,7 +28,7 @@ test("Logo login berada di brand-panel gelap + skala desktop/HP diatur", () => {
     const widths = [...login.matchAll(/\.brand-logo-img\s*\{[^}]*?width:\s*min\((\d+)px/g)].map((m) => Number(m[1]));
     assert.deepEqual(
         [...widths].sort((a, b) => b - a),
-        [420, 320, 250, 215],
-        "Skala logo harus 420px desktop → 320/250/215px di breakpoint yang lebih kecil"
+        [420, 320, 215, 215],
+        "Skala logo harus 420px desktop → 320px tablet → 215px di HP (lebih ringkas) "
     );
 });
