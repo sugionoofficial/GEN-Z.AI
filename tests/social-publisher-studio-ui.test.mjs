@@ -147,7 +147,7 @@ test("dropdown model QwenCloud dan panel kuota tier tersedia di SET Studio Medso
     assert.match(setJs, /percent_available/, "Admin JS harus menampilkan persentase tier tersedia");
     assert.match(setJs, /Tier habis/, "Admin JS harus menandai model yang tier-nya habis");
     assert.match(apiSource, /action === "studio-admin-model-quota"/, "API harus melayani penyimpanan kuota per model");
-    assert.match(migration, /check \(image_provider in \('gemini', 'cloudflare', 'qwencloud'\)\)/, "Migration harus menerima provider qwencloud");
+    assert.match(migration, /check \(image_provider in \('gemini', 'cloudflare', 'qwencloud', 'tencent'\)\)/, "Migration harus menerima provider qwencloud dan tencent");
     assert.match(migration, /add column if not exists image_model/, "Migration harus menambah kolom image_model");
     assert.match(migration, /create table if not exists public\.social_publisher_model_quotas/, "Migration harus membuat ledger kuota model");
 });

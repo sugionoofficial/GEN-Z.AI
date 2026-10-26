@@ -1,6 +1,6 @@
 import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
 import { buildQuoteImagePrompt, createQuotePlan, normalizeQuotePublishTarget, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule } from "../../lib/social-publisher/quotes.js";
-import { decryptSecret, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookQuoteVideo } from "../../lib/social-publisher/providers.js";
+import { decryptSecret, normalizeTextProvider, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookQuoteVideo } from "../../lib/social-publisher/providers.js";
 import { createSignedReferenceUrl, downloadModelReference, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
 import { encodeStoryMp4, maxQuoteVideoDurationForTarget, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
 import { normalizeQwenCloudImageModel, normalizeQwenCloudLlmModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
@@ -413,8 +413,9 @@ async function processRun(env, config, claimedRun) {
             dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
             listRecentPostedRuns(config, schedule.id, postMode === "quote" || shouldUseRandomSong),
             getUserSettingsRow(config, schedule.owner_id),
-            dbRequest(config, table("social_publisher_config", "select=image_provider,image_model,quote_llm_model&id=eq.true&limit=1"))
-                .catch(() => dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1")))
+            dbRequest(config, table("social_publisher_config", "select=image_provider,image_model,text_provider,quote_llm_model&id=eq.true&limit=1"))
+                .catch(() => dbRequest(config, table("social_publisher_config", "select=image_provider,image_model,quote_llm_model&id=eq.true&limit=1"))
+                    .catch(() => dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1"))))
         ]);
         /* Switch autopublish milik user. RPC claim sudah menyaringnya; guard ini
            menjaga run yang terlanjur diklaim sebelum migration dijalankan. */
@@ -440,6 +441,8 @@ async function processRun(env, config, claimedRun) {
             ? publisherConfigs[0].image_provider
             : "gemini";
         imageModel = normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);
+        /* Provider teks terpisah: caption & mutiara boleh dari Tencent (gratis). */
+        const textProvider = normalizeTextProvider(publisherConfigs?.[0]?.text_provider);
         const quoteLlmModel = normalizeQwenCloudLlmModel(publisherConfigs?.[0]?.quote_llm_model);
         const settings = settingsRows?.[0];
         const song = shouldUseRandomSong
@@ -478,6 +481,7 @@ async function processRun(env, config, claimedRun) {
                 quotePlan,
                 recentQuotes,
                 imageProvider: quoteAiProvider,
+                textProvider: value(env, "QWENCLOUD_API_KEY") ? "qwencloud" : textProvider,
                 llmModel: quoteLlmModel
             });
             const resolvedQuoteModel = quoteResult.model || quoteLlmModel || "solid-black";
@@ -616,7 +620,8 @@ async function processRun(env, config, claimedRun) {
                 imageMimeType: cleanedBlob.type,
                 characterName: character.display_name,
                 scene,
-                imageProvider
+                imageProvider,
+                textProvider
             });
             const baseCaption = renderCaption(settings?.caption_template || schedule.caption_template, scene, character.display_name);
             caption = composeSocialCaption({

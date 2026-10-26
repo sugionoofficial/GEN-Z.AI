@@ -37,6 +37,7 @@ import {
     checkFacebookPageAccess,
     decryptSecret,
     encryptSecret,
+    normalizeTextProvider,
     generateSocialContextCaption,
     generateSocialImage,
     generateSocialQuote,
@@ -1050,8 +1051,9 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
         listSchedulesForDashboard(config, userId),
         listRunsForDashboard(config, userId, runsOptions),
-            supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,quote_llm_model,updated_at&id=eq.true&limit=1"))
-                .catch(() => supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,updated_at&id=eq.true&limit=1"))),
+            supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,text_provider,quote_llm_model,updated_at&id=eq.true&limit=1"))
+                .catch(() => supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,quote_llm_model,updated_at&id=eq.true&limit=1"))
+                    .catch(() => supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,updated_at&id=eq.true&limit=1")))),
         getUserSettingsForDashboard(config, userId),
         listOutfitsForDashboard(config, userId),
         isPrivateReferenceBucket(config)
@@ -1062,6 +1064,7 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
     const imageProvider = ["cloudflare", "qwencloud", "tencent"].includes(publisherConfig?.[0]?.image_provider)
         ? publisherConfig[0].image_provider
         : "gemini";
+    const textProvider = normalizeTextProvider(publisherConfig?.[0]?.text_provider);
     const providerConfigured = imageProvider === "cloudflare"
         ? typeof env?.AI?.run === "function"
         : imageProvider === "qwencloud"
@@ -1106,7 +1109,10 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         config: {
             metaOAuthConfigured: Boolean(envValue(env, "META_APP_ID") && envValue(env, "META_APP_SECRET") && envValue(env, "META_REDIRECT_URI") && envValue(env, "META_LOGIN_CONFIG_ID")),
             imageProvider,
-            captionProvider: imageProvider,
+            textProvider,
+            captionProvider: textProvider === "auto"
+                ? (Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY")) ? "tencent" : imageProvider)
+                : textProvider,
             imageModel: imageProvider === "qwencloud" ? normalizeQwenCloudImageModel(publisherConfig?.[0]?.image_model) : "",
             quoteLlmModel: normalizeQwenCloudLlmModel(publisherConfig?.[0]?.quote_llm_model),
             qwenCloudConfigured: Boolean(envValue(env, "QWENCLOUD_API_KEY")),
@@ -1123,15 +1129,20 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
 async function getSocialImageSettings(config) {
     const rows = await supabaseRequest(
         config,
+        tablePath("social_publisher_config", "select=image_provider,image_model,text_provider,quote_llm_model&id=eq.true&limit=1")
+    ).catch(() => supabaseRequest(
+        config,
         tablePath("social_publisher_config", "select=image_provider,image_model,quote_llm_model&id=eq.true&limit=1")
     ).catch(() => supabaseRequest(
         config,
         tablePath("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1")
-    ));
+    )));
     const value = rows?.[0]?.image_provider;
     return {
         provider: ["gemini", "cloudflare", "qwencloud", "tencent"].includes(value) ? value : "gemini",
         imageModel: normalizeQwenCloudImageModel(rows?.[0]?.image_model),
+        /* Kolom text_provider boleh belum ada (migrasi belum jalan) -> "auto". */
+        textProvider: normalizeTextProvider(rows?.[0]?.text_provider),
         quoteLlmModel: normalizeQwenCloudLlmModel(rows?.[0]?.quote_llm_model)
     };
 }
@@ -1150,6 +1161,13 @@ async function saveSocialImageProvider(config, adminId, body, env) {
     const imageModel = imageProvider === "qwencloud"
         ? normalizeQwenCloudImageModel(body?.image_model)
         : "";
+    /*
+     * Provider teks terpisah dari provider gambar: gambar boleh tetap Cloudflare
+     * (gratis) sementara tulisan memakai model bahasa TokenHub (kuota trial).
+     */
+    const requestedTextProvider = typeof body?.text_provider === "string" && body.text_provider.trim() !== ""
+        ? normalizeTextProvider(body.text_provider)
+        : "auto";
     const hasQuoteLlmModel = typeof body?.quote_llm_model === "string" && body.quote_llm_model.trim() !== "";
     const quoteLlmModel = hasQuoteLlmModel
         ? normalizeQwenCloudLlmModel(body.quote_llm_model)
@@ -1178,20 +1196,38 @@ async function saveSocialImageProvider(config, adminId, body, env) {
         id: true,
         image_provider: imageProvider,
         image_model: imageModel,
+        text_provider: requestedTextProvider,
         updated_by: adminId,
         updated_at: new Date().toISOString()
     };
     const rows = await supabaseRequest(
         config,
         tablePath("social_publisher_config", hasQuoteLlmModel
-            ? "on_conflict=id&select=id,image_provider,image_model,quote_llm_model,updated_at"
-            : "on_conflict=id&select=id,image_provider,image_model,updated_at"),
+            ? "on_conflict=id&select=id,image_provider,image_model,text_provider,quote_llm_model,updated_at"
+            : "on_conflict=id&select=id,image_provider,image_model,text_provider,updated_at"),
         {
             method: "POST",
             headers: { Prefer: "resolution=merge-duplicates,return=representation" },
             body: JSON.stringify(hasQuoteLlmModel ? { ...basePayload, quote_llm_model: quoteLlmModel } : basePayload)
         }
     ).catch(async err => {
+        if (/text_provider/i.test(String(err?.message || ""))) {
+            /*
+             * Migrasi kolom text_provider belum dijalankan. Simpan sisanya agar
+             * pilihan provider gambar tidak ikut gagal, lalu laporkan jujur.
+             */
+            const { text_provider: _ignored, ...withoutTextProvider } = basePayload;
+            const fallbackRows = await supabaseRequest(
+                config,
+                tablePath("social_publisher_config", "on_conflict=id&select=id,image_provider,image_model,updated_at"),
+                {
+                    method: "POST",
+                    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+                    body: JSON.stringify(withoutTextProvider)
+                }
+            );
+            return fallbackRows.map(row => ({ ...row, text_provider: "auto", text_provider_saved: false }));
+        }
         if (hasQuoteLlmModel && /quote_llm_model|column|schema cache/i.test(String(err?.message || ""))) {
             return await supabaseRequest(
                 config,
@@ -1213,6 +1249,8 @@ async function saveSocialImageProvider(config, adminId, body, env) {
     return {
         image_provider: rows[0].image_provider,
         image_model: rows[0].image_model,
+        text_provider: normalizeTextProvider(rows[0].text_provider || requestedTextProvider),
+        text_provider_saved: rows[0].text_provider_saved !== false,
         quote_llm_model: normalizeQwenCloudLlmModel(rows[0].quote_llm_model || quoteLlmModel),
         gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
         tencent_configured: Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY")),
@@ -2573,7 +2611,7 @@ async function generateManualPost(config, userId, env, body = {}) {
         error.status = 400;
         throw error;
     }
-    const { provider: imageProvider, imageModel, quoteLlmModel } = await getSocialImageSettings(config);
+    const { provider: imageProvider, imageModel, quoteLlmModel, textProvider } = await getSocialImageSettings(config);
     const hasQwenCloudKey = Boolean(envValue(env, "QWENCLOUD_API_KEY"));
     const quoteAiProvider = hasQwenCloudKey ? "qwencloud" : imageProvider;
     const activeProvider = isQuoteMode ? quoteAiProvider : imageProvider;
@@ -2749,6 +2787,7 @@ async function generateManualPost(config, userId, env, body = {}) {
                     quotePlan,
                     recentQuotes,
                     imageProvider: quoteAiProvider,
+                    textProvider: hasQwenCloudKey ? "qwencloud" : textProvider,
                     llmModel: quoteLlmModel
                 });
             if (!manualCustomQuote && quoteAiProvider === "qwencloud") {
@@ -2933,7 +2972,8 @@ async function generateManualPost(config, userId, env, body = {}) {
             imageMimeType: cleanedBlob.type,
             characterName: character.display_name,
             scene,
-            imageProvider
+            imageProvider,
+            textProvider
         });
         const baseCaption = renderCaption(postingSettings.caption_template, scene, character.display_name);
         const caption = composeSocialCaption({
@@ -3545,7 +3585,10 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
             success: true,
             settings: {
                 image_provider: imageProvider,
-                caption_provider: imageProvider,
+                text_provider: imageSettings.textProvider,
+                caption_provider: imageSettings.textProvider === "auto"
+                    ? (Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY")) ? "tencent" : imageProvider)
+                    : imageSettings.textProvider,
                 image_model: imageModel,
                 quote_llm_model: quoteLlmModel,
                 qwencloud_models: quotaSummaryRows(quotasByModel),
