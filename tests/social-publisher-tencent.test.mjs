@@ -387,3 +387,76 @@ test("tombol Tes Tencent ada di admin dan memanggil aksi tes dengan provider ten
     assert.match(api, /testTencentImageProvider\(\{ env \}\)/, "API harus memakai jalur tes Tencent");
     assert.match(api, /String\(body\?\.provider \|\| "cloudflare"\)/, "Aksi tes harus menerima pilihan provider");
 });
+
+test("400 ModelNotFound menjelaskan model belum aktif, bukan salah format", async () => {
+    const restore = mockFetch(async () => Response.json({
+        error: {
+            message: "The model or service ID 'hy-image-v3.5-preview' does not exist. Please check whether the service ID is correct. Service IDs are available in the Online Inference Service list in the console. See: https://cloud.tencent.com/document/product/1823/130079",
+            message_zh: "请求中的模型或服务 ID hy-image-v3.5-preview 不存在",
+            code: "400004",
+            type: "gateway_error"
+        },
+        request_id: "a51115bf-ceb7-463c-a632-0510a1b8ded7"
+    }, { status: 400 }));
+    try {
+        await assert.rejects(
+            generateTencentSocialImage({
+                env: { TENCENT_TOKENHUB_KEY: "k" },
+                prompt: "Karakter di taman",
+                referenceBytes: photo(),
+                referenceMimeType: "image/jpeg"
+            }),
+            error => {
+                assert.equal(error.status, 400);
+                assert.match(error.message, /\[code 400004\]/, "kode error upstream harus diteruskan");
+                assert.match(error.message, /Model hy-image-v3\.5-preview belum aktif/, "sebut model + penyebab asli");
+                assert.match(error.message, /Online Inference/, "arahkan ke Console Online Inference");
+                assert.match(error.message, /postpaid/, "sebut cara mengaktifkan (postpaid)");
+                assert.doesNotMatch(error.message, /Format permintaan ditolak/, "jangan menyalahkan format/prompt");
+                assert.match(error.message, /a51115bf-ceb7-463c-a632-0510a1b8ded7/);
+                return true;
+            }
+        );
+    } finally {
+        restore();
+    }
+});
+
+test("400 selain ModelNotFound tetap dijelaskan sebagai format permintaan", async () => {
+    const restore = mockFetch(async () => Response.json({
+        error: { message: "invalid size", code: "400002" },
+        request_id: "req-400"
+    }, { status: 400 }));
+    try {
+        await assert.rejects(
+            generateTencentSocialImage({
+                env: { TENCENT_TOKENHUB_KEY: "k", TENCENT_IMAGE_MODEL: "hy-image-v3" },
+                prompt: "Karakter di taman",
+                referenceBytes: photo(),
+                referenceMimeType: "image/jpeg"
+            }),
+            error => {
+                assert.equal(error.status, 400);
+                assert.match(error.message, /Format permintaan ditolak/);
+                assert.match(error.message, /\[code 400002\]/);
+                return true;
+            }
+        );
+    } finally {
+        restore();
+    }
+});
+
+test("ringkasan gagal tombol tes memakai label model default yang jujur", async () => {
+    const restore = mockFetch(async () => Response.json({
+        error: { message: "upstream boom" }
+    }, { status: 500 }));
+    try {
+        const result = await testTencentImageProvider({ env: { TENCENT_TOKENHUB_KEY: "k" } });
+        assert.equal(result.ok, false);
+        assert.equal(result.model, "hy-image-v3.5-preview", "label harus model default aktif, bukan hy-image-v3");
+        assert.match(result.error, /upstream boom/);
+    } finally {
+        restore();
+    }
+});
