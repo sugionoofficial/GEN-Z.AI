@@ -167,6 +167,25 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         element.className = `status${tone ? ` ${tone}` : ""}`;
     }
 
+    /*
+     * Konfirmasi memakai tombol yang sama (klik 1 = tombol jadi hijau
+     * terang "Konfirmasi", klik 2 = aksi dijalankan), bukan window.confirm
+     * yang memunculkan blok dialog mengambang di tengah layar HP.
+     * Helper-nya ada di ./assets/js/inline-confirm.js.
+     */
+    function confirmInlineAction(button, options = {}) {
+        const helper = window.GENZInlineConfirm;
+        if (!helper || typeof helper.request !== "function") {
+            showNotice(
+                pageMessage,
+                "Modul konfirmasi tombol belum termuat. Muat ulang halaman lalu coba lagi.",
+                "error"
+            );
+            return false;
+        }
+        return helper.request(button, options);
+    }
+
     function formatDate(value) {
         if (!value) return "—";
         const date = new Date(value);
@@ -415,7 +434,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             disconnect.className = "btn small danger";
             disconnect.type = "button";
             disconnect.textContent = "Putuskan";
-            disconnect.addEventListener("click", () => disconnectPage(page.id));
+            disconnect.addEventListener("click", () => disconnectPage(page.id, disconnect));
             actions.append(check, disconnect);
             item.append(icon, content, actions);
             container.append(item);
@@ -474,7 +493,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             deleteAction.className = "btn small danger";
             deleteAction.type = "button";
             deleteAction.textContent = "Hapus";
-            deleteAction.addEventListener("click", () => deleteCharacter(character));
+            deleteAction.addEventListener("click", () => deleteCharacter(character, deleteAction));
             const actions = document.createElement("div");
             actions.className = "item-actions";
             actions.append(outfitAction, notesAction, deleteAction);
@@ -597,7 +616,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             remove.className = "btn small danger";
             remove.type = "button";
             remove.textContent = "Hapus";
-            remove.addEventListener("click", () => deleteOutfit(outfit));
+            remove.addEventListener("click", () => deleteOutfit(outfit, remove));
             actions.append(toggle, edit, remove);
             card.append(img, title, stateRow, order, actions);
             container.append(card);
@@ -708,8 +727,12 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
-    async function deleteOutfit(outfit) {
-        if (!window.confirm(`Hapus outfit "${outfit.name}"? Riwayat post yang sudah terbit tidak berubah.`)) return;
+    async function deleteOutfit(outfit, button) {
+        if (!confirmInlineAction(button, {
+            label: "Konfirmasi hapus",
+            ariaLabel: `Konfirmasi hapus outfit ${outfit.name}`,
+            title: `Hapus outfit "${outfit.name}"? Riwayat post yang sudah terbit tidak berubah.`
+        })) return;
         try {
             await api("delete-outfit", { method: "POST", body: { id: outfit.id } });
             showNotice(pageMessage, "Outfit dihapus.", "success");
@@ -1063,7 +1086,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             remove.className = "btn small danger";
             remove.type = "button";
             remove.textContent = "Hapus";
-            remove.addEventListener("click", () => deleteSong(song));
+            remove.addEventListener("click", () => deleteSong(song, remove));
             actions.append(toggle, edit, remove);
 
             card.append(head, stateRow, actions);
@@ -1240,8 +1263,12 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
-    async function deleteSong(song) {
-        if (!window.confirm(`Hapus musik "${song.title}" dari koleksi Cerita Facebook?`)) return;
+    async function deleteSong(song, button) {
+        if (!confirmInlineAction(button, {
+            label: "Konfirmasi hapus",
+            ariaLabel: `Konfirmasi hapus musik ${song.title}`,
+            title: `Hapus musik "${song.title}" dari koleksi Cerita Facebook?`
+        })) return;
         try {
             stopSongPreviewPlayer();
             if (song.id) songPreviewBlobs.delete(song.id);
@@ -2001,9 +2028,13 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
-    async function deleteCharacter(character) {
+    async function deleteCharacter(character, button) {
         const outfitCount = (state.data?.outfits || []).filter(outfit => outfit.character_id === character.id).length;
-        if (!window.confirm(`Hapus karakter "${character.display_name}"?${outfitCount ? ` ${outfitCount} outfit karakter ini ikut terhapus.` : ""} Tindakan ini tidak dapat dibatalkan.`)) return;
+        if (!confirmInlineAction(button, {
+            label: "Konfirmasi hapus",
+            ariaLabel: `Konfirmasi hapus karakter ${character.display_name}`,
+            title: `Hapus karakter "${character.display_name}"?${outfitCount ? ` ${outfitCount} outfit karakter ini ikut terhapus.` : ""} Tindakan ini tidak dapat dibatalkan.`
+        })) return;
         try {
             await api("delete-character", { method: "POST", body: { id: character.id } });
             showNotice(pageMessage, `Karakter "${character.display_name}" dihapus.`, "success");
@@ -2207,7 +2238,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             autopublish.title = scheduleAutopublishOn
                 ? "Matikan autopost hanya untuk jadwal ini."
                 : "Aktifkan autopost hanya untuk jadwal ini.";
-            autopublish.addEventListener("click", () => toggleScheduleAutopublish(schedule));
+            autopublish.addEventListener("click", () => toggleScheduleAutopublish(schedule, autopublish));
             const toggle = document.createElement("button");
             toggle.className = `btn small ${schedule.enabled ? "danger" : "green"}`;
             toggle.type = "button";
@@ -2217,7 +2248,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             remove.className = "btn small danger";
             remove.type = "button";
             remove.textContent = "Hapus";
-            remove.addEventListener("click", () => deleteSchedule(schedule.id));
+            remove.addEventListener("click", () => deleteSchedule(schedule.id, remove));
             actions.append(edit, autopublish, toggle, remove);
             card.append(content, actions);
             container.append(card);
@@ -2311,7 +2342,11 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
 
     async function cancelRun(run, button) {
         const source = run.schedule_id ? "run autopost" : "pratinjau manual";
-        if (!window.confirm(`Batalkan ${source} ini? Statusnya akan menjadi gagal dan tidak bisa dilanjutkan.`)) return;
+        if (!confirmInlineAction(button, {
+            label: "Konfirmasi batal",
+            ariaLabel: `Konfirmasi batalkan ${source}`,
+            title: `Batalkan ${source} ini? Statusnya akan menjadi gagal dan tidak bisa dilanjutkan.`
+        })) return;
         setButtonBusy(button, true, "Membatalkan…");
         try {
             await api("cancel-run", { method: "POST", body: { run_id: run.id } });
@@ -2576,6 +2611,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
     }
 
     async function loadDashboard() {
+        /* Daftar digambar ulang: tombol lama hilang, jangan tinggalkan status konfirmasi. */
+        window.GENZInlineConfirm?.disarmAll?.();
         if (state.busy) return;
         state.busy = true;
         $("refresh").disabled = true;
@@ -2729,8 +2766,12 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
-    async function disconnectPage(id) {
-        if (!window.confirm("Putuskan koneksi Page ini? Jadwal yang masih menggunakannya harus dihapus terlebih dahulu.")) return;
+    async function disconnectPage(id, button) {
+        if (!confirmInlineAction(button, {
+            label: "Konfirmasi putuskan",
+            ariaLabel: "Konfirmasi putuskan koneksi Page",
+            title: "Putuskan koneksi Page ini? Jadwal yang masih menggunakannya harus dihapus terlebih dahulu."
+        })) return;
         try {
             await api("disconnect-page", { method: "POST", body: { id } });
             showNotice(pageMessage, "Koneksi Page diputuskan.", "success");
@@ -3046,9 +3087,13 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
-    async function toggleScheduleAutopublish(schedule) {
+    async function toggleScheduleAutopublish(schedule, button) {
         const enabling = schedule.autopublish_enabled === false;
-        if (!enabling && !window.confirm("Matikan autopost untuk jadwal ini saja? Jadwal lain dan akun lain tidak terpengaruh.")) return;
+        if (!enabling && !confirmInlineAction(button, {
+            label: "Konfirmasi matikan",
+            ariaLabel: "Konfirmasi matikan autopost jadwal ini",
+            title: "Matikan autopost untuk jadwal ini saja? Jadwal lain dan akun lain tidak terpengaruh."
+        })) return;
         try {
             await api("set-schedule-autopublish", {
                 method: "POST",
@@ -3086,8 +3131,12 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
-    async function deleteSchedule(id) {
-        if (!window.confirm("Hapus jadwal ini? Riwayat posting akan tetap tersimpan.")) return;
+    async function deleteSchedule(id, button) {
+        if (!confirmInlineAction(button, {
+            label: "Konfirmasi hapus",
+            ariaLabel: "Konfirmasi hapus jadwal",
+            title: "Hapus jadwal ini? Riwayat posting akan tetap tersimpan."
+        })) return;
         try {
             await api("delete-schedule", { method: "POST", body: { id } });
             showNotice(pageMessage, "Jadwal dihapus.", "success");
@@ -3101,9 +3150,13 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         if (!state.data) return;
         const enabling = !state.data.autopublishEnabled;
         const warning = enabling
-            ? "Autopublish akan membuat dan menerbitkan gambar untuk jadwal aktif MILIK AKUN ANDA. Jadwal akun lain tidak terpengaruh. Lanjutkan?"
+            ? "Aktifkan autopost akun Anda? Autopublish akan membuat dan menerbitkan gambar untuk jadwal aktif MILIK AKUN ANDA. Jadwal akun lain tidak terpengaruh."
             : "Jeda autopost akun Anda? Jadwal tersimpan dan dapat diaktifkan kembali kapan saja. Jadwal akun lain tidak terpengaruh.";
-        if (!window.confirm(warning)) return;
+        if (!confirmInlineAction(globalToggle, {
+            label: enabling ? "Konfirmasi aktifkan" : "Konfirmasi jeda",
+            ariaLabel: enabling ? "Konfirmasi aktifkan autopost akun saya" : "Konfirmasi jeda autopost akun saya",
+            title: warning
+        })) return;
         setButtonBusy(globalToggle, true, "Memperbarui…");
         try {
             await api("set-autopublish", { method: "POST", body: { enabled: enabling } });
@@ -3127,7 +3180,11 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         const warning = enabling
             ? "Aktifkan kembali autopost untuk SEMUA akun?"
             : "Hentikan autopost SEMUA akun? Hanya admin yang bisa melakukan ini; switch milik masing-masing user tidak berubah.";
-        if (!window.confirm(warning)) return;
+        if (!confirmInlineAction(masterToggle, {
+            label: enabling ? "Konfirmasi aktifkan" : "Konfirmasi hentikan",
+            ariaLabel: enabling ? "Konfirmasi aktifkan autopost semua akun" : "Konfirmasi hentikan autopost semua akun",
+            title: warning
+        })) return;
         setButtonBusy(masterToggle, true, "Memperbarui…");
         try {
             await api("set-global-enabled", { method: "POST", body: { enabled: enabling } });

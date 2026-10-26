@@ -234,6 +234,31 @@
             color: #ffc3cc;
         }
 
+        /*
+           Konfirmasi memakai tombol yang sama: klik 1 = tombol jadi HIJAU
+           TERANG "Konfirmasi …", klik 2 = aksi dijalankan. Tidak ada blok
+           dialog mengambang yang menutupi layar HP.
+        */
+        .sub-btn.is-confirming,
+        .sub-btn.is-confirming:hover {
+            border-color: #b6ffd0;
+            background: linear-gradient(135deg, #4ef08a, #22c55e 52%, #12b76a);
+            color: #04260f;
+            font-weight: 900;
+            filter: none;
+            box-shadow: 0 8px 20px rgba(34, 197, 94, .42);
+            animation: sub-btn-confirm-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes sub-btn-confirm-pulse {
+            0%, 100% { box-shadow: 0 8px 20px rgba(34, 197, 94, .32); }
+            50% { box-shadow: 0 10px 26px rgba(34, 197, 94, .6); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .sub-btn.is-confirming { animation: none; }
+        }
+
         /* ---------------- modal tambah / kurangi ---------------- */
 
         #adjust-modal {
@@ -360,6 +385,15 @@
         html[data-genz-theme="light"] .sub-btn.extend { background: #e6f8f1; color: #0d6b4c; border-color: #b4e6d3; }
         html[data-genz-theme="light"] .sub-btn.reduce { background: #fdf3e0; color: #8a5a06; border-color: #f0dcb4; }
         html[data-genz-theme="light"] .sub-btn.stop { background: #fdecef; color: #9b1c31; border-color: #f5ccd4; }
+
+        html[data-genz-theme="light"] .sub-btn.is-confirming,
+        html[data-genz-theme="light"] .sub-btn.is-confirming:hover {
+            background: linear-gradient(135deg, #6ff2a4, #2ee072);
+            color: #04301a;
+            border-color: #12a150;
+            font-weight: 900;
+            box-shadow: 0 8px 20px rgba(30, 200, 100, .34);
+        }
 
         html[data-genz-theme="light"] #adjust-modal { background: rgba(15, 23, 42, .42); }
 
@@ -641,6 +675,7 @@
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
     <script type="module" src="./assets/js/http-failure.js?v=http-failure-20261026"></script>
-    <script src="./studio-medsos-set.js?v=qwen-llm-quote-20261025"></script>
+    <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
+    <script src="./studio-medsos-set.js?v=inline-confirm-green-20261026"></script>
 </body>
 </html>
