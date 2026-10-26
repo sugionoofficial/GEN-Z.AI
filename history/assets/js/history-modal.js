@@ -372,6 +372,22 @@
                 </div>
             `;
         }
+        /*
+         * Jangan tampilkan tautan "Buka hasil generation" yang sudah
+         * tidak bisa dibuka; itu bertentangan dengan peringatan
+         * kedaluwarsa di atasnya.
+         */
+        if (isMediaExpired(item)) {
+            return `
+                <div class="detail-row">
+                    <div class="detail-label">Result</div>
+                    <div class="detail-value">
+                        <span class="detail-expired-hint">Tautan hasil sudah tidak tersedia.</span>
+                    </div>
+                </div>
+            `;
+        }
+
         const safeUrl = escapeHtml(url);
         return `
             <div class="detail-row">
@@ -458,6 +474,34 @@
             : false;
     }
 
+    /*
+     * Alasan kedaluwarsa dibedakan supaya keterangan di modal jujur:
+     * "dihapus setelah 24 jam" (berkas hilang dari penyimpanan)
+     * berbeda dari "tautan provider kedaluwarsa" (berkas mungkin
+     * masih ada, hanya tautannya yang tidak berlaku lagi).
+     */
+    function getMediaExpiryReason(item) {
+        return typeof App.getMediaExpiryReason === "function"
+            ? App.getMediaExpiryReason(item)
+            : isMediaExpired(item)
+                ? "deleted"
+                : "";
+    }
+
+    function getExpiredNoticeCopy(reason) {
+        if (reason === "link") {
+            return {
+                title: "Tautan hasil sudah kedaluwarsa",
+                body: "Tautan hasil dari provider hanya berlaku sekitar 24 jam sejak generation selesai, jadi berkasnya tidak bisa dibuka atau diunduh dari tautan ini lagi. Riwayat dan detail generation tetap tersimpan."
+            };
+        }
+
+        return {
+            title: "Media sudah kedaluwarsa",
+            body: "Berkas hasil sudah tidak tersedia di penyimpanan. Media riwayat disimpan maksimal 24 jam, jadi file tidak bisa dibuka atau diunduh lagi. Riwayat dan detail generation tetap tersimpan."
+        };
+    }
+
     function renderMediaPreview(item) {
         const status = normalizeStatus(item?.status);
         const url = getResultUrl(item);
@@ -468,12 +512,13 @@
          * <video>/<img> yang akan gagal dimuat.
          */
         if (isMediaExpired(item)) {
+            const copy = getExpiredNoticeCopy(getMediaExpiryReason(item));
             return `
                 <div class="detail-expired-notice" role="note">
                     <span class="detail-expired-icon" aria-hidden="true">⏳</span>
                     <div>
-                        <strong>Media sudah kedaluwarsa</strong>
-                        <p>File ini disimpan hanya 24 jam lalu dihapus otomatis. Riwayatnya tetap ada, tapi file tidak bisa dibuka atau diunduh lagi.</p>
+                        <strong>${escapeHtml(copy.title)}</strong>
+                        <p>${escapeHtml(copy.body)}</p>
                     </div>
                 </div>
             `;
@@ -531,12 +576,16 @@
         if (status !== "success" || !url) return "";
 
         if (isMediaExpired(item)) {
+            const reason = getMediaExpiryReason(item);
+            const hint = reason === "link"
+                ? "Tautan hasil dari provider sudah kedaluwarsa. Riwayat dan detail generation tetap tersimpan."
+                : "Media hasil sudah tidak tersedia setelah masa simpan 24 jam. Riwayat dan detail generation tetap tersimpan.";
             return `
                 <div class="detail-row detail-action-row">
                     <div class="detail-label">Action</div>
                     <div class="detail-value">
                         <span class="detail-expired-hint">
-                            Media sudah dihapus otomatis setelah 24 jam.
+                            ${escapeHtml(hint)}
                         </span>
                     </div>
                 </div>
