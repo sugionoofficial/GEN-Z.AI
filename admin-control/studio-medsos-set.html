@@ -424,6 +424,26 @@
         rel="stylesheet"
         href="/assets/css/genz-compact-desktop.css?v=compact-20261022"
     >
+    <style>
+        /* =========================================================
+           KETERANGAN DI BALIK TOMBOL VIEW — halaman bersih
+           Semua penjelasan panjang disembunyikan di balik <details>
+           ber-summary tombol "View", supaya kartu tidak seperti koran.
+        ========================================================= */
+        .provider-item{display:grid;gap:8px}
+        .view-details{margin:0}
+        summary.view-btn{list-style:none;display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:5px 12px;border:1px solid var(--border);border-radius:999px;background:#12202f;color:#9fd7ea;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;user-select:none}
+        summary.view-btn::-webkit-details-marker{display:none}
+        summary.view-btn:hover{border-color:#8394af;color:#d7def0}
+        .view-details[open] summary.view-btn{border-color:rgba(141,125,255,.55);color:#cfc8ff}
+        .view-close{display:none}
+        .view-details[open] .view-open{display:none}
+        .view-details[open] .view-close{display:inline}
+        .view-body{margin-top:8px;padding:12px 14px;border:1px dashed var(--border);border-radius:12px;background:rgba(8,19,30,.55);color:var(--muted);font-size:11px;line-height:1.65}
+        .view-body strong{color:#cfe0f5}
+        .view-body code{font-size:10px}
+        @media (max-width:600px){.price-settings-row{justify-content:stretch;gap:8px}.price-settings-row .btn{flex:1 1 auto}}
+    </style>
 
 </head>
 <body>
@@ -480,7 +500,10 @@
                         <input class="input" id="post-limit-input" type="number" min="0" max="999" step="1" placeholder="Kosong = default role">
                         <button class="btn" id="save-post-limit" type="button">Simpan batas</button>
                     </div>
-                    <p class="small muted">Berlaku per akun: jumlah maksimal jadwal autopost yang boleh dibuat. Kosongkan untuk memakai default role (USER 2 jadwal, ADMIN/OWNER tanpa batas). Saat batas tercapai, halaman Studio Medsos akun tersebut menampilkan notif merah di bawah tombol Simpan jadwal.</p>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Berlaku per akun: jumlah maksimal jadwal autopost yang boleh dibuat. Kosongkan untuk memakai default role (USER 2 jadwal, ADMIN/OWNER tanpa batas). Saat batas tercapai, halaman Studio Medsos akun tersebut menampilkan notif merah di bawah tombol Simpan jadwal.</div>
+                    </details>
                 </div>
 
                 <div class="actions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
@@ -489,7 +512,10 @@
                 </div>
                 <div id="save-status" class="status-box" role="status" aria-live="polite" style="margin-top:12px">Memuat data user dari Supabase…</div>
 
-                <div class="footer-note">Runtime minimal 1 hari dan maksimal 1 tahun. Saat masa aktif habis, halaman Studio Medsos akan menampilkan blok premium yang mencegah akses tanpa langganan aktif.</div>
+                <details class="view-details">
+                    <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                    <div class="view-body">Runtime minimal 1 hari dan maksimal 1 tahun. Saat masa aktif habis, halaman Studio Medsos akan menampilkan blok premium yang mencegah akses tanpa langganan aktif.</div>
+                </details>
             </div>
 
             <aside class="premium-box">
@@ -535,79 +561,136 @@
             <h2 id="image-provider-title" style="margin:0;font-size:17px">Provider pembuatan gambar</h2>
             <p class="small muted" style="margin:6px 0 0">Pilihan ini berlaku untuk pembuatan gambar manual dan autopost semua user.</p>
             <div class="provider-options">
-                <label class="provider-option">
-                    <input type="radio" name="image-provider" value="gemini">
-                    <span>
-                        <strong>Google Gemini API</strong>
-                        <small>Generator gambar Nano Banana 2 Lite memakai secret GEMINI_API_KEY di Cloudflare Worker.</small>
-                    </span>
-                </label>
-                <label class="provider-option">
-                    <input type="radio" name="image-provider" value="cloudflare">
-                    <span>
-                        <strong>Cloudflare Workers AI</strong>
-                        <small>Karakter selalu memakai foto referensi: <code>@cf/black-forest-labs/flux-2-klein-4b</code> menerima foto karakter (dan foto outfit) sebagai <code>input_image</code> sehingga wajah tetap konsisten. Keluaran default <strong>768×1344</strong> dan potret wajah dipotong dari foto referensi 1024 px (wajah ~2× lebih besar), tercakup kuota 10.000 Neuron/hari (±8–9 gambar/hari; set <code>CLOUDFLARE_IDENTITY_RES=lite</code> untuk kembali ke 576×1024 ±14 gambar/hari). Virtual try-on <code>pruna/p-image-try-on</code> opsional dan butuh kredit AI Gateway/Unified Billing. Bila semua model ber-referensi gagal, gambar tidak dibuat (tidak ada lagi gambar orang lain).</small>
-                    </span>
-                </label>
-                <label class="provider-option">
-                    <input type="radio" name="image-provider" value="tencent">
-                    <span>
-                        <strong>Tencent Cloud (Hy Image 3.5 Preview)</strong>
-                        <small>Hy-Image-3.5-Preview (<code>hy-image-v3.5-preview</code>) lewat TokenHub memakai secret TENCENT_TOKENHUB_KEY. Foto karakter dan foto outfit dikirim sebagai gambar referensi, sehingga wajah tetap menjadi acuan; keluaran 1080×1920 (9:16) atau 1920×1080 (16:9). <strong>Berbayar per gambar</strong> dan wajib mengaktifkan postpaid untuk model vision di console TokenHub — kuota New User Free Trial hanya mencakup model <code>hy-3d-*</code>, bukan model gambar. <strong>Yang gratis dari Tencent adalah teks:</strong> caption kontekstual (<code>deepseek-v4.1-flash</code>, bisa melihat gambar) dan kata-kata mutiara (<code>hy3</code>) memakai <strong>model teks TokenHub</strong> dengan kuota trial 1 juta token per model — bukan model gambar.</small>
-                    </span>
-                </label>
-                <label class="provider-option">
-                    <input type="radio" name="image-provider" value="qwencloud">
-                    <span>
-                        <strong>QwenCloud (Qwen Image)</strong>
-                        <small>Edited image memakai model generator gambar QwenCloud (default qwen-image-3.0-pro; 16 model generator gambar sesuai katalog QwenCloud tersedia di dropdown, lengkap dengan persentase sisa tier per model) dan caption vision memakai qwen3-vl-plus melalui secret QWENCLOUD_API_KEY. Foto referensi karakter (plus foto pakaian bila ada) dikirim sebagai base64; pakaian bersifat opsional.</small>
-                    </span>
-                </label>
-                <label class="provider-option">
-                    <input type="radio" name="image-provider" value="puter">
-                    <span>
-                        <strong>Puter.js (kuota akun Puter Anda)</strong>
-                        <small>Memanggil driver <code>puter-image-generation</code> lewat secret <code>PUTER_AUTH_TOKEN</code> (token dibuat di <code>puter.com/dashboard#account</code> → <code>Create token</code>). Default model <code>gemini-3.1-flash-image</code> (bisa dioverride dengan variabel <code>PUTER_IMAGE_MODEL</code>); foto karakter + outfit dikirim sebagai <code>input_images</code> sehingga wajah tetap menjadi acuan, keluaran 9:16 / 16:9 kualitas 1K. <strong>Bukan gratis tanpa batas:</strong> setiap gambar memotong kuota/biaya <strong>akun Puter Anda sendiri</strong> (model User-Pays), bukan kredit GEN-Z.AI. Jatah akun Puter habis → generate gagal dengan <code>insufficient_funds</code> dan tidak ada gambar pengganti. Caption &amp; kata-kata mutiara TIDAK memakai Puter (tetap provider teks di bawah).</small>
-                    </span>
-                </label>
+                <div class="provider-item">
+                    <label class="provider-option">
+                        <input type="radio" name="image-provider" value="gemini">
+                        <span>
+                            <strong>Google Gemini API</strong>
+                            <small>Nano Banana 2 Lite • secret GEMINI_API_KEY</small>
+                        </span>
+                    </label>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Generator gambar Nano Banana 2 Lite memakai secret GEMINI_API_KEY di Cloudflare Worker.</div>
+                    </details>
+                </div>
+                <div class="provider-item">
+                    <label class="provider-option">
+                        <input type="radio" name="image-provider" value="cloudflare">
+                        <span>
+                            <strong>Cloudflare Workers AI</strong>
+                            <small>Flux-2-klein-4b • foto referensi karakter • gratis (kuota Neuron/hari)</small>
+                        </span>
+                    </label>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Karakter selalu memakai foto referensi: <code>@cf/black-forest-labs/flux-2-klein-4b</code> menerima foto karakter (dan foto outfit) sebagai <code>input_image</code> sehingga wajah tetap konsisten. Keluaran default <strong>768×1344</strong> dan potret wajah dipotong dari foto referensi 1024 px (wajah ~2× lebih besar), tercakup kuota 10.000 Neuron/hari (±8–9 gambar/hari; set <code>CLOUDFLARE_IDENTITY_RES=lite</code> untuk kembali ke 576×1024 ±14 gambar/hari). Virtual try-on <code>pruna/p-image-try-on</code> opsional dan butuh kredit AI Gateway/Unified Billing. Bila semua model ber-referensi gagal, gambar tidak dibuat (tidak ada lagi gambar orang lain).</div>
+                    </details>
+                </div>
+                <div class="provider-item">
+                    <label class="provider-option">
+                        <input type="radio" name="image-provider" value="tencent">
+                        <span>
+                            <strong>Tencent Cloud (Hy Image 3.5 Preview)</strong>
+                            <small>Referensi wajah • 1080×1920 • <strong>Berbayar per gambar</strong></small>
+                        </span>
+                    </label>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Hy-Image-3.5-Preview (<code>hy-image-v3.5-preview</code>) lewat TokenHub memakai secret TENCENT_TOKENHUB_KEY. Foto karakter dan foto outfit dikirim sebagai gambar referensi, sehingga wajah tetap menjadi acuan; keluaran 1080×1920 (9:16) atau 1920×1080 (16:9). <strong>Berbayar per gambar</strong> dan wajib mengaktifkan postpaid untuk model vision di console TokenHub — kuota New User Free Trial hanya mencakup model <code>hy-3d-*</code>, bukan model gambar. <strong>Yang gratis dari Tencent adalah teks:</strong> caption kontekstual (<code>deepseek-v4.1-flash</code>, bisa melihat gambar) dan kata-kata mutiara (<code>hy3</code>) memakai <strong>model teks TokenHub</strong> dengan kuota trial 1 juta token per model — bukan model gambar.</div>
+                    </details>
+                </div>
+                <div class="provider-item">
+                    <label class="provider-option">
+                        <input type="radio" name="image-provider" value="qwencloud">
+                        <span>
+                            <strong>QwenCloud (Qwen Image)</strong>
+                            <small>Referensi karakter base64 • secret QWENCLOUD_API_KEY</small>
+                        </span>
+                    </label>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Edited image memakai model generator gambar QwenCloud (default qwen-image-3.0-pro; 16 model generator gambar sesuai katalog QwenCloud tersedia di dropdown, lengkap dengan persentase sisa tier per model) dan caption vision memakai qwen3-vl-plus melalui secret QWENCLOUD_API_KEY. Foto referensi karakter (plus foto pakaian bila ada) dikirim sebagai base64; pakaian bersifat opsional.</div>
+                    </details>
+                </div>
+                <div class="provider-item">
+                    <label class="provider-option">
+                        <input type="radio" name="image-provider" value="puter">
+                        <span>
+                            <strong>Puter.js (kuota akun Puter Anda)</strong>
+                            <small>User-Pays • setiap gambar memotong kuota akun Puter Anda sendiri</small>
+                        </span>
+                    </label>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Memanggil driver <code>puter-image-generation</code> lewat secret <code>PUTER_AUTH_TOKEN</code> (token dibuat di <code>puter.com/dashboard#account</code> → <code>Create token</code>). Default model <code>gemini-3.1-flash-image</code> (bisa dioverride dengan variabel <code>PUTER_IMAGE_MODEL</code>); foto karakter + outfit dikirim sebagai <code>input_images</code> sehingga wajah tetap menjadi acuan, keluaran 9:16 / 16:9 kualitas 1K. <strong>Bukan gratis tanpa batas:</strong> setiap gambar memotong kuota/biaya <strong>akun Puter Anda sendiri</strong> (model User-Pays), bukan kredit GEN-Z.AI. Jatah akun Puter habis → generate gagal dengan <code>insufficient_funds</code> dan tidak ada gambar pengganti. Caption &amp; kata-kata mutiara TIDAK memakai Puter (tetap provider teks di bawah).</div>
+                    </details>
+                </div>
             </div>
             <h3 style="margin:22px 0 0;font-size:15px">Provider penulisan teks (caption &amp; kata-kata mutiara)</h3>
             <p class="small muted" style="margin:6px 0 0">Terpisah dari provider gambar, supaya gambar tetap dari jalur gratis sementara tulisan memakai kuota yang gratis juga.</p>
             <div class="provider-options">
-                <label class="provider-option">
-                    <input type="radio" name="text-provider" value="auto">
-                    <span>
-                        <strong>Otomatis (disarankan)</strong>
-                        <small>Pakai Tencent TokenHub bila <code>TENCENT_TOKENHUB_KEY</code> tersedia (kuota trial 1 juta token per model), lalu kembali ke provider gambar bila tidak.</small>
-                    </span>
-                </label>
-                <label class="provider-option">
-                    <input type="radio" name="text-provider" value="tencent">
-                    <span>
-                        <strong>Tencent TokenHub</strong>
-                        <small>Caption dari <code>deepseek-v4.1-flash</code> (bisa melihat gambar) dan kata-kata mutiara dari <code>hy3</code>. Gratis selama kuota trial; bila habis, caption &amp; mutiara otomatis pindah ke Cloudflare dan alasannya dicatat di log.</small>
-                    </span>
-                </label>
-                <label class="provider-option">
-                    <input type="radio" name="text-provider" value="cloudflare">
-                    <span>
-                        <strong>Cloudflare Workers AI</strong>
-                        <small>llama-3.2-11b-vision untuk caption dan kata-kata mutiara. Gratis, tanpa secret tambahan, tetapi bahasanya lebih kaku.</small>
-                    </span>
-                </label>
-                <label class="provider-option">
-                    <input type="radio" name="text-provider" value="gemini">
-                    <span>
-                        <strong>Google Gemini</strong>
-                        <small>Memakai GEMINI_API_KEY. Berbayar per permintaan pada tier berbayar.</small>
-                    </span>
-                </label>
+                <div class="provider-item">
+                    <label class="provider-option">
+                        <input type="radio" name="text-provider" value="auto">
+                        <span>
+                            <strong>Otomatis (disarankan)</strong>
+                            <small>Pakai Tencent trial bila ada, lalu kembali ke provider gambar</small>
+                        </span>
+                    </label>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Pakai Tencent TokenHub bila <code>TENCENT_TOKENHUB_KEY</code> tersedia (kuota trial 1 juta token per model), lalu kembali ke provider gambar bila tidak.</div>
+                    </details>
+                </div>
+                <div class="provider-item">
+                    <label class="provider-option">
+                        <input type="radio" name="text-provider" value="tencent">
+                        <span>
+                            <strong>Tencent TokenHub</strong>
+                            <small>deepseek-v4.1-flash (vision) + hy3 • kuota trial 1 juta token</small>
+                        </span>
+                    </label>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Caption dari <code>deepseek-v4.1-flash</code> (bisa melihat gambar) dan kata-kata mutiara dari <code>hy3</code>. Gratis selama kuota trial; bila habis, caption &amp; mutiara otomatis pindah ke Cloudflare dan alasannya dicatat di log.</div>
+                    </details>
+                </div>
+                <div class="provider-item">
+                    <label class="provider-option">
+                        <input type="radio" name="text-provider" value="cloudflare">
+                        <span>
+                            <strong>Cloudflare Workers AI</strong>
+                            <small>llama-3.2-11b-vision • gratis tanpa secret</small>
+                        </span>
+                    </label>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">llama-3.2-11b-vision untuk caption dan kata-kata mutiara. Gratis, tanpa secret tambahan, tetapi bahasanya lebih kaku.</div>
+                    </details>
+                </div>
+                <div class="provider-item">
+                    <label class="provider-option">
+                        <input type="radio" name="text-provider" value="gemini">
+                        <span>
+                            <strong>Google Gemini</strong>
+                            <small>GEMINI_API_KEY • berbayar pada tier berbayar</small>
+                        </span>
+                    </label>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Memakai GEMINI_API_KEY. Berbayar per permintaan pada tier berbayar.</div>
+                    </details>
+                </div>
             </div>
             <div id="qwencloud-options" class="qwencloud-options" hidden>
                 <div class="provider-field">
                     <label for="qwencloud-image-model">Model gambar QwenCloud (Foto Karakter AI)</label>
                     <select id="qwencloud-image-model"></select>
-                    <small class="muted">Model yang mendukung pembuatan image karakter; persentase tier tersedia ditampilkan di samping nama model. Caption foto karakter tetap memakai qwen3-vl-plus.</small>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Model yang mendukung pembuatan image karakter; persentase tier tersedia ditampilkan di samping nama model. Caption foto karakter tetap memakai qwen3-vl-plus.</div>
+                    </details>
                 </div>
                 <div id="qwencloud-quota-panel" class="quota-panel" aria-live="polite"></div>
                 <div class="price-settings-row">
@@ -616,13 +699,19 @@
                     <button id="save-qwencloud-quota" class="btn" type="button">Simpan batas tier</button>
                     <button id="reset-qwencloud-quota" class="btn" type="button">Reset penghitung</button>
                 </div>
-                <small class="muted">QwenCloud tidak membuka API sisa kuota, jadi persentase dihitung dari ledger pemakaian aplikasi terhadap batas tier yang Anda isi. Status otomatis berubah menjadi "Tier habis" bila QwenCloud menolak dengan error kuota (429 / AllocationQuota.FreeTierOnly).</small>
+                <details class="view-details">
+                    <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                    <div class="view-body">QwenCloud tidak membuka API sisa kuota, jadi persentase dihitung dari ledger pemakaian aplikasi terhadap batas tier yang Anda isi. Status otomatis berubah menjadi "Tier habis" bila QwenCloud menolak dengan error kuota (429 / AllocationQuota.FreeTierOnly).</div>
+                </details>
             </div>
             <div id="qwencloud-llm-options" class="qwencloud-options">
                 <div class="provider-field">
                     <label for="qwencloud-llm-model">Model LLM QwenCloud (Khusus Kata-kata Mutiara — Latar Hitam Hemat Kuota Gambar)</label>
                     <select id="qwencloud-llm-model"></select>
-                    <small class="muted">Khusus mode Kata-kata Mutiara + Musik Auto-Play otomatis memakai latar kosong hitam polos (#000000) sehingga <strong>0 kuota model gambar terpakai</strong>, sementara kalimat mutiara dirangkai oleh model LLM QwenCloud pilihan di atas.</small>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Khusus mode Kata-kata Mutiara + Musik Auto-Play otomatis memakai latar kosong hitam polos (#000000) sehingga <strong>0 kuota model gambar terpakai</strong>, sementara kalimat mutiara dirangkai oleh model LLM QwenCloud pilihan di atas.</div>
+                    </details>
                 </div>
                 <div id="qwencloud-llm-quota-panel" class="quota-panel" aria-live="polite"></div>
                 <div class="price-settings-row">
@@ -631,9 +720,15 @@
                     <button id="save-qwencloud-llm-quota" class="btn" type="button">Simpan batas tier LLM</button>
                     <button id="reset-qwencloud-llm-quota" class="btn" type="button">Reset penghitung LLM</button>
                 </div>
-                <small class="muted">Setiap model LLM QwenCloud umumnya memiliki free quota besar (~1.000.000 token ≈ ribuan kalimat kata mutiara). Persentase sisa dihitung terhadap batas request yang Anda atur dan otomatis ditandai "Tier habis" jika model LLM tersebut menolak dengan error kuota (HTTP 429).</small>
+                <details class="view-details">
+                    <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                    <div class="view-body">Setiap model LLM QwenCloud umumnya memiliki free quota besar (~1.000.000 token ≈ ribuan kalimat kata mutiara). Persentase sisa dihitung terhadap batas request yang Anda atur dan otomatis ditandai "Tier habis" jika model LLM tersebut menolak dengan error kuota (HTTP 429).</div>
+                </details>
             </div>
-            <p class="footer-note">Provider gambar yang dipilih digunakan untuk Foto Karakter AI &amp; caption kontekstual, sedangkan Kata-kata Mutiara memakai latar hitam polos + model LLM QwenCloud melalui QWENCLOUD_API_KEY.</p>
+            <details class="view-details">
+                <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                <div class="view-body">Provider gambar yang dipilih digunakan untuk Foto Karakter AI &amp; caption kontekstual, sedangkan Kata-kata Mutiara memakai latar hitam polos + model LLM QwenCloud melalui QWENCLOUD_API_KEY.</div>
+            </details>
             <div class="price-settings-row">
                 <button id="save-image-provider" class="btn primary" type="button">Simpan Provider &amp; Model AI</button>
                 <button id="test-image-provider" class="btn" type="button">Tes Cloudflare AI</button>
