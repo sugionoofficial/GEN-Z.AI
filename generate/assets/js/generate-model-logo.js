@@ -93,6 +93,22 @@ const LOGO_MAP = Object.freeze({
        Logo file: wan.svg
     ===================================================== */
 
+    /* =====================================================
+       TENCENT AI ART (图像风格化 / 图生图)
+       Model: tencent-aiart-image-to-image
+       Logo file: tencent.svg
+    ===================================================== */
+
+    "tencent-aiart":
+        "tencent.svg",
+
+    tencent:
+        "tencent.svg",
+
+    aiart:
+        "tencent.svg",
+
+
     qwencloud:
         "wan.svg",
 

@@ -666,6 +666,101 @@ function getPollingState(
 
 
 /* =========================================================
+   HASIL SINKRON
+   ---------------------------------------------------------
+   Sebagian model (mis. Tencent AI Art) mengirim gambar
+   langsung di response generate. Deteksi itu supaya UI
+   tidak menunggu polling yang tidak pernah ada.
+========================================================= */
+
+function extractImmediateResult(
+    response
+) {
+
+    if (
+        !response ||
+        typeof response !==
+            "object"
+    ) {
+
+        return null;
+    }
+
+
+    const urls =
+        (
+            Array.isArray(
+                response.result_urls
+            )
+                ? response.result_urls
+                : []
+        )
+            .map(
+                item =>
+                    String(
+                        item ||
+                        ""
+                    ).trim()
+            )
+            .filter(
+                Boolean
+            );
+
+
+    const resultUrl =
+        String(
+            response.result_url ||
+            urls[0] ||
+            ""
+        ).trim();
+
+
+    const completed =
+        response.completed ===
+            true ||
+        response.synchronous ===
+            true ||
+        String(
+            response.status ||
+            ""
+        )
+            .trim()
+            .toLowerCase() ===
+            "success";
+
+
+    if (
+        !completed ||
+        (!resultUrl && !urls.length)
+    ) {
+
+        return null;
+    }
+
+
+    return {
+
+        history_saved:
+            response.history_saved !==
+                false,
+
+        result_url:
+            resultUrl ||
+            urls[0],
+
+        result_urls:
+            urls.length
+                ? urls
+                : [
+                    resultUrl
+                ]
+
+    };
+
+}
+
+
+/* =========================================================
    TASK ID
 ========================================================= */
 
@@ -1497,7 +1592,16 @@ async function handleGenerateSubmit(
 
                 "generateVideo",
 
-                90000
+                /*
+                 * Model sinkron membuat gambar di dalam
+                 * request ini, jadi butuh batas lebih
+                 * panjang daripada model async.
+                 */
+
+                model?.synchronous ===
+                    true
+                    ? 180000
+                    : 90000
 
             );
 
@@ -1535,6 +1639,140 @@ async function handleGenerateSubmit(
                 response;
 
             throw error;
+
+        }
+
+
+        /*
+         * =================================================
+         * HASIL SINKRON (MODEL YANG LANGSUNG SELESAI)
+         * -------------------------------------------------
+         * Model seperti Tencent AI Art membalas gambar di
+         * response `/api/generate` — tidak ada task yang
+         * perlu dipolling. Tanpa cabang ini, hasil sudah
+         * tersimpan di riwayat tapi layar tetap menunggu
+         * polling yang tidak akan pernah selesai.
+         * =================================================
+         */
+
+        const immediateResult =
+            extractImmediateResult(
+                response
+            );
+
+
+        if (
+            immediateResult
+        ) {
+
+            if (
+                elements.resultModel
+            ) {
+
+                elements.resultModel.textContent =
+                    getModelName(
+                        model
+                    );
+
+            }
+
+
+            if (
+                elements.resultProvider
+            ) {
+
+                elements.resultProvider.textContent =
+                    getProviderName(
+                        model
+                    );
+
+            }
+
+
+            if (
+                elements.resultTaskId
+            ) {
+
+                elements.resultTaskId.textContent =
+                    taskId;
+
+            }
+
+
+            if (
+                elements.status
+            ) {
+
+                elements.status.textContent =
+                    "Generate selesai.";
+
+                elements.status.hidden =
+                    false;
+
+            }
+
+
+            /*
+             * Kalau baris riwayat gagal ditulis, jangan bilang
+             * "tersimpan di History" — hasilnya bisa hilang
+             * setelah tab ditutup.
+             */
+
+            const historySaved =
+                immediateResult.history_saved !==
+                    false;
+
+
+            setGenerateStatus(
+                "success",
+
+                historySaved
+                    ? "Gambar sudah selesai dan tersimpan di History."
+                    : "Gambar sudah selesai, tetapi riwayat gagal disimpan. Unduh hasilnya sekarang."
+            );
+
+
+            /* ===== GENZ PROGRESS CARD — SUCCESS ===== */
+
+            progressSuccess({
+
+                message:
+                    historySaved
+                        ? "Gambar selesai dibuat! Cek History."
+                        : "Gambar selesai. Riwayat gagal disimpan."
+
+            });
+
+
+            hideLoading();
+
+
+            return {
+
+                ...response,
+
+                success:
+                    true,
+
+                status:
+                    "success",
+
+                state:
+                    "success",
+
+                completed:
+                    true,
+
+                synchronous:
+                    true,
+
+                result_url:
+                    immediateResult.result_url,
+
+                result_urls:
+                    immediateResult.result_urls
+
+            };
 
         }
 

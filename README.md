@@ -210,6 +210,14 @@ Untuk Wan 3.0 Reference Video, buat/aktifkan model `wan-30-ref-s6` dengan
 provider `motiongen` dan harga `4` pada ketiga tier kredit. Model ini wajib
 menerima 1–6 gambar referensi dan dapat memakai satu video referensi opsional.
 
+Model **Tencent AI Art** (`tencent-aiart-image-to-image`, foto → anime)
+adalah model **sinkron**: hasil dikirim di response `/api/generate`,
+disalin Worker ke Storage privat (`user-uploads/aiart-outputs/…`), lalu
+dicatat `success` di riwayat tanpa polling. Jalankan
+`supabase/tencent-aiart-provider-models.sql`, lalu isi
+`SecretId|SecretKey` lewat Admin Panel → Providers → Tencent AI Art.
+Detail: [TENCENT-AIART-SETUP.md](TENCENT-AIART-SETUP.md).
+
 Model QwenCloud (Alibaba Cloud Model Studio / DashScope) memakai satu
 factory bersama di `models/qwencloud-video/` — menambah model cukup
 mengedit `specs.js`. Jalankan `supabase/qwencloud-provider-models.sql`,
