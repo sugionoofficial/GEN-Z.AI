@@ -495,6 +495,9 @@ export function createEmptyProvenance() {
         scannedBytes:
             0,
 
+        coverage:
+            null,
+
         error:
             "",
 
@@ -651,6 +654,42 @@ function normalizeProvenance(
                 provenance.scannedBytes
             )
             : 0;
+
+    /*
+       Cakupan pemindaian penuh: dipakai panel metadata untuk
+       menunjukkan bahwa SELURUH berkas benar-benar diperiksa,
+       bukan hanya sebagian.
+    */
+    normalized.coverage =
+        provenance.coverage &&
+        typeof provenance.coverage === "object"
+            ? {
+
+                mode:
+                    String(
+                        provenance.coverage.mode ||
+                        "stream"
+                    ),
+
+                complete:
+                    provenance.coverage.complete === true,
+
+                scannedBytes:
+                    Number(
+                        provenance.coverage.scannedBytes
+                    ) || 0,
+
+                mediaSkippedBytes:
+                    Number(
+                        provenance.coverage.mediaSkippedBytes
+                    ) || 0,
+
+                boxes:
+                    Number(
+                        provenance.coverage.boxes
+                    ) || 0
+            }
+            : null;
 
     normalized.error =
         typeof provenance.error === "string"

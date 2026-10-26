@@ -1595,9 +1595,37 @@ function renderProvenanceMetadata(
 
 
     /*
-       Pemindaian terbatas (berkas besar) harus terlihat di panel metadata:
-       "NOT DETECTED" pada berkas 200 MB bukan bukti bebas C2PA.
+       Hasil pemindaian harus terlihat di panel metadata.
+
+       - Pemindaian penuh: seluruh berkas benar-benar dibaca.
+       - Pemindaian terbatas: "NOT DETECTED" bukan bukti bebas C2PA.
     */
+    if (
+        provenance.coverage &&
+        provenance.coverage.complete === true
+    ) {
+
+        const scanned =
+            Number(
+                provenance.coverage.scannedBytes
+            ) || 0;
+
+        const skipped =
+            Number(
+                provenance.coverage.mediaSkippedBytes
+            ) || 0;
+
+        html +=
+            createMetadataRow(
+                "Pemeriksaan",
+                skipped > 0
+                    ? `SELURUH BERKAS (${formatMegabytes(scanned)}; ${formatMegabytes(skipped)} data video tidak perlu dibaca)`
+                    : `SELURUH BERKAS (${formatMegabytes(scanned)})`
+            );
+
+    }
+
+
     if (
         provenance.partial === true
     ) {
@@ -1605,7 +1633,7 @@ function renderProvenanceMetadata(
         html +=
             createMetadataRow(
                 "Pemeriksaan",
-                "SEBAGIAN (berkas besar)"
+                "SEBAGIAN (pemindaian terhenti)"
             );
 
 
@@ -3738,6 +3766,37 @@ function renderOverlayModel(
     stamp.appendChild(
         modelLabel
     );
+
+}
+
+
+/* =========================================================
+   SIZE FORMATTER
+========================================================= */
+
+function formatMegabytes(
+    bytes
+) {
+
+    if (
+        !Number.isFinite(
+            bytes
+        ) ||
+        bytes <= 0
+    ) {
+
+        return "0 MB";
+
+    }
+
+
+    const megabytes =
+        bytes / (1024 * 1024);
+
+
+    return `${megabytes >= 10
+        ? Math.round(megabytes)
+        : Math.round(megabytes * 10) / 10} MB`;
 
 }
 

@@ -68,6 +68,51 @@ const PARTIAL_OVERLAP_BYTES =
     64 * 1024;
 
 
+/*
+   PEMINDAIAN SELURUH BERKAS (STREAMING)
+   ---------------------------------------------------------
+   Berkas besar TIDAK dibaca sekaligus ke memori, tetapi dibaca
+   potongan demi potongan memakai `File.slice()`.
+
+   `slice()` hanya membuat referensi ke data asli; yang masuk
+   memori cuma satu potongan. Dengan cara ini berkas 500 MB pun
+   bisa diperiksa SAMPAI HABIS tanpa membuat tab kehabisan memori,
+   dan tidak ada lagi status "hanya diperiksa sebagian".
+
+   Pada MP4/MOV, kotak `mdat` (isi video/audio) dilewati tanpa
+   dibaca sama sekali: manifest C2PA selalu berada di container
+   metadata, dan byte video terkompresi bisa kebetulan membentuk
+   kata "c2pa" sehingga menghasilkan tuduhan palsu.
+*/
+
+const HEAD_BYTES =
+    4 * 1024 * 1024;
+
+
+const SCAN_CHUNK_BYTES =
+    4 * 1024 * 1024;
+
+
+const SCAN_OVERLAP_BYTES =
+    64;
+
+
+/*
+   Label yang dicari saat pemindaian penuh.
+*/
+
+const SCAN_LABELS =
+    [
+        "c2pa",
+        "jumbf",
+        "content credentials",
+        "softwareagent",
+        "trainedalgorithmicmedia",
+        "trainedalgorithmicdata",
+        "digitalsourcetype"
+    ];
+
+
 const ASCII_CACHE =
     new WeakMap();
 
@@ -1843,10 +1888,10 @@ function inspectionLimitNote(
     scannedBytes
 ) {
 
-    return `Berkas ${formatMegabytes(fileSize)} melebihi batas pemindaian penuh `
-        + `${formatMegabytes(MAX_INSPECT_BYTES)}. Provenance hanya diperiksa pada `
-        + `${formatMegabytes(scannedBytes)} di bagian awal dan akhir berkas, `
-        + `jadi "tidak ditemukan" bukan berarti berkas bebas C2PA.`;
+    return `Pemindaian seluruh berkas berhenti di `
+        + `${formatMegabytes(scannedBytes)} dari ${formatMegabytes(fileSize)} `
+        + `(browser gagal membaca sisa berkas). Karena itu "tidak ditemukan" `
+        + `belum berarti berkas bebas C2PA.`;
 
 }
 
@@ -1921,86 +1966,760 @@ async function readInspectionBytes(
 
 
     /*
-       Pemindaian terbatas: kepala + ekor berkas.
+       Berkas besar: hanya KEPALA yang dibaca ke memori.
 
-       Metadata C2PA pada JPEG/PNG/WebP berada dekat awal atau akhir
-       berkas, dan pada MP4/MOV ada di dalam box `uuid`/`moov` yang
-       biasanya berada di salah satu ujung juga. Byte yang dipindai
-       tetap dipakai apa adanya, jadi bila label C2PA ditemukan hasilnya
-       tetap valid — yang tidak bisa diklaim hanyalah "bersih".
+       Sisa berkas tidak dilewatkan — ia diperiksa lewat pemindaian
+       streaming di `scanWholeFile()` (lihat `inspectProvenance`).
+       Kepala dipakai untuk mengenali format dan struktur awal.
     */
-    const windowEnd =
+
+    const headEnd =
         Math.min(
             fileSize,
-            PARTIAL_WINDOW_BYTES + PARTIAL_OVERLAP_BYTES
-        );
-
-
-    const tailStart =
-        Math.max(
-            0,
-            fileSize - PARTIAL_WINDOW_BYTES
+            HEAD_BYTES
         );
 
 
     const head =
         new Uint8Array(
-            await file
-                .slice(0, windowEnd)
-                .arrayBuffer()
-        );
-
-
-    const tail =
-        tailStart > windowEnd
-            ? new Uint8Array(
-                await file
-                    .slice(tailStart, fileSize)
-                    .arrayBuffer()
+            await readSliceBytes(
+                file,
+                0,
+                headEnd
             )
-            : new Uint8Array(0);
-
-
-    const bytes =
-        new Uint8Array(
-            head.length + tail.length
         );
 
 
-    bytes.set(
-        head,
-        0
-    );
+    return {
+        bytes:
+            head,
+        partial:
+            false,
+        stream:
+            true,
+        fileSize,
+        scannedBytes:
+            head.length,
+        limitBytes:
+            MAX_INSPECT_BYTES
+    };
+
+}
+
+
+/* =========================================================
+   STREAMING WHOLE-FILE SCAN
+========================================================= */
+
+async function readSliceBytes(
+    file,
+    start,
+    end
+) {
+
+    if (
+        end <= start
+    ) {
+
+        return new Uint8Array(0);
+
+    }
+
+
+    const blob =
+        typeof file.slice ===
+            "function"
+            ? file.slice(
+                start,
+                end
+            )
+            : file;
 
 
     if (
-        tail.length > 0
+        !blob ||
+        typeof blob.arrayBuffer !==
+            "function"
     ) {
 
-        bytes.set(
-            tail,
-            head.length
+        throw new Error(
+            "Browser tidak mendukung pembacaan potongan berkas."
         );
 
     }
 
 
+    return new Uint8Array(
+        await blob.arrayBuffer()
+    );
+
+}
+
+
+/*
+   Pencocokan label pada satu potongan berkas.
+
+   Potongan diubah menjadi string ASCII (potongan demi potongan
+   kecil supaya tidak melampaui batas argumen fungsi), lalu
+   `toLowerCase().includes()` memakai mesin string bawaan browser
+   yang jauh lebih cepat daripada perulangan byte manual.
+*/
+
+function chunkToLowercase(
+    bytes
+) {
+
+    const step =
+        8192;
+
+
+    let text =
+        "";
+
+
+    for (
+        let offset = 0;
+        offset < bytes.length;
+        offset += step
+    ) {
+
+        text +=
+            String.fromCharCode.apply(
+                null,
+                bytes.subarray(
+                    offset,
+                    Math.min(
+                        offset + step,
+                        bytes.length
+                    )
+                )
+            );
+
+    }
+
+
+    return text.toLowerCase();
+
+}
+
+
+function containsByteSequence(
+    bytes,
+    sequence
+) {
+
+    const last =
+        bytes.length - sequence.length;
+
+
+    for (
+        let index = 0;
+        index <= last; index += 1
+    ) {
+
+        let matched =
+            true;
+
+
+        for (
+            let offset = 0;
+            offset < sequence.length; offset += 1
+        ) {
+
+            if (
+                bytes[index + offset] !==
+                sequence[offset]
+            ) {
+
+                matched =
+                    false;
+
+                break;
+
+            }
+
+        }
+
+
+        if (
+            matched
+        ) {
+
+            return true;
+
+        }
+
+    }
+
+
+    return false;
+
+}
+
+
+/*
+   Menyimpan temuan pemindaian streaming.
+*/
+
+function createScanTally() {
+
     return {
-        bytes,
-        partial:
-            true,
-        fileSize,
-        scannedBytes:
-            bytes.length,
-        scanWindows: {
-            head: [0, windowEnd],
-            tail: tail.length > 0
-                ? [tailStart, fileSize]
-                : null
+
+        labels:
+            new Set(),
+
+        ai: {
+
+            aiDetected:
+                false,
+
+            digitalSourceType:
+                null,
+
+            softwareAgent:
+                null,
+
+            aiDisclosure:
+                null
+
         },
-        limitBytes:
-            MAX_INSPECT_BYTES
+
+        scannedBytes:
+            0,
+
+        mediaSkippedBytes:
+            0,
+
+        boxes:
+            0,
+
+        complete:
+            false
+
     };
+
+}
+
+
+function absorbChunk(
+    tally,
+    bytes,
+    chunkStart
+) {
+
+    const chunkEnd =
+        chunkStart +
+        bytes.length;
+
+
+    const labelsBefore =
+        tally.labels.size;
+
+
+    const haystack =
+        chunkToLowercase(
+            bytes
+        );
+
+
+    for (
+        let index = 0;
+        index < SCAN_LABELS.length; index += 1
+    ) {
+
+        const label =
+            SCAN_LABELS[index];
+
+
+        if (
+            tally.labels.has(
+                label
+            )
+        ) {
+
+            continue;
+
+        }
+
+
+        if (
+            haystack.includes(
+                label
+            )
+        ) {
+
+            tally.labels.add(
+                label
+            );
+
+        }
+
+    }
+
+
+    /*
+       Manifest C2PA selalu ditandai UUID khusus.
+    */
+
+    if (
+        !tally.labels.has(
+            "c2pa-uuid"
+        ) &&
+        containsByteSequence(
+            bytes,
+            C2PA_UUID_BYTES
+        )
+    ) {
+
+        tally.labels.add(
+            "c2pa-uuid"
+        );
+
+    }
+
+
+    /*
+       Detail AI (softwareAgent, digitalSourceType) hanya diambil
+       dari potongan yang BARU menemukan sinyal, supaya berkas
+       besar tidak diurai berulang-ulang tanpa alasan.
+    */
+
+    const hasSignal =
+        tally.labels.size >
+        labelsBefore;
+
+
+    if (
+        hasSignal
+    ) {
+
+        try {
+
+            const ai =
+                inspectAIProvenance(
+                    bytes
+                );
+
+
+            if (
+                ai.softwareAgent &&
+                !tally.ai.softwareAgent
+            ) {
+
+                tally.ai.softwareAgent =
+                    ai.softwareAgent;
+
+            }
+
+
+            if (
+                ai.digitalSourceType &&
+                !tally.ai.digitalSourceType
+            ) {
+
+                tally.ai.digitalSourceType =
+                    ai.digitalSourceType;
+
+            }
+
+
+            if (
+                ai.aiDisclosure &&
+                !tally.ai.aiDisclosure
+            ) {
+
+                tally.ai.aiDisclosure =
+                    ai.aiDisclosure;
+
+            }
+
+
+            if (
+                ai.aiDetected
+            ) {
+
+                tally.ai.aiDetected =
+                    true;
+
+            }
+
+        } catch (
+            error
+        ) {
+
+            console.warn(
+                "[GEN-Z.AI] Detail AI dilewati:",
+                error
+            );
+
+        }
+
+    }
+
+
+    tally.scannedBytes +=
+        chunkEnd - chunkStart;
+
+}
+
+
+/*
+   Memindai payload sebuah kotak MP4 sampai habis,
+   potongan demi potongan.
+*/
+async function scanRange(
+    file,
+    start,
+    end,
+    tally
+) {
+
+    let cursor =
+        start;
+
+
+    while (
+        cursor < end
+    ) {
+
+        const chunkStart =
+            Math.max(
+                start,
+                cursor -
+                    SCAN_OVERLAP_BYTES
+            );
+
+
+        const chunkEnd =
+            Math.min(
+                cursor +
+                    SCAN_CHUNK_BYTES,
+                end
+            );
+
+
+        const chunk =
+            await readSliceBytes(
+                file,
+                chunkStart,
+                chunkEnd
+            );
+
+
+        absorbChunk(
+            tally,
+            chunk,
+            chunkStart
+        );
+
+
+        cursor =
+            chunkEnd;
+
+    }
+
+}
+
+
+/*
+   MP4 / MOV: lewati `mdat`, pindai seluruh container metadata.
+*/
+async function scanIsoBmffFile(
+    file,
+    fileSize,
+    tally
+) {
+
+    let offset = 0;
+
+
+    while (
+        offset + 8 <= fileSize &&
+        tally.boxes < 100000
+    ) {
+
+        const header =
+            await readSliceBytes(
+                file,
+                offset,
+                Math.min(
+                    offset + 16,
+                    fileSize
+                )
+            );
+
+
+        if (
+            header.length < 8
+        ) {
+
+            break;
+
+        }
+
+
+        let size =
+            (
+                (
+                    header[0] << 24
+                ) |
+                (
+                    header[1] << 16
+                ) |
+                (
+                    header[2] << 8
+                ) |
+                header[3]
+            ) >>> 0;
+
+
+        const type =
+            String.fromCharCode(
+                header[4],
+                header[5],
+                header[6],
+                header[7]
+            );
+
+
+        let headerSize =
+            8;
+
+
+        if (
+            size === 1 &&
+            header.length >= 16
+        ) {
+
+            const high =
+                (
+                    (
+                        header[8] << 24
+                    ) |
+                    (
+                        header[9] << 16
+                    ) |
+                    (
+                        header[10] << 8
+                    ) |
+                    header[11]
+                ) >>> 0;
+
+
+            const low =
+                (
+                    (
+                        header[12] << 24
+                    ) |
+                    (
+                        header[13] << 16
+                    ) |
+                    (
+                        header[14] << 8
+                    ) |
+                    header[15]
+                ) >>> 0;
+
+
+            size =
+                high *
+                4294967296 +
+                low;
+
+
+            headerSize =
+                16;
+
+        }
+        else if (
+            size === 0
+        ) {
+
+            size =
+                fileSize - offset;
+
+        }
+
+
+        if (
+            size < headerSize
+        ) {
+
+            break;
+
+        }
+
+
+        const boxEnd =
+            Math.min(
+                offset + size,
+                fileSize
+            );
+
+
+        if (
+            type === "mdat"
+        ) {
+
+            /*
+               Isi video/audio: dilewati tanpa dibaca.
+            */
+
+            tally.mediaSkippedBytes +=
+                boxEnd - offset;
+
+        }
+        else {
+
+            await scanRange(
+                file,
+                offset + headerSize,
+                boxEnd,
+                tally
+            );
+
+        }
+
+
+        offset =
+            boxEnd;
+
+        tally.boxes +=
+            1;
+
+    }
+
+
+    tally.complete =
+        offset >= fileSize;
+
+}
+
+
+/*
+   Format lain: baca berurutan sampai akhir berkas.
+*/
+async function scanSequentialFile(
+    file,
+    fileSize,
+    tally
+) {
+
+    let cursor = 0;
+
+
+    while (
+        cursor < fileSize
+    ) {
+
+        const chunkStart =
+            Math.max(
+                0,
+                cursor -
+                    SCAN_OVERLAP_BYTES
+            );
+
+
+        const chunkEnd =
+            Math.min(
+                cursor +
+                    SCAN_CHUNK_BYTES,
+                fileSize
+            );
+
+
+        const chunk =
+            await readSliceBytes(
+                file,
+                chunkStart,
+                chunkEnd
+            );
+
+
+        if (
+            chunk.length === 0
+        ) {
+
+            break;
+
+        }
+
+
+        absorbChunk(
+            tally,
+            chunk,
+            chunkStart
+        );
+
+
+        cursor =
+            chunkEnd;
+
+    }
+
+
+    tally.complete =
+        cursor >= fileSize;
+
+}
+
+
+/**
+ * Memeriksa SELURUH berkas tanpa memuat semuanya ke memori.
+ *
+ * @returns {Promise<object>} tally pemindaian
+ */
+async function scanWholeFile(
+    file,
+    isoBmff
+) {
+
+    const tally =
+        createScanTally();
+
+
+    const fileSize =
+        Number(
+            file.size
+        ) || 0;
+
+
+    try {
+
+        if (
+            isoBmff
+        ) {
+
+            await scanIsoBmffFile(
+                file,
+                fileSize,
+                tally
+            );
+
+        }
+        else {
+
+            await scanSequentialFile(
+                file,
+                fileSize,
+                tally
+            );
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI] Pemindaian penuh terhenti:",
+            error
+        );
+
+    }
+
+
+    return tally;
 
 }
 
@@ -2222,24 +2941,38 @@ async function inspectProvenance(
 
 
     /*
-       Bila pemindaian dibatasi, hasil "tidak ditemukan" tidak boleh
-       tampil seolah seluruh berkas bersih. Statusnya menjadi PARTIAL
-       dan catatan batasnya ikut dikirim ke UI.
+       Bila pemindaian TIDAK selesai (bukan karena ukuran berkas,
+       tetapi karena browser gagal membaca), hasil "tidak ditemukan"
+       tidak boleh tampil seolah seluruh berkas bersih.
     */
     const decorateResult =
         result => {
+
+            const base =
+                inspection.coverage
+                    ? {
+                        ...result,
+                        coverage:
+                            inspection.coverage,
+                        fileSize:
+                            inspection.fileSize,
+                        scannedBytes:
+                            inspection.scannedBytes
+                    }
+                    : result;
+
 
             if (
                 !inspection.partial
             ) {
 
-                return result;
+                return base;
 
             }
 
 
             return {
-                ...result,
+                ...base,
                 partial:
                     true,
                 status:
@@ -2255,8 +2988,6 @@ async function inspectProvenance(
                     inspection.fileSize,
                 scannedBytes:
                     inspection.scannedBytes,
-                scanWindows:
-                    inspection.scanWindows,
                 inspectionLimitBytes:
                     MAX_INSPECT_BYTES
             };
@@ -2271,6 +3002,214 @@ async function inspectProvenance(
         );
 
 
+    /*
+       Berkas besar: periksa SELURUH berkas lewat streaming.
+
+       Tidak ada lagi "hanya kepala dan ekor": setiap kotak
+       metadata dibaca sampai habis, hanya `mdat` (isi video)
+       yang dilewati.
+    */
+
+    let stream =
+        null;
+
+
+    if (
+        inspection.stream
+    ) {
+
+        stream =
+            await scanWholeFile(
+                file,
+                isIsoBmff(
+                    bytes
+                )
+            );
+
+
+        inspection.scannedBytes =
+            Math.max(
+                inspection.scannedBytes,
+                Math.max(
+                    0,
+                    (inspection.fileSize || 0) -
+                        (stream.mediaSkippedBytes || 0)
+                )
+            );
+
+
+        inspection.partial =
+            !stream.complete;
+
+
+        inspection.coverage = {
+            mode:
+                "stream",
+            fileSize:
+                inspection.fileSize,
+            scannedBytes:
+                inspection.scannedBytes,
+            mediaSkippedBytes:
+                stream.mediaSkippedBytes,
+            boxes:
+                stream.boxes,
+            complete:
+                stream.complete
+        };
+
+    }
+
+
+    /*
+       Menggabungkan hasil pemindaian streaming dengan hasil
+       pemeriksaan struktur dari kepala berkas.
+    */
+
+    const mergeStream =
+        current => {
+
+            if (
+                !stream ||
+                stream.labels.size === 0
+            ) {
+
+                return current;
+
+            }
+
+
+            const labels =
+                [
+                    ...stream.labels
+                ];
+
+
+            const findings = [
+                ...(
+                    current.findings ||
+                    []
+                )
+            ];
+
+
+            const addFinding =
+                text => {
+
+                    if (
+                        !findings.includes(
+                            text
+                        )
+                    ) {
+
+                        findings.push(
+                            text
+                        );
+
+                    }
+
+                };
+
+
+            if (
+                labels.includes(
+                    "c2pa"
+                )
+            ) {
+
+                addFinding(
+                    "c2pa label"
+                );
+
+            }
+
+
+            if (
+                labels.includes(
+                    "c2pa-uuid"
+                )
+            ) {
+
+                addFinding(
+                    "C2PA Manifest Store UUID"
+                );
+
+            }
+
+
+            if (
+                labels.includes(
+                    "jumbf"
+                )
+            ) {
+
+                addFinding(
+                    "JUMBF signature"
+                );
+
+            }
+
+
+            if (
+                labels.includes(
+                    "content credentials"
+                )
+            ) {
+
+                addFinding(
+                    "Content Credentials"
+                );
+
+            }
+
+
+            const detectedFromStream =
+                labels.includes(
+                    "c2pa"
+                ) ||
+                labels.includes(
+                    "c2pa-uuid"
+                ) ||
+                labels.includes(
+                    "jumbf"
+                ) ||
+                labels.includes(
+                    "content credentials"
+                );
+
+
+            return {
+                ...current,
+                detected:
+                    Boolean(
+                        current.detected
+                    ) ||
+                    detectedFromStream,
+                findings,
+                ai: {
+                    aiDetected:
+                        Boolean(
+                            current.ai
+                                ?.aiDetected
+                        ) ||
+                        stream.ai.aiDetected,
+                    digitalSourceType:
+                        current.ai
+                            ?.digitalSourceType ||
+                        stream.ai.digitalSourceType,
+                    softwareAgent:
+                        current.ai
+                            ?.softwareAgent ||
+                        stream.ai.softwareAgent,
+                    aiDisclosure:
+                        current.ai
+                            ?.aiDisclosure ||
+                        stream.ai.aiDisclosure
+                }
+            };
+
+        };
+
+
     if (
         format ===
         "unknown"
@@ -2279,30 +3218,32 @@ async function inspectProvenance(
         return decorateResult(
             createResult(
             format,
-            {
+            mergeStream(
+                {
 
-                detected:
-                    false,
-
-                findings: [],
-
-                ai: {
-
-                    aiDetected:
+                    detected:
                         false,
 
-                    digitalSourceType:
-                        null,
+                    findings: [],
 
-                    softwareAgent:
-                        null,
+                    ai: {
 
-                    aiDisclosure:
-                        null
+                        aiDetected:
+                            false,
+
+                        digitalSourceType:
+                            null,
+
+                        softwareAgent:
+                            null,
+
+                        aiDisclosure:
+                            null
+
+                    }
 
                 }
-
-            }
+            )
         )
         );
 
@@ -2392,7 +3333,9 @@ async function inspectProvenance(
     return decorateResult(
         createResult(
             format,
-            details
+            mergeStream(
+                details
+            )
         )
     );
 
