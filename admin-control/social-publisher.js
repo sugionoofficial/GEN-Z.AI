@@ -40,6 +40,13 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         runsTotalPages: 1,
         objectUrls: new Map(),
         manualPreview: null,
+        /*
+         * Konfirmasi terbit manual memakai tombol yang sama (dua langkah),
+         * bukan dialog mengambang: klik pertama "mempersenjatai" tombol,
+         * klik kedua benar-benar menerbitkan.
+         */
+        publishArmed: false,
+        publishArmTimer: null,
         orphanNoticeShown: false,
         songs: [],
         songLibraryReady: true,
@@ -1300,6 +1307,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
 
     async function submitManualPost(event) {
         event.preventDefault();
+        /* Pratinjau baru membatalkan konfirmasi pratinjau sebelumnya. */
+        disarmManualPublish();
         const postMode = $("manual-post-mode")?.value === "quote" ? "quote" : "character";
         const isQuote = postMode === "quote";
         const characterId = $("manual-character").value;
@@ -1490,6 +1499,103 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
+    const PUBLISH_ARM_TIMEOUT_MS = 9000;
+
+    /** Label tombol terbit sesuai mode pratinjau (foto vs Kata-kata Mutiara). */
+    function manualPublishLabel(preview = state.manualPreview) {
+        return preview?.isQuoteVideo
+            ? quotePublishButtonText(normalizeClientQuoteTarget(preview.quoteTarget))
+            : "Terbitkan ke Facebook Page";
+    }
+
+    /**
+     * Membatalkan status "siap terbit" tanpa menyentuh pratinjau.
+     *
+     * Dipakai saat user mengubah Page/target, membuat pratinjau baru, atau
+     * membiarkan tombol terlalu lama. Tidak ada dialog, tidak ada blok
+     * mengambang — hanya tombol yang kembali ke label semula.
+     */
+    function disarmManualPublish({ silent = true } = {}) {
+        if (state.publishArmTimer) {
+            clearTimeout(state.publishArmTimer);
+            state.publishArmTimer = null;
+        }
+        if (!state.publishArmed) {
+            resetDiscardButtonLabel();
+            return;
+        }
+        state.publishArmed = false;
+        const button = $("manual-publish-button");
+        if (button) {
+            if (!button.classList.contains("is-premium-loading")) {
+                button.textContent = manualPublishLabel();
+            }
+            button.classList.remove("is-confirming");
+            button.removeAttribute("aria-pressed");
+            button.setAttribute("aria-label", manualPublishLabel());
+        }
+        resetDiscardButtonLabel();
+        if (!silent) {
+            status($("manual-post-status"), "Penerbitan dibatalkan. Klik tombol terbit jika ingin mencoba lagi.");
+        }
+    }
+
+    function resetDiscardButtonLabel() {
+        const discard = $("manual-discard-button");
+        if (discard) discard.textContent = "Buang pratinjau";
+    }
+
+    /**
+     * Mengubah tombol terbit menjadi tombol konfirmasi.
+     *
+     * Rincian tujuan terbit ditulis di baris status yang sudah ada, jadi user
+     * tetap melihat ke Page/target mana post akan dikirim tanpa blok
+     * mengambang yang menutupi pratinjau di layar HP.
+     */
+    function armManualPublish(preview) {
+        const button = $("manual-publish-button");
+        const isQuoteVideo = preview.isQuoteVideo === true;
+        const quoteTarget = isQuoteVideo
+            ? normalizeClientQuoteTarget($("manual-quote-target")?.value || preview.quoteTarget)
+            : "";
+        const targetLabel = isQuoteVideo ? quoteTargetLabel(quoteTarget) : "Facebook Page";
+
+        state.publishArmed = true;
+        if (state.publishArmTimer) clearTimeout(state.publishArmTimer);
+        state.publishArmTimer = setTimeout(() => {
+            state.publishArmTimer = null;
+            if (state.publishArmed) {
+                disarmManualPublish({ silent: false });
+                status(
+                    $("manual-post-status"),
+                    "Konfirmasi terbit kedaluwarsa. Klik tombol terbit lagi bila masih ingin menerbitkan.",
+                    "error"
+                );
+            }
+        }, PUBLISH_ARM_TIMEOUT_MS);
+
+        if (button) {
+            button.textContent = isQuoteVideo
+                ? `Konfirmasi: ${quotePublishButtonText(quoteTarget)}?`
+                : "Konfirmasi: Terbitkan sekarang";
+            button.classList.add("is-confirming");
+            button.setAttribute("aria-pressed", "true");
+            button.setAttribute("aria-label", `Konfirmasi terbitkan ke ${targetLabel} "${preview.pageName}"`);
+            button.focus?.();
+        }
+
+        /* Tombol buang sementara menjadi "Batal" supaya tidak salah hapus. */
+        const discard = $("manual-discard-button");
+        if (discard) discard.textContent = "Batal";
+
+        status(
+            $("manual-post-status"),
+            isQuoteVideo
+                ? `Klik tombol sekali lagi untuk menerbitkan ke ${targetLabel} "${preview.pageName}". Post langsung terlihat audiens. Batal otomatis dalam ${Math.round(PUBLISH_ARM_TIMEOUT_MS / 1000)} detik.`
+                : `Klik tombol sekali lagi untuk menerbitkan ke "${preview.pageName}". Post langsung terlihat audiens Page. Batal otomatis dalam ${Math.round(PUBLISH_ARM_TIMEOUT_MS / 1000)} detik.`
+        );
+    }
+
     async function publishManualPreview() {
         if (!state.manualPreview) {
             status($("manual-post-status"), "Buat pratinjau terlebih dahulu.", "error");
@@ -1509,13 +1615,28 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             ? normalizeClientQuoteTarget($("manual-quote-target")?.value || state.manualPreview.quoteTarget)
             : "";
         const targetLabel = isQuoteVideo ? quoteTargetLabel(quoteTarget) : "Facebook Page";
-        const confirmMsg = isQuoteVideo
-            ? `Terbitkan kartu Kata-kata Mutiara + musik auto-play ini ke ${targetLabel} "${state.manualPreview.pageName}"?`
-            : `Terbitkan gambar dan caption pratinjau ini ke "${state.manualPreview.pageName}"? Post akan langsung terlihat oleh audiens Page.`;
-        if (!window.confirm(confirmMsg)) return;
+
+        /*
+         * Konfirmasi DI DALAM tombol, bukan dialog mengambang.
+         *
+         * Klik pertama hanya mempersenjatai tombol dan menuliskan tujuan
+         * terbit di baris status; klik kedua barulah mengirim. Perubahan
+         * Page/target sudah mematikan status ini lewat listener terkait.
+         */
+        if (!state.publishArmed) {
+            armManualPublish(state.manualPreview);
+            return;
+        }
+
+        disarmManualPublish();
 
         const button = $("manual-publish-button");
         const discardButton = $("manual-discard-button");
+        if (button) {
+            button.dataset.originalText = manualPublishLabel();
+            button.textContent = manualPublishLabel();
+            button.classList.remove("is-confirming");
+        }
         if (discardButton) discardButton.disabled = true;
         setButtonBusy(button, true, isQuoteVideo ? `Menerbitkan ke ${targetLabel}…` : "Mengunggah ke Facebook Page…", {
             premium: true,
@@ -1572,6 +1693,13 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             }
         } finally {
             setButtonBusy(button, false);
+            if (button) {
+                /* Label dasar dipulihkan; bukan teks "Konfirmasi…" yang tersisa. */
+                button.dataset.originalText = manualPublishLabel();
+                button.textContent = manualPublishLabel();
+                button.classList.remove("is-confirming");
+                button.removeAttribute("aria-pressed");
+            }
             if (discardButton) discardButton.disabled = false;
         }
     }
@@ -1662,7 +1790,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             imgEl.removeAttribute("src");
             imgEl.hidden = false;
         }
-        if ($("manual-publish-button")) $("manual-publish-button").textContent = "Terbitkan ke Facebook Page";
+        disarmManualPublish();
+        if ($("manual-publish-button")) $("manual-publish-button").textContent = manualPublishLabel(null);
         $("manual-generated-result").hidden = true;
         $("manual-outfit-line").hidden = true;
         if ($("manual-song-line")) $("manual-song-line").hidden = true;
@@ -3133,6 +3262,15 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         if (event.key === "Escape" && !$("edit-modal-overlay").hidden) closeEditModal();
     });
     $("manual-discard-button").addEventListener("click", async () => {
+        /*
+         * Saat tombol terbit sedang menunggu konfirmasi, tombol ini
+         * berfungsi sebagai "Batal": membatalkan konfirmasi, bukan
+         * menghapus pratinjau yang sudah dibuat.
+         */
+        if (state.publishArmed) {
+            disarmManualPublish({ silent: false });
+            return;
+        }
         try {
             await discardManualPreview();
             status($("manual-post-status"), "Pratinjau dibuang. Gambar tidak diterbitkan.", "good");
@@ -3172,6 +3310,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
     $("manual-post-mode")?.addEventListener("change", event => setManualPostMode(event.target.value));
     $("manual-quote-target")?.addEventListener("change", event => {
         const nextTarget = normalizeClientQuoteTarget(event.target.value);
+        disarmManualPublish();
         if (state.manualPreview?.isQuoteVideo) {
             state.manualPreview.quoteTarget = nextTarget;
             if ($("manual-publish-button")) $("manual-publish-button").textContent = quotePublishButtonText(nextTarget);
@@ -3192,6 +3331,12 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         tab.addEventListener("click", () => setSchedulePostMode(tab.dataset.scheduleMode));
     }
     $("manual-character").addEventListener("change", updateManualCharacterPreview);
+    /*
+     * Mengganti Page (atau target Kata-kata Mutiara) membatalkan status
+     * "siap terbit", supaya konfirmasi tidak pernah berlaku untuk tujuan
+     * yang berbeda dari yang tertulis di layar.
+     */
+    $("manual-page")?.addEventListener("change", () => disarmManualPublish());
     $("schedule-form").addEventListener("submit", submitSchedule);
     $("interval-minutes").addEventListener("input", updateCostEstimate);
     if ($("runs-per-page")) {

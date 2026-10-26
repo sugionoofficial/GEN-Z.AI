@@ -715,7 +715,28 @@ test("interaksi klik halaman 1..4 dan dropdown 10/20/50/100 di UI memperbarui da
         assert.equal(manualPostBtn.classList.contains("is-premium-loading"), false);
         assert.equal(manualPostBtn.textContent, "Buat & bersihkan pratinjau");
 
-        // Klik tombol "Terbitkan ke Facebook Page" -> tampilkan loading premium serupa
+        /*
+         * Konfirmasi terbit memakai tombol yang sama (tanpa dialog
+         * mengambang). Klik pertama hanya mengubah tombol menjadi tombol
+         * konfirmasi dan belum mengirim apa pun.
+         */
+        manualPublishBtn.dispatchEvent({ type: "click", target: manualPublishBtn });
+        await new Promise(resolve => setTimeout(resolve, 20));
+        assert.equal(manualPublishBtn.textContent, "Konfirmasi: Terbitkan sekarang");
+        assert.equal(manualPublishBtn.classList.contains("is-confirming"), true);
+        assert.equal(manualPublishBtn.getAttribute("aria-pressed"), "true");
+        assert.equal(manualDiscardBtn.textContent, "Batal");
+        assert.equal(manualPublishBtn.disabled, false);
+        assert.match(
+            elementsById.get("manual-post-status").textContent,
+            /Klik tombol sekali lagi untuk menerbitkan ke "GEN-Z Page"/i
+        );
+        assert.match(
+            elementsById.get("manual-post-status").textContent,
+            /Batal otomatis dalam 9 detik/i
+        );
+
+        // Klik kedua pada tombol yang sama -> barulah benar-benar terbit.
         manualPublishBtn.dispatchEvent({ type: "click", target: manualPublishBtn });
         await new Promise(resolve => setTimeout(resolve, 20));
         assert.equal(manualPublishBtn.disabled, true);
@@ -734,6 +755,7 @@ test("interaksi klik halaman 1..4 dan dropdown 10/20/50/100 di UI memperbarui da
         assert.equal(manualPublishBtn.disabled, false);
         assert.equal(manualDiscardBtn.disabled, false);
         assert.equal(manualPublishBtn.classList.contains("is-premium-loading"), false);
+        assert.equal(manualPublishBtn.classList.contains("is-confirming"), false);
         assert.equal(manualPublishBtn.textContent, "Terbitkan ke Facebook Page");
     } finally {
         for (const id of intervalIds) clearInterval(id);
