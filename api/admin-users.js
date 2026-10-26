@@ -488,7 +488,18 @@ const mergeUsers = (
     );
 
 
-    return authUsers.map(
+    /*
+     * Akun tamu live chat (Supabase anonymous sign-in) BUKAN
+     * pendaftar: tidak punya nama, email, maupun profil, dan tidak
+     * pernah memakai kredit. Akun seperti itu tidak boleh muncul di
+     * daftar user admin. Akun tamu dibersihkan otomatis oleh cron
+     * support-guest-cleanup setelah percakapannya selesai.
+     */
+    return authUsers
+        .filter(
+            authUser => authUser.is_anonymous !== true
+        )
+        .map(
         authUser => {
 
             const profile =

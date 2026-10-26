@@ -171,7 +171,7 @@
     document.body.append(launcher, panel);
     addStylesheet();
 
-    launcher.addEventListener("click", openChat);
+    launcher.addEventListener("click", () => openChat());
     closeButton.addEventListener("click", closeChat);
     composer.addEventListener("submit", sendMessage);
     imageButton.addEventListener("click", () => imageInput.click());
@@ -279,24 +279,9 @@
         return supabaseClient;
     }
 
-    async function ensureVisitorSession() {
-        const appClient = await ensureSupabase();
-        const {
-            data: { session: appSession },
-            error: appSessionError
-        } = await appClient.auth.getSession();
-
-        if (appSessionError) {
-            throw appSessionError;
-        }
-        if (appSession) {
-            currentUser = appSession.user;
-            supabaseClient = appClient;
-            return;
-        }
-
+    function createGuestClient() {
         const config = window.GENZ_CONFIG;
-        const guestClient = window.supabase.createClient(
+        return window.supabase.createClient(
             config.SUPABASE_URL,
             config.SUPABASE_KEY,
             {
@@ -309,6 +294,40 @@
                 }
             }
         );
+    }
+
+    /*
+     * Sesi pengunjung.
+     *
+     * PENTING: Supabase anonymous sign-in membuat baris SUNGGUHAN di
+     * auth.users. Akun seperti itu tidak punya profil (nama, email,
+     * kredit) dan hanya mengotori daftar user admin.
+     *
+     * Karena itu akun tamu TIDAK lagi dibuat saat panel chat dibuka.
+     * Akun tamu hanya dibuat ketika pengunjung benar-benar menekan
+     * "Mulai chat" (createIfMissing: true), yaitu saat mereka akan
+     * mengirim pesan ke admin.
+     *
+     * @returns {Promise<boolean>} true bila sudah ada sesi (akun asli
+     * atau tamu) yang bisa dipakai.
+     */
+    async function ensureVisitorSession({ createIfMissing = false } = {}) {
+        const appClient = await ensureSupabase();
+        const {
+            data: { session: appSession },
+            error: appSessionError
+        } = await appClient.auth.getSession();
+
+        if (appSessionError) {
+            throw appSessionError;
+        }
+        if (appSession) {
+            currentUser = appSession.user;
+            supabaseClient = appClient;
+            return true;
+        }
+
+        const guestClient = createGuestClient();
         const {
             data: { session: guestSession },
             error: guestSessionError
@@ -318,10 +337,15 @@
             throw guestSessionError;
         }
 
-        if (guestSession) {
+        if (guestSession?.user) {
             currentUser = guestSession.user;
             supabaseClient = guestClient;
-            return;
+            return true;
+        }
+
+        if (!createIfMissing) {
+            currentUser = null;
+            return false;
         }
 
         const {
@@ -337,6 +361,7 @@
         }
         currentUser = user;
         supabaseClient = guestClient;
+        return true;
     }
 
     async function detectSupportAgent() {
@@ -543,7 +568,40 @@
         subscribeToConversation(activeConversation.id);
     }
 
-    async function openChat() {
+    /*
+     * options.createGuest = true hanya dipakai tombol "Mulai chat".
+     * Tanpa itu, membuka panel chat tidak membuat akun apa pun.
+     */
+    /*
+     * Layar awal pengunjung yang belum punya sesi.
+     *
+     * Di titik ini BELUM ada akun yang dibuat di Supabase. Akun tamu
+     * baru dibuat setelah tombol "Mulai chat" ditekan, sehingga
+     * pengunjung yang hanya mengintip chat tidak meninggalkan akun
+     * kosong di daftar user admin.
+     */
+    function renderVisitorWelcome() {
+        composer.hidden = true;
+        inbox.hidden = true;
+        tools.hidden = true;
+        presenceLabel.hidden = true;
+        subtitle.textContent = "Chat langsung dengan tim kami";
+        setFeedback("");
+        renderEmpty(
+            "Ada kendala akun, kredit, atau fitur? Tekan Mulai chat dan tim support akan membantu."
+        );
+        const startButton = createElement("button", "genz-chat-start", {
+            type: "button",
+            text: "Mulai chat"
+        });
+        startButton.addEventListener("click", () =>
+            openChat({ createGuest: true })
+        );
+        feedback.replaceChildren(startButton);
+    }
+
+    async function openChat(options = {}) {
+        const createGuest = options.createGuest === true;
         panel.hidden = false;
         launcher.hidden = true;
         launcher.setAttribute("aria-expanded", "true");
@@ -565,12 +623,18 @@
                 type: "button",
                 text: "Coba lagi"
             });
-            retryButton.addEventListener("click", openChat);
+            retryButton.addEventListener("click", () => openChat());
             feedback.append(retryButton);
         }, CONNECTION_TIMEOUT_MS);
         try {
-            await ensureVisitorSession();
+            const hasSession = await ensureVisitorSession({
+                createIfMissing: createGuest
+            });
             if (attempt !== connectionAttempt) return;
+            if (!hasSession) {
+                renderVisitorWelcome();
+                return;
+            }
             await detectSupportAgent();
             if (attempt !== connectionAttempt) return;
             if (isSupportAgent) {
@@ -581,6 +645,7 @@
             composer.hidden = false;
             inbox.hidden = !isSupportAgent;
             tools.hidden = !isSupportAgent;
+            presenceLabel.hidden = false;
 
             if (isSupportAgent) {
                 subtitle.textContent = `Inbox dukungan · ${supportAgentName}`;
@@ -605,7 +670,17 @@
                 subtitle.textContent = currentUser.is_anonymous
                     ? "Chat langsung dengan tim kami"
                     : "Terhubung dengan tim support";
-                await loadUserConversation(attempt);
+                if (createGuest) {
+                    /*
+                     * Pengunjung baru menekan "Mulai chat": sesi tamu
+                     * baru saja dibuat dan belum punya percakapan.
+                     * Langsung buka percakapan supaya tidak perlu klik
+                     * "Mulai chat" untuk kedua kalinya.
+                     */
+                    await startConversation();
+                } else {
+                    await loadUserConversation(attempt);
+                }
             }
 
             /*
