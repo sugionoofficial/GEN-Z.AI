@@ -594,7 +594,7 @@
         if (value === "cloudflare") {
             if (!settings.cloudflare_configured) return "Workers AI binding belum tersedia";
             const identityModel = settings.cloudflare_identity_model || "@cf/black-forest-labs/flux-2-klein-4b";
-            return `Karakter konsisten dari foto referensi: ${identityModel} (gratis, kuota Neuron) · try-on ${settings.cloudflare_tryon_model || "pruna/p-image-try-on"} opsional dan butuh kredit AI Gateway`;
+            return `Karakter konsisten dari foto referensi: ${identityModel} (gratis, kuota Neuron) · keluaran 768×1344 dengan potret wajah dari foto 1024 px · try-on ${settings.cloudflare_tryon_model || "pruna/p-image-try-on"} opsional dan butuh kredit AI Gateway`;
         }
         if (value === "qwencloud") {
             return settings.qwencloud_configured ? "QwenCloud membuat gambar dan caption" : "QWENCLOUD_API_KEY belum tersedia";

@@ -117,10 +117,11 @@ A 503 that arrives **within a couple of seconds** of clicking usually means the 
 
 The character path always runs the reference-conditioned model (`@cf/black-forest-labs/flux-2-klein-4b`), never a text-to-image model — you can confirm this per post in the run record (`image_model`). If a result does not look like the reference, the usual cause is the reference itself: a full-body photo downscaled to 512 px leaves the face about 40 px wide, and the outfit photo (often a catalogue shot of a *different* model) competes for the same "person" slot.
 
-Two things address that now:
+Three things address that now:
 
 - **The prompt names each image explicitly** — image 1 is the person, image 2 is only the clothing, and the model is told not to copy the face or body of the clothing model.
 - **A face crop is sent as an extra reference.** When the reference is a full-body shape (height/width ≥ 1.25), the top-centre region is cropped and passed as an additional input image, so the face arrives at a much larger effective size. Square/portrait close-ups are left alone.
+- **The crop comes from the 1024 px reference, not the 512 px one.** Cloudflare now downloads the character photo through Supabase image transformations at `maxSide: 1024`; the full-body reference is still downscaled to 512 for `input_image_0`, but the face is cropped from the sharper 1024 px copy and then scaled to at most 512 px. On a 900×1400 upload the face reference went from ~238 px wide (cropped from the 384×512 copy) to 486×512. Decoding is capped at 4 MP so a huge upload can never trigger Error 1102 — above that cap the crop silently falls back to the 512 px copy. The provider test row reports `face_crop.source` (`original` or `downscaled`) and `face_crop.source_size`.
 
 Set the Worker variable `CLOUDFLARE_IDENTITY_FACE_CROP = "0"` to compare results without the extra reference; the provider test row reports `face_crop` so you can see which images were actually sent.
 
@@ -130,20 +131,19 @@ The most effective change is still the upload itself: **use an upper-body or clo
 
 FLUX.2 [klein] 4B is a distilled, latency-optimised model: the free path produces a *photographic-looking* image, not a camera-accurate portrait. Two limits are structural, not bugs:
 
-- character frames are rendered at **576×1024** (9:16) or **1024×576** (16:9), which is small for a full-body shot;
-- the reference photo is downscaled to **512 px** on the long side because FLUX.2 klein requires input images below 512×512, so fine facial detail is reduced before the model ever sees it.
+- the reference photo sent as the whole-body input is downscaled to **512 px** on the long side because FLUX.2 klein requires input images below 512×512, so fine facial detail is reduced before the model ever sees it (the face crop described above is the workaround).
 
-The prompt now carries photographic direction (50 mm lens, natural skin detail, shallow depth of field, explicit "not a 3D render/CGI/cartoon") because diffusion models follow photography terms far better than the word "realistic" alone.
+Character frames are now rendered at **768×1344** (9:16) or **1344×768** (16:9) by default — about 1.03 MP instead of 0.59 MP, which roughly doubles the pixels available for the face and stops skin from looking like a smooth render. The prompt also carries photographic direction (50 mm lens, natural skin with pores and fine hair, catchlight in the eyes, slight sensor noise, explicitly *no* beauty filter or airbrush, and explicit "not a 3D render/CGI/cartoon") because diffusion models follow photography terms far better than the word "realistic" alone.
 
-If your account accepts larger frames, raise the output size without touching code by setting a Worker variable:
+Cost of that default: FLUX.2 klein is billed per output megapixel, so 768×1344 uses roughly 1,100 of the 10,000 daily Neurons per image (~8–9 character images/day) versus ~670 at 576×1024 (~14/day). Switch back with a Worker variable:
 
 ```
-CLOUDFLARE_IDENTITY_SIZE = "768x1344"
+CLOUDFLARE_IDENTITY_RES = "lite"    # 576x1024 / 1024x576
 ```
 
-Accepted format is `<width>x<height>`, each side 256–2048. An unusable value is ignored, and if the model rejects the requested size the request is retried at the default 576×1024, so the character is never lost — you just get a warning in the run output.
+For a custom size use `CLOUDFLARE_IDENTITY_SIZE = "832x1472"` (format `<width>x<height>`, each side 256–2048); an unusable value is ignored. Whatever size is requested, a *size* rejection from the model falls back automatically to 576×1024 and adds a warning to the run output — other errors (capacity, invalid input tensor) are **not** retried at another size, so a configuration problem never burns a second call.
 
-SDXL once returned a 2 KB PNG for the same 576×1024 frame (reported as `OK` before the content check existed) and returned 926 KB on the next run, so that was a transient model fault rather than a configuration problem. The blank-image guard keeps that class of output from ever being reported as success again. At roughly 670 Neurons per 1024×1024 FLUX.2 klein edit, the 10,000 Neuron daily allowance covers about 14 character images per day; once it is exhausted the run degrades to SDXL img2img instead of failing, and resets at 00:00 UTC.
+SDXL once returned a 2 KB PNG for the same 576×1024 frame (reported as `OK` before the content check existed) and returned 926 KB on the next run, so that was a transient model fault rather than a configuration problem. The blank-image guard keeps that class of output from ever being reported as success again. At roughly 1,100 Neurons per 768×1344 FLUX.2 klein edit (670 at `lite`), the 10,000 Neuron daily allowance covers about 8–9 character images per day; once it is exhausted the run degrades to SDXL img2img instead of failing, and resets at 00:00 UTC.
 
 When Cloudflare is selected, neither image generation nor contextual caption generation requires `GEMINI_API_KEY`. This implementation generates **one** image per run to limit usage. If the free daily Neuron allowance is exhausted, `@cf/...` requests fail until the quota resets at 00:00 UTC; the API maps that to HTTP 429 so the UI can show it.
 
