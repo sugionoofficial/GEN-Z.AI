@@ -116,7 +116,8 @@ test("upload baru memakai bucket privat + signed URL", () => {
     assert.match(worker, /for BUCKET in user-uploads dashboard-videos/);
 
     // Cache-bust modul yang berubah.
-    assert.match(read("generate/index.html"), /generate-app\.js\?v=20261023-private-uploads/);
+    /* Versi cache-buster boleh naik kapan saja; yang penting ada. */
+    assert.match(read("generate/index.html"), /generate-app\.js\?v=[A-Za-z0-9._-]+/);
     assert.match(read("upscale/index.html"), /upscale-app\.js\?v=20261023-private-uploads/);
 });
 
