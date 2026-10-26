@@ -601,7 +601,7 @@
         }
         if (value === "tencent") {
             if (!settings.tencent_configured) return "TENCENT_TOKENHUB_KEY belum tersedia";
-            return "Hy Image 3.5 Preview membuat gambar (foto karakter + outfit sebagai referensi, 1080×1920). Berbayar: aktifkan postpaid untuk model vision di console TokenHub; caption memakai model vision Cloudflare";
+            return "Hy Image 3.5 Preview membuat gambar (berbayar, butuh postpaid di console TokenHub); caption dan kata-kata mutiara memakai model teks TokenHub yang gratis (kuota trial 1 juta token)";
         }
         return settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
     }

@@ -80,7 +80,18 @@ Two wire protocols are supported, chosen by the model name:
 
 The v3.5 answer is an `image.chat.completion.chunk` frame sequence; the Worker reads `choices[0].delta.image.url`, accepting both a single JSON body and `data:`-prefixed SSE lines, and reports an `error` frame (for example `content_filter`) as a rejection with its `request_id` instead of an empty image. Both models accept the character reference photo (and the outfit photo when one is selected), so the face stays anchored to the upload instead of being invented. Result URLs live 12 hours and may reject anonymous access, so the Worker downloads them (retrying with the Bearer header on 401/403) and re-checks the bytes with the blank-image guard.
 
-Tencent generates images only. Contextual captions and quote text fall back to the Workers AI text/vision models when the `AI` binding exists; without that binding the caption is left empty (the post still uploads) and quote mode reports a clear error instead of silently producing nothing.
+**What the free Tencent quota is actually good for: text.** TokenHub gives every language model a New User Free Trial of **1 million tokens** (claim it in Model Gallery, or the platform auto-claims on the first call), while every image model stays paid. So the Worker uses Tencent for the copy and Cloudflare for the picture:
+
+| Task | Model | Why |
+|---|---|---|
+| Contextual caption | `deepseek-v4.1-flash` (`TENCENT_CAPTION_MODEL`) | Has **Image Understanding**, so it reads the generated photo instead of inventing a scene |
+| Quote text ("Kata-kata Mutiara") | `hy3` (`TENCENT_QUOTE_MODEL`) | Hunyuan Hy3 writes more natural Indonesian than the small 11B Cloudflare model |
+
+Both calls go to the OpenAI-compatible `POST https://tokenhub-intl.tencentcloudmaas.com/v1/chat/completions` with the same `TENCENT_TOKENHUB_KEY`, a 25 s timeout, and the same honest error mapping (401 key, 403/402 trial exhausted or model not activated, 404 model not claimed — the message names `TENCENT_CAPTION_MODEL` / `TENCENT_QUOTE_MODEL` so the fix is obvious). Override either model with a Worker variable; `TENCENT_TEXT_ENDPOINT` points elsewhere.
+
+If the Tencent text call fails for any reason, the caption falls back to the Workers AI vision model, then to the text model, and finally to an empty caption (the post still uploads). Quote mode falls back to the Workers AI text model and only fails when neither Tencent nor Cloudflare is available — with a message that says Tencent Hy Image alone only makes images. Nothing is silently reported as success.
+
+The six `hy-3d-*` models with Free Trial billing are **3D asset** models (format, retopology, rigging, texture, component, UV). They do not produce feed-ready photos and are not wired into this publisher.
 
 Admins can choose Gemini, Cloudflare Workers AI, QwenCloud, or Tencent Cloud for image generation in **Admin Panel → SET Studio Medsos** (Tencent leaves captions to Cloudflare as described above). Gemini uses `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite) for images and `gemini-3.8-flash` through the Interactions API for captions; this requires `GEMINI_API_KEY`.
 
