@@ -99,7 +99,7 @@ test("QwenCloud tersedia sebagai opsi provider gambar", () => {
         "utf8"
     );
     assert.match(setHtml, /name="image-provider" value="qwencloud"/, "Admin SET Studio Medsos harus punya radio QwenCloud");
-    assert.match(apiSource, /\["gemini", "cloudflare", "qwencloud", "tencent"\]/, "Validasi provider harus menerima qwencloud");
+    assert.match(apiSource, /\["gemini", "cloudflare", "qwencloud", "tencent", "puter"\]/, "Validasi provider harus menerima qwencloud");
     assert.match(apiSource, /QWENCLOUD_API_KEY/, "API harus memeriksa secret QWENCLOUD_API_KEY");
     assert.match(setJs, /qwencloud_configured/, "Status kesiapan QwenCloud harus ditampilkan di admin");
     assert.match(source, /QwenCloud \(/, "Studio Medsos harus melabeli provider QwenCloud");
@@ -124,6 +124,43 @@ test("Tencent Cloud tersedia sebagai opsi provider gambar", () => {
         readFileSync(fileURLToPath(new URL("../lib/social-publisher/providers.js", import.meta.url)), "utf8"),
         /generateTencentSocialImage/,
         "generateSocialImage harus meneruskan ke provider Tencent"
+    );
+});
+
+test("Puter.js tersedia sebagai opsi provider gambar dengan label jujur", () => {
+    const setHtml = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.html", import.meta.url)),
+        "utf8"
+    );
+    const setJs = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.js", import.meta.url)),
+        "utf8"
+    );
+    const providersSource = readFileSync(
+        fileURLToPath(new URL("../lib/social-publisher/providers.js", import.meta.url)),
+        "utf8"
+    );
+    const cronSource = readFileSync(
+        fileURLToPath(new URL("../functions/_shared/social-publisher-cron.js", import.meta.url)),
+        "utf8"
+    );
+    assert.match(setHtml, /name="image-provider" value="puter"/, "Admin SET Studio Medsos harus punya radio Puter");
+    assert.match(setHtml, /id="test-puter-provider"/, "Harus ada tombol Tes Puter");
+    assert.match(setHtml, /akun Puter Anda sendiri/, "Label Puter harus menyebut kuota akun Puter, bukan gratis tanpa batas");
+    assert.match(setHtml, /PUTER_AUTH_TOKEN/, "Petunjuk secret PUTER_AUTH_TOKEN harus tampil di panel");
+    assert.match(apiSource, /PUTER_AUTH_TOKEN/, "API harus memeriksa secret PUTER_AUTH_TOKEN");
+    assert.match(apiSource, /puter_configured/, "Status kesiapan Puter harus dikirim ke admin");
+    assert.match(setJs, /puter_configured/, "Status kesiapan Puter harus ditampilkan di admin");
+    assert.match(setJs, /Puter\.js \(kuota akun Puter Anda\)/, "Studio Medsos harus melabeli provider Puter dengan jujur");
+    assert.match(setJs, /User-Pays/, "Keterangan kesiapan harus menyebut model User-Pays");
+    assert.match(setJs, /insufficient_funds/, "Keterangan harus menyebut kegagalan saat jatah Puter habis");
+    assert.match(setJs, /testPuterProvider/, "Tombol Tes Puter harus berfungsi");
+    assert.match(providersSource, /generatePuterSocialImage/, "generateSocialImage harus meneruskan ke provider Puter");
+    assert.match(cronSource, /"puter"/, "Cron autopost harus mendukung provider puter");
+    assert.doesNotMatch(
+        setHtml,
+        /value="puter">[\s\S]{0,400}unlimited/i,
+        "Klaim unlimited pada opsi Puter dilarang"
     );
 });
 

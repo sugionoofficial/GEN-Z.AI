@@ -563,6 +563,13 @@
                         <small>Edited image memakai model generator gambar QwenCloud (default qwen-image-3.0-pro; 16 model generator gambar sesuai katalog QwenCloud tersedia di dropdown, lengkap dengan persentase sisa tier per model) dan caption vision memakai qwen3-vl-plus melalui secret QWENCLOUD_API_KEY. Foto referensi karakter (plus foto pakaian bila ada) dikirim sebagai base64; pakaian bersifat opsional.</small>
                     </span>
                 </label>
+                <label class="provider-option">
+                    <input type="radio" name="image-provider" value="puter">
+                    <span>
+                        <strong>Puter.js (kuota akun Puter Anda)</strong>
+                        <small>Memanggil driver <code>puter-image-generation</code> lewat secret <code>PUTER_AUTH_TOKEN</code> (token dibuat di <code>puter.com/dashboard#account</code> → <code>Create token</code>). Default model <code>gemini-3.1-flash-image</code> (bisa dioverride dengan variabel <code>PUTER_IMAGE_MODEL</code>); foto karakter + outfit dikirim sebagai <code>input_images</code> sehingga wajah tetap menjadi acuan, keluaran 9:16 / 16:9 kualitas 1K. <strong>Bukan gratis tanpa batas:</strong> setiap gambar memotong kuota/biaya <strong>akun Puter Anda sendiri</strong> (model User-Pays), bukan kredit GEN-Z.AI. Jatah akun Puter habis → generate gagal dengan <code>insufficient_funds</code> dan tidak ada gambar pengganti. Caption &amp; kata-kata mutiara TIDAK memakai Puter (tetap provider teks di bawah).</small>
+                    </span>
+                </label>
             </div>
             <h3 style="margin:22px 0 0;font-size:15px">Provider penulisan teks (caption &amp; kata-kata mutiara)</h3>
             <p class="small muted" style="margin:6px 0 0">Terpisah dari provider gambar, supaya gambar tetap dari jalur gratis sementara tulisan memakai kuota yang gratis juga.</p>
@@ -631,6 +638,7 @@
                 <button id="save-image-provider" class="btn primary" type="button">Simpan Provider &amp; Model AI</button>
                 <button id="test-image-provider" class="btn" type="button">Tes Cloudflare AI</button>
                 <button id="test-tencent-provider" class="btn" type="button">Tes Tencent</button>
+                <button id="test-puter-provider" class="btn" type="button">Tes Puter (1 gambar kuota akun Anda)</button>
             </div>
             <div id="image-provider-status" class="status-box price-settings-status" role="status" aria-live="polite">Memuat provider gambar…</div>
         </section>
@@ -676,6 +684,6 @@
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
     <script type="module" src="./assets/js/http-failure.js?v=http-failure-20261026"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script src="./studio-medsos-set.js?v=inline-confirm-green-20261026"></script>
+    <script src="./studio-medsos-set.js?v=puter-provider-20261026"></script>
 </body>
 </html>

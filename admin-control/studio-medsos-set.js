@@ -592,6 +592,48 @@
         setStatusMessage("Daftar user dan status langganan berhasil dimuat.", "success");
     }
 
+    /**
+     * Tes Puter dari HP: tidak perlu curl. Worker memanggil driver
+     * `puter-image-generation` dengan foto contoh sebagai referensi, sehingga
+     * autentikasi + jalur input_images + status jatah akun Puter teruji.
+     * Satu klik = satu gambar sungguhan yang memotong kuota akun Puter Anda.
+     */
+    async function testPuterProvider() {
+        const button = document.getElementById("test-puter-provider");
+        const status = document.getElementById("image-provider-status");
+        if (button) button.disabled = true;
+        if (status) {
+            status.className = "status-box price-settings-status";
+            status.textContent = "Menguji Puter (1 gambar kuota akun Puter Anda)…";
+        }
+        try {
+            const result = await api("studio-admin-image-provider-test", {
+                method: "POST",
+                body: { provider: "puter" }
+            });
+            const test = result.test || {};
+            if (test.ok) {
+                const kb = Math.max(1, Math.round(Number(test.bytes || 0) / 1024));
+                const seconds = (Number(test.elapsed_ms || 0) / 1000).toFixed(1);
+                const size = test.width && test.height ? `${test.width}×${test.height}` : "ukuran tidak terbaca";
+                setImageProviderStatus(
+                    `Puter ${test.model} OK — ${kb} KB, ${size}, ${seconds} detik, ${test.images_sent} gambar referensi (sumber: ${test.test_reference_source}). 1 kuota akun Puter Anda terpakai untuk tes ini.`,
+                    "success"
+                );
+            } else {
+                setImageProviderStatus(
+                    `Puter ${test.model || ""} gagal${test.status ? ` (HTTP ${test.status})` : ""}: ${test.error || "tanpa pesan"}`,
+                    "error"
+                );
+            }
+        } catch (error) {
+            console.error(error);
+            setImageProviderStatus(error.message || "Tes Puter gagal.", "error");
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
     async function loadPricing() {
         const result = await api("studio-pricing");
         for (const { key } of PRICE_PERIODS) {
@@ -606,6 +648,7 @@
         if (value === "cloudflare") return "Cloudflare Workers AI";
         if (value === "qwencloud") return "QwenCloud (Qwen Image)";
         if (value === "tencent") return "Tencent Cloud (Hy Image 3.5 Preview)";
+        if (value === "puter") return "Puter.js (kuota akun Puter Anda)";
         return "Google Gemini";
     }
 
@@ -641,7 +684,9 @@
         }
         return tencentReady
             ? "Otomatis: tulisan memakai Tencent (gratis selama kuota trial), lalu Cloudflare bila gagal"
-            : "Otomatis: Tencent belum ada key, jadi tulisan memakai provider gambar";
+            : settings.image_provider === "puter"
+                ? "Otomatis: Puter hanya membuat gambar; tulisan memakai Cloudflare (llama)"
+                : "Otomatis: Tencent belum ada key, jadi tulisan memakai provider gambar";
     }
 
     function providerReadiness(value, settings = {}) {
@@ -656,6 +701,11 @@
         if (value === "tencent") {
             if (!settings.tencent_configured) return "TENCENT_TOKENHUB_KEY belum tersedia";
             return "Hy Image 3.5 Preview membuat gambar (berbayar, butuh postpaid di console TokenHub); caption dan kata-kata mutiara memakai model teks TokenHub yang gratis (kuota trial 1 juta token)";
+        }
+        if (value === "puter") {
+            return settings.puter_configured
+                ? `Puter siap (${settings.puter_model || "gemini-3.1-flash-image"}): foto referensi karakter + outfit dikirim sebagai input_images. Setiap gambar MEMOTONG kuota/biaya akun Puter Anda sendiri (User-Pays), bukan kredit GEN-Z.AI; jatah habis → generate gagal dengan insufficient_funds`
+                : "PUTER_AUTH_TOKEN belum tersedia — buat token di puter.com/dashboard#account (Create token) lalu simpan sebagai secret Worker";
         }
         return settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
     }
@@ -845,7 +895,7 @@
         const result = await api("studio-admin-image-provider");
         const settings = result.settings || {};
         providerSettings = settings;
-        const selected = ["cloudflare", "qwencloud", "tencent"].includes(settings.image_provider) ? settings.image_provider : "gemini";
+        const selected = ["cloudflare", "qwencloud", "tencent", "puter"].includes(settings.image_provider) ? settings.image_provider : "gemini";
         document.querySelector(`input[name="image-provider"][value="${selected}"]`).checked = true;
         const textSelected = ["auto", "tencent", "cloudflare", "gemini", "qwencloud"].includes(settings.text_provider)
             ? settings.text_provider
@@ -1141,6 +1191,7 @@
         saveImageProviderButton.addEventListener("click", saveImageProvider);
         document.getElementById("test-image-provider")?.addEventListener("click", testImageProvider);
         document.getElementById("test-tencent-provider")?.addEventListener("click", testTencentProvider);
+        document.getElementById("test-puter-provider")?.addEventListener("click", testPuterProvider);
         for (const radio of document.querySelectorAll('input[name="image-provider"]')) {
             radio.addEventListener("change", renderQwenCloudOptions);
         }

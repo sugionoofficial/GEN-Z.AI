@@ -47,7 +47,8 @@ import {
     publishFacebookPhoto,
     publishFacebookQuoteVideo,
     testCloudflareImageProvider,
-    testTencentImageProvider
+    testTencentImageProvider,
+    testPuterImageProvider
 } from "../lib/social-publisher/providers.js";
 import {
     getModelQuotas,
@@ -1061,7 +1062,7 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
 
     const schedules = schedulesResult?.rows || [];
     const userSettings = userSettingsResult?.settings ? [userSettingsResult.settings] : [];
-    const imageProvider = ["cloudflare", "qwencloud", "tencent"].includes(publisherConfig?.[0]?.image_provider)
+    const imageProvider = ["cloudflare", "qwencloud", "tencent", "puter"].includes(publisherConfig?.[0]?.image_provider)
         ? publisherConfig[0].image_provider
         : "gemini";
     const textProvider = normalizeTextProvider(publisherConfig?.[0]?.text_provider);
@@ -1069,7 +1070,9 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         ? typeof env?.AI?.run === "function"
         : imageProvider === "qwencloud"
             ? Boolean(envValue(env, "QWENCLOUD_API_KEY"))
-            : Boolean(envValue(env, "GEMINI_API_KEY"));
+            : imageProvider === "puter"
+                ? Boolean(envValue(env, "PUTER_AUTH_TOKEN"))
+                : Boolean(envValue(env, "GEMINI_API_KEY"));
     return {
         success: true,
         characters: characters || [],
@@ -1111,7 +1114,11 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
             imageProvider,
             textProvider,
             captionProvider: textProvider === "auto"
-                ? (Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY")) ? "tencent" : imageProvider)
+                ? (Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY"))
+                    ? "tencent"
+                    : ["cloudflare", "gemini", "qwencloud"].includes(imageProvider)
+                        ? imageProvider
+                        : (typeof env?.AI?.run === "function" ? "cloudflare" : "tencent"))
                 : textProvider,
             imageModel: imageProvider === "qwencloud" ? normalizeQwenCloudImageModel(publisherConfig?.[0]?.image_model) : "",
             quoteLlmModel: normalizeQwenCloudLlmModel(publisherConfig?.[0]?.quote_llm_model),
@@ -1139,7 +1146,7 @@ async function getSocialImageSettings(config) {
     )));
     const value = rows?.[0]?.image_provider;
     return {
-        provider: ["gemini", "cloudflare", "qwencloud", "tencent"].includes(value) ? value : "gemini",
+        provider: ["gemini", "cloudflare", "qwencloud", "tencent", "puter"].includes(value) ? value : "gemini",
         imageModel: normalizeQwenCloudImageModel(rows?.[0]?.image_model),
         /* Kolom text_provider boleh belum ada (migrasi belum jalan) -> "auto". */
         textProvider: normalizeTextProvider(rows?.[0]?.text_provider),
@@ -1153,8 +1160,8 @@ async function getSocialImageProvider(config) {
 
 async function saveSocialImageProvider(config, adminId, body, env) {
     const imageProvider = String(body?.image_provider || "").trim();
-    if (!["gemini", "cloudflare", "qwencloud", "tencent"].includes(imageProvider)) {
-        const error = new Error("Pilih Gemini, Cloudflare, QwenCloud, atau Tencent Cloud sebagai penyedia gambar.");
+    if (!["gemini", "cloudflare", "qwencloud", "tencent", "puter"].includes(imageProvider)) {
+        const error = new Error("Pilih Gemini, Cloudflare, QwenCloud, Tencent Cloud, atau Puter sebagai penyedia gambar.");
         error.status = 400;
         throw error;
     }
@@ -1189,6 +1196,11 @@ async function saveSocialImageProvider(config, adminId, body, env) {
     }
     if (imageProvider === "tencent" && !envValue(env, "TENCENT_TOKENHUB_KEY") && !envValue(env, "TENCENT_API_KEY")) {
         const error = new Error("TENCENT_TOKENHUB_KEY diperlukan saat provider Tencent Cloud dipilih. Buat API key di console TokenHub lalu simpan sebagai secret Worker.");
+        error.status = 409;
+        throw error;
+    }
+    if (imageProvider === "puter" && !envValue(env, "PUTER_AUTH_TOKEN")) {
+        const error = new Error("PUTER_AUTH_TOKEN diperlukan saat provider Puter dipilih. Buka puter.com/dashboard#account, klik \"Create token\", lalu simpan token sebagai secret Worker. Setiap gambar akan memotong kuota/biaya akun Puter Anda sendiri (User-Pays), bukan kredit GEN-Z.AI.");
         error.status = 409;
         throw error;
     }
@@ -1255,7 +1267,8 @@ async function saveSocialImageProvider(config, adminId, body, env) {
         gemini_configured: Boolean(envValue(env, "GEMINI_API_KEY")),
         tencent_configured: Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY")),
         cloudflare_configured: typeof env?.AI?.run === "function",
-        qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY"))
+        qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY")),
+        puter_configured: Boolean(envValue(env, "PUTER_AUTH_TOKEN"))
     };
 }
 
@@ -3481,6 +3494,15 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
             const result = await testTencentImageProvider({ env });
             return json(res, 200, { success: true, provider, test: result });
         }
+        if (provider === "puter") {
+            /*
+             * Tes Puter: satu gambar sungguhan per klik yang MEMOTONG kuota
+             * akun Puter operator (User-Pays). Foto contoh dipakai sebagai
+             * referensi supaya jalur `input_images` ikut teruji.
+             */
+            const result = await testPuterImageProvider({ env });
+            return json(res, 200, { success: true, provider, test: result });
+        }
         const includeTryOn = body?.include_try_on === true;
         const result = await testCloudflareImageProvider({ env, includeTryOn });
         return json(res, 200, { success: true, provider: "cloudflare", test: result });
@@ -3581,14 +3603,19 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
         const imageProvider = imageSettings.provider;
         const imageModel = imageSettings.imageModel;
         const quoteLlmModel = imageSettings.quoteLlmModel;
+        const captionProvider = imageSettings.textProvider === "auto"
+            ? (Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY"))
+                ? "tencent"
+                : ["cloudflare", "gemini", "qwencloud"].includes(imageProvider)
+                    ? imageProvider
+                    : (typeof env?.AI?.run === "function" ? "cloudflare" : "tencent"))
+            : imageSettings.textProvider;
         return json(res, 200, {
             success: true,
             settings: {
                 image_provider: imageProvider,
                 text_provider: imageSettings.textProvider,
-                caption_provider: imageSettings.textProvider === "auto"
-                    ? (Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY")) ? "tencent" : imageProvider)
-                    : imageSettings.textProvider,
+                caption_provider: captionProvider,
                 image_model: imageModel,
                 quote_llm_model: quoteLlmModel,
                 qwencloud_models: quotaSummaryRows(quotasByModel),
@@ -3601,7 +3628,9 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
                 cloudflare_img2img_model: "@cf/stabilityai/stable-diffusion-xl-base-1.0",
                 cloudflare_tryon_model: "pruna/p-image-try-on",
                 cloudflare_tryon_needs_credits: true,
-                qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY"))
+                qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY")),
+                puter_configured: Boolean(envValue(env, "PUTER_AUTH_TOKEN")),
+                puter_model: String(envValue(env, "PUTER_IMAGE_MODEL") || "gemini-3.1-flash-image")
             }
         });
     }
