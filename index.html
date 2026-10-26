@@ -465,38 +465,10 @@
             letter-spacing: -0.03em;
         }
 
-        .brand-mark {
-            width: 31px;
-            height: 31px;
-
-            display: grid;
-            place-items: center;
-
-            border:
-                1px solid rgba(255, 48, 72, 0.75);
-
-            border-radius: 9px;
-
-            color: #fff;
-
-            background:
-                radial-gradient(
-                    circle at 50% 40%,
-                    rgba(255, 48, 72, 0.5),
-                    rgba(255, 48, 72, 0.05) 65%
-                );
-
-            box-shadow:
-                0 0 20px rgba(255, 48, 72, 0.25);
-        }
-
-        .brand-mark::before {
-            content: "G";
-
-            font-size: 15px;
-            font-weight: 900;
-
-            color: #fff;
+        .brand-logo-img {
+            display: block;
+            height: 42px;
+            width: auto;
         }
 
         .nav-links {
@@ -1814,6 +1786,10 @@
                 justify-self: center;
             }
 
+            .brand-logo-img {
+                height: 36px;
+            }
+
             .nav-links {
                 display: none;
             }
@@ -2192,10 +2168,10 @@
             color: #172033;
         }
 
-        html[data-genz-theme="light"] .brand-mark {
-            color: #fff;
-
-            background: linear-gradient(135deg, #ff3048, #c8102e);
+        html[data-genz-theme="light"] .brand-logo-img {
+            padding: 5px 9px;
+            border-radius: 12px;
+            background: #10151f;
         }
 
         html[data-genz-theme="light"] .hero-copy h1,
@@ -2315,8 +2291,13 @@
                 class="brand"
                 aria-label="GEN-Z.AI"
             >
-                <span class="brand-mark"></span>
-                <span>GEN-Z.AI</span>
+                <img
+                    class="brand-logo-img"
+                    src="/assets/brand/genz-ai-logo.png?v=genzai-logo-20261027"
+                    alt="GEN-Z.AI"
+                    width="720"
+                    height="293"
+                >
             </a>
 
 
