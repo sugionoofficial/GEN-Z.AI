@@ -35,11 +35,11 @@ import {
 import {
     renderMetadata,
     setStatus
-} from "./metadata-status.js";
+} from "./metadata-status.js?v=aigc-detection-20261026";
 
 import {
     renderOpenKeyResult
-} from "./metadata-openkey-detection.js?v=openkey-gateway-retry-20261026";
+} from "./metadata-openkey-detection.js?v=aigc-detection-20261026";
 
 
 /* =========================================================

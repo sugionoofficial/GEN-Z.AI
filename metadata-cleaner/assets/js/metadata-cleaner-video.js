@@ -45,7 +45,7 @@ import {
 
 import {
     detectAIIndicators
-} from "./metadata-detector.js";
+} from "./metadata-detector.js?v=aigc-detection-20261026";
 
 import {
     readVideoMetadata
@@ -155,8 +155,34 @@ function describeResidual(
     verification
 ) {
 
+    const residualItems =
+        verification?.residualMetadata || [];
+
+
+    /*
+       Penandaan AIGC yang masih terbaca setelah cleaning harus
+       disebut apa adanya sebagai penandaan AI, bukan disamarkan
+       menjadi "residu provenance" biasa.
+    */
+    const aigcFields =
+        residualItems
+            .filter(
+                item =>
+                    detectAIIndicators(
+                        [item]
+                    ).length > 0
+            )
+            .map(
+                item =>
+                    item?.field
+            )
+            .filter(
+                Boolean
+            );
+
+
     const fields =
-        (verification?.residualMetadata || [])
+        residualItems
             .map(
                 item =>
                     item?.field
@@ -204,8 +230,27 @@ function describeResidual(
             );
 
 
-    return joined ||
+    const aigcNote =
+        aigcFields.length > 0
+            ? `penandaan AIGC masih terbaca (${aigcFields
+                .slice(
+                    0,
+                    3
+                )
+                .join(
+                    ", "
+                )})`
+            : "";
+
+
+    const summary =
+        joined ||
         "sinyal provenance masih terbaca pada berkas hasil";
+
+
+    return aigcNote
+        ? `${aigcNote}; ${summary}`
+        : summary;
 
 }
 

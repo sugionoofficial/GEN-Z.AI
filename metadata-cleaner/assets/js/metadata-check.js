@@ -59,7 +59,7 @@ import {
 
 import {
     detectAIIndicators
-} from "./metadata-detector.js";
+} from "./metadata-detector.js?v=aigc-detection-20261026";
 
 
 /* =========================================================
@@ -70,7 +70,7 @@ import {
     renderDetectionResult,
     renderMetadata,
     setStatus
-} from "./metadata-status.js";
+} from "./metadata-status.js?v=aigc-detection-20261026";
 
 
 /* =========================================================
@@ -117,7 +117,7 @@ import {
     describeOpenKeyFailure,
     detectOpenKeyMedia,
     renderOpenKeyResult
-} from "./metadata-openkey-detection.js?v=openkey-gateway-retry-20261026";
+} from "./metadata-openkey-detection.js?v=aigc-detection-20261026";
 
 
 /* =========================================================

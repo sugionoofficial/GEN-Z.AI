@@ -675,6 +675,197 @@ function waitForVideoEvent(video, eventName, timeoutMessage) {
 }
 
 
+/*
+ * Titik sampling video.
+ *
+ * Sebelumnya hanya 3 titik tetap (20%, 50%, 80%). Dua masalah
+ * yang muncul di lapangan:
+ *
+ *   1. Frame bisa tertangkap SEBELUM benar-benar ter-decode
+ *      (khususnya di Android), sehingga yang terkirim ke model
+ *      adalah gambar putih polos.
+ *   2. Kalau salah satu titik kebetulan jatuh pada transisi
+ *      (fade putih/hitam), model menilai "tidak ada konten" dan
+ *      hasil keseluruhan menjadi tidak konklusif.
+ *
+ * Sekarang: lebih banyak kandidat titik, frame kosong DIDETEKSI
+ * lalu DIGANTI dengan titik lain. Frame kosong tidak pernah
+ * dikirim sebagai bukti visual.
+ */
+const VIDEO_FRAME_CANDIDATES =
+    [0.08, 0.22, 0.36, 0.5, 0.64, 0.78, 0.92];
+
+/** Ukuran kecil untuk uji "frame kosong". */
+const BLANK_CHECK_SIZE =
+    32;
+
+/** Deviasi standar luminansi di bawah ini = frame hampir seragam. */
+const BLANK_STDDEV_THRESHOLD =
+    4;
+
+
+/**
+ * Tunggu sampai frame hasil seek benar-benar siap digambar.
+ *
+ * `seeked` hanya berarti posisi sudah berpindah; pada banyak
+ * browser seluler frame belum ter-render saat itu. rVFC
+ * (requestVideoFrameCallback) memberi kepastian frame sudah
+ * dipresentasikan.
+ */
+function waitForPresentedFrame(video) {
+
+    if (
+        typeof video.requestVideoFrameCallback === "function"
+    ) {
+
+        return new Promise(
+            resolve => {
+
+                let settled =
+                    false;
+
+                const finish = () => {
+
+                    if (settled) return;
+
+                    settled =
+                        true;
+
+                    resolve();
+
+                };
+
+
+                const timeoutId =
+                    setTimeout(
+                        finish,
+                        600
+                    );
+
+
+                video.requestVideoFrameCallback(
+                    () => {
+
+                        clearTimeout(
+                            timeoutId
+                        );
+
+                        finish();
+
+                    }
+                );
+
+            }
+        );
+    }
+
+
+    /*
+     * Fallback: dua kali animation frame + jeda kecil, supaya
+     * compositor sempat menggambar frame terakhir.
+     */
+    return new Promise(
+        resolve => {
+
+            const nextFrame =
+                typeof requestAnimationFrame === "function"
+                    ? requestAnimationFrame
+                    : callback => setTimeout(callback, 16);
+
+
+            nextFrame(
+                () => nextFrame(
+                    () => setTimeout(resolve, 40)
+                )
+            );
+
+        }
+    );
+}
+
+
+/**
+ * Frame dianggap kosong bila hampir seragam (putih/hitam polos):
+ * deviasi standar luminansi sangat rendah.
+ */
+export function isBlankFrame(context, width, height) {
+
+    let data;
+
+    try {
+
+        data =
+            context.getImageData(
+                0,
+                0,
+                width,
+                height
+            ).data;
+
+    } catch {
+
+        /* getImageData bisa diblokir; anggap frame terpakai. */
+        return false;
+    }
+
+
+    let sum =
+        0;
+
+    let sumSquares =
+        0;
+
+    let count =
+        0;
+
+
+    for (
+        let index = 0;
+        index < data.length;
+        index += 4
+    ) {
+
+        const luminance =
+            0.299 * data[index] +
+            0.587 * data[index + 1] +
+            0.114 * data[index + 2];
+
+
+        sum +=
+            luminance;
+
+        sumSquares +=
+            luminance * luminance;
+
+        count +=
+            1;
+    }
+
+
+    if (!count) {
+        return false;
+    }
+
+
+    const mean =
+        sum / count;
+
+    const variance =
+        Math.max(
+            0,
+            sumSquares / count - mean * mean
+        );
+
+
+    return (
+        Math.sqrt(
+            variance
+        ) <
+        BLANK_STDDEV_THRESHOLD
+    );
+}
+
+
 async function createVideoFrameDataUrls(file) {
 
     const video =
@@ -683,7 +874,7 @@ async function createVideoFrameDataUrls(file) {
     const objectUrl =
         URL.createObjectURL(file);
 
-    video.preload = "metadata";
+    video.preload = "auto";
     video.muted = true;
     video.playsInline = true;
 
@@ -712,19 +903,32 @@ async function createVideoFrameDataUrls(file) {
         const timestamps =
             duration < 0.5
                 ? [duration / 2]
-                : [0.2, 0.5, 0.8].map(
+                : VIDEO_FRAME_CANDIDATES.map(
                     fraction => Math.min(
                         Math.max(0.05, duration * fraction),
                         Math.max(0.05, duration - 0.05)
                     )
                 );
 
+
         const frames = [];
+
+        const skipped = [];
+
 
         for (
             const [index, timestamp]
-            of timestamps.slice(0, MAX_VIDEO_FRAMES).entries()
+            of timestamps.entries()
         ) {
+
+            if (
+                frames.length >=
+                MAX_VIDEO_FRAMES
+            ) {
+
+                break;
+            }
+
 
             const seeked =
                 waitForVideoEvent(
@@ -735,6 +939,8 @@ async function createVideoFrameDataUrls(file) {
 
             video.currentTime = timestamp;
             await seeked;
+
+            await waitForPresentedFrame(video);
 
             const sourceWidth =
                 Number(video.videoWidth);
@@ -747,6 +953,50 @@ async function createVideoFrameDataUrls(file) {
                     "Ukuran frame video tidak tersedia."
                 );
             }
+
+
+            /* Uji kekosongan pada kanvas kecil (murah). */
+            const checkCanvas =
+                document.createElement("canvas");
+
+            checkCanvas.width =
+                BLANK_CHECK_SIZE;
+
+            checkCanvas.height =
+                BLANK_CHECK_SIZE;
+
+            const checkContext =
+                checkCanvas.getContext("2d", { willReadFrequently: true });
+
+            if (!checkContext) {
+                throw new Error("Canvas browser tidak tersedia.");
+            }
+
+            checkContext.drawImage(
+                video,
+                0,
+                0,
+                BLANK_CHECK_SIZE,
+                BLANK_CHECK_SIZE
+            );
+
+            if (
+                isBlankFrame(
+                    checkContext,
+                    BLANK_CHECK_SIZE,
+                    BLANK_CHECK_SIZE
+                )
+            ) {
+
+                skipped.push(
+                    Number(
+                        timestamp.toFixed(2)
+                    )
+                );
+
+                continue;
+            }
+
 
             const scale =
                 Math.min(
@@ -778,11 +1028,29 @@ async function createVideoFrameDataUrls(file) {
                 canvas.height
             );
 
-            frames.push({
+            const frame = {
                 timestamp,
                 dataUrl: await encodeCanvas(canvas, 0.58)
-            });
+            };
+
+            frames.push(frame);
         }
+
+
+        if (!frames.length) {
+
+            throw new Error(
+                `Semua frame yang diambil kosong (putih/hitam polos) pada ${timestamps.length} titik sampel, jadi tidak ada bukti visual yang bisa dinilai. Coba periksa ulang beberapa saat lagi atau gunakan berkas lain.`
+            );
+        }
+
+
+        /*
+         * Titik yang dilewati dicatat supaya UI bisa jujur
+         * menyebutnya, bukan menyembunyikan.
+         */
+        frames.skippedTimestamps =
+            skipped;
 
 
         return frames;
@@ -931,12 +1199,41 @@ export async function detectOpenKeyMedia(
     }
 
 
+    const skippedTimestamps =
+        Array.isArray(visualInputs.skippedTimestamps)
+            ? visualInputs.skippedTimestamps
+            : [];
+
+
+    /*
+     * Penandaan AIGC dari metadata diteruskan secara eksplisit ke
+     * model supaya jawabannya tidak menyimpulkan "bukan AI" hanya
+     * karena tidak melihat artefak visual.
+     */
+    const hasAigcLabel =
+        Array.isArray(indicators) &&
+        indicators.some(
+            indicator =>
+                indicator?.category === "aigc" ||
+                /aigc/i.test(
+                    String(indicator?.field || "")
+                )
+        );
+
+
     const content = [
         {
             type: "text",
             text: [
                 "Nilai apakah gambar atau cuplikan frame berikut menunjukkan media yang kemungkinan dibuat atau dimodifikasi secara generatif oleh AI.",
                 "Gunakan hanya bukti visual yang tampak. Jangan menyimpulkan kepastian hanya dari gaya visual.",
+                "PENTING: tidak adanya artefak visual BUKAN bukti bahwa media bukan hasil AI. Video AI modern sering tampak realistis. Jangan memakai ketiadaan artefak sebagai alasan menyimpulkan likely_not_ai.",
+                hasAigcLabel
+                    ? "Metadata berkas memuat penandaan AIGC (AI-Generated Content). Itu label dari pembuat/platform dan wajib disebut sebagai sinyal metadata walau visual belum konklusif."
+                    : "Metadata berkas tidak memuat penandaan AIGC yang dikenali.",
+                skippedTimestamps.length
+                    ? `Catatan: ${skippedTimestamps.length} frame pada detik ${skippedTimestamps.join(", ")} dilewati karena putih/hitam polos; frame kosong tidak dikirim untuk dinilai.`
+                    : "Semua frame yang diambil berisi konten visual.",
                 "Untuk video, analisis semua frame berurutan dan catat bila kesimpulannya tidak pasti karena hanya sebagian frame yang dikirim.",
                 "Metadata berikut adalah petunjuk tambahan, bukan bukti visual dan bukan verifikasi kriptografis:",
                 JSON.stringify(
@@ -974,7 +1271,7 @@ export async function detectOpenKeyMedia(
             messages: [
                 {
                     role: "system",
-                    content: "Anda adalah pemeriksa indikasi media generatif. Bersikap konservatif, sebutkan keterbatasan, dan jangan mengarang bukti."
+                    content: "Anda adalah pemeriksa indikasi media generatif. Bersikap konservatif, sebutkan keterbatasan, dan jangan mengarang bukti. Tidak adanya artefak visual bukan bukti media bukan AI; penandaan AIGC pada metadata adalah label platform yang wajib disebut."
                 },
                 {
                     role: "user",
@@ -1006,6 +1303,7 @@ export async function detectOpenKeyMedia(
                 ),
                 model: candidate,
                 frameCount: visualInputs.length,
+                skippedFrames: skippedTimestamps,
                 status: "complete"
             };
 
@@ -1140,12 +1438,43 @@ export function renderOpenKeyResult(
             String(provenance?.verificationStatus || "")
         );
 
+
+    /*
+     * Penandaan AIGC dari metadata. Kalau ada, hasil visual yang
+     * "belum konklusif" tidak boleh dibaca sebagai "tidak ada
+     * indikasi AI" — metadata sudah menyatakannya.
+     */
+    const aigcIndicator =
+        (Array.isArray(metadataIndicators) ? metadataIndicators : [])
+            .find(
+                indicator =>
+                    indicator?.category === "aigc" ||
+                    /aigc/i.test(
+                        String(indicator?.field || "")
+                    )
+            ) || null;
+
+
+    const aigcFieldLabel =
+        aigcIndicator
+            ? String(aigcIndicator.field || "aigc")
+                .split(".")
+                .filter(Boolean)
+                .slice(-2)
+                .join(".")
+            : "";
+
     heading.textContent =
         result.verdict === "likely_not_ai" &&
         aiMetadataSignal
             ? "OPENKEY: TIDAK ADA INDIKASI VISUAL AI"
             : verdictLabels[result.verdict] ||
                 verdictLabels.uncertain;
+
+    const visualSummary =
+        result.summary ||
+        "OpenKey tidak memberikan ringkasan.";
+
 
     summary.textContent =
         result.verdict === "likely_not_ai" &&
@@ -1156,8 +1485,10 @@ export function renderOpenKeyResult(
                         ? " Provenance berstatus NOT_VERIFIED, jadi keaslian deklarasinya belum dapat dipastikan."
                         : ""
                 )
-            : result.summary ||
-                "OpenKey tidak memberikan ringkasan.";
+            : result.verdict === "uncertain" &&
+                aigcIndicator
+                ? `Visual belum konklusif, TETAPI metadata berkas memuat penandaan AIGC (${aigcFieldLabel}). Penandaan itu bukti metadata dari pembuat/platform dan tidak dibatalkan oleh penilaian visual yang belum pasti. ${visualSummary}`
+                : visualSummary;
 
     details.textContent = [
         result.confidence === null
@@ -1168,6 +1499,13 @@ export function renderOpenKeyResult(
             : "",
         result.frameCount
             ? `Frame diperiksa: ${result.frameCount}`
+            : "",
+        Array.isArray(result.skippedFrames) &&
+        result.skippedFrames.length
+            ? `${result.skippedFrames.length} frame kosong dilewati (detik ${result.skippedFrames.join(", ")})`
+            : "",
+        aigcIndicator
+            ? `Penandaan AIGC: ${aigcFieldLabel}`
             : ""
     ]
         .filter(Boolean)
