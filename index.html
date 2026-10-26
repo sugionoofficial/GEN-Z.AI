@@ -590,8 +590,9 @@
 
             overflow: hidden;
 
+            /* navbar fixed 75px + sisa 11px supaya eyebrow tidak tertutup */
             padding:
-                70px 0 8px;
+                86px 0 8px;
         }
 
         .hero::before {
@@ -1826,8 +1827,10 @@
             }
 
             .hero {
+                /* navbar HP 2 baris ±107px (logo 36 + gap + tombol 40 + padding)
+                   + sisa 11px supaya teks AI CREATIVE PLATFORM tidak tertutup */
                 padding:
-                    92px 0 8px;
+                    118px 0 8px;
             }
 
             .hero-copy h1 {
@@ -1950,7 +1953,8 @@
         @media (max-width: 768px) {
 
             .hero {
-                padding: 92px 0 8px;
+                /* mengulang aturan 760px: blok ini lebih akhir jadi yang menang */
+                padding: 118px 0 8px;
             }
 
             .trust-strip {
