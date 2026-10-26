@@ -774,6 +774,259 @@ function readAscii(
 
 
 /* =========================================================
+   ISO BMFF MEDIA REGIONS
+========================================================= */
+
+function readUint32BEValue(
+    bytes,
+    offset
+) {
+
+    return (
+        (
+            bytes[offset] << 24
+        ) |
+        (
+            bytes[offset + 1] << 16
+        ) |
+        (
+            bytes[offset + 2] << 8
+        ) |
+        bytes[offset + 3]
+    ) >>> 0;
+
+}
+
+
+/**
+ * Mencari rentang byte kotak `mdat` (data video/audio).
+ *
+ * Label C2PA tidak pernah ditulis di dalam `mdat`. Kalau
+ * pencarian teks dilakukan pada seluruh berkas, rangkaian byte
+ * acak hasil kompresi bisa kebetulan membentuk kata `c2pa` dan
+ * memicu "provenance ditemukan" palsu — terutama pada video
+ * besar. Karena itu bagian `mdat` dilewati.
+ */
+function findMediaByteRanges(
+    bytes
+) {
+
+    const ranges = [];
+
+    let offset = 0;
+
+    let boxCount = 0;
+
+
+    while (
+        offset + 8 <= bytes.length &&
+        boxCount < 512
+    ) {
+
+        let size =
+            readUint32BEValue(
+                bytes,
+                offset
+            );
+
+
+        const type =
+            readAscii(
+                bytes,
+                offset + 4,
+                4
+            );
+
+
+        let headerSize =
+            8;
+
+
+        if (
+            size === 1
+        ) {
+
+            if (
+                offset + 16 > bytes.length
+            ) {
+
+                break;
+
+            }
+
+
+            const high =
+                readUint32BEValue(
+                    bytes,
+                    offset + 8
+                );
+
+
+            const low =
+                readUint32BEValue(
+                    bytes,
+                    offset + 12
+                );
+
+
+            size =
+                high *
+                4294967296 +
+                low;
+
+            headerSize =
+                16;
+
+        }
+        else if (
+            size === 0
+        ) {
+
+            size =
+                bytes.length - offset;
+
+        }
+
+
+        if (
+            size < headerSize ||
+            offset + size > bytes.length
+        ) {
+
+            /*
+               Struktur tidak bisa diikuti (mis. karena
+               pemindaian sebagian menggabungkan kepala dan ekor
+               berkas). Berhenti dan biarkan pemanggil memakai
+               pemindaian penuh.
+            */
+
+            break;
+
+        }
+
+
+        if (
+            type === "mdat"
+        ) {
+
+            ranges.push(
+                [
+                    offset + headerSize,
+                    offset + size
+                ]
+            );
+
+        }
+
+
+        offset +=
+            size;
+
+        boxCount +=
+            1;
+
+    }
+
+
+    return {
+
+        ranges,
+
+        mappedBytes:
+            offset,
+
+        complete:
+            offset >= bytes.length
+
+    };
+
+}
+
+
+function containsAsciiInsensitiveOutside(
+    bytes,
+    label,
+    ranges
+) {
+
+    if (
+        !ranges ||
+        ranges.length === 0
+    ) {
+
+        return containsAsciiInsensitive(
+            bytes,
+            label
+        );
+
+    }
+
+
+    let cursor = 0;
+
+
+    for (
+        let index = 0;
+        index < ranges.length; index += 1
+    ) {
+
+        const start =
+            ranges[index][0];
+
+        const end =
+            ranges[index][1];
+
+
+        if (
+            start > cursor
+        ) {
+
+            if (
+                containsAsciiInsensitive(
+                    bytes.subarray(
+                        cursor,
+                        start
+                    ),
+                    label
+                )
+            ) {
+
+                return true;
+
+            }
+
+        }
+
+
+        cursor =
+            Math.max(
+                cursor,
+                end
+            );
+
+    }
+
+
+    if (
+        cursor < bytes.length
+    ) {
+
+        return containsAsciiInsensitive(
+            bytes.subarray(
+                cursor
+            ),
+            label
+        );
+
+    }
+
+
+    return false;
+
+}
+
+
+/* =========================================================
    JPEG INSPECTION
 ========================================================= */
 
@@ -1087,13 +1340,35 @@ function inspectMP4(
 
 
     /*
+       Bagian `mdat` (data video/audio) tidak boleh ikut dicari.
+
+       Byte hasil kompresi bersifat acak; rangkaian `63 32 70 61`
+       bisa muncul kebetulan dan membuat video biasa dituduh
+       membawa C2PA. Manifest C2PA selalu berada di container
+       metadata (`moov`, `uuid`, `udta`, `jumb`), bukan di `mdat`.
+    */
+
+    const mediaScan =
+        findMediaByteRanges(
+            bytes
+        );
+
+
+    const mediaRanges =
+        mediaScan.complete
+            ? mediaScan.ranges
+            : [];
+
+
+    /*
        C2PA label.
     */
 
     const c2paFound =
-        containsAsciiInsensitive(
+        containsAsciiInsensitiveOutside(
             bytes,
-            C2PA_LABEL
+            C2PA_LABEL,
+            mediaRanges
         );
 
 
@@ -1106,6 +1381,24 @@ function inspectMP4(
         );
 
     }
+    else if (
+        mediaRanges.length > 0 &&
+        containsAsciiInsensitive(
+            bytes,
+            C2PA_LABEL
+        )
+    ) {
+
+        /*
+           Label hanya muncul di dalam data media: hampir pasti
+           kebetulan byte, bukan provenance sungguhan.
+        */
+
+        findings.push(
+            "label c2pa di dalam data media (kemungkinan positif palsu, bukan provenance)"
+        );
+
+    }
 
 
     /*
@@ -1113,9 +1406,10 @@ function inspectMP4(
     */
 
     const jumbfFound =
-        containsAsciiInsensitive(
+        containsAsciiInsensitiveOutside(
             bytes,
-            JUMBF_LABEL
+            JUMBF_LABEL,
+            mediaRanges
         );
 
 
@@ -1135,9 +1429,10 @@ function inspectMP4(
     */
 
     const contentCredentialsFound =
-        containsAsciiInsensitive(
+        containsAsciiInsensitiveOutside(
             bytes,
-            CONTENT_CREDENTIALS_LABEL
+            CONTENT_CREDENTIALS_LABEL,
+            mediaRanges
         );
 
 
@@ -1157,9 +1452,10 @@ function inspectMP4(
     */
 
     const createdFound =
-        containsAsciiInsensitive(
+        containsAsciiInsensitiveOutside(
             bytes,
-            C2PA_CREATED_LABEL
+            C2PA_CREATED_LABEL,
+            mediaRanges
         );
 
 
@@ -1179,9 +1475,10 @@ function inspectMP4(
     */
 
     const aiDisclosureFound =
-        containsAsciiInsensitive(
+        containsAsciiInsensitiveOutside(
             bytes,
-            C2PA_AI_DISCLOSURE_LABEL
+            C2PA_AI_DISCLOSURE_LABEL,
+            mediaRanges
         );
 
 

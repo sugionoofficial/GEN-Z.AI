@@ -24,6 +24,10 @@ const statusSource = await fs.readFile(
     new URL("../metadata-cleaner/assets/js/metadata-status.js", import.meta.url),
     "utf8"
 );
+const videoSource = await fs.readFile(
+    new URL("../metadata-cleaner/assets/js/metadata-cleaner-video.js", import.meta.url),
+    "utf8"
+);
 
 const MB = 1024 * 1024;
 const INSPECT_LIMIT = 50 * MB;
@@ -151,10 +155,11 @@ test("cleaning tidak lagi gagal hanya karena provenance tidak bisa diperiksa pen
     assert.match(cleanSource, /provenanceLimited/);
     assert.match(cleanSource, /Pemeriksaan provenance gagal/);
     assert.match(cleanSource, /CLEANING SELESAI — PROVENANCE TERBATAS/);
-    /* Residu yang benar-benar ditemukan tetap menggagalkan cleaning. */
-    assert.match(
+    /* Residu yang ditemukan dicatat, tidak lagi membuang hasil cleaning. */
+    assert.match(cleanSource, /residualProvenance/);
+    assert.doesNotMatch(
         cleanSource,
-        /if \(provenance\.detected \|\| provenance\.softwareAgent\) \{[\s\S]{0,200}throw new Error/
+        /throw new Error\(\s*"SoftwareAgent atau C2PA/
     );
 });
 
@@ -167,6 +172,33 @@ test("state menyimpan tanda pemindaian sebagian agar panel tidak menyesatkan", (
 test("file yang tidak bisa dibaca tetap dilaporkan sebagai NOT_CHECKED, bukan bersih", () => {
     assert.match(cleanSource, /status:\s*\n\s*"NOT_CHECKED"/);
     assert.match(cleanSource, /Provenance tidak dapat diperiksa/);
+});
+
+test("residu provenance tidak lagi menggagalkan cleaning", () => {
+    assert.match(cleanSource, /RESIDU PROVENANCE MASIH TERBACA/);
+    assert.match(cleanSource, /Berkas belum bisa disebut bebas C2PA/);
+    assert.doesNotMatch(
+        cleanSource,
+        /File tidak ditandai bersih\./
+    );
+    assert.doesNotMatch(
+        cleanSource,
+        /SoftwareAgent masih ditemukan pada file hasil cleaning/
+    );
+});
+
+test("cleaner video memangkas kotak metadata sebelum encode ulang", () => {
+    assert.match(videoSource, /stripIsoBmffMetadata/);
+    assert.match(videoSource, /LANGKAH 1 — pemangkasan kotak metadata/);
+    assert.match(videoSource, /residual/);
+    assert.doesNotMatch(
+        videoSource,
+        /Verifikasi gagal: metadata masih ditemukan setelah encode ulang/
+    );
+    assert.doesNotMatch(
+        videoSource,
+        /Metadata AI, SoftwareAgent, atau C2PA masih ditemukan setelah remux\./
+    );
 });
 
 test("stamp hasil cleaning memakai PARTIAL saat provenance hanya sebagian", () => {

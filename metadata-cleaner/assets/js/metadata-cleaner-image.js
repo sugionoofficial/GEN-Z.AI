@@ -582,12 +582,25 @@ function stripJPEGMetadata(
          * COM   FFFE
          */
 
+        /*
+         * Semua APPn dianggap metadata.
+         *
+         * APP11 adalah lokasi resmi C2PA/JUMBF, tetapi sebagian
+         * aplikasi menaruh manifest di APP3–APP10 atau APP15.
+         * Karena itu seluruh APPn dibuang.
+         *
+         * PENGECUALIAN: APP14 (0xEE).
+         * APP14 menyimpan penanda Adobe yang menentukan transformasi
+         * warna JPEG CMYK. Membuangnya bisa mengubah warna gambar,
+         * dan C2PA tidak pernah memakai APP14.
+         */
+
         const removeSegment =
-            marker === 0xE0 ||
-            marker === 0xE1 ||
-            marker === 0xE2 ||
-            marker === 0xEB ||
-            marker === 0xED ||
+            (
+                marker >= 0xE0 &&
+                marker <= 0xEF &&
+                marker !== 0xEE
+            ) ||
             marker === 0xFE;
 
 
@@ -752,7 +765,27 @@ function stripPNGMetadata(
         }
 
 
+        /*
+         * Chunk ancillary (huruf pertama kecil) boleh dibuang
+         * tanpa merusak gambar. Chunk critical (IHDR, PLTE, IDAT,
+         * IEND) wajib dipertahankan.
+         */
+        const isAncillary =
+            chunkType.length === 4 &&
+            chunkType.charCodeAt(0) >= 0x61 &&
+            chunkType.charCodeAt(0) <= 0x7A &&
+            chunkType !== "tRNS";
+
+        const carriesProvenance =
+            isAncillary &&
+            containsProvenanceLabel(
+                input,
+                offset + 8,
+                offset + 8 + chunkLength
+            );
+
         const removeChunk =
+            carriesProvenance ||
             chunkType === "iCCP" ||
             chunkType === "tEXt" ||
             chunkType === "zTXt" ||
@@ -938,7 +971,28 @@ function stripWebPMetadata(
         }
 
 
+        const isImageChunk =
+            chunkType === "VP8 " ||
+            chunkType === "VP8L" ||
+            chunkType === "VP8X" ||
+            chunkType === "ALPH" ||
+            chunkType === "ANIM" ||
+            chunkType === "ANMF";
+
+        /*
+         * Selain nama chunk baku di atas, chunk non-gambar yang
+         * isinya memuat label provenance juga dibuang.
+         */
+        const carriesProvenance =
+            !isImageChunk &&
+            containsProvenanceLabel(
+                input,
+                dataStart,
+                dataStart + chunkSize
+            );
+
         const removeChunk =
+            carriesProvenance ||
             chunkType === "EXIF" ||
             chunkType === "XMP " ||
             chunkType === "ICCP" ||
@@ -993,6 +1047,105 @@ function stripWebPMetadata(
                 "image/webp"
         }
     );
+}
+
+
+/* =========================================================
+   PROVENANCE LABEL SCAN
+========================================================= */
+
+/*
+ * Nama chunk standar tidak selalu dipakai vendor.
+ *
+ * Sebagian aplikasi menaruh manifest C2PA di chunk yang
+ * namanya tidak dikenal (mis. teks bebas atau `zTXt`), jadi
+ * selain daftar nama di atas, isi chunk juga diperiksa.
+ */
+
+const PROVENANCE_LABELS = [
+    "c2pa",
+    "jumbf",
+    "content credentials",
+    "trainedalgorithmicmedia",
+    "softwareagent"
+];
+
+function containsProvenanceLabel(
+    bytes,
+    start,
+    end
+) {
+
+    /* Batas 1 MB: label selalu berada di awal chunk metadata. */
+    const limit =
+        Math.min(
+            end,
+            start + 1024 * 1024
+        );
+
+    const step = 8192;
+
+    let tail = "";
+
+    for (
+        let offset = start;
+        offset < limit;
+        offset += step
+    ) {
+
+        const chunkEnd =
+            Math.min(
+                offset + step,
+                limit
+            );
+
+        let text = "";
+
+        for (
+            let index = offset;
+            index < chunkEnd; index += 1
+        ) {
+
+            text +=
+                String.fromCharCode(
+                    bytes[index]
+                );
+
+        }
+
+        const lower =
+            (
+                tail + text
+            ).toLowerCase();
+
+        for (
+            let index = 0;
+            index < PROVENANCE_LABELS.length; index += 1
+        ) {
+
+            if (
+                lower.includes(
+                    PROVENANCE_LABELS[index]
+                )
+            ) {
+
+                return true;
+
+            }
+
+        }
+
+        tail =
+            text
+                .slice(
+                    -64
+                )
+                .toLowerCase();
+
+    }
+
+    return false;
+
 }
 
 

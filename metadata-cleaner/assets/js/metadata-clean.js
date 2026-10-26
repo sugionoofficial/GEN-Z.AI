@@ -239,11 +239,26 @@ async function verifyCleanedMetadata(
             item => /software.?agent/i.test(item.field)
         );
 
-    if (softwareAgentEntries.length > 0) {
-        throw new Error(
-            "SoftwareAgent masih ditemukan pada file hasil cleaning. File tidak ditandai bersih."
-        );
-    }
+    /*
+       SoftwareAgent yang masih terbaca TIDAK lagi membatalkan
+       cleaning.
+
+       Alasannya: pembersihan sudah selesai, dan membuang hasil
+       hanya membuat pengguna kehilangan berkas yang sebenarnya
+       sudah diproses. Residu dicatat, lalu status dibuat jujur.
+    */
+    const residualFields =
+        softwareAgentEntries
+            .map(
+                item => item.field
+            )
+            .filter(
+                Boolean
+            )
+            .slice(
+                0,
+                4
+            );
 
     /*
        Pemeriksaan provenance adalah VERIFIKASI, bukan bagian dari proses
@@ -308,11 +323,48 @@ async function verifyCleanedMetadata(
 
     }
 
-    /* Sinyal residu yang benar-benar ditemukan tetap menggagalkan cleaning. */
-    if (provenance.detected || provenance.softwareAgent) {
-        throw new Error(
-            "SoftwareAgent atau C2PA/Content Credentials masih ditemukan pada file hasil cleaning. File tidak ditandai bersih."
-        );
+    /*
+       Residu provenance juga tidak menggagalkan cleaning.
+
+       Kalau residu muncul SETELAH pembersihan, artinya sudah
+       tidak ada lagi yang bisa dihapus dari container. Berkas
+       tetap layak dikirim; yang penting pengguna diberi tahu
+       bahwa sinyal itu masih terbaca dan berkas belum bisa
+       disebut "bebas C2PA".
+    */
+    let residualProvenance =
+        "";
+
+    if (
+        provenance.detected ||
+        provenance.softwareAgent
+    ) {
+
+        residualProvenance =
+            [
+                ...(
+                    provenance.softwareAgent
+                        ? [`softwareAgent: ${provenance.softwareAgent}`]
+                        : []
+                ),
+                ...(
+                    Array.isArray(provenance.findings)
+                        ? provenance.findings
+                        : []
+                )
+            ]
+                .filter(
+                    Boolean
+                )
+                .slice(
+                    0,
+                    4
+                )
+                .join(
+                    ", "
+                ) ||
+            "sinyal C2PA masih terbaca";
+
     }
 
     if (
@@ -334,7 +386,12 @@ async function verifyCleanedMetadata(
         provenanceLimited:
             String(
                 provenanceLimited
-            ).trim()
+            ).trim(),
+        residualProvenance:
+            String(
+                residualProvenance
+            ).trim(),
+        residualFields
     };
 }
 
@@ -1453,35 +1510,78 @@ export async function cleanMetadata() {
                 ""
             ).trim();
 
-        if (provenanceLimited) {
-            /*
-               Jangan mengklaim "bersih" untuk bagian yang tidak diperiksa.
-               Status memakai indikator netral (bukan CLEAR) supaya warnings
-               terbaca sebagai peringatan, bukan sukses penuh.
-            */
+
+        /*
+           Residu provenance = sinyal yang MASIH terbaca setelah
+           semua upaya pembersihan (pemangkasan container, encode
+           ulang, dan pembersihan metadata).
+
+           Residu bukan alasan menggagalkan proses: berkas tetap
+           dikirim, tetapi statusnya tidak boleh berbunyi "SUCCESS"
+           seolah tidak ada jejak AI sama sekali.
+        */
+        const residual = [
+            cleanedMetadata.residualProvenance,
+            String(
+                rawResult?.residual ||
+                ""
+            ).trim(),
+            (
+                cleanedMetadata.residualFields ||
+                []
+            )
+                .join(
+                    ", "
+                )
+        ]
+            .filter(
+                Boolean
+            )
+            .join(
+                "; "
+            );
+
+
+        if (residual) {
+            setStatus(
+                "PARTIAL",
+                "CLEANING SELESAI — RESIDU PROVENANCE MASIH TERBACA",
+                `Pembersihan metadata sudah dijalankan dan hasilnya bisa diunduh. Namun sinyal provenance berikut masih terbaca pada hasil akhir: ${residual}. Sinyal ini bisa berasal dari data yang tidak bisa dihapus tanpa mengubah isi media, atau dari pola byte yang kebetulan mirip. Berkas belum bisa disebut bebas C2PA.`
+            );
+            renderCleaningSuccessStamp("PARTIAL");
+        }
+        else if (
+            provenanceLimited
+        ) {
+
             setStatus(
                 "PARTIAL",
                 "CLEANING SELESAI — PROVENANCE TERBATAS",
                 `Metadata lokal pada salinan hasil sudah dibersihkan dan diverifikasi. ${provenanceLimited} Hasil analisis visual sebelumnya tetap ditampilkan terpisah.`
             );
-            /* Stamp tidak boleh berbunyi "SUCCESS" penuh untuk pemeriksaan sebagian. */
             renderCleaningSuccessStamp("PARTIAL");
-        } else {
+
+        }
+        else {
+
             setStatus(
                 "CLEAR",
                 "CLEANING SUCCESS",
                 "Metadata pada salinan hasil sudah diperbarui dan diverifikasi. Hasil analisis visual sebelumnya tetap ditampilkan terpisah."
             );
-        }
-        renderCleaningSuccessStamp();
+            renderCleaningSuccessStamp();
 
-        /* Status sukses. */
+        }
+
+        /* Status sukses — selalu jujur tentang apa yang tersisa. */
         setPreviewStatus(
-            provenanceLimited
-                ? `METADATA BERSIH (SEBAGIAN DIVERIFIKASI). ${cleaningNotice ? `${cleaningNotice} ` : ""}${provenanceLimited}`
-                : cleaningNotice
-                    ? `METADATA CLEANING SUCCESS. ${cleaningNotice}`
-                    : "METADATA CLEANING SUCCESS. HASIL ADALAH FILE BARU."
+            residual
+                ? `METADATA BERSIH — RESIDU PROVENANCE MASIH TERBACA. ${cleaningNotice ? `${cleaningNotice} ` : ""}${residual}. Berkas hasil tetap bisa diunduh.`
+                : provenanceLimited
+                    ? `METADATA BERSIH (SEBAGIAN DIVERIFIKASI). ${cleaningNotice ? `${cleaningNotice} ` : ""}${provenanceLimited}`
+                    : cleaningNotice
+                        ? `METADATA CLEANING SUCCESS. ${cleaningNotice}`
+                        : "METADATA CLEANING SUCCESS. HASIL ADALAH FILE BARU."
         );
 
 
