@@ -51,6 +51,23 @@ const MAX_INSPECT_BYTES =
     50 * 1024 * 1024;
 
 
+/*
+   File besar (umumnya video) tidak lagi ditolak mentah-mentah.
+
+   Membaca 200 MB ke memori browser bisa membuat tab kehabisan
+   memori, jadi untuk berkas di atas MAX_INSPECT_BYTES hanya bagian
+   awal dan akhir yang dipindai. Hasilnya ditandai `partial: true`
+   supaya UI tidak pernah mengklaim "tidak ditemukan provenance"
+   seolah seluruh berkas sudah diperiksa.
+*/
+const PARTIAL_WINDOW_BYTES =
+    12 * 1024 * 1024;
+
+
+const PARTIAL_OVERLAP_BYTES =
+    64 * 1024;
+
+
 const ASCII_CACHE =
     new WeakMap();
 
@@ -1497,6 +1514,53 @@ function cleanProvenanceValue(
    BUFFER READER
 ========================================================= */
 
+function formatMegabytes(
+    bytes
+) {
+
+    if (
+        !Number.isFinite(
+            bytes
+        ) ||
+        bytes <= 0
+    ) {
+
+        return "0 MB";
+
+    }
+
+
+    const megabytes =
+        bytes / (1024 * 1024);
+
+
+    return `${megabytes >= 10
+        ? Math.round(megabytes)
+        : Math.round(megabytes * 10) / 10} MB`;
+
+}
+
+
+function inspectionLimitNote(
+    fileSize,
+    scannedBytes
+) {
+
+    return `Berkas ${formatMegabytes(fileSize)} melebihi batas pemindaian penuh `
+        + `${formatMegabytes(MAX_INSPECT_BYTES)}. Provenance hanya diperiksa pada `
+        + `${formatMegabytes(scannedBytes)} di bagian awal dan akhir berkas, `
+        + `jadi "tidak ditemukan" bukan berarti berkas bebas C2PA.`;
+
+}
+
+
+/*
+   Mengembalikan objek, bukan Uint8Array mentah:
+
+   {
+       bytes, partial, fileSize, scannedBytes
+   }
+*/
 async function readInspectionBytes(
     file
 ) {
@@ -1514,6 +1578,8 @@ async function readInspectionBytes(
 
     if (
         typeof file.arrayBuffer !==
+        "function" &&
+        typeof file.slice !==
         "function"
     ) {
 
@@ -1524,25 +1590,120 @@ async function readInspectionBytes(
     }
 
 
+    const fileSize =
+        Number(
+            file.size
+        ) || 0;
+
+
     if (
-        file.size >
+        fileSize <=
         MAX_INSPECT_BYTES
     ) {
 
-        throw new Error(
-            "File terlalu besar untuk pemeriksaan provenance."
+        const buffer =
+            await file.arrayBuffer();
+
+
+        const bytes =
+            new Uint8Array(
+                buffer
+            );
+
+
+        return {
+            bytes,
+            partial:
+                false,
+            fileSize,
+            scannedBytes:
+                bytes.length
+        };
+
+    }
+
+
+    /*
+       Pemindaian terbatas: kepala + ekor berkas.
+
+       Metadata C2PA pada JPEG/PNG/WebP berada dekat awal atau akhir
+       berkas, dan pada MP4/MOV ada di dalam box `uuid`/`moov` yang
+       biasanya berada di salah satu ujung juga. Byte yang dipindai
+       tetap dipakai apa adanya, jadi bila label C2PA ditemukan hasilnya
+       tetap valid — yang tidak bisa diklaim hanyalah "bersih".
+    */
+    const windowEnd =
+        Math.min(
+            fileSize,
+            PARTIAL_WINDOW_BYTES + PARTIAL_OVERLAP_BYTES
+        );
+
+
+    const tailStart =
+        Math.max(
+            0,
+            fileSize - PARTIAL_WINDOW_BYTES
+        );
+
+
+    const head =
+        new Uint8Array(
+            await file
+                .slice(0, windowEnd)
+                .arrayBuffer()
+        );
+
+
+    const tail =
+        tailStart > windowEnd
+            ? new Uint8Array(
+                await file
+                    .slice(tailStart, fileSize)
+                    .arrayBuffer()
+            )
+            : new Uint8Array(0);
+
+
+    const bytes =
+        new Uint8Array(
+            head.length + tail.length
+        );
+
+
+    bytes.set(
+        head,
+        0
+    );
+
+
+    if (
+        tail.length > 0
+    ) {
+
+        bytes.set(
+            tail,
+            head.length
         );
 
     }
 
 
-    const buffer =
-        await file.arrayBuffer();
-
-
-    return new Uint8Array(
-        buffer
-    );
+    return {
+        bytes,
+        partial:
+            true,
+        fileSize,
+        scannedBytes:
+            bytes.length,
+        scanWindows: {
+            head: [0, windowEnd],
+            tail: tail.length > 0
+                ? [tailStart, fileSize]
+                : null
+        },
+        limitBytes:
+            MAX_INSPECT_BYTES
+    };
 
 }
 
@@ -1753,10 +1914,57 @@ async function inspectProvenance(
     }
 
 
-    const bytes =
+    const inspection =
         await readInspectionBytes(
             file
         );
+
+
+    const bytes =
+        inspection.bytes;
+
+
+    /*
+       Bila pemindaian dibatasi, hasil "tidak ditemukan" tidak boleh
+       tampil seolah seluruh berkas bersih. Statusnya menjadi PARTIAL
+       dan catatan batasnya ikut dikirim ke UI.
+    */
+    const decorateResult =
+        result => {
+
+            if (
+                !inspection.partial
+            ) {
+
+                return result;
+
+            }
+
+
+            return {
+                ...result,
+                partial:
+                    true,
+                status:
+                    result.detected
+                        ? result.status
+                        : "PARTIAL",
+                note:
+                    inspectionLimitNote(
+                        inspection.fileSize,
+                        inspection.scannedBytes
+                    ),
+                fileSize:
+                    inspection.fileSize,
+                scannedBytes:
+                    inspection.scannedBytes,
+                scanWindows:
+                    inspection.scanWindows,
+                inspectionLimitBytes:
+                    MAX_INSPECT_BYTES
+            };
+
+        };
 
 
     const format =
@@ -1771,7 +1979,8 @@ async function inspectProvenance(
         "unknown"
     ) {
 
-        return createResult(
+        return decorateResult(
+            createResult(
             format,
             {
 
@@ -1797,6 +2006,7 @@ async function inspectProvenance(
                 }
 
             }
+        )
         );
 
     }
@@ -1882,9 +2092,11 @@ async function inspectProvenance(
     }
 
 
-    return createResult(
-        format,
-        details
+    return decorateResult(
+        createResult(
+            format,
+            details
+        )
     );
 
 }

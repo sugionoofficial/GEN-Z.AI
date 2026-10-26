@@ -1594,6 +1594,38 @@ function renderProvenanceMetadata(
         );
 
 
+    /*
+       Pemindaian terbatas (berkas besar) harus terlihat di panel metadata:
+       "NOT DETECTED" pada berkas 200 MB bukan bukti bebas C2PA.
+    */
+    if (
+        provenance.partial === true
+    ) {
+
+        html +=
+            createMetadataRow(
+                "Pemeriksaan",
+                "SEBAGIAN (berkas besar)"
+            );
+
+
+        if (
+            provenance.note
+        ) {
+
+            html +=
+                createMetadataRow(
+                    "Catatan",
+                    String(
+                        provenance.note
+                    )
+                );
+
+        }
+
+    }
+
+
     html +=
         renderProvenanceC2PA(
             provenance
@@ -3721,9 +3753,11 @@ function renderNoDetectionStamp() {
 }
 
 
-export function renderCleaningSuccessStamp() {
+export function renderCleaningSuccessStamp(
+    label = "SUCCESS"
+) {
 
-    renderOverlayStamp(null, false, false, "SUCCESS");
+    renderOverlayStamp(null, false, false, label);
 
 }
 
