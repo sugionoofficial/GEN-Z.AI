@@ -442,6 +442,12 @@
 
             user-select:
                 none;
+
+            pointer-events:
+                none;
+
+            -webkit-user-drag:
+                none;
         }
 
 
@@ -690,25 +696,6 @@
 
             margin-bottom:
                 31px;
-        }
-
-
-        .login-kicker {
-
-            margin-bottom:
-                11px;
-
-            color:
-                #98a2b3;
-
-            font-size:
-                9px;
-
-            font-weight:
-                850;
-
-            letter-spacing:
-                .19em;
         }
 
 
@@ -1184,7 +1171,8 @@
                 hidden;
 
             border:
-                0;
+                1px solid
+                #b6ffd0;
 
             border-radius:
                 14px;
@@ -1192,12 +1180,13 @@
             background:
                 linear-gradient(
                     135deg,
-                    #090b10 0%,
-                    #171c25 100%
+                    #4ef08a 0%,
+                    #22c55e 52%,
+                    #12b76a 100%
                 );
 
             color:
-                #fff;
+                #04260f;
 
             font-family:
                 inherit;
@@ -1215,8 +1204,12 @@
                 pointer;
 
             box-shadow:
-                0 12px 25px
-                rgba(15,23,42,.17);
+                0 10px 26px
+                rgba(34,197,94,.42),
+                0 0 0 1px
+                rgba(182,255,208,.65),
+                inset 0 1px 0
+                rgba(255,255,255,.5);
 
             transition:
                 transform .18s ease,
@@ -1258,8 +1251,12 @@
                 translateY(-2px);
 
             box-shadow:
-                0 17px 32px
-                rgba(15,23,42,.22);
+                0 15px 32px
+                rgba(34,197,94,.5),
+                0 0 0 1px
+                rgba(182,255,208,.75),
+                inset 0 1px 0
+                rgba(255,255,255,.55);
         }
 
 
@@ -1310,10 +1307,10 @@
 
             border:
                 2px solid
-                rgba(255,255,255,.28);
+                rgba(4,38,15,.25);
 
             border-top-color:
-                #fff;
+                #04260f;
 
             border-radius:
                 50%;
@@ -2252,27 +2249,37 @@
             .brand-panel {
 
                 min-height:
-                    310px;
+                    0;
 
                 padding:
-                    34px 25px;
+                    22px 20px 24px;
+            }
+
+
+            .brand-content {
+
+                text-align:
+                    center;
             }
 
 
             .brand-logo-img {
 
                 width:
-                    min(250px, 100%);
+                    min(215px, 100%);
+
+                margin-left:
+                    auto;
+
+                margin-right:
+                    auto;
             }
 
 
             .brand-line {
 
-                margin-top:
-                    22px;
-
-                margin-bottom:
-                    14px;
+                margin:
+                    12px auto 8px;
             }
 
 
@@ -2288,11 +2295,8 @@
 
             .brand-description {
 
-                margin-top:
-                    13px;
-
-                font-size:
-                    11px;
+                display:
+                    none;
             }
 
 
@@ -2305,8 +2309,8 @@
 
             .brand-footer {
 
-                font-size:
-                    7px;
+                display:
+                    none;
             }
 
 
@@ -2505,22 +2509,38 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    min-height: 48px;
+    height: var(--login-input-height);
     margin-top: 12px;
-    border: 1px solid rgba(225, 29, 46, .28);
+    border: 1px solid #ffc9cf;
     border-radius: 14px;
-    background: rgba(225, 29, 46, .06);
-    color: #b42332;
-    font: 800 12px/1 Inter, sans-serif;
-    letter-spacing: .08em;
+    background: linear-gradient(135deg, #ff8a94 0%, #ff4d5e 52%, #e11d2e 100%);
+    color: #2b0410;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .16em;
     text-decoration: none;
-    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+    box-shadow: 0 10px 26px rgba(225, 29, 46, .4), 0 0 0 1px rgba(255, 201, 207, .6), inset 0 1px 0 rgba(255, 255, 255, .45);
+    transition: background .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
 
 .register-link-button:hover {
-    border-color: rgba(225, 29, 46, .48);
-    background: rgba(225, 29, 46, .11);
-    transform: translateY(-1px);
+    border-color: #ffd6da;
+    background: linear-gradient(135deg, #ff9aa3 0%, #ff5f70 52%, #ef2f42 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 15px 32px rgba(225, 29, 46, .48), 0 0 0 1px rgba(255, 201, 207, .7), inset 0 1px 0 rgba(255, 255, 255, .5);
+}
+
+@media (max-width: 600px) {
+    .register-link-button {
+        height: 53px;
+    }
+}
+
+@media (max-width: 370px) {
+    .register-link-button {
+        height: 50px;
+    }
 }
 
 .register-link-button:focus-visible {
@@ -2578,6 +2598,7 @@
                         alt="GEN-Z.AI"
                         width="720"
                         height="293"
+                        draggable="false"
                     >
 
 
@@ -2675,11 +2696,6 @@
                          ========================================= -->
 
                     <div class="login-header">
-
-                        <div class="login-kicker">
-                            WELCOME BACK
-                        </div>
-
 
                         <h1>
                             Masuk ke akun Anda
