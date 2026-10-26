@@ -192,7 +192,7 @@ test("halaman riwayat menukar referensi privat jadi signed URL", () => {
     assert.match(source, /await resolvePrivateMediaRefs\(\s*state\.historyData\s*\)/);
 
     const html = read("history/index.html");
-    assert.match(html, /history-data\.js\?v=20261023-media-refresh/);
+    assert.match(html, /history-data\.js\?v=20261026-expiry-result-only/);
 });
 
 test("policy storage mengizinkan user membaca output miliknya", () => {
@@ -264,12 +264,12 @@ test("baris riwayat ditandai kedaluwarsa saat signed URL gagal", () => {
     const render = read("history/assets/js/history-render.js");
 
     assert.match(data, /item\.media_expired\s*=\s*\n?\s*true/);
-    assert.match(render, /item\?\.media_expired === true/);
+    assert.match(render, /item\.media_expired === true/);
     assert.match(render, /"\/storage\/v1\/object\/sign\/user-uploads\/"/);
     assert.match(render, /"\/storage\/v1\/object\/authenticated\/user-uploads\/"/);
 
     const html = read("history/index.html");
-    assert.match(html, /history-render\.js\?v=20261023-private-media/);
+    assert.match(html, /history-render\.js\?v=20261026-expiry-result-only/);
 
     // Unduhan dari signed URL tetap memakai nama file yang rapi.
     const modal = read("history/assets/js/history-modal.js");
@@ -359,5 +359,5 @@ test("signed URL diperbarui otomatis sebelum kedaluwarsa", () => {
     assert.match(data, /typeof App\.renderHistory ===\s*\n?\s*"function"/);
 
     const html = read("history/index.html");
-    assert.match(html, /history-data\.js\?v=20261023-media-refresh/);
+    assert.match(html, /history-data\.js\?v=20261026-expiry-result-only/);
 });

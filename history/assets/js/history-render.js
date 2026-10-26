@@ -779,19 +779,95 @@
         );
     }
 
-    function isExpiredMedia(
+    /**
+     * Waktu kedaluwarsa yang tertulis di dalam URL bertanda tangan
+     * (mis. `?Expires=1793089153` pada URL OSS provider).
+     *
+     * Nilainya dalam DETIK. Kalau dikira milidetik, semua tautan
+     * akan dianggap kedaluwarsa sejak awal — itu bug yang harus
+     * dijaga tes.
+     */
+    function getSignedLinkExpiresAt(
+        url
+    ) {
+
+        const value =
+            String(
+                url ||
+                ""
+            )
+                .trim();
+
+        if (!value) {
+            return 0;
+        }
+
+        let parsed;
+
+        try {
+
+            parsed =
+                new URL(
+                    value
+                );
+
+        } catch (
+            parseError
+        ) {
+
+            return 0;
+        }
+
+        const raw =
+            parsed.searchParams.get(
+                "Expires"
+            ) ||
+            parsed.searchParams.get(
+                "expires"
+            );
+
+        if (!raw) {
+            return 0;
+        }
+
+        const seconds =
+            Number(
+                raw
+            );
+
+        if (
+            !Number.isFinite(seconds) ||
+            seconds <= 0
+        ) {
+            return 0;
+        }
+
+        return seconds * 1000;
+    }
+
+
+    /**
+     * Alasan media hasil tidak bisa dibuka lagi.
+     *
+     *   "deleted" — berkas hasil sudah dihapus dari penyimpanan
+     *               (mis. cron retensi 24 jam).
+     *   "link"    — berkas mungkin masih ada, tetapi tautan
+     *               bertanda tangan dari provider sudah lewat
+     *               masa berlakunya.
+     *   ""        — media masih bisa dibuka.
+     *
+     * Dibedakan supaya UI tidak menulis "dihapus setelah 24 jam"
+     * untuk kasus yang sebenarnya cuma tautannya kedaluwarsa.
+     */
+    function getMediaExpiryReason(
         item
     ) {
 
-        /*
-         * history-data.js menandai `media_expired` ketika signed URL
-         * gagal dibuat (file sudah dihapus cron retensi).
-         */
         if (
-            item?.media_expired === true
+            !item ||
+            typeof item !== "object"
         ) {
-
-            return true;
+            return "";
         }
 
         const url =
@@ -799,11 +875,45 @@
                 item
             );
 
+        if (!url) {
+            return "";
+        }
+
+        /*
+         * history-data.js menandai `media_expired` hanya ketika
+         * signed URL HASIL gagal dibuat (berkas sudah dihapus).
+         */
         if (
-            !url ||
-            !isManagedMediaUrl(url)
+            item.media_expired === true
         ) {
-            return false;
+
+            return "deleted";
+        }
+
+        const linkExpiresAt =
+            getSignedLinkExpiresAt(
+                url
+            );
+
+        if (
+            linkExpiresAt > 0 &&
+            Date.now() >= linkExpiresAt
+        ) {
+
+            return "link";
+        }
+
+        /*
+         * Retensi 24 jam hanya berlaku untuk media yang kita kelola
+         * sendiri (Supabase Storage). URL eksternal milik provider
+         * tidak pernah dihapus oleh cron kita.
+         */
+        if (
+            !isManagedMediaUrl(
+                url
+            )
+        ) {
+            return "";
         }
 
         const created =
@@ -817,12 +927,26 @@
             !Number.isFinite(created) ||
             created <= 0
         ) {
-            return false;
+            return "";
         }
 
         return (
             Date.now() - created >=
             MEDIA_RETENTION_MS
+        )
+            ? "deleted"
+            : "";
+    }
+
+
+    function isExpiredMedia(
+        item
+    ) {
+
+        return Boolean(
+            getMediaExpiryReason(
+                item
+            )
         );
     }
 
@@ -834,6 +958,12 @@
 
     App.isExpiredMedia =
         isExpiredMedia;
+
+    App.getMediaExpiryReason =
+        getMediaExpiryReason;
+
+    App.getSignedLinkExpiresAt =
+        getSignedLinkExpiresAt;
 
 
     function getSuccessThumbnailHtml(

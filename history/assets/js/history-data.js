@@ -361,18 +361,46 @@
                             url || "";
 
                         /*
-                         * Gagal sign = file sudah dihapus cron
-                         * retensi. Beri tanda supaya baris
-                         * ditandai KEDALUWARSA.
+                         * Hanya `result_url` yang boleh menentukan
+                         * status kedaluwarsa MEDIA HASIL.
+                         *
+                         * Referensi input (foto/video acuan) memang
+                         * dihapus lebih cepat: upload di halaman
+                         * Generate hanya disimpan 1 jam. Gagal
+                         * menandatangani referensi TIDAK berarti
+                         * hasil generation hilang, jadi baris
+                         * riwayat tidak boleh ditandai kedaluwarsa
+                         * hanya karena itu.
                          */
                         if (!url) {
 
-                            item.media_expired =
-                                true;
+                            if (
+                                field === "result_url"
+                            ) {
 
-                        } else {
+                                item.media_expired =
+                                    true;
+
+                            } else {
+
+                                item.reference_expired =
+                                    item.reference_expired || {};
+
+                                item.reference_expired[field] =
+                                    true;
+                            }
+
+                        } else if (
+                            field === "result_url"
+                        ) {
 
                             delete item.media_expired;
+
+                        } else if (
+                            item.reference_expired
+                        ) {
+
+                            delete item.reference_expired[field];
                         }
                     })()
                 );
@@ -461,14 +489,44 @@
                         if (!url) {
 
                             item[field] = "";
-                            item.media_expired = true;
+
+                            /* Lihat resolvePrivateMediaRefs: hanya
+                               result_url yang menandai kedaluwarsa. */
+                            if (
+                                field === "result_url"
+                            ) {
+
+                                item.media_expired = true;
+
+                            } else {
+
+                                item.reference_expired =
+                                    item.reference_expired || {};
+
+                                item.reference_expired[field] =
+                                    true;
+                            }
+
                             changed = true;
 
                             return;
                         }
 
                         item[field] = url;
-                        delete item.media_expired;
+
+                        if (
+                            field === "result_url"
+                        ) {
+
+                            delete item.media_expired;
+
+                        } else if (
+                            item.reference_expired
+                        ) {
+
+                            delete item.reference_expired[field];
+                        }
+
                         changed = true;
                     })()
                 );

@@ -166,12 +166,23 @@ test("layout HP: thumbnail di kolom kiri, detail sejajar di kanan", () => {
 });
 
 test("asset history memakai cache-bust versi terbaru", () => {
-    assert.match(
-        historyHtml,
-        /history-render\.js\?v=20261023-[a-z-]+/
-    );
-    assert.match(
-        historyHtml,
-        /history-events\.js\?v=20261023-[a-z-]+/
-    );
+    /*
+     * Jangan mengunci tanggal versi: setiap perbaikan wajib bisa
+     * menaikkan versi tanpa membuat tes lama gagal. Yang penting
+     * setiap modul yang sering berubah tetap punya ?v=.
+     */
+    for (const moduleName of [
+        "history-render.js",
+        "history-events.js",
+        "history-data.js",
+        "history-modal.js"
+    ]) {
+        assert.match(
+            historyHtml,
+            new RegExp(
+                `${moduleName.replace(".", "\\.")}\\?v=[A-Za-z0-9._-]+`
+            ),
+            `${moduleName} harus dimuat dengan cache-buster`
+        );
+    }
 });
