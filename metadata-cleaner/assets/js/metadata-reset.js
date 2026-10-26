@@ -39,7 +39,7 @@ import {
 
 import {
     renderOpenKeyResult
-} from "./metadata-openkey-detection.js";
+} from "./metadata-openkey-detection.js?v=openkey-gateway-retry-20261026";
 
 
 /* =========================================================

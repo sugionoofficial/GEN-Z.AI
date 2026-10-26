@@ -3637,7 +3637,15 @@ export default async function handler(
                     provider_status:
                         error.status ||
                         error.statusCode ||
-                        null
+                        null,
+
+                    /*
+                     * true = gangguan sesaat di OpenKey (502/503/504
+                     * atau jaringan), bukan kesalahan konfigurasi.
+                     * Frontend boleh mencoba ulang.
+                     */
+                    retryable:
+                        error.retryable === true
 
                 }
 
@@ -3741,7 +3749,10 @@ export default async function handler(
                 provider_status:
                     error.status ||
                     error.statusCode ||
-                    null
+                    null,
+
+                retryable:
+                    error.retryable === true
 
             }
 
