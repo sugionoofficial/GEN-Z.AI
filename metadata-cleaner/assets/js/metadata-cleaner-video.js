@@ -55,6 +55,10 @@ import {
     inspectProvenance
 } from "./metadata-provenance.js";
 
+import {
+    stripIsoBmffMetadata
+} from "./metadata-iso-bmff.js";
+
 
 /* =========================================================
    INTERNAL HELPER
@@ -92,6 +96,117 @@ function canReencodeVideo(
             String(file?.name || "")
         )
     );
+}
+
+
+/**
+ * Menghapus kotak metadata C2PA / JUMBF / XMP langsung dari
+ * container MP4/MOV.
+ *
+ * Kotak diubah menjadi `free` dengan ukuran identik, sehingga
+ * offset `stco`/`co64` tidak bergeser dan video tidak perlu
+ * di-encode ulang (jauh lebih cepat di HP).
+ */
+function stripContainerProvenance(
+    data
+) {
+
+    try {
+
+        return stripIsoBmffMetadata(
+            data instanceof Uint8Array
+                ? data
+                : new Uint8Array(
+                    data
+                )
+        );
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GEN-Z.AI][CLEAN] Pemangkasan kotak metadata dilewati:",
+            getErrorMessage(
+                error
+            )
+        );
+
+
+        return {
+            bytes:
+                data,
+            removed: [],
+            changed:
+                false
+        };
+
+    }
+
+}
+
+
+/**
+ * Ringkasan residu yang masih terdeteksi setelah semua upaya
+ * pembersihan. Dipakai untuk peringatan jujur, bukan untuk
+ * menggagalkan cleaning.
+ */
+function describeResidual(
+    verification
+) {
+
+    const fields =
+        (verification?.residualMetadata || [])
+            .map(
+                item =>
+                    item?.field
+            )
+            .filter(
+                Boolean
+            )
+            .slice(
+                0,
+                4
+            );
+
+
+    const findings =
+        (verification?.provenance?.findings || [])
+            .slice(
+                0,
+                4
+            );
+
+
+    const agent =
+        verification?.provenance?.softwareAgent;
+
+
+    const joined =
+        [
+            ...(
+                agent
+                    ? [`softwareAgent: ${agent}`]
+                    : []
+            ),
+            ...findings,
+            ...fields
+        ]
+            .filter(
+                Boolean
+            )
+            .slice(
+                0,
+                4
+            )
+            .join(
+                ", "
+            );
+
+
+    return joined ||
+        "sinyal provenance masih terbaca pada berkas hasil";
+
 }
 
 
@@ -655,37 +770,105 @@ export async function cleanVideo(
             let finalOutputData =
                 outputData;
 
+
             let finalOutputName =
                 outputName;
+
 
             let notice =
                 "";
 
-            let verification =
-                await inspectCleanedVideo(
-                    new Blob(
-                        [outputData],
-                        { type: outputType }
-                    ),
-                    outputName
+
+            /*
+               LANGKAH 1 — pemangkasan kotak metadata.
+
+               C2PA pada MP4/MOV umumnya berada di kotak `uuid`,
+               `jumb`, atau `udta`. Kotak itu diubah menjadi `free`
+               dengan ukuran identik, jadi offset video tidak
+               bergeser dan tidak perlu encode ulang.
+            */
+
+            const containerStrip =
+                stripContainerProvenance(
+                    outputData
                 );
 
 
             if (
-                verification.residualMetadata.length > 0 ||
-                verification.provenance.detected ||
-                verification.provenance.softwareAgent
+                containerStrip.changed
             ) {
 
-                if (
-                    !canReencodeVideo(file)
-                ) {
+                finalOutputData =
+                    containerStrip.bytes;
 
-                    throw new Error(
-                        "Metadata AI, SoftwareAgent, atau C2PA masih ditemukan setelah remux. Format video ini memerlukan proses encode ulang yang belum didukung."
-                    );
-                }
 
+                notice =
+                    `Kotak metadata provenance (${[...new Set(containerStrip.removed)].join(", ")}) dihapus dari container video tanpa mengubah kualitas.`;
+
+            }
+
+
+            let verification =
+                await inspectCleanedVideo(
+                    new Blob(
+                        [finalOutputData],
+                        { type: outputType }
+                    ),
+                    finalOutputName
+                );
+
+
+            const hasResidual =
+                current =>
+                    current.residualMetadata.length > 0 ||
+                    current.provenance.detected ||
+                    current.provenance.softwareAgent;
+
+
+            /*
+               LANGKAH 2 — encode ulang.
+
+               Dipakai hanya bila residu masih ada (mis. tag
+               tertanam di stream atau container yang tidak bisa
+               dipangkas) DAN formatnya mendukung.
+            */
+
+            /*
+               Encode ulang dilewati bila provenance hanya diperiksa
+               sebagian pada berkas besar.
+
+               Alasannya: pada pemindaian sebagian, satu kecocokan
+               teks pendek belum cukup bukti, sementara encode ulang
+               video besar di HP memakan waktu sangat lama.
+            */
+
+            const skipReencodeForPartialScan =
+                verification.provenance.partial === true;
+
+
+            if (
+                skipReencodeForPartialScan &&
+                hasResidual(
+                    verification
+                )
+            ) {
+
+                console.warn(
+                    "[GEN-Z.AI][CLEAN] Encode ulang dilewati: provenance hanya diperiksa sebagian (berkas besar)."
+                );
+
+            }
+
+
+            if (
+                hasResidual(
+                    verification
+                ) &&
+                !skipReencodeForPartialScan &&
+                canReencodeVideo(
+                    file
+                )
+            ) {
 
                 const outputExtension =
                     outputName.slice(
@@ -696,7 +879,6 @@ export async function cleanVideo(
                     `verified_${Date.now()}_${Math.random()
                         .toString(36)
                         .slice(2, 8)}${outputExtension}`;
-
 
                 const reencodeArguments = [
                     "-i",
@@ -729,74 +911,103 @@ export async function cleanVideo(
                 ];
 
                 console.warn(
-                    "[GEN-Z.AI][CLEAN] Metadata AI masih terdeteksi setelah remux; encode ulang video untuk menghapus data yang tertanam pada stream."
+                    "[GEN-Z.AI][CLEAN] Residu provenance masih terdeteksi setelah pemangkasan kotak; encode ulang video."
                 );
 
-                await ffmpeg.exec(
-                    reencodeArguments
-                );
 
-                finalOutputData =
-                    await ffmpeg.readFile(
-                        reencodedOutputName
+                try {
+
+                    await ffmpeg.exec(
+                        reencodeArguments
                     );
 
-                if (
-                    !finalOutputData ||
-                    finalOutputData.length === 0
+
+                    const reencoded =
+                        await ffmpeg.readFile(
+                            reencodedOutputName
+                        );
+
+
+                    if (
+                        reencoded &&
+                        reencoded.length > 0
+                    ) {
+
+                        finalOutputData =
+                            reencoded;
+
+                        finalOutputName =
+                            reencodedOutputName;
+
+                        verification =
+                            await inspectCleanedVideo(
+                                new Blob(
+                                    [finalOutputData],
+                                    {
+                                        type:
+                                            "video/mp4"
+                                    }
+                                ),
+                                finalOutputName
+                            );
+
+
+                        notice =
+                            "Residu C2PA/metadata AI ditemukan; video di-encode ulang untuk menghapusnya. Kualitas video bisa berubah dan subtitle/track tambahan tidak disertakan.";
+
+                    }
+
+                } catch (
+                    reencodeError
                 ) {
 
-                    throw new Error(
-                        "FFmpeg tidak menghasilkan file video setelah encode ulang."
+                    /*
+                       Encode ulang gagal bukan alasan membuang
+                       hasil. Video hasil remux tetap dikirim,
+                       lengkap dengan peringatan jujur.
+                    */
+
+                    console.warn(
+                        "[GEN-Z.AI][CLEAN] Encode ulang gagal; hasil remux tetap dipakai:",
+                        getErrorMessage(
+                            reencodeError
+                        )
                     );
                 }
 
+            }
 
-                finalOutputName =
-                    reencodedOutputName;
 
-                verification =
-                    await inspectCleanedVideo(
-                        new Blob(
-                            [finalOutputData],
-                            { type: "video/mp4" }
-                        ),
-                        finalOutputName
+            /*
+               LANGKAH 3 — bila residu masih ada, JANGAN gagal.
+
+               Hasil cleaning sudah benar-benar dibersihkan
+               sebisa mungkin. Membuang hasil hanya membuat
+               pengguna kehilangan berkas yang sebenarnya sudah
+               diproses. Statusnya dibuat jujur lewat `residual`.
+            */
+
+            let residual =
+                "";
+
+
+            if (
+                hasResidual(
+                    verification
+                )
+            ) {
+
+                residual =
+                    describeResidual(
+                        verification
                     );
 
-                if (
-                    verification.residualMetadata.length > 0 ||
-                    verification.provenance.detected ||
-                    verification.provenance.softwareAgent
-                ) {
 
-                    const remainingFields =
-                        verification.residualMetadata
-                            .map(item => item.field)
-                            .filter(Boolean)
-                            .slice(0, 5)
-                            .join(", ");
+                console.warn(
+                    "[GEN-Z.AI][CLEAN] Residu provenance tersisa setelah semua upaya:",
+                    residual
+                );
 
-                    const remainingFindings = [
-                        ...(remainingFields
-                            ? [remainingFields]
-                            : []),
-                        ...(verification.provenance.softwareAgent
-                            ? [`softwareAgent: ${verification.provenance.softwareAgent}`]
-                            : []),
-                        ...verification.provenance.findings
-                    ]
-                        .slice(0, 5)
-                        .join(", ");
-
-                    throw new Error(
-                        `Verifikasi gagal: metadata masih ditemukan setelah encode ulang (${remainingFindings}). File tidak ditandai bersih.`
-                    );
-                }
-
-
-                notice =
-                    "Metadata AI, C2PA, atau SoftwareAgent tertanam ditemukan; video di-encode ulang untuk menghapusnya. Kualitas video mungkin berubah; subtitle, data, dan track video tambahan tidak disertakan.";
             }
 
 
@@ -820,7 +1031,9 @@ export async function cleanVideo(
                 type:
                     outputType,
 
-                notice
+                notice,
+
+                residual
 
             };
         }
