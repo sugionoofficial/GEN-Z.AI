@@ -60,35 +60,6 @@ const REQUEST_TIMEOUT_MS =
     60 * 1000;
 
 
-/*
- * Model SINKRON (mis. Tencent AI Art) menunggu gambar
- * selesai dibuat di dalam request yang sama, jadi butuh
- * waktu lebih panjang sebelum browser menyerah.
- *
- * Kalau browser menyerah padahal server masih bekerja,
- * user melihat error sementara kredit sudah terpotong —
- * itu yang mau dihindari.
- */
-
-const SYNCHRONOUS_REQUEST_TIMEOUT_MS =
-    180 * 1000;
-
-
-function resolveRequestTimeoutMs(
-    model
-) {
-
-    return (
-        model &&
-        model.synchronous ===
-            true
-    )
-        ? SYNCHRONOUS_REQUEST_TIMEOUT_MS
-        : REQUEST_TIMEOUT_MS;
-
-}
-
-
 /* Batas panjang string yang boleh diteruskan ke UI. */
 
 const MAX_DIAGNOSTIC_STRING_LENGTH =
@@ -1567,9 +1538,7 @@ export async function generateVideo(
                         "same-origin"
 
                 },
-                resolveRequestTimeoutMs(
-                    model
-                )
+                REQUEST_TIMEOUT_MS
             );
 
     } catch (
@@ -1595,7 +1564,7 @@ export async function generateVideo(
 
         const message =
             isAbort
-                ? `Request ke server generate timeout setelah ${resolveRequestTimeoutMs(model)}ms.`
+                ? `Request ke server generate timeout setelah ${REQUEST_TIMEOUT_MS}ms.`
                 : (
                     error?.message ||
                     "Tidak dapat terhubung ke server generate."

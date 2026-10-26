@@ -28,13 +28,8 @@ import {
 import {
     createPrivateMediaSigner,
     signUserMediaRefsInPayload,
-    toPrivateMediaRef,
-    buildPrivateMediaRef
+    toPrivateMediaRef
 } from "../lib/generate/private-media.js";
-
-import {
-    persistResultImage
-} from "../lib/generate/result-storage.js";
 
 
 import grokImagineImageToVideo
@@ -60,9 +55,6 @@ import klingMotionControl30Pro
 
 import qwenCloudVideoModels
     from "../models/qwencloud-video/index.js";
-
-import tencentAiArtImageToImage
-    from "../models/tencent-aiart-image-to-image/index.js";
 
 import {
     resolveBillableCredit,
@@ -120,68 +112,8 @@ const MODEL_REGISTRY = Object.freeze([
     klingMotionControl30Pro,
 
     /* QwenCloud (Alibaba Cloud Model Studio / DashScope) */
-    ...qwenCloudVideoModels,
-
-    /* Tencent AI Art (foto → gambar, hasil sinkron) */
-    tencentAiArtImageToImage
+    ...qwenCloudVideoModels
 ]);
-
-
-/*
- * Model yang menyelesaikan hasil di response yang sama
- * (tidak ada task async untuk dipolling).
- *
- * Dipakai untuk memisahkan jalur "hasil langsung" dari
- * jalur taskId + polling.
- */
-function isSynchronousAdapter(
-    adapter
-) {
-
-    return Boolean(
-        adapter?.config?.synchronous
-    );
-
-}
-
-
-/*
- * Gambar hasil sinkron bisa > 1 MB (base64). Jangan pernah
- * ikut masuk ke `provider_response` yang dikirim ke browser
- * atau disimpan ke riwayat.
- */
-function redactSynchronousTask(
-    task
-) {
-
-    if (
-        !task ||
-        typeof task !==
-            "object" ||
-        !task.result
-    ) {
-
-        return task;
-
-    }
-
-
-    return {
-
-        ...task,
-
-        result: {
-
-            ...task.result,
-
-            value:
-                "[gambar hasil tidak dikirim ke browser]"
-
-        }
-
-    };
-
-}
 
 
 /* =========================================================
@@ -1748,16 +1680,7 @@ async function createGenerationHistory({
     providerCode,
     parameters,
     generationCredit,
-    taskId,
-
-    /*
-     * Override untuk model SINKRON (hasil langsung).
-     * Default tetap "processing" seperti model async.
-     */
-    status = "processing",
-    resultUrl = null,
-    completedAt = null,
-    errorMessage = null
+    taskId
 
 }) {
 
@@ -1941,31 +1864,22 @@ async function createGenerationHistory({
 
         resolution,
 
-        status,
+        status:
+            "processing",
 
         task_id:
             normalizedTaskId,
 
         result_url:
-            resultUrl,
+            null,
 
         error_message:
-            errorMessage,
+            null,
 
         credit_cost:
             creditCost
 
     };
-
-
-    if (
-        completedAt
-    ) {
-
-        payload.completed_at =
-            completedAt;
-
-    }
 
 
     try {
@@ -2011,9 +1925,6 @@ async function createGenerationHistory({
 
                 resolution:
                     payload.resolution,
-
-                status:
-                    payload.status,
 
                 credit_cost:
                     payload.credit_cost
@@ -5347,409 +5258,8 @@ export default async function handler(
 
     const safeTask =
         sanitizeProviderResponse(
-            isSynchronousAdapter(
-                adapter
-            )
-                ? redactSynchronousTask(
-                    task
-                )
-                : task
+            task
         );
-
-    /*
-     * =====================================================
-     * JALUR SINKRON (MODEL YANG LANGSUNG SELESAI)
-     * -----------------------------------------------------
-     * Tencent AI Art membalas gambar di response yang sama.
-     * Tidak ada task ID asli untuk dipolling, jadi:
-     *
-     *   1. gambar hasil disalin ke Supabase Storage
-     *      (`supabase-private://…`, URL Tencent hanya
-     *      1 jam);
-     *   2. riwayat dicatat langsung sebagai `success`;
-     *   3. kredit TIDAK dikembalikan kalau gambar sudah
-     *      tersimpan, karena user memang menerima hasil.
-     *
-     * Kalau penyimpanan gagal, kredit dikembalikan dan
-     * request ditolak dengan pesan jujur — bukan sukses
-     * palsu dengan hasil yang tidak bisa dibuka.
-     * =====================================================
-     */
-
-    if (
-        isSynchronousAdapter(
-            adapter
-        ) &&
-        task?.result &&
-        task.result.value
-    ) {
-
-        const synchronousResult =
-            task.result;
-
-
-        let storedResult =
-            null;
-
-        let storageError =
-            null;
-
-
-        try {
-
-            storedResult =
-                await persistResultImage({
-
-                    result:
-                        synchronousResult,
-
-                    userId:
-                        user.id,
-
-                    supabaseUrl:
-                        SUPABASE_URL,
-
-                    serviceKey:
-                        SUPABASE_SERVICE_ROLE_KEY
-
-                });
-
-        } catch (error) {
-
-            storageError =
-                error;
-
-        }
-
-
-        if (
-            !storedResult
-        ) {
-
-            console.error(
-                "[generate] Synchronous result could not be stored:",
-                storageError
-            );
-
-
-            let refundSuccessful =
-                false;
-
-
-            if (
-                creditDeducted
-            ) {
-
-                try {
-
-                    remainingCredits =
-                        await refundGenerateCredits(
-                            user.id,
-                            generationCredit.credit
-                        );
-
-
-                    creditDeducted =
-                        false;
-
-                    refundSuccessful =
-                        true;
-
-                } catch (refundError) {
-
-                    console.error(
-                        "[generate] CRITICAL: synchronous storage refund failed:",
-                        refundError
-                    );
-
-                }
-
-            }
-
-
-            return failure(
-                res,
-                502,
-                storageError?.message ||
-                    "Gambar hasil dari provider tidak bisa disimpan.",
-                {
-
-                    code:
-                        storageError?.code ||
-                        "RESULT_STORAGE_FAILED",
-
-                    provider:
-                        providerCode,
-
-                    provider_response:
-                        safeTask,
-
-                    resolution:
-                        generationCredit.resolution,
-
-                    credit_base:
-                        generationCredit.credit_base,
-
-                    discount_percent:
-                        generationCredit.discount_percent,
-
-                    credit_used:
-                        generationCredit.credit,
-
-                    credit_refunded:
-                        refundSuccessful
-
-                }
-            );
-
-        }
-
-
-        /*
-         * taskId sintetis dari provider (mis. Tencent
-         * RequestId) supaya riwayat tetap punya kunci unik.
-         */
-
-        const synchronousTaskId =
-            String(
-                task?.taskId ||
-                task?.task_id ||
-                ""
-            ).trim() ||
-            `sync-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-
-
-        const completedAt =
-            new Date()
-                .toISOString();
-
-
-        const historyRow =
-            await createGenerationHistory({
-
-                user,
-
-                body,
-
-                modelConfig,
-
-                databaseModel,
-
-                provider,
-
-                providerCode,
-
-                parameters,
-
-                generationCredit,
-
-                taskId:
-                    synchronousTaskId,
-
-                status:
-                    "success",
-
-                resultUrl:
-                    storedResult.ref,
-
-                completedAt
-
-            });
-
-
-        /*
-         * Referensi privat ditukar menjadi signed URL oleh
-         * `json()` sebelum dikirim ke browser.
-         */
-
-        return success(
-            res,
-            {
-
-                user_id:
-                    user.id,
-
-                model:
-                    modelConfig.id,
-
-                model_id:
-                    modelConfig.id,
-
-                model_name:
-                    modelConfig.name ||
-                    modelConfig.id,
-
-                provider:
-                    provider.provider_name ||
-                    provider.name ||
-                    providerCode,
-
-                provider_id:
-                    providerCode,
-
-                resolution:
-                    generationCredit.resolution,
-
-                credit_base:
-                    generationCredit.credit_base,
-
-                discount_percent:
-                    generationCredit.discount_percent,
-
-                credit_used:
-                    generationCredit.credit,
-
-                remaining_credits:
-                    remainingCredits,
-
-                taskId:
-                    synchronousTaskId,
-
-                task_id:
-                    synchronousTaskId,
-
-                jobId:
-                    synchronousTaskId,
-
-                status:
-                    "success",
-
-                state:
-                    "success",
-
-                completed:
-                    true,
-
-                synchronous:
-                    true,
-
-                result_url:
-                    storedResult.ref,
-
-                result_urls: [
-                    storedResult.ref
-                ],
-
-                result_storage: {
-
-                    bucket:
-                        storedResult.bucket,
-
-                    object_path:
-                        storedResult.objectPath,
-
-                    mime_type:
-                        storedResult.mimeType,
-
-                    bytes:
-                        storedResult.bytes
-
-                },
-
-                history_saved:
-                    Boolean(
-                        historyRow
-                    ),
-
-                provider_response:
-                    safeTask,
-
-                model_database_id:
-                    databaseModel?.id ||
-                    null
-
-            }
-        );
-
-    }
-
-
-    /*
-     * Model sinkron yang tidak mengirim gambar = kegagalan,
-     * bukan "taskId hilang". Pesannya harus jelas.
-     */
-
-    if (
-        isSynchronousAdapter(
-            adapter
-        )
-    ) {
-
-        console.error(
-            "[generate] Synchronous provider returned no image:",
-            safeTask
-        );
-
-
-        let refundSuccessful =
-            false;
-
-
-        if (
-            creditDeducted
-        ) {
-
-            try {
-
-                remainingCredits =
-                    await refundGenerateCredits(
-                        user.id,
-                        generationCredit.credit
-                    );
-
-
-                creditDeducted =
-                    false;
-
-                refundSuccessful =
-                    true;
-
-            } catch (refundError) {
-
-                console.error(
-                    "[generate] CRITICAL: synchronous empty-result refund failed:",
-                    refundError
-                );
-
-            }
-
-        }
-
-
-        return failure(
-            res,
-            502,
-            "Provider tidak mengirim gambar hasil.",
-            {
-
-                code:
-                    "RESULT_IMAGE_MISSING",
-
-                provider:
-                    providerCode,
-
-                provider_response:
-                    safeTask,
-
-                resolution:
-                    generationCredit.resolution,
-
-                credit_base:
-                    generationCredit.credit_base,
-
-                discount_percent:
-                    generationCredit.discount_percent,
-
-                credit_used:
-                    generationCredit.credit,
-
-                credit_refunded:
-                    refundSuccessful
-
-            }
-        );
-
-    }
 
 
     /*

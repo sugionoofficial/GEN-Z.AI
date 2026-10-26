@@ -116,7 +116,7 @@ test("upload baru memakai bucket privat + signed URL", () => {
     assert.match(worker, /for BUCKET in user-uploads dashboard-videos/);
 
     // Cache-bust modul yang berubah.
-    assert.match(read("generate/index.html"), /generate-app\.js\?v=20261026-tencent-aiart/);
+    assert.match(read("generate/index.html"), /generate-app\.js\?v=20261023-private-uploads/);
     assert.match(read("upscale/index.html"), /upscale-app\.js\?v=20261023-private-uploads/);
 });
 

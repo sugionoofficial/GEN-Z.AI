@@ -105,12 +105,6 @@ import klingMotionControlParameters
 import qwenCloudVideoModels
     from "../../models/qwencloud-video/index.js?v=models-registry-qwencloud-20261022";
 
-import tencentAiArtConfig
-    from "../../models/tencent-aiart-image-to-image/config.js?v=models-registry-tencent-aiart-20261026";
-
-import tencentAiArtParameters
-    from "../../models/tencent-aiart-image-to-image/parameters.js?v=models-registry-tencent-aiart-20261026";
-
 
 /* =========================================================
    CONSTANT
@@ -220,22 +214,7 @@ const MODEL_REGISTRY = [
             parameters:
                 model.parameters
         })
-    ),
-
-    /*
-     * Tencent AI Art (foto → gambar, hasil sinkron)
-     */
-
-    {
-        folder:
-            "models/tencent-aiart-image-to-image",
-
-        config:
-            tencentAiArtConfig,
-
-        parameters:
-            tencentAiArtParameters
-    }
+    )
 
 ];
 

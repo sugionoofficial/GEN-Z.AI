@@ -104,9 +104,6 @@ import klingMotionControl30Pro
 import qwenCloudVideoModels
     from "../models/qwencloud-video/index.js";
 
-import tencentAiArtImageToImage
-    from "../models/tencent-aiart-image-to-image/index.js";
-
 
 /* =========================================================
    MODEL REGISTRY
@@ -123,10 +120,7 @@ const MODEL_REGISTRY = Object.freeze([
    klingMotionControl30Pro,
 
    /* QwenCloud (Alibaba Cloud Model Studio / DashScope) */
-   ...qwenCloudVideoModels,
-
-   /* Tencent AI Art (foto → gambar, hasil sinkron) */
-   tencentAiArtImageToImage
+   ...qwenCloudVideoModels
 
 ]);
 
@@ -1912,19 +1906,6 @@ function buildModelConfig(
 
         has_resolution:
             !isFlatCreditModel,
-
-
-        /* =================================================
-           JALUR SINKRON
-           -------------------------------------------------
-           true = hasil dikirim di response /api/generate
-                  (tidak ada polling task).
-           ================================================= */
-
-        synchronous:
-            Boolean(
-                config.synchronous
-            ),
 
 
         /* =================================================

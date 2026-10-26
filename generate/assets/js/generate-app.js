@@ -67,7 +67,7 @@ const UI_MODULE =
     "./generate-ui.js";
 
 const MODEL_MODULE =
-    "./generate-model.js?v=20261026-tencent-aiart";
+    "./generate-model.js?v=20261016-regenerate-history";
 
 const FORM_MODULE =
     "./generate-form.js?v=20261016-regenerate-history";
@@ -79,13 +79,13 @@ const RENDER_MODULE =
     "./generate-render.js";
 
 const SUBMIT_MODULE =
-    "./generate-submit.js?v=20261026-sync-result";
+    "./generate-submit.js";
 
 const VALIDATION_MODULE =
     "./generate-validation.js";
 
 const REQUEST_MODULE =
-    "./generate-request.js?v=20261026-sync-result";
+    "./generate-request.js";
 
 const POLLING_MODULE =
     "./generate-polling.js";
