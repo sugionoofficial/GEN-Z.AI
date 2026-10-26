@@ -36,6 +36,13 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
 4. Bucket `dashboard-videos` tetap **publik** karena masih menyimpan konten
    situs (`videos/`, `thumbnails/`). Output upscale **baru** tidak lagi
    ditulis ke sana.
+5. Selama file upload **masih berlaku**, halaman Generate menampilkan panel
+   **"Unggahan tersimpan (≤1 jam)"** di blok foto/video/audio
+   (`generate/assets/js/generate-stored-uploads.js`). Daftar diambil dari
+   folder milik user sendiri lewat RLS `Users read own media uploads`, lalu
+   tiap file ditukar menjadi signed URL 1 jam. Fitur ini **tidak**
+   memperpanjang masa simpan: file tetap dihapus cron setelah 1 jam, dan
+   file yang sudah lewat masa berlaku tidak ditampilkan.
 
 ## Output upscale privat (`supabase-private://`)
 
@@ -142,7 +149,8 @@ console.table(summary.rules);
 1. Item History yang lebih dari 24 jam tetap tampil sebagai catatan, tetapi
    thumbnail, tombol download, dan tombol upscale dinonaktifkan.
 2. Tombol **Regenerate** untuk item lama akan meminta unggah ulang referensi,
-   karena file input sudah dihapus setelah 1 jam.
+   karena file input sudah dihapus setelah 1 jam. Kalau file masih ada,
+   referensi bisa dipakai lagi lewat panel **Unggahan tersimpan**.
 3. Upload user **tidak lagi publik**: file hanya bisa diakses lewat signed
    URL 1 jam atau oleh pemilik akun. Output upscale masih publik, tetapi
    tetap dihapus setelah 24 jam.

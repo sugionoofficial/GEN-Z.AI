@@ -34,6 +34,16 @@ import {
     safeDeleteFFmpegFile
 } from "../../../metadata-cleaner/assets/js/metadata-ffmpeg.js";
 
+import {
+    getCurrentUser,
+    getSupabaseClient
+} from "./generate-state.js";
+
+import {
+    createStoredUploadsPanel,
+    formatStoredUploadRemaining
+} from "./generate-stored-uploads.js?v=stored-uploads-20261026";
+
 
 /* =========================================================
    DEBUG FLAG
@@ -510,6 +520,61 @@ function validateVideo(
 
 
     return true;
+
+}
+
+
+/* =========================================================
+   UNGGAHAN TERSIMPAN — KONTEKS
+   ---------------------------------------------------------
+   Panel "Unggahan tersimpan" hanya butuh client Supabase
+   dan user yang sedang login. Keduanya diambil saat panel
+   dibuka, bukan saat field dibuat, supaya halaman tidak
+   menembak request storage untuk semua field sekaligus.
+========================================================= */
+
+async function getStoredUploadContext() {
+
+    const supabase =
+        getSupabaseClient();
+
+
+    if (
+        !supabase
+    ) {
+
+        throw new Error(
+            "Penyimpanan belum siap. Muat ulang halaman lalu coba lagi."
+        );
+    }
+
+
+    const user =
+        await getCurrentUser();
+
+
+    const userId =
+        String(
+            user?.id ||
+            ""
+        )
+            .trim();
+
+
+    if (
+        !userId
+    ) {
+
+        throw new Error(
+            "Masuk dulu untuk memakai unggahan tersimpan."
+        );
+    }
+
+
+    return {
+        supabase,
+        userId
+    };
 
 }
 
@@ -2047,6 +2112,227 @@ export function createImageField(
             "url";
 
 
+    /* =====================================================
+       UNGGAHAN TERSIMPAN (IMAGE)
+       -----------------------------------------------------
+       Memakai file yang masih ada di storage (maksimal
+       1 jam) tanpa mengunggah ulang.
+    ===================================================== */
+
+    function getStoredImageLimit() {
+
+        const configuredMaxItems =
+            Number(
+                definition?.maxItems ??
+                definition?.max_items
+            );
+
+
+        return (
+            Number.isFinite(
+                configuredMaxItems
+            ) &&
+            configuredMaxItems > 0
+        )
+            ? Math.floor(
+                configuredMaxItems
+            )
+            : 1;
+    }
+
+
+    function renderStoredImagePreview(
+        urls
+    ) {
+
+        preview.innerHTML =
+            "";
+
+
+        const list =
+            (
+                urls ||
+                []
+            ).filter(
+                Boolean
+            );
+
+
+        if (
+            !list.length
+        ) {
+
+            preview.style.display =
+                "none";
+
+            return;
+        }
+
+
+        preview.style.display =
+            "flex";
+
+        preview.style.flexWrap =
+            "wrap";
+
+        preview.style.gap =
+            "8px";
+
+
+        list.forEach(
+            url => {
+
+                const image =
+                    document.createElement(
+                        "img"
+                    );
+
+
+                image.src =
+                    url;
+
+                image.alt =
+                    "Preview gambar tersimpan";
+
+                image.style.width =
+                    "160px";
+
+                image.style.height =
+                    "160px";
+
+                image.style.maxWidth =
+                    "160px";
+
+                image.style.maxHeight =
+                    "160px";
+
+                image.style.objectFit =
+                    "cover";
+
+                image.style.display =
+                    "block";
+
+                image.style.borderRadius =
+                    "10px";
+
+                image.style.border =
+                    "1px solid rgba(255,255,255,.12)";
+
+
+                preview.appendChild(
+                    image
+                );
+            }
+        );
+    }
+
+
+    function applyStoredImage(
+        entry
+    ) {
+
+        if (
+            !entry?.url
+        ) {
+
+            throw new Error(
+                "URL gambar tidak tersedia."
+            );
+        }
+
+
+        /* Batalkan upload yang mungkin masih berjalan. */
+        uploadToken +=
+            1;
+
+        wrapper._imageUploadPromise =
+            null;
+
+
+        try {
+
+            fileInput.value =
+                "";
+
+        } catch {
+            /* ignore */
+        }
+
+
+        clearUploadError(
+            wrapper
+        );
+
+
+        const limit =
+            getStoredImageLimit();
+
+        const current =
+            limit > 1
+                ? wrapper.getUploadedUrls()
+                : [];
+
+        const urls =
+            [
+                ...current.filter(
+                    item =>
+                        item !==
+                        entry.url
+                ),
+                entry.url
+            ].slice(
+                0,
+                limit
+            );
+
+
+        wrapper.dataset.uploadedUrl =
+            urls[0];
+
+        wrapper.dataset.uploadedUrls =
+            JSON.stringify(
+                urls
+            );
+
+        wrapper.dataset.uploadSource =
+            "stored";
+
+        wrapper.dataset.storedUploadPath =
+            String(
+                entry.path ||
+                ""
+            );
+
+
+        renderStoredImagePreview(
+            urls
+        );
+
+
+        setUploadState(
+            wrapper,
+            "done",
+            `✓ Memakai unggahan tersimpan: ${entry.name} · ${formatStoredUploadRemaining(entry.expiresAt)}`
+        );
+    }
+
+
+    const storedUploadsPanel =
+        createStoredUploadsPanel({
+            kinds:
+                ["image"],
+
+            getContext:
+                getStoredUploadContext,
+
+            onPick:
+                entry =>
+                    applyStoredImage(
+                        entry
+                    )
+        });
+
+
     wrapper.clearUploadedFile =
         async () => {
 
@@ -2067,6 +2353,9 @@ export function createImageField(
             delete wrapper.dataset.uploadedUrls;
 
             delete wrapper.dataset.uploadState;
+
+            delete wrapper.dataset.uploadSource;
+            delete wrapper.dataset.storedUploadPath;
 
 
             clearUploadError(
@@ -2106,6 +2395,11 @@ export function createImageField(
     wrapper.appendChild(
         urlContainer
     );
+
+    uploadContainer.appendChild(
+        storedUploadsPanel.element
+    );
+
 
     wrapper.appendChild(
         uploadContainer
@@ -3151,6 +3445,138 @@ export function createAudioField(
             "url";
 
 
+    /* =====================================================
+       UNGGAHAN TERSIMPAN (AUDIO)
+    ===================================================== */
+
+    function applyStoredAudio(
+        entry
+    ) {
+
+        if (
+            !entry?.url
+        ) {
+
+            throw new Error(
+                "URL audio tidak tersedia."
+            );
+        }
+
+
+        uploadToken +=
+            1;
+
+        wrapper._audioUploadPromise =
+            null;
+
+        wrapper._audioSelectionPending =
+            false;
+
+        wrapper._audioSelectedFile =
+            null;
+
+        sourceAudioFile =
+            null;
+
+        sourceAudioDuration =
+            0;
+
+
+        try {
+
+            fileInput.value =
+                "";
+
+        } catch {
+            /* ignore */
+        }
+
+
+        clearUploadError(
+            wrapper
+        );
+
+
+        const objectUrl =
+            audio.dataset.objectUrl;
+
+
+        if (
+            objectUrl
+        ) {
+
+            try {
+
+                URL.revokeObjectURL(
+                    objectUrl
+                );
+
+            } catch {
+                /* ignore */
+            }
+        }
+
+
+        delete audio.dataset.objectUrl;
+
+
+        audio.src =
+            entry.url;
+
+        preview.style.display =
+            "block";
+
+
+        trimPanel.hidden =
+            true;
+
+        trimButton.disabled =
+            true;
+
+        useWholeButton.disabled =
+            true;
+
+        trimStatus.textContent =
+            "Audio dari unggahan tersimpan dipakai utuh (tidak dipotong ulang).";
+
+
+        wrapper.dataset.uploadedUrl =
+            entry.url;
+
+        wrapper.dataset.uploadSource =
+            "stored";
+
+        wrapper.dataset.storedUploadPath =
+            String(
+                entry.path ||
+                ""
+            );
+
+
+        setUploadState(
+            wrapper,
+            "done",
+            `✓ Memakai unggahan tersimpan: ${entry.name} · ${formatStoredUploadRemaining(entry.expiresAt)}`
+        );
+    }
+
+
+    const storedUploadsPanel =
+        createStoredUploadsPanel({
+            kinds:
+                ["audio"],
+
+            getContext:
+                getStoredUploadContext,
+
+            onPick:
+                entry =>
+                    applyStoredAudio(
+                        entry
+                    )
+        });
+
+
     wrapper.clearUploadedFile =
         async () => {
 
@@ -3165,6 +3591,9 @@ export function createAudioField(
 
             delete wrapper.dataset.uploadedUrl;
             delete wrapper.dataset.uploadState;
+
+            delete wrapper.dataset.uploadSource;
+            delete wrapper.dataset.storedUploadPath;
 
 
             clearUploadError(
@@ -3210,6 +3639,11 @@ export function createAudioField(
     wrapper.appendChild(
         urlContainer
     );
+
+    uploadContainer.appendChild(
+        storedUploadsPanel.element
+    );
+
 
     wrapper.appendChild(
         uploadContainer
@@ -4289,6 +4723,147 @@ export function createVideoField(
             "url";
 
 
+    /* =====================================================
+       UNGGAHAN TERSIMPAN (VIDEO)
+       -----------------------------------------------------
+       Video yang sudah diunggah dipakai utuh. Pemotongan
+       klip hanya tersedia untuk file lokal, karena butuh
+       File asli — UI mengatakannya apa adanya.
+    ===================================================== */
+
+    function applyStoredVideo(
+        entry
+    ) {
+
+        if (
+            !entry?.url
+        ) {
+
+            throw new Error(
+                "URL video tidak tersedia."
+            );
+        }
+
+
+        uploadToken +=
+            1;
+
+        wrapper._videoUploadPromise =
+            null;
+
+        wrapper._videoSelectionPending =
+            false;
+
+        wrapper._videoSelectedFile =
+            null;
+
+        sourceVideoFile =
+            null;
+
+        sourceVideoDuration =
+            0;
+
+
+        try {
+
+            fileInput.value =
+                "";
+
+        } catch {
+            /* ignore */
+        }
+
+
+        clearUploadError(
+            wrapper
+        );
+
+        delete wrapper._genzaiUploadedUrls;
+        delete wrapper.dataset.uploadedUrls;
+
+
+        const objectUrl =
+            video.dataset.objectUrl;
+
+
+        if (
+            objectUrl
+        ) {
+
+            try {
+
+                URL.revokeObjectURL(
+                    objectUrl
+                );
+
+            } catch {
+                /* ignore */
+            }
+        }
+
+
+        delete video.dataset.objectUrl;
+
+        video.onloadedmetadata =
+            null;
+
+        video.src =
+            entry.url;
+
+        preview.style.display =
+            "block";
+
+
+        trimPanel.hidden =
+            true;
+
+        trimButton.disabled =
+            true;
+
+        useWholeButton.disabled =
+            true;
+
+        trimStatus.textContent =
+            "Video dari unggahan tersimpan dipakai utuh (tidak dipotong ulang).";
+
+
+        wrapper.dataset.uploadedUrl =
+            entry.url;
+
+        wrapper.dataset.uploadSource =
+            "stored";
+
+        wrapper.dataset.storedUploadPath =
+            String(
+                entry.path ||
+                ""
+            );
+
+
+        setUploadState(
+            wrapper,
+            "done",
+            `✓ Memakai unggahan tersimpan: ${entry.name} · ${formatStoredUploadRemaining(entry.expiresAt)}`
+        );
+    }
+
+
+    const storedUploadsPanel =
+        createStoredUploadsPanel({
+            kinds:
+                ["video"],
+
+            getContext:
+                getStoredUploadContext,
+
+            onPick:
+                entry =>
+                    applyStoredVideo(
+                        entry
+                    )
+        });
+
+
     wrapper.setUploadedUrl =
         url => {
 
@@ -4333,6 +4908,9 @@ export function createVideoField(
             delete wrapper.dataset.uploadedUrl;
             delete wrapper.dataset.uploadState;
 
+            delete wrapper.dataset.uploadSource;
+            delete wrapper.dataset.storedUploadPath;
+
 
             clearUploadError(
                 wrapper
@@ -4373,6 +4951,11 @@ export function createVideoField(
     wrapper.appendChild(
         urlContainer
     );
+
+    uploadContainer.appendChild(
+        storedUploadsPanel.element
+    );
+
 
     wrapper.appendChild(
         uploadContainer
