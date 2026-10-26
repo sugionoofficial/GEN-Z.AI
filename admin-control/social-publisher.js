@@ -323,10 +323,20 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             ? "Cloudflare Workers AI"
             : config.imageProvider === "qwencloud"
                 ? `QwenCloud (${config.imageModel || "qwen-image-3.0-pro"})`
-                : "Gemini Image API";
+                : config.imageProvider === "tencent"
+                    ? "Tencent Hy Image"
+                    : config.imageProvider === "puter"
+                        ? "Puter.js (kuota akun Puter)"
+                        : "Gemini Image API";
         const captionProviderLabel = config.captionProvider === "cloudflare"
             ? "Cloudflare Vision Caption"
-            : config.captionProvider === "qwencloud" ? "QwenCloud Vision Caption" : "Gemini Caption API";
+            : config.captionProvider === "qwencloud"
+                ? "QwenCloud Vision Caption"
+                : config.captionProvider === "tencent"
+                    ? "Tencent Vision Caption"
+                    : config.captionProvider === "puter"
+                        ? "Cloudflare Vision Caption"
+                        : "Gemini Caption API";
         const items = [
             ["Meta OAuth", config.metaOAuthConfigured],
             [imageProviderLabel, config.imageApiConfigured],
