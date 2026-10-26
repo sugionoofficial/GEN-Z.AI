@@ -155,15 +155,11 @@ test("Puter.js tersedia sebagai opsi provider gambar dengan label jujur", () => 
     assert.match(setJs, /User-Pays/, "Keterangan kesiapan harus menyebut model User-Pays");
     assert.match(setJs, /insufficient_funds/, "Keterangan harus menyebut kegagalan saat jatah Puter habis");
     assert.match(setJs, /testPuterProvider/, "Tombol Tes Puter harus berfungsi");
-    assert.match(setHtml, /id="copy-puter-secret-name"/, "Harus ada tombol salin nama secret");
-    assert.match(
-        setHtml,
-        /dash\.cloudflare\.com\/f374e7e2d001dd43253c8d47182e3882\/workers\/services\/view\/genzai\/settings/,
-        "Tombol harus membuka pengaturan secret Worker genzai"
-    );
-    assert.match(setJs, /copyPuterSecretName/, "Tombol salin nama secret harus berfungsi");
-    assert.match(setJs, /navigator\.clipboard/, "Salin nama secret memakai Clipboard API");
-    assert.match(setJs, /execCommand\("copy"\)/, "Salin nama secret punya fallback browser lama");
+    /* Tombol helper secret dihapus atas permintaan user (2026-10-26):
+       pemasangan secret dilakukan manual di dashboard Cloudflare. */
+    assert.doesNotMatch(setHtml, /copy-puter-secret-name/, "Tombol salin nama secret tidak boleh ada lagi");
+    assert.doesNotMatch(setHtml, /Buka pengaturan secret Worker/, "Tombol buka pengaturan secret tidak boleh ada lagi");
+    assert.doesNotMatch(setJs, /copyPuterSecretName/, "Fungsi salin nama secret tidak boleh ada lagi");
     const setupDoc = readFileSync(
         fileURLToPath(new URL("../SOCIAL-PUBLISHER-SETUP.md", import.meta.url)),
         "utf8"

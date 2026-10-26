@@ -95,11 +95,7 @@ simpan token sebagai secret Worker:
 npx wrangler@4 secret put PUTER_AUTH_TOKEN
 ```
 
-**Menaruh secret tanpa terminal (HP):** panel **Admin Panel → SET Studio Medsos**
-menyediakan tombol **Buka pengaturan secret Worker genzai** (langsung ke
-Settings Worker) dan **Salin nama secret: PUTER_AUTH_TOKEN** (menyalin nama ke
-clipboard) — jadi tinggal **Add/Edit → Secret → tempel nama → tempel token**,
-tanpa mengetik. Alternatif manual: Cloudflare dashboard → **Workers & Pages →
+**Menaruh secret tanpa terminal (HP):** Cloudflare dashboard → **Workers & Pages →
 genzai → Settings → Variables and Secrets → Add → type Secret**, nama
 `PUTER_AUTH_TOKEN`, tempel token, lalu simpan/deploy.
 
