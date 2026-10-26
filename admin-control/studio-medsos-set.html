@@ -512,7 +512,7 @@
                     <input type="radio" name="image-provider" value="cloudflare">
                     <span>
                         <strong>Cloudflare Workers AI</strong>
-                        <small>Karakter selalu memakai foto referensi: <code>@cf/black-forest-labs/flux-2-klein-4b</code> menerima foto karakter (dan foto outfit) sebagai <code>input_image</code> sehingga wajah tetap konsisten, tercakup kuota 10.000 Neuron/hari (±14–25 gambar/hari). Virtual try-on <code>pruna/p-image-try-on</code> opsional dan butuh kredit AI Gateway/Unified Billing. Bila semua model ber-referensi gagal, gambar tidak dibuat (tidak ada lagi gambar orang lain).</small>
+                        <small>Karakter selalu memakai foto referensi: <code>@cf/black-forest-labs/flux-2-klein-4b</code> menerima foto karakter (dan foto outfit) sebagai <code>input_image</code> sehingga wajah tetap konsisten. Keluaran default <strong>768×1344</strong> dan potret wajah dipotong dari foto referensi 1024 px (wajah ~2× lebih besar), tercakup kuota 10.000 Neuron/hari (±8–9 gambar/hari; set <code>CLOUDFLARE_IDENTITY_RES=lite</code> untuk kembali ke 576×1024 ±14 gambar/hari). Virtual try-on <code>pruna/p-image-try-on</code> opsional dan butuh kredit AI Gateway/Unified Billing. Bila semua model ber-referensi gagal, gambar tidak dibuat (tidak ada lagi gambar orang lain).</small>
                     </span>
                 </label>
                 <label class="provider-option">

@@ -2839,7 +2839,17 @@ async function generateManualPost(config, userId, env, body = {}) {
          * dalam request (itu yang memicu Error 1102 "Worker exceeded resource
          * limits" pada foto 928 KB + outfit 752 KB).
          */
-        const referenceSource = await downloadModelReference(config, character.reference_object_key);
+        /*
+         * 1024 px, bukan 512: foto utuh tetap diperkecil ke 512 untuk
+         * `input_image_0`, tetapi potret wajah dipotong dari versi 1024 px
+         * sehingga wajahnya ~2x lebih besar dan kemiripan naik. Versi 512 px
+         * hanya menyisakan wajah ~40 px pada foto badan penuh.
+         */
+        const referenceSource = await downloadModelReference(
+            config,
+            character.reference_object_key,
+            { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
+        );
         const referenceBytes = referenceSource.bytes;
         if (!referenceBytes.length || referenceBytes.length > MAX_REFERENCE_BYTES) {
             throw new Error("Ukuran foto referensi karakter tidak valid.");

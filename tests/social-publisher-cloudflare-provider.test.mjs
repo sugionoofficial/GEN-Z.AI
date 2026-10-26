@@ -144,8 +144,9 @@ test("FLUX.2 klein dipakai lebih dulu dengan input_image_0 dari foto referensi",
     assert.match(text, /name="input_image_1"/);
     assert.match(text, /SAMA PERSIS/);
     assert.match(text, /pasar pagi/);
-    assert.match(text, /name="width"\r\n\r\n576/);
-    assert.match(text, /name="height"\r\n\r\n1024/);
+    /* Default baru: resolusi tinggi supaya detail wajah tidak hilang. */
+    assert.match(text, /name="width"\r\n\r\n768/);
+    assert.match(text, /name="height"\r\n\r\n1344/);
     /*
      * Kata "realistis" saja tidak cukup: klein 4B menghasilkan kulit plastik
      * bila prompt tidak memuat istilah fotografi.
@@ -258,8 +259,8 @@ test("FLUX.2 klein 4B gagal kapasitas (setelah 1 retry) -> 9B dipakai dengan mul
     const { text } = await readMultipartBody(calls[2].payload);
     assert.match(text, /name="input_image_0"/);
     assert.match(text, /name="input_image_1"/);
-    assert.match(text, /name="width"\r\n\r\n1024/);
-    assert.match(text, /name="height"\r\n\r\n576/);
+    assert.match(text, /name="width"\r\n\r\n1344/);
+    assert.match(text, /name="height"\r\n\r\n768/);
     assert.match(result.warnings[0], /4B gagal/);
 });
 
@@ -395,8 +396,8 @@ test("latar Kata-kata Mutiara tetap memakai FLUX lalu SDXL sesuai rasio", async 
         imageProvider: "cloudflare"
     });
     assert.equal(second.model, SDXL_MODEL);
-    assert.equal(fallback.calls[1].payload.width, 1024);
-    assert.equal(fallback.calls[1].payload.height, 576);
+    assert.equal(fallback.calls[1].payload.width, 1344);
+    assert.equal(fallback.calls[1].payload.height, 768);
 });
 
 test("tes provider melaporkan jalur identitas, cadangan, dan try-on per model", async () => {
@@ -822,7 +823,7 @@ test("CLOUDFLARE_IDENTITY_SIZE tidak masuk akal diabaikan tanpa mengganggu", asy
         referenceMimeType: "image/jpeg"
     });
     const { text } = await readMultipartBody(calls[0].payload);
-    assert.match(text, /name="width"\r\n\r\n576/);
+    assert.match(text, /name="width"\r\n\r\n768/);
     assert.equal(result.warnings.length, 0);
 });
 
@@ -906,4 +907,107 @@ test("hasil generate melaporkan ukuran acuan wajah yang dipakai", async () => {
     assert.ok(result.face_crop, "foto badan penuh harus memakai acuan wajah");
     assert.ok(result.face_crop.width > 0);
     assert.match(result.face_crop.reference, /^384x512$|^\d+x\d+$/);
+});
+
+test("resolusi tinggi adalah default, dan CLOUDFLARE_IDENTITY_RES=lite menghemat kuota", async () => {
+    const high = createFakeAI({ [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }) });
+    await generateSocialImage({
+        env: { AI: high.AI },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+    const highText = (await readMultipartBody(high.calls[0].payload)).text;
+    assert.match(highText, /name="width"\r\n\r\n768/);
+    assert.match(highText, /name="height"\r\n\r\n1344/);
+
+    const lite = createFakeAI({ [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }) });
+    await generateSocialImage({
+        env: { AI: lite.AI, CLOUDFLARE_IDENTITY_RES: "lite" },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        aspectRatio: "16:9",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+    const liteText = (await readMultipartBody(lite.calls[0].payload)).text;
+    assert.match(liteText, /name="width"\r\n\r\n1024/);
+    assert.match(liteText, /name="height"\r\n\r\n576/);
+});
+
+test("ukuran resolusi tinggi yang ditolak model otomatis turun ke 576x1024", async () => {
+    const bodies = [];
+    const { AI } = createFakeAI({
+        [IDENTITY_MODEL]: async (payload) => {
+            /* Body multipart hanya bisa dibaca sekali, jadi simpan di sini. */
+            const { text } = await readMultipartBody(payload);
+            bodies.push(text);
+            if (/name="width"\r\n\r\n768/.test(text)) {
+                throw new Error("3030: Model input is not valid: width 768 is not supported");
+            }
+            return { image: JPEG_BASE64 };
+        }
+    });
+    const result = await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference(),
+        referenceMimeType: "image/jpeg"
+    });
+    assert.equal(result.model, IDENTITY_MODEL);
+    assert.equal(bodies.length, 2);
+    assert.match(bodies[1], /name="width"\r\n\r\n576/);
+    assert.match(bodies[1], /name="height"\r\n\r\n1024/);
+    assert.ok(result.warnings.some(item => /768x1344 ditolak/.test(item)));
+});
+
+test("potret wajah diambil dari foto asli, bukan dari salinan 512 px", async () => {
+    const { AI } = createFakeAI({ [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }) });
+    const result = await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference({ width: 900, height: 1400 }),
+        referenceMimeType: "image/jpeg"
+    });
+    assert.equal(result.face_crop.source, "original");
+    assert.equal(result.face_crop.source_size, "900x1400");
+    /*
+     * Dipotong dari 900 px (bukan 384 px): hasilnya 558x588 lalu diperkecil ke
+     * maksimal 512 px, jadi wajah di dalamnya jauh lebih besar dari sebelumnya
+     * (~238 px) dan identitas lebih terjaga.
+     */
+    assert.equal(result.face_crop.height, 512);
+    assert.ok(result.face_crop.width >= 480, `lebar potret wajah ${result.face_crop.width} terlalu kecil`);
+});
+
+test("cropFaceRegion bisa memperkecil hasil potongan dan melewati sumber raksasa", async () => {
+    const tall = makeReference({ width: 900, height: 1400 });
+    const scaled = cropFaceRegion(tall, "image/jpeg", { maxSide: 512 });
+    assert.equal(scaled.height, 512);
+    assert.equal(scaled.source.width, 900);
+    assert.deepEqual(readImageDimensions(scaled.bytes), { width: scaled.width, height: scaled.height });
+
+    /* Sumber melebihi batas megapiksel dilewati supaya decode tidak meledak. */
+    assert.equal(
+        cropFaceRegion(makeReference({ width: 400, height: 900 }), "image/jpeg", { maxSourceMegapixels: 0.2 }),
+        null
+    );
+});
+
+test("prompt identitas memuat penangkal kulit plastik", async () => {
+    const { AI, calls } = createFakeAI({ [IDENTITY_MODEL]: () => ({ image: JPEG_BASE64 }) });
+    await generateSocialImage({
+        env: { AI },
+        prompt: "Karakter di taman",
+        imageProvider: "cloudflare",
+        referenceBytes: makeReference({ width: 900, height: 1400 }),
+        referenceMimeType: "image/jpeg"
+    });
+    const { text } = await readMultipartBody(calls[0].payload);
+    assert.match(text, /catchlight/);
+    assert.match(text, /tanpa filter kecantikan/);
+    assert.match(text, /acuan utama bentuk wajah/);
 });

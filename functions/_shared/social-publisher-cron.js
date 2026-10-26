@@ -528,7 +528,12 @@ async function processRun(env, config, claimedRun) {
 
             /* Supabase memperkecil gambar lebih dulu agar Worker tidak men-decode
                foto besar di dalam cron (penyebab Error 1102 resource limits). */
-            const referenceSource = await downloadModelReference(config, character.reference_object_key);
+            /* 1024 px untuk Cloudflare: potret wajah dipotong dari versi ini. */
+            const referenceSource = await downloadModelReference(
+                config,
+                character.reference_object_key,
+                { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
+            );
             const referenceBytes = referenceSource.bytes;
             if (!referenceBytes.length || referenceBytes.length > 8 * 1024 * 1024) throw new Error("Reference image size is invalid.");
             const referenceMimeType = referenceSource.mimeType || character.reference_mime_type;
