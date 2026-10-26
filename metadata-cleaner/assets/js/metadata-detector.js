@@ -47,6 +47,168 @@
    Detection metadata bukan cryptographic verification.
 ========================================================= */
 
+/* =========================================================
+   AIGC MARKING
+   ---------------------------------------------------------
+   Sebagian platform (terutama video dari pipeline AIGC)
+   tidak menulis kalimat "AI generated", tetapi MENYISIPKAN
+   kotak penanda konten AI ke metadata container.
+
+   Contoh nyata dari lapangan (ffprobe):
+
+       tags.aigc_info  {"aigc_label_type":0,"source_info":""}
+       tags.wxMeta     {"WXVer":671108930}
+
+   Kotak `aigc_info` adalah penanda AIGC (AI-Generated
+   Content). Kehadiran kotaknya sendiri sudah sinyal kuat:
+   berkas itu melewati pipeline yang mencatat label AIGC.
+
+   Sebelumnya penanda ini LOLOS karena detektor hanya
+   mencocokkan kata kunci seperti "ai generated" atau
+   "trainedAlgorithmicMedia". Akibatnya status akhir hanya
+   mengikuti penilaian visual dan berkata "belum konklusif"
+   padahal metadata sudah menyatakan konten AI.
+
+   Catatan kejujuran:
+   - Ini bukti METADATA (label dari pembuat/platform),
+     bukan verifikasi forensik dan bukan deteksi piksel.
+   - Nilai label (mis. aigc_label_type: 0) TIDAK ditafsirkan
+     sebagai "pasti AI" atau "pasti bukan AI"; yang dilaporkan
+     adalah keberadaan penandanya.
+========================================================= */
+
+/** Token `aigc` sebagai bagian nama field: tags.aigc_info, aigc_label, ... */
+const AIGC_FIELD_TOKEN =
+    /(^|[^a-z0-9])aigc([^a-z0-9]|$)/i;
+
+
+/**
+ * Kunci di dalam nilai metadata yang hanya dipakai skema
+ * penandaan AIGC. Dicek pada nilai (bukan nama field) supaya
+ * penanda yang tertanam sebagai JSON tetap tertangkap.
+ */
+const AIGC_VALUE_KEYS = [
+    "aigc_label_type",
+    "aigc_label",
+    "aigc_generated",
+    "aigc_info",
+    "content_producer",
+    "content_propagator",
+    "produce_id"
+];
+
+
+/**
+ * Deteksi penanda AIGC pada satu item metadata.
+ *
+ * @returns {Array<{keyword: string, field: string, value: string, source: string, category: string}>}
+ */
+export function detectAigcMarkers(
+    item
+) {
+
+    if (
+        !item
+    ) {
+
+        return [];
+    }
+
+
+    const field =
+        String(
+            item.field || ""
+        );
+
+
+    const value =
+        String(
+            item.value || ""
+        );
+
+
+    const source =
+        String(
+            item.source || ""
+        );
+
+
+    const byField =
+        AIGC_FIELD_TOKEN.test(
+            field
+        );
+
+    const loweredValue =
+        value.toLowerCase();
+
+
+    const byValueKey =
+        AIGC_VALUE_KEYS.find(
+            key => loweredValue.includes(
+                key
+            )
+        ) || "";
+
+
+    if (
+        !byField &&
+        !byValueKey
+    ) {
+
+        return [];
+    }
+
+
+    return [
+        {
+
+            keyword:
+                "aigc",
+
+            field,
+
+            value,
+
+            source,
+
+            /*
+             * Dipakai UI untuk menyebut "penandaan AIGC" secara
+             * eksplisit, bukan sekadar "indikator metadata".
+             */
+            category:
+                "aigc",
+
+            evidence:
+                byField
+                    ? "nama field mengandung penanda aigc"
+                    : `nilai memuat kunci ${byValueKey}`
+
+        }
+    ];
+
+}
+
+
+/**
+ * True bila metadata memuat penandaan AIGC.
+ */
+export function hasAigcMarking(
+    metadata
+) {
+
+    return (
+        Array.isArray(
+            metadata
+        )
+    ) && metadata.some(
+        item => detectAigcMarkers(
+            item
+        ).length > 0
+    );
+
+}
+
+
 export function detectAIIndicators(
     metadata
 ) {
@@ -103,6 +265,21 @@ export function detectAIIndicators(
         /\bsynthetic video\b/i,
 
         /\bsynthetic content\b/i,
+
+
+        /* -----------------------------------------------
+           AIGC (AI-Generated Content) MARKING
+        ----------------------------------------------- */
+
+        /(^|[^a-z0-9])aigc([^a-z0-9]|$)/i,
+
+        /ai\s*生成/i,
+
+        /人工智能生成/,
+
+        /\bai[- ]?generated content\b/i,
+
+        /\bgenerated with ai\b/i,
 
 
         /* -----------------------------------------------
@@ -465,6 +642,47 @@ export function detectAIIndicators(
 
 
         /* =================================================
+           AIGC MARKING (STRUCTURAL)
+           -------------------------------------------------
+           Dicek lebih dulu karena penandanya berupa nama
+           field / kunci JSON, bukan kalimat.
+        ================================================= */
+
+        const aigcMarkers =
+            detectAigcMarkers({ field, value, source });
+
+
+        for (
+            const marker of aigcMarkers
+        ) {
+
+            const key =
+                `aigc::${marker.field}::${marker.value}`;
+
+
+            if (
+                seen.has(
+                    key
+                )
+            ) {
+
+                continue;
+            }
+
+
+            seen.add(
+                key
+            );
+
+
+            matches.push(
+                marker
+            );
+
+        }
+
+
+        /* =================================================
            STRONG MATCH
         ================================================= */
 
@@ -490,6 +708,22 @@ export function detectAIIndicators(
                 match[0]
                     .trim()
                     .toLowerCase();
+
+
+            /*
+             * Penanda aigc sudah dicatat rapi oleh
+             * detectAigcMarkers(). Jangan hitung dua kali dengan
+             * keyword aneh seperti ".aigc_".
+             */
+            if (
+                aigcMarkers.length > 0 &&
+                /^[^a-z0-9]*aigc/i.test(
+                    keyword
+                )
+            ) {
+
+                continue;
+            }
 
 
             const key =

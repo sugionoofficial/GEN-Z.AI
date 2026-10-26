@@ -80,7 +80,7 @@ import {
 
 import {
     cleanVideo
-} from "./metadata-cleaner-video.js";
+} from "./metadata-cleaner-video.js?v=aigc-detection-20261026";
 
 import {
     readVideoMetadata
@@ -97,7 +97,7 @@ import {
 
 import {
     detectAIIndicators
-} from "./metadata-detector.js";
+} from "./metadata-detector.js?v=aigc-detection-20261026";
 
 import {
     inspectProvenance
@@ -108,11 +108,11 @@ import {
     renderMetadata,
     renderCleaningSuccessStamp,
     setStatus
-} from "./metadata-status.js";
+} from "./metadata-status.js?v=aigc-detection-20261026";
 
 import {
     renderOpenKeyResult
-} from "./metadata-openkey-detection.js?v=openkey-gateway-retry-20261026";
+} from "./metadata-openkey-detection.js?v=aigc-detection-20261026";
 
 
 /* =========================================================
@@ -1542,11 +1542,30 @@ export async function cleanMetadata() {
             );
 
 
+        /*
+           Residu penandaan AIGC disebut sebagai penandaan AI,
+           bukan hanya "provenance". Kalimat penutupnya juga
+           tidak boleh menjanjikan berkas bebas label AI.
+        */
+        const residualHasAigc =
+            /aigc/i.test(
+                residual
+            );
+
+
+        const residualTail =
+            residualHasAigc
+                ? "Berkas hasil belum bisa disebut bebas penandaan AI maupun C2PA."
+                : "Berkas belum bisa disebut bebas C2PA.";
+
+
         if (residual) {
             setStatus(
                 "PARTIAL",
-                "CLEANING SELESAI — RESIDU PROVENANCE MASIH TERBACA",
-                `Pembersihan metadata sudah dijalankan dan hasilnya bisa diunduh. Namun sinyal provenance berikut masih terbaca pada hasil akhir: ${residual}. Sinyal ini bisa berasal dari data yang tidak bisa dihapus tanpa mengubah isi media, atau dari pola byte yang kebetulan mirip. Berkas belum bisa disebut bebas C2PA.`
+                residualHasAigc
+                    ? "CLEANING SELESAI — PENANDAAN AI MASIH TERBACA"
+                    : "CLEANING SELESAI — RESIDU PROVENANCE MASIH TERBACA",
+                `Pembersihan metadata sudah dijalankan dan hasilnya bisa diunduh. Namun sinyal berikut masih terbaca pada hasil akhir: ${residual}. Sinyal ini bisa berasal dari data yang tidak bisa dihapus tanpa mengubah isi media, atau dari pola byte yang kebetulan mirip. ${residualTail}`
             );
             renderCleaningSuccessStamp("PARTIAL");
         }
@@ -1576,7 +1595,7 @@ export async function cleanMetadata() {
         /* Status sukses — selalu jujur tentang apa yang tersisa. */
         setPreviewStatus(
             residual
-                ? `METADATA BERSIH — RESIDU PROVENANCE MASIH TERBACA. ${cleaningNotice ? `${cleaningNotice} ` : ""}${residual}. Berkas hasil tetap bisa diunduh.`
+                ? `METADATA BERSIH — ${residualHasAigc ? "PENANDAAN AI MASIH TERBACA" : "RESIDU PROVENANCE MASIH TERBACA"}. ${cleaningNotice ? `${cleaningNotice} ` : ""}${residual}. Berkas hasil tetap bisa diunduh.`
                 : provenanceLimited
                     ? `METADATA BERSIH (SEBAGIAN DIVERIFIKASI). ${cleaningNotice ? `${cleaningNotice} ` : ""}${provenanceLimited}`
                     : cleaningNotice

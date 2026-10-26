@@ -42,7 +42,7 @@ import {
 
 import {
     setStatus
-} from "./metadata-status.js";
+} from "./metadata-status.js?v=aigc-detection-20261026";
 
 
 /* =========================================================

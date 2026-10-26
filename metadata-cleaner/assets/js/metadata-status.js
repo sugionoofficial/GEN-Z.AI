@@ -3133,6 +3133,88 @@ export function renderDetectionResult() {
         openKeyDetected ||
         aiProvenanceDetected;
 
+    /*
+     * Penandaan AIGC (AI-Generated Content).
+     *
+     * Metadata seperti `tags.aigc_info` adalah label yang ditulis
+     * pembuat/platform, bukan hasil analisis piksel. Kalau label
+     * itu ada, status TIDAK BOLEH berhenti pada "visual belum
+     * konklusif": berkasnya sudah menyatakan konten AI.
+     */
+    const aigcIndicators =
+        metadataIndicators.filter(
+            indicator =>
+                indicator?.category === "aigc" ||
+                /aigc/i.test(
+                    String(indicator?.field || "")
+                )
+        );
+
+
+    const aigcDetected =
+        aigcIndicators.length > 0;
+
+
+    const aigcFieldLabels = [
+        ...new Set(
+            aigcIndicators
+                .map(
+                    indicator =>
+                        String(indicator?.field || "")
+                            .split(".")
+                            .filter(Boolean)
+                            .slice(-2)
+                            .join(".")
+                )
+                .filter(Boolean)
+        )
+    ].slice(0, 3);
+
+
+    const buildAigcNote = () => {
+
+        const labels =
+            aigcFieldLabels.length
+                ? aigcFieldLabels.join(", ")
+                : "aigc_info";
+
+        return (
+            `Metadata berkas memuat penandaan AIGC (${labels}). ` +
+            "Penandaan itu ditulis oleh pembuat/platform berkas sebagai label konten AI, " +
+            "bukan hasil analisis piksel, dan tidak dibatalkan oleh pemeriksaan visual yang belum pasti."
+        );
+    };
+
+
+    /*
+     * Hasil visual "belum konklusif" tidak membatalkan temuan
+     * metadata. Ditambahkan supaya kalimat status tidak terbaca
+     * seolah tidak ada indikasi AI sama sekali.
+     */
+    const withOpenKeyInconclusiveContext = description => {
+
+        if (
+            !openKeyAvailable ||
+            openKey.verdict !== "uncertain" ||
+            !metadataDetected
+        ) {
+
+            return description;
+        }
+
+        return (
+            `${description} ` +
+            "Pemeriksaan visual OpenKey belum dapat menyimpulkan; itu tidak menghapus temuan metadata di atas."
+        );
+    };
+
+
+    const withAigcContext = description =>
+        aigcDetected
+            ? `${buildAigcNote()} ${description}`
+            : description;
+
+
     const withOpenKeyVisualContext = description => {
 
         if (
@@ -3256,10 +3338,14 @@ export function renderDetectionResult() {
                 "DETECTED",
                 "AI DETECTION",
                 withOpenKeyVisualContext(
-                    buildCombinedProvenanceDetectionDescription(
-                        metadataIndicators.length,
-                        provenance,
-                        sightengine
+                    withOpenKeyInconclusiveContext(
+                        withAigcContext(
+                            buildCombinedProvenanceDetectionDescription(
+                                metadataIndicators.length,
+                                provenance,
+                                sightengine
+                            )
+                        )
                     )
                 )
             );
@@ -3283,9 +3369,13 @@ export function renderDetectionResult() {
                 "DETECTED",
                 "AI DETECTION",
                 withOpenKeyVisualContext(
-                    buildCombinedDetectionDescription(
-                        metadataIndicators.length,
-                        sightengine
+                    withOpenKeyInconclusiveContext(
+                        withAigcContext(
+                            buildCombinedDetectionDescription(
+                                metadataIndicators.length,
+                                sightengine
+                            )
+                        )
                     )
                 )
             );
@@ -3335,9 +3425,13 @@ export function renderDetectionResult() {
                 "DETECTED",
                 "AI DETECTION",
                 withOpenKeyVisualContext(
-                    buildMetadataProvenanceDescription(
-                        metadataIndicators.length,
-                        provenance
+                    withOpenKeyInconclusiveContext(
+                        withAigcContext(
+                            buildMetadataProvenanceDescription(
+                                metadataIndicators.length,
+                                provenance
+                            )
+                        )
                     )
                 )
             );
@@ -3434,11 +3528,19 @@ export function renderDetectionResult() {
             metadataDetected
         ) {
 
+            const metadataOnlyDescription =
+                aigcDetected
+                    ? `${metadataIndicators.length} indikator AI ditemukan pada metadata. ${buildAigcNote()}`
+                    : `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`;
+
+
             setStatus(
                 "DETECTED",
                 "AI DETECTION",
                 withOpenKeyVisualContext(
-                    `${metadataIndicators.length} indikator yang berkaitan dengan AI ditemukan pada metadata.`
+                    withOpenKeyInconclusiveContext(
+                        metadataOnlyDescription
+                    )
                 )
             );
 
