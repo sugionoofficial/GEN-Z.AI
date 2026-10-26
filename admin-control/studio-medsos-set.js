@@ -598,6 +598,43 @@
      * autentikasi + jalur input_images + status jatah akun Puter teruji.
      * Satu klik = satu gambar sungguhan yang memotong kuota akun Puter Anda.
      */
+    /**
+     * Salin nama secret ke clipboard supaya dari HP tidak perlu mengetik.
+     * Memakai Clipboard API dengan fallback textarea+execCommand untuk
+     * browser lama; hasilnya dilaporkan apa adanya di status box.
+     */
+    function copyPuterSecretName() {
+        const name = "PUTER_AUTH_TOKEN";
+        const done = ok => setImageProviderStatus(
+            ok
+                ? "✓ Nama secret PUTER_AUTH_TOKEN disalin — tempel ke kolom Name di dashboard Cloudflare."
+                : "Gagal menyalin otomatis — salin manual: PUTER_AUTH_TOKEN",
+            ok ? "success" : "error"
+        );
+        const fallbackCopy = () => {
+            try {
+                const area = document.createElement("textarea");
+                area.value = name;
+                area.setAttribute("readonly", "");
+                area.style.position = "fixed";
+                area.style.opacity = "0";
+                document.body.append(area);
+                area.select();
+                area.setSelectionRange(0, name.length);
+                const ok = document.execCommand("copy");
+                area.remove();
+                done(ok);
+            } catch {
+                done(false);
+            }
+        };
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(name).then(() => done(true)).catch(fallbackCopy);
+        } else {
+            fallbackCopy();
+        }
+    }
+
     async function testPuterProvider() {
         const button = document.getElementById("test-puter-provider");
         const status = document.getElementById("image-provider-status");
@@ -1192,6 +1229,7 @@
         document.getElementById("test-image-provider")?.addEventListener("click", testImageProvider);
         document.getElementById("test-tencent-provider")?.addEventListener("click", testTencentProvider);
         document.getElementById("test-puter-provider")?.addEventListener("click", testPuterProvider);
+        document.getElementById("copy-puter-secret-name")?.addEventListener("click", copyPuterSecretName);
         for (const radio of document.querySelectorAll('input[name="image-provider"]')) {
             radio.addEventListener("change", renderQwenCloudOptions);
         }
