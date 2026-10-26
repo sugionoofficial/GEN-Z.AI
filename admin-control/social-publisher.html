@@ -31,9 +31,14 @@
         .btn.is-premium-loading,.btn.is-premium-loading:disabled{position:relative;overflow:hidden;isolation:isolate;opacity:1;cursor:progress;min-height:44px;padding:10px 16px;gap:10px;color:#fff;transform:translateZ(0);transition:box-shadow .25s ease,border-color .25s ease,background .25s ease}
         .btn.primary.is-premium-loading,.btn.primary.is-premium-loading:disabled{background:linear-gradient(135deg,#6b5bf6 0%,#4f46e5 52%,#3764d8 100%);border-color:#a59dff;box-shadow:0 10px 28px rgba(108,92,246,.42),0 0 0 1px rgba(165,157,255,.28),inset 0 1px 0 rgba(255,255,255,.28);animation:btn-violet-pulse 2.2s ease-in-out infinite}
         .btn.green.is-premium-loading,.btn.green.is-premium-loading:disabled{background:linear-gradient(135deg,#13594a 0%,#0f453a 52%,#166b59 100%);border-color:#4ce6b0;color:#ecfff7;box-shadow:0 10px 28px rgba(53,211,154,.30),0 0 0 1px rgba(76,230,176,.24),inset 0 1px 0 rgba(255,255,255,.22);animation:btn-emerald-pulse 2.2s ease-in-out infinite}
-        /* Konfirmasi terbit memakai tombol yang sama (tanpa dialog mengambang). */
-        .btn.is-confirming,.btn.is-confirming:hover,.btn.green.is-confirming,.btn.green.is-confirming:hover{background:linear-gradient(135deg,#8a5a12 0%,#6f4409 52%,#9a6516 100%);border-color:#f5b950;color:#fff6e4;box-shadow:0 10px 26px rgba(245,185,80,.28),0 0 0 1px rgba(245,185,80,.45),inset 0 1px 0 rgba(255,255,255,.22);animation:btn-confirm-pulse 1.5s ease-in-out infinite}
-        @keyframes btn-confirm-pulse{0%,100%{box-shadow:0 10px 26px rgba(245,185,80,.24),0 0 0 1px rgba(245,185,80,.42),inset 0 1px 0 rgba(255,255,255,.22)}50%{box-shadow:0 12px 32px rgba(245,185,80,.44),0 0 0 2px rgba(245,185,80,.62),inset 0 1px 0 rgba(255,255,255,.26)}}
+        /*
+           Konfirmasi memakai tombol yang sama (tanpa dialog mengambang):
+           klik 1 = tombol jadi HIJAU TERANG "Konfirmasi", klik 2 = jalan.
+           Berlaku untuk terbit ke Facebook Page dan semua aksi lain di
+           Studio Medsos (hapus, putuskan, batalkan, jeda autopost).
+        */
+        .btn.is-confirming,.btn.is-confirming:hover,.btn.green.is-confirming,.btn.green.is-confirming:hover,.btn.danger.is-confirming,.btn.danger.is-confirming:hover{background:linear-gradient(135deg,#4ef08a 0%,#22c55e 52%,#12b76a 100%);border-color:#b6ffd0;color:#04260f;font-weight:900;text-shadow:none;box-shadow:0 10px 26px rgba(34,197,94,.42),0 0 0 1px rgba(182,255,208,.65),inset 0 1px 0 rgba(255,255,255,.5);animation:btn-confirm-pulse 1.5s ease-in-out infinite}
+        @keyframes btn-confirm-pulse{0%,100%{box-shadow:0 10px 26px rgba(34,197,94,.34),0 0 0 1px rgba(182,255,208,.55),inset 0 1px 0 rgba(255,255,255,.46)}50%{box-shadow:0 12px 34px rgba(34,197,94,.62),0 0 0 3px rgba(94,240,150,.55),inset 0 1px 0 rgba(255,255,255,.62)}}
         @media(prefers-reduced-motion:reduce){.btn.is-confirming{animation:none}}
         .btn.is-premium-loading::before{content:"";position:absolute;inset:0;z-index:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,.22) 48%,rgba(255,255,255,.06) 56%,transparent 78%);transform:translateX(-120%);animation:btn-premium-sheen 1.75s cubic-bezier(.4,0,.2,1) infinite;pointer-events:none}
         .btn.is-premium-loading::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;z-index:1;background:linear-gradient(90deg,transparent,rgba(255,255,255,.92),#46d9e8,transparent);background-size:200% 100%;animation:btn-progress-beam 1.35s linear infinite;pointer-events:none}
@@ -113,7 +118,7 @@
         video.manual-preview[hidden],audio.manual-preview-audio[hidden],img.manual-preview[hidden]{display:none!important}
 
     </style>
-    <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261026">
+    <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261026b">
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
 <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
@@ -596,6 +601,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=persistent-auth-20261022"></script>
-    <script type="module" src="./social-publisher.js?v=publish-confirm-inline-20261026"></script>
+    <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
+    <script type="module" src="./social-publisher.js?v=publish-confirm-inline-green-20261026"></script>
 </body>
 </html>

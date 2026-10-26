@@ -290,23 +290,28 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .btn.green:hover {
 }
 
 /*
-   Konfirmasi terbit memakai tombol yang sama. Di tema terang tombol ini
-   harus tetap terbaca sebagai "perlu perhatian", bukan tombol biasa.
+   Konfirmasi memakai tombol yang sama dan selalu HIJAU TERANG, baik untuk
+   terbit ke Facebook Page maupun aksi lain (hapus, putuskan, jeda autopost).
+   Di tema terang tombol ini harus tetap terbaca sebagai "perlu perhatian",
+   bukan tombol biasa.
 */
 html[data-genz-theme="light"][data-genz-theme="light"] body .btn.green.is-confirming,
 html[data-genz-theme="light"][data-genz-theme="light"] body .btn.green.is-confirming:hover,
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.danger.is-confirming,
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.danger.is-confirming:hover,
 html[data-genz-theme="light"][data-genz-theme="light"] body .btn.is-confirming,
 html[data-genz-theme="light"][data-genz-theme="light"] body .btn.is-confirming:hover {
-    border: 1px solid #e0a43c !important;
-    background: linear-gradient(135deg, #fff3d8, #ffe6b8) !important;
-    color: #7a4a06 !important;
-    box-shadow: 0 8px 20px rgba(224, 164, 60, .28) !important;
+    border: 1px solid #12a150 !important;
+    background: linear-gradient(135deg, #6ff2a4, #2ee072) !important;
+    color: #04301a !important;
+    font-weight: 900 !important;
+    box-shadow: 0 8px 20px rgba(30, 200, 100, .34) !important;
     animation: btn-confirm-pulse-light 1.5s ease-in-out infinite;
 }
 
 @keyframes btn-confirm-pulse-light {
-    0%, 100% { box-shadow: 0 8px 20px rgba(224, 164, 60, .22) !important; }
-    50% { box-shadow: 0 10px 26px rgba(224, 164, 60, .42) !important; }
+    0%, 100% { box-shadow: 0 8px 20px rgba(30, 200, 100, .26) !important; }
+    50% { box-shadow: 0 10px 26px rgba(30, 200, 100, .48) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

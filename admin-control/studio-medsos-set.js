@@ -158,6 +158,8 @@
     }
 
     function renderActiveSubscriptions(now = Date.now()) {
+        /* Daftar digambar ulang: jangan tinggalkan status konfirmasi lama. */
+        window.GENZInlineConfirm?.disarmAll?.();
         const list = document.getElementById("active-subscribers-list");
         const summary = document.getElementById("active-subscribers-summary");
         const count = document.getElementById("active-subscribers-count");
@@ -447,12 +449,29 @@
         }
     }
 
-    async function stopSubscription(userId) {
+    /*
+     * Konfirmasi memakai tombol yang sama (klik 1 = tombol hijau
+     * "Konfirmasi", klik 2 = hentikan), bukan blok mengambang.
+     */
+    function confirmInlineAction(button, options) {
+        const helper = window.GENZInlineConfirm;
+        if (!helper || typeof helper.request !== "function") {
+            setStatusMessage("Modul konfirmasi tombol belum termuat. Muat ulang halaman lalu coba lagi.", "error");
+            return false;
+        }
+        return helper.request(button, options);
+    }
+
+    async function stopSubscription(userId, button) {
         const user = findUser(userId);
         if (!user) return;
 
         const label = user.email || user.name || user.id;
-        if (!window.confirm(`Hentikan langganan Studio Medsos untuk ${label}?\n\nAkses user akan langsung ditutup.`)) {
+        if (!confirmInlineAction(button, {
+            label: "Konfirmasi stop",
+            ariaLabel: `Konfirmasi hentikan langganan Studio Medsos ${label}`,
+            title: `Hentikan langganan Studio Medsos untuk ${label}? Akses user akan langsung ditutup dan tidak dapat dikembalikan.`
+        })) {
             return;
         }
 
@@ -500,7 +519,7 @@
         if (action === "edit") return editSubscription(userId);
         if (action === "extend") return openAdjustModal(userId, "extend");
         if (action === "reduce") return openAdjustModal(userId, "reduce");
-        if (action === "stop") return stopSubscription(userId);
+        if (action === "stop") return stopSubscription(userId, button);
     }
 
     async function loadUserAccess(userId) {
