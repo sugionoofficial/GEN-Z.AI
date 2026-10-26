@@ -1223,6 +1223,21 @@ async function saveSocialImageProvider(config, adminId, body, env) {
             body: JSON.stringify(hasQuoteLlmModel ? { ...basePayload, quote_llm_model: quoteLlmModel } : basePayload)
         }
     ).catch(async err => {
+        if (/social_publisher_config_image_provider_check/i.test(String(err?.message || ""))) {
+            /*
+             * Check constraint di database belum mengenal provider baru
+             * (mis. 'puter') — migrasi belum dijalankan. Pesan asli Postgres
+             * membingungkan admin, jadi terjemahkan menjadi tindakan yang jelas
+             * tanpa menyembunyikan penyebab aslinya.
+             */
+            const error = new Error(
+                "Database masih membatasi daftar provider gambar (check constraint image_provider belum diperbarui). "
+                + "Jalankan file migrasi supabase/social-puter-image-provider.sql di Supabase SQL Editor (aman diulang), lalu simpan lagi. "
+                + `Penyebab asli: ${String(err?.message || "").slice(0, 200)}`
+            );
+            error.status = 409;
+            throw error;
+        }
         if (/text_provider/i.test(String(err?.message || ""))) {
             /*
              * Migrasi kolom text_provider belum dijalankan. Simpan sisanya agar
