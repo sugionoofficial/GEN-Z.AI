@@ -166,8 +166,10 @@ test("Puter.js tersedia sebagai opsi provider gambar dengan label jujur", () => 
     );
     assert.match(setupDoc, /PUTER_AUTH_TOKEN/, "Dokumen setup harus memuat panduan secret Puter");
     assert.match(setupDoc, /User-Pays/, "Dokumen setup harus menyebut model User-Pays secara jujur");
-    /* Regresi (2026-10-26): check constraint database menolak 'puter'
-       sehingga Simpan Provider gagal 400. Skema + migrasi harus menerima. */
+    /* Regresi (2026-10-26): check constraint database menolak provider
+       (bahkan 'tencent' di instalasi lama) sehingga Simpan Provider gagal
+       23514. Skema + migrasi harus menerima daftar lengkap, dan API harus
+       mengarahkan ke migrasi yang benar. */
     const migration = readFileSync(
         fileURLToPath(new URL("../supabase/social-auto-publisher.sql", import.meta.url)),
         "utf8"
@@ -178,16 +180,22 @@ test("Puter.js tersedia sebagai opsi provider gambar dengan label jujur", () => 
         3,
         "Tiga titik check constraint image_provider di social-auto-publisher.sql harus menerima puter"
     );
-    const puterMigration = readFileSync(
-        fileURLToPath(new URL("../supabase/social-puter-image-provider.sql", import.meta.url)),
+    const constraintMigration = readFileSync(
+        fileURLToPath(new URL("../supabase/social-image-provider-constraint.sql", import.meta.url)),
         "utf8"
     );
-    assert.match(puterMigration, /drop constraint if exists social_publisher_config_image_provider_check/, "Migrasi puter harus idempoten");
-    assert.match(puterMigration, /'puter'/, "Migrasi puter harus memuat nilai puter");
+    assert.match(constraintMigration, /drop constraint if exists social_publisher_config_image_provider_check/, "Migrasi constraint harus idempoten (image)");
+    assert.match(constraintMigration, /drop constraint if exists social_publisher_config_text_provider_check/, "Migrasi constraint harus idempoten (text)");
+    assert.match(constraintMigration, /'tencent', 'puter'\)/, "Migrasi constraint harus memuat daftar provider lengkap");
     assert.match(
         apiSource,
-        /social-puter-image-provider\.sql/,
-        "API harus mengarahkan ke migrasi saat constraint database belum diperbarui"
+        /social-image-provider-constraint\.sql/,
+        "API harus mengarahkan ke migrasi constraint saat database belum diperbarui"
+    );
+    assert.match(
+        apiSource,
+        /social_publisher_config_text_provider_check/,
+        "API harus menangani check constraint text_provider sebelum fallback kolom"
     );
     assert.match(providersSource, /generatePuterSocialImage/, "generateSocialImage harus meneruskan ke provider Puter");
     assert.match(cronSource, /"puter"/, "Cron autopost harus mendukung provider puter");

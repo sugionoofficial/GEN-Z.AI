@@ -1225,14 +1225,24 @@ async function saveSocialImageProvider(config, adminId, body, env) {
     ).catch(async err => {
         if (/social_publisher_config_image_provider_check/i.test(String(err?.message || ""))) {
             /*
-             * Check constraint di database belum mengenal provider baru
-             * (mis. 'puter') — migrasi belum dijalankan. Pesan asli Postgres
-             * membingungkan admin, jadi terjemahkan menjadi tindakan yang jelas
-             * tanpa menyembunyikan penyebab aslinya.
+             * Check constraint di database masih memuat daftar provider lama
+             * (bisa sampai menolak 'tencent'/'puter') — migrasi belum pernah
+             * dijalankan. Terjemahkan menjadi tindakan yang jelas untuk SEMUA
+             * pilihan provider, tanpa menyembunyikan penyebab aslinya.
              */
             const error = new Error(
-                "Database masih membatasi daftar provider gambar (check constraint image_provider belum diperbarui). "
-                + "Jalankan file migrasi supabase/social-puter-image-provider.sql di Supabase SQL Editor (aman diulang), lalu simpan lagi. "
+                "Database masih membatasi daftar provider gambar (check constraint image_provider belum diperbarui) — "
+                + "pilihan Gemini/Cloudflare/QwenCloud/Tencent/Puter ditolak sampai migrasi dijalankan. "
+                + "Jalankan file migrasi supabase/social-image-provider-constraint.sql di Supabase SQL Editor (aman diulang), lalu simpan lagi. "
+                + `Penyebab asli: ${String(err?.message || "").slice(0, 200)}`
+            );
+            error.status = 409;
+            throw error;
+        }
+        if (/social_publisher_config_text_provider_check/i.test(String(err?.message || ""))) {
+            const error = new Error(
+                "Database masih membatasi daftar provider teks (check constraint text_provider belum diperbarui). "
+                + "Jalankan file migrasi supabase/social-image-provider-constraint.sql di Supabase SQL Editor (aman diulang), lalu simpan lagi. "
                 + `Penyebab asli: ${String(err?.message || "").slice(0, 200)}`
             );
             error.status = 409;
