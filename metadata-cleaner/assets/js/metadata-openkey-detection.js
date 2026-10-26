@@ -7,6 +7,28 @@ const OPENKEY_TIMEOUT =
 const MAX_VIDEO_FRAMES =
     3;
 
+/*
+ * Gangguan sesaat OpenKey (502/503/504) diulang satu kali
+ * sebelum menyerah, supaya satu hiccup gateway tidak langsung
+ * memunculkan "OPENKEY AI CHECK TIDAK TERSEDIA".
+ */
+const OPENKEY_RETRY_DELAY_MS =
+    800;
+
+const RETRYABLE_STATUSES =
+    new Set([502, 503, 504]);
+
+/*
+ * Model vision terakhir yang berhasil dipakai disimpan lokal.
+ * Kalau katalog model sedang 502, pemeriksaan tetap bisa jalan
+ * memakai model yang sama seperti sebelumnya.
+ */
+const VISION_MODEL_CACHE_KEY =
+    "genz-openkey-vision-model";
+
+const VISION_MODEL_CACHE_TTL_MS =
+    7 * 24 * 60 * 60 * 1000;
+
 const DOCUMENTED_VISION_MODELS =
     new Set([
         "grok-4.5",
@@ -112,16 +134,35 @@ function supportsImageInput(model) {
 
 export function selectVisionModel(models) {
 
+    return selectVisionModels(models, 1)[0] || null;
+}
+
+
+/**
+ * Kandidat model vision, urut sesuai katalog.
+ *
+ * Dipakai untuk cadangan: bila satu model sedang gangguan (502
+ * dari provider di belakangnya), model vision berikutnya masih
+ * bisa dipakai tanpa mengubah hasil pemeriksaan.
+ */
+export function selectVisionModels(models, limit = 2) {
+
     if (!Array.isArray(models)) {
-        return null;
+        return [];
     }
 
+    const max =
+        Number.isFinite(limit)
+            ? Math.max(1, Math.floor(limit))
+            : 2;
 
-    return models.find(
-        model =>
-            getModelId(model) &&
-            supportsImageInput(model)
-    ) || null;
+    return models
+        .filter(
+            model =>
+                getModelId(model) &&
+                supportsImageInput(model)
+        )
+        .slice(0, max);
 }
 
 
@@ -262,7 +303,76 @@ async function getAccessToken() {
 }
 
 
-async function requestOpenKey(body, token) {
+export function readCachedVisionModel() {
+
+    try {
+
+        const raw =
+            window.localStorage.getItem(
+                VISION_MODEL_CACHE_KEY
+            );
+
+        if (!raw) {
+            return "";
+        }
+
+        const parsed =
+            JSON.parse(raw);
+
+        const modelId =
+            String(parsed?.modelId || "").trim();
+
+        const savedAt =
+            Number(parsed?.savedAt);
+
+        if (!modelId || !Number.isFinite(savedAt)) {
+            return "";
+        }
+
+        if (
+            Date.now() - savedAt >
+            VISION_MODEL_CACHE_TTL_MS
+        ) {
+            return "";
+        }
+
+        return modelId;
+
+    } catch {
+
+        return "";
+    }
+}
+
+
+export function cacheVisionModel(modelId) {
+
+    try {
+
+        window.localStorage.setItem(
+            VISION_MODEL_CACHE_KEY,
+            JSON.stringify({
+                modelId,
+                savedAt: Date.now()
+            })
+        );
+
+    } catch {
+
+        /* localStorage penuh/diblokir: abaikan. */
+    }
+}
+
+
+function waitForRetry(ms) {
+
+    return new Promise(
+        resolve => setTimeout(resolve, ms)
+    );
+}
+
+
+async function requestOpenKeyOnce(body, token) {
 
     const controller =
         new AbortController();
@@ -304,10 +414,29 @@ async function requestOpenKey(body, token) {
 
 
         if (!response.ok || data?.success === false) {
-            throw new Error(
-                data?.error ||
-                `Request OpenKey gagal (${response.status}).`
-            );
+
+            const error =
+                new Error(
+                    data?.error ||
+                    `Request OpenKey gagal (${response.status}).`
+                );
+
+            /*
+             * Status dan sifat "boleh diulang" dibawa ke atas
+             * supaya pesan ke pengguna jujur: gangguan layanan
+             * berbeda dari kesalahan konfigurasi.
+             */
+            error.status =
+                response.status;
+
+            error.code =
+                String(data?.code || "");
+
+            error.retryable =
+                data?.retryable === true ||
+                RETRYABLE_STATUSES.has(response.status);
+
+            throw error;
         }
 
 
@@ -316,9 +445,16 @@ async function requestOpenKey(body, token) {
     } catch (error) {
 
         if (error?.name === "AbortError") {
-            throw new Error(
-                "Pemeriksaan OpenKey melewati batas waktu."
-            );
+
+            const timeoutError =
+                new Error(
+                    "Pemeriksaan OpenKey melewati batas waktu."
+                );
+
+            timeoutError.code =
+                "OPENKEY_TIMEOUT";
+
+            throw timeoutError;
         }
 
         throw error;
@@ -327,6 +463,62 @@ async function requestOpenKey(body, token) {
 
         clearTimeout(timeoutId);
     }
+}
+
+
+/**
+ * Panggil OpenKey; gangguan gateway sesaat diulang satu kali.
+ */
+export async function requestOpenKey(body, token) {
+
+    try {
+
+        return await requestOpenKeyOnce(body, token);
+
+    } catch (error) {
+
+        if (error?.retryable !== true) {
+            throw error;
+        }
+
+        await waitForRetry(OPENKEY_RETRY_DELAY_MS);
+
+        return await requestOpenKeyOnce(body, token);
+    }
+}
+
+
+/**
+ * Ubah error OpenKey menjadi kalimat yang bisa ditindaklanjuti.
+ *
+ * Tidak pernah mengaku pemeriksaan berhasil: gangguan layanan
+ * tetap dilaporkan sebagai gangguan.
+ */
+export function describeOpenKeyFailure(error) {
+
+    const status =
+        Number(error?.status) || null;
+
+    if (status && RETRYABLE_STATUSES.has(status)) {
+        return `Layanan pemeriksa visual OpenKey sedang gangguan (HTTP ${status}). Sudah dicoba ulang otomatis tetapi belum berhasil. Metadata lokal di bawah tetap sah — coba periksa lagi beberapa menit lagi.`;
+    }
+
+    if (status === 429) {
+        return "OpenKey membatasi jumlah permintaan (HTTP 429). Tunggu sebentar lalu periksa lagi.";
+    }
+
+    if (status === 401 || status === 403) {
+        return `OpenKey menolak kredensial (HTTP ${status}). Hubungi admin untuk memeriksa API key OpenKey.`;
+    }
+
+    if (error?.code === "OPENKEY_TIMEOUT") {
+        return "Pemeriksaan OpenKey melewati batas waktu. File mungkin terlalu besar — coba lagi.";
+    }
+
+    return (
+        error?.message ||
+        "Pemeriksaan visual OpenKey gagal."
+    );
 }
 
 
@@ -681,19 +873,48 @@ export async function detectOpenKeyMedia(
     const token =
         await getAccessToken();
 
-    const catalog =
-        await requestOpenKey(
-            { operation: "openkey_models" },
-            token
+    const modelIds = [];
+
+    try {
+
+        const catalog =
+            await requestOpenKey(
+                { operation: "openkey_models" },
+                token
+            );
+
+        selectVisionModels(catalog?.models, 2).forEach(
+            model => modelIds.push(
+                getModelId(model)
+            )
         );
 
-    const model =
-        selectVisionModel(catalog?.models);
+        if (modelIds.length === 0) {
 
-    if (!model) {
-        throw new Error(
-            "OpenKey tidak menyediakan model dengan dukungan input gambar."
-        );
+            throw new Error(
+                "OpenKey tidak menyediakan model dengan dukungan input gambar."
+            );
+        }
+
+        cacheVisionModel(modelIds[0]);
+
+    } catch (error) {
+
+        /*
+         * Katalog model sedang gangguan, tetapi pemeriksaan masih
+         * mungkin berjalan dengan model vision yang terakhir
+         * berhasil. Kalau tidak ada cadangan, laporkan apa adanya.
+         */
+        const cachedModelId =
+            error?.retryable === true
+                ? readCachedVisionModel()
+                : "";
+
+        if (!cachedModelId) {
+            throw error;
+        }
+
+        modelIds.push(cachedModelId);
     }
 
 
@@ -747,35 +968,71 @@ export async function detectOpenKeyMedia(
         )
     ];
 
-    const response =
-        await requestOpenKey(
-            {
-                model: getModelId(model),
-                messages: [
-                    {
-                        role: "system",
-                        content: "Anda adalah pemeriksa indikasi media generatif. Bersikap konservatif, sebutkan keterbatasan, dan jangan mengarang bukti."
-                    },
-                    {
-                        role: "user",
-                        content
-                    }
-                ],
-                temperature: 0.1,
-                max_tokens: 600,
-                stream: false
-            },
-            token
-        );
+    const payloadFor = model =>
+        ({
+            model,
+            messages: [
+                {
+                    role: "system",
+                    content: "Anda adalah pemeriksa indikasi media generatif. Bersikap konservatif, sebutkan keterbatasan, dan jangan mengarang bukti."
+                },
+                {
+                    role: "user",
+                    content
+                }
+            ],
+            temperature: 0.1,
+            max_tokens: 600,
+            stream: false
+        });
 
-    return {
-        ...parseOpenKeyAnalysis(
-            getMessageContent(response)
-        ),
-        model: getModelId(model),
-        frameCount: visualInputs.length,
-        status: "complete"
-    };
+    let lastError = null;
+
+    for (const candidate of modelIds) {
+
+        try {
+
+            const response =
+                await requestOpenKey(
+                    payloadFor(candidate),
+                    token
+                );
+
+            cacheVisionModel(candidate);
+
+            return {
+                ...parseOpenKeyAnalysis(
+                    getMessageContent(response)
+                ),
+                model: candidate,
+                frameCount: visualInputs.length,
+                status: "complete"
+            };
+
+        } catch (error) {
+
+            lastError = error;
+
+            /*
+             * Hanya gangguan sesaat / model tidak tersedia yang
+             * dicoba dengan model lain. Kesalahan lain (kredensial,
+             * batas permintaan, isi permintaan) tidak akan membaik
+             * hanya dengan mengganti model.
+             */
+            const modelUnavailable =
+                error?.status === 404 ||
+                error?.status === 410;
+
+            if (!error?.retryable && !modelUnavailable) {
+                throw error;
+            }
+        }
+    }
+
+    throw (
+        lastError ||
+        new Error("Pemeriksaan visual OpenKey gagal.")
+    );
 }
 
 

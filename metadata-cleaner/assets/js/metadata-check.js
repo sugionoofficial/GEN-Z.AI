@@ -114,9 +114,10 @@ import {
 ================================================= */
 
 import {
+    describeOpenKeyFailure,
     detectOpenKeyMedia,
     renderOpenKeyResult
-} from "./metadata-openkey-detection.js";
+} from "./metadata-openkey-detection.js?v=openkey-gateway-retry-20261026";
 
 
 /* =========================================================
@@ -272,7 +273,7 @@ export async function checkMetadata() {
 
             state.openkeyDetection = {
                 status: "error",
-                message: getReadableError(error)
+                message: describeOpenKeyFailure(error)
             };
 
         }

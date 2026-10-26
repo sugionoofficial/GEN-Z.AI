@@ -78,6 +78,68 @@ const CHAT_COMPLETIONS_PATH =
 
 /**
  * =========================================================
+ * GATEWAY RETRY
+ * =========================================================
+ *
+ * OpenKey berada di depan banyak provider. Ketika provider
+ * di belakangnya sedang sibuk / restart, OpenKey membalas
+ * 502, 503, atau 504 tanpa pesan yang berguna.
+ *
+ * Status tersebut berarti permintaan TIDAK diproses, jadi
+ * aman diulang sebentar lagi. Tanpa retry, satu gangguan
+ * beberapa detik membuat halaman Metadata Cleaner berkata
+ * "OPENKEY AI CHECK TIDAK TERSEDIA".
+ *
+ * Jeda retry dibuat pendek supaya tidak menahan UI terlalu
+ * lama: 400 ms lalu 1,2 detik (total 2 percobaan tambahan).
+ * =========================================================
+ */
+
+const RETRYABLE_GATEWAY_STATUSES =
+    new Set([502, 503, 504]);
+
+
+const DEFAULT_GATEWAY_RETRY_DELAYS_MS =
+    [400, 1200];
+
+
+const GATEWAY_STATUS_LABELS = {
+
+    502: "Bad Gateway",
+
+    503: "Service Unavailable",
+
+    504: "Gateway Timeout"
+
+};
+
+
+function sleep(ms) {
+
+    if (!Number.isFinite(ms) || ms <= 0) {
+        return Promise.resolve();
+    }
+
+    return new Promise(
+        resolve => setTimeout(resolve, ms)
+    );
+
+}
+
+
+function gatewayErrorMessage(status) {
+
+    const label =
+        GATEWAY_STATUS_LABELS[status] ||
+        "gangguan sementara";
+
+    return `Layanan OpenKey sedang gangguan (HTTP ${status} ${label}). Coba lagi beberapa saat.`;
+
+}
+
+
+/**
+ * =========================================================
  * NORMALIZE BASE URL
  * =========================================================
  */
@@ -453,6 +515,20 @@ function createOpenKeyError(
     }
 
 
+    /*
+     * retryable = true berarti gangguan sesaat (gateway 5xx /
+     * jaringan), bukan kesalahan konfigurasi atau isi permintaan.
+     */
+    if (
+        options.retryable !== undefined
+    ) {
+
+        error.retryable =
+            options.retryable === true;
+
+    }
+
+
     return error;
 
 }
@@ -521,126 +597,199 @@ async function request(
     }
 
 
-    const requestOptions = {
+    const retryDelays =
+        Array.isArray(options.retryDelaysMs)
+            ? options.retryDelaysMs
+                .map(delay => Number(delay))
+                .filter(delay => Number.isFinite(delay) && delay >= 0)
+            : DEFAULT_GATEWAY_RETRY_DELAYS_MS;
 
-        method,
 
-        headers
+    const bodyPayload =
+        options.body === undefined
+            ? undefined
+            : (
+                typeof options.body === "string"
+                    ? options.body
+                    : JSON.stringify(options.body)
+            );
+
+
+    /*
+     * Signal timeout dibuat ulang tiap percobaan: satu
+     * AbortSignal tidak boleh dipakai ulang setelah abort.
+     */
+    const buildRequestOptions = () => {
+
+        const attemptOptions = {
+
+            method,
+
+            headers
+
+        };
+
+
+        if (
+            Number.isFinite(options.timeoutMs) &&
+            options.timeoutMs > 0
+        ) {
+
+            attemptOptions.signal =
+                AbortSignal.timeout(
+                    options.timeoutMs
+                );
+
+        }
+
+
+        if (bodyPayload !== undefined) {
+
+            attemptOptions.body =
+                bodyPayload;
+
+        }
+
+
+        return attemptOptions;
 
     };
 
-    if (
-        Number.isFinite(options.timeoutMs) &&
-        options.timeoutMs > 0
-    ) {
 
-        requestOptions.signal =
-            AbortSignal.timeout(
-                options.timeoutMs
-            );
-
-    }
+    let attempt = 0;
 
 
-    if (
-        options.body !== undefined
-    ) {
+    while (true) {
 
-        requestOptions.body =
+        let response;
 
-            typeof options.body === "string"
 
-                ? options.body
+        try {
 
-                : JSON.stringify(
-                    options.body
+            response =
+                await fetch(
+                    buildUrl(path),
+                    buildRequestOptions()
                 );
 
-    }
+        } catch (error) {
+
+            const timedOut =
+                error?.name === "TimeoutError" ||
+                error?.name === "AbortError";
 
 
-    let response;
+            /*
+             * Gangguan jaringan sesaat diulang. Timeout TIDAK
+             * diulang: waktunya sudah habis, mengulang hanya
+             * membuat pengguna menunggu lebih lama.
+             */
+            if (!timedOut && attempt < retryDelays.length) {
 
-
-    try {
-
-        response =
-            await fetch(
-                buildUrl(path),
-                requestOptions
-            );
-
-    } catch (error) {
-
-        throw createOpenKeyError(
-
-            error?.name === "TimeoutError" || error?.name === "AbortError"
-                ? "Waktu tunggu permintaan OpenKey habis."
-                : `Gagal terhubung ke OpenKey: ${error.message}`,
-
-            {
-
-                code:
-                    error?.name === "TimeoutError" || error?.name === "AbortError"
-                        ? "OPENKEY_TIMEOUT_ERROR"
-                        : "OPENKEY_NETWORK_ERROR",
-
-                cause:
-                    error
+                await sleep(retryDelays[attempt]);
+                attempt += 1;
+                continue;
 
             }
 
-        );
 
-    }
+            throw createOpenKeyError(
+
+                timedOut
+                    ? "Waktu tunggu permintaan OpenKey habis."
+                    : `Gagal terhubung ke OpenKey: ${error.message}`,
+
+                {
+
+                    code:
+                        timedOut
+                            ? "OPENKEY_TIMEOUT_ERROR"
+                            : "OPENKEY_NETWORK_ERROR",
+
+                    retryable:
+                        !timedOut,
+
+                    cause:
+                        error
+
+                }
+
+            );
+
+        }
 
 
-    const data =
-        await parseResponse(
-            response
-        );
+        const data =
+            await parseResponse(
+                response
+            );
 
 
-    if (
-        !response.ok
-    ) {
+        if (response.ok) {
+
+            return data;
+
+        }
+
+
+        const gatewayFailure =
+            RETRYABLE_GATEWAY_STATUSES.has(
+                response.status
+            );
+
+
+        if (gatewayFailure && attempt < retryDelays.length) {
+
+            await sleep(retryDelays[attempt]);
+            attempt += 1;
+            continue;
+
+        }
+
 
         const message =
             extractMessage(
 
                 data,
 
-                `OpenKey request gagal (${response.status}).`
+                gatewayFailure
+                    ? gatewayErrorMessage(response.status)
+                    : `OpenKey request gagal (${response.status}).`
 
             );
 
 
-        throw createOpenKeyError(
+        const error =
+            createOpenKeyError(
 
-            message,
+                message,
 
-            {
+                {
 
-                status:
-                    response.status,
+                    status:
+                        response.status,
 
-                code:
-                    extractErrorCode(
+                    code:
+                        extractErrorCode(
+                            data,
+                            response.status
+                        ),
+
+                    response:
                         data,
-                        response.status
-                    ),
 
-                response:
-                    data
+                    retryable:
+                        gatewayFailure ||
+                        response.status === 429
 
-            }
+                }
 
-        );
+            );
+
+
+        throw error;
 
     }
-
-
-    return data;
 
 }
 
