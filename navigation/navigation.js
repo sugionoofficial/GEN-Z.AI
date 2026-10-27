@@ -1418,7 +1418,8 @@
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
-                padding: 8px 10px 16px;
+                padding: 10px 10px 16px;
+                overflow-x: hidden;
                 overflow-y: auto;
             }
 
@@ -1428,29 +1429,134 @@
                 align-items: center;
                 gap: 10px;
                 min-height: 44px;
-                padding: 9px 11px;
-                border: 1px solid transparent;
+                padding: 10px 12px;
+                border: 0;
                 border-radius: 10px;
                 color: rgba(255, 255, 255, .66);
                 text-decoration: none;
-                transition: all .18s ease;
+                overflow: hidden;
+                isolation: isolate;
+                transition:
+                    color .3s ease,
+                    background .3s ease,
+                    box-shadow .3s ease,
+                    transform .3s ease;
             }
 
-            .genz-nav-item:hover {
-                color: #ffffff;
-                background: rgba(255, 35, 35, .07);
-                border-color: rgba(255, 45, 45, .16);
-                transform: translateX(2px);
+            /* Electric blue border spinning around the block on hover */
+            .genz-nav-item::before {
+                content: "";
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 520px;
+                height: 520px;
+                background: conic-gradient(
+                    from 0deg,
+                    transparent 0deg,
+                    transparent 300deg,
+                    #00eaff 330deg,
+                    #ffffff 345deg,
+                    #00eaff 355deg,
+                    transparent 360deg
+                );
+                transform: translate(-50%, -50%) rotate(0deg);
+                animation: genz-nav-electric 2s linear infinite;
+                animation-play-state: paused;
+                opacity: 0;
+                pointer-events: none;
+                z-index: 0;
+                transition: opacity .25s ease;
+            }
+
+            /* Inner background mask leaving a 2px glowing perimeter */
+            .genz-nav-item::after {
+                content: "";
+                position: absolute;
+                inset: 2px;
+                background: #10151f;
+                border-radius: 8px;
+                opacity: 0;
+                pointer-events: none;
+                z-index: 1;
+                transition: opacity .25s ease, background .25s ease;
             }
 
             .genz-nav-item.active {
                 color: #ffffff;
                 background: linear-gradient(90deg, rgba(255, 35, 35, .15), rgba(255, 35, 35, .04));
-                border-color: rgba(255, 50, 50, .28);
-                box-shadow: inset 3px 0 0 var(--genz-red), 0 0 14px rgba(255, 0, 0, .05);
+                box-shadow:
+                    inset 3px 0 0 var(--genz-red),
+                    inset 0 0 0 1px rgba(255, 50, 50, .28),
+                    0 0 14px rgba(255, 0, 0, .05);
+            }
+
+            .genz-nav-item:hover,
+            .genz-nav-item:focus-visible {
+                z-index: 2;
+                color: #ffffff;
+                background: rgba(0, 234, 255, .12);
+                transform: translateY(-2px);
+                outline: none;
+                box-shadow:
+                    0 0 10px #00eaff,
+                    0 0 25px rgba(0, 234, 255, .45);
+            }
+
+            .genz-nav-item:hover::before,
+            .genz-nav-item:focus-visible::before {
+                opacity: 1;
+                animation-play-state: running;
+            }
+
+            .genz-nav-item:hover::after,
+            .genz-nav-item:focus-visible::after {
+                opacity: 1;
+            }
+
+            @keyframes genz-nav-electric {
+                from {
+                    transform: translate(-50%, -50%) rotate(0deg);
+                }
+                to {
+                    transform: translate(-50%, -50%) rotate(360deg);
+                }
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-nav-item::before {
+                background: conic-gradient(
+                    from 0deg,
+                    transparent 0deg,
+                    transparent 295deg,
+                    #00d4ff 325deg,
+                    #0066ff 345deg,
+                    #00eaff 356deg,
+                    transparent 360deg
+                );
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-nav-item::after {
+                background: #f0f8ff;
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-nav-item:hover,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-nav-item:focus-visible {
+                color: #0f172a;
+                background: rgba(0, 180, 255, .16);
+                transform: translateY(-2px);
+                box-shadow:
+                    0 0 10px rgba(0, 212, 255, .75),
+                    0 0 24px rgba(0, 140, 255, .36);
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-nav-item:hover .genz-nav-label,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-nav-item:focus-visible .genz-nav-label {
+                color: #0f172a;
             }
 
             .genz-nav-icon {
+                position: relative;
+                z-index: 2;
                 width: 23px;
                 flex: 0 0 23px;
                 display: flex;
@@ -1466,6 +1572,8 @@
             }
 
             .genz-nav-label {
+                position: relative;
+                z-index: 2;
                 min-width: 0;
                 font-size: 12px;
                 font-weight: 600;
@@ -1688,7 +1796,7 @@
                 .genz-logo { min-height: 32px; gap: 8px; }
                 .genz-logo-mark-img { width: 30px; height: 30px; flex-basis: 30px; border-radius: 8px; }
                 .genz-logo-text { font-size: 16px; }
-                .genz-nav { padding: 7px 8px 14px; }
+                .genz-nav { padding: 9px 8px 14px; }
                 .genz-sidebar-footer { padding: 9px 8px 12px; }
                 .genz-account-box { margin-bottom: 9px; }
             }
