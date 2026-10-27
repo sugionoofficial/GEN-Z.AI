@@ -38,7 +38,7 @@
     if (!window.__GENZ_THEME_SCRIPT_LOADING) {
         window.__GENZ_THEME_SCRIPT_LOADING = true;
         const themeScript = document.createElement("script");
-        themeScript.src = "/assets/js/theme.js?v=electric-red-footer-20261027";
+        themeScript.src = "/assets/js/theme.js?v=deep-black-bg-20261027";
         themeScript.onerror = error => {
             console.error("[GEN-Z.AI] Failed to load shared theme controls:", error);
             window.__GENZ_THEME_SCRIPT_LOADING = false;

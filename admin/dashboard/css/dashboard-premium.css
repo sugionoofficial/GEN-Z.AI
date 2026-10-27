@@ -5,7 +5,7 @@
 ========================================================= */
 
 :root {
-    --gza-bg: #050608;
+    --gza-bg: #000000;
     --gza-surface: #0b0d11;
     --gza-surface-2: #101319;
     --gza-surface-3: #151920;
@@ -49,18 +49,7 @@ body {
 
     color: var(--gza-text);
 
-    background:
-        radial-gradient(
-            900px 500px at 50% -160px,
-            rgba(255, 35, 35, 0.075),
-            transparent 70%
-        ),
-        radial-gradient(
-            600px 500px at 100% 45%,
-            rgba(255, 25, 25, 0.025),
-            transparent 70%
-        ),
-        #050608;
+    background: #000000;
 
     font-family:
         Inter,
@@ -89,25 +78,8 @@ body::before {
 
     pointer-events: none;
 
-    background-image:
-        linear-gradient(
-            rgba(255,255,255,0.018) 1px,
-            transparent 1px
-        ),
-        linear-gradient(
-            90deg,
-            rgba(255,255,255,0.018) 1px,
-            transparent 1px
-        );
-
-    background-size: 56px 56px;
-
-    mask-image:
-        linear-gradient(
-            to bottom,
-            rgba(0,0,0,0.75),
-            transparent 75%
-        );
+    background: none;
+    background-image: none;
 }
 
 
@@ -132,10 +104,8 @@ body::after {
 
     border-radius: 50%;
 
-    background:
-        rgba(255, 20, 20, 0.035);
-
-    filter: blur(100px);
+    background: none;
+    opacity: 0;
 }
 
 
@@ -1863,10 +1833,7 @@ footer span {
 }
 
 body {
-    background:
-        radial-gradient(900px 500px at 50% -160px, rgba(255,159,28,.075), transparent 70%),
-        radial-gradient(600px 500px at 100% 45%, rgba(255,159,28,.025), transparent 70%),
-        #050608;
+    background: #000000;
 }
 
 #dashboardHeader::before {

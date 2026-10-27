@@ -4,7 +4,8 @@
     if (window.__GENZ_THEME_STARTED) return;
     window.__GENZ_THEME_STARTED = true;
 
-    const STORAGE_KEY = "genz-theme";
+    const STORAGE_KEY = "genz-theme-v2";
+    const LEGACY_STORAGE_KEY = "genz-theme";
     const STYLE_ID = "genz-theme-style";
     let toggleButton = null;
     let deviceModeButton = null;
@@ -35,6 +36,7 @@
 
     function readTheme() {
         try {
+            localStorage.removeItem(LEGACY_STORAGE_KEY);
             const savedTheme = localStorage.getItem(STORAGE_KEY);
             return savedTheme === "light" || savedTheme === "dark"
                 ? savedTheme
@@ -167,24 +169,32 @@
         style.textContent = `
             html {
                 color-scheme: dark;
-                --theme-page: #090a10;
+                background: #000000;
+                --theme-page: #000000;
                 --theme-text: #f5f6fb;
                 --theme-muted: #a0a5b5;
-                --theme-surface: rgba(19, 21, 31, .84);
-                --theme-surface-raised: rgba(27, 29, 41, .94);
-                --theme-border: rgba(255, 255, 255, .09);
-                --theme-shadow: 0 18px 55px rgba(0, 0, 0, .28);
-                --theme-input: rgba(6, 8, 14, .78);
+                --theme-surface: rgba(16, 18, 26, .92);
+                --theme-surface-raised: rgba(22, 24, 34, .96);
+                --theme-border: rgba(255, 255, 255, .10);
+                --theme-shadow: 0 18px 55px rgba(0, 0, 0, .55);
+                --theme-input: rgba(10, 12, 18, .92);
+            }
+
+            html[data-genz-theme="dark"] {
+                background: #000000 !important;
             }
 
             html[data-genz-theme="dark"] body {
                 color: var(--theme-text);
-                background:
-                    radial-gradient(ellipse at 8% 0%, rgba(255, 48, 72, .14), transparent 34%),
-                    radial-gradient(ellipse at 94% 8%, rgba(97, 82, 190, .12), transparent 32%),
-                    radial-gradient(ellipse at 50% 100%, rgba(19, 91, 120, .09), transparent 42%),
-                    linear-gradient(145deg, #11131c 0%, #090a10 48%, #06070b 100%) !important;
-                background-attachment: fixed !important;
+                background: #000000 !important;
+                background-image: none !important;
+            }
+
+            html[data-genz-theme="dark"] body::before,
+            html[data-genz-theme="dark"] body::after {
+                background: none !important;
+                background-image: none !important;
+                opacity: 0 !important;
             }
 
             html[data-genz-theme="light"] {

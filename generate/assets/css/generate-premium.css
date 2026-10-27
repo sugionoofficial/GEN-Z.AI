@@ -25,10 +25,10 @@
 :root {
 
     --gz-bg:
-        #020302;
+        #000000;
 
     --gz-bg-2:
-        #050705;
+        #000000;
 
     --gz-surface:
         #080b08;
@@ -118,25 +118,7 @@ body {
         var(--gz-text);
 
     background:
-
-        radial-gradient(
-            900px 520px at 86% -10%,
-            rgba(183,255,0,0.055),
-            transparent 65%
-        ),
-
-        radial-gradient(
-            800px 500px at -10% 45%,
-            rgba(183,255,0,0.025),
-            transparent 70%
-        ),
-
-        linear-gradient(
-            135deg,
-            #010201 0%,
-            #050705 46%,
-            #020302 100%
-        ) !important;
+        #000000 !important;
 
     -webkit-font-smoothing:
         antialiased;

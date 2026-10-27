@@ -17,13 +17,13 @@
     <style>
 
         :root {
-            --bg:#f4f6f8;
-            --card:#fff;
-            --text:#111827;
-            --muted:#6b7280;
-            --border:#e5e7eb;
-            --dark:#111827;
-            --accent:#6366f1;
+            --bg:#000000;
+            --card:#131724;
+            --text:#f8fafc;
+            --muted:#94a3b8;
+            --border:rgba(255,255,255,.12);
+            --dark:#6366f1;
+            --accent:#818cf8;
             --success:#16a34a;
             --danger:#dc2626;
             --radius:20px;
@@ -35,20 +35,13 @@
             padding:0;
         }
 
+        html {
+            background:var(--bg);
+        }
+
         body {
             font-family:"Inter",sans-serif;
-            background:
-                radial-gradient(
-                    circle at 15% 10%,
-                    rgba(99,102,241,.10),
-                    transparent 30%
-                ),
-                radial-gradient(
-                    circle at 85% 20%,
-                    rgba(139,92,246,.08),
-                    transparent 30%
-                ),
-                var(--bg);
+            background:var(--bg);
             color:var(--text);
             min-height:100vh;
         }
@@ -1427,7 +1420,7 @@
 
         /* ---------- MODE GELAP ---------- */
         html[data-genz-theme="dark"] {
-            --bg:#090a10;
+            --bg:#000000;
             --card:#131724;
             --text:#f8fafc;
             --muted:#94a3b8;
@@ -1791,7 +1784,7 @@
         }
 
     </style>
-    <script src="/assets/js/theme.js?v=electric-red-footer-20261027" defer></script>
+    <script src="/assets/js/theme.js?v=deep-black-bg-20261027" defer></script>
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
 <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
@@ -2499,7 +2492,7 @@
 <script src="../assets/js/config.js"></script>
 
 <!-- SHARED NAVIGATION -->
-<script src="../navigation/navigation.js?v=hide-nav-url-20261027"></script>
+<script src="../navigation/navigation.js?v=deep-black-bg-20261027"></script>
 
 
 <script>
