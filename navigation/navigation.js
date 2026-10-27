@@ -38,7 +38,7 @@
     if (!window.__GENZ_THEME_SCRIPT_LOADING) {
         window.__GENZ_THEME_SCRIPT_LOADING = true;
         const themeScript = document.createElement("script");
-        themeScript.src = "/assets/js/theme.js?v=light-mode-pass-20261021";
+        themeScript.src = "/assets/js/theme.js?v=light-mode-pass-20261027";
         themeScript.onerror = error => {
             console.error("[GEN-Z.AI] Failed to load shared theme controls:", error);
             window.__GENZ_THEME_SCRIPT_LOADING = false;
