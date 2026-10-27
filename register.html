@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" data-genz-theme="light">
+<html lang="id">
 <head>
 
     <meta charset="UTF-8">
@@ -63,6 +63,7 @@
             --input-border:
                 rgba(255, 255, 255, 0.09);
 
+            --text:
                 #ffffff;
 
             --secondary:
@@ -830,7 +831,7 @@
                 var(--input);
 
             color:
-                currentColor;
+                var(--text);
 
             font-family:
                 inherit;
@@ -1597,9 +1598,234 @@
 
         }
 
+
+        /* =========================================================
+           LIGHT MODE PASS — REGISTER READABILITY
+           ========================================================= */
+
+        body .requirements .requirement {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+
+        html[data-genz-theme="dark"] body .requirements .requirement {
+            color: #6f7580;
+        }
+
+        html[data-genz-theme="dark"] body .requirements .requirement.valid {
+            color: #a5e6b8;
+        }
+
+        html[data-genz-theme="light"] {
+            --bg: #f3f5fb;
+            --panel: #ffffff;
+            --panel-border: rgba(23, 32, 51, 0.14);
+            --input: #f8fafc;
+            --input-border: #cbd5e1;
+            --text: #101828;
+            --secondary: #475467;
+            --muted: #667085;
+        }
+
+        html[data-genz-theme="light"] body::before {
+            background-image:
+                linear-gradient(
+                    rgba(23, 32, 51, 0.04) 1px,
+                    transparent 1px
+                ),
+                linear-gradient(
+                    90deg,
+                    rgba(23, 32, 51, 0.04) 1px,
+                    transparent 1px
+                );
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .card {
+            background: #ffffff;
+            border-color: rgba(23, 32, 51, 0.14);
+            box-shadow:
+                0 32px 80px rgba(15, 23, 42, 0.12),
+                0 8px 24px rgba(15, 23, 42, 0.06);
+            color: #101828;
+        }
+
+        /* Panel kiri (.visual) tetap pulau gelap agar logo & aksen kontras */
+        html[data-genz-theme="light"][data-genz-theme="light"] body .visual {
+            color: #ffffff;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .visual h1 {
+            color: #ffffff;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .visual h1 .accent {
+            color: var(--red);
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .visual .visual-description {
+            color: #c2c7d2 !important;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .visual .feature,
+        html[data-genz-theme="light"][data-genz-theme="light"] body .visual .feature span {
+            color: #d0d5df;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .visual .feature-icon {
+            color: var(--red);
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Panel kanan (.form-side) cerah dengan teks gelap kontras tinggi */
+        html[data-genz-theme="light"][data-genz-theme="light"] body .form-side {
+            background: #ffffff;
+            color: #101828;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .form-header h2 {
+            color: #101828;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .form-header p {
+            color: #475467;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .message.error {
+            color: #b42318;
+            background: #fef3f2;
+            border-color: #fecdca;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .message.success {
+            color: #067647;
+            background: #ecfdf3;
+            border-color: #abefc6;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .label {
+            color: #344054 !important;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .input-wrapper input {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #101828;
+            box-shadow: inset 0 1px 2px rgba(16, 24, 40, 0.04);
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .input-wrapper input::placeholder {
+            color: #667085;
+            opacity: 1;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .input-wrapper input:hover {
+            background: #ffffff;
+            border-color: #94a3b8;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .input-wrapper input:focus {
+            background: #ffffff;
+            border-color: #e11d2e;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.12);
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .input-wrapper input.error {
+            border-color: #d92d20;
+            background: #fffbfa;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .input-wrapper input:-webkit-autofill,
+        html[data-genz-theme="light"][data-genz-theme="light"] body .input-wrapper input:-webkit-autofill:hover,
+        html[data-genz-theme="light"][data-genz-theme="light"] body .input-wrapper input:-webkit-autofill:focus {
+            -webkit-text-fill-color: #101828;
+            -webkit-box-shadow: 0 0 0 1000px #f8fafc inset;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .input-icon {
+            color: #667085;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .toggle-password {
+            color: #667085;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .toggle-password:hover {
+            background: #f2f4f7;
+            color: #101828;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .requirements {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            box-shadow: none;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .requirements-title {
+            color: #1e293b;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .requirements .requirement {
+            color: #475467;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .requirements .requirement.valid {
+            color: #067647;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .requirements .requirement-icon {
+            border-color: #cbd5e1;
+            background: #ffffff;
+            color: transparent;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .requirements .requirement.valid .requirement-icon {
+            color: #16a34a;
+            border-color: #86efac;
+            background: #dcfce7;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .register-button,
+        html[data-genz-theme="light"][data-genz-theme="light"] body .register-button span {
+            color: #ffffff;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .login-link-button {
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #101828;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .login-link-button:hover {
+            border-color: #94a3b8;
+            background: #eef2f6;
+            color: #0f172a;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .login-link {
+            border-top-color: #e2e8f0;
+            color: #475467;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .login-link a {
+            color: #101828;
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .login-link a:hover {
+            color: var(--red);
+        }
+
+        html[data-genz-theme="light"][data-genz-theme="light"] body .footer {
+            color: #667085;
+        }
+
     </style>
 
-    <script src="/assets/js/theme.js?v=light-mode-pass-20261021" defer></script>
+    <script src="/assets/js/theme.js?v=light-mode-pass-20261027" defer></script>
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
 <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
