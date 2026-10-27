@@ -643,28 +643,32 @@
     async function testOpusProvider() {
         const button = document.getElementById("test-opus-provider");
         const status = document.getElementById("image-provider-status");
+        const modelChoice = selectedOpusModel();
         if (button) button.disabled = true;
         if (status) {
             status.className = "status-box price-settings-status";
-            status.textContent = "Menguji Opus Labs / Product Ad Studio (1 gambar kredit akun OpusClip Anda)…";
+            status.textContent = `Menguji Opus Labs (${modelChoice}, rasio 9:16, quality low · 1 gambar kredit akun OpusClip Anda)…`;
         }
         try {
             const result = await api("studio-admin-image-provider-test", {
                 method: "POST",
-                body: { provider: "opus" }
+                body: { provider: "opus", image_model: modelChoice }
             });
             const test = result.test || {};
             if (test.ok) {
                 const kb = Math.max(1, Math.round(Number(test.bytes || 0) / 1024));
                 const seconds = (Number(test.elapsed_ms || 0) / 1000).toFixed(1);
                 const size = test.width && test.height ? `${test.width}×${test.height}` : "ukuran tidak terbaca";
+                const ratio = test.aspect_ratio || "9:16";
+                const quality = test.quality || "low";
+                const maxRefs = test.max_reference_images || 3;
                 setImageProviderStatus(
-                    `Opus ${test.model} OK — ${kb} KB, ${size}, ${seconds} detik, ${test.images_sent} gambar referensi (sumber: ${test.test_reference_source}). Kredit akun OpusClip Anda terpakai untuk 1 gambar tes ini.`,
+                    `Opus ${test.model} OK — ${kb} KB, ${size} (rasio ${ratio}, quality ${quality}), ${seconds} detik, ${test.images_sent}/${maxRefs} gambar referensi (sumber: ${test.test_reference_source}). Kredit akun OpusClip Anda terpakai untuk 1 gambar tes ini.`,
                     "success"
                 );
             } else {
                 setImageProviderStatus(
-                    `Opus ${test.model || ""} gagal${test.status ? ` (HTTP ${test.status})` : ""}: ${test.error || "tanpa pesan"}`,
+                    `Opus ${test.model || modelChoice} gagal${test.status ? ` (HTTP ${test.status})` : ""}: ${test.error || "tanpa pesan"}`,
                     "error"
                 );
             }
@@ -753,8 +757,9 @@
                 : "PUTER_AUTH_TOKEN belum tersedia — buat token di puter.com/dashboard#account (Create token) lalu simpan sebagai secret Worker";
         }
         if (value === "opus") {
+            const activeOpusModel = settings.opus_model || selectedOpusModel() || "gpt-image-2.5-flare";
             return settings.opus_configured
-                ? `Opus Labs siap (${settings.opus_model || "seedream-5.0-pro"}): foto referensi karakter + outfit diimpor lewat import_assets lalu dibuat melalui generate_keyframes. Setiap gambar MEMOTONG kredit akun OpusClip Anda sendiri (bukan kredit GEN-Z.AI); kredit habis → generate gagal dengan credit_admission_rejected / insufficient_credits`
+                ? `Opus Labs siap (${activeOpusModel} · maks 3 gambar referensi · rasio 9:16 · quality low): foto referensi karakter + outfit diimpor lewat import_assets lalu dibuat melalui generate_keyframes. Setiap gambar MEMOTONG kredit akun OpusClip Anda sendiri (bukan kredit GEN-Z.AI); kredit habis → generate gagal dengan credit_admission_rejected / insufficient_credits`
                 : "OPUS_AUTH_TOKEN belum tersedia — hubungkan akun OpusClip/Opus Labs (product-ad-studio.labs.opus.pro / labs.opus.pro/opus-video-tools/mcp) lalu simpan Bearer token OAuth sebagai secret Worker";
         }
         return settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
@@ -779,6 +784,23 @@
 
     function currentLlmQuotaEntries() {
         return providerSettings?.qwencloud_llm_models || [];
+    }
+
+    const DEFAULT_OPUS_MODELS = [
+        { id: "gpt-image-2.5-flare", label: "GPT Image 2.5 Flare", note: "Cepat & hemat latensi" },
+        { id: "gpt-image-2.5-sunburst", label: "GPT Image 2.5 Sunburst", note: "Presisi & detail produk tinggi" }
+    ];
+
+    function currentOpusModelEntries() {
+        return Array.isArray(providerSettings?.opus_models) && providerSettings.opus_models.length
+            ? providerSettings.opus_models
+            : DEFAULT_OPUS_MODELS;
+    }
+
+    function selectedOpusModel() {
+        return document.getElementById("opus-image-model")?.value
+            || providerSettings?.opus_model
+            || "gpt-image-2.5-flare";
     }
 
     function selectedQuwenModel() {
@@ -836,6 +858,31 @@
         }
     }
 
+    function renderOpusOptions() {
+        const box = document.getElementById("opus-options");
+        const checked = document.querySelector('input[name="image-provider"]:checked')?.value;
+        if (!box) return;
+        box.hidden = checked !== "opus";
+        const select = document.getElementById("opus-image-model");
+        if (!select) return;
+        const entries = currentOpusModelEntries();
+        const saved = providerSettings?.opus_model
+            || (providerSettings?.image_provider === "opus" ? providerSettings?.image_model : "")
+            || "";
+        const previous = select.dataset.userTouched === "true" ? select.value : (saved || select.value);
+        select.replaceChildren();
+        for (const entry of entries) {
+            const label = entry.note
+                ? `${entry.label} (${entry.id}) · ${entry.note}`
+                : `${entry.label} (${entry.id})`;
+            select.add(new Option(label, entry.id));
+        }
+        const wanted = entries.some(entry => entry.id === previous)
+            ? previous
+            : (entries.find(entry => entry.id === saved)?.id || entries[0]?.id || "gpt-image-2.5-flare");
+        select.value = wanted;
+    }
+
     function renderQwenCloudOptions() {
         const box = document.getElementById("qwencloud-options");
         const checked = document.querySelector('input[name="image-provider"]:checked')?.value;
@@ -856,6 +903,7 @@
                 renderQuotaPanel();
             }
         }
+        renderOpusOptions();
         renderQwenCloudLlmOptions();
     }
 
@@ -952,9 +1000,14 @@
             : "auto";
         const textRadio = document.querySelector(`input[name="text-provider"][value="${textSelected}"]`);
         if (textRadio) textRadio.checked = true;
+        const opusSelect = document.getElementById("opus-image-model");
+        if (opusSelect) opusSelect.dataset.userTouched = "";
         renderQwenCloudOptions();
+        const activeProviderName = selected === "opus"
+            ? `${providerLabel(selected)} (${settings.opus_model || selectedOpusModel()} · maks 3 gambar · 9:16 · quality low)`
+            : providerLabel(selected);
         setImageProviderStatus(
-            `Gambar: ${providerLabel(selected)} · Teks: ${textProviderLabel(textSelected)} — ${textProviderReadiness(textSelected, settings)}.`
+            `Gambar: ${activeProviderName} · Teks: ${textProviderLabel(textSelected)} — ${textProviderReadiness(textSelected, settings)}.`
         );
     }
 
@@ -980,10 +1033,16 @@
                     image_provider: selected,
                     text_provider: textChoice,
                     quote_llm_model: quoteLlmModel,
-                    ...(selected === "qwencloud" ? { image_model: selectedQuwenModel() } : {})
+                    ...(selected === "qwencloud"
+                        ? { image_model: selectedQuwenModel() }
+                        : selected === "opus"
+                            ? { image_model: selectedOpusModel() }
+                            : {})
                 }
             });
             providerSettings = { ...providerSettings, ...result.settings };
+            const opusSelect = document.getElementById("opus-image-model");
+            if (opusSelect) opusSelect.dataset.userTouched = "";
             renderQwenCloudOptions();
             const savedText = result.settings?.text_provider || textChoice;
             if (result.settings?.text_provider_saved === false) {
@@ -993,8 +1052,11 @@
                 );
                 return;
             }
+            const savedProviderTitle = result.settings.image_provider === "opus"
+                ? `${providerLabel(result.settings.image_provider)} (${result.settings.opus_model || selectedOpusModel()} · maks 3 gambar · 9:16 · quality low)`
+                : providerLabel(result.settings.image_provider);
             setImageProviderStatus(
-                `Tersimpan — gambar: ${providerLabel(result.settings.image_provider)}; teks: ${textProviderLabel(savedText)} (${textProviderReadiness(savedText, result.settings)}).`,
+                `Tersimpan — gambar: ${savedProviderTitle}; teks: ${textProviderLabel(savedText)} (${textProviderReadiness(savedText, result.settings)}).`,
                 "success"
             );
         } catch (error) {
@@ -1246,6 +1308,9 @@
         for (const radio of document.querySelectorAll('input[name="image-provider"]')) {
             radio.addEventListener("change", renderQwenCloudOptions);
         }
+        document.getElementById("opus-image-model")?.addEventListener("change", event => {
+            event.target.dataset.userTouched = "true";
+        });
         document.getElementById("qwencloud-image-model").addEventListener("change", renderQuotaPanel);
         document.getElementById("save-qwencloud-quota").addEventListener("click", () => saveQwenCloudQuota(false));
         document.getElementById("reset-qwencloud-quota").addEventListener("click", () => saveQwenCloudQuota(true));

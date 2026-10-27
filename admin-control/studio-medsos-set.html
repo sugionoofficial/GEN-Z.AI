@@ -631,12 +631,12 @@
                         <input type="radio" name="image-provider" value="opus">
                         <span>
                             <strong>Opus Labs (Product Ad Studio)</strong>
-                            <small>product-ad-studio.labs.opus.pro • memotong kredit akun OpusClip Anda sendiri</small>
+                            <small>GPT Image 2.5 Flare &amp; Sunburst • maks 3 gambar • 9:16 • quality low • kredit OpusClip</small>
                         </span>
                     </label>
                     <details class="view-details">
                         <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
-                        <div class="view-body">Terhubung ke ekosistem gambar <strong>Opus Labs / Product Ad Studio</strong> (<code>https://product-ad-studio.labs.opus.pro/</code>) melalui server Managed Media MCP resmi Opus Labs (<code>https://labs.opus.pro/opus-video-tools/mcp</code>) menggunakan secret Worker <code>OPUS_AUTH_TOKEN</code> (juga mendukung perpanjangan otomatis OAuth WorkOS AuthKit lewat <code>OPUS_REFRESH_TOKEN</code> + <code>OPUS_CLIENT_ID</code>, atau endpoint HTTP langsung via <code>OPUS_API_URL</code>). Foto karakter + foto outfit/produk didaftarkan ke proyek (<code>import_assets</code>) lalu dibuat lewat <code>generate_keyframes</code> (default model <code>seedream-5.0-pro</code>, bisa dioverride dengan variabel <code>OPUS_IMAGE_MODEL</code>; rasio 9:16 / 16:9) dan dipantau dengan <code>get_status</code>. <strong>Bukan gratis tanpa batas:</strong> setiap gambar memotong saldo <strong>kredit akun OpusClip Anda sendiri</strong>, bukan kredit GEN-Z.AI. Bila kredit akun OpusClip habis (<code>credit_admission_rejected</code> / <code>insufficient_credits</code>) atau akun belum memiliki akses beta Opus Labs, generate gagal tanpa gambar pengganti. Caption &amp; kata-kata mutiara TIDAK memakai Opus (tetap provider teks di bawah).</div>
+                        <div class="view-body">Terhubung ke ekosistem gambar <strong>Opus Labs / Product Ad Studio</strong> (<code>https://product-ad-studio.labs.opus.pro/</code>) melalui server Managed Media MCP resmi Opus Labs (<code>https://labs.opus.pro/opus-video-tools/mcp</code>) menggunakan secret Worker <code>OPUS_AUTH_TOKEN</code> (juga mendukung perpanjangan otomatis OAuth WorkOS AuthKit lewat <code>OPUS_REFRESH_TOKEN</code> + <code>OPUS_CLIENT_ID</code>, atau endpoint HTTP langsung via <code>OPUS_API_URL</code>). Mendukung pilihan model <code>GPT Image 2.5 Flare</code> (<code>gpt-image-2.5-flare</code>, cepat &amp; hemat latensi) dan <code>GPT Image 2.5 Sunburst</code> (<code>gpt-image-2.5-sunburst</code>, presisi detail produk), unggahan gambar referensi hingga <strong>3 gambar</strong> (<code>upload image up to 3</code>: foto karakter + outfit/produk didaftarkan lewat <code>import_assets</code>), keluaran terkunci <strong>rasio 9:16</strong> dengan <strong>quality low</strong> lewat <code>generate_keyframes</code> + <code>get_status</code>. <strong>Bukan gratis tanpa batas:</strong> setiap gambar memotong saldo <strong>kredit akun OpusClip Anda sendiri</strong>, bukan kredit GEN-Z.AI. Bila kredit akun OpusClip habis (<code>credit_admission_rejected</code> / <code>insufficient_credits</code>) atau akun belum memiliki akses beta Opus Labs, generate gagal tanpa gambar pengganti. Caption &amp; kata-kata mutiara TIDAK memakai Opus (tetap provider teks di bawah).</div>
                     </details>
                 </div>
             </div>
@@ -717,6 +717,29 @@
                     <div class="view-body">QwenCloud tidak membuka API sisa kuota, jadi persentase dihitung dari ledger pemakaian aplikasi terhadap batas tier yang Anda isi. Status otomatis berubah menjadi "Tier habis" bila QwenCloud menolak dengan error kuota (429 / AllocationQuota.FreeTierOnly).</div>
                 </details>
             </div>
+            <div id="opus-options" class="qwencloud-options" hidden>
+                <div class="provider-field">
+                    <label for="opus-image-model">Model gambar Opus Labs (Product Ad Studio)</label>
+                    <select id="opus-image-model">
+                        <option value="gpt-image-2.5-flare">GPT Image 2.5 Flare (gpt-image-2.5-flare) · Cepat &amp; hemat latensi</option>
+                        <option value="gpt-image-2.5-sunburst">GPT Image 2.5 Sunburst (gpt-image-2.5-sunburst) · Presisi &amp; detail produk tinggi</option>
+                    </select>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Pilih varian model resmi Product Ad Studio: <code>GPT Image 2.5 Flare</code> untuk kecepatan rendah latensi (default) atau <code>GPT Image 2.5 Sunburst</code> untuk detail produk presisi. Parameter Opus dikunci sesuai spesifikasi Product Ad Studio: unggahan gambar referensi <strong>maksimal 3 gambar</strong> (<code>up to 3</code>), <strong>rasio 9:16</strong>, dan <strong>quality low</strong>.</div>
+                    </details>
+                </div>
+                <div id="opus-params-panel" class="quota-panel" aria-live="polite">
+                    <div class="quota-row">
+                        <strong>Parameter Product Ad Studio</strong>
+                        <span class="quota-badge ok">9:16 · QUALITY LOW</span>
+                    </div>
+                    <div class="quota-row">
+                        <span>Upload referensi: <strong>maksimal 3 gambar</strong> (up to 3)</span>
+                        <span>Tagihan: <strong>kredit akun OpusClip Anda</strong></span>
+                    </div>
+                </div>
+            </div>
             <div id="qwencloud-llm-options" class="qwencloud-options">
                 <div class="provider-field">
                     <label for="qwencloud-llm-model">Model LLM QwenCloud (Khusus Kata-kata Mutiara — Latar Hitam Hemat Kuota Gambar)</label>
@@ -793,6 +816,6 @@
     <script src="/navigation/navigation.js?v=deep-black-bg-20261027"></script>
     <script type="module" src="./assets/js/http-failure.js?v=http-failure-20261026"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script src="./studio-medsos-set.js?v=opus-provider-20261027"></script>
+    <script src="./studio-medsos-set.js?v=opus-gpt25-20261027"></script>
 </body>
 </html>

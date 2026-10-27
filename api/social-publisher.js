@@ -51,7 +51,17 @@ import {
     testPuterImageProvider,
     testOpusImageProvider
 } from "../lib/social-publisher/providers.js";
-import { opusConfigured, opusImageModel } from "../lib/social-publisher/opus.js";
+import {
+    opusConfigured,
+    opusImageModel,
+    OPUS_IMAGE_MODELS,
+    OPUS_DEFAULT_IMAGE_MODEL,
+    OPUS_MAX_REFERENCE_IMAGES,
+    OPUS_DEFAULT_ASPECT_RATIO,
+    OPUS_DEFAULT_IMAGE_QUALITY,
+    normalizeOpusImageModel,
+    resolveOpusAspectRatio
+} from "../lib/social-publisher/opus.js";
 import {
     getModelQuotas,
     normalizeQwenCloudImageModel,
@@ -1126,7 +1136,11 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
                         ? imageProvider
                         : (typeof env?.AI?.run === "function" ? "cloudflare" : "tencent"))
                 : textProvider,
-            imageModel: imageProvider === "qwencloud" ? normalizeQwenCloudImageModel(publisherConfig?.[0]?.image_model) : "",
+            imageModel: imageProvider === "qwencloud"
+                ? normalizeQwenCloudImageModel(publisherConfig?.[0]?.image_model)
+                : imageProvider === "opus"
+                    ? normalizeOpusImageModel(publisherConfig?.[0]?.image_model, env)
+                    : "",
             quoteLlmModel: normalizeQwenCloudLlmModel(publisherConfig?.[0]?.quote_llm_model),
             qwenCloudConfigured: Boolean(envValue(env, "QWENCLOUD_API_KEY")),
             imageApiConfigured: providerConfigured,
@@ -1139,7 +1153,7 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
     };
 }
 
-async function getSocialImageSettings(config) {
+async function getSocialImageSettings(config, env = null) {
     const rows = await supabaseRequest(
         config,
         tablePath("social_publisher_config", "select=image_provider,image_model,text_provider,quote_llm_model&id=eq.true&limit=1")
@@ -1151,9 +1165,15 @@ async function getSocialImageSettings(config) {
         tablePath("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1")
     )));
     const value = rows?.[0]?.image_provider;
+    const provider = ["gemini", "cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(value) ? value : "gemini";
+    const rawImageModel = String(rows?.[0]?.image_model || "").trim();
     return {
-        provider: ["gemini", "cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(value) ? value : "gemini",
-        imageModel: normalizeQwenCloudImageModel(rows?.[0]?.image_model),
+        provider,
+        rawImageModel,
+        imageModel: provider === "opus"
+            ? normalizeOpusImageModel(rawImageModel, env)
+            : normalizeQwenCloudImageModel(rawImageModel),
+        opusModel: normalizeOpusImageModel(rawImageModel, env),
         /* Kolom text_provider boleh belum ada (migrasi belum jalan) -> "auto". */
         textProvider: normalizeTextProvider(rows?.[0]?.text_provider),
         quoteLlmModel: normalizeQwenCloudLlmModel(rows?.[0]?.quote_llm_model)
@@ -1173,7 +1193,9 @@ async function saveSocialImageProvider(config, adminId, body, env) {
     }
     const imageModel = imageProvider === "qwencloud"
         ? normalizeQwenCloudImageModel(body?.image_model)
-        : "";
+        : imageProvider === "opus"
+            ? normalizeOpusImageModel(body?.image_model, env)
+            : "";
     /*
      * Provider teks terpisah dari provider gambar: gambar boleh tetap Cloudflare
      * (gratis) sementara tulisan memakai model bahasa TokenHub (kuota trial).
@@ -1306,7 +1328,13 @@ async function saveSocialImageProvider(config, adminId, body, env) {
         qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY")),
         puter_configured: Boolean(envValue(env, "PUTER_AUTH_TOKEN")),
         opus_configured: opusConfigured(env),
-        opus_model: opusImageModel(env)
+        opus_model: imageProvider === "opus"
+            ? normalizeOpusImageModel(rows[0].image_model, env)
+            : opusImageModel(env),
+        opus_models: OPUS_IMAGE_MODELS,
+        opus_max_reference_images: OPUS_MAX_REFERENCE_IMAGES,
+        opus_aspect_ratio: OPUS_DEFAULT_ASPECT_RATIO,
+        opus_quality: OPUS_DEFAULT_IMAGE_QUALITY
     };
 }
 
@@ -2662,7 +2690,7 @@ async function generateManualPost(config, userId, env, body = {}) {
         error.status = 400;
         throw error;
     }
-    const { provider: imageProvider, imageModel, quoteLlmModel, textProvider } = await getSocialImageSettings(config);
+    const { provider: imageProvider, imageModel, opusModel, quoteLlmModel, textProvider } = await getSocialImageSettings(config, env);
     const hasQwenCloudKey = Boolean(envValue(env, "QWENCLOUD_API_KEY"));
     const quoteAiProvider = hasQwenCloudKey ? "qwencloud" : imageProvider;
     const activeProvider = isQuoteMode ? quoteAiProvider : imageProvider;
@@ -2670,13 +2698,17 @@ async function generateManualPost(config, userId, env, body = {}) {
         ? !envValue(env, "GEMINI_API_KEY")
         : activeProvider === "qwencloud"
             ? !hasQwenCloudKey
-            : false;
+            : activeProvider === "opus"
+                ? !opusConfigured(env)
+                : false;
     if (missingProviderKey || !envValue(env, "SOCIAL_TOKEN_ENCRYPTION_KEY")) {
         const error = new Error(activeProvider === "gemini"
             ? "GEMINI_API_KEY diperlukan saat provider Gemini dipilih dan SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual."
             : activeProvider === "qwencloud"
                 ? "QWENCLOUD_API_KEY diperlukan saat provider QwenCloud dipilih dan SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual."
-                : "SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual.");
+                : activeProvider === "opus"
+                    ? "OPUS_AUTH_TOKEN diperlukan saat provider Opus dipilih dan SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual."
+                    : "SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual.");
         error.status = 503;
         throw error;
     }
@@ -2954,8 +2986,11 @@ async function generateManualPost(config, userId, env, body = {}) {
             : null;
         const garmentBytes = garmentSource?.bytes || null;
         const garmentMime = garmentSource?.mimeType || garmentMimeType;
+        const effectiveAspectRatio = imageProvider === "opus"
+            ? resolveOpusAspectRatio(env, aspectRatio)
+            : aspectRatio;
         const scene = applyOutfitToScene(
-            { ...createScenePlan([]), aspect_ratio: aspectRatio },
+            { ...createScenePlan([]), aspect_ratio: effectiveAspectRatio },
             outfit
         );
         const referenceImageUrl = imageProvider === "cloudflare"
@@ -2965,7 +3000,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             characterName: character.display_name,
             characterNotes: character.prompt_notes,
             scene,
-            aspectRatio,
+            aspectRatio: effectiveAspectRatio,
             outfitName: outfit?.name,
             outfitNotes: outfit?.notes,
             hasOutfitReference: Boolean(garmentObjectKey),
@@ -2976,7 +3011,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             prompt,
             referenceBytes,
             referenceMimeType,
-            aspectRatio,
+            aspectRatio: effectiveAspectRatio,
             imageProvider,
             ...(imageProvider === "cloudflare" ? {
                 personImageUrl: referenceImageUrl,
@@ -2992,7 +3027,11 @@ async function generateManualPost(config, userId, env, body = {}) {
             } : {
                 garmentBytes,
                 garmentMimeType: garmentMime,
-                ...(imageProvider === "qwencloud" ? { imageModel } : {})
+                ...(imageProvider === "qwencloud"
+                    ? { imageModel }
+                    : imageProvider === "opus"
+                        ? { imageModel: opusModel || normalizeOpusImageModel(imageModel, env) }
+                        : {})
             })
         });
         if (!generated?.bytes?.length) throw new Error("Provider gambar tidak mengembalikan gambar.");
@@ -3062,7 +3101,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             image_mime_type: cleanedBlob.type,
             image_model: generated.model,
             ...(imageNote ? { image_note: imageNote } : {}),
-            aspect_ratio: aspectRatio,
+            aspect_ratio: effectiveAspectRatio,
             scene: sceneRecord,
             contextual_caption: contextualCaption,
             caption,
@@ -3548,7 +3587,13 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
              * operator sendiri. Foto contoh dipakai sebagai referensi supaya
              * alur `import_assets` + `generate_keyframes` ikut teruji.
              */
-            const result = await testOpusImageProvider({ env });
+            const savedSettings = body?.image_model
+                ? null
+                : await getSocialImageSettings(config, env).catch(() => null);
+            const requestedOpusModel = body?.image_model
+                ? normalizeOpusImageModel(body.image_model, env)
+                : (savedSettings?.opusModel || opusImageModel(env));
+            const result = await testOpusImageProvider({ env, imageModel: requestedOpusModel });
             return json(res, 200, { success: true, provider, test: result });
         }
         const includeTryOn = body?.include_try_on === true;
@@ -3645,7 +3690,7 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
     }
     if (action === "studio-admin-image-provider") {
         const [imageSettings, quotasByModel] = await Promise.all([
-            getSocialImageSettings(config),
+            getSocialImageSettings(config, env),
             getModelQuotas(config)
         ]);
         const imageProvider = imageSettings.provider;
@@ -3680,7 +3725,11 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
                 puter_configured: Boolean(envValue(env, "PUTER_AUTH_TOKEN")),
                 puter_model: String(envValue(env, "PUTER_IMAGE_MODEL") || "gemini-3.1-flash-image"),
                 opus_configured: opusConfigured(env),
-                opus_model: opusImageModel(env)
+                opus_model: imageSettings.opusModel || opusImageModel(env),
+                opus_models: OPUS_IMAGE_MODELS,
+                opus_max_reference_images: OPUS_MAX_REFERENCE_IMAGES,
+                opus_aspect_ratio: OPUS_DEFAULT_ASPECT_RATIO,
+                opus_quality: OPUS_DEFAULT_IMAGE_QUALITY
             }
         });
     }

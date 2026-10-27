@@ -130,14 +130,21 @@ npx wrangler@4 secret put OPUS_AUTH_TOKEN
 - objek JSON kredensial OAuth (`{ "access_token", "refresh_token", "client_id", "expires_at" }`) — Worker otomatis menukar `refresh_token` ke `https://focused-horizon-38.authkit.app/oauth2/token` sebelum kedaluwarsa. Alternatifnya, simpan `OPUS_REFRESH_TOKEN` dan `OPUS_CLIENT_ID` sebagai secret terpisah.
 
 Variabel opsional:
-- `OPUS_IMAGE_MODEL` (default `seedream-5.0-pro`)
+- Pilihan model di **Admin Panel → SET Studio Medsos** (tersimpan di `social_publisher_config.image_model`, atau dioverride via `OPUS_IMAGE_MODEL`):
+  - `gpt-image-2.5-flare` — **GPT Image 2.5 Flare** (default, cepat & hemat latensi)
+  - `gpt-image-2.5-sunburst` — **GPT Image 2.5 Sunburst** (presisi & detail produk tinggi)
+- `OPUS_IMAGE_QUALITY` (default terkunci `low` sesuai parameter Product Ad Studio)
 - `OPUS_PROJECT_ID` (menggunakan proyek Opus Labs yang sudah ada alih-alih `create_project` baru)
 - `OPUS_MCP_URL` (override URL server MCP Opus Labs)
 - `OPUS_API_URL` (mode endpoint HTTP JSON langsung bila Anda memakai proxy/gateway Product Ad Studio sendiri)
 
-Foto karakter + outfit didaftarkan ke proyek lewat `import_assets` (termasuk
-unggah signed URL `awaiting_upload` + finalisasi `assetId`), dibuat lewat
-`generate_keyframes` (9:16 / 16:9), dan dipantau via `get_status` tanpa pernah
+Parameter standar Product Ad Studio yang diterapkan otomatis:
+- **Model**: `gpt-image-2.5-flare` (`GPT Image 2.5 Flare`) atau `gpt-image-2.5-sunburst` (`GPT Image 2.5 Sunburst`)
+- **Upload gambar referensi**: maksimal **3 gambar** (`up to 3`) — foto karakter + foto outfit/produk didaftarkan ke proyek lewat `import_assets` (termasuk unggah signed URL `awaiting_upload` + finalisasi `assetId`)
+- **Rasio keluaran**: **`9:16`** (`1024x1536` portrait)
+- **Kualitas**: **`low`** (`quality: "low"`)
+
+Gambar dibuat lewat `generate_keyframes` dan dipantau via `get_status` tanpa pernah
 mengirim ulang job `submission_unknown` yang berisiko memotong kredit dua kali.
 Caption & kata-kata mutiara **tidak** memakai Opus (tetap provider teks).
 

@@ -6,9 +6,15 @@ import {
     generateOpusSocialImage,
     opusConfigured,
     opusImageModel,
+    opusImageQuality,
+    normalizeOpusImageModel,
     readImageSize,
     resetOpusTokenCache,
+    OPUS_IMAGE_MODELS,
     OPUS_DEFAULT_IMAGE_MODEL,
+    OPUS_MAX_REFERENCE_IMAGES,
+    OPUS_DEFAULT_ASPECT_RATIO,
+    OPUS_DEFAULT_IMAGE_QUALITY,
     OPUS_DEFAULT_MCP_URL,
     OPUS_OAUTH_TOKEN_URL
 } from "../lib/social-publisher/opus.js";
@@ -81,9 +87,11 @@ function standardMcpTools() {
                     projectId: { type: "string" },
                     prompt: { type: "string" },
                     aspectRatio: { type: "string" },
+                    size: { type: "string" },
                     width: { type: "number" },
                     height: { type: "number" },
                     model: { type: "string" },
+                    quality: { type: "string" },
                     referenceAssets: { type: "array", items: { type: "object" } },
                     requestKey: { type: "string" }
                 }
@@ -215,7 +223,7 @@ test("generateOpusSocialImage menjalankan alur penuh Opus Labs MCP (whoami -> cr
                             structuredContent: {
                                 jobId: "job_kf_001",
                                 status: "queued",
-                                model: "seedream-5.0-pro"
+                                model: args.model || "gpt-image-2.5-flare"
                             }
                         }
                     });
@@ -242,7 +250,7 @@ test("generateOpusSocialImage menjalankan alur penuh Opus Labs MCP (whoami -> cr
                             structuredContent: {
                                 jobId: "job_kf_001",
                                 status: "completed",
-                                model: "seedream-5.0-pro",
+                                model: keyframeArgs?.model || "gpt-image-2.5-flare",
                                 outputs: [{ url: "https://cdn.opus.pro/generated/ad-out.jpg", mimeType: "image/jpeg" }]
                             }
                         }
@@ -264,24 +272,35 @@ test("generateOpusSocialImage menjalankan alur penuh Opus Labs MCP (whoami -> cr
             referenceMimeType: "image/jpeg",
             garmentBytes: texturedJpeg({ width: 300, height: 300 }),
             garmentMimeType: "image/jpeg",
-            aspectRatio: "9:16"
+            extraReferenceImages: [
+                texturedJpeg({ width: 280, height: 280 }),
+                texturedJpeg({ width: 260, height: 260 })
+            ],
+            aspectRatio: "16:9"
         });
 
         assert.ok(seenSessionIds.every(id => id === "sess-opus-123"), "Mcp-Session-Id harus diteruskan");
-        assert.equal(uploadedBlobs.length, 2, "Foto karakter dan outfit diunggah ke signed URL");
+        assert.equal(uploadedBlobs.length, 3, "Batas unggah referensi maksimal 3 gambar (up to 3)");
         assert.equal(keyframeArgs.projectId, "proj_ad_99");
-        assert.equal(keyframeArgs.aspectRatio, "9:16");
+        assert.equal(keyframeArgs.model, "gpt-image-2.5-flare");
+        assert.equal(keyframeArgs.aspectRatio, "9:16", "Rasio Opus harus dikunci ke 9:16");
+        assert.equal(keyframeArgs.size, "1024x1536");
+        assert.equal(keyframeArgs.quality, "low", "Quality Opus harus disetel ke low");
         assert.equal(keyframeArgs.width, 1080);
         assert.equal(keyframeArgs.height, 1920);
-        assert.equal(keyframeArgs.referenceAssets.length, 2);
+        assert.equal(keyframeArgs.referenceAssets.length, 3);
         assert.equal(keyframeArgs.referenceAssets[0].assetId, "asset_1");
         assert.equal(keyframeArgs.referenceAssets[1].assetId, "asset_2");
+        assert.equal(keyframeArgs.referenceAssets[2].assetId, "asset_3");
         assert.equal(statusCalls, 2);
-        assert.equal(result.model, "seedream-5.0-pro");
+        assert.equal(result.model, "gpt-image-2.5-flare");
+        assert.equal(result.aspectRatio, "9:16");
+        assert.equal(result.quality, "low");
+        assert.equal(result.maxReferenceImages, 3);
         assert.equal(result.mimeType, "image/jpeg");
         assert.equal(result.width, 720);
         assert.equal(result.height, 1280);
-        assert.equal(result.images_sent, 2);
+        assert.equal(result.images_sent, 3);
     } finally {
         restore();
     }
@@ -353,19 +372,20 @@ test("mendukung respons SSE MCP dan perpanjangan otomatis OAuth refresh_token", 
         const result = await generateOpusSocialImage({
             env: {
                 OPUS_AUTH_TOKEN: oauthJson,
-                OPUS_PROJECT_ID: "proj_existing",
-                OPUS_IMAGE_MODEL: "custom-ad-model"
+                OPUS_PROJECT_ID: "proj_existing"
             },
-            prompt: "Banner iklan lanskap",
+            imageModel: "GPT Image 2.5 sunburst",
+            prompt: "Potret produk vertikal",
             aspectRatio: "16:9"
         });
 
         assert.equal(refreshedCount, 1);
         assert.equal(keyframeArgs.projectId, "proj_existing");
-        assert.equal(keyframeArgs.aspectRatio, "16:9");
-        assert.equal(keyframeArgs.width, 1920);
-        assert.equal(keyframeArgs.height, 1080);
-        assert.equal(keyframeArgs.model, "custom-ad-model");
+        assert.equal(keyframeArgs.aspectRatio, "9:16");
+        assert.equal(keyframeArgs.width, 1080);
+        assert.equal(keyframeArgs.height, 1920);
+        assert.equal(keyframeArgs.quality, "low");
+        assert.equal(keyframeArgs.model, "gpt-image-2.5-sunburst");
         assert.equal(result.width, 640);
         assert.equal(result.height, 360);
     } finally {
@@ -499,11 +519,14 @@ test("error Opus diterjemahkan secara jujur: tanpa token, kredit habis, akses be
 test("generateSocialImage meneruskan provider opus & testOpusImageProvider melaporkan metrik hasil", async () => {
     resetOpusTokenCache();
     const outJpeg = texturedJpeg({ width: 720, height: 1280 });
-    const restore = mockFetch(async (url) => {
+    const httpBodies = [];
+    const restore = mockFetch(async (url, options = {}) => {
         if (url === "https://custom.opus.example/v1/ad-images") {
+            const parsedBody = options.body ? JSON.parse(options.body) : {};
+            httpBodies.push(parsedBody);
             return Response.json({
                 status: "completed",
-                model: "seedream-5.0-pro",
+                model: parsedBody.model || "gpt-image-2.5-flare",
                 outputs: [{ url: "https://cdn.opus.pro/out/final.jpg" }]
             });
         }
@@ -519,16 +542,37 @@ test("generateSocialImage meneruskan provider opus & testOpusImageProvider melap
             env: { OPUS_AUTH_TOKEN: "tok", OPUS_API_URL: "https://custom.opus.example/v1/ad-images" },
             prompt: "Iklan sepatu lari",
             imageProvider: "opus",
-            aspectRatio: "9:16"
+            imageModel: "gpt-image-2.5-sunburst",
+            garmentImageUrls: [
+                "https://cdn.example/1.jpg",
+                "https://cdn.example/2.jpg",
+                "https://cdn.example/3.jpg",
+                "https://cdn.example/4.jpg"
+            ],
+            aspectRatio: "16:9"
         });
         assert.equal(direct.mimeType, "image/jpeg");
+        assert.equal(direct.model, "gpt-image-2.5-sunburst");
+        assert.equal(direct.aspectRatio, "9:16");
+        assert.equal(direct.quality, "low");
+        assert.equal(direct.images_sent, 3, "HTTP API juga wajib membatasi maksimal 3 gambar referensi");
+        assert.equal(httpBodies[0].model, "gpt-image-2.5-sunburst");
+        assert.equal(httpBodies[0].aspect_ratio, "9:16");
+        assert.equal(httpBodies[0].size, "1024x1536");
+        assert.equal(httpBodies[0].quality, "low");
+        assert.equal(httpBodies[0].input_images.length, 3);
         assert.equal(direct.width, 720);
         assert.equal(direct.height, 1280);
 
         const testRes = await testOpusImageProvider({
-            env: { OPUS_AUTH_TOKEN: "tok", OPUS_API_URL: "https://custom.opus.example/v1/ad-images" }
+            env: { OPUS_AUTH_TOKEN: "tok", OPUS_API_URL: "https://custom.opus.example/v1/ad-images" },
+            imageModel: "gpt-image-2.5-flare"
         });
         assert.equal(testRes.ok, true);
+        assert.equal(testRes.model, "gpt-image-2.5-flare");
+        assert.equal(testRes.aspect_ratio, "9:16");
+        assert.equal(testRes.quality, "low");
+        assert.equal(testRes.max_reference_images, 3);
         assert.equal(testRes.width, 720);
         assert.equal(testRes.height, 1280);
         assert.equal(testRes.images_sent, 1);
@@ -536,15 +580,27 @@ test("generateSocialImage meneruskan provider opus & testOpusImageProvider melap
         restore();
     }
 
+    assert.equal(OPUS_DEFAULT_IMAGE_MODEL, "gpt-image-2.5-flare");
+    assert.equal(OPUS_MAX_REFERENCE_IMAGES, 3);
+    assert.equal(OPUS_DEFAULT_ASPECT_RATIO, "9:16");
+    assert.equal(OPUS_DEFAULT_IMAGE_QUALITY, "low");
+    assert.deepEqual(OPUS_IMAGE_MODELS.map(m => m.id), [
+        "gpt-image-2.5-flare",
+        "gpt-image-2.5-sunburst"
+    ]);
     assert.equal(opusConfigured({}), false);
     assert.equal(opusConfigured({ OPUS_AUTH_TOKEN: "abc" }), true);
     assert.equal(opusConfigured({ OPUS_REFRESH_TOKEN: "rt", OPUS_CLIENT_ID: "cid" }), true);
-    assert.equal(opusImageModel({}), OPUS_DEFAULT_IMAGE_MODEL);
+    assert.equal(opusImageModel({}), "gpt-image-2.5-flare");
+    assert.equal(normalizeOpusImageModel("GPT Image 2.5 flare"), "gpt-image-2.5-flare");
+    assert.equal(normalizeOpusImageModel("GPT Image 2.5 sunburst"), "gpt-image-2.5-sunburst");
+    assert.equal(normalizeOpusImageModel("qwen-image-3.0-pro"), "gpt-image-2.5-flare");
     assert.equal(opusImageModel({ OPUS_IMAGE_MODEL: "opus-ad-v2" }), "opus-ad-v2");
+    assert.equal(opusImageQuality({}), "low");
     assert.deepEqual(readImageSize(outJpeg), { width: 720, height: 1280 });
 });
 
-test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji provider opus", async () => {
+test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji model opus (flare / sunburst)", async () => {
     resetOpusTokenCache();
     const baseEnv = {
         SUPABASE_URL: "https://project.example",
@@ -561,6 +617,7 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji provid
         end(v) { this.body = v; return this; }
     });
     const outJpeg = texturedJpeg({ width: 540, height: 960 });
+    let lastHttpModel = "";
 
     const restore = mockFetch(async (url, options = {}) => {
         if (url.endsWith("/auth/v1/user")) return Response.json({ id: "admin-user" });
@@ -578,6 +635,8 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji provid
             }], { status: 201 });
         }
         if (url === "https://custom.opus.example/v1/ad-images") {
+            const reqJson = options.body ? JSON.parse(options.body) : {};
+            lastHttpModel = reqJson.model || "";
             return new Response(outJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
         }
         return new Response("offline", { status: 503 });
@@ -597,28 +656,33 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji provid
         assert.equal(resMissing.statusCode, 409);
         assert.match(resMissing.body.error, /OPUS_AUTH_TOKEN/);
 
-        /* Dengan OPUS_AUTH_TOKEN -> 200 */
+        /* Dengan OPUS_AUTH_TOKEN + pilihan model Sunburst -> 200 */
         const resSaved = makeRes();
         await socialPublisherHandler({
             method: "POST",
             url: "/api/social-publisher?action=studio-admin-image-provider",
             query: { action: "studio-admin-image-provider" },
             headers: { authorization: "Bearer test-token" },
-            body: { image_provider: "opus" },
+            body: { image_provider: "opus", image_model: "gpt-image-2.5-sunburst" },
             env: { ...baseEnv, OPUS_AUTH_TOKEN: "tok-live" }
         }, resSaved);
         assert.equal(resSaved.statusCode, 200);
         assert.equal(resSaved.body.settings.image_provider, "opus");
+        assert.equal(resSaved.body.settings.image_model, "gpt-image-2.5-sunburst");
+        assert.equal(resSaved.body.settings.opus_model, "gpt-image-2.5-sunburst");
+        assert.equal(resSaved.body.settings.opus_max_reference_images, 3);
+        assert.equal(resSaved.body.settings.opus_aspect_ratio, "9:16");
+        assert.equal(resSaved.body.settings.opus_quality, "low");
         assert.equal(resSaved.body.settings.opus_configured, true);
 
-        /* Tes provider opus lewat endpoint admin */
+        /* Tes provider opus lewat endpoint admin dengan pilihan model eksplisit */
         const resTest = makeRes();
         await socialPublisherHandler({
             method: "POST",
             url: "/api/social-publisher?action=studio-admin-image-provider-test",
             query: { action: "studio-admin-image-provider-test" },
             headers: { authorization: "Bearer test-token" },
-            body: { provider: "opus" },
+            body: { provider: "opus", image_model: "gpt-image-2.5-sunburst" },
             env: {
                 ...baseEnv,
                 OPUS_AUTH_TOKEN: "tok-live",
@@ -628,6 +692,11 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji provid
         assert.equal(resTest.statusCode, 200);
         assert.equal(resTest.body.provider, "opus");
         assert.equal(resTest.body.test.ok, true);
+        assert.equal(resTest.body.test.model, "gpt-image-2.5-sunburst");
+        assert.equal(resTest.body.test.aspect_ratio, "9:16");
+        assert.equal(resTest.body.test.quality, "low");
+        assert.equal(resTest.body.test.max_reference_images, 3);
+        assert.equal(lastHttpModel, "gpt-image-2.5-sunburst");
         assert.equal(resTest.body.test.width, 540);
         assert.equal(resTest.body.test.height, 960);
     } finally {

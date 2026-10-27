@@ -328,7 +328,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                     : config.imageProvider === "puter"
                         ? "Puter.js (kuota akun Puter)"
                         : config.imageProvider === "opus"
-                            ? "Opus Labs (Product Ad Studio)"
+                            ? `Opus Labs (Product Ad Studio · ${config.imageModel || "gpt-image-2.5-flare"})`
                             : "Gemini Image API";
         const captionProviderLabel = config.captionProvider === "cloudflare"
             ? "Cloudflare Vision Caption"

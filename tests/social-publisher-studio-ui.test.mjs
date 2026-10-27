@@ -228,6 +228,12 @@ test("Opus Labs (Product Ad Studio) tersedia sebagai opsi provider gambar dengan
         "utf8"
     );
     assert.match(setHtml, /name="image-provider" value="opus"/, "Admin SET Studio Medsos harus punya radio Opus");
+    assert.match(setHtml, /id="opus-options"/, "Kotak opsi model Opus harus tersedia di SET Studio Medsos");
+    assert.match(setHtml, /id="opus-image-model"/, "Dropdown model Opus harus tersedia di SET Studio Medsos");
+    assert.match(setHtml, /gpt-image-2\.5-flare/, "Model GPT Image 2.5 Flare harus tersedia");
+    assert.match(setHtml, /gpt-image-2\.5-sunburst/, "Model GPT Image 2.5 Sunburst harus tersedia");
+    assert.match(setHtml, /maksimal 3 gambar/i, "Batas unggah maksimal 3 gambar referensi harus tercantum");
+    assert.match(setHtml, /quality low/i, "Parameter quality low harus tercantum");
     assert.match(setHtml, /id="test-opus-provider"/, "Harus ada tombol Tes Opus");
     assert.match(setHtml, /product-ad-studio\.labs\.opus\.pro/, "Keterangan harus merujuk ke Product Ad Studio Opus Labs");
     assert.match(setHtml, /kredit akun OpusClip Anda sendiri/, "Label Opus harus menyebut kredit akun OpusClip sendiri secara jujur");
@@ -239,13 +245,17 @@ test("Opus Labs (Product Ad Studio) tersedia sebagai opsi provider gambar dengan
     );
     assert.match(apiSource, /OPUS_AUTH_TOKEN/, "API harus menyebut secret OPUS_AUTH_TOKEN");
     assert.match(apiSource, /opus_configured/, "Status kesiapan Opus harus dikirim ke admin");
+    assert.match(apiSource, /opus_models/, "Daftar model Opus harus dikirim ke admin");
     assert.match(setJs, /opus_configured/, "Status kesiapan Opus harus ditampilkan di admin");
+    assert.match(setJs, /selectedOpusModel/, "SET Studio Medsos harus mengirim pilihan model Opus");
     assert.match(setJs, /Opus Labs \(Product Ad Studio\)/, "Studio Medsos harus melabeli provider Opus");
     assert.match(setJs, /testOpusProvider/, "Tombol Tes Opus harus berfungsi");
-    assert.match(source, /Opus Labs \(Product Ad Studio\)/, "Kartu status Studio Medsos harus mengenali label Opus");
+    assert.match(source, /Opus Labs \(Product Ad Studio/, "Kartu status Studio Medsos harus mengenali label Opus");
     assert.match(providersSource, /generateOpusSocialImage/, "generateSocialImage harus meneruskan ke provider Opus");
     assert.match(cronSource, /"opus"/, "Cron autopost harus mendukung provider opus");
     assert.match(setupDoc, /OPUS_AUTH_TOKEN/, "Dokumen setup harus memuat panduan secret Opus");
+    assert.match(setupDoc, /gpt-image-2\.5-flare/, "Dokumen setup harus memuat model GPT Image 2.5 Flare");
+    assert.match(setupDoc, /gpt-image-2\.5-sunburst/, "Dokumen setup harus memuat model GPT Image 2.5 Sunburst");
 });
 
 test("dropdown model QwenCloud dan panel kuota tier tersedia di SET Studio Medsos", () => {
