@@ -708,3 +708,319 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji model 
         restore();
     }
 });
+
+test("mendukung skema batch ketat Opus Video Tools v2 (keyframes[] + $defs + anyOf enum + timedOut watch)", async () => {
+    resetOpusTokenCache();
+    const outputJpeg = texturedJpeg({ width: 720, height: 1280 });
+    const importPayloads = [];
+    let batchKeyframePayload = null;
+    let statusPolls = 0;
+
+    const batchStrictTools = [
+        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+        {
+            name: "create_project",
+            inputSchema: {
+                type: "object",
+                required: ["name", "requestKey"],
+                properties: {
+                    name: { type: "string" },
+                    requestKey: { type: "string", format: "uuid" }
+                }
+            }
+        },
+        {
+            name: "import_assets",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "requestKey", "assets"],
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string", format: "uuid" },
+                    assets: {
+                        type: "array",
+                        items: {
+                            oneOf: [
+                                {
+                                    type: "object",
+                                    required: ["fileName", "mimeType", "sizeBytes"],
+                                    properties: {
+                                        fileName: { type: "string" },
+                                        mimeType: { type: "string" },
+                                        sizeBytes: { type: "integer" },
+                                        kind: { enum: ["image", "video", "audio"] }
+                                    }
+                                },
+                                {
+                                    type: "object",
+                                    required: ["assetId"],
+                                    properties: {
+                                        assetId: { type: "string" }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "generate_keyframes",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "requestKey", "keyframes"],
+                $defs: {
+                    RefAsset: {
+                        type: "object",
+                        required: ["assetId", "role"],
+                        properties: {
+                            assetId: { type: "string" },
+                            role: { anyOf: [{ const: "subject" }, { const: "product" }, { const: "style" }] },
+                            label: { type: "string" }
+                        }
+                    },
+                    KeyframeSpec: {
+                        type: "object",
+                        required: ["keyframeId", "outputLabel", "prompt", "aspect"],
+                        properties: {
+                            keyframeId: { type: "string" },
+                            outputLabel: { type: "string" },
+                            prompt: { type: "string" },
+                            aspect: { anyOf: [{ enum: ["9:16", "16:9", "1:1"] }, { type: "null" }] },
+                            model: {
+                                anyOf: [
+                                    { enum: ["openai/gpt-image-2.5-flare", "openai/gpt-image-2.5-sunburst"] },
+                                    { type: "null" }
+                                ]
+                            },
+                            referenceAssets: {
+                                type: "array",
+                                items: { $ref: "#/$defs/RefAsset" }
+                            }
+                        }
+                    }
+                },
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string", format: "uuid" },
+                    keyframes: {
+                        type: "array",
+                        minItems: 1,
+                        items: { $ref: "#/$defs/KeyframeSpec" }
+                    }
+                }
+            }
+        },
+        {
+            name: "get_status",
+            inputSchema: {
+                type: "object",
+                required: ["jobIds"],
+                properties: {
+                    projectId: { type: "string" },
+                    jobIds: { type: "array", items: { type: "string" } },
+                    watch: { type: "boolean" },
+                    timeoutSeconds: { type: "number" }
+                }
+            }
+        }
+    ];
+
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url === "https://storage.opus.example/strict-put-1") {
+            return new Response("", { status: 200 });
+        }
+        if (url === "https://cdn.opus.pro/generated/strict-out.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") {
+                return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: batchStrictTools } });
+            }
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "proj_v2" } } });
+                }
+                if (name === "import_assets") {
+                    importPayloads.push(args);
+                    const first = args.assets?.[0] || {};
+                    if (!first.assetId) {
+                        /* Pastikan tidak ada field liar `role: "person"` yang tidak ada di skema import_assets */
+                        assert.equal(first.role, undefined);
+                        assert.equal(first.kind, "image");
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                structuredContent: {
+                                    assets: [{
+                                        assetId: "asset_strict_1",
+                                        status: "awaiting_upload",
+                                        upload: { url: "https://storage.opus.example/strict-put-1", method: "PUT" }
+                                    }]
+                                }
+                            }
+                        });
+                    }
+                    /* Finalisasi tidak boleh menyisipkan `status: "uploaded"` karena tidak ada di skema */
+                    assert.deepEqual(Object.keys(first), ["assetId"]);
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                assets: [{ assetId: "asset_strict_1", status: "ready" }]
+                            }
+                        }
+                    });
+                }
+                if (name === "generate_keyframes") {
+                    batchKeyframePayload = args;
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                keyframes: [{ keyframeId: "kf-1", jobId: "job_batch_77", status: "queued" }]
+                            }
+                        }
+                    });
+                }
+                if (name === "get_status") {
+                    statusPolls += 1;
+                    assert.deepEqual(args.jobIds, ["job_batch_77"]);
+                    if (statusPolls === 1) {
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                structuredContent: {
+                                    timedOut: true,
+                                    nextPollAfterSeconds: 0.01,
+                                    jobs: [{ jobId: "job_batch_77", status: "running" }]
+                                }
+                            }
+                        });
+                    }
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                jobs: [{
+                                    jobId: "job_batch_77",
+                                    status: "completed",
+                                    result: { presignedUrl: "https://cdn.opus.pro/generated/strict-out.jpg" }
+                                }]
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-v2", OPUS_POLL_INTERVAL_MS: "5" },
+            prompt: "Iklan parfum editorial",
+            referenceBytes: texturedJpeg({ width: 300, height: 400 }),
+            referenceMimeType: "image/jpeg",
+            imageModel: "gpt-image-2.5-sunburst"
+        });
+        assert.equal(importPayloads.length, 2);
+        assert.equal(batchKeyframePayload.projectId, "proj_v2");
+        assert.equal(batchKeyframePayload.keyframes.length, 1);
+        const kf = batchKeyframePayload.keyframes[0];
+        assert.equal(kf.keyframeId, "kf-1");
+        assert.equal(kf.outputLabel, "keyframe-1");
+        assert.equal(kf.aspect, "9:16");
+        assert.equal(kf.model, "openai/gpt-image-2.5-sunburst");
+        assert.equal(kf.size, undefined, "Tidak boleh menyisipkan size yang tidak ada di skema");
+        assert.equal(kf.referenceAssets[0].assetId, "asset_strict_1");
+        assert.equal(kf.referenceAssets[0].role, "subject", "Role person dipetakan ke enum subject");
+        assert.equal(statusPolls, 2);
+        assert.equal(res.width, 720);
+        assert.equal(res.height, 1280);
+    } finally {
+        restore();
+    }
+});
+
+test("self-healing retry otomatis memangkas argumen opsional saat server menolak invalid_arguments tanpa jobId", async () => {
+    resetOpusTokenCache();
+    const outputJpeg = texturedJpeg({ width: 540, height: 960 });
+    const generateAttempts = [];
+
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") {
+                return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: standardMcpTools() } });
+            }
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "proj_heal" } } });
+                }
+                if (name === "generate_keyframes") {
+                    generateAttempts.push(args);
+                    if (args.size || args.width || args.quality) {
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                isError: true,
+                                structuredContent: {
+                                    ok: false,
+                                    error: "invalid_arguments",
+                                    issues: [{ path: ["size"], message: "Cannot combine size with aspectRatio" }]
+                                }
+                            }
+                        });
+                    }
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            content: [{ type: "image", mimeType: "image/jpeg", data: Buffer.from(outputJpeg).toString("base64") }],
+                            structuredContent: { status: "completed", model: args.model || "gpt-image-2.5-flare" }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-heal" },
+            prompt: "Poster kopi dingin"
+        });
+        assert.equal(generateAttempts.length, 2, "Harus melakukan 1x retry bersih saat invalid_arguments tanpa jobId");
+        assert.equal(generateAttempts[0].size, "1024x1536");
+        assert.equal(generateAttempts[1].size, undefined);
+        assert.equal(generateAttempts[1].width, undefined);
+        assert.equal(generateAttempts[1].quality, undefined);
+        assert.equal(generateAttempts[1].aspectRatio, "9:16");
+        assert.equal(res.width, 540);
+        assert.equal(res.height, 960);
+    } finally {
+        restore();
+    }
+});
+
