@@ -1456,30 +1456,17 @@ test("mendukung skema asli produksi import_assets Opus (dataUrl / mediaBase64 ta
                     });
                 }
                 if (name === "get_status") {
-                    /* Simulasikan get_status yang hanya melaporkan status completed tanpa URL langsung */
                     return Response.json({
                         jsonrpc: "2.0",
                         id: body.id,
                         result: {
                             structuredContent: {
                                 projectId: args.projectId,
-                                jobs: [{ jobId: "job_prod_42", status: "completed" }]
-                            }
-                        }
-                    });
-                }
-                if (name === "resolve_job") {
-                    resolvedJobCalled = true;
-                    assert.equal(args.projectId, "gen_c7a67b3e90d299875826372039148b80");
-                    assert.equal(args.jobId, "job_prod_42");
-                    return Response.json({
-                        jsonrpc: "2.0",
-                        id: body.id,
-                        result: {
-                            structuredContent: {
-                                jobId: "job_prod_42",
-                                status: "completed",
-                                outputs: [{ url: "https://cdn.opus.pro/resolved/final-9x16.jpg" }]
+                                jobs: [{
+                                    jobId: "job_prod_42",
+                                    status: "completed",
+                                    outputs: [{ url: "https://cdn.opus.pro/resolved/final-9x16.jpg" }]
+                                }]
                             }
                         }
                     });
@@ -1499,7 +1486,7 @@ test("mendukung skema asli produksi import_assets Opus (dataUrl / mediaBase64 ta
         });
         assert.equal(seenImportArgs.length, 1, "Percobaan pertama dengan dataUrl langsung diterima tanpa gagal");
         assert.equal(seenImportArgs[0].assets[0].path, undefined);
-        assert.equal(resolvedJobCalled, true, "Harus otomatis memanggil resolve_job bila get_status tidak memuat URL langsung");
+        assert.equal(resolvedJobCalled, false, "resolve_job tidak boleh dipanggil untuk job yang sudah completed normal");
         assert.equal(res.width, 1024);
         assert.equal(res.height, 1536);
         assert.equal(res.images_sent, 1);
@@ -1507,6 +1494,203 @@ test("mendukung skema asli produksi import_assets Opus (dataUrl / mediaBase64 ta
         restore();
     }
 });
+
+test("import_assets tidak pernah mengirim assets[] tanpa sumber media dan dapat fallback ke /tmp/ path awaiting_upload -> PUT -> finalize", async () => {
+    resetOpusTokenCache();
+    const outputJpeg = texturedJpeg({ width: 720, height: 1280 });
+    const seenSpecs = [];
+    let putUploaded = false;
+
+    const prodTools = [
+        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+        {
+            name: "create_project",
+            inputSchema: {
+                type: "object",
+                required: ["name"],
+                properties: { name: { type: "string" } }
+            }
+        },
+        {
+            name: "import_assets",
+            inputSchema: {
+                type: "object",
+                required: ["assets", "projectId"],
+                properties: {
+                    projectId: { type: "string" },
+                    assets: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                path: { type: "string" },
+                                assetId: { type: "string" },
+                                sizeBytes: { type: "number" },
+                                role: { type: "string" },
+                                label: { type: "string" },
+                                contentType: { type: "string" },
+                                dataUrl: { type: "string" },
+                                mediaBase64: { type: "string" },
+                                mediaMimeType: { type: "string" },
+                                url: { type: "string" }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "generate_keyframes",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "items"],
+                properties: {
+                    projectId: { type: "string" },
+                    items: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            required: ["id", "prompt"],
+                            properties: {
+                                id: { type: "string" },
+                                prompt: { type: "string" },
+                                aspectRatio: { type: "string" },
+                                model: { type: "string" },
+                                referenceAssets: { type: "array", items: { type: "string" } }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "get_status",
+            inputSchema: {
+                type: "object",
+                required: ["jobIds"],
+                properties: {
+                    projectId: { type: "string" },
+                    jobIds: { type: "array", items: { type: "string" } }
+                }
+            }
+        }
+    ];
+
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url === "https://upload.opus.example/put-signed-99") {
+            putUploaded = true;
+            return new Response("", { status: 200 });
+        }
+        if (url === "https://cdn.opus.pro/out/fallback-put.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") {
+                return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: prodTools } });
+            }
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "gen_fallback_01" } } });
+                }
+                if (name === "import_assets") {
+                    const spec = args.assets?.[0] || {};
+                    seenSpecs.push(spec);
+                    const hasRequiredSource = Boolean(spec.url || spec.dataUrl || spec.mediaBase64 || spec.assetId || spec.path);
+                    assert.equal(hasRequiredSource, true, "Setiap panggilan import_assets wajib memiliki url/dataUrl/mediaBase64/assetId/path");
+
+                    if (spec.assetId === "ast_from_put_99") {
+                        assert.equal(putUploaded, true);
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                structuredContent: {
+                                    projectId: args.projectId,
+                                    assets: [{ ok: true, assetId: "ast_from_put_99", status: "ready" }]
+                                }
+                            }
+                        });
+                    }
+                    if (spec.path && spec.path.startsWith("/tmp/")) {
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                structuredContent: {
+                                    projectId: args.projectId,
+                                    assets: [{
+                                        ok: true,
+                                        status: "awaiting_upload",
+                                        assetId: "ast_from_put_99",
+                                        upload: { putUrl: "https://upload.opus.example/put-signed-99", method: "PUT" }
+                                    }]
+                                }
+                            }
+                        });
+                    }
+                    /* Simulasikan server yang menolak inline dataUrl/mediaBase64 sehingga memaksa 2-step PUT upload */
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: args.projectId,
+                                assets: [{ ok: false, error: "inline_not_allowed", message: "Use signed upload" }]
+                            }
+                        }
+                    });
+                }
+                if (name === "generate_keyframes") {
+                    assert.deepEqual(args.items[0].referenceAssets, ["ast_from_put_99"]);
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: args.projectId,
+                                items: [{ id: "kf-1", ok: true, jobId: "job_put_99", status: "queued" }]
+                            }
+                        }
+                    });
+                }
+                if (name === "get_status") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                jobs: [{ jobId: "job_put_99", status: "completed", downloadUrl: "https://cdn.opus.pro/out/fallback-put.jpg" }]
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-fallback-put", OPUS_POLL_INTERVAL_MS: "5" },
+            prompt: "Iklan botol parfum",
+            referenceBytes: texturedJpeg({ width: 512, height: 512 }),
+            referenceMimeType: "image/jpeg"
+        });
+        assert.equal(putUploaded, true);
+        assert.equal(res.width, 720);
+        assert.equal(res.height, 1280);
+    } finally {
+        restore();
+    }
+});
+
 
 
 

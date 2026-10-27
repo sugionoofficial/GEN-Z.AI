@@ -2993,8 +2993,11 @@ async function generateManualPost(config, userId, env, body = {}) {
             { ...createScenePlan([]), aspect_ratio: effectiveAspectRatio },
             outfit
         );
-        const referenceImageUrl = imageProvider === "cloudflare"
+        const referenceImageUrl = (imageProvider === "cloudflare" || imageProvider === "opus")
             ? await createSignedReferenceUrl(config, character.reference_object_key)
+            : "";
+        const opusGarmentUrl = (imageProvider === "opus" && garmentObjectKey)
+            ? await createSignedReferenceUrl(config, garmentObjectKey)
             : "";
         const prompt = buildImagePrompt({
             characterName: character.display_name,
@@ -3020,6 +3023,9 @@ async function generateManualPost(config, userId, env, body = {}) {
                 garmentImageUrls: [garmentObjectKey
                     ? await createSignedReferenceUrl(config, garmentObjectKey)
                     : referenceImageUrl]
+            } : imageProvider === "opus" ? {
+                personImageUrl: referenceImageUrl,
+                ...(opusGarmentUrl ? { garmentImageUrls: [opusGarmentUrl] } : {})
             } : {}),
             ...(imageProvider === "cloudflare" ? {
                 garmentBytes,
