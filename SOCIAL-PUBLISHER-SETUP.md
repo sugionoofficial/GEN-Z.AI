@@ -121,13 +121,25 @@ akses beta Opus Labs, generate gagal secara jujur tanpa gambar pengganti.
 
 Simpan Bearer token OAuth Opus Labs sebagai secret Worker:
 
+1. Di PowerShell / Terminal pada folder proyek lokal Anda, tarik kode terbaru lalu jalankan pembantu login OAuth resmi:
+
+```powershell
+git checkout main
+git pull origin main
+npm run opus:login
+```
+
+Perintah tersebut otomatis membuka browser ke login akun OpusClip/Opus Labs Anda, menukar kode PKCE OAuth menjadi JSON siap-pakai (`access_token`, `refresh_token`, `client_id`, `expires_at`, `token_endpoint`), menyimpannya ke `.opus-auth-token.json` (di-ignore Git), dan menyalinnya ke Clipboard.
+
+2. Tempel isi JSON tersebut ke Cloudflare Dashboard (**Workers & Pages → `genzai` → Settings → Variables and Secrets → Secret `OPUS_AUTH_TOKEN`**), atau unggah lewat Wrangler:
+
 ```sh
 npx wrangler@4 secret put OPUS_AUTH_TOKEN
 ```
 
 `OPUS_AUTH_TOKEN` menerima:
-- Bearer token string hasil otorisasi MCP (`claude mcp login` / `codex mcp login` terhadap `https://labs.opus.pro/opus-video-tools/mcp`), atau
-- objek JSON kredensial OAuth (`{ "access_token", "refresh_token", "client_id", "expires_at" }`) — Worker otomatis menukar `refresh_token` ke `https://focused-horizon-38.authkit.app/oauth2/token` sebelum kedaluwarsa. Alternatifnya, simpan `OPUS_REFRESH_TOKEN` dan `OPUS_CLIENT_ID` sebagai secret terpisah.
+- objek JSON kredensial OAuth hasil `npm run opus:login` (`{ "access_token", "refresh_token", "client_id", "expires_at", "token_endpoint" }`) — Worker otomatis menukar `refresh_token` ke `https://focused-horizon-38.authkit.app/oauth2/token` sebelum kedaluwarsa, atau
+- Bearer token string mentah + pasangan opsional `OPUS_REFRESH_TOKEN` dan `OPUS_CLIENT_ID` sebagai secret terpisah.
 
 Variabel opsional:
 - Pilihan model di **Admin Panel → SET Studio Medsos** (tersimpan di `social_publisher_config.image_model`, atau dioverride via `OPUS_IMAGE_MODEL`):
