@@ -39,14 +39,15 @@ function contrastRatio(fgHex, bgHex) {
 }
 
 test('user/dashboard.html loads shared theme controller in head and syncs cache-busting version', () => {
-  assert.match(
-    dashboardHtml,
-    /<script\s+src="\/assets\/js\/theme\.js\?v=light-mode-pass-20261027"\s+defer><\/script>/,
+  const headMatch = dashboardHtml.match(
+    /<script\s+src="\/assets\/js\/theme\.js\?v=([a-z0-9-]+)"\s+defer><\/script>/,
   );
-  assert.match(
-    navigationJs,
-    /themeScript\.src\s*=\s*"\/assets\/js\/theme\.js\?v=light-mode-pass-20261027";/,
+  assert.ok(headMatch, 'expected theme.js script tag in user/dashboard.html head');
+  const navMatch = navigationJs.match(
+    /themeScript\.src\s*=\s*"\/assets\/js\/theme\.js\?v=([a-z0-9-]+)";/,
   );
+  assert.ok(navMatch, 'expected themeScript.src in navigation/navigation.js');
+  assert.equal(headMatch[1], navMatch[1]);
 });
 
 test('user/dashboard.html light mode keeps hero text bright on dark gradient and fixes modal backdrop', () => {

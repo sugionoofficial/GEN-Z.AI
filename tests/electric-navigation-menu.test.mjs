@@ -110,3 +110,53 @@ test('electric navigation hover supports light mode cleanly across navigation.js
     /html\[data-genz-theme="light"\]\s+body\s+\.genz-nav-item:hover,[\s\S]*?box-shadow:\s*0\s+0\s+10px\s+rgba\(0,\s*212,\s*255,\s*\.75\)/,
   );
 });
+
+test('sidebar footer blocks (theme toggle, account box, logout button) spin bright neon red on hover in dark and light modes', () => {
+  // All footer blocks create isolated stacking contexts so direct text nodes stay above ::before/::after
+  for (const selector of [
+    '\\.genz-sidebar-footer\\s+\\.genz-theme-toggle',
+    '\\.genz-account-box',
+    '\\.genz-logout-button',
+  ]) {
+    assert.match(
+      navigationJs,
+      new RegExp(`${selector}[\\s\\S]{0,220}?overflow:\\s*hidden;[\\s\\S]{0,80}?isolation:\\s*isolate;`),
+      `expected ${selector} to have overflow: hidden and isolation: isolate`,
+    );
+  }
+
+  // Shared rotating bright neon red conic-gradient on ::before (z-index: -2) and inner mask ::after (z-index: -1)
+  assert.match(
+    navigationJs,
+    /\.genz-sidebar-footer\s+\.genz-theme-toggle::before,\s*\.genz-sidebar-footer\s+\.genz-refresh-button::before,\s*\.genz-account-box::before,\s*\.genz-logout-button::before\s*\{[^}]*width:\s*520px;[^}]*height:\s*520px;[^}]*conic-gradient\([^)]*#ff1a35\s+325deg,\s*#ff5263\s+338deg,\s*#ffffff\s+347deg,\s*#ff1a35\s+356deg[^)]*\)[^}]*animation:\s*genz-nav-electric\s+2s\s+linear\s+infinite;[^}]*animation-play-state:\s*paused;[^}]*opacity:\s*0;[^}]*z-index:\s*-2;/s,
+  );
+
+  assert.match(
+    navigationJs,
+    /\.genz-sidebar-footer\s+\.genz-theme-toggle::after,\s*\.genz-sidebar-footer\s+\.genz-refresh-button::after,\s*\.genz-account-box::after,\s*\.genz-logout-button::after\s*\{[^}]*inset:\s*2px;[^}]*background:\s*#140d12;[^}]*border-radius:\s*8px;[^}]*opacity:\s*0;[^}]*z-index:\s*-1;/s,
+  );
+
+  // Dark mode hover activates bright neon red outer glow and starts rotation
+  assert.match(
+    navigationJs,
+    /\.genz-logout-button:focus-visible\s*\{[^}]*transform:\s*translateY\(-2px\);[^}]*box-shadow:\s*0\s+0\s+12px\s+#ff1e38,\s*0\s+0\s+26px\s+rgba\(255,\s*30,\s*56,\s*\.55\);/s,
+  );
+  assert.match(
+    navigationJs,
+    /\.genz-logout-button:focus-visible::before\s*\{[^}]*opacity:\s*1;[^}]*animation-play-state:\s*running;/s,
+  );
+
+  // Light mode hover keeps crisp bright neon red beam & readable text
+  assert.match(
+    navigationJs,
+    /html\[data-genz-theme="light"\]\[data-genz-theme="light"\]\s+body\s+\.genz-logout-button::before\s*\{[^}]*#ff1744\s+322deg/s,
+  );
+  assert.match(
+    navigationJs,
+    /html\[data-genz-theme="light"\]\[data-genz-theme="light"\]\s+body\s+\.genz-logout-button::after\s*\{[^}]*background:\s*#fff5f6;/s,
+  );
+  assert.match(
+    navigationJs,
+    /html\[data-genz-theme="light"\]\[data-genz-theme="light"\]\s+body\s+\.genz-logout-button:focus-visible\s*\{[^}]*box-shadow:\s*0\s+0\s+11px\s+rgba\(255,\s*23,\s*68,\s*\.82\)/s,
+  );
+});
