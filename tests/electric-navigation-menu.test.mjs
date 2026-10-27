@@ -13,10 +13,10 @@ const themeJs = fs.readFileSync(
   'utf8',
 );
 
-test('navigation.js preserves existing brand logo, icons, and navigation labels unchanged', () => {
+test('navigation.js preserves existing brand logo, icons, and navigation labels unchanged without triggering browser URL status preview', () => {
   assert.match(
     navigationJs,
-    /<a class="genz-logo" href="\/" title="gen-z\.ai" aria-label="gen-z\.ai — beranda">/,
+    /<a class="genz-logo" role="link" tabindex="0" data-genz-href="\/" aria-label="gen-z\.ai — beranda">/,
   );
   assert.match(
     navigationJs,
@@ -26,6 +26,22 @@ test('navigation.js preserves existing brand logo, icons, and navigation labels 
     navigationJs,
     /<span class="genz-logo-text">gen-z<span class="genz-logo-ai">\.ai<\/span><\/span>/,
   );
+  assert.match(
+    navigationJs,
+    /<a class="genz-nav-item\$\{active \? " active" : ""\}" role="link" tabindex="0" data-genz-href="\$\{escapeHTML\(item\.href\)\}" data-genz-nav-link="true"/,
+  );
+  assert.match(
+    navigationJs,
+    /class="genz-account-box"\s+role="link"\s+tabindex="0"\s+data-genz-href="\/user\/profile\.html"/,
+  );
+
+  // Ensure sidebar markup contains no href= attribute that causes browser bottom-left URL preview
+  const renderBlock = navigationJs.slice(
+    navigationJs.indexOf('function renderNavigation()'),
+    navigationJs.indexOf('function bindNavigationEvents()'),
+  );
+  assert.doesNotMatch(renderBlock, /\shref=/);
+
   assert.match(
     navigationJs,
     /<span class="genz-nav-icon">\$\{item\.icon \|\| ""\}<\/span>\s*<span class="genz-nav-label">\$\{escapeHTML\(item\.label\)\}<\/span>/,
