@@ -213,13 +213,13 @@
                 .card, .panel, .modal, .stat-card, .feature-card, .form-card,
                 .vision-video-card, .vision-card, .parameter-card, .credit-card,
                 .provider-stat-card, .metadata-panel, .payment-method,
-                .requirement, .workflow-step
+                .requirements, .workflow-step
             ),
             html[data-genz-theme="light"] body :is(
                 .card, .panel, .modal, .stat-card, .feature-card, .form-card,
                 .vision-video-card, .vision-card, .parameter-card, .credit-card,
                 .provider-stat-card, .metadata-panel, .payment-method,
-                .requirement, .workflow-step
+                .requirements, .workflow-step
             ) {
                 color: var(--theme-text);
                 border-color: var(--theme-border);
@@ -233,7 +233,7 @@
                 .card, .panel, .modal, .stat-card, .feature-card, .form-card,
                 .vision-video-card, .vision-card, .parameter-card, .credit-card,
                 .provider-stat-card, .metadata-panel, .payment-method,
-                .requirement, .workflow-step
+                .requirements, .workflow-step
             ) {
                 border-style: solid;
                 border-width: 1px;
@@ -299,8 +299,10 @@
                 color: #ffffff;
             }
 
-            html[data-genz-theme="light"] body :is(.brand-panel, .visual) :is(p, li, dd, small) {
-                color: rgba(255, 255, 255, .72);
+            html[data-genz-theme="light"] body :is(.brand-panel, .visual) :is(
+                p, li, dd, small, .brand-description, .visual-description
+            ) {
+                color: rgba(255, 255, 255, .72) !important;
             }
 
             /* Shared sidebar (navigation.js) — items/icons default to white. */
