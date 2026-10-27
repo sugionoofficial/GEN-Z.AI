@@ -108,6 +108,43 @@ menjadi acuan; keluaran 9:16 / 16:9 kualitas 1K. Caption & kata-kata mutiara
 satu gambar sungguhan dengan foto contoh sebagai referensi, lalu menampilkan
 ukuran, KB, durasi, atau error aslinya. Satu klik = satu kuota akun Puter Anda.
 
+### 2e. Configure Opus Labs — Product Ad Studio (optional, OpusClip Credits)
+
+**Status jujur: memakai saldo kredit akun OpusClip Anda sendiri.** Provider Opus
+menghubungkan Studio Medsos ke ekosistem gambar **Opus Labs / Product Ad Studio**
+(`https://product-ad-studio.labs.opus.pro/`) lewat server **Managed Media MCP**
+resmi Opus Labs (`https://labs.opus.pro/opus-video-tools/mcp`, Streamable HTTP
+JSON-RPC 2.0 dengan OAuth WorkOS AuthKit). Setiap gambar memotong saldo kredit
+akun OpusClip operator sendiri (bukan kredit GEN-Z.AI). Saat kredit habis
+(`credit_admission_rejected` / `insufficient_credits`) atau akun belum memiliki
+akses beta Opus Labs, generate gagal secara jujur tanpa gambar pengganti.
+
+Simpan Bearer token OAuth Opus Labs sebagai secret Worker:
+
+```sh
+npx wrangler@4 secret put OPUS_AUTH_TOKEN
+```
+
+`OPUS_AUTH_TOKEN` menerima:
+- Bearer token string hasil otorisasi MCP (`claude mcp login` / `codex mcp login` terhadap `https://labs.opus.pro/opus-video-tools/mcp`), atau
+- objek JSON kredensial OAuth (`{ "access_token", "refresh_token", "client_id", "expires_at" }`) — Worker otomatis menukar `refresh_token` ke `https://focused-horizon-38.authkit.app/oauth2/token` sebelum kedaluwarsa. Alternatifnya, simpan `OPUS_REFRESH_TOKEN` dan `OPUS_CLIENT_ID` sebagai secret terpisah.
+
+Variabel opsional:
+- `OPUS_IMAGE_MODEL` (default `seedream-5.0-pro`)
+- `OPUS_PROJECT_ID` (menggunakan proyek Opus Labs yang sudah ada alih-alih `create_project` baru)
+- `OPUS_MCP_URL` (override URL server MCP Opus Labs)
+- `OPUS_API_URL` (mode endpoint HTTP JSON langsung bila Anda memakai proxy/gateway Product Ad Studio sendiri)
+
+Foto karakter + outfit didaftarkan ke proyek lewat `import_assets` (termasuk
+unggah signed URL `awaiting_upload` + finalisasi `assetId`), dibuat lewat
+`generate_keyframes` (9:16 / 16:9), dan dipantau via `get_status` tanpa pernah
+mengirim ulang job `submission_unknown` yang berisiko memotong kredit dua kali.
+Caption & kata-kata mutiara **tidak** memakai Opus (tetap provider teks).
+
+**Menguji tanpa curl:** tombol **Tes Opus (1 gambar kredit akun Anda)** membuat
+satu gambar 9:16 sungguhan dengan foto contoh sebagai referensi, lalu menampilkan
+ukuran, KB, durasi, atau error aslinya. Satu klik = satu gambar kredit akun OpusClip Anda.
+
 The v3.5 answer is an `image.chat.completion.chunk` frame sequence; the Worker reads `choices[0].delta.image.url`, accepting both a single JSON body and `data:`-prefixed SSE lines, and reports an `error` frame (for example `content_filter`) as a rejection with its `request_id` instead of an empty image. Both models accept the character reference photo (and the outfit photo when one is selected), so the face stays anchored to the upload instead of being invented. Result URLs live 12 hours and may reject anonymous access, so the Worker downloads them (retrying with the Bearer header on 401/403) and re-checks the bytes with the blank-image guard.
 
 **What the free Tencent quota is actually good for: text.** TokenHub gives every language model a New User Free Trial of **1 million tokens** (claim it in Model Gallery, or the platform auto-claims on the first call), while every image model stays paid. So the Worker uses Tencent for the copy and Cloudflare for the picture:

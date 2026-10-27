@@ -626,6 +626,19 @@
                         <div class="view-body">Memanggil driver <code>puter-image-generation</code> lewat secret <code>PUTER_AUTH_TOKEN</code> (token dibuat di <code>puter.com/dashboard#account</code> → <code>Create token</code>). Default model <code>gemini-3.1-flash-image</code> (bisa dioverride dengan variabel <code>PUTER_IMAGE_MODEL</code>); foto karakter + outfit dikirim sebagai <code>input_images</code> sehingga wajah tetap menjadi acuan, keluaran 9:16 / 16:9 kualitas 1K. <strong>Bukan gratis tanpa batas:</strong> setiap gambar memotong kuota/biaya <strong>akun Puter Anda sendiri</strong> (model User-Pays), bukan kredit GEN-Z.AI. Jatah akun Puter habis → generate gagal dengan <code>insufficient_funds</code> dan tidak ada gambar pengganti. Caption &amp; kata-kata mutiara TIDAK memakai Puter (tetap provider teks di bawah).</div>
                     </details>
                 </div>
+                <div class="provider-item">
+                    <label class="provider-option">
+                        <input type="radio" name="image-provider" value="opus">
+                        <span>
+                            <strong>Opus Labs (Product Ad Studio)</strong>
+                            <small>product-ad-studio.labs.opus.pro • memotong kredit akun OpusClip Anda sendiri</small>
+                        </span>
+                    </label>
+                    <details class="view-details">
+                        <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
+                        <div class="view-body">Terhubung ke ekosistem gambar <strong>Opus Labs / Product Ad Studio</strong> (<code>https://product-ad-studio.labs.opus.pro/</code>) melalui server Managed Media MCP resmi Opus Labs (<code>https://labs.opus.pro/opus-video-tools/mcp</code>) menggunakan secret Worker <code>OPUS_AUTH_TOKEN</code> (juga mendukung perpanjangan otomatis OAuth WorkOS AuthKit lewat <code>OPUS_REFRESH_TOKEN</code> + <code>OPUS_CLIENT_ID</code>, atau endpoint HTTP langsung via <code>OPUS_API_URL</code>). Foto karakter + foto outfit/produk didaftarkan ke proyek (<code>import_assets</code>) lalu dibuat lewat <code>generate_keyframes</code> (default model <code>seedream-5.0-pro</code>, bisa dioverride dengan variabel <code>OPUS_IMAGE_MODEL</code>; rasio 9:16 / 16:9) dan dipantau dengan <code>get_status</code>. <strong>Bukan gratis tanpa batas:</strong> setiap gambar memotong saldo <strong>kredit akun OpusClip Anda sendiri</strong>, bukan kredit GEN-Z.AI. Bila kredit akun OpusClip habis (<code>credit_admission_rejected</code> / <code>insufficient_credits</code>) atau akun belum memiliki akses beta Opus Labs, generate gagal tanpa gambar pengganti. Caption &amp; kata-kata mutiara TIDAK memakai Opus (tetap provider teks di bawah).</div>
+                    </details>
+                </div>
             </div>
             <h3 style="margin:22px 0 0;font-size:15px">Provider penulisan teks (caption &amp; kata-kata mutiara)</h3>
             <p class="small muted" style="margin:6px 0 0">Terpisah dari provider gambar, supaya gambar tetap dari jalur gratis sementara tulisan memakai kuota yang gratis juga.</p>
@@ -734,6 +747,7 @@
                 <button id="test-image-provider" class="btn" type="button">Tes Cloudflare AI</button>
                 <button id="test-tencent-provider" class="btn" type="button">Tes Tencent</button>
                 <button id="test-puter-provider" class="btn" type="button">Tes Puter (1 gambar kuota akun Anda)</button>
+                <button id="test-opus-provider" class="btn" type="button">Tes Opus (1 gambar kredit akun Anda)</button>
             </div>
             <div id="image-provider-status" class="status-box price-settings-status" role="status" aria-live="polite">Memuat provider gambar…</div>
         </section>
@@ -779,6 +793,6 @@
     <script src="/navigation/navigation.js?v=deep-black-bg-20261027"></script>
     <script type="module" src="./assets/js/http-failure.js?v=http-failure-20261026"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script src="./studio-medsos-set.js?v=puter-remove-secret-helper-20261026"></script>
+    <script src="./studio-medsos-set.js?v=opus-provider-20261027"></script>
 </body>
 </html>

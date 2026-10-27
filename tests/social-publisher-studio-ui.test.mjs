@@ -99,7 +99,7 @@ test("QwenCloud tersedia sebagai opsi provider gambar", () => {
         "utf8"
     );
     assert.match(setHtml, /name="image-provider" value="qwencloud"/, "Admin SET Studio Medsos harus punya radio QwenCloud");
-    assert.match(apiSource, /\["gemini", "cloudflare", "qwencloud", "tencent", "puter"\]/, "Validasi provider harus menerima qwencloud");
+    assert.match(apiSource, /\["gemini", "cloudflare", "qwencloud", "tencent", "puter", "opus"\]/, "Validasi provider harus menerima qwencloud");
     assert.match(apiSource, /QWENCLOUD_API_KEY/, "API harus memeriksa secret QWENCLOUD_API_KEY");
     assert.match(setJs, /qwencloud_configured/, "Status kesiapan QwenCloud harus ditampilkan di admin");
     assert.match(source, /QwenCloud \(/, "Studio Medsos harus melabeli provider QwenCloud");
@@ -174,11 +174,11 @@ test("Puter.js tersedia sebagai opsi provider gambar dengan label jujur", () => 
         fileURLToPath(new URL("../supabase/social-auto-publisher.sql", import.meta.url)),
         "utf8"
     );
-    const puterConstraint = /image_provider in \('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter'\)/g;
+    const puterConstraint = /image_provider in \('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter', 'opus'\)/g;
     assert.equal(
         (migration.match(puterConstraint) || []).length,
         3,
-        "Tiga titik check constraint image_provider di social-auto-publisher.sql harus menerima puter"
+        "Tiga titik check constraint image_provider di social-auto-publisher.sql harus menerima puter dan opus"
     );
     const constraintMigration = readFileSync(
         fileURLToPath(new URL("../supabase/social-image-provider-constraint.sql", import.meta.url)),
@@ -186,7 +186,7 @@ test("Puter.js tersedia sebagai opsi provider gambar dengan label jujur", () => 
     );
     assert.match(constraintMigration, /drop constraint if exists social_publisher_config_image_provider_check/, "Migrasi constraint harus idempoten (image)");
     assert.match(constraintMigration, /drop constraint if exists social_publisher_config_text_provider_check/, "Migrasi constraint harus idempoten (text)");
-    assert.match(constraintMigration, /'tencent', 'puter'\)/, "Migrasi constraint harus memuat daftar provider lengkap");
+    assert.match(constraintMigration, /'tencent', 'puter', 'opus'\)/, "Migrasi constraint harus memuat daftar provider lengkap");
     assert.match(
         apiSource,
         /social-image-provider-constraint\.sql/,
@@ -204,6 +204,48 @@ test("Puter.js tersedia sebagai opsi provider gambar dengan label jujur", () => 
         /value="puter">[\s\S]{0,400}unlimited/i,
         "Klaim unlimited pada opsi Puter dilarang"
     );
+});
+
+test("Opus Labs (Product Ad Studio) tersedia sebagai opsi provider gambar dengan label jujur", () => {
+    const setHtml = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.html", import.meta.url)),
+        "utf8"
+    );
+    const setJs = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.js", import.meta.url)),
+        "utf8"
+    );
+    const providersSource = readFileSync(
+        fileURLToPath(new URL("../lib/social-publisher/providers.js", import.meta.url)),
+        "utf8"
+    );
+    const cronSource = readFileSync(
+        fileURLToPath(new URL("../functions/_shared/social-publisher-cron.js", import.meta.url)),
+        "utf8"
+    );
+    const setupDoc = readFileSync(
+        fileURLToPath(new URL("../SOCIAL-PUBLISHER-SETUP.md", import.meta.url)),
+        "utf8"
+    );
+    assert.match(setHtml, /name="image-provider" value="opus"/, "Admin SET Studio Medsos harus punya radio Opus");
+    assert.match(setHtml, /id="test-opus-provider"/, "Harus ada tombol Tes Opus");
+    assert.match(setHtml, /product-ad-studio\.labs\.opus\.pro/, "Keterangan harus merujuk ke Product Ad Studio Opus Labs");
+    assert.match(setHtml, /kredit akun OpusClip Anda sendiri/, "Label Opus harus menyebut kredit akun OpusClip sendiri secara jujur");
+    assert.match(setHtml, /OPUS_AUTH_TOKEN/, "Petunjuk secret OPUS_AUTH_TOKEN harus tampil di panel");
+    assert.doesNotMatch(
+        setHtml,
+        /value="opus">[\s\S]{0,400}unlimited/i,
+        "Klaim unlimited pada opsi Opus dilarang"
+    );
+    assert.match(apiSource, /OPUS_AUTH_TOKEN/, "API harus menyebut secret OPUS_AUTH_TOKEN");
+    assert.match(apiSource, /opus_configured/, "Status kesiapan Opus harus dikirim ke admin");
+    assert.match(setJs, /opus_configured/, "Status kesiapan Opus harus ditampilkan di admin");
+    assert.match(setJs, /Opus Labs \(Product Ad Studio\)/, "Studio Medsos harus melabeli provider Opus");
+    assert.match(setJs, /testOpusProvider/, "Tombol Tes Opus harus berfungsi");
+    assert.match(source, /Opus Labs \(Product Ad Studio\)/, "Kartu status Studio Medsos harus mengenali label Opus");
+    assert.match(providersSource, /generateOpusSocialImage/, "generateSocialImage harus meneruskan ke provider Opus");
+    assert.match(cronSource, /"opus"/, "Cron autopost harus mendukung provider opus");
+    assert.match(setupDoc, /OPUS_AUTH_TOKEN/, "Dokumen setup harus memuat panduan secret Opus");
 });
 
 test("dropdown model QwenCloud dan panel kuota tier tersedia di SET Studio Medsos", () => {
@@ -226,7 +268,7 @@ test("dropdown model QwenCloud dan panel kuota tier tersedia di SET Studio Medso
     assert.match(setJs, /percent_available/, "Admin JS harus menampilkan persentase tier tersedia");
     assert.match(setJs, /Tier habis/, "Admin JS harus menandai model yang tier-nya habis");
     assert.match(apiSource, /action === "studio-admin-model-quota"/, "API harus melayani penyimpanan kuota per model");
-    assert.match(migration, /check \(image_provider in \('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter'\)\)/, "Migration harus menerima provider qwencloud, tencent, dan puter");
+    assert.match(migration, /check \(image_provider in \('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter', 'opus'\)\)/, "Migration harus menerima provider qwencloud, tencent, puter, dan opus");
     assert.match(migration, /add column if not exists image_model/, "Migration harus menambah kolom image_model");
     assert.match(migration, /create table if not exists public\.social_publisher_model_quotas/, "Migration harus membuat ledger kuota model");
 });

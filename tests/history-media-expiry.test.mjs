@@ -55,7 +55,7 @@ const historyHtml = readFileSync(path.join(root, "history/index.html"), "utf8");
 
 const OSS_URL_LIVE =
     "https://dashscope-f4de.oss-ap-southeast-5.aliyuncs.com/1d/4f/20261026/f244af48/b8b798e7-5e89-4409-b3c9-1838c2aae80a.mp4" +
-    "?Expires=1793089153&OSSAccessKeyId=LTAI5tRcsWJEymQaTsKbKqGf&Signature=q0r2QX2BmvwSFSUYXqFyBan4%2FaA%3D";
+    `?Expires=${Math.floor(Date.now() / 1000) + 86400}&OSSAccessKeyId=LTAI5tRcsWJEymQaTsKbKqGf&Signature=q0r2QX2BmvwSFSUYXqFyBan4%2FaA%3D`;
 
 function loadRenderModule() {
     const sandbox = {
