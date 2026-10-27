@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import jpeg from "jpeg-js";
+import { PNG } from "pngjs";
 
 import {
     generateOpusSocialImage,
@@ -1940,6 +1941,299 @@ test("generateOpusSocialImage menggunakan fallback list_jobs saat generate_keyfr
                 return true;
             }
         );
+    } finally {
+        restore();
+    }
+});
+
+test("generateOpusSocialImage menormalisasi dimensi gambar referensi <300px (mis. outfit 274x272 PNG) agar tidak ditolak invalid_frame_dimensions", async () => {
+    resetOpusTokenCache();
+    const outputJpeg = texturedJpeg({ width: 720, height: 1280 });
+
+    /* Buat PNG pakaian 274x272 dengan latar transparan persis kasus produksi */
+    const tinyOutfitPng = new PNG({ width: 274, height: 272 });
+    for (let y = 0; y < 272; y += 1) {
+        for (let x = 0; x < 274; x += 1) {
+            const idx = (y * 274 + x) * 4;
+            const insideShirt = x >= 40 && x <= 234 && y >= 30 && y <= 240;
+            tinyOutfitPng.data[idx] = insideShirt ? (x * 7) % 255 : 0;
+            tinyOutfitPng.data[idx + 1] = insideShirt ? (y * 9) % 255 : 0;
+            tinyOutfitPng.data[idx + 2] = insideShirt ? ((x + y) * 5) % 255 : 0;
+            tinyOutfitPng.data[idx + 3] = insideShirt ? 255 : 0;
+        }
+    }
+    const tinyOutfitBytes = new Uint8Array(PNG.sync.write(tinyOutfitPng));
+    assert.deepEqual(readImageSize(tinyOutfitBytes), { width: 274, height: 272 });
+
+    const prodTools = [
+        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+        {
+            name: "create_project",
+            inputSchema: { type: "object", required: ["name"], properties: { name: { type: "string" } } }
+        },
+        {
+            name: "import_assets",
+            inputSchema: {
+                type: "object",
+                required: ["assets", "projectId"],
+                properties: {
+                    projectId: { type: "string" },
+                    assets: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                path: { type: "string" },
+                                assetId: { type: "string" },
+                                sizeBytes: { type: "number" },
+                                role: { type: "string" },
+                                label: { type: "string" },
+                                contentType: { type: "string" },
+                                dataUrl: { type: "string" },
+                                mediaBase64: { type: "string" },
+                                mediaMimeType: { type: "string" },
+                                url: { type: "string" }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "generate_keyframes",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "items"],
+                properties: {
+                    projectId: { type: "string" },
+                    items: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            required: ["id", "prompt"],
+                            properties: {
+                                id: { type: "string" },
+                                prompt: { type: "string" },
+                                model: { type: "string" },
+                                aspectRatio: { type: "string" },
+                                quality: { type: "string" },
+                                referenceAssets: { type: "array", items: { type: "string" } }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "get_status",
+            inputSchema: {
+                type: "object",
+                properties: { projectId: { type: "string" }, jobIds: { type: "array", items: { type: "string" } } }
+            }
+        }
+    ];
+
+    /* 1. bytes + signed URL Supabase untuk 274x272 PNG: URL mentah wajib diabaikan & gambar di-upscale >=512px sebelum import */
+    const importedAssetDims = new Map();
+    let importCounter = 0;
+
+    let restore = mockFetch(async (url, options = {}) => {
+        if (url === "https://cdn.opus.pro/out/upscaled-ok.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: prodTools } });
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "gen_dim_01" } } });
+                }
+                if (name === "import_assets") {
+                    importCounter += 1;
+                    const spec = args.assets[0];
+                    const assetId = `ast_dim_${importCounter}`;
+                    if (spec.url === "https://supabase.example/raw/outfit_274x272.png") {
+                        importedAssetDims.set(assetId, { width: 274, height: 272 });
+                    } else if (spec.url === "https://supabase.example/raw/person_720x1280.jpg") {
+                        importedAssetDims.set(assetId, { width: 720, height: 1280 });
+                    } else if (spec.dataUrl) {
+                        const b64 = spec.dataUrl.split(",")[1];
+                        const raw = Uint8Array.from(Buffer.from(b64, "base64"));
+                        importedAssetDims.set(assetId, readImageSize(raw));
+                    }
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { projectId: args.projectId, assets: [{ ok: true, assetId }] } }
+                    });
+                }
+                if (name === "generate_keyframes") {
+                    const refs = args.items[0].referenceAssets || [];
+                    for (let idx = 0; idx < refs.length; idx += 1) {
+                        const dims = importedAssetDims.get(refs[idx]);
+                        if (!dims || dims.width < 300 || dims.height < 300 || dims.width > 6000 || dims.height > 6000) {
+                            return Response.json({
+                                jsonrpc: "2.0",
+                                id: body.id,
+                                result: {
+                                    structuredContent: {
+                                        projectId: args.projectId,
+                                        items: [{
+                                            id: "kf-1",
+                                            ok: false,
+                                            field: `referenceAssets[${idx}]`,
+                                            errorCode: "invalid_frame_dimensions",
+                                            message: `referenceAssets[${idx}] is ${dims?.width}x${dims?.height}. Image references need both sides between 300px and 6000px`
+                                        }]
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { projectId: args.projectId, jobIds: ["job_dim_ok_1"] } }
+                    });
+                }
+                if (name === "get_status") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                jobs: [{ jobId: "job_dim_ok_1", status: "completed", downloadUrl: "https://cdn.opus.pro/out/upscaled-ok.jpg" }]
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-dim", OPUS_POLL_INTERVAL_MS: "5" },
+            prompt: "Karakter memakai jaket streetwear",
+            referenceBytes: texturedJpeg({ width: 720, height: 1280 }),
+            referenceMimeType: "image/jpeg",
+            personImageUrl: "https://supabase.example/raw/person_720x1280.jpg",
+            garmentBytes: tinyOutfitBytes,
+            garmentMimeType: "image/png",
+            garmentImageUrls: ["https://supabase.example/raw/outfit_274x272.png"]
+        });
+        const outfitDims = importedAssetDims.get("ast_dim_2");
+        assert.ok(outfitDims.width >= 512 && outfitDims.height >= 512, `Outfit 274x272 harus di-upscale >=512px, aktual: ${outfitDims.width}x${outfitDims.height}`);
+        assert.equal(res.images_sent, 2);
+        assert.equal(res.width, 720);
+    } finally {
+        restore();
+    }
+
+    /* 2. URL murni tanpa bytes awal: pulih otomatis saat server menolak invalid_frame_dimensions */
+    importedAssetDims.clear();
+    importCounter = 0;
+    let remoteTinyDownloads = 0;
+
+    restore = mockFetch(async (url, options = {}) => {
+        if (url === "https://shop.example/tiny-274x272.png") {
+            remoteTinyDownloads += 1;
+            return new Response(tinyOutfitBytes, { status: 200, headers: { "content-type": "image/png" } });
+        }
+        if (url === "https://cdn.opus.pro/out/recovered-url.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: prodTools } });
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "gen_dim_02" } } });
+                }
+                if (name === "import_assets") {
+                    importCounter += 1;
+                    const spec = args.assets[0];
+                    const assetId = `ast_url_${importCounter}`;
+                    if (spec.url === "https://shop.example/tiny-274x272.png") {
+                        importedAssetDims.set(assetId, { width: 274, height: 272 });
+                    } else if (spec.dataUrl) {
+                        const b64 = spec.dataUrl.split(",")[1];
+                        const raw = Uint8Array.from(Buffer.from(b64, "base64"));
+                        importedAssetDims.set(assetId, readImageSize(raw));
+                    }
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { projectId: args.projectId, assets: [{ ok: true, assetId }] } }
+                    });
+                }
+                if (name === "generate_keyframes") {
+                    const refs = args.items[0].referenceAssets || [];
+                    for (let idx = 0; idx < refs.length; idx += 1) {
+                        const dims = importedAssetDims.get(refs[idx]);
+                        if (!dims || dims.width < 300 || dims.height < 300) {
+                            return Response.json({
+                                jsonrpc: "2.0",
+                                id: body.id,
+                                result: {
+                                    structuredContent: {
+                                        projectId: args.projectId,
+                                        items: [{
+                                            id: "kf-1",
+                                            ok: false,
+                                            field: `referenceAssets[${idx}]`,
+                                            errorCode: "invalid_frame_dimensions",
+                                            message: `referenceAssets[${idx}] is ${dims?.width}x${dims?.height}. Image references need both sides between 300px and 6000px`
+                                        }]
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { projectId: args.projectId, jobIds: ["job_dim_ok_2"] } }
+                    });
+                }
+                if (name === "get_status") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                jobs: [{ jobId: "job_dim_ok_2", status: "completed", downloadUrl: "https://cdn.opus.pro/out/recovered-url.jpg" }]
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-dim-url", OPUS_POLL_INTERVAL_MS: "5" },
+            prompt: "Produk tas di meja marmer",
+            garmentImageUrls: ["https://shop.example/tiny-274x272.png"]
+        });
+        assert.equal(remoteTinyDownloads, 1);
+        assert.equal(res.images_sent, 1);
+        assert.equal(res.width, 720);
     } finally {
         restore();
     }
