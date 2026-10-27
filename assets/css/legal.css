@@ -5,10 +5,7 @@
    ========================================================= */
 
         body {
-            background:
-                radial-gradient(ellipse 900px 650px at 12% -8%, rgba(169, 112, 255, .10), transparent 60%),
-                radial-gradient(ellipse 800px 600px at 96% 6%, rgba(255, 51, 85, .06), transparent 55%),
-                #05070a;
+            background: #000000;
         }
 
         /* ---------------------------------------------------------

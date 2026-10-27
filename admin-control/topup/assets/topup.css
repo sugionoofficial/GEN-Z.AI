@@ -4,7 +4,7 @@
    ========================================================= */
 
 :root {
-    --bg-main: #050505;
+    --bg-main: #000000;
     --bg-panel: rgba(18, 18, 20, 0.92);
     --bg-card: rgba(24, 24, 27, 0.92);
     --bg-card-hover: rgba(32, 32, 36, 0.96);
@@ -59,23 +59,7 @@ body {
         "Segoe UI",
         sans-serif;
 
-    background:
-        radial-gradient(
-            circle at 15% 0%,
-            rgba(255, 35, 35, 0.08),
-            transparent 32%
-        ),
-        radial-gradient(
-            circle at 85% 10%,
-            rgba(255, 0, 0, 0.045),
-            transparent 28%
-        ),
-        linear-gradient(
-            135deg,
-            #030303 0%,
-            #090909 48%,
-            #050505 100%
-        );
+    background: #000000;
 
     overflow-x: hidden;
 }
@@ -3046,26 +3030,8 @@ body::before {
 
     pointer-events: none;
 
-    background-image:
-        linear-gradient(
-            rgba(255, 106, 0, 0.018) 1px,
-            transparent 1px
-        ),
-        linear-gradient(
-            90deg,
-            rgba(255, 106, 0, 0.018) 1px,
-            transparent 1px
-        );
-
-    background-size:
-        42px 42px;
-
-    mask-image:
-        linear-gradient(
-            to bottom,
-            black,
-            transparent 85%
-        );
+    background: none;
+    background-image: none;
 }
 
 
@@ -3090,12 +3056,8 @@ body::after {
 
     border-radius: 50%;
 
-    background:
-        radial-gradient(
-            circle,
-            rgba(255, 106, 0, 0.035),
-            transparent 68%
-        );
+    background: none;
+    opacity: 0;
 
     filter:
         blur(25px);
@@ -3404,18 +3366,11 @@ button {
 @media (max-width: 760px) {
 
     body {
-        background:
-            radial-gradient(
-                circle at 50% 0%,
-                rgba(255, 106, 0, 0.07),
-                transparent 35%
-            ),
-            #050505;
+        background: #000000;
     }
 
     body::before {
-        background-size:
-            30px 30px;
+        background: none;
     }
 
     .page-header,

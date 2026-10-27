@@ -28,7 +28,7 @@
 
 <link
     rel="stylesheet"
-    href="../assets/css/genz-premium.css"
+    href="../assets/css/genz-premium.css?v=deep-black-bg-20261027"
 >
 
 
@@ -39,7 +39,7 @@
 <style>
 
 :root {
-    --bg-0: #030407;
+    --bg-0: #000000;
     --surface-1: rgba(255,255,255,.024);
     --surface-2: rgba(255,255,255,.045);
     --surface-3: rgba(255,255,255,.075);
@@ -108,12 +108,8 @@ body::before {
     inset: -20%;
     z-index: 0;
     pointer-events: none;
-    background:
-        radial-gradient(ellipse 40% 30% at 15% 20%, rgba(255,51,85,.16), transparent 70%),
-        radial-gradient(ellipse 40% 30% at 85% 15%, rgba(169,112,255,.12), transparent 70%),
-        radial-gradient(ellipse 50% 40% at 50% 100%, rgba(255,176,32,.08), transparent 70%);
-    filter: blur(40px);
-    animation: auroraShift 24s ease-in-out infinite;
+    background: none;
+    opacity: 0;
 }
 
 @keyframes auroraShift {
@@ -128,9 +124,8 @@ body::after {
     inset: 0;
     z-index: 1;
     pointer-events: none;
-    opacity: .5;
-    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.035 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
-    mix-blend-mode: overlay;
+    opacity: 0;
+    background: none;
 }
 
 /*
@@ -1102,14 +1097,12 @@ body > .overlay { display: none !important; }
 
 body,
 html {
-    background: #000;
+    background: #000000;
 }
 
 body::before {
-    background:
-        radial-gradient(ellipse 45% 32% at 15% 15%, rgba(255,145,0,.09), transparent 70%),
-        radial-gradient(ellipse 42% 32% at 85% 12%, rgba(255,176,32,.06), transparent 70%),
-        radial-gradient(ellipse 50% 40% at 50% 100%, rgba(255,115,0,.05), transparent 70%);
+    background: none;
+    opacity: 0;
 }
 
 .main {
@@ -2052,7 +2045,7 @@ body::before {
      berdasarkan role user (admin/owner/user).
 ====================================================== -->
 
-<script src="/navigation/navigation.js?v=hide-nav-url-20261027"></script>
+<script src="/navigation/navigation.js?v=deep-black-bg-20261027"></script>
 
 <script>
 

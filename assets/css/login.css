@@ -15,8 +15,8 @@
 
 :root {
 
-    --black: #0b0f19;
-    --black-2: #151b28;
+    --black: #000000;
+    --black-2: #0c1017;
 
     --gray-900: #101828;
     --gray-700: #344054;
@@ -51,6 +51,7 @@
 
 html {
     min-height: 100%;
+    background: #000000;
 }
 
 
@@ -72,22 +73,7 @@ body {
         var(--gray-900);
 
     background:
-        radial-gradient(
-            circle at 10% 10%,
-            rgba(255,255,255,0.95) 0%,
-            rgba(255,255,255,0) 30%
-        ),
-        radial-gradient(
-            circle at 90% 85%,
-            rgba(203,213,225,0.55) 0%,
-            rgba(203,213,225,0) 35%
-        ),
-        linear-gradient(
-            135deg,
-            #edf0f4 0%,
-            #f8fafc 48%,
-            #e7ebf0 100%
-        );
+        #000000;
 
     display:
         flex;
@@ -140,11 +126,10 @@ body::before {
         50%;
 
     background:
-        radial-gradient(
-            circle,
-            rgba(255,255,255,0.95),
-            rgba(255,255,255,0)
-        );
+        none;
+
+    opacity:
+        0;
 
     pointer-events:
         none;
@@ -175,11 +160,10 @@ body::after {
         50%;
 
     background:
-        radial-gradient(
-            circle,
-            rgba(148,163,184,0.20),
-            rgba(148,163,184,0)
-        );
+        none;
+
+    opacity:
+        0;
 
     pointer-events:
         none;

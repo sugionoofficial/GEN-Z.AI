@@ -41,7 +41,7 @@
 :root {
 
     --metadata-bg:
-        #050505;
+        #000000;
 
     --metadata-panel:
         rgba(15, 15, 18, 0.92);
@@ -115,16 +115,7 @@
         var(--metadata-text);
 
     background:
-        radial-gradient(
-            circle at top,
-            rgba(255, 30, 30, 0.08),
-            transparent 34%
-        ),
-        linear-gradient(
-            180deg,
-            #0a0a0c 0%,
-            #050505 100%
-        );
+        #000000;
 
     font-family:
         Inter,

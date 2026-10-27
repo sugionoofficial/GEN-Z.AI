@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Migrator GEN-Z.AI</title>
 <style>
-body{font-family:system-ui,sans-serif;max-width:780px;margin:32px auto;padding:0 16px;line-height:1.6;color:#132a20}
+html,body{background:#000000;color:#f5f6fb;font-family:system-ui,sans-serif}
+body{max-width:780px;margin:32px auto;padding:0 16px;line-height:1.6}
 h1{font-size:24px}
-label{font-weight:600;display:block;margin-top:10px}
-input{width:100%;padding:12px;margin:6px 0;border:1px solid #cbd5d1;border-radius:8px;font-size:14px;box-sizing:border-box}
+label{font-weight:600;display:block;margin-top:10px;color:#e2e8f0}
+input{width:100%;padding:12px;margin:6px 0;background:#0e121b;color:#f8fafc;border:1px solid rgba(255,255,255,.16);border-radius:8px;font-size:14px;box-sizing:border-box}
 button{background:#0a7a4b;color:#fff;border:0;padding:16px 30px;font-size:17px;font-weight:700;border-radius:12px;cursor:pointer;margin-top:14px}
-button:disabled{background:#9ca3af;cursor:wait}
-.warn{background:#fff7ed;border:1px solid #fdba74;padding:10px 14px;border-radius:10px;font-size:14px}
-.err{color:#b3261e;font-weight:700}
-.ok{color:#0a7a4b;font-weight:700}
+button:disabled{background:#374151;cursor:wait}
+.warn{background:#1f1608;color:#fde68a;border:1px solid rgba(251,191,36,.35);padding:10px 14px;border-radius:10px;font-size:14px}
+.err{color:#f87171;font-weight:700}
+.ok{color:#34d399;font-weight:700}
 pre{background:#0f172a;color:#d1fae5;padding:14px;border-radius:10px;max-height:46vh;overflow:auto;font-size:12.5px;white-space:pre-wrap}
 .spin{display:inline-block;width:16px;height:16px;border:3px solid #0a7a4b;border-top-color:transparent;border-radius:50%;animation:r 1s linear infinite;vertical-align:-3px}
 @keyframes r{to{transform:rotate(360deg)}}

@@ -3,7 +3,7 @@
 ========================================================= */
 
 :root {
-    --up-bg: #05070a;
+    --up-bg: #000000;
     --up-surface: rgba(255, 255, 255, 0.028);
     --up-surface-hi: rgba(255, 255, 255, 0.05);
     --up-line: rgba(255, 255, 255, 0.07);
@@ -29,6 +29,10 @@
     box-sizing: border-box;
 }
 
+html {
+    background: var(--up-bg);
+}
+
 body {
     margin: 0;
     min-height: 100vh;
@@ -37,10 +41,6 @@ body {
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "cv11", "ss01", "tnum";
-    background-image:
-        radial-gradient(ellipse 900px 600px at 15% -10%, rgba(255, 51, 85, 0.06), transparent 60%),
-        radial-gradient(ellipse 800px 600px at 85% 0%, rgba(169, 112, 255, 0.04), transparent 55%);
-    background-attachment: fixed;
 }
 
 .upscale-page {
