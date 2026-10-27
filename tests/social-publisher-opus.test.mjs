@@ -319,6 +319,8 @@ test("mendukung respons SSE MCP dan perpanjangan otomatis OAuth refresh_token", 
             assert.equal(form.get("grant_type"), "refresh_token");
             assert.equal(form.get("refresh_token"), "rt_live_123");
             assert.equal(form.get("client_id"), "client_opus_abc");
+            assert.equal(form.get("resource"), "https://labs.opus.pro/opus-video-tools/mcp");
+            assert.equal(form.get("scope"), "openid offline_access");
             return Response.json({
                 access_token: "fresh-access-token",
                 refresh_token: "rt_live_456",
@@ -327,6 +329,7 @@ test("mendukung respons SSE MCP dan perpanjangan otomatis OAuth refresh_token", 
         }
         if (url === OPUS_DEFAULT_MCP_URL) {
             assert.equal(options.headers.Authorization, "Bearer fresh-access-token");
+            assert.equal(options.headers["MCP-Protocol-Version"], "2025-03-26");
             const body = JSON.parse(options.body);
             const sseReply = (payload) => new Response(
                 `event: message\ndata: ${JSON.stringify({ jsonrpc: "2.0", id: body.id, result: payload })}\n\n`,
@@ -367,6 +370,8 @@ test("mendukung respons SSE MCP dan perpanjangan otomatis OAuth refresh_token", 
             access_token: "expired-token",
             refresh_token: "rt_live_123",
             client_id: "client_opus_abc",
+            resource: "https://labs.opus.pro/opus-video-tools/mcp",
+            scope: "openid offline_access",
             expires_at: Math.floor(Date.now() / 1000) - 120
         });
         const result = await generateOpusSocialImage({
