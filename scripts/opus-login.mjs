@@ -3,12 +3,14 @@
    GEN-Z.AI — Pembantu Login OAuth Opus Labs (Product Ad Studio)
    ---------------------------------------------------------
    Menjalankan alur OAuth 2.0 PKCE + Dynamic Client Registration
+   + RFC 8707 Resource Indicators (sesuai standar MCP OAuth SDK)
    langsung ke server resmi Opus Labs MCP:
      https://labs.opus.pro/opus-video-tools/mcp
 
-   Hasilnya disimpan ke `.opus-auth-token.json` (di-ignore oleh Git)
-   dan otomatis disalin ke Clipboard (Windows/macOS) dalam format
-   JSON 1 baris yang siap ditempel ke Cloudflare Secret `OPUS_AUTH_TOKEN`.
+   Hasilnya diverifikasi langsung terhadap endpoint MCP (harus HTTP 200),
+   disimpan ke `.opus-auth-token.json` (di-ignore oleh Git), dan otomatis
+   disalin ke Clipboard (Windows/macOS) dalam format JSON 1 baris yang
+   siap ditempel ke Cloudflare Secret `OPUS_AUTH_TOKEN`.
 
    Pemakaian di PowerShell / Terminal:
      npm run opus:login
@@ -26,6 +28,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 export const DEFAULT_OPUS_MCP_URL = "https://labs.opus.pro/opus-video-tools/mcp";
 export const DEFAULT_OPUS_AUTH_SERVER = "https://focused-horizon-38.authkit.app";
 export const DEFAULT_OUTPUT_FILE = ".opus-auth-token.json";
+const MCP_PROTOCOL_VERSION = "2025-03-26";
 
 function base64UrlEncode(buffer) {
     return Buffer.from(buffer)
@@ -42,12 +45,51 @@ export function createPkcePair() {
     return { codeVerifier, codeChallenge };
 }
 
+export function extractWwwAuthParam(headerValue, fieldName) {
+    if (!headerValue) return "";
+    const pattern = new RegExp(`${fieldName}=(?:"([^"]+)"|([^\\s,]+))`, "i");
+    const match = String(headerValue).match(pattern);
+    return (match?.[1] || match?.[2] || "").trim();
+}
+
+async function probeMcpWwwAuthenticate(mcpUrl) {
+    try {
+        const res = await fetch(mcpUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json, text/event-stream",
+                "MCP-Protocol-Version": MCP_PROTOCOL_VERSION
+            },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                id: 1,
+                method: "initialize",
+                params: {
+                    protocolVersion: MCP_PROTOCOL_VERSION,
+                    capabilities: {},
+                    clientInfo: { name: "genz-ai-opus-discovery", version: "1.0.0" }
+                }
+            })
+        });
+        const wwwAuth = res.headers.get("www-authenticate") || res.headers.get("WWW-Authenticate") || "";
+        await res.text().catch(() => "");
+        return {
+            resourceMetadataUrl: extractWwwAuthParam(wwwAuth, "resource_metadata"),
+            scope: extractWwwAuthParam(wwwAuth, "scope")
+        };
+    } catch {
+        return { resourceMetadataUrl: "", scope: "" };
+    }
+}
+
 async function fetchJsonSafe(url, options = {}) {
     try {
         const res = await fetch(url, {
             ...options,
             headers: {
                 Accept: "application/json",
+                "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
                 ...(options.headers || {})
             }
         });
@@ -58,7 +100,7 @@ async function fetchJsonSafe(url, options = {}) {
     }
 }
 
-export async function discoverOpusOAuthEndpoints(mcpUrl = DEFAULT_OPUS_MCP_URL) {
+export async function discoverOpusOAuthEndpoints(mcpUrl = DEFAULT_OPUS_MCP_URL, { probeServer = true } = {}) {
     const parsed = new URL(mcpUrl);
     const origin = parsed.origin;
     const pathTrimmed = parsed.pathname.replace(/\/+$/, "");
@@ -66,18 +108,35 @@ export async function discoverOpusOAuthEndpoints(mcpUrl = DEFAULT_OPUS_MCP_URL) 
         ? pathTrimmed.slice(0, pathTrimmed.lastIndexOf("/"))
         : "";
 
+    const wwwAuth = probeServer
+        ? await probeMcpWwwAuthenticate(mcpUrl)
+        : { resourceMetadataUrl: "", scope: "" };
+
     const candidateResourceMetaUrls = [
+        ...(wwwAuth.resourceMetadataUrl ? [wwwAuth.resourceMetadataUrl] : []),
+        `${origin}/.well-known/oauth-protected-resource${pathTrimmed}`,
         ...(parentPath ? [`${origin}${parentPath}/.well-known/oauth-protected-resource`] : []),
         `${origin}${pathTrimmed}/.well-known/oauth-protected-resource`,
-        `${origin}/.well-known/oauth-protected-resource${pathTrimmed}`,
         ...(parentPath ? [`${origin}/.well-known/oauth-protected-resource${parentPath}`] : []),
         `${origin}/.well-known/oauth-protected-resource`
     ];
 
+    const seenUrls = new Set();
     let protectedMeta = null;
     for (const metaUrl of candidateResourceMetaUrls) {
+        if (!metaUrl || seenUrls.has(metaUrl)) continue;
+        seenUrls.add(metaUrl);
         protectedMeta = await fetchJsonSafe(metaUrl);
         if (protectedMeta && typeof protectedMeta === "object") break;
+    }
+
+    let resourceUrl = "";
+    if (protectedMeta?.resource) {
+        try {
+            resourceUrl = new URL(String(protectedMeta.resource)).href;
+        } catch {
+            resourceUrl = String(protectedMeta.resource).trim();
+        }
     }
 
     const authServerBase = String(
@@ -89,21 +148,57 @@ export async function discoverOpusOAuthEndpoints(mcpUrl = DEFAULT_OPUS_MCP_URL) 
         || await fetchJsonSafe(`${authServerBase}/.well-known/openid-configuration`)
         || {};
 
-    const scopesSupported = Array.isArray(protectedMeta?.scopes_supported) && protectedMeta.scopes_supported.length
-        ? protectedMeta.scopes_supported
+    /* Penentuan scope mengikuti urutan resmi MCP SDK (WWW-Authenticate ->
+       Protected Resource Metadata -> Auth Server Metadata + offline_access). */
+    let effectiveScope = "";
+    if (wwwAuth.scope) {
+        effectiveScope = wwwAuth.scope;
+    } else if (Array.isArray(protectedMeta?.scopes_supported)) {
+        effectiveScope = protectedMeta.scopes_supported.join(" ").trim();
+    } else if (Array.isArray(authMeta?.scopes_supported)) {
+        effectiveScope = authMeta.scopes_supported.join(" ").trim();
+    }
+    if (
+        effectiveScope
+        && Array.isArray(authMeta?.scopes_supported)
+        && authMeta.scopes_supported.includes("offline_access")
+        && !effectiveScope.split(/\s+/).includes("offline_access")
+    ) {
+        effectiveScope = `${effectiveScope} offline_access`;
+    }
+
+    const scopesList = effectiveScope ? effectiveScope.split(/\s+/).filter(Boolean) : [];
+    const authMethodsSupported = Array.isArray(authMeta?.token_endpoint_auth_methods_supported)
+        ? authMeta.token_endpoint_auth_methods_supported
         : [];
 
     return {
         mcpUrl,
+        resource: resourceUrl,
         authServerBase,
         authorizationEndpoint: String(authMeta.authorization_endpoint || `${authServerBase}/oauth2/authorize`),
         tokenEndpoint: String(authMeta.token_endpoint || `${authServerBase}/oauth2/token`),
         registrationEndpoint: String(authMeta.registration_endpoint || `${authServerBase}/oauth2/register`),
-        scopes: scopesSupported
+        scope: effectiveScope,
+        scopes: scopesList,
+        authMethodsSupported
     };
 }
 
-export async function registerDynamicOAuthClient(registrationEndpoint, redirectUri) {
+export async function registerDynamicOAuthClient(
+    registrationEndpoint,
+    redirectUri,
+    { scope = "", authMethodsSupported = [] } = {}
+) {
+    let tokenEndpointAuthMethod = "none";
+    if (Array.isArray(authMethodsSupported) && authMethodsSupported.length > 0 && !authMethodsSupported.includes("none")) {
+        if (authMethodsSupported.includes("client_secret_post")) {
+            tokenEndpointAuthMethod = "client_secret_post";
+        } else if (authMethodsSupported.includes("client_secret_basic")) {
+            tokenEndpointAuthMethod = "client_secret_basic";
+        }
+    }
+
     const res = await fetch(registrationEndpoint, {
         method: "POST",
         headers: {
@@ -112,10 +207,12 @@ export async function registerDynamicOAuthClient(registrationEndpoint, redirectU
         },
         body: JSON.stringify({
             client_name: "GEN-Z.AI Studio Medsos",
+            application_type: "native",
             redirect_uris: [redirectUri],
             grant_types: ["authorization_code", "refresh_token"],
             response_types: ["code"],
-            token_endpoint_auth_method: "none"
+            token_endpoint_auth_method: tokenEndpointAuthMethod,
+            ...(scope ? { scope } : {})
         })
     });
 
@@ -127,7 +224,8 @@ export async function registerDynamicOAuthClient(registrationEndpoint, redirectU
 
     return {
         clientId: String(data.client_id),
-        clientSecret: data.client_secret ? String(data.client_secret) : ""
+        clientSecret: data.client_secret ? String(data.client_secret) : "",
+        scope: data.scope ? String(data.scope) : scope
     };
 }
 
@@ -137,7 +235,9 @@ export async function exchangeCodeForOpusTokens({
     redirectUri,
     clientId,
     clientSecret = "",
-    codeVerifier
+    codeVerifier,
+    resource = "",
+    scope = ""
 }) {
     const body = new URLSearchParams({
         grant_type: "authorization_code",
@@ -148,6 +248,9 @@ export async function exchangeCodeForOpusTokens({
     });
     if (clientSecret) {
         body.set("client_secret", clientSecret);
+    }
+    if (resource) {
+        body.set("resource", resource);
     }
 
     const res = await fetch(tokenEndpoint, {
@@ -167,12 +270,16 @@ export async function exchangeCodeForOpusTokens({
 
     const expiresInSec = Number(payload.expires_in) || 3600;
     const expiresAtSec = Math.floor(Date.now() / 1000) + expiresInSec;
+    const grantedScope = String(payload.scope || scope || "").trim();
 
     return {
         access_token: String(payload.access_token),
+        ...(payload.id_token ? { _id_token: String(payload.id_token) } : {}),
         ...(payload.refresh_token ? { refresh_token: String(payload.refresh_token) } : {}),
         client_id: clientId,
         ...(clientSecret ? { client_secret: clientSecret } : {}),
+        ...(resource ? { resource } : {}),
+        ...(grantedScope ? { scope: grantedScope } : {}),
         expires_at: expiresAtSec,
         token_endpoint: tokenEndpoint
     };
@@ -216,12 +323,27 @@ export async function extractLatestMcpAuthBundle(baseDir = path.join(os.homedir(
                 ? tokenFile.slice(0, -"_tokens.json".length)
                 : "";
             const clientFile = prefix ? `${prefix}_client_info.json` : "client_info.json";
+            const discoveryFile = prefix ? `${prefix}_discovery_state.json` : "discovery_state.json";
             let clientJson = null;
+            let discoveryJson = null;
             try {
                 clientJson = JSON.parse(await fs.readFile(path.join(dir, clientFile), "utf8"));
             } catch {
                 clientJson = null;
             }
+            try {
+                discoveryJson = JSON.parse(await fs.readFile(path.join(dir, discoveryFile), "utf8"));
+            } catch {
+                discoveryJson = null;
+            }
+
+            const discoveredResource = String(
+                discoveryJson?.resourceMetadata?.resource || ""
+            ).trim();
+            const discoveredTokenEndpoint = String(
+                discoveryJson?.authorizationServerMetadata?.token_endpoint
+                || `${DEFAULT_OPUS_AUTH_SERVER}/oauth2/token`
+            ).trim();
 
             if (!newestMatch || stat.mtimeMs > newestMatch.mtimeMs) {
                 newestMatch = {
@@ -232,8 +354,10 @@ export async function extractLatestMcpAuthBundle(baseDir = path.join(os.homedir(
                         ...(tokenJson.refresh_token ? { refresh_token: String(tokenJson.refresh_token) } : {}),
                         ...(clientJson?.client_id ? { client_id: String(clientJson.client_id) } : {}),
                         ...(clientJson?.client_secret ? { client_secret: String(clientJson.client_secret) } : {}),
+                        ...(discoveredResource ? { resource: discoveredResource } : {}),
+                        ...(tokenJson.scope ? { scope: String(tokenJson.scope) } : {}),
                         ...(tokenJson.expires_at ? { expires_at: tokenJson.expires_at } : {}),
-                        token_endpoint: `${DEFAULT_OPUS_AUTH_SERVER}/oauth2/token`
+                        token_endpoint: discoveredTokenEndpoint
                     }
                 };
             }
@@ -243,29 +367,79 @@ export async function extractLatestMcpAuthBundle(baseDir = path.join(os.homedir(
     return newestMatch;
 }
 
-async function verifyOpusMcpToken(mcpUrl, accessToken) {
+export async function verifyOpusMcpToken(mcpUrl, bearerToken) {
     try {
         const initRes = await fetch(mcpUrl, {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${accessToken}`,
+                Authorization: `Bearer ${bearerToken}`,
                 "Content-Type": "application/json",
-                Accept: "application/json, text/event-stream"
+                Accept: "application/json, text/event-stream",
+                "MCP-Protocol-Version": MCP_PROTOCOL_VERSION
             },
             body: JSON.stringify({
                 jsonrpc: "2.0",
                 id: 1,
                 method: "initialize",
                 params: {
-                    protocolVersion: "2025-03-26",
+                    protocolVersion: MCP_PROTOCOL_VERSION,
                     capabilities: {},
                     clientInfo: { name: "genz-ai-opus-login", version: "1.0.0" }
                 }
             })
         });
-        return { ok: initRes.ok, status: initRes.status };
+        const wwwAuth = initRes.headers.get("www-authenticate") || initRes.headers.get("WWW-Authenticate") || "";
+        const sessionId = initRes.headers.get("mcp-session-id") || initRes.headers.get("Mcp-Session-Id") || "";
+        const bodyText = await initRes.text().catch(() => "");
+
+        if (!initRes.ok) {
+            const errCode = extractWwwAuthParam(wwwAuth, "error");
+            const errDesc = extractWwwAuthParam(wwwAuth, "error_description");
+            return {
+                ok: false,
+                status: initRes.status,
+                detail: [errCode, errDesc, bodyText.slice(0, 200)].filter(Boolean).join(" — ") || `HTTP ${initRes.status}`
+            };
+        }
+
+        /* Kirim notifications/initialized & cek whoami ringan bila tersedia. */
+        let accountNote = "";
+        try {
+            const baseHeaders = {
+                Authorization: `Bearer ${bearerToken}`,
+                "Content-Type": "application/json",
+                Accept: "application/json, text/event-stream",
+                "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
+                ...(sessionId ? { "Mcp-Session-Id": sessionId } : {})
+            };
+            await fetch(mcpUrl, {
+                method: "POST",
+                headers: baseHeaders,
+                body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} })
+            }).catch(() => null);
+
+            const whoRes = await fetch(mcpUrl, {
+                method: "POST",
+                headers: baseHeaders,
+                body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: 2,
+                    method: "tools/call",
+                    params: { name: "opus_video_tools_whoami", arguments: {} }
+                })
+            });
+            if (whoRes.ok) {
+                const whoRaw = await whoRes.text();
+                const snippet = whoRaw.replace(/\s+/g, " ").slice(0, 180);
+                if (snippet) accountNote = snippet;
+            }
+        } catch {
+            /* whoami bersifat opsional setelah initialize HTTP 200. */
+        }
+
+        return { ok: true, status: initRes.status, accountNote };
     } catch (err) {
-        return { ok: false, status: 0, error: err?.message || "network error" };
+        return { ok: false, status: 0, detail: err?.message || "network error" };
     }
 }
 
@@ -326,7 +500,7 @@ function startLocalCallbackServer({ expectedState, timeoutMs = 180_000 }) {
 
         const timer = setTimeout(() => {
             server.close();
-            rejectCode(new Error("Waktu tunggu login browser habis (3 menit). Jalankan ulang `npm run opus:login`."));
+            rejectCode(new Error("Waktu tunggu login browser habis (3 menit). Jalankan ulang script ini."));
         }, timeoutMs);
 
         const server = http.createServer((req, res) => {
@@ -362,7 +536,7 @@ function startLocalCallbackServer({ expectedState, timeoutMs = 180_000 }) {
                 + ".box{border:1px solid #26354d;border-radius:16px;padding:28px 32px;max-width:480px;text-align:center;background:#0b1320}"
                 + "h1{color:#39ff71;font-size:20px;margin:0 0 10px}p{color:#a8b8d0;line-height:1.5;margin:0}</style></head>"
                 + "<body><div class='box'><h1>Login Opus Labs Berhasil</h1>"
-                + "<p>Token OAuth sedang disimpan ke file proyek &amp; disalin ke clipboard. Anda boleh menutup tab ini dan kembali ke PowerShell.</p>"
+                + "<p>Token OAuth sedang diverifikasi, disimpan ke file proyek &amp; disalin ke clipboard. Anda boleh menutup tab ini dan kembali ke PowerShell.</p>"
                 + "</div></body></html>"
             );
             clearTimeout(timer);
@@ -391,36 +565,59 @@ function startLocalCallbackServer({ expectedState, timeoutMs = 180_000 }) {
     });
 }
 
-async function saveBundleAndFinish(bundle, outputPath, mcpUrl) {
-    const compactJson = JSON.stringify(bundle);
+async function saveBundleAndFinish(rawBundle, outputPath, mcpUrl) {
+    const candidateIdToken = rawBundle._id_token || "";
+    const cleanBundle = { ...rawBundle };
+    delete cleanBundle._id_token;
+
+    let check = await verifyOpusMcpToken(mcpUrl, cleanBundle.access_token);
+    if (!check.ok && check.status === 401 && candidateIdToken && candidateIdToken !== cleanBundle.access_token) {
+        const idCheck = await verifyOpusMcpToken(mcpUrl, candidateIdToken);
+        if (idCheck.ok) {
+            cleanBundle.access_token = candidateIdToken;
+            check = idCheck;
+        }
+    }
+
+    if (!check.ok) {
+        throw new Error(
+            `Token diterima dari OAuth server tetapi masih ditolak oleh ${mcpUrl} (${check.detail || `HTTP ${check.status}`}). `
+            + "Pastikan Anda login dengan akun OpusClip yang aktif."
+        );
+    }
+
+    const compactJson = JSON.stringify(cleanBundle);
     await fs.writeFile(outputPath, `${compactJson}\n`, { encoding: "utf8", mode: 0o600 });
     const copied = await copyTextToClipboard(compactJson);
-    const check = await verifyOpusMcpToken(mcpUrl, bundle.access_token);
 
     console.log("\n=========================================================");
-    console.log("BERHASIL! Token OAuth Opus sudah dibuat & di-update.");
+    console.log("BERHASIL! Token OAuth Opus TERVERIFIKASI (HTTP 200 OK).");
     console.log("=========================================================");
     console.log(`File tersimpan : ${outputPath}`);
-    console.log(`Refresh token  : ${bundle.refresh_token ? "Tersedia (auto-refresh aktif)" : "Tidak disertakan server"}`);
-    console.log(`Tes koneksi MCP: ${check.ok ? `OK (HTTP ${check.status})` : `Periksa akses akun (HTTP ${check.status || "offline"})`}`);
+    console.log(`Resource OAuth : ${cleanBundle.resource || "(default)"}`);
+    console.log(`Refresh token  : ${cleanBundle.refresh_token ? "Tersedia (auto-refresh aktif)" : "Tidak disertakan server"}`);
+    console.log(`Tes koneksi MCP: OK (HTTP ${check.status})`);
     console.log(`Clipboard      : ${copied ? "SUDAH TERSALIN OTOMATIS (tinggal Ctrl + V!)" : "Salin isi file .opus-auth-token.json"}`);
     console.log("\nLangkah terakhir:");
     console.log("1. Buka Cloudflare Dashboard -> Workers & Pages -> genzai -> Settings -> Variables and Secrets");
-    console.log("2. Buat/Edit Secret bernama: OPUS_AUTH_TOKEN");
-    console.log("3. Tekan Ctrl + V di kolom Value (atau salin isi file .opus-auth-token.json), lalu klik Save/Deploy.");
+    console.log("2. Edit Secret bernama: OPUS_AUTH_TOKEN");
+    console.log("3. Hapus isi lama, tekan Ctrl + V di kolom Value, lalu klik Save/Deploy.");
     console.log("=========================================================\n");
 }
 
 async function main() {
     const args = process.argv.slice(2);
-    const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+    const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+    const repoRoot = path.basename(scriptDir).toLowerCase() === "scripts"
+        ? path.resolve(scriptDir, "..")
+        : scriptDir;
     const outputPath = path.join(repoRoot, DEFAULT_OUTPUT_FILE);
     const mcpUrl = process.env.OPUS_MCP_URL || DEFAULT_OPUS_MCP_URL;
 
     if (args.includes("--from-mcp-auth")) {
         const cached = await extractLatestMcpAuthBundle();
         if (!cached) {
-            console.error("Tidak ditemukan token di folder ~/.mcp-auth. Jalankan `npm run opus:login` tanpa argumen untuk login langsung lewat browser.");
+            console.error("Tidak ditemukan token di folder ~/.mcp-auth. Jalankan tanpa argumen untuk login langsung lewat browser.");
             process.exit(1);
         }
         console.log(`Mengimpor token terbaru dari: ${cached.sourcePath}`);
@@ -430,6 +627,9 @@ async function main() {
 
     console.log("Menyiapkan koneksi OAuth Opus Labs (Product Ad Studio)...");
     const endpoints = await discoverOpusOAuthEndpoints(mcpUrl);
+    console.log(`Server OAuth   : ${endpoints.authServerBase}`);
+    console.log(`Target Resource: ${endpoints.resource || mcpUrl}`);
+
     const state = crypto.randomBytes(16).toString("hex");
     const { codeVerifier, codeChallenge } = createPkcePair();
 
@@ -437,9 +637,14 @@ async function main() {
     try {
         const client = await registerDynamicOAuthClient(
             endpoints.registrationEndpoint,
-            callbackServer.redirectUri
+            callbackServer.redirectUri,
+            {
+                scope: endpoints.scope,
+                authMethodsSupported: endpoints.authMethodsSupported
+            }
         );
 
+        const effectiveScope = endpoints.scope || client.scope || "";
         const authUrl = new URL(endpoints.authorizationEndpoint);
         authUrl.searchParams.set("response_type", "code");
         authUrl.searchParams.set("client_id", client.clientId);
@@ -447,8 +652,14 @@ async function main() {
         authUrl.searchParams.set("code_challenge", codeChallenge);
         authUrl.searchParams.set("code_challenge_method", "S256");
         authUrl.searchParams.set("state", state);
-        if (endpoints.scopes.length > 0) {
-            authUrl.searchParams.set("scope", endpoints.scopes.join(" "));
+        if (endpoints.resource) {
+            authUrl.searchParams.set("resource", endpoints.resource);
+        }
+        if (effectiveScope) {
+            authUrl.searchParams.set("scope", effectiveScope);
+            if (effectiveScope.split(/\s+/).includes("offline_access")) {
+                authUrl.searchParams.set("prompt", "consent");
+            }
         }
 
         console.log("\nMembuka browser untuk login ke akun OpusClip / Opus Labs Anda...");
@@ -466,7 +677,9 @@ async function main() {
             redirectUri: callbackServer.redirectUri,
             clientId: client.clientId,
             clientSecret: client.clientSecret,
-            codeVerifier
+            codeVerifier,
+            resource: endpoints.resource,
+            scope: effectiveScope
         });
 
         await saveBundleAndFinish(bundle, outputPath, mcpUrl);
