@@ -1691,6 +1691,260 @@ test("import_assets tidak pernah mengirim assets[] tanpa sumber media dan dapat 
     }
 });
 
+test("generateOpusSocialImage mengekstrak jobId bersarang/markdown JSON dan mengunduh gambar dari sibling assets di get_status", async () => {
+    resetOpusTokenCache();
+    const outputJpeg = texturedJpeg({ width: 720, height: 1280 });
+    let polledJobId = "";
+
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url === "https://cdn.opus.pro/out/sibling-asset.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") {
+                return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: standardMcpTools() } });
+            }
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "gen_nested_01" } } });
+                }
+                if (name === "generate_keyframes") {
+                    const mdPayload = [
+                        "Submitted 1 keyframe generation request.",
+                        "```json",
+                        JSON.stringify({
+                            data: {
+                                projectId: args.projectId,
+                                items: [
+                                    {
+                                        id: "kf-1",
+                                        ok: true,
+                                        status: "queued",
+                                        submission: { executionId: "exec-nested-901" }
+                                    }
+                                ]
+                            }
+                        }),
+                        "```"
+                    ].join("\n");
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            content: [{ type: "text", text: mdPayload }]
+                        }
+                    });
+                }
+                if (name === "get_status") {
+                    polledJobId = args.jobId;
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: args.projectId,
+                                jobs: [{ id: "exec-nested-901", status: "completed", outputAssetId: "ast_out_901" }],
+                                assets: [{ assetId: "ast_out_901", resultUrl: "https://cdn.opus.pro/out/sibling-asset.jpg" }]
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-nested", OPUS_POLL_INTERVAL_MS: "5" },
+            prompt: "Kopi susu dingin di meja kayu"
+        });
+        assert.equal(polledJobId, "exec-nested-901");
+        assert.equal(res.width, 720);
+        assert.equal(res.height, 1280);
+    } finally {
+        restore();
+    }
+});
+
+test("generateOpusSocialImage menggunakan fallback list_jobs saat generate_keyframes sukses tanpa jobId inline serta memulihkan error unsupported_model", async () => {
+    resetOpusTokenCache();
+    const outputJpeg = texturedJpeg({ width: 720, height: 1280 });
+    let listJobsCalledWithProject = "";
+    let keyframeAttempts = 0;
+
+    const toolsWithListJobs = [
+        ...standardMcpTools(),
+        {
+            name: "list_jobs",
+            inputSchema: {
+                type: "object",
+                required: ["projectId"],
+                properties: {
+                    projectId: { type: "string" },
+                    limit: { type: "number" }
+                }
+            }
+        }
+    ];
+
+    let restore = mockFetch(async (url, options = {}) => {
+        if (url === "https://cdn.opus.pro/out/from-list-jobs.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") {
+                return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: toolsWithListJobs } });
+            }
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "gen_list_01" } } });
+                }
+                if (name === "generate_keyframes") {
+                    keyframeAttempts += 1;
+                    /* Percobaan pertama gagal di level item tanpa ok:false (dulu tertelan jadi unexpected_response) */
+                    if (args.model) {
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                structuredContent: {
+                                    projectId: args.projectId,
+                                    items: [{ id: "kf-1", error: "unsupported_model", message: "Model alias not enabled" }]
+                                }
+                            }
+                        });
+                    }
+                    /* Percobaan fallback tanpa model sukses tapi tidak mengembalikan jobId inline */
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: args.projectId,
+                                items: [{ id: "kf-1", ok: true, status: "queued" }]
+                            }
+                        }
+                    });
+                }
+                if (name === "list_jobs") {
+                    listJobsCalledWithProject = args.projectId;
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: args.projectId,
+                                jobs: { "kf-1": "job_listed_77" }
+                            }
+                        }
+                    });
+                }
+                if (name === "get_status") {
+                    assert.equal(args.jobId, "job_listed_77");
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                jobs: [{ jobId: "job_listed_77", status: "completed", downloadUrl: "https://cdn.opus.pro/out/from-list-jobs.jpg" }]
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-list-jobs", OPUS_POLL_INTERVAL_MS: "5" },
+            prompt: "Sepatu lari putih modern"
+        });
+        assert.equal(keyframeAttempts >= 2, true, "Harus otomatis mencoba kandidat fallback saat unsupported_model");
+        assert.equal(listJobsCalledWithProject, "gen_list_01");
+        assert.equal(res.width, 720);
+        assert.equal(res.height, 1280);
+    } finally {
+        restore();
+    }
+
+    /* Verifikasi diagnostik tersanitasi apabila respons benar-benar kosong tanpa jobId maupun list_jobs */
+    const strictStatusTools = standardMcpTools().map(t => (
+        t.name === "get_status"
+            ? { ...t, inputSchema: { ...t.inputSchema, required: ["jobId"] } }
+            : t
+    ));
+    restore = mockFetch(async (url, options = {}) => {
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") {
+                return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: strictStatusTools } });
+            }
+            if (body.method === "tools/call") {
+                const { name } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "gen_noop_01" } } });
+                }
+                if (name === "generate_keyframes") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: "gen_noop_01",
+                                note: "accepted_without_id",
+                                accessToken: "secret-abc-999",
+                                signedLink: "https://example.com/file?X-Amz-Signature=topsecret"
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        await assert.rejects(
+            () => generateOpusSocialImage({
+                env: { OPUS_AUTH_TOKEN: "tok-diag", OPUS_POLL_INTERVAL_MS: "5" },
+                prompt: "Tes diagnostik"
+            }),
+            err => {
+                assert.equal(err.code, "unexpected_response");
+                assert.match(err.message, /accepted_without_id/);
+                assert.match(err.message, /\[schema:/);
+                assert.doesNotMatch(err.message, /secret-abc-999/);
+                assert.doesNotMatch(err.message, /topsecret/);
+                return true;
+            }
+        );
+    } finally {
+        restore();
+    }
+});
+
 
 
 
