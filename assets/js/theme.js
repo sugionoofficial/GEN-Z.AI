@@ -360,7 +360,7 @@
 
             html[data-genz-theme="light"] body .genz-account-box {
                 background: #f8f9fd;
-                border-color: rgba(23, 32, 51, .12);
+                box-shadow: inset 0 0 0 1px rgba(23, 32, 51, .14);
             }
 
             html[data-genz-theme="light"] body .genz-sidebar-overlay {

@@ -38,7 +38,7 @@
     if (!window.__GENZ_THEME_SCRIPT_LOADING) {
         window.__GENZ_THEME_SCRIPT_LOADING = true;
         const themeScript = document.createElement("script");
-        themeScript.src = "/assets/js/theme.js?v=light-mode-pass-20261027";
+        themeScript.src = "/assets/js/theme.js?v=electric-red-footer-20261027";
         themeScript.onerror = error => {
             console.error("[GEN-Z.AI] Failed to load shared theme controls:", error);
             window.__GENZ_THEME_SCRIPT_LOADING = false;
@@ -1582,51 +1582,78 @@
 
             .genz-sidebar-footer {
                 margin-top: auto;
-                padding: 10px 10px 14px;
+                padding: 12px 10px 14px;
                 border-top: 1px solid rgba(255, 255, 255, .05);
             }
 
+            /* =====================================================
+               FOOTER BLOCKS — BRIGHT NEON RED ROTATING BORDER
+               (.genz-theme-toggle, .genz-refresh-button,
+                .genz-account-box, .genz-logout-button)
+            ===================================================== */
+
+            .genz-sidebar-footer .genz-theme-toggle,
+            .genz-sidebar-footer .genz-refresh-button {
+                position: relative;
+                overflow: hidden;
+                isolation: isolate;
+                border: 0;
+                border-radius: 10px;
+                padding: 9px 12px;
+                color: #ffffff;
+                background: rgba(255, 255, 255, .04);
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16);
+                transition:
+                    color .3s ease,
+                    background .3s ease,
+                    box-shadow .3s ease,
+                    transform .3s ease;
+            }
+
             .genz-account-box {
+                position: relative;
+                overflow: hidden;
+                isolation: isolate;
                 display: flex;
                 align-items: center;
                 gap: 8px;
                 width: 100%;
                 margin: 0 0 10px;
-                padding: 10px 11px;
-                border: 1px solid rgba(255, 50, 50, .18);
+                padding: 11px 12px;
+                border: 0;
                 border-radius: 10px;
                 background: rgba(255, 255, 255, .025);
+                box-shadow: inset 0 0 0 1px rgba(255, 50, 50, .18);
                 color: inherit;
                 text-decoration: none;
                 cursor: pointer;
-                transition: border-color .18s ease, background .18s ease, transform .18s ease;
-            }
-
-            .genz-account-box:hover {
-                border-color: rgba(255, 80, 80, .42);
-                background: rgba(255, 255, 255, .06);
-            }
-
-            .genz-account-box:focus-visible {
-                outline: 2px solid rgba(255, 90, 90, .85);
-                outline-offset: 2px;
+                transition:
+                    color .3s ease,
+                    background .3s ease,
+                    box-shadow .3s ease,
+                    transform .3s ease;
             }
 
             .genz-account-main {
+                position: relative;
+                z-index: 2;
                 min-width: 0;
                 flex: 1 1 auto;
             }
 
             .genz-account-arrow {
+                position: relative;
+                z-index: 2;
                 flex: 0 0 auto;
                 color: rgba(255, 255, 255, .38);
                 font-size: 12px;
                 line-height: 1;
-                transition: color .18s ease, transform .18s ease;
+                transition: color .22s ease, transform .22s ease;
             }
 
-            .genz-account-box:hover .genz-account-arrow {
-                color: #ff6565;
+            .genz-account-box:hover .genz-account-arrow,
+            .genz-account-box:focus-visible .genz-account-arrow {
+                color: #ff5263;
                 transform: translateX(2px);
             }
 
@@ -1636,6 +1663,7 @@
                 font-size: 9px;
                 font-weight: 800;
                 letter-spacing: 1.2px;
+                transition: color .22s ease;
             }
 
             .genz-account-email {
@@ -1645,6 +1673,17 @@
                 font-weight: 600;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+                transition: color .22s ease;
+            }
+
+            .genz-account-box:hover .genz-account-label,
+            .genz-account-box:focus-visible .genz-account-label {
+                color: rgba(255, 255, 255, .72);
+            }
+
+            .genz-account-box:hover .genz-account-email,
+            .genz-account-box:focus-visible .genz-account-email {
+                color: #ffffff;
             }
 
             .genz-account-role {
@@ -1660,61 +1699,216 @@
                 letter-spacing: .8px;
             }
 
-            html[data-genz-theme="light"] body .genz-account-box {
-                color: #101828;
-            }
-
-            html[data-genz-theme="light"] body .genz-account-box:hover {
-                border-color: rgba(23, 32, 51, .26);
-                background: #eef1f8;
-            }
-
-            html[data-genz-theme="light"] body .genz-account-box .genz-account-label {
-                color: #55617a;
-            }
-
-            html[data-genz-theme="light"] body .genz-account-box .genz-account-email {
-                color: #101828;
-            }
-
-            html[data-genz-theme="light"] body .genz-account-box .genz-account-role {
-                border-color: rgba(180, 35, 47, .3);
-                background: #fdf1f2;
-                color: #b4232f;
-            }
-
-            html[data-genz-theme="light"] body .genz-account-box .genz-account-arrow {
-                color: #8a94a6;
-            }
-
-            html[data-genz-theme="light"] body .genz-account-box:hover .genz-account-arrow {
-                color: #b4232f;
-            }
-
             .genz-logout-button {
+                position: relative;
+                overflow: hidden;
+                isolation: isolate;
                 width: 100%;
                 min-height: 42px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 9px 11px;
-                border: 1px solid rgba(255, 50, 50, .25);
+                padding: 10px 12px;
+                border: 0;
                 border-radius: 10px;
                 color: #ff3b3b;
                 background: rgba(255, 0, 0, .025);
+                box-shadow: inset 0 0 0 1px rgba(255, 50, 50, .25);
                 font: inherit;
                 font-size: 12px;
                 font-weight: 800;
                 letter-spacing: .8px;
                 cursor: pointer;
-                transition: all .18s ease;
+                transition:
+                    color .3s ease,
+                    background .3s ease,
+                    box-shadow .3s ease,
+                    transform .3s ease;
             }
 
-            .genz-logout-button:hover {
-                color: #ff5555;
-                background: rgba(255, 0, 0, .08);
-                border-color: rgba(255, 50, 50, .45);
-                box-shadow: 0 0 12px rgba(255, 0, 0, .12);
+            .genz-sidebar-footer .genz-theme-toggle::before,
+            .genz-sidebar-footer .genz-refresh-button::before,
+            .genz-account-box::before,
+            .genz-logout-button::before {
+                content: "";
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 520px;
+                height: 520px;
+                background: conic-gradient(
+                    from 0deg,
+                    transparent 0deg,
+                    transparent 295deg,
+                    #ff1a35 325deg,
+                    #ff5263 338deg,
+                    #ffffff 347deg,
+                    #ff1a35 356deg,
+                    transparent 360deg
+                );
+                transform: translate(-50%, -50%) rotate(0deg);
+                animation: genz-nav-electric 2s linear infinite;
+                animation-play-state: paused;
+                opacity: 0;
+                pointer-events: none;
+                z-index: -2;
+                transition: opacity .25s ease;
+            }
+
+            .genz-sidebar-footer .genz-theme-toggle::after,
+            .genz-sidebar-footer .genz-refresh-button::after,
+            .genz-account-box::after,
+            .genz-logout-button::after {
+                content: "";
+                position: absolute;
+                inset: 2px;
+                background: #140d12;
+                border-radius: 8px;
+                opacity: 0;
+                pointer-events: none;
+                z-index: -1;
+                transition: opacity .25s ease, background .25s ease;
+            }
+
+            .genz-sidebar-footer .genz-theme-toggle:hover,
+            .genz-sidebar-footer .genz-theme-toggle:focus-visible,
+            .genz-sidebar-footer .genz-refresh-button:hover,
+            .genz-sidebar-footer .genz-refresh-button:focus-visible,
+            .genz-account-box:hover,
+            .genz-account-box:focus-visible,
+            .genz-logout-button:hover,
+            .genz-logout-button:focus-visible {
+                z-index: 2;
+                color: #ffffff;
+                background: rgba(255, 26, 53, .16);
+                border-color: transparent;
+                transform: translateY(-2px);
+                outline: none;
+                box-shadow:
+                    0 0 12px #ff1e38,
+                    0 0 26px rgba(255, 30, 56, .55);
+            }
+
+            .genz-sidebar-footer .genz-theme-toggle:hover::before,
+            .genz-sidebar-footer .genz-theme-toggle:focus-visible::before,
+            .genz-sidebar-footer .genz-refresh-button:hover::before,
+            .genz-sidebar-footer .genz-refresh-button:focus-visible::before,
+            .genz-account-box:hover::before,
+            .genz-account-box:focus-visible::before,
+            .genz-logout-button:hover::before,
+            .genz-logout-button:focus-visible::before {
+                opacity: 1;
+                animation-play-state: running;
+            }
+
+            .genz-sidebar-footer .genz-theme-toggle:hover::after,
+            .genz-sidebar-footer .genz-theme-toggle:focus-visible::after,
+            .genz-sidebar-footer .genz-refresh-button:hover::after,
+            .genz-sidebar-footer .genz-refresh-button:focus-visible::after,
+            .genz-account-box:hover::after,
+            .genz-account-box:focus-visible::after,
+            .genz-logout-button:hover::after,
+            .genz-logout-button:focus-visible::after {
+                opacity: 1;
+            }
+
+            /* Light mode overrides for footer neon red blocks */
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-sidebar-footer .genz-theme-toggle,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-sidebar-footer .genz-refresh-button {
+                color: #1e293b;
+                background: #ffffff;
+                border: 0;
+                box-shadow:
+                    inset 0 0 0 1px #cbd5e1,
+                    0 4px 14px rgba(15, 23, 42, .06);
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box {
+                color: #101828;
+                background: #f8f9fd;
+                border: 0;
+                box-shadow: inset 0 0 0 1px rgba(23, 32, 51, .14);
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box .genz-account-label {
+                color: #55617a;
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box .genz-account-email {
+                color: #101828;
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box .genz-account-role {
+                border-color: rgba(180, 35, 47, .3);
+                background: #fdf1f2;
+                color: #b4232f;
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box .genz-account-arrow {
+                color: #8a94a6;
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-logout-button {
+                color: #dc2626;
+                background: #fff5f5;
+                border: 0;
+                box-shadow: inset 0 0 0 1px rgba(220, 38, 38, .28);
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-sidebar-footer .genz-theme-toggle::before,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-sidebar-footer .genz-refresh-button::before,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box::before,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-logout-button::before {
+                background: conic-gradient(
+                    from 0deg,
+                    transparent 0deg,
+                    transparent 290deg,
+                    #ff1744 322deg,
+                    #ff6b6b 340deg,
+                    #d50029 352deg,
+                    #ff1744 357deg,
+                    transparent 360deg
+                );
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-sidebar-footer .genz-theme-toggle::after,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-sidebar-footer .genz-refresh-button::after,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box::after,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-logout-button::after {
+                background: #fff5f6;
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-sidebar-footer .genz-theme-toggle:hover,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-sidebar-footer .genz-theme-toggle:focus-visible,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-sidebar-footer .genz-refresh-button:hover,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-sidebar-footer .genz-refresh-button:focus-visible,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box:hover,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box:focus-visible,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-logout-button:hover,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-logout-button:focus-visible {
+                color: #0f172a;
+                background: rgba(255, 23, 68, .18);
+                border-color: transparent;
+                transform: translateY(-2px);
+                box-shadow:
+                    0 0 11px rgba(255, 23, 68, .82),
+                    0 0 25px rgba(255, 23, 68, .40);
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-logout-button:hover,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-logout-button:focus-visible {
+                color: #b91c1c;
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box:hover .genz-account-email,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box:focus-visible .genz-account-email {
+                color: #0f172a;
+            }
+
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box:hover .genz-account-arrow,
+            html[data-genz-theme="light"][data-genz-theme="light"] body .genz-account-box:focus-visible .genz-account-arrow {
+                color: #e11d48;
+                transform: translateX(2px);
             }
 
             .genz-mobile-toggle {
@@ -1797,7 +1991,7 @@
                 .genz-logo-mark-img { width: 30px; height: 30px; flex-basis: 30px; border-radius: 8px; }
                 .genz-logo-text { font-size: 16px; }
                 .genz-nav { padding: 9px 8px 14px; }
-                .genz-sidebar-footer { padding: 9px 8px 12px; }
+                .genz-sidebar-footer { padding: 11px 8px 13px; }
                 .genz-account-box { margin-bottom: 9px; }
             }
         `;
