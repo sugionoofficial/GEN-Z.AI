@@ -1271,4 +1271,242 @@ test("memilih varian upload lokal pada import_assets (bukan varian URL) sehingga
     }
 });
 
+test("mendukung skema asli produksi import_assets Opus (dataUrl / mediaBase64 tanpa path palsu) dan resolve_job saat get_status selesai", async () => {
+    resetOpusTokenCache();
+    const outputJpeg = texturedJpeg({ width: 1024, height: 1536 });
+    const seenImportArgs = [];
+    let resolvedJobCalled = false;
+
+    const exactProductionTools = [
+        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+        {
+            name: "create_project",
+            inputSchema: {
+                type: "object",
+                required: ["name"],
+                properties: {
+                    name: { type: "string" },
+                    requestKey: { type: "string" }
+                }
+            }
+        },
+        {
+            name: "import_assets",
+            inputSchema: {
+                type: "object",
+                required: ["assets", "projectId"],
+                properties: {
+                    assets: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                path: { type: "string" },
+                                assetId: { type: "string" },
+                                sizeBytes: { type: "number" },
+                                role: { type: "string" },
+                                label: { type: "string" },
+                                contentType: { type: "string" },
+                                dataUrl: { type: "string" },
+                                mediaBase64: { type: "string" },
+                                mediaMimeType: { type: "string" },
+                                url: { type: "string" }
+                            }
+                        }
+                    },
+                    projectId: { type: "string" }
+                }
+            }
+        },
+        {
+            name: "generate_keyframes",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "items"],
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string" },
+                    items: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            required: ["id", "prompt"],
+                            properties: {
+                                id: { type: "string" },
+                                prompt: { type: "string" },
+                                aspectRatio: { type: "string" },
+                                model: { type: "string" },
+                                quality: { type: "string" },
+                                referenceAssets: {
+                                    type: "array",
+                                    items: { type: "string" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "get_status",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "jobIds"],
+                properties: {
+                    projectId: { type: "string" },
+                    jobIds: { type: "array", items: { type: "string" } },
+                    watch: { type: "boolean" },
+                    timeoutSeconds: { type: "number" }
+                }
+            }
+        },
+        {
+            name: "resolve_job",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "jobId"],
+                properties: {
+                    projectId: { type: "string" },
+                    jobId: { type: "string" }
+                }
+            }
+        }
+    ];
+
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url === "https://cdn.opus.pro/resolved/final-9x16.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") {
+                return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: exactProductionTools } });
+            }
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { projectId: "gen_c7a67b3e90d299875826372039148b80" } }
+                    });
+                }
+                if (name === "import_assets") {
+                    seenImportArgs.push(args);
+                    assert.equal(args.requestKey, undefined, "Tidak boleh menyisipkan requestKey bila tidak ada di skema import_assets");
+                    const spec = args.assets?.[0] || {};
+                    if (spec.path) {
+                        /* Persis error nyata produksi bila path lokal dikirim tanpa dataUrl/mediaBase64 */
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                structuredContent: {
+                                    projectId: args.projectId,
+                                    assets: [{
+                                        ok: false,
+                                        label: "asset_1",
+                                        error: "asset_prepare_failed",
+                                        detail: JSON.stringify({ error: "asset_not_ready", assetId: spec.path })
+                                    }]
+                                }
+                            }
+                        });
+                    }
+                    assert.ok(
+                        typeof spec.dataUrl === "string" && spec.dataUrl.startsWith("data:image/jpeg;base64,"),
+                        "Harus mengirim dataUrl inline untuk bytes gambar di memori Worker"
+                    );
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: args.projectId,
+                                assets: [{
+                                    ok: true,
+                                    assetId: "asset_prod_ready_01",
+                                    label: spec.label || "character_reference",
+                                    status: "ready"
+                                }]
+                            }
+                        }
+                    });
+                }
+                if (name === "generate_keyframes") {
+                    const kf = args.items?.[0] || {};
+                    assert.deepEqual(kf.referenceAssets, ["asset_prod_ready_01"]);
+                    assert.equal(kf.aspectRatio, "9:16");
+                    assert.equal(kf.quality, "low");
+                    assert.equal(kf.model, "gpt-image-2.5-flare");
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: args.projectId,
+                                items: [{ id: kf.id, ok: true, jobId: "job_prod_42", status: "queued" }]
+                            }
+                        }
+                    });
+                }
+                if (name === "get_status") {
+                    /* Simulasikan get_status yang hanya melaporkan status completed tanpa URL langsung */
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: args.projectId,
+                                jobs: [{ jobId: "job_prod_42", status: "completed" }]
+                            }
+                        }
+                    });
+                }
+                if (name === "resolve_job") {
+                    resolvedJobCalled = true;
+                    assert.equal(args.projectId, "gen_c7a67b3e90d299875826372039148b80");
+                    assert.equal(args.jobId, "job_prod_42");
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                jobId: "job_prod_42",
+                                status: "completed",
+                                outputs: [{ url: "https://cdn.opus.pro/resolved/final-9x16.jpg" }]
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-prod-exact", OPUS_POLL_INTERVAL_MS: "5" },
+            prompt: "Iklan produk kopi botol di meja kayu",
+            referenceBytes: texturedJpeg({ width: 360, height: 640 }),
+            referenceMimeType: "image/jpeg",
+            imageModel: "gpt-image-2.5-flare"
+        });
+        assert.equal(seenImportArgs.length, 1, "Percobaan pertama dengan dataUrl langsung diterima tanpa gagal");
+        assert.equal(seenImportArgs[0].assets[0].path, undefined);
+        assert.equal(resolvedJobCalled, true, "Harus otomatis memanggil resolve_job bila get_status tidak memuat URL langsung");
+        assert.equal(res.width, 1024);
+        assert.equal(res.height, 1536);
+        assert.equal(res.images_sent, 1);
+    } finally {
+        restore();
+    }
+});
+
+
 
