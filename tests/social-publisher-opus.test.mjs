@@ -1024,3 +1024,251 @@ test("self-healing retry otomatis memangkas argumen opsional saat server menolak
     }
 });
 
+test("memilih varian upload lokal pada import_assets (bukan varian URL) sehingga referenceAssets tidak pernah berisi data:image base64", async () => {
+    resetOpusTokenCache();
+    const outputJpeg = texturedJpeg({ width: 720, height: 1280 });
+    let capturedRefAssets = null;
+
+    const liveItemsStyleTools = [
+        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+        {
+            name: "create_project",
+            inputSchema: {
+                type: "object",
+                required: ["name", "requestKey"],
+                properties: {
+                    name: { type: "string" },
+                    requestKey: { type: "string", format: "uuid" }
+                }
+            }
+        },
+        {
+            name: "import_assets",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "requestKey", "items"],
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string", format: "uuid" },
+                    items: {
+                        type: "array",
+                        items: {
+                            oneOf: [
+                                /* Varian 0: URL remote (jebakan bila dipilih untuk bytes lokal!) */
+                                {
+                                    type: "object",
+                                    required: ["id", "url"],
+                                    properties: {
+                                        id: { type: "string" },
+                                        url: { type: "string", format: "uri" }
+                                    }
+                                },
+                                /* Varian 1: Upload lokal */
+                                {
+                                    type: "object",
+                                    required: ["id", "fileName", "mimeType", "sizeBytes"],
+                                    properties: {
+                                        id: { type: "string" },
+                                        fileName: { type: "string" },
+                                        mimeType: { type: "string" },
+                                        sizeBytes: { type: "integer" }
+                                    }
+                                },
+                                /* Varian 2: Finalisasi */
+                                {
+                                    type: "object",
+                                    required: ["assetId"],
+                                    properties: {
+                                        assetId: { type: "string" }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "generate_keyframes",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "requestKey", "items"],
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string", format: "uuid" },
+                    items: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            required: ["id", "prompt"],
+                            properties: {
+                                id: { type: "string" },
+                                prompt: { type: "string" },
+                                aspectRatio: { type: "string" },
+                                model: { type: "string" },
+                                quality: { type: "string" },
+                                referenceAssets: {
+                                    type: "array",
+                                    items: { type: "string" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "get_status",
+            inputSchema: {
+                type: "object",
+                required: ["jobIds"],
+                properties: {
+                    projectId: { type: "string" },
+                    jobIds: { type: "array", items: { type: "string" } },
+                    watch: { type: "boolean" },
+                    timeoutSeconds: { type: "number" }
+                }
+            }
+        }
+    ];
+
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url === "https://storage.opus.example/live-put-1") {
+            return new Response("", { status: 200 });
+        }
+        if (url === "https://cdn.opus.pro/generated/live-out.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") {
+                return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: liveItemsStyleTools } });
+            }
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { projectId: "gen_dd4f9364b4ca" } }
+                    });
+                }
+                if (name === "import_assets") {
+                    const entry = args.items?.[0] || {};
+                    if (entry.url) {
+                        /* Persis perilaku server Opus saat menerima URL tidak valid tanpa isError:true */
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                structuredContent: {
+                                    projectId: "gen_dd4f9364b4ca",
+                                    items: [{ id: entry.id || "ref-1", ok: false, field: "items[0].url", value: entry.url }]
+                                }
+                            }
+                        });
+                    }
+                    if (!entry.assetId) {
+                        assert.equal(entry.fileName, "character.jpg");
+                        assert.equal(entry.mimeType, "image/jpeg");
+                        assert.ok(entry.sizeBytes > 0);
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                structuredContent: {
+                                    projectId: "gen_dd4f9364b4ca",
+                                    items: [{
+                                        id: entry.id,
+                                        ok: true,
+                                        status: "awaiting_upload",
+                                        asset: { id: "ast_live_001" },
+                                        upload: { url: "https://storage.opus.example/live-put-1", method: "PUT" }
+                                    }]
+                                }
+                            }
+                        });
+                    }
+                    assert.equal(entry.assetId, "ast_live_001");
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: "gen_dd4f9364b4ca",
+                                items: [{ ok: true, status: "ready", asset: { id: "ast_live_001" } }]
+                            }
+                        }
+                    });
+                }
+                if (name === "generate_keyframes") {
+                    const kf = args.items?.[0] || {};
+                    capturedRefAssets = kf.referenceAssets;
+                    if (String(kf.referenceAssets?.[0] || "").startsWith("data:")) {
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                isError: true,
+                                structuredContent: {
+                                    code: "invalid_reference_assets",
+                                    projectId: "gen_dd4f9364b4ca",
+                                    items: [{ id: kf.id, ok: false, field: "referenceAssets[0]", value: kf.referenceAssets[0] }]
+                                }
+                            }
+                        });
+                    }
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                projectId: "gen_dd4f9364b4ca",
+                                items: [{ id: kf.id, ok: true, job: { id: "job_live_99", status: "queued" } }]
+                            }
+                        }
+                    });
+                }
+                if (name === "get_status") {
+                    assert.deepEqual(args.jobIds, ["job_live_99"], "Harus memakai job.id server, bukan client id kf-1");
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                jobs: {
+                                    job_live_99: {
+                                        status: "completed",
+                                        outputs: [{ downloadUrl: "https://cdn.opus.pro/generated/live-out.jpg" }]
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-live-items", OPUS_POLL_INTERVAL_MS: "5" },
+            prompt: "Potret karakter di kafe hangat",
+            referenceBytes: texturedJpeg({ width: 320, height: 480 }),
+            referenceMimeType: "image/jpeg"
+        });
+        assert.deepEqual(capturedRefAssets, ["ast_live_001"]);
+        assert.equal(res.width, 720);
+        assert.equal(res.height, 1280);
+    } finally {
+        restore();
+    }
+});
+
+
