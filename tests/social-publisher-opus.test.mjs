@@ -2239,6 +2239,178 @@ test("generateOpusSocialImage menormalisasi dimensi gambar referensi <300px (mis
     }
 });
 
+test("generateOpusSocialImage tidak pernah menganggap kode error job_queue_timeout sebagai jobId dan melakukan retry idempotent dengan requestKey yang sama", async () => {
+    resetOpusTokenCache();
+    const outputJpeg = texturedJpeg({ width: 720, height: 1280 });
+    const toolsWithListJobs = [
+        ...standardMcpTools(),
+        {
+            name: "list_jobs",
+            inputSchema: {
+                type: "object",
+                required: ["projectId"],
+                properties: { projectId: { type: "string" } }
+            }
+        }
+    ];
+
+    /* 1. job_queue_timeout di respons teks/JSON tanpa ok:false -> cek list_jobs (kosong) -> retry dengan requestKey identik -> sukses + toleransi job_not_found pertama */
+    const seenRequestKeys = [];
+    const seenStatusJobIds = [];
+    let kfCalls = 0;
+    let statusCalls = 0;
+
+    let restore = mockFetch(async (url, options = {}) => {
+        if (url === "https://cdn.opus.pro/out/queue-recovered.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: toolsWithListJobs } });
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "gen_qt_01" } } });
+                }
+                if (name === "generate_keyframes") {
+                    kfCalls += 1;
+                    seenRequestKeys.push(args.requestKey);
+                    if (kfCalls === 1) {
+                        const rawPayload = JSON.stringify({
+                            projectId: args.projectId,
+                            code: "job_queue_timeout"
+                        });
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: { content: [{ type: "text", text: rawPayload }] }
+                        });
+                    }
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { projectId: args.projectId, jobId: "job_real_404" } }
+                    });
+                }
+                if (name === "list_jobs") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { projectId: args.projectId, jobs: [] } }
+                    });
+                }
+                if (name === "get_status") {
+                    statusCalls += 1;
+                    seenStatusJobIds.push(args.jobId);
+                    assert.notEqual(args.jobId, "job_queue_timeout", "Tidak boleh memanggil get_status dengan job_queue_timeout");
+                    if (statusCalls === 1) {
+                        /* Simulasikan eventual consistency sesaat setelah submit */
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: { structuredContent: { jobId: args.jobId, error: "job_not_found" } }
+                        });
+                    }
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                jobId: args.jobId,
+                                status: "completed",
+                                downloadUrl: "https://cdn.opus.pro/out/queue-recovered.jpg"
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-qt", OPUS_POLL_INTERVAL_MS: "5" },
+            prompt: "Sneakers putih minimalis"
+        });
+        assert.equal(kfCalls, 2);
+        assert.equal(seenRequestKeys[0], seenRequestKeys[1], "Retry job_queue_timeout wajib mempertahankan requestKey UUID yang sama");
+        assert.deepEqual(seenStatusJobIds, ["job_real_404", "job_real_404"]);
+        assert.equal(res.width, 720);
+    } finally {
+        restore();
+    }
+
+    /* 2. Bila job sebenarnya sudah terdaftar di list_jobs saat job_queue_timeout, langsung pantau tanpa submit ulang */
+    let secondKfCalls = 0;
+    restore = mockFetch(async (url, options = {}) => {
+        if (url === "https://cdn.opus.pro/out/already-queued.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools: toolsWithListJobs } });
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "gen_qt_02" } } });
+                }
+                if (name === "generate_keyframes") {
+                    secondKfCalls += 1;
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { projectId: args.projectId, status: "job_queue_timeout" } }
+                    });
+                }
+                if (name === "list_jobs") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { projectId: args.projectId, jobs: [{ jobId: "job_queued_88", status: "running" }] } }
+                    });
+                }
+                if (name === "get_status") {
+                    assert.equal(args.jobId, "job_queued_88");
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                jobId: "job_queued_88",
+                                status: "completed",
+                                downloadUrl: "https://cdn.opus.pro/out/already-queued.jpg"
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-qt2", OPUS_POLL_INTERVAL_MS: "5" },
+            prompt: "Kemeja linen pantai"
+        });
+        assert.equal(secondKfCalls, 1, "Tidak boleh submit ulang generate_keyframes bila job sudah ditemukan di list_jobs");
+        assert.equal(res.width, 720);
+    } finally {
+        restore();
+    }
+});
+
 
 
 
