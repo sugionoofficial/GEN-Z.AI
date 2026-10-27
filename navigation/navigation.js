@@ -1013,7 +1013,7 @@
             const active = isActiveLink(item.href);
 
             return `
-                <a class="genz-nav-item${active ? " active" : ""}" href="${escapeHTML(item.href)}" data-genz-nav-link="true">
+                <a class="genz-nav-item${active ? " active" : ""}" role="link" tabindex="0" data-genz-href="${escapeHTML(item.href)}" data-genz-nav-link="true"${active ? ' aria-current="page"' : ""}>
                     <span class="genz-nav-icon">${item.icon || ""}</span>
                     <span class="genz-nav-label">${escapeHTML(item.label)}</span>
                 </a>
@@ -1026,7 +1026,7 @@
             <aside class="genz-sidebar" id="genz-sidebar" aria-label="GEN-Z.AI Navigation">
                 <div class="genz-sidebar-header">
                     <div class="genz-brand">
-                        <a class="genz-logo" href="/" title="gen-z.ai" aria-label="gen-z.ai — beranda">
+                        <a class="genz-logo" role="link" tabindex="0" data-genz-href="/" aria-label="gen-z.ai — beranda">
                             <img
                                 class="genz-logo-mark-img"
                                 src="/assets/brand/gen-z-ai-mark-tile.svg?v=2"
@@ -1045,7 +1045,9 @@
                 <div class="genz-sidebar-footer">
                     <a
                         class="genz-account-box"
-                        href="/user/profile.html"
+                        role="link"
+                        tabindex="0"
+                        data-genz-href="/user/profile.html"
                         aria-label="Buka halaman profil akun"
                     >
                         <div class="genz-account-main">
@@ -1121,11 +1123,38 @@
             overlay.addEventListener("click", closeMobileNavigation);
         }
 
-        document
-            .querySelectorAll("[data-genz-nav-link='true']")
+        function navigateToTarget(targetHref, event) {
+            if (!targetHref) return;
+            closeMobileNavigation();
+            if (event && (event.ctrlKey || event.metaKey || event.shiftKey)) {
+                window.open(targetHref, "_blank", "noopener");
+                return;
+            }
+            window.location.href = targetHref;
+        }
+
+        const navRoot = getNavigationContainer() || document;
+        navRoot
+            .querySelectorAll("[data-genz-href]")
             .forEach(link => {
-                link.addEventListener("click", () => {
+                link.addEventListener("click", event => {
+                    event.preventDefault();
+                    navigateToTarget(link.getAttribute("data-genz-href"), event);
+                });
+
+                link.addEventListener("auxclick", event => {
+                    if (event.button !== 1) return;
+                    const targetHref = link.getAttribute("data-genz-href");
+                    if (!targetHref) return;
+                    event.preventDefault();
                     closeMobileNavigation();
+                    window.open(targetHref, "_blank", "noopener");
+                });
+
+                link.addEventListener("keydown", event => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    navigateToTarget(link.getAttribute("data-genz-href"), event);
                 });
             });
 
@@ -1355,7 +1384,15 @@
                 background: none;
                 text-decoration: none;
                 cursor: pointer;
+                user-select: none;
+                -webkit-user-select: none;
                 transition: opacity .18s ease;
+            }
+
+            .genz-logo:focus-visible {
+                outline: 2px solid #00eaff;
+                outline-offset: 4px;
+                border-radius: 10px;
             }
 
             .genz-logo:hover { opacity: .85; }
@@ -1434,6 +1471,9 @@
                 border-radius: 10px;
                 color: rgba(255, 255, 255, .66);
                 text-decoration: none;
+                cursor: pointer;
+                user-select: none;
+                -webkit-user-select: none;
                 overflow: hidden;
                 isolation: isolate;
                 transition:
@@ -1627,6 +1667,8 @@
                 color: inherit;
                 text-decoration: none;
                 cursor: pointer;
+                user-select: none;
+                -webkit-user-select: none;
                 transition:
                     color .3s ease,
                     background .3s ease,
