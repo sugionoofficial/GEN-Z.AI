@@ -310,18 +310,23 @@
                 color: var(--theme-muted);
             }
 
-            html[data-genz-theme="light"] body .genz-nav-item:hover {
-                color: var(--theme-text);
-                background: rgba(255, 48, 72, .06);
-                border-color: rgba(255, 48, 72, .22);
-            }
-
             html[data-genz-theme="light"] body .genz-nav-item.active {
                 color: var(--theme-text);
                 background:
                     linear-gradient(90deg, rgba(255, 48, 72, .12), rgba(255, 48, 72, .03));
-                border-color: rgba(255, 48, 72, .3);
-                box-shadow: inset 3px 0 0 #ff3048, 0 0 14px rgba(255, 48, 72, .05);
+                box-shadow:
+                    inset 3px 0 0 #ff3048,
+                    inset 0 0 0 1px rgba(255, 48, 72, .3),
+                    0 0 14px rgba(255, 48, 72, .05);
+            }
+
+            html[data-genz-theme="light"] body .genz-nav-item:hover,
+            html[data-genz-theme="light"] body .genz-nav-item:focus-visible {
+                color: #0f172a;
+                background: rgba(0, 180, 255, .16);
+                box-shadow:
+                    0 0 10px rgba(0, 212, 255, .75),
+                    0 0 24px rgba(0, 140, 255, .36);
             }
 
             html[data-genz-theme="light"] body :is(.genz-sidebar-header, .genz-sidebar-footer) {
