@@ -4,6 +4,7 @@ import { decryptSecret, normalizeTextProvider, generateSocialContextCaption, gen
 import { createSignedReferenceUrl, downloadModelReference, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
 import { encodeStoryMp4, maxQuoteVideoDurationForTarget, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
 import { normalizeQwenCloudImageModel, normalizeQwenCloudLlmModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
+import { normalizeOpusImageModel, resolveOpusAspectRatio } from "../../lib/social-publisher/opus.js";
 import { stripImageMetadata } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
 function value(env, key) {
@@ -434,13 +435,17 @@ async function processRun(env, config, claimedRun) {
         if (!page) throw new Error("Facebook Page connection was not found; reconnect the Page.");
         if (page.can_publish === false) throw new Error("Facebook Page connection does not have CREATE_CONTENT permission.");
 
-        const aspectRatio = postMode === "quote"
-            ? "9:16"
-            : (["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16");
         imageProvider = ["cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(publisherConfigs?.[0]?.image_provider)
             ? publisherConfigs[0].image_provider
             : "gemini";
-        imageModel = normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);
+        const aspectRatio = postMode === "quote"
+            ? "9:16"
+            : imageProvider === "opus"
+                ? resolveOpusAspectRatio(env, schedule.aspect_ratio)
+                : (["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16");
+        imageModel = imageProvider === "opus"
+            ? normalizeOpusImageModel(publisherConfigs?.[0]?.image_model, env)
+            : normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);
         /* Provider teks terpisah: caption & mutiara boleh dari Tencent (gratis). */
         const textProvider = normalizeTextProvider(publisherConfigs?.[0]?.text_provider);
         const quoteLlmModel = normalizeQwenCloudLlmModel(publisherConfigs?.[0]?.quote_llm_model);
@@ -599,7 +604,7 @@ async function processRun(env, config, claimedRun) {
                 } : {
                     garmentBytes,
                     garmentMimeType: garmentMime,
-                    ...(imageProvider === "qwencloud" ? { imageModel } : {})
+                    ...(["qwencloud", "opus"].includes(imageProvider) ? { imageModel } : {})
                 })
             });
             if (!generated?.bytes?.length) throw new Error("Image provider returned an empty image.");
