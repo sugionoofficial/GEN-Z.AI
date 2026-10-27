@@ -327,14 +327,16 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                     ? "Tencent Hy Image"
                     : config.imageProvider === "puter"
                         ? "Puter.js (kuota akun Puter)"
-                        : "Gemini Image API";
+                        : config.imageProvider === "opus"
+                            ? "Opus Labs (Product Ad Studio)"
+                            : "Gemini Image API";
         const captionProviderLabel = config.captionProvider === "cloudflare"
             ? "Cloudflare Vision Caption"
             : config.captionProvider === "qwencloud"
                 ? "QwenCloud Vision Caption"
                 : config.captionProvider === "tencent"
                     ? "Tencent Vision Caption"
-                    : config.captionProvider === "puter"
+                    : (config.captionProvider === "puter" || config.captionProvider === "opus")
                         ? "Cloudflare Vision Caption"
                         : "Gemini Caption API";
         const items = [

@@ -634,6 +634,48 @@
         }
     }
 
+    /**
+     * Tes Opus Labs (Product Ad Studio / Opus Video Tools MCP) dari panel admin:
+     * satu gambar sungguhan 9:16 dengan foto referensi contoh supaya autentikasi
+     * OAuth, impor aset referensi, pembuatan gambar, dan saldo kredit akun
+     * OpusClip teruji secara nyata.
+     */
+    async function testOpusProvider() {
+        const button = document.getElementById("test-opus-provider");
+        const status = document.getElementById("image-provider-status");
+        if (button) button.disabled = true;
+        if (status) {
+            status.className = "status-box price-settings-status";
+            status.textContent = "Menguji Opus Labs / Product Ad Studio (1 gambar kredit akun OpusClip Anda)…";
+        }
+        try {
+            const result = await api("studio-admin-image-provider-test", {
+                method: "POST",
+                body: { provider: "opus" }
+            });
+            const test = result.test || {};
+            if (test.ok) {
+                const kb = Math.max(1, Math.round(Number(test.bytes || 0) / 1024));
+                const seconds = (Number(test.elapsed_ms || 0) / 1000).toFixed(1);
+                const size = test.width && test.height ? `${test.width}×${test.height}` : "ukuran tidak terbaca";
+                setImageProviderStatus(
+                    `Opus ${test.model} OK — ${kb} KB, ${size}, ${seconds} detik, ${test.images_sent} gambar referensi (sumber: ${test.test_reference_source}). Kredit akun OpusClip Anda terpakai untuk 1 gambar tes ini.`,
+                    "success"
+                );
+            } else {
+                setImageProviderStatus(
+                    `Opus ${test.model || ""} gagal${test.status ? ` (HTTP ${test.status})` : ""}: ${test.error || "tanpa pesan"}`,
+                    "error"
+                );
+            }
+        } catch (error) {
+            console.error(error);
+            setImageProviderStatus(error.message || "Tes Opus gagal.", "error");
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
     async function loadPricing() {
         const result = await api("studio-pricing");
         for (const { key } of PRICE_PERIODS) {
@@ -649,6 +691,7 @@
         if (value === "qwencloud") return "QwenCloud (Qwen Image)";
         if (value === "tencent") return "Tencent Cloud (Hy Image 3.5 Preview)";
         if (value === "puter") return "Puter.js (kuota akun Puter Anda)";
+        if (value === "opus") return "Opus Labs (Product Ad Studio)";
         return "Google Gemini";
     }
 
@@ -686,7 +729,9 @@
             ? "Otomatis: tulisan memakai Tencent (gratis selama kuota trial), lalu Cloudflare bila gagal"
             : settings.image_provider === "puter"
                 ? "Otomatis: Puter hanya membuat gambar; tulisan memakai Cloudflare (llama)"
-                : "Otomatis: Tencent belum ada key, jadi tulisan memakai provider gambar";
+                : settings.image_provider === "opus"
+                    ? "Otomatis: Opus hanya membuat gambar; tulisan memakai Cloudflare (llama)"
+                    : "Otomatis: Tencent belum ada key, jadi tulisan memakai provider gambar";
     }
 
     function providerReadiness(value, settings = {}) {
@@ -706,6 +751,11 @@
             return settings.puter_configured
                 ? `Puter siap (${settings.puter_model || "gemini-3.1-flash-image"}): foto referensi karakter + outfit dikirim sebagai input_images. Setiap gambar MEMOTONG kuota/biaya akun Puter Anda sendiri (User-Pays), bukan kredit GEN-Z.AI; jatah habis → generate gagal dengan insufficient_funds`
                 : "PUTER_AUTH_TOKEN belum tersedia — buat token di puter.com/dashboard#account (Create token) lalu simpan sebagai secret Worker";
+        }
+        if (value === "opus") {
+            return settings.opus_configured
+                ? `Opus Labs siap (${settings.opus_model || "seedream-5.0-pro"}): foto referensi karakter + outfit diimpor lewat import_assets lalu dibuat melalui generate_keyframes. Setiap gambar MEMOTONG kredit akun OpusClip Anda sendiri (bukan kredit GEN-Z.AI); kredit habis → generate gagal dengan credit_admission_rejected / insufficient_credits`
+                : "OPUS_AUTH_TOKEN belum tersedia — hubungkan akun OpusClip/Opus Labs (product-ad-studio.labs.opus.pro / labs.opus.pro/opus-video-tools/mcp) lalu simpan Bearer token OAuth sebagai secret Worker";
         }
         return settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
     }
@@ -895,7 +945,7 @@
         const result = await api("studio-admin-image-provider");
         const settings = result.settings || {};
         providerSettings = settings;
-        const selected = ["cloudflare", "qwencloud", "tencent", "puter"].includes(settings.image_provider) ? settings.image_provider : "gemini";
+        const selected = ["cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(settings.image_provider) ? settings.image_provider : "gemini";
         document.querySelector(`input[name="image-provider"][value="${selected}"]`).checked = true;
         const textSelected = ["auto", "tencent", "cloudflare", "gemini", "qwencloud"].includes(settings.text_provider)
             ? settings.text_provider
@@ -915,7 +965,7 @@
     async function saveImageProvider() {
         const selected = document.querySelector('input[name="image-provider"]:checked')?.value;
         if (!selected) {
-            setImageProviderStatus("Pilih Google Gemini, Cloudflare Workers AI, atau QwenCloud.", "error");
+            setImageProviderStatus("Pilih Google Gemini, Cloudflare Workers AI, Tencent Cloud, QwenCloud, Puter.js, atau Opus Labs.", "error");
             return;
         }
         const quoteLlmModel = selectedQwenLlmModel();
@@ -1192,6 +1242,7 @@
         document.getElementById("test-image-provider")?.addEventListener("click", testImageProvider);
         document.getElementById("test-tencent-provider")?.addEventListener("click", testTencentProvider);
         document.getElementById("test-puter-provider")?.addEventListener("click", testPuterProvider);
+        document.getElementById("test-opus-provider")?.addEventListener("click", testOpusProvider);
         for (const radio of document.querySelectorAll('input[name="image-provider"]')) {
             radio.addEventListener("change", renderQwenCloudOptions);
         }

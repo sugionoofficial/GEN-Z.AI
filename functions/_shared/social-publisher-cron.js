@@ -437,7 +437,7 @@ async function processRun(env, config, claimedRun) {
         const aspectRatio = postMode === "quote"
             ? "9:16"
             : (["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16");
-        imageProvider = ["cloudflare", "qwencloud", "tencent", "puter"].includes(publisherConfigs?.[0]?.image_provider)
+        imageProvider = ["cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(publisherConfigs?.[0]?.image_provider)
             ? publisherConfigs[0].image_provider
             : "gemini";
         imageModel = normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);

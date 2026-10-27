@@ -48,8 +48,10 @@ import {
     publishFacebookQuoteVideo,
     testCloudflareImageProvider,
     testTencentImageProvider,
-    testPuterImageProvider
+    testPuterImageProvider,
+    testOpusImageProvider
 } from "../lib/social-publisher/providers.js";
+import { opusConfigured, opusImageModel } from "../lib/social-publisher/opus.js";
 import {
     getModelQuotas,
     normalizeQwenCloudImageModel,
@@ -1062,7 +1064,7 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
 
     const schedules = schedulesResult?.rows || [];
     const userSettings = userSettingsResult?.settings ? [userSettingsResult.settings] : [];
-    const imageProvider = ["cloudflare", "qwencloud", "tencent", "puter"].includes(publisherConfig?.[0]?.image_provider)
+    const imageProvider = ["cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(publisherConfig?.[0]?.image_provider)
         ? publisherConfig[0].image_provider
         : "gemini";
     const textProvider = normalizeTextProvider(publisherConfig?.[0]?.text_provider);
@@ -1070,9 +1072,13 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         ? typeof env?.AI?.run === "function"
         : imageProvider === "qwencloud"
             ? Boolean(envValue(env, "QWENCLOUD_API_KEY"))
-            : imageProvider === "puter"
-                ? Boolean(envValue(env, "PUTER_AUTH_TOKEN"))
-                : Boolean(envValue(env, "GEMINI_API_KEY"));
+            : imageProvider === "tencent"
+                ? Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY"))
+                : imageProvider === "puter"
+                    ? Boolean(envValue(env, "PUTER_AUTH_TOKEN"))
+                    : imageProvider === "opus"
+                        ? opusConfigured(env)
+                        : Boolean(envValue(env, "GEMINI_API_KEY"));
     return {
         success: true,
         characters: characters || [],
@@ -1146,7 +1152,7 @@ async function getSocialImageSettings(config) {
     )));
     const value = rows?.[0]?.image_provider;
     return {
-        provider: ["gemini", "cloudflare", "qwencloud", "tencent", "puter"].includes(value) ? value : "gemini",
+        provider: ["gemini", "cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(value) ? value : "gemini",
         imageModel: normalizeQwenCloudImageModel(rows?.[0]?.image_model),
         /* Kolom text_provider boleh belum ada (migrasi belum jalan) -> "auto". */
         textProvider: normalizeTextProvider(rows?.[0]?.text_provider),
@@ -1160,8 +1166,8 @@ async function getSocialImageProvider(config) {
 
 async function saveSocialImageProvider(config, adminId, body, env) {
     const imageProvider = String(body?.image_provider || "").trim();
-    if (!["gemini", "cloudflare", "qwencloud", "tencent", "puter"].includes(imageProvider)) {
-        const error = new Error("Pilih Gemini, Cloudflare, QwenCloud, Tencent Cloud, atau Puter sebagai penyedia gambar.");
+    if (!["gemini", "cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(imageProvider)) {
+        const error = new Error("Pilih Gemini, Cloudflare, QwenCloud, Tencent Cloud, Puter, atau Opus sebagai penyedia gambar.");
         error.status = 400;
         throw error;
     }
@@ -1204,6 +1210,11 @@ async function saveSocialImageProvider(config, adminId, body, env) {
         error.status = 409;
         throw error;
     }
+    if (imageProvider === "opus" && !opusConfigured(env)) {
+        const error = new Error("OPUS_AUTH_TOKEN diperlukan saat provider Opus dipilih. Hubungkan akun OpusClip/Opus Labs (product-ad-studio.labs.opus.pro / labs.opus.pro/opus-video-tools/mcp) lalu simpan Bearer token OAuth sebagai secret Worker OPUS_AUTH_TOKEN (atau pasangan OPUS_REFRESH_TOKEN + OPUS_CLIENT_ID). Setiap gambar memotong kredit akun OpusClip Anda sendiri, bukan kredit GEN-Z.AI.");
+        error.status = 409;
+        throw error;
+    }
     const basePayload = {
         id: true,
         image_provider: imageProvider,
@@ -1232,7 +1243,7 @@ async function saveSocialImageProvider(config, adminId, body, env) {
              */
             const error = new Error(
                 "Database masih membatasi daftar provider gambar (check constraint image_provider belum diperbarui) — "
-                + "pilihan Gemini/Cloudflare/QwenCloud/Tencent/Puter ditolak sampai migrasi dijalankan. "
+                + "pilihan Gemini/Cloudflare/QwenCloud/Tencent/Puter/Opus ditolak sampai migrasi dijalankan. "
                 + "Jalankan file migrasi supabase/social-image-provider-constraint.sql di Supabase SQL Editor (aman diulang), lalu simpan lagi. "
                 + `Penyebab asli: ${String(err?.message || "").slice(0, 200)}`
             );
@@ -1293,7 +1304,9 @@ async function saveSocialImageProvider(config, adminId, body, env) {
         tencent_configured: Boolean(envValue(env, "TENCENT_TOKENHUB_KEY") || envValue(env, "TENCENT_API_KEY")),
         cloudflare_configured: typeof env?.AI?.run === "function",
         qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY")),
-        puter_configured: Boolean(envValue(env, "PUTER_AUTH_TOKEN"))
+        puter_configured: Boolean(envValue(env, "PUTER_AUTH_TOKEN")),
+        opus_configured: opusConfigured(env),
+        opus_model: opusImageModel(env)
     };
 }
 
@@ -3528,6 +3541,16 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
             const result = await testPuterImageProvider({ env });
             return json(res, 200, { success: true, provider, test: result });
         }
+        if (provider === "opus") {
+            /*
+             * Tes Opus Labs (Product Ad Studio / Opus Video Tools MCP):
+             * satu gambar sungguhan per klik yang memotong kredit akun OpusClip
+             * operator sendiri. Foto contoh dipakai sebagai referensi supaya
+             * alur `import_assets` + `generate_keyframes` ikut teruji.
+             */
+            const result = await testOpusImageProvider({ env });
+            return json(res, 200, { success: true, provider, test: result });
+        }
         const includeTryOn = body?.include_try_on === true;
         const result = await testCloudflareImageProvider({ env, includeTryOn });
         return json(res, 200, { success: true, provider: "cloudflare", test: result });
@@ -3655,7 +3678,9 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
                 cloudflare_tryon_needs_credits: true,
                 qwencloud_configured: Boolean(envValue(env, "QWENCLOUD_API_KEY")),
                 puter_configured: Boolean(envValue(env, "PUTER_AUTH_TOKEN")),
-                puter_model: String(envValue(env, "PUTER_IMAGE_MODEL") || "gemini-3.1-flash-image")
+                puter_model: String(envValue(env, "PUTER_IMAGE_MODEL") || "gemini-3.1-flash-image"),
+                opus_configured: opusConfigured(env),
+                opus_model: opusImageModel(env)
             }
         });
     }

@@ -22,7 +22,7 @@ test("SET Studio Medsos: keterangan panjang dibungkus tombol View (halaman bersi
 
 test("SET Studio Medsos: label provider ringkas — keterangan pindah ke balik View", () => {
     const labels = setHtml.match(/<label class="provider-option">[\s\S]*?<\/label>/g) || [];
-    assert.equal(labels.length, 9, "Harus ada 9 opsi provider (5 gambar + 4 teks)");
+    assert.equal(labels.length, 10, "Harus ada 10 opsi provider (6 gambar + 4 teks)");
     for (const label of labels) {
         const visibleText = label.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
         assert.ok(

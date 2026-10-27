@@ -245,7 +245,7 @@ create table if not exists public.social_publisher_config (
     id boolean primary key default true check (id),
     global_enabled boolean not null default false,
     image_provider text not null default 'gemini'
-        check (image_provider in ('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter')),
+        check (image_provider in ('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter', 'opus')),
     image_model text not null default '',
     text_provider text not null default 'auto'
         check (text_provider in ('auto', 'tencent', 'cloudflare', 'gemini', 'qwencloud')),
@@ -256,7 +256,7 @@ create table if not exists public.social_publisher_config (
 
 alter table public.social_publisher_config
     add column if not exists image_provider text not null default 'gemini'
-        check (image_provider in ('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter'));
+        check (image_provider in ('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter', 'opus'));
 
 /*
  * Provider teks dipisah dari provider gambar: gambar boleh tetap di Cloudflare
@@ -278,7 +278,7 @@ alter table public.social_publisher_config
 
 alter table public.social_publisher_config
     add constraint social_publisher_config_image_provider_check
-        check (image_provider in ('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter'));
+        check (image_provider in ('gemini', 'cloudflare', 'qwencloud', 'tencent', 'puter', 'opus'));
 
 alter table public.social_publisher_config
     drop constraint if exists social_publisher_config_text_provider_check;
