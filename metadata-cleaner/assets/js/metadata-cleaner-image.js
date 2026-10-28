@@ -272,12 +272,13 @@ export async function stripImageMetadata(
     blob,
     type = blob?.type
 ) {
-    if (!blob || typeof blob.arrayBuffer !== "function") {
+    if (!blob || (!(blob instanceof Uint8Array) && !(blob instanceof ArrayBuffer) && typeof blob.arrayBuffer !== "function")) {
         throw new Error("File gambar tidak tersedia untuk pembersihan metadata.");
     }
 
-    const buffer =
-        await blob.arrayBuffer();
+    const buffer = blob instanceof Uint8Array || blob instanceof ArrayBuffer
+        ? blob
+        : await blob.arrayBuffer();
 
     if (
         type === "image/jpeg"
@@ -388,17 +389,12 @@ function stripJPEGMetadata(
     }
 
 
-    const output = [];
-
-
-    /*
-     * JPEG Start Of Image.
-     */
-
-    output.push(
-        0xFF,
-        0xD8
-    );
+    const chunks = [
+        new Uint8Array([
+            0xFF,
+            0xD8
+        ])
+    ];
 
 
     let offset =
@@ -424,8 +420,7 @@ function stripJPEGMetadata(
             input[offset + 1] === 0xDA
         ) {
 
-            appendBytes(
-                output,
+            chunks.push(
                 input.subarray(
                     offset
                 )
@@ -444,8 +439,7 @@ function stripJPEGMetadata(
             offset + 1 >= input.length
         ) {
 
-            appendBytes(
-                output,
+            chunks.push(
                 input.subarray(
                     offset
                 )
@@ -501,8 +495,7 @@ function stripJPEGMetadata(
              * Preserve non-metadata standalone markers.
              */
 
-            appendBytes(
-                output,
+            chunks.push(
                 input.subarray(
                     offset,
                     markerOffset + 1
@@ -608,8 +601,7 @@ function stripJPEGMetadata(
             !removeSegment
         ) {
 
-            appendBytes(
-                output,
+            chunks.push(
                 input.subarray(
                     segmentStart,
                     segmentEnd
@@ -624,11 +616,7 @@ function stripJPEGMetadata(
 
 
     return new Blob(
-        [
-            new Uint8Array(
-                output
-            )
-        ],
+        chunks,
         {
             type:
                 "image/jpeg"
@@ -714,16 +702,12 @@ function stripPNGMetadata(
     }
 
 
-    const output = [];
-
-
-    appendBytes(
-        output,
+    const chunks = [
         input.subarray(
             0,
             8
         )
-    );
+    ];
 
 
     let offset =
@@ -803,8 +787,7 @@ function stripPNGMetadata(
             !removeChunk
         ) {
 
-            appendBytes(
-                output,
+            chunks.push(
                 input.subarray(
                     offset,
                     chunkEnd
@@ -831,11 +814,7 @@ function stripPNGMetadata(
 
 
     return new Blob(
-        [
-            new Uint8Array(
-                output
-            )
-        ],
+        chunks,
         {
             type:
                 "image/png"
@@ -897,29 +876,17 @@ function stripWebPMetadata(
     }
 
 
-    const output = [];
-
-
     /*
      * RIFF header.
      *
      * Size akan dihitung ulang setelah
      * metadata chunk dibuang.
      */
+    const header = new Uint8Array(12);
+    header.set(input.subarray(0, 12), 0);
 
-    appendBytes(
-        output,
-        input.subarray(
-            0,
-            8
-        )
-    );
-
-
-    appendASCII(
-        output,
-        "WEBP"
-    );
+    const chunks = [header];
+    let totalBytes = 12;
 
 
     let offset =
@@ -1004,13 +971,12 @@ function stripWebPMetadata(
             !removeChunk
         ) {
 
-            appendBytes(
-                output,
-                input.subarray(
-                    offset,
-                    chunkEnd
-                )
+            const slice = input.subarray(
+                offset,
+                chunkEnd
             );
+            chunks.push(slice);
+            totalBytes += slice.byteLength;
         }
 
 
@@ -1025,23 +991,19 @@ function stripWebPMetadata(
      */
 
     const riffSize =
-        output.length -
+        totalBytes -
         8;
 
 
     writeUint32LE(
-        output,
+        header,
         4,
         riffSize
     );
 
 
     return new Blob(
-        [
-            new Uint8Array(
-                output
-            )
-        ],
+        chunks,
         {
             type:
                 "image/webp"

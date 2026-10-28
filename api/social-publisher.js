@@ -2967,11 +2967,17 @@ async function generateManualPost(config, userId, env, body = {}) {
          * sehingga wajahnya ~2x lebih besar dan kemiripan naik. Versi 512 px
          * hanya menyisakan wajah ~40 px pada foto badan penuh.
          */
-        const referenceSource = await downloadModelReference(
-            config,
-            character.reference_object_key,
-            { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
-        );
+        const referenceSource = imageProvider === "opus"
+            ? {
+                bytes: await downloadReferenceObject(config, character.reference_object_key),
+                mimeType: character.reference_mime_type,
+                source: "original"
+            }
+            : await downloadModelReference(
+                config,
+                character.reference_object_key,
+                { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
+            );
         const referenceBytes = referenceSource.bytes;
         if (!referenceBytes.length || referenceBytes.length > MAX_REFERENCE_BYTES) {
             throw new Error("Ukuran foto referensi karakter tidak valid.");
@@ -2980,9 +2986,17 @@ async function generateManualPost(config, userId, env, body = {}) {
         /*
          * Outfit juga diunduh untuk Cloudflare: FLUX.2 klein menerima foto
          * pakaian sebagai `input_image_1` agar potongan pakaian konsisten.
+         * Khusus Opus, lewati percobaan transformasi 512px Supabase agar hemat
+         * subrequest dan resolusi asli (300px–6000px) terjaga.
          */
         const garmentSource = garmentObjectKey
-            ? await downloadModelReference(config, garmentObjectKey)
+            ? (imageProvider === "opus"
+                ? {
+                    bytes: await downloadReferenceObject(config, garmentObjectKey),
+                    mimeType: garmentMimeType,
+                    source: "original"
+                }
+                : await downloadModelReference(config, garmentObjectKey))
             : null;
         const garmentBytes = garmentSource?.bytes || null;
         const garmentMime = garmentSource?.mimeType || garmentMimeType;
@@ -3058,7 +3072,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             });
         }
         const cleanedBlob = await stripImageMetadata(
-            new Blob([generated.bytes], { type: generated.mimeType }),
+            generated.bytes,
             generated.mimeType
         );
         const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
@@ -3217,7 +3231,7 @@ async function publishManualPost(req, res, config, userId, env) {
                 target: quoteTarget
             });
         } else {
-            const cleanedBlob = await stripImageMetadata(new Blob([payloadBytes], { type: imageMimeType }), imageMimeType);
+            const cleanedBlob = await stripImageMetadata(payloadBytes, imageMimeType);
             const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
             published = await publishFacebookPhoto({
                 env,

@@ -536,13 +536,20 @@ async function processRun(env, config, claimedRun) {
             if (!await isPrivateReferenceBucket(config)) throw new Error("Private Supabase Storage reference bucket is not configured.");
 
             /* Supabase memperkecil gambar lebih dulu agar Worker tidak men-decode
-               foto besar di dalam cron (penyebab Error 1102 resource limits). */
-            /* 1024 px untuk Cloudflare: potret wajah dipotong dari versi ini. */
-            const referenceSource = await downloadModelReference(
-                config,
-                character.reference_object_key,
-                { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
-            );
+               foto besar di dalam cron (penyebab Error 1102 resource limits).
+               Khusus Opus, unduh objek asli tanpa mencoba transformasi 512px agar
+               hemat subrequest dan dimensi 300px–6000px terjaga. */
+            const referenceSource = imageProvider === "opus"
+                ? {
+                    bytes: await downloadReferenceObject(config, character.reference_object_key),
+                    mimeType: character.reference_mime_type,
+                    source: "original"
+                }
+                : await downloadModelReference(
+                    config,
+                    character.reference_object_key,
+                    { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
+                );
             const referenceBytes = referenceSource.bytes;
             if (!referenceBytes.length || referenceBytes.length > 8 * 1024 * 1024) throw new Error("Reference image size is invalid.");
             const referenceMimeType = referenceSource.mimeType || character.reference_mime_type;
@@ -557,12 +564,21 @@ async function processRun(env, config, claimedRun) {
                foto referensi karakter. Tidak ada unggahan pakaian terpisah. */
             const garmentObjectKey = outfit?.object_key || "";
             const garmentMimeType = outfit?.mime_type || "";
-            const referenceImageUrl = imageProvider === "cloudflare"
+            const referenceImageUrl = (imageProvider === "cloudflare" || imageProvider === "opus")
                 ? await createSignedReferenceUrl(config, character.reference_object_key)
+                : "";
+            const opusGarmentUrl = (imageProvider === "opus" && garmentObjectKey)
+                ? await createSignedReferenceUrl(config, garmentObjectKey)
                 : "";
             /* Cloudflare FLUX.2 klein memakai foto outfit sebagai `input_image_1`. */
             const garmentSource = garmentObjectKey
-                ? await downloadModelReference(config, garmentObjectKey)
+                ? (imageProvider === "opus"
+                    ? {
+                        bytes: await downloadReferenceObject(config, garmentObjectKey),
+                        mimeType: garmentMimeType,
+                        source: "original"
+                    }
+                    : await downloadModelReference(config, garmentObjectKey))
                 : null;
             const garmentBytes = garmentSource?.bytes || null;
             const garmentMime = garmentSource?.mimeType || garmentMimeType;
@@ -597,6 +613,9 @@ async function processRun(env, config, claimedRun) {
                     garmentImageUrls: [garmentObjectKey
                         ? await createSignedReferenceUrl(config, garmentObjectKey)
                         : referenceImageUrl]
+                } : imageProvider === "opus" ? {
+                    personImageUrl: referenceImageUrl,
+                    ...(opusGarmentUrl ? { garmentImageUrls: [opusGarmentUrl] } : {})
                 } : {}),
                 ...(imageProvider === "cloudflare" ? {
                     garmentBytes,
@@ -615,7 +634,7 @@ async function processRun(env, config, claimedRun) {
             }
 
             cleanedBlob = await stripImageMetadata(
-                new Blob([generated.bytes], { type: generated.mimeType }),
+                generated.bytes,
                 generated.mimeType
             );
             cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
