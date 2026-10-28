@@ -483,9 +483,9 @@ function parseOpusTaskId(taskId) {
 
 const ERROR_MESSAGE_BY_CODE = Object.freeze({
     credit_admission_rejected:
-        "Saldo kredit akun Opus Labs tidak mencukupi untuk durasi/resolusi video ini.",
+        "Saldo kredit akun Opus Labs (upstream OpusClip) tidak mencukupi untuk durasi/resolusi video ini.",
     insufficient_credits:
-        "Saldo kredit akun Opus Labs tidak mencukupi.",
+        "Saldo kredit akun Opus Labs (upstream OpusClip) tidak mencukupi untuk durasi/resolusi video ini.",
     quota_exceeded:
         "Kuota generasi Opus Labs sedang penuh atau telah habis.",
     rate_limited:
@@ -513,18 +513,39 @@ function normalizeErrorToken(value) {
         .replace(/[\s.-]+/g, "_");
 }
 
+function appendSafeProviderDetail(baseMessage, code, fallbackMessage) {
+    const cleanFallback = redactSecrets(String(fallbackMessage || "").trim());
+    if (!cleanFallback || cleanFallback.length > 220) {
+        return baseMessage;
+    }
+    const normFallback = normalizeErrorToken(cleanFallback);
+    const normCode = normalizeErrorToken(code);
+    if (
+        !normFallback ||
+        normFallback === normCode ||
+        normFallback === "failed" ||
+        normFallback === "error" ||
+        cleanFallback.startsWith("{") ||
+        cleanFallback.startsWith("[") ||
+        baseMessage.toLowerCase().includes(cleanFallback.toLowerCase())
+    ) {
+        return baseMessage;
+    }
+    return `${baseMessage} (Detail Opus: ${cleanFallback})`;
+}
+
 function translateOpusError(code, fallbackMessage = "") {
     const key = normalizeErrorToken(code);
     if (key && ERROR_MESSAGE_BY_CODE[key]) {
-        return ERROR_MESSAGE_BY_CODE[key];
+        return appendSafeProviderDetail(ERROR_MESSAGE_BY_CODE[key], key, fallbackMessage);
     }
     const lowerMsg = String(fallbackMessage || "").toLowerCase();
     for (const [knownCode, idMessage] of Object.entries(ERROR_MESSAGE_BY_CODE)) {
         if (lowerMsg.includes(knownCode) || lowerMsg.includes(knownCode.replace(/_/g, " "))) {
-            return idMessage;
+            return appendSafeProviderDetail(idMessage, knownCode, fallbackMessage);
         }
     }
-    const cleanFallback = String(fallbackMessage || "").trim();
+    const cleanFallback = redactSecrets(String(fallbackMessage || "").trim());
     if (cleanFallback) {
         return cleanFallback;
     }

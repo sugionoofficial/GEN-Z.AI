@@ -578,6 +578,26 @@ function extractErrorMessage(
 
 
     if (
+        typeof data.error_message ===
+            "string" &&
+        data.error_message.trim()
+    ) {
+
+        return data.error_message.trim();
+    }
+
+
+    if (
+        typeof data.errorMessage ===
+            "string" &&
+        data.errorMessage.trim()
+    ) {
+
+        return data.errorMessage.trim();
+    }
+
+
+    if (
         typeof data.message ===
             "string" &&
         data.message.trim()
@@ -594,6 +614,16 @@ function extractErrorMessage(
     ) {
 
         return data.msg.trim();
+    }
+
+
+    if (
+        typeof data.history_update_payload?.error_message ===
+            "string" &&
+        data.history_update_payload.error_message.trim()
+    ) {
+
+        return data.history_update_payload.error_message.trim();
     }
 
 

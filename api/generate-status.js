@@ -4426,6 +4426,24 @@ export default async function handler(
             }
         }
 
+        const failureMessage = normalized.failed
+            ? cleanString(
+                  firstDefined(
+                      history?.history_update_payload?.error_message,
+                      getProviderFailureMessage(normalized.raw)
+                  )
+              ) || "Task generate gagal diproses."
+            : null;
+
+        const failureCode = normalized.failed
+            ? cleanString(
+                  findDeepValue(
+                      normalized.raw,
+                      ["error_code", "errorCode", "code"]
+                  )
+              ) || null
+            : null;
+
 
         return json(
             res,
@@ -4479,6 +4497,15 @@ export default async function handler(
 
                 failed:
                     normalized.failed,
+
+                error:
+                    failureMessage,
+
+                error_message:
+                    failureMessage,
+
+                error_code:
+                    failureCode,
 
                 credit_refunded:
                     Boolean(creditRefund?.refunded),
