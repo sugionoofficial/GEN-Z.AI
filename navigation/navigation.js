@@ -892,7 +892,9 @@
 
             announcements: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14V9a2 2 0 0 1 2-2h3l8-4v17l-8-4H6a2 2 0 0 1-2-2Z"></path><path d="m9 16 1.5 5h3L12 17"></path><path d="M20 8a5 5 0 0 1 0 7"></path></svg>`,
 
-            chinaapi: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2"></rect><path d="m3 6.5 9 7 9-7"></path></svg>`
+            chinaapi: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2"></rect><path d="m3 6.5 9 7 9-7"></path></svg>`,
+
+            blackBox: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.7 21 7v10l-9 4.3L3 17V7z"></path><path d="M3 7l9 4.3L21 7"></path><path d="M12 11.3v10"></path></svg>`
 
         });
 
@@ -926,7 +928,8 @@
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
             { label: "TempMail", href: "/email.html", icon: ICONS.chinaapi },
             { label: "Admin Panel", href: "/admin-control/admin-panel.html", icon: ICONS.adminPanel },
-            { label: "Informasi Penting", href: "/admin-control/announcements.html", icon: ICONS.announcements }
+            { label: "Informasi Penting", href: "/admin-control/announcements.html", icon: ICONS.announcements },
+            { label: "Black Box", href: "/black-box/index.html", icon: ICONS.blackBox }
         ];
 
 
