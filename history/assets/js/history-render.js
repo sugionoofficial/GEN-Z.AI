@@ -413,6 +413,44 @@
         isVisionHistoryItem;
 
 
+    function isNonRegenerableHistoryItem(item) {
+        if (isVisionHistoryItem(item)) {
+            return true;
+        }
+
+        const taskId =
+            getTaskId(item).toLowerCase();
+        const modelId =
+            String(item?.model_id || item?.modelId || "")
+                .trim()
+                .toLowerCase();
+        const providerId =
+            String(item?.provider_id || "")
+                .trim()
+                .toLowerCase();
+
+        return Boolean(
+            item?.upscale_of_history_id ||
+            item?.upscale_source_url ||
+            item?.upscale_target ||
+            providerId === "genzai-internal" ||
+            taskId.startsWith("feature:") ||
+            taskId.startsWith("upscale_") ||
+            taskId.startsWith("upscale-photo_") ||
+            modelId === "metadata-cleaner" ||
+            modelId === "prompt-studio" ||
+            modelId === "upscale-photo" ||
+            modelId === "upscale-video" ||
+            modelId === "vision-image" ||
+            modelId === "vision-video"
+        );
+    }
+
+
+    App.isNonRegenerableHistoryItem =
+        isNonRegenerableHistoryItem;
+
+
     function getModelId(
         item
     ) {
@@ -976,15 +1014,55 @@
             );
 
         if (!url) {
+            const taskIdLower = getTaskId(item).toLowerCase();
+            const modelIdLower = getModelId(item).toLowerCase();
+            let icon = "🎬";
+            let ariaLabel = "Hasil belum tersedia";
+            let isTextFeature = false;
+
+            if (
+                modelIdLower === "metadata-cleaner" ||
+                taskIdLower.startsWith("feature:metadata_cleaner:")
+            ) {
+                icon = "🧹";
+                ariaLabel = "AI Metadata Cleaner selesai";
+                isTextFeature = true;
+            } else if (
+                modelIdLower === "prompt-studio" ||
+                taskIdLower.startsWith("feature:prompt_studio:")
+            ) {
+                icon = "✨";
+                ariaLabel = "Studio Prompt selesai";
+                isTextFeature = true;
+            } else if (
+                modelIdLower === "vision-video" ||
+                taskIdLower.startsWith("vision-video-")
+            ) {
+                icon = "🎞️";
+                ariaLabel = "Vision Video selesai";
+                isTextFeature = true;
+            } else if (
+                modelIdLower === "vision-image" ||
+                isVisionHistoryItem(item)
+            ) {
+                icon = "👁️";
+                ariaLabel = "Vision Image selesai";
+                isTextFeature = true;
+            }
 
             return `
                 <div
                     class="history-thumbnail thumbnail-empty"
-                    aria-label="Hasil belum tersedia"
+                    aria-label="${escapeHtml(ariaLabel)}"
                 >
                     <span class="thumbnail-empty-icon">
-                        🎬
+                        ${escapeHtml(icon)}
                     </span>
+                    ${
+                        isTextFeature
+                            ? `<span class="thumbnail-success">SUCCESS</span>`
+                            : ""
+                    }
                 </div>
             `;
         }
@@ -1904,6 +1982,12 @@
             getCreditCost(
                 item
             );
+        const status =
+            normalizeStatus(item?.status);
+        const isRefunded =
+            Boolean(item?.credit_refunded === true) &&
+            credits > 0 &&
+            (status === "failed" || status === "cancelled");
 
         return `
             <span class="history-credit">
@@ -1912,6 +1996,11 @@
                         credits
                     )
                 )}
+                ${
+                    isRefunded
+                        ? `<small style="display:block;color:#7ef0b4;font-size:10px;font-weight:700;line-height:1.2;margin-top:2px;">Refund</small>`
+                        : ""
+                }
             </span>
         `;
     }
@@ -2044,7 +2133,7 @@
                 <td class="history-action-cell">
 
                     ${
-                        isVisionHistoryItem(item)
+                        isNonRegenerableHistoryItem(item)
                             ? ""
                             : `
                                 <button

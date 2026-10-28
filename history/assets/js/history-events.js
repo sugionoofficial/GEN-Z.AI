@@ -809,7 +809,10 @@
             return;
         }
 
-        if (App.isVisionHistoryItem?.(item)) {
+        if (
+            App.isVisionHistoryItem?.(item) ||
+            App.isNonRegenerableHistoryItem?.(item)
+        ) {
             return;
         }
 

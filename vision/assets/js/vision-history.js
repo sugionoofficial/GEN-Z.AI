@@ -319,12 +319,14 @@ function buildHistoryRecord(
     const model =
         safeString(
             options.model ||
+            options.modelId ||
             state.get(
                 "model.id",
                 ""
             ),
             ""
-        );
+        ) ||
+        "vision-image";
 
 
     const modelName =
@@ -335,17 +337,32 @@ function buildHistoryRecord(
                 ""
             ),
             ""
+        ) ||
+        "Vision Image";
+
+
+    const creditState =
+        typeof state.getCredit === "function"
+            ? state.getCredit() || {}
+            : {};
+
+    const transactionId =
+        safeString(
+            options.transactionId ||
+            creditState.transactionId ||
+            ""
         );
 
-
     const taskId =
-        safeString(
-            options.taskId ||
-            state.get(
-                "process.taskId",
-                ""
-            )
-        ) ||
+        (transactionId
+            ? `vision-${transactionId}`
+            : safeString(
+                options.taskId ||
+                state.get(
+                    "process.taskId",
+                    ""
+                )
+            )) ||
         createTaskId();
 
 
@@ -406,15 +423,39 @@ function buildHistoryRecord(
      * diverifikasi.
      */
 
+    const rawImageRef =
+        safeString(
+            options.imageReferenceUrl ||
+            ""
+        );
+    const imageReferenceUrl =
+        rawImageRef && !rawImageRef.startsWith("data:")
+            ? rawImageRef
+            : null;
+
+    const explicitCost = Number(options.creditCost);
+    const resolvedCost =
+        options.creditDeducted === false
+            ? 0
+            : (Number.isFinite(explicitCost) && explicitCost >= 0
+                ? explicitCost
+                : (window.GENZVisionCredit?.getCost?.() ??
+                    VISION_HISTORY_CONFIG.CREDIT_COST));
+
     return {
+
+        feature_id:
+            safeString(options.featureId, "vision") || "vision",
+
+        transaction_id:
+            transactionId || null,
 
         provider_id:
             VISION_HISTORY_CONFIG
                 .PROVIDER_ID,
 
         provider_name:
-            VISION_HISTORY_CONFIG
-                .PROVIDER_NAME,
+            "GEN-Z.AI",
 
         model_id:
             model,
@@ -426,11 +467,7 @@ function buildHistoryRecord(
             prompt,
 
         image_reference_url:
-            safeString(
-                options.imageReferenceUrl ||
-                file.dataUrl ||
-                ""
-            ) || null,
+            imageReferenceUrl,
 
         video_reference_url:
             null,
@@ -462,8 +499,13 @@ function buildHistoryRecord(
             errorMessage,
 
         credit_cost:
-            window.GENZVisionCredit?.getCost?.() ??
-            VISION_HISTORY_CONFIG.CREDIT_COST
+            resolvedCost,
+
+        credit_refunded:
+            Boolean(options.creditRefunded === true),
+
+        credit_deducted:
+            options.creditDeducted !== false
 
     };
 
@@ -738,8 +780,8 @@ async function saveSuccess(
 ========================================================= */
 
 async function saveFailed(
-    error,
-    options = {}
+    errorOrOptions,
+    maybeOptions = {}
 ) {
 
     const state =
@@ -748,12 +790,26 @@ async function saveFailed(
 
     await getUser();
 
+    const isSingleObjectCall =
+        errorOrOptions &&
+        typeof errorOrOptions === "object" &&
+        !(errorOrOptions instanceof Error);
+
+    const options =
+        isSingleObjectCall
+            ? errorOrOptions
+            : (maybeOptions || {});
+
+    const rawError =
+        isSingleObjectCall
+            ? (options.error || options.errorMessage)
+            : errorOrOptions;
 
     const message =
-        error instanceof Error
-            ? error.message
+        rawError instanceof Error
+            ? rawError.message
             : safeString(
-                error,
+                rawError,
                 "Vision process gagal."
             );
 

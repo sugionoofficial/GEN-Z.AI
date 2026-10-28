@@ -3434,15 +3434,21 @@ async function createUpscaleHistoryRow({
 }) {
     const targetLabel =
         getUpscaleVideoTargetLabel(targetResolution);
+    const parentPrompt =
+        typeof parent?.prompt === "string"
+            ? parent.prompt.trim()
+            : "";
 
     const payload = {
         user_id: user.id,
         user_email: user.email || null,
-        provider_id: parent.provider_id || null,
-        provider_name: parent.provider_name || null,
-        model_id: parent.model_id || null,
-        model_name: parent.model_name || null,
-        prompt: parent.prompt || null,
+        provider_id: UPSCALE_PHOTO_PROVIDER_ID,
+        provider_name: UPSCALE_PHOTO_PROVIDER_NAME,
+        model_id: "upscale-video",
+        model_name: "Upscale Video",
+        prompt: parentPrompt
+            ? `Upscale Video (${targetLabel}) — ${parentPrompt}`
+            : `Upscale Video • Target ${targetLabel}`,
         image_reference_url: parent.image_reference_url || null,
         video_reference_url: parent.video_reference_url || null,
         ratio: parent.ratio || null,
@@ -3453,6 +3459,7 @@ async function createUpscaleHistoryRow({
         result_url: null,
         error_message: null,
         credit_cost: creditCost,
+        credit_refunded: false,
         upscale_of_history_id: parent.id,
         upscale_source_url: sourceUrl,
         upscale_target: targetLabel
@@ -3511,6 +3518,18 @@ async function markUpscaleFailedAndRefund({
 
     try {
         await refundGenerateCredits(userId, creditCost);
+        if (Number(creditCost) > 0) {
+            await supabaseRequest(
+                `/rest/v1/generation_history?id=eq.${encodeURIComponent(historyId)}`,
+                {
+                    method: "PATCH",
+                    headers: { Prefer: "return=minimal" },
+                    body: JSON.stringify({
+                        credit_refunded: true
+                    })
+                }
+            );
+        }
     } catch (e) {
         console.error("[upscale] Refund failed:", e);
     }
@@ -3647,6 +3666,22 @@ async function finalizeUpscaleHistory({
         }
 
         await refundGenerateCredits(historyRow.user_id, creditCost);
+        if (creditCost > 0) {
+            try {
+                await supabaseRequest(
+                    `/rest/v1/generation_history?id=eq.${encodeURIComponent(historyRow.id)}`,
+                    {
+                        method: "PATCH",
+                        headers: { Prefer: "return=minimal" },
+                        body: JSON.stringify({
+                            credit_refunded: true
+                        })
+                    }
+                );
+            } catch (markErr) {
+                console.error("[upscale] Failed to mark credit_refunded:", markErr);
+            }
+        }
         return { status, finalized: true };
     }
 
@@ -3852,7 +3887,7 @@ async function handleUpscaleAction(req, res, body, user) {
     let creditCost;
 
     try {
-        creditCost = await getFeatureCreditCost("upscale");
+        creditCost = await getFeatureCreditCost("upscale_video");
         remainingCredits = await deductGenerateCredits(
             user.id,
             creditCost
@@ -4035,7 +4070,7 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
                     provider_name: UPSCALE_PHOTO_PROVIDER_NAME,
                     model_id: "upscale-video",
                     model_name: "Upscale Video",
-                    prompt: null,
+                    prompt: `Upscale Video • Target ${getUpscaleVideoTargetLabel(targetResolution)}`,
                     image_reference_url: null,
                     video_reference_url: null,
                     ratio: null,
@@ -4046,6 +4081,7 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
                     result_url: null,
                     error_message: null,
                     credit_cost: creditCost,
+                    credit_refunded: false,
                     upscale_target: getUpscaleVideoTargetLabel(targetResolution)
                 }])
             }
@@ -4098,7 +4134,8 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
         task_id: taskId,
         status: "processing",
         target: getUpscaleVideoTargetLabel(targetResolution),
-        credit_used: creditCost
+        credit_used: creditCost,
+        remaining_credits: remainingCredits
     });
 }
 
@@ -4173,6 +4210,9 @@ async function handleUpscalePhotoAction(req, res, body, user) {
 
     const taskId = `upscale-photo_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
+    const photoResolutionLabel =
+        targetResolution === "4k" ? "4K (2160p)" : "2K (1440p)";
+
     const historyPayload = {
         user_id: user.id,
         user_email: user.email || null,
@@ -4180,7 +4220,7 @@ async function handleUpscalePhotoAction(req, res, body, user) {
         provider_name: UPSCALE_PHOTO_PROVIDER_NAME,
         model_id: UPSCALE_PHOTO_MODEL_ID,
         model_name: UPSCALE_PHOTO_MODEL_NAME,
-        prompt: null,
+        prompt: `Upscale Foto • Target ${photoResolutionLabel}`,
         image_reference_url:
             toPrivateMediaRef(sourceUrl, { supabaseUrl: SUPABASE_URL }) ||
             sourceUrl,
@@ -4192,7 +4232,8 @@ async function handleUpscalePhotoAction(req, res, body, user) {
         task_id: taskId,
         result_url: null,
         error_message: null,
-        credit_cost: creditCost
+        credit_cost: creditCost,
+        credit_refunded: false
     };
 
     let historyRow;
@@ -4259,27 +4300,12 @@ async function handleUpscalePhotoAction(req, res, body, user) {
     } catch (err) {
         console.error("[upscale-photo] GitHub dispatch failed:", err);
 
-        try {
-            await supabaseRequest(
-                `/rest/v1/generation_history?id=eq.${historyRow.id}`,
-                {
-                    method: "PATCH",
-                    headers: { Prefer: "return=minimal" },
-                    body: JSON.stringify({
-                        status: "failed",
-                        error_message: "Gagal memulai upscale di GitHub Actions"
-                    })
-                }
-            );
-        } catch (e) {
-            console.error("[upscale-photo] Failed to mark history:", e);
-        }
-
-        try {
-            await refundGenerateCredits(user.id, creditCost);
-        } catch (e) {
-            console.error("[upscale-photo] Refund failed:", e);
-        }
+        await markUpscaleFailedAndRefund({
+            historyId: historyRow.id,
+            userId: user.id,
+            errorMessage: "Gagal memulai upscale di GitHub Actions",
+            creditCost
+        });
 
         return failure(res, 502, "Gagal memulai upscale di GitHub Actions");
     }

@@ -148,17 +148,72 @@
         renderCosts();
     }
 
-    async function run(featureId, operation) {
+    function syncRemainingCredits(creditsValue) {
+        const numeric = Number(creditsValue);
+        if (!Number.isFinite(numeric)) return;
+
+        try {
+            const profile = window.GENZNavigation?.getProfile?.();
+            if (profile && typeof profile === "object") {
+                profile.credits = numeric;
+            }
+            const rawCache = localStorage.getItem("genz-auth-profile-cache-v1");
+            if (rawCache) {
+                const parsed = JSON.parse(rawCache);
+                if (parsed && typeof parsed === "object") {
+                    parsed.credits = numeric;
+                    parsed.cachedAt = Date.now();
+                    localStorage.setItem("genz-auth-profile-cache-v1", JSON.stringify(parsed));
+                }
+            }
+        } catch (_err) {
+            /* ignore storage restrictions */
+        }
+    }
+
+    function resolveMetadata(metaOrFactory) {
+        try {
+            const raw = typeof metaOrFactory === "function" ? metaOrFactory() : metaOrFactory;
+            if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+                return {};
+            }
+            const prompt = typeof raw.prompt === "string" ? raw.prompt.trim() : "";
+            const modelId = typeof (raw.modelId || raw.model_id) === "string"
+                ? String(raw.modelId || raw.model_id).trim()
+                : "";
+            const modelName = typeof (raw.modelName || raw.model_name) === "string"
+                ? String(raw.modelName || raw.model_name).trim()
+                : "";
+            return { prompt, modelId, modelName };
+        } catch (_err) {
+            return {};
+        }
+    }
+
+    function getCost(featureId) {
+        if (!Object.hasOwn(currentCosts, featureId)) return null;
+        const value = Number(currentCosts[featureId]);
+        return Number.isFinite(value) ? value : null;
+    }
+
+    async function run(featureId, operation, metaOrFactory = null) {
         if (!FEATURE_NAMES[featureId] || typeof operation !== "function") {
             throw new Error("Konfigurasi pemakaian kredit tidak valid.");
         }
 
-        const transactionId = createTransactionId();
-        const charged = await request({
+        const initialMeta = resolveMetadata(metaOrFactory);
+        const chargePayload = {
             action: "charge",
             feature_id: featureId,
-            transaction_id: transactionId
-        });
+            transaction_id: createTransactionId()
+        };
+        if (initialMeta.prompt) chargePayload.prompt = initialMeta.prompt;
+        if (initialMeta.modelId) chargePayload.model_id = initialMeta.modelId;
+        if (initialMeta.modelName) chargePayload.model_name = initialMeta.modelName;
+
+        const transactionId = chargePayload.transaction_id;
+        const charged = await request(chargePayload);
+        syncRemainingCredits(charged.credits);
         showMessage(`${FEATURE_NAMES[featureId]}: ${Number(charged.cost).toLocaleString("id-ID")} credit digunakan.`);
 
         let result;
@@ -166,11 +221,16 @@
             result = await operation();
         } catch (error) {
             try {
-                await request({
+                const refundPayload = {
                     action: "settle",
                     transaction_id: transactionId,
                     outcome: "refund"
-                });
+                };
+                if (error?.message) {
+                    refundPayload.error_message = String(error.message).slice(0, 1000);
+                }
+                const refunded = await request(refundPayload);
+                syncRemainingCredits(refunded.credits);
             } catch (refundError) {
                 console.error("[feature-credit] Refund gagal:", refundError);
                 showMessage(`${error.message || "Proses gagal."} Pengembalian kredit juga gagal; hubungi admin.`, true);
@@ -182,11 +242,17 @@
         }
 
         try {
-            await request({
+            const finalMeta = resolveMetadata(metaOrFactory);
+            const completePayload = {
                 action: "settle",
                 transaction_id: transactionId,
                 outcome: "complete"
-            });
+            };
+            if (finalMeta.prompt && finalMeta.prompt !== initialMeta.prompt) {
+                completePayload.prompt = finalMeta.prompt;
+            }
+            const completed = await request(completePayload);
+            syncRemainingCredits(completed.credits);
         } catch (error) {
             console.error("[feature-credit] Gagal menutup transaksi:", error);
             showMessage("Proses berhasil, tetapi status transaksi credit belum dapat diselesaikan. Hubungi admin jika saldo tidak sesuai.", true);
@@ -198,6 +264,7 @@
     window.GENZFeatureCredit = Object.freeze({
         loadSettings,
         setFeature,
+        getCost,
         run,
         showMessage
     });

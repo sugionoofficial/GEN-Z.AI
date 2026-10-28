@@ -224,10 +224,33 @@
         );
     }
 
+    function isInternalFeatureHistoryItem(item) {
+        if (isUpscaleHistoryItem(item)) {
+            return true;
+        }
+
+        const modelId =
+            getModelId(item).toLowerCase();
+        const taskId =
+            getTaskId(item).toLowerCase();
+        const providerId =
+            String(item?.provider_id || "").trim().toLowerCase();
+
+        return Boolean(
+            providerId === "genzai-internal" ||
+            taskId.startsWith("feature:") ||
+            taskId.startsWith("vision-") ||
+            modelId === "metadata-cleaner" ||
+            modelId === "prompt-studio" ||
+            modelId === "vision-image" ||
+            modelId === "vision-video"
+        );
+    }
+
     /* =====================================================
        ACTIVE HISTORY ITEMS
        -----------------------------------------------------
-       Skip upscale internal dan task yang sudah gagal
+       Skip upscale/fitur internal dan task yang sudah gagal
        sync 3x berturut-turut.
     ===================================================== */
 
@@ -235,7 +258,7 @@
 
         return getHistoryData()
             .filter(item => {
-                if (isUpscaleHistoryItem(item)) {
+                if (isInternalFeatureHistoryItem(item)) {
                     return false;
                 }
 

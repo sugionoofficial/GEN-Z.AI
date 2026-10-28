@@ -586,7 +586,14 @@ async function onCheck(
 
         await window.GENZFeatureCredit.run(
             "metadata_cleaner",
-            callback
+            callback,
+            {
+                prompt: state.file?.name
+                    ? `Check Metadata — ${state.file.name}`
+                    : "Check Metadata",
+                modelId: "metadata-cleaner",
+                modelName: "AI Metadata Cleaner"
+            }
         );
 
 
@@ -742,7 +749,14 @@ async function onClean(
 
         await window.GENZFeatureCredit.run(
             "metadata_cleaner",
-            callback
+            callback,
+            {
+                prompt: state.file?.name
+                    ? `Clean Metadata — ${state.file.name}`
+                    : "Clean Metadata",
+                modelId: "metadata-cleaner",
+                modelName: "AI Metadata Cleaner"
+            }
         );
 
     } catch (

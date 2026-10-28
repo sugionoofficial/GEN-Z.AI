@@ -1607,15 +1607,19 @@ async function refundCredit(
                     creditState.transactionId,
 
                 task_id:
-                    metadata.taskId ||
+                    metadata?.taskId ||
                     null,
 
                 model_id:
-                    metadata.modelId ||
+                    metadata?.modelId ||
                     null,
 
                 model_name:
-                    metadata.modelName ||
+                    metadata?.modelName ||
+                    null,
+
+                error_message:
+                    metadata?.errorMessage ||
                     null
 
             }
@@ -1866,7 +1870,16 @@ function getCreditState() {
         refunded:
             Boolean(
                 credit.refunded
-            )
+            ),
+
+        transactionId:
+            credit.transactionId ||
+            null,
+
+        chargedCost:
+            Number.isFinite(Number(credit.chargedCost))
+                ? Number(credit.chargedCost)
+                : getCost()
 
     };
 

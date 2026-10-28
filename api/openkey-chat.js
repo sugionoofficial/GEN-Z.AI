@@ -2452,12 +2452,60 @@ async function getVisionCredits(
    DEDUCT VISION CREDIT
 ========================================================= */
 
+function formatVisionDisplayModelName(
+    featureId,
+    rawModelName
+) {
+    const labelPrefix =
+        featureId === "vision_video"
+            ? "Vision Video"
+            : "Vision Image";
+    const cleaned =
+        typeof rawModelName === "string"
+            ? rawModelName.trim().slice(0, 140)
+            : "";
+    if (
+        !cleaned ||
+        cleaned.toLowerCase() === "vision-image" ||
+        cleaned.toLowerCase() === "vision-video"
+    ) {
+        return labelPrefix;
+    }
+    if (/^vision(\s+(image|video))?\b/i.test(cleaned)) {
+        return cleaned;
+    }
+    return `${labelPrefix} — ${cleaned}`;
+}
+
 async function deductVisionCredit(
     userId,
     featureId,
-    transactionId
+    transactionId,
+    options = {}
 ) {
     let data;
+    const rawModelId =
+        typeof options?.modelId === "string"
+            ? options.modelId.trim().slice(0, 120)
+            : "";
+    const displayModelName =
+        formatVisionDisplayModelName(
+            featureId,
+            options?.modelName
+        );
+    const rpcPayload = {
+        p_user_id:
+            userId,
+        p_feature_id:
+            featureId,
+        p_transaction_id:
+            transactionId,
+        p_model_name:
+            displayModelName
+    };
+    if (rawModelId) {
+        rpcPayload.p_model_id = rawModelId;
+    }
 
     try {
         data = await supabaseRequest(
@@ -2468,18 +2516,7 @@ async function deductVisionCredit(
                     "POST",
 
                 body:
-                    JSON.stringify({
-
-                        p_user_id:
-                            userId,
-
-                        p_feature_id:
-                            featureId,
-
-                        p_transaction_id:
-                            transactionId
-
-                    })
+                    JSON.stringify(rpcPayload)
 
             }
         );
@@ -2501,7 +2538,9 @@ async function deductVisionCredit(
         credits: Number.isFinite(Number(data?.credits))
             ? Number(data.credits)
             : null,
-        transaction_id: data?.transaction_id
+        transaction_id: data?.transaction_id,
+        history_id: data?.history_id || null,
+        task_id: data?.task_id || null
 
     };
 
@@ -2514,8 +2553,24 @@ async function deductVisionCredit(
 
 async function refundVisionCredit(
     userId,
-    transactionId
+    transactionId,
+    errorMessage = null
 ) {
+    const rpcPayload = {
+        p_user_id:
+            userId,
+        p_transaction_id:
+            transactionId,
+        p_outcome:
+            "refund"
+    };
+    const cleanedError =
+        typeof errorMessage === "string"
+            ? errorMessage.trim().slice(0, 1000)
+            : "";
+    if (cleanedError) {
+        rpcPayload.p_error_message = cleanedError;
+    }
 
     const data =
         await supabaseRequest(
@@ -2526,18 +2581,7 @@ async function refundVisionCredit(
                     "POST",
 
                 body:
-                    JSON.stringify({
-
-                        p_user_id:
-                            userId,
-
-                        p_transaction_id:
-                            transactionId,
-
-                        p_outcome:
-                            "refund"
-
-                    })
+                    JSON.stringify(rpcPayload)
 
             }
         );
@@ -2650,7 +2694,11 @@ async function handleVisionCreditOperation(
             await deductVisionCredit(
                 user.id,
                 featureId,
-                transactionId
+                transactionId,
+                {
+                    modelId: body?.model_id,
+                    modelName: body?.model_name
+                }
             );
 
 
@@ -2691,7 +2739,8 @@ async function handleVisionCreditOperation(
         const result =
             await refundVisionCredit(
                 user.id,
-                transactionId
+                transactionId,
+                body?.error_message || null
             );
 
 
@@ -2928,13 +2977,33 @@ async function saveVisionHistory(
             record.status
         );
 
+    const rawFeatureId =
+        String(record.feature_id || "vision").trim();
     const featureId =
-        String(record.feature_id || "vision");
+        VISION_FEATURE_IDS.has(rawFeatureId)
+            ? rawFeatureId
+            : (String(record.task_id || "").startsWith("vision-video-") ? "vision_video" : "vision");
+    const creditWasDeducted =
+        record.credit_deducted !== false;
     const recordedCost = Number(record.credit_cost);
     const creditCost =
-        Number.isInteger(recordedCost) && recordedCost >= 0
-            ? recordedCost
-            : await getFeatureCreditCost(featureId);
+        !creditWasDeducted
+            ? 0
+            : (Number.isInteger(recordedCost) && recordedCost >= 0
+                ? recordedCost
+                : await getFeatureCreditCost(featureId));
+    const creditRefunded =
+        Boolean(
+            status === "failed" &&
+            record.credit_refunded === true &&
+            creditCost > 0
+        );
+    const rawTransactionId =
+        String(record.transaction_id || "").trim();
+    const validTransactionId =
+        /^[0-9a-f-]{36}$/i.test(rawTransactionId)
+            ? rawTransactionId
+            : "";
 
 
     const taskId =
@@ -3031,6 +3100,79 @@ async function saveVisionHistory(
      * kepada browser.
      */
 
+    const displayModelName =
+        formatVisionDisplayModelName(
+            featureId,
+            modelName
+        );
+    const completedAt =
+        status === "success" || status === "failed"
+            ? new Date().toISOString()
+            : null;
+
+    if (validTransactionId) {
+        const expectedTaskId =
+            featureId === "vision_video"
+                ? `vision-video-${validTransactionId}`
+                : `vision-${validTransactionId}`;
+        const updatePayload = {
+            provider_id: OPENKEY_PROVIDER_ID,
+            provider_name: "GEN-Z.AI",
+            model_id: modelId,
+            model_name: displayModelName,
+            prompt: prompt || null,
+            image_reference_url:
+                normalizeVisionHistoryString(
+                    record.image_reference_url
+                ) || null,
+            ratio:
+                normalizeVisionHistoryString(
+                    record.ratio
+                ) || null,
+            duration: normalizedDuration,
+            resolution:
+                normalizeVisionHistoryString(
+                    record.resolution
+                ) || null,
+            status,
+            result_url:
+                normalizeVisionHistoryString(
+                    record.result_url
+                ) || null,
+            error_message:
+                normalizeVisionHistoryString(
+                    record.error_message
+                ) || null
+        };
+        if (completedAt) {
+            updatePayload.completed_at = completedAt;
+        }
+        if (creditRefunded) {
+            updatePayload.credit_refunded = true;
+        }
+
+        const updated =
+            await supabaseRequest(
+                `/rest/v1/generation_history?user_id=eq.${encodeURIComponent(user.id)}&task_id=eq.${encodeURIComponent(expectedTaskId)}`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        Prefer: "return=representation"
+                    },
+                    body: JSON.stringify(updatePayload)
+                }
+            );
+
+        const existingHistory =
+            Array.isArray(updated)
+                ? updated[0] || null
+                : updated;
+
+        if (existingHistory && existingHistory.id) {
+            return existingHistory;
+        }
+    }
+
     const historyRecord = {
 
         user_id:
@@ -3045,13 +3187,13 @@ async function saveVisionHistory(
             OPENKEY_PROVIDER_ID,
 
         provider_name:
-            "OpenKey",
+            "GEN-Z.AI",
 
         model_id:
             modelId,
 
         model_name:
-            modelName,
+            displayModelName,
 
         prompt:
             prompt || null,
@@ -3081,7 +3223,11 @@ async function saveVisionHistory(
             status,
 
         task_id:
-            taskId,
+            validTransactionId
+                ? (featureId === "vision_video"
+                    ? `vision-video-${validTransactionId}`
+                    : `vision-${validTransactionId}`)
+                : taskId,
 
         result_url:
             normalizeVisionHistoryString(
@@ -3094,7 +3240,12 @@ async function saveVisionHistory(
             ) || null,
 
         credit_cost:
-            creditCost
+            creditCost,
+
+        credit_refunded:
+            creditRefunded,
+
+        ...(completedAt ? { completed_at: completedAt } : {})
 
     };
 

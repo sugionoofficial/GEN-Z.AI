@@ -363,32 +363,54 @@
             );
 
 
+        const transactionId =
+            safeString(
+                options.transactionId ||
+                window.GENZVisionVideoCredit?.getCreditState?.()?.transactionId ||
+                ""
+            );
+
         const taskId =
-            safeString(
-                options.taskId
-            ) ||
-            safeString(
-                state.getValue(
-                    "process.taskId",
-                    ""
-                )
-            ) ||
+            (transactionId
+                ? `vision-video-${transactionId}`
+                : (safeString(
+                    options.taskId
+                ) ||
+                safeString(
+                    state.getValue(
+                        "process.taskId",
+                        ""
+                    )
+                ))) ||
             createTaskId();
 
+        const explicitCost = Number(options.creditCost);
+        const resolvedCost =
+            options.creditDeducted === false
+                ? 0
+                : (Number.isFinite(explicitCost) && explicitCost >= 0
+                    ? explicitCost
+                    : Number(window.GENZVisionVideoCredit?.getCost?.() ?? CONFIG.creditCost));
 
         return {
+
+            feature_id:
+                safeString(options.featureId, "vision_video") || "vision_video",
+
+            transaction_id:
+                transactionId || null,
 
             provider_id:
                 CONFIG.providerId,
 
             provider_name:
-                CONFIG.providerName,
+                "GEN-Z.AI",
 
             model_id:
-                model,
+                model || "vision-video",
 
             model_name:
-                modelName,
+                modelName || "Vision Video",
 
             prompt:
                 prompt,
@@ -431,7 +453,13 @@
                 null,
 
             credit_cost:
-                Number(options.creditCost ?? window.GENZVisionVideoCredit?.getCost?.() ?? CONFIG.creditCost)
+                resolvedCost,
+
+            credit_refunded:
+                Boolean(options.creditRefunded === true),
+
+            credit_deducted:
+                options.creditDeducted !== false
 
         };
 

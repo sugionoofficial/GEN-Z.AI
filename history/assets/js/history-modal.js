@@ -552,6 +552,51 @@
        UPSCALE HELPER
     ===================================================== */
 
+    let cachedUpscaleVideoCost = null;
+    let upscaleVideoCostPromise = null;
+
+    async function loadUpscaleVideoCost() {
+        if (cachedUpscaleVideoCost !== null) {
+            return cachedUpscaleVideoCost;
+        }
+        if (upscaleVideoCostPromise) {
+            return upscaleVideoCostPromise;
+        }
+        upscaleVideoCostPromise = (async () => {
+            try {
+                const client = App.state?.supabaseClient || window.GENZ_SUPABASE;
+                const sessionResult = await client?.auth?.getSession?.();
+                const token = sessionResult?.data?.session?.access_token;
+                if (!token) return null;
+
+                const res = await fetch("/api/feature-credits", {
+                    method: "GET",
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const payload = await res.json().catch(() => null);
+                if (!res.ok || !Array.isArray(payload?.settings)) return null;
+
+                const row = payload.settings.find(
+                    entry => entry?.feature_id === "upscale_video"
+                );
+                const cost = Number(row?.credit_cost);
+                if (Number.isFinite(cost) && cost >= 0) {
+                    cachedUpscaleVideoCost = cost;
+                    document.querySelectorAll(".upscale-button-cost").forEach(el => {
+                        el.textContent = `${formatCredits(cost)} credit`;
+                    });
+                    return cost;
+                }
+            } catch (_err) {
+                /* ignore tariff lookup error */
+            } finally {
+                upscaleVideoCostPromise = null;
+            }
+            return null;
+        })();
+        return upscaleVideoCostPromise;
+    }
+
     function hasAlreadyUpscaled(parentId) {
         const target = String(parentId || "").trim();
         if (!target) return false;
@@ -602,6 +647,12 @@
         const alreadyUpscaled = isVideoUpscale || hasAlreadyUpscaled(item.id);
 
         const canUpscale = !isPhoto && !alreadyUpscaled;
+        if (canUpscale && cachedUpscaleVideoCost === null) {
+            loadUpscaleVideoCost();
+        }
+        const upscaleCostLabel = cachedUpscaleVideoCost !== null
+            ? `${formatCredits(cachedUpscaleVideoCost)} credit`
+            : "Tarif dinamis";
 
         return `
             <div class="detail-row detail-action-row">
@@ -633,7 +684,7 @@
                                     >
                                         <span class="upscale-icon" aria-hidden="true">⬆</span>
                                         Upscale ke 2560×1440 (QHD)
-                                        <span class="upscale-button-cost">1 credit</span>
+                                        <span class="upscale-button-cost">${escapeHtml(upscaleCostLabel)}</span>
                                     </button>
                                 `
                                 : (
@@ -688,6 +739,13 @@
         const modelName = getModelName(item);
         const provider = getProviderName(item);
         const credits = getCreditCost(item);
+        const statusNormalized = normalizeStatus(item?.status);
+        const creditDisplayText =
+            Boolean(item?.credit_refunded === true) &&
+            credits > 0 &&
+            (statusNormalized === "failed" || statusNormalized === "cancelled")
+                ? `${formatCredits(credits)} (Dikembalikan / Refund)`
+                : formatCredits(credits);
 
         body.innerHTML = `
             ${renderMediaPreview(item)}
@@ -697,7 +755,7 @@
             ${renderField("Model", modelName)}
             ${renderField("Model ID", modelId, { mono: true })}
             ${renderField("Task ID", taskId, { mono: true })}
-            ${renderField("Credit", formatCredits(credits))}
+            ${renderField("Credit", creditDisplayText)}
             ${renderField("Dibuat", formatDate(createdAt))}
             ${renderField("Selesai", completedAt ? formatDate(completedAt) : "-")}
             ${renderPrompt(item)}
@@ -908,7 +966,12 @@
         const historyId = String(button?.dataset?.historyId || "").trim();
         if (!historyId) return;
 
-        if (!window.confirm("Upscale video ini ke 2K?\nAkan menggunakan 1 credit.")) {
+        const dynamicCost = await loadUpscaleVideoCost();
+        const costPromptText = dynamicCost !== null
+            ? `Akan menggunakan ${formatCredits(dynamicCost)} credit.`
+            : "Biaya credit mengikuti tarif Upscale Video aktif.";
+
+        if (!window.confirm(`Upscale video ini ke 2K?\n${costPromptText}`)) {
             return;
         }
 

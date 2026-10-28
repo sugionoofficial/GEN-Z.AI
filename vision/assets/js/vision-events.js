@@ -1579,6 +1579,10 @@
 
         let creditWasDeducted =
             false;
+        let activeTransactionId =
+            null;
+        let activeChargedCost =
+            0;
 
 
         try {
@@ -1587,6 +1591,19 @@
 
 
             syncFormToState();
+
+            if (typeof getCredit().resetOperationState === "function") {
+                getCredit().resetOperationState();
+            }
+
+            if (typeof getHistory()?.createTaskId === "function") {
+                const freshTaskId = getHistory().createTaskId();
+                if (typeof getState().setTaskId === "function") {
+                    getState().setTaskId(freshTaskId);
+                } else if (typeof getState().setProcess === "function") {
+                    getState().setProcess({ taskId: freshTaskId });
+                }
+            }
 
 
             const state =
@@ -1642,9 +1659,21 @@
             );
 
 
-            await getCredit().deductCredit(
-                getCredit().getCost()
-            );
+            const deductResult =
+                await getCredit().deductCredit({
+                    taskId: state?.process?.taskId || null,
+                    modelId: state?.model?.id || null,
+                    modelName: state?.model?.name || null
+                });
+
+            activeTransactionId =
+                deductResult?.transactionId ||
+                getCredit().getCreditState?.()?.transactionId ||
+                null;
+            activeChargedCost =
+                Number.isFinite(Number(deductResult?.amount))
+                    ? Number(deductResult.amount)
+                    : getCredit().getCost();
 
 
             creditWasDeducted =
@@ -1870,10 +1899,16 @@
 
                 await getHistory().saveSuccess({
 
+                    featureId:
+                        "vision",
+
+                    transactionId:
+                        activeTransactionId,
+
                     taskId:
-                        finalState
-                            .process
-                            .taskId,
+                        activeTransactionId
+                            ? `vision-${activeTransactionId}`
+                            : finalState.process.taskId,
 
                     modelId:
                         finalState
@@ -1891,7 +1926,7 @@
                         normalizedAnalysis,
 
                     creditCost:
-                        getCredit().getCost()
+                        activeChargedCost
 
                 });
 
@@ -1966,6 +2001,9 @@
             const state =
                 getState().getState();
 
+            let creditWasRefunded =
+                false;
+
 
             if (
                 creditWasDeducted === true &&
@@ -1974,9 +2012,16 @@
 
                 try {
 
-                    await getCredit().refundCredit(
-                        getCredit().getCost()
-                    );
+                    const refundResult =
+                        await getCredit().refundCredit({
+                            taskId: state?.process?.taskId || null,
+                            modelId: state?.model?.id || null,
+                            modelName: state?.model?.name || null,
+                            errorMessage: message
+                        });
+
+                    creditWasRefunded =
+                        refundResult?.refunded !== false;
 
 
                     getState().markCreditRefunded();
@@ -1996,39 +2041,55 @@
             }
 
 
-            try {
+            if (creditWasDeducted === true) {
 
-                await getHistory().saveFailed({
+                try {
 
-                    taskId:
-                        state
-                            .process
-                            .taskId,
-
-                    modelId:
-                        state
-                            .model
-                            .id,
-
-                    modelName:
-                        state
-                            .model
-                            .name,
-
-                    error:
+                    await getHistory().saveFailed(
                         message,
+                        {
 
-                    creditCost:
-                        getCredit().getCost()
+                            featureId:
+                                "vision",
 
-                });
+                            transactionId:
+                                activeTransactionId,
 
-            } catch (historyError) {
+                            taskId:
+                                activeTransactionId
+                                    ? `vision-${activeTransactionId}`
+                                    : state.process.taskId,
 
-                console.warn(
-                    "[GEN-Z.AI Vision] Failed history save gagal:",
-                    historyError
-                );
+                            modelId:
+                                state
+                                    .model
+                                    .id,
+
+                            modelName:
+                                state
+                                    .model
+                                    .name,
+
+                            creditCost:
+                                activeChargedCost,
+
+                            creditRefunded:
+                                creditWasRefunded,
+
+                            creditDeducted:
+                                true
+
+                        }
+                    );
+
+                } catch (historyError) {
+
+                    console.warn(
+                        "[GEN-Z.AI Vision] Failed history save gagal:",
+                        historyError
+                    );
+
+                }
 
             }
 
