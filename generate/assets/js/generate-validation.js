@@ -1510,6 +1510,27 @@ function validateModelCapabilities(
             );
         }
     }
+
+    const modelId = String(model.model_id || model.id || "").trim();
+    const requiresAnyReferenceMedia = Boolean(
+        model?.config?.referenceRequired ||
+        model?.repository?.config?.referenceRequired ||
+        modelId === "opus-seedance-2.5-r2v"
+    );
+
+    if (
+        requiresAnyReferenceMedia &&
+        getParameterDefinition("image_urls") &&
+        getParameterDefinition("video_urls")
+    ) {
+        const hasImages = normalizeArray(parameters.image_urls).length > 0;
+        const hasVideos = normalizeArray(parameters.video_urls).length > 0;
+        if (!hasImages && !hasVideos) {
+            errors.push(
+                "Minimal 1 gambar referensi atau video referensi wajib diunggah untuk model ini."
+            );
+        }
+    }
 }
 
 

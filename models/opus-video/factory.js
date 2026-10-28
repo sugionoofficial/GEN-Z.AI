@@ -13,6 +13,7 @@
 import {
     DEFAULT_MCP_URL,
     MAX_REFERENCE_IMAGES,
+    MAX_REFERENCE_VIDEOS,
     PROVIDER_ID,
     PROVIDER_NAME,
     createVideoTask,
@@ -136,6 +137,8 @@ function buildAdminEditorConfig(spec) {
 function buildParametersForSpec(spec) {
     const parameters = [];
     const maxRefs = spec.maxReferences || MAX_REFERENCE_IMAGES;
+    const maxVideoRefs = spec.maxReferenceVideos || MAX_REFERENCE_VIDEOS;
+    const hasVideoRefs = Boolean(spec.allowReferenceVideos);
 
     if (spec.kind === "i2v") {
         parameters.push({
@@ -159,13 +162,30 @@ function buildParametersForSpec(spec) {
         parameters.push({
             name: "image_urls",
             type: "image_urls",
-            required: Boolean(spec.referenceRequired),
+            required: hasVideoRefs ? false : Boolean(spec.referenceRequired),
             maxItems: maxRefs,
             accept: "image/jpeg,image/png,image/webp",
             description: spec.referenceRequired
-                ? `Unggah 1–${maxRefs} gambar referensi (@image1 s/d @image${maxRefs}).`
+                ? (
+                    hasVideoRefs
+                        ? `Unggah hingga ${maxRefs} gambar referensi (@image1 s/d @image${maxRefs}) dan/atau video referensi di bawah.`
+                        : `Unggah 1–${maxRefs} gambar referensi (@image1 s/d @image${maxRefs}).`
+                )
                 : `Opsional: hingga ${maxRefs} gambar referensi (@image1 s/d @image${maxRefs}).`
         });
+
+        if (hasVideoRefs) {
+            parameters.push({
+                name: "video_urls",
+                type: "video_urls",
+                required: false,
+                maxItems: maxVideoRefs,
+                accept: "video/mp4,video/quicktime,video/webm",
+                description: spec.referenceRequired
+                    ? `Unggah hingga ${maxVideoRefs} video referensi (@video1 s/d @video${maxVideoRefs}) — wajib minimal 1 gambar atau video referensi.`
+                    : `Opsional: hingga ${maxVideoRefs} video referensi (@video1 s/d @video${maxVideoRefs}).`
+            });
+        }
     }
 
     parameters.push({
@@ -174,7 +194,11 @@ function buildParametersForSpec(spec) {
         required: true,
         maxLength: spec.maxPrompt || 7000,
         description: spec.kind === "r2v"
-            ? "Deskripsi adegan dan gerakan video (gunakan @image1, @image2 untuk merujuk gambar referensi)."
+            ? (
+                hasVideoRefs
+                    ? "Deskripsi adegan dan gerakan video (gunakan @image1..@image3 atau @video1..@video3 untuk merujuk media referensi)."
+                    : "Deskripsi adegan dan gerakan video (gunakan @image1, @image2 untuk merujuk gambar referensi)."
+            )
             : "Deskripsi adegan, subjek, pencahayaan, dan pergerakan kamera."
     });
 
@@ -263,6 +287,7 @@ export function createOpusVideoModel(spec) {
         type: spec.type,
         kind: spec.kind,
         workflow: spec.workflow || "reference2video",
+        referenceRequired: Boolean(spec.referenceRequired),
         adminEditor: buildAdminEditorConfig(spec),
         api: {
             mcpEndpoint: DEFAULT_MCP_URL,
@@ -304,6 +329,14 @@ export function createOpusVideoModel(spec) {
                 source.image_urls ??
                 source.reference_image_urls ??
                 (source.image_url ? [source.image_url] : [])
+            );
+        }
+
+        if (definitions.has("video_urls")) {
+            result.video_urls = normalizeUrlList(
+                source.video_urls ??
+                source.reference_video_urls ??
+                (source.video_url ? [source.video_url] : [])
             );
         }
 
@@ -373,7 +406,7 @@ export function createOpusVideoModel(spec) {
 
         if (definitions.has("image_urls")) {
             const maxItems = definitions.get("image_urls").maxItems || MAX_REFERENCE_IMAGES;
-            if (spec.referenceRequired && (!params.image_urls || params.image_urls.length === 0)) {
+            if (!definitions.has("video_urls") && spec.referenceRequired && (!params.image_urls || params.image_urls.length === 0)) {
                 errors.push("Minimal 1 gambar referensi wajib diunggah untuk model ini.");
             }
             if (params.image_urls.length > maxItems) {
@@ -382,6 +415,26 @@ export function createOpusVideoModel(spec) {
             for (const url of params.image_urls) {
                 if (!isPublicHttpUrl(url)) {
                     errors.push("Setiap gambar referensi harus berupa URL HTTP/HTTPS publik yang valid.");
+                    break;
+                }
+            }
+        }
+
+        if (definitions.has("video_urls")) {
+            const maxVideoItems = definitions.get("video_urls").maxItems || MAX_REFERENCE_VIDEOS;
+            if (
+                spec.referenceRequired &&
+                (!params.image_urls || params.image_urls.length === 0) &&
+                (!params.video_urls || params.video_urls.length === 0)
+            ) {
+                errors.push("Minimal 1 gambar referensi atau video referensi wajib diunggah untuk model ini.");
+            }
+            if (params.video_urls.length > maxVideoItems) {
+                errors.push(`Maksimal ${maxVideoItems} video referensi.`);
+            }
+            for (const url of params.video_urls) {
+                if (!isPublicHttpUrl(url)) {
+                    errors.push("Setiap video referensi harus berupa URL HTTP/HTTPS publik yang valid.");
                     break;
                 }
             }
@@ -444,6 +497,9 @@ export function createOpusVideoModel(spec) {
         }
         if (Array.isArray(params.image_urls) && params.image_urls.length > 0) {
             payload.reference_image_urls = params.image_urls;
+        }
+        if (Array.isArray(params.video_urls) && params.video_urls.length > 0) {
+            payload.reference_video_urls = params.video_urls;
         }
         if (typeof params.generate_audio === "boolean" && spec.generateAudio) {
             payload.generate_audio = params.generate_audio;
