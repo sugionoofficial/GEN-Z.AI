@@ -1,20 +1,28 @@
 #!/usr/bin/env node
 /* =========================================================
-   GEN-Z.AI — Pembantu Login OAuth Opus Labs (Product Ad Studio)
+   GEN-Z.AI — Pembantu Login OAuth Opus Labs (PC & HP Termux)
    ---------------------------------------------------------
    Menjalankan alur OAuth 2.0 PKCE + Dynamic Client Registration
    + RFC 8707 Resource Indicators (sesuai standar MCP OAuth SDK)
    langsung ke server resmi Opus Labs MCP:
      https://labs.opus.pro/opus-video-tools/mcp
 
-   Hasilnya diverifikasi langsung terhadap endpoint MCP (harus HTTP 200),
-   disimpan ke `.opus-auth-token.json` (di-ignore oleh Git), dan otomatis
-   disalin ke Clipboard (Windows/macOS) dalam format JSON 1 baris yang
-   siap ditempel ke Cloudflare Secret `OPUS_AUTH_TOKEN`.
+   Mendukung penuh:
+   - PC (Windows PowerShell / macOS / Linux Desktop)
+   - HP Android lewat Termux (tanpa perlu git clone / npm install!):
+     * Auto-open Chrome Android lewat `termux-open-url` / `am start`
+     * Bebas crash ENOENT meskipun `xdg-open` / `termux-api` belum ada
+     * Halaman callback di Chrome HP langsung menukar token & menampilkan
+       tombol besar [ SALIN TOKEN JSON ] 1-ketuk ke clipboard HP
+     * Fallback paste URL callback manual di terminal bila diperlukan
 
-   Pemakaian di PowerShell / Terminal:
+   Pemakaian di PC:
      npm run opus:login
-     npm run opus:login -- --from-mcp-auth
+
+   Pemakaian cepat di Termux HP Android:
+     pkg install -y nodejs-lts
+     curl -fsSL https://raw.githubusercontent.com/sugionoofficial/GEN-Z.AI/main/scripts/opus-login.mjs -o opus-login.mjs
+     node opus-login.mjs
    ========================================================= */
 
 import http from "node:http";
@@ -22,6 +30,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import readline from "node:readline";
 import { spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -29,6 +38,21 @@ export const DEFAULT_OPUS_MCP_URL = "https://labs.opus.pro/opus-video-tools/mcp"
 export const DEFAULT_OPUS_AUTH_SERVER = "https://focused-horizon-38.authkit.app";
 export const DEFAULT_OUTPUT_FILE = ".opus-auth-token.json";
 const MCP_PROTOCOL_VERSION = "2025-03-26";
+
+export function isTermuxEnvironment(env = process.env, platform = process.platform) {
+    if (platform === "android") return true;
+    const prefix = String(env?.PREFIX || "");
+    return Boolean(env?.TERMUX_VERSION || prefix.includes("com.termux"));
+}
+
+function escapeHtml(text) {
+    return String(text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
 
 function base64UrlEncode(buffer) {
     return Buffer.from(buffer)
@@ -50,6 +74,46 @@ export function extractWwwAuthParam(headerValue, fieldName) {
     const pattern = new RegExp(`${fieldName}=(?:"([^"]+)"|([^\\s,]+))`, "i");
     const match = String(headerValue).match(pattern);
     return (match?.[1] || match?.[2] || "").trim();
+}
+
+/**
+ * Mengekstrak authorization `code` dari URL callback penuh (`http://127.0.0.1:xxxx/callback?code=...&state=...`)
+ * maupun query string mentah apabila pengguna di HP menempelkan URL secara manual di Termux.
+ */
+export function extractOAuthCallbackCode(rawInput, expectedState = "") {
+    const trimmed = String(rawInput || "").trim();
+    if (!trimmed) return null;
+
+    let params = null;
+    if (/^https?:\/\//i.test(trimmed)) {
+        try {
+            params = new URL(trimmed).searchParams;
+        } catch {
+            params = null;
+        }
+    } else if (trimmed.includes("code=")) {
+        const qIndex = trimmed.indexOf("?");
+        const queryPart = qIndex >= 0 ? trimmed.slice(qIndex + 1) : trimmed;
+        params = new URLSearchParams(queryPart);
+    }
+
+    if (!params) {
+        return null;
+    }
+
+    const oauthError = params.get("error");
+    if (oauthError) {
+        const desc = params.get("error_description") || "";
+        throw new Error(`Otorisasi Opus ditolak (${oauthError})${desc ? `: ${desc}` : ""}`);
+    }
+
+    const code = String(params.get("code") || "").trim();
+    const state = String(params.get("state") || "").trim();
+    if (!code) return null;
+    if (expectedState && state && state !== expectedState) {
+        throw new Error("Parameter state OAuth tidak cocok dengan sesi login saat ini. Jalankan ulang script.");
+    }
+    return code;
 }
 
 async function probeMcpWwwAuthenticate(mcpUrl) {
@@ -402,7 +466,6 @@ export async function verifyOpusMcpToken(mcpUrl, bearerToken) {
             };
         }
 
-        /* Kirim notifications/initialized & cek whoami ringan bila tersedia. */
         let accountNote = "";
         try {
             const baseHeaders = {
@@ -443,45 +506,82 @@ export async function verifyOpusMcpToken(mcpUrl, bearerToken) {
     }
 }
 
-function openBrowserUrl(targetUrl) {
-    try {
-        if (process.platform === "win32") {
-            const child = spawn(
-                "powershell.exe",
-                ["-NoProfile", "-NonInteractive", "-Command", "Start-Process $env:OPUS_AUTH_URL"],
-                {
-                    env: { ...process.env, OPUS_AUTH_URL: targetUrl },
-                    stdio: "ignore",
-                    detached: true
+function spawnDetachedSafe(command, args, options = {}) {
+    return new Promise(resolve => {
+        try {
+            const child = spawn(command, args, {
+                stdio: "ignore",
+                detached: true,
+                ...options
+            });
+            let settled = false;
+            child.once("error", () => {
+                if (!settled) {
+                    settled = true;
+                    resolve(false);
                 }
-            );
-            child.unref();
+            });
+            child.once("spawn", () => {
+                child.unref();
+                if (!settled) {
+                    settled = true;
+                    resolve(true);
+                }
+            });
+        } catch {
+            resolve(false);
+        }
+    });
+}
+
+export async function openBrowserUrl(targetUrl, { env = process.env, platform = process.platform, spawnFn = spawnDetachedSafe } = {}) {
+    if (platform === "win32") {
+        return await spawnFn(
+            "powershell.exe",
+            ["-NoProfile", "-NonInteractive", "-Command", "Start-Process $env:OPUS_AUTH_URL"],
+            { env: { ...env, OPUS_AUTH_URL: targetUrl } }
+        );
+    }
+
+    if (isTermuxEnvironment(env, platform)) {
+        if (await spawnFn("termux-open-url", [targetUrl])) {
             return true;
         }
-        const opener = process.platform === "darwin" ? "open" : "xdg-open";
-        const child = spawn(opener, [targetUrl], { stdio: "ignore", detached: true });
+        if (await spawnFn("am", ["start", "--user", "0", "-a", "android.intent.action.VIEW", "-d", targetUrl])) {
+            return true;
+        }
+        return await spawnFn("xdg-open", [targetUrl]);
+    }
+
+    const opener = platform === "darwin" ? "open" : "xdg-open";
+    return await spawnFn(opener, [targetUrl]);
+}
+
+function runTermuxWakeCommand(cmdName) {
+    if (!isTermuxEnvironment()) return;
+    try {
+        const child = spawn(cmdName, [], { stdio: "ignore", detached: true });
+        child.on("error", () => {});
         child.unref();
-        return true;
     } catch {
-        return false;
+        /* opsional bila termux-wake-lock tidak tersedia */
     }
 }
 
-function copyTextToClipboard(text) {
+function tryPipeToCommand(command, args, text) {
     return new Promise(resolve => {
-        const cmd = process.platform === "win32"
-            ? ["clip.exe", []]
-            : process.platform === "darwin"
-                ? ["pbcopy", []]
-                : null;
-        if (!cmd) {
-            resolve(false);
-            return;
-        }
         try {
-            const proc = spawn(cmd[0], cmd[1], { stdio: ["pipe", "ignore", "ignore"] });
-            proc.on("error", () => resolve(false));
-            proc.on("close", code => resolve(code === 0));
+            const proc = spawn(command, args, { stdio: ["pipe", "ignore", "ignore"] });
+            let done = false;
+            const finish = ok => {
+                if (!done) {
+                    done = true;
+                    resolve(ok);
+                }
+            };
+            proc.on("error", () => finish(false));
+            proc.on("close", code => finish(code === 0));
+            proc.stdin.on("error", () => {});
             proc.stdin.end(text, "utf8");
         } catch {
             resolve(false);
@@ -489,83 +589,67 @@ function copyTextToClipboard(text) {
     });
 }
 
-function startLocalCallbackServer({ expectedState, timeoutMs = 180_000 }) {
-    return new Promise((resolveServer, rejectServer) => {
-        let settleCode;
-        let rejectCode;
-        const codePromise = new Promise((res, rej) => {
-            settleCode = res;
-            rejectCode = rej;
-        });
-
-        const timer = setTimeout(() => {
-            server.close();
-            rejectCode(new Error("Waktu tunggu login browser habis (3 menit). Jalankan ulang script ini."));
-        }, timeoutMs);
-
-        const server = http.createServer((req, res) => {
-            const reqUrl = new URL(req.url || "/", "http://127.0.0.1");
-            if (reqUrl.pathname !== "/callback") {
-                res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-                res.end("Not Found");
-                return;
-            }
-            const oauthError = reqUrl.searchParams.get("error");
-            const oauthErrorDesc = reqUrl.searchParams.get("error_description") || "";
-            const code = reqUrl.searchParams.get("code") || "";
-            const state = reqUrl.searchParams.get("state") || "";
-
-            if (oauthError) {
-                res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
-                res.end("<h2>Otorisasi Opus dibatalkan atau ditolak.</h2><p>Silakan kembali ke jendela PowerShell.</p>");
-                clearTimeout(timer);
-                server.close();
-                rejectCode(new Error(`Otorisasi Opus ditolak (${oauthError}): ${oauthErrorDesc}`));
-                return;
-            }
-            if (!code || state !== expectedState) {
-                res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
-                res.end("<h2>Parameter callback OAuth tidak cocok.</h2><p>Silakan jalankan ulang di PowerShell.</p>");
-                return;
-            }
-
-            res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-            res.end(
-                "<!doctype html><html lang='id'><head><meta charset='utf-8'><title>Opus Terhubung</title>"
-                + "<style>body{background:#000;color:#e8f0fe;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0}"
-                + ".box{border:1px solid #26354d;border-radius:16px;padding:28px 32px;max-width:480px;text-align:center;background:#0b1320}"
-                + "h1{color:#39ff71;font-size:20px;margin:0 0 10px}p{color:#a8b8d0;line-height:1.5;margin:0}</style></head>"
-                + "<body><div class='box'><h1>Login Opus Labs Berhasil</h1>"
-                + "<p>Token OAuth sedang diverifikasi, disimpan ke file proyek &amp; disalin ke clipboard. Anda boleh menutup tab ini dan kembali ke PowerShell.</p>"
-                + "</div></body></html>"
-            );
-            clearTimeout(timer);
-            server.close();
-            settleCode(code);
-        });
-
-        server.on("error", err => {
-            clearTimeout(timer);
-            rejectServer(err);
-        });
-
-        server.listen(0, "127.0.0.1", () => {
-            const addr = server.address();
-            const port = typeof addr === "object" && addr ? addr.port : 0;
-            resolveServer({
-                port,
-                redirectUri: `http://127.0.0.1:${port}/callback`,
-                waitForCode: () => codePromise,
-                close: () => {
-                    clearTimeout(timer);
-                    server.close();
-                }
-            });
-        });
-    });
+async function copyTextToClipboard(text) {
+    if (process.platform === "win32") {
+        return await tryPipeToCommand("clip.exe", [], text);
+    }
+    if (process.platform === "darwin") {
+        return await tryPipeToCommand("pbcopy", [], text);
+    }
+    if (isTermuxEnvironment()) {
+        return await tryPipeToCommand("termux-clipboard-set", [], text);
+    }
+    if (await tryPipeToCommand("wl-copy", [], text)) {
+        return true;
+    }
+    return await tryPipeToCommand("xclip", ["-selection", "clipboard"], text);
 }
 
-async function saveBundleAndFinish(rawBundle, outputPath, mcpUrl) {
+export function buildCallbackSuccessHtml(compactJson = "") {
+    const hasToken = Boolean(compactJson);
+    const escapedJson = escapeHtml(compactJson);
+
+    return (
+        "<!doctype html><html lang='id'><head><meta charset='utf-8'>"
+        + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        + "<title>Opus Terhubung — GEN-Z.AI</title>"
+        + "<style>"
+        + "body{background:#000000;color:#e8f0fe;font-family:system-ui,-apple-system,sans-serif;display:grid;place-items:center;min-height:92vh;margin:0;padding:16px;box-sizing:border-box}"
+        + ".box{border:1px solid #26354d;border-radius:18px;padding:24px 20px;max-width:520px;width:100%;background:#0b1320;box-sizing:border-box}"
+        + "h1{color:#39ff71;font-size:20px;margin:0 0 8px;text-align:center}"
+        + "p{color:#a8b8d0;font-size:14px;line-height:1.55;margin:0 0 14px;text-align:center}"
+        + ".btn{display:block;width:100%;border:none;border-radius:12px;padding:15px 16px;font-size:16px;font-weight:700;cursor:pointer;background:#39ff71;color:#021407;margin:0 0 12px;box-sizing:border-box}"
+        + ".btn:active{transform:scale(0.99)}"
+        + ".linkbtn{display:block;width:100%;text-align:center;text-decoration:none;border:1px solid #2f466b;border-radius:12px;padding:12px 16px;font-size:14px;font-weight:600;color:#9ec5ff;background:#101c30;margin:10px 0 0;box-sizing:border-box}"
+        + "textarea{width:100%;height:96px;background:#050911;color:#cfe2ff;border:1px solid #26354d;border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:12px;box-sizing:border-box;word-break:break-all}"
+        + ".steps{margin-top:14px;padding-top:12px;border-top:1px solid #1d2b40;color:#9fb0ca;font-size:13px;line-height:1.55}"
+        + "</style></head><body><div class='box'>"
+        + "<h1>Login Opus Labs Berhasil!</h1>"
+        + (hasToken
+            ? "<p>Token OAuth sudah <b>diverifikasi (HTTP 200 OK)</b>. Ketuk tombol hijau di bawah untuk menyalin JSON Token ke clipboard HP/PC Anda:</p>"
+              + "<button id='copyBtn' type='button' class='btn'>SALIN TOKEN JSON KE CLIPBOARD</button>"
+              + `<textarea id='tokenBox' readonly onclick='this.select()'>${escapedJson}</textarea>`
+              + "<a class='linkbtn' href='https://dash.cloudflare.com/' target='_blank' rel='noopener'>Buka Cloudflare Dashboard &rarr;</a>"
+              + "<div class='steps'>"
+              + "<b>Langkah tempel di Cloudflare:</b><br>"
+              + "1. Buka <b>Workers &amp; Pages &rarr; genzai &rarr; Settings &rarr; Variables and Secrets</b>.<br>"
+              + "2. Tempel (Paste) ke <b>OPUS_AUTH_TOKEN</b> (akun #1), <b>OPUS_AUTH_TOKEN_2</b> (akun #2), <b>OPUS_AUTH_TOKEN_3</b> (akun #3), dst., lalu klik <b>Save / Deploy</b>."
+              + "</div>"
+              + "<script>"
+              + "const btn=document.getElementById('copyBtn');const box=document.getElementById('tokenBox');"
+              + "btn.addEventListener('click',async()=>{"
+              + "let ok=false;"
+              + "if(navigator.clipboard&&navigator.clipboard.writeText){try{await navigator.clipboard.writeText(box.value);ok=true;}catch(e){}}"
+              + "if(!ok){box.focus();box.select();try{ok=document.execCommand('copy');}catch(e){}}"
+              + "btn.textContent=ok?'TERSALIN KE CLIPBOARD! Tinggal Paste di Cloudflare':'Silakan tahan & Salin teks di kotak bawah';"
+              + "});"
+              + "</script>"
+            : "<p>Token OAuth sedang diverifikasi &amp; disimpan di terminal. Anda boleh kembali ke jendela terminal / Termux.</p>")
+        + "</div></body></html>"
+    );
+}
+
+async function verifyAndPersistBundle(rawBundle, outputPath, mcpUrl) {
     const candidateIdToken = rawBundle._id_token || "";
     const cleanBundle = { ...rawBundle };
     delete cleanBundle._id_token;
@@ -590,22 +674,155 @@ async function saveBundleAndFinish(rawBundle, outputPath, mcpUrl) {
     await fs.writeFile(outputPath, `${compactJson}\n`, { encoding: "utf8", mode: 0o600 });
     const copied = await copyTextToClipboard(compactJson);
 
+    return {
+        cleanBundle,
+        compactJson,
+        copied,
+        status: check.status
+    };
+}
+
+function printFinishBanner({ outputPath, cleanBundle, compactJson, copied, status }) {
     console.log("\n=========================================================");
     console.log("BERHASIL! Token OAuth Opus TERVERIFIKASI (HTTP 200 OK).");
     console.log("=========================================================");
     console.log(`File tersimpan : ${outputPath}`);
     console.log(`Resource OAuth : ${cleanBundle.resource || "(default)"}`);
-    console.log(`Refresh token  : ${cleanBundle.refresh_token ? "Tersedia (auto-refresh aktif)" : "Tidak disertakan server"}`);
-    console.log(`Tes koneksi MCP: OK (HTTP ${check.status})`);
-    console.log(`Clipboard      : ${copied ? "SUDAH TERSALIN OTOMATIS (tinggal Ctrl + V!)" : "Salin isi file .opus-auth-token.json"}`);
+    console.log(`Refresh token  : ${cleanBundle.refresh_token ? "Tersedia (auto-refresh permanen aktif)" : "Tidak disertakan server"}`);
+    console.log(`Tes koneksi MCP: OK (HTTP ${status})`);
+    console.log(`Clipboard      : ${copied ? "SUDAH TERSALIN OTOMATIS" : "Gunakan tombol SALIN di halaman browser atau salin JSON di bawah"}`);
+
+    if (isTermuxEnvironment() || !copied) {
+        console.log("\n--- JSON 1 BARIS (SIAP TEMPEL KE CLOUDFLARE SECRET) ---");
+        console.log(compactJson);
+        console.log("-------------------------------------------------------");
+    }
+
     console.log("\nLangkah terakhir di Cloudflare:");
     console.log("1. Buka Cloudflare Dashboard -> Workers & Pages -> genzai -> Settings -> Variables and Secrets");
     console.log("2. Untuk Akun Utama (#1): Edit/Buat Secret bernama OPUS_AUTH_TOKEN");
-    console.log("   Untuk Menambah Akun Cadangan berikutnya secara berurutan:");
-    console.log("   Buat Secret baru bernama OPUS_AUTH_TOKEN_2, OPUS_AUTH_TOKEN_3, dst. (hingga OPUS_AUTH_TOKEN_20)");
-    console.log("3. Tekan Ctrl + V di kolom Value, lalu klik Save/Deploy.");
-    console.log("   (Sistem otomatis berpindah ke OPUS_AUTH_TOKEN selanjutnya secara berurutan saat credit habis!)");
+    console.log("   Untuk Akun Cadangan berikutnya: OPUS_AUTH_TOKEN_2, OPUS_AUTH_TOKEN_3, dst.");
+    console.log("3. Tempel (Paste) JSON di kolom Value, lalu klik Save/Deploy.");
     console.log("=========================================================\n");
+}
+
+function startLocalCallbackServer({ expectedState, onExchangeCode, timeoutMs = 300_000 }) {
+    return new Promise((resolveServer, rejectServer) => {
+        let settled = false;
+        let settleResult;
+        let rejectResult;
+        const resultPromise = new Promise((res, rej) => {
+            settleResult = res;
+            rejectResult = rej;
+        });
+
+        const safeCloseServer = () => {
+            try {
+                server.close();
+            } catch {
+                /* ignore */
+            }
+        };
+
+        const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            safeCloseServer();
+            rejectResult(new Error("Waktu tunggu login browser habis (5 menit). Jalankan ulang script ini."));
+        }, timeoutMs);
+
+        const server = http.createServer(async (req, res) => {
+            const reqUrl = new URL(req.url || "/", "http://127.0.0.1");
+            if (reqUrl.pathname !== "/callback") {
+                res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+                res.end("Not Found");
+                return;
+            }
+            const oauthError = reqUrl.searchParams.get("error");
+            const oauthErrorDesc = reqUrl.searchParams.get("error_description") || "";
+            const code = reqUrl.searchParams.get("code") || "";
+            const state = reqUrl.searchParams.get("state") || "";
+
+            if (oauthError) {
+                res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
+                res.end("<h2>Otorisasi Opus dibatalkan atau ditolak.</h2><p>Silakan kembali ke terminal / Termux.</p>");
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timer);
+                    safeCloseServer();
+                    rejectResult(new Error(`Otorisasi Opus ditolak (${oauthError}): ${oauthErrorDesc}`));
+                }
+                return;
+            }
+            if (!code || state !== expectedState) {
+                res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
+                res.end("<h2>Parameter callback OAuth tidak cocok.</h2><p>Silakan jalankan ulang script login.</p>");
+                return;
+            }
+
+            if (settled) {
+                res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+                res.end(buildCallbackSuccessHtml(""));
+                return;
+            }
+            settled = true;
+            clearTimeout(timer);
+
+            try {
+                const exchanged = typeof onExchangeCode === "function"
+                    ? await onExchangeCode(code)
+                    : { code, compactJson: "" };
+                res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+                res.end(buildCallbackSuccessHtml(exchanged?.compactJson || ""));
+                setTimeout(safeCloseServer, 400);
+                settleResult(exchanged);
+            } catch (err) {
+                res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
+                res.end(
+                    `<h2>Gagal memverifikasi token Opus</h2><p>${escapeHtml(err?.message || String(err))}</p>`
+                );
+                safeCloseServer();
+                rejectResult(err);
+            }
+        });
+
+        server.on("error", err => {
+            clearTimeout(timer);
+            rejectServer(err);
+        });
+
+        server.listen(0, "127.0.0.1", () => {
+            const addr = server.address();
+            const port = typeof addr === "object" && addr ? addr.port : 0;
+            resolveServer({
+                port,
+                redirectUri: `http://127.0.0.1:${port}/callback`,
+                waitForResult: () => resultPromise,
+                submitManualCallbackInput: async rawLine => {
+                    if (settled) return false;
+                    const manualCode = extractOAuthCallbackCode(rawLine, expectedState);
+                    if (!manualCode) return false;
+                    settled = true;
+                    clearTimeout(timer);
+                    safeCloseServer();
+                    try {
+                        const exchanged = typeof onExchangeCode === "function"
+                            ? await onExchangeCode(manualCode)
+                            : { code: manualCode, compactJson: "" };
+                        settleResult(exchanged);
+                        return true;
+                    } catch (err) {
+                        rejectResult(err);
+                        return true;
+                    }
+                },
+                close: () => {
+                    clearTimeout(timer);
+                    safeCloseServer();
+                }
+            });
+        });
+    });
 }
 
 async function main() {
@@ -624,11 +841,13 @@ async function main() {
             process.exit(1);
         }
         console.log(`Mengimpor token terbaru dari: ${cached.sourcePath}`);
-        await saveBundleAndFinish(cached.bundle, outputPath, mcpUrl);
+        const finished = await verifyAndPersistBundle(cached.bundle, outputPath, mcpUrl);
+        printFinishBanner({ outputPath, ...finished });
         return;
     }
 
-    console.log("Menyiapkan koneksi OAuth Opus Labs (Product Ad Studio)...");
+    runTermuxWakeCommand("termux-wake-lock");
+    console.log("Menyiapkan koneksi OAuth Opus Labs (Product Ad Studio & Video Tools)...");
     const endpoints = await discoverOpusOAuthEndpoints(mcpUrl);
     console.log(`Server OAuth   : ${endpoints.authServerBase}`);
     console.log(`Target Resource: ${endpoints.resource || mcpUrl}`);
@@ -636,9 +855,33 @@ async function main() {
     const state = crypto.randomBytes(16).toString("hex");
     const { codeVerifier, codeChallenge } = createPkcePair();
 
-    const callbackServer = await startLocalCallbackServer({ expectedState: state });
+    let registeredClient = null;
+    let redirectUriForExchange = "";
+    let effectiveScope = "";
+    let rl = null;
+
+    const callbackServer = await startLocalCallbackServer({
+        expectedState: state,
+        onExchangeCode: async code => {
+            console.log("\nMenukar kode otorisasi menjadi token OAuth & memverifikasi ke server MCP...");
+            const bundle = await exchangeCodeForOpusTokens({
+                tokenEndpoint: endpoints.tokenEndpoint,
+                code,
+                redirectUri: redirectUriForExchange,
+                clientId: registeredClient.clientId,
+                clientSecret: registeredClient.clientSecret,
+                codeVerifier,
+                resource: endpoints.resource,
+                scope: effectiveScope
+            });
+            return await verifyAndPersistBundle(bundle, outputPath, mcpUrl);
+        }
+    });
+
+    redirectUriForExchange = callbackServer.redirectUri;
+
     try {
-        const client = await registerDynamicOAuthClient(
+        registeredClient = await registerDynamicOAuthClient(
             endpoints.registrationEndpoint,
             callbackServer.redirectUri,
             {
@@ -647,10 +890,10 @@ async function main() {
             }
         );
 
-        const effectiveScope = endpoints.scope || client.scope || "";
+        effectiveScope = endpoints.scope || registeredClient.scope || "";
         const authUrl = new URL(endpoints.authorizationEndpoint);
         authUrl.searchParams.set("response_type", "code");
-        authUrl.searchParams.set("client_id", client.clientId);
+        authUrl.searchParams.set("client_id", registeredClient.clientId);
         authUrl.searchParams.set("redirect_uri", callbackServer.redirectUri);
         authUrl.searchParams.set("code_challenge", codeChallenge);
         authUrl.searchParams.set("code_challenge_method", "S256");
@@ -666,30 +909,45 @@ async function main() {
         }
 
         console.log("\nMembuka browser untuk login ke akun OpusClip / Opus Labs Anda...");
-        console.log("Jika browser tidak terbuka otomatis, salin & buka link ini:\n");
+        console.log("Jika browser tidak terbuka otomatis, tahan & buka link ini:\n");
         console.log(`  ${authUrl.toString()}\n`);
-        openBrowserUrl(authUrl.toString());
+        await openBrowserUrl(authUrl.toString());
 
         console.log("Menunggu Anda klik Allow / Authorize di browser...");
-        const code = await callbackServer.waitForCode();
+        if (isTermuxEnvironment()) {
+            console.log("(Tips HP/Termux: Begitu klik Allow, halaman browser akan langsung menampilkan tombol");
+            console.log(" [SALIN TOKEN JSON KE CLIPBOARD]. Jika halaman 127.0.0.1 tidak termuat, tempel saja");
+            console.log(" URL callback dari address bar browser ke sini lalu tekan Enter.)");
+        }
 
-        console.log("Menukar kode otorisasi menjadi token OAuth...");
-        const bundle = await exchangeCodeForOpusTokens({
-            tokenEndpoint: endpoints.tokenEndpoint,
-            code,
-            redirectUri: callbackServer.redirectUri,
-            clientId: client.clientId,
-            clientSecret: client.clientSecret,
-            codeVerifier,
-            resource: endpoints.resource,
-            scope: effectiveScope
-        });
+        if (process.stdin.isTTY) {
+            rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout,
+                terminal: false
+            });
+            rl.on("line", line => {
+                callbackServer.submitManualCallbackInput(line).catch(err => {
+                    console.error(`\n[PERINGATAN INPUT] ${err?.message || err}`);
+                });
+            });
+        }
 
-        await saveBundleAndFinish(bundle, outputPath, mcpUrl);
+        const finished = await callbackServer.waitForResult();
+        printFinishBanner({ outputPath, ...finished });
     } catch (error) {
         callbackServer.close();
         console.error(`\n[GAGAL] ${error?.message || error}`);
         process.exit(1);
+    } finally {
+        if (rl) {
+            try {
+                rl.close();
+            } catch {
+                /* ignore */
+            }
+        }
+        runTermuxWakeCommand("termux-wake-unlock");
     }
 }
 
