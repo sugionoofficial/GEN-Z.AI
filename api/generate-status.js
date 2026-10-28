@@ -77,8 +77,11 @@ import {
 
 import {
     OPUS_QUEUE_FINAL_ERROR_MESSAGE,
+    OPUS_QUEUE_WAIT_MESSAGE,
     OPUS_UPSTREAM_QUEUE_BUSY_CODE,
-    isOpusUpstreamCreditBusy
+    isOpusUpstreamCreditBusy,
+    resolveOpusQueueAttemptState,
+    shouldSuppressOpusBusyFailureHistory
 } from "../generate/assets/js/opus-queue-retry.js";
 
 /* =========================================================
@@ -3810,6 +3813,120 @@ async function syncGenerationHistory(
    HISTORY RETRY
    ========================================================= */
 
+/* =========================================================
+   DISCARD INTERMEDIATE OPUS ATTEMPT HISTORY
+   ---------------------------------------------------------
+   Dipakai ketika percobaan saat ini gagal karena kredit
+   upstream Opus habis TETAPI masih ada API key / percobaan
+   berikutnya (rotasi key atau jeda 5 menit).
+
+   Tujuan:
+   - Kredit percobaan ini tetap dikembalikan ke user.
+   - Baris "generate gagal" TIDAK muncul di History. Baris
+     sementara untuk task yang tidak pernah menghasilkan
+     video ini dihapus, karena percobaan berikutnya akan
+     membuat baris baru.
+
+   Urutan wajib: tandai failed -> refund -> hapus baris,
+   karena RPC refund_failed_generation_credits hanya mau
+   memproses baris berstatus failed.
+========================================================= */
+
+async function discardIntermediateOpusAttemptHistory(
+    userId,
+    taskId
+) {
+    const query =
+        `user_id=eq.${encodeURIComponent(userId)}` +
+        `&task_id=eq.${encodeURIComponent(taskId)}`;
+
+    let refund = null;
+
+    try {
+        await supabaseRequest(
+            `/rest/v1/generation_history?${query}`,
+            {
+                method: "PATCH",
+
+                headers: {
+                    Prefer: "return=minimal"
+                },
+
+                body: JSON.stringify({
+                    status: "failed"
+                })
+            }
+        );
+    } catch (error) {
+        console.error(
+            "[generate-status] Gagal menandai percobaan antara sebagai failed:",
+            serializeError(error)
+        );
+    }
+
+    try {
+        refund = await refundFailedGenerationCredits(
+            userId,
+            taskId
+        );
+    } catch (error) {
+        console.error(
+            "[generate-status] Refund percobaan antara Opus gagal:",
+            serializeError(error)
+        );
+    }
+
+    let removed = false;
+
+    try {
+        await supabaseRequest(
+            `/rest/v1/generation_history?${query}`,
+            {
+                method: "DELETE",
+
+                headers: {
+                    Prefer: "return=minimal"
+                }
+            }
+        );
+
+        removed = true;
+    } catch (error) {
+        console.error(
+            "[generate-status] Gagal menghapus baris percobaan antara Opus:",
+            serializeError(error)
+        );
+    }
+
+    return {
+        history_updated: false,
+        history_matched: true,
+        history_status: null,
+        history_reason: "history_suppressed_intermediate_opus_attempt",
+        history_row_id: null,
+        history_database_status: null,
+        history_result_url: null,
+        history_completed_at: null,
+        history_update_strategy: null,
+        history_update_rows: 0,
+        history_retry: false,
+        history_removed: removed,
+        history_refund: refund,
+        history_error: null,
+        history_error_status: null,
+        history_error_code: null,
+        history_error_details: null,
+        history_error_hint: null,
+        history_error_data: null,
+        history_error_diagnostics: null,
+        history_error_path: null,
+        history_error_method: null,
+        history_error_body: null,
+        history_update_payload: null
+    };
+}
+
+
 async function syncGenerationHistoryWithRetry(
     userId,
     taskId,
@@ -3994,6 +4111,20 @@ export default async function handler(
                     body.modelId,
                     body.model
                 )
+            );
+
+
+        /*
+         * =================================================
+         * STATUS PERCOBAAN ANTRIAN OPUS
+         * =================================================
+         * Halaman /generate mengirim nomor percobaan (1..4).
+         * Selama masih ada API key / jeda 5 menit berikutnya,
+         * baris "generate gagal" TIDAK boleh muncul di History.
+         */
+        const opusQueueAttemptState =
+            resolveOpusQueueAttemptState(
+                body
             );
 
 
@@ -4436,7 +4567,7 @@ export default async function handler(
         }
 
 
-        if (
+        const opusUpstreamBusyFailure = Boolean(
             providerRaw &&
             typeof providerRaw === "object" &&
             isOpusUpstreamCreditBusy({
@@ -4446,13 +4577,25 @@ export default async function handler(
                 message: providerRaw.errorMessage ?? providerRaw.error_message ?? providerRaw.message,
                 creditRefunded: true
             })
-        ) {
+        );
+
+        if (opusUpstreamBusyFailure) {
+            /*
+             * Masih ada API key / jeda 5 menit berikutnya -> pesan
+             * antrian ("mohon tunggu antrian, sistem sedang padat").
+             * Percobaan terakhir -> notif merah final.
+             */
+            const opusBusyMessage =
+                opusQueueAttemptState.suppressFailureHistory
+                    ? OPUS_QUEUE_WAIT_MESSAGE
+                    : OPUS_QUEUE_FINAL_ERROR_MESSAGE;
+
             providerRaw = {
                 ...providerRaw,
                 errorCode: OPUS_UPSTREAM_QUEUE_BUSY_CODE,
                 error_code: OPUS_UPSTREAM_QUEUE_BUSY_CODE,
-                errorMessage: OPUS_QUEUE_FINAL_ERROR_MESSAGE,
-                error_message: OPUS_QUEUE_FINAL_ERROR_MESSAGE
+                errorMessage: opusBusyMessage,
+                error_message: opusBusyMessage
             };
         }
 
@@ -4463,15 +4606,42 @@ export default async function handler(
             );
 
 
-        const history =
-            await syncGenerationHistoryWithRetry(
+        /*
+         * Rotasi API key Opus / jeda 5 menit: percobaan ini masih
+         * punya percobaan berikutnya, jadi jangan tandai History
+         * sebagai "generate gagal". Baris sementara task yang gagal
+         * karena kredit upstream habis dibuang (kredit tetap
+         * dikembalikan), dan baris GAGAL hanya ditulis pada
+         * percobaan terakhir.
+         */
+        const suppressOpusBusyFailureHistory =
+            shouldSuppressOpusBusyFailureHistory({
+                opusUpstreamBusyFailure,
+                failed: normalized.failed,
+                attemptState: opusQueueAttemptState
+            });
+
+        const history = suppressOpusBusyFailureHistory
+            ? await discardIntermediateOpusAttemptHistory(
+                user.id,
+                taskId
+            )
+            : await syncGenerationHistoryWithRetry(
                 user.id,
                 taskId,
                 normalized
             );
 
-        let creditRefund = null;
-        if (normalized.failed) {
+        let creditRefund = suppressOpusBusyFailureHistory
+            ? (
+                history?.history_refund || null
+            )
+            : null;
+
+        if (
+            normalized.failed &&
+            !suppressOpusBusyFailureHistory
+        ) {
             try {
                 creditRefund = await refundFailedGenerationCredits(
                     user.id,
@@ -4693,6 +4863,22 @@ export default async function handler(
                 history_first_attempt:
                     history.history_first_attempt ||
                     null,
+
+                /* Rotasi API key Opus: baris GAGAL ditahan sampai percobaan terakhir. */
+                failure_history_suppressed:
+                    suppressOpusBusyFailureHistory,
+
+                history_removed:
+                    history.history_removed === true,
+
+                opus_queue_attempt:
+                    opusQueueAttemptState.attempt,
+
+                opus_queue_max_attempts:
+                    opusQueueAttemptState.maxAttempts,
+
+                opus_queue_final_attempt:
+                    opusQueueAttemptState.isFinalAttempt,
 
                 adapter_found:
                     true,

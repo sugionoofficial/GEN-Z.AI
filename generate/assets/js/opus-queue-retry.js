@@ -46,6 +46,154 @@ export const OPUS_QUEUE_MAX_WAIT_RETRIES =
 export const OPUS_QUEUE_MAX_ATTEMPTS =
     OPUS_QUEUE_MAX_WAIT_RETRIES + 1;
 
+/*
+ * =========================================================
+ * METADATA PERCOBAAN (ATTEMPT) — GATE HISTORY
+ * ---------------------------------------------------------
+ * Halaman /generate mengirim nomor percobaan saat ini ke
+ * /api/generate dan /api/generate-status.
+ *
+ * Backend memakainya untuk MENAHAN baris "GAGAL" di History
+ * selama masih ada API key / percobaan berikutnya:
+ *
+ *   percobaan 1..3  -> rotasi API key / jeda 5 menit
+ *                      TIDAK menulis "generate gagal"
+ *   percobaan 4     -> seluruh API key sudah dicoba 1 putaran
+ *                      penuh + 3 kali jeda 5 menit, baru sistem
+ *                      STOP dan menulis TEPAT SATU baris GAGAL
+ *                      dengan notif merah
+ *                      "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI"
+ *
+ * Tanpa metadata (klien lama / request langsung), percobaan
+ * dianggap final sehingga perilaku lama tetap sama.
+ * ========================================================= */
+
+export const OPUS_QUEUE_ATTEMPT_FIELD =
+    "opus_queue_attempt";
+
+export const OPUS_QUEUE_MAX_ATTEMPTS_FIELD =
+    "opus_queue_max_attempts";
+
+function normalizeAttemptNumber(value, fallback = 1) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+        return fallback;
+    }
+    return Math.floor(parsed);
+}
+
+/**
+ * Membaca status percobaan dari body request / objek apa pun.
+ * @returns {{
+ *   attempt: number,
+ *   maxAttempts: number,
+ *   isFinalAttempt: boolean,
+ *   suppressFailureHistory: boolean,
+ *   remainingAttempts: number
+ * }}
+ */
+export function resolveOpusQueueAttemptState(input = {}) {
+    const source =
+        input && typeof input === "object" ? input : {};
+
+    const attempt = normalizeAttemptNumber(
+        source[OPUS_QUEUE_ATTEMPT_FIELD] ??
+        source.opusQueueAttempt ??
+        source.attempt,
+        1
+    );
+
+    const maxAttempts = Math.max(
+        attempt,
+        normalizeAttemptNumber(
+            source[OPUS_QUEUE_MAX_ATTEMPTS_FIELD] ??
+            source.opusQueueMaxAttempts ??
+            source.maxAttempts,
+            1
+        )
+    );
+
+    const isFinalAttempt = attempt >= maxAttempts;
+
+    return {
+        attempt,
+        maxAttempts,
+        isFinalAttempt,
+        suppressFailureHistory: !isFinalAttempt,
+        remainingAttempts: Math.max(0, maxAttempts - attempt)
+    };
+}
+
+/**
+ * Menyusun field metadata percobaan untuk payload request klien.
+ */
+export function buildOpusQueueAttemptFields({
+    attempt,
+    maxAttempts
+} = {}) {
+    const normalized = resolveOpusQueueAttemptState({
+        [OPUS_QUEUE_ATTEMPT_FIELD]: attempt,
+        [OPUS_QUEUE_MAX_ATTEMPTS_FIELD]: maxAttempts
+    });
+
+    if (normalized.maxAttempts <= 1) {
+        return {};
+    }
+
+    return {
+        [OPUS_QUEUE_ATTEMPT_FIELD]: normalized.attempt,
+        [OPUS_QUEUE_MAX_ATTEMPTS_FIELD]: normalized.maxAttempts
+    };
+}
+
+/**
+ * Menentukan apakah baris "GAGAL" boleh ditulis saat createTask gagal.
+ *
+ * - Error antrian/kredit upstream Opus: hanya boleh ditulis pada
+ *   percobaan TERAKHIR (setelah seluruh API key dicoba 1 putaran
+ *   penuh + 3 kali jeda 5 menit).
+ * - Error lain (konten ditolak, parameter salah, dsb.): tetap ditulis
+ *   seperti sebelumnya, asalkan kredit sudah dikembalikan.
+ */
+export function shouldRecordOpusFailureHistory({
+    opusQueueBusy = false,
+    creditDeducted = false,
+    attemptState = null
+} = {}) {
+    const state =
+        attemptState && typeof attemptState === "object"
+            ? attemptState
+            : resolveOpusQueueAttemptState();
+
+    if (opusQueueBusy) {
+        return state.isFinalAttempt === true;
+    }
+
+    return creditDeducted !== true;
+}
+
+/**
+ * Menentukan apakah baris History milik percobaan Opus yang gagal
+ * karena kredit upstream harus DITAHAN (tidak ditampilkan sebagai
+ * "generate gagal") karena masih ada percobaan / API key berikutnya.
+ */
+export function shouldSuppressOpusBusyFailureHistory({
+    opusUpstreamBusyFailure = false,
+    failed = false,
+    attemptState = null
+} = {}) {
+    if (!opusUpstreamBusyFailure || !failed) {
+        return false;
+    }
+
+    const state =
+        attemptState && typeof attemptState === "object"
+            ? attemptState
+            : resolveOpusQueueAttemptState();
+
+    return state.suppressFailureHistory === true;
+}
+
 function normalizeToken(value) {
     return String(value ?? "")
         .trim()

@@ -37,7 +37,7 @@ import {
     OPUS_SYSTEM_BUSY_FINAL_CODE,
     isOpusUpstreamCreditBusy,
     runOpusQueueRetryLoop
-} from "./opus-queue-retry.js?v=20261028-multikey";
+} from "./opus-queue-retry.js?v=20261029-historygate";
 
 
 /* =========================================================
@@ -1637,10 +1637,26 @@ async function handleGenerateSubmit(
                 executeAttempt: async (_attempt, _maxAttempts, retryContext) => {
                     setDiagStage("4. Sebelum generateVideo");
 
+                    /*
+                     * Nomor percobaan ikut dikirim supaya backend tahu
+                     * apakah ini percobaan terakhir (boleh menulis baris
+                     * GAGAL di History) atau masih akan berpindah API key
+                     * / menunggu jeda 5 menit (jangan tulis baris GAGAL).
+                     */
+                    const queueAttempt =
+                        Number(retryContext?.attempt) || 1;
+
+                    const queueMaxAttempts =
+                        Number(retryContext?.maxAttempts) ||
+                        Number(_maxAttempts) ||
+                        OPUS_QUEUE_MAX_ATTEMPTS;
+
                     const response =
                         await awaitWithTimeout(
                             request.generateVideo(parameters, {
-                                opusExcludeKeySlots: retryContext?.excludedOpusKeySlots
+                                opusExcludeKeySlots: retryContext?.excludedOpusKeySlots,
+                                opusQueueAttempt: queueAttempt,
+                                opusQueueMaxAttempts: queueMaxAttempts
                             }),
                             "generateVideo",
                             90000
@@ -1697,6 +1713,8 @@ async function handleGenerateSubmit(
                                 interval: 10000,
                                 timeout: null,
                                 retryUntilTerminal: true,
+                                opusQueueAttempt: queueAttempt,
+                                opusQueueMaxAttempts: queueMaxAttempts,
                                 onUpdate: update => {
                                     const failed = isPollingFailed(update);
                                     const completed = isPollingCompleted(update);

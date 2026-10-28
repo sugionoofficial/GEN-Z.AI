@@ -75,9 +75,12 @@ import {
 } from "../lib/generate/qwencloud-credit.js";
 
 import {
+    OPUS_QUEUE_FINAL_ERROR_MESSAGE,
     OPUS_QUEUE_WAIT_MESSAGE,
     OPUS_UPSTREAM_QUEUE_BUSY_CODE,
-    isOpusUpstreamCreditBusy
+    isOpusUpstreamCreditBusy,
+    resolveOpusQueueAttemptState,
+    shouldRecordOpusFailureHistory
 } from "../generate/assets/js/opus-queue-retry.js";
 
 
@@ -5276,6 +5279,22 @@ export default async function handler(
               .filter(v => Number.isInteger(v) && v >= 0 && v < 100)
         : [];
 
+    /*
+     * =====================================================
+     * STATUS PERCOBAAN ANTRIAN OPUS
+     * =====================================================
+     * Halaman /generate mengirim nomor percobaan (1..4):
+     *
+     *   1..3 -> masih ada API key / jeda 5 menit berikutnya
+     *           => JANGAN tulis "generate gagal" di History
+     *   4    -> seluruh API key sudah dicoba + 3 kali jeda
+     *           5 menit => STOP + tulis TEPAT SATU baris GAGAL
+     *
+     * Tanpa metadata, percobaan dianggap final (perilaku lama).
+     */
+    const opusQueueAttemptState =
+        resolveOpusQueueAttemptState(body);
+
     let task;
 
 
@@ -5410,7 +5429,36 @@ export default async function handler(
                 "Failed to create generation task"
             );
 
-        if (!opusQueueBusy && !creditDeducted && Number(generationCredit?.credit) >= 0) {
+        /*
+         * =================================================
+         * GATE HISTORY — ROTASI API KEY OPUS
+         * =================================================
+         * Semua API key habis kredit pada percobaan yang MASIH
+         * menyisakan percobaan berikutnya (rotasi key / jeda
+         * 5 menit) TIDAK boleh muncul sebagai "generate gagal"
+         * di History.
+         *
+         * Baris GAGAL baru ditulis satu kali pada percobaan
+         * terakhir (setelah seluruh pool API key dicoba dan
+         * 3 kali jeda 5 menit), memakai notif merah yang sama
+         * dengan yang tampil di halaman generate.
+         */
+        const suppressOpusBusyFailureHistory =
+            opusQueueBusy &&
+            opusQueueAttemptState.suppressFailureHistory;
+
+        const shouldWriteFailureHistory =
+            !suppressOpusBusyFailureHistory &&
+            shouldRecordOpusFailureHistory({
+                opusQueueBusy,
+                creditDeducted,
+                attemptState: opusQueueAttemptState
+            });
+
+        if (
+            shouldWriteFailureHistory &&
+            Number(generationCredit?.credit) >= 0
+        ) {
             await createGenerationHistory({
                 user,
                 body,
@@ -5422,8 +5470,12 @@ export default async function handler(
                 generationCredit,
                 taskId: `failed-init:${providerCode}:${crypto.randomUUID()}`,
                 status: "failed",
-                errorMessage: resolvedCreateErrorMessage,
-                creditRefunded: Number(generationCredit.credit) > 0,
+                errorMessage: opusQueueBusy
+                    ? OPUS_QUEUE_FINAL_ERROR_MESSAGE
+                    : resolvedCreateErrorMessage,
+                creditRefunded: opusQueueBusy
+                    ? !creditDeducted
+                    : Number(generationCredit.credit) > 0,
                 completedAt: new Date().toISOString()
             });
         }
@@ -5498,7 +5550,22 @@ export default async function handler(
                         : null,
 
                 opus_rotated_full_cycle:
-                    Boolean(error?.rotatedFullCycle)
+                    Boolean(error?.rotatedFullCycle),
+
+                opus_queue_attempt:
+                    opusQueueAttemptState.attempt,
+
+                opus_queue_max_attempts:
+                    opusQueueAttemptState.maxAttempts,
+
+                opus_queue_final_attempt:
+                    opusQueueAttemptState.isFinalAttempt,
+
+                failure_history_suppressed:
+                    suppressOpusBusyFailureHistory,
+
+                failure_history_recorded:
+                    shouldWriteFailureHistory
 
             }
         );

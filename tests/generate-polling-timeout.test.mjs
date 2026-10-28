@@ -9,14 +9,33 @@ const pollingSource = await fs.readFile(
 const authStubUrl = `data:text/javascript,${encodeURIComponent(
     "export async function getAccessToken() { return 'test-access-token'; }"
 )}`;
+/*
+ * Modul data: URL tidak bisa me-resolve import relatif, jadi
+ * helper metadata percobaan Opus ikut di-stub (perilaku sama:
+ * hanya mengirim field bila memang ada lebih dari 1 percobaan).
+ */
+const queueAttemptStubUrl = `data:text/javascript,${encodeURIComponent(
+    "export function buildOpusQueueAttemptFields({ attempt, maxAttempts } = {}) {" +
+    " const a = Math.max(1, Math.floor(Number(attempt) || 1));" +
+    " const m = Math.max(a, Math.floor(Number(maxAttempts) || 1));" +
+    " return m > 1 ? { opus_queue_attempt: a, opus_queue_max_attempts: m } : {};" +
+    " }"
+)}`;
 const fastPollingSource = pollingSource.replace(
     /const RETRY_BASE_DELAY_MS =\s+1000;/,
     "const RETRY_BASE_DELAY_MS = 1;"
 );
-const pollingUrl = `data:text/javascript,${encodeURIComponent(fastPollingSource.replace(
-    'from "./generate-auth.js"',
-    `from "${authStubUrl}"`
-))}`;
+const pollingUrl = `data:text/javascript,${encodeURIComponent(
+    fastPollingSource
+        .replace(
+            'from "./generate-auth.js"',
+            `from "${authStubUrl}"`
+        )
+        .replace(
+            /from "\.\/opus-queue-retry\.js[^"]*"/,
+            `from "${queueAttemptStubUrl}"`
+        )
+)}`;
 const { pollTask } = await import(pollingUrl);
 
 test("waits for any model's terminal result across time and temporary status errors", async () => {

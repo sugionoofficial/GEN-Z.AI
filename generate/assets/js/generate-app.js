@@ -79,16 +79,16 @@ const RENDER_MODULE =
     "./generate-render.js";
 
 const SUBMIT_MODULE =
-    "./generate-submit.js?v=20261028-multikey";
+    "./generate-submit.js?v=20261029-historygate";
 
 const VALIDATION_MODULE =
     "./generate-validation.js?v=20261028-urlguard";
 
 const REQUEST_MODULE =
-    "./generate-request.js?v=20261028-multikey";
+    "./generate-request.js?v=20261029-historygate";
 
 const POLLING_MODULE =
-    "./generate-polling.js";
+    "./generate-polling.js?v=20261029-historygate";
 
 const CANCELLATION_MODULE =
     "./generate-cancellation.js";
