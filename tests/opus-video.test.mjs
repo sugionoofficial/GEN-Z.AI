@@ -581,3 +581,303 @@ test("alur lengkap MCP: OAuth refresh, import_assets awaiting_upload, generate_v
         globalThis.fetch = originalFetch;
     }
 });
+
+test("Opus MCP: memulihkan jobId via list_jobs saat generate_video_clips sukses tanpa jobId inline + toleransi job_not_found + sibling assets/resolve_job", async () => {
+    const originalFetch = globalThis.fetch;
+    let statusCallCount = 0;
+    let listJobsCalled = 0;
+    let resolveJobCalled = false;
+
+    const fakeTools = [
+        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+        {
+            name: "create_project",
+            inputSchema: {
+                type: "object",
+                properties: { name: { type: "string" }, requestKey: { type: "string" } }
+            }
+        },
+        {
+            name: "generate_video_clips",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string" },
+                    clips: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                clipId: { type: "string" },
+                                model: { type: "string" },
+                                workflow: { type: "string" },
+                                prompt: { type: "string" },
+                                durationSeconds: { type: "integer" },
+                                resolution: { type: "string" },
+                                aspectRatio: { type: "string" }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "list_jobs",
+            inputSchema: {
+                type: "object",
+                required: ["projectId"],
+                properties: {
+                    projectId: { type: "string" },
+                    limit: { type: "number" }
+                }
+            }
+        },
+        {
+            name: "get_status",
+            inputSchema: {
+                type: "object",
+                required: ["jobIds"],
+                properties: {
+                    projectId: { type: "string" },
+                    jobIds: { type: "array", items: { type: "string" } },
+                    watch: { type: "boolean" }
+                }
+            }
+        },
+        {
+            name: "resolve_job",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "jobId"],
+                properties: {
+                    projectId: { type: "string" },
+                    jobId: { type: "string" }
+                }
+            }
+        }
+    ];
+
+    globalThis.fetch = async (url, init = {}) => {
+        if (String(url) !== "https://labs.opus.pro/opus-video-tools/mcp") {
+            throw new Error(`Unexpected fetch URL: ${url}`);
+        }
+        const rpc = JSON.parse(String(init.body || "{}"));
+        if (rpc.method === "initialize") {
+            return Response.json(
+                { jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: "2025-03-26" } },
+                { headers: { "Mcp-Session-Id": "sess_no_inline_jobid" } }
+            );
+        }
+        if (rpc.method === "notifications/initialized") {
+            return new Response("", { status: 202 });
+        }
+        if (rpc.method === "tools/list") {
+            return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { tools: fakeTools } });
+        }
+        if (rpc.method === "tools/call") {
+            const { name, arguments: args } = rpc.params;
+            if (name === "opus_video_tools_whoami") {
+                return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { structuredContent: { orgId: "org_1" } } });
+            }
+            if (name === "create_project") {
+                return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { structuredContent: { projectId: "proj_no_inline_01" } } });
+            }
+            if (name === "generate_video_clips") {
+                /* Respons nyata produksi: sukses mengantrekan clip tanpa menyertakan jobId inline */
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            projectId: args.projectId,
+                            items: [{ id: "clip-1", ok: true, status: "queued" }]
+                        }
+                    }
+                });
+            }
+            if (name === "list_jobs") {
+                listJobsCalled += 1;
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            projectId: args.projectId,
+                            jobs: { "clip-1": "job_listed_vid_501" }
+                        }
+                    }
+                });
+            }
+            if (name === "get_status") {
+                statusCallCount += 1;
+                assert.deepEqual(args.jobIds, ["job_listed_vid_501"]);
+                if (statusCallCount === 1) {
+                    /* Eventual consistency sesaat setelah submit */
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: rpc.id,
+                        result: {
+                            structuredContent: {
+                                projectId: args.projectId,
+                                error: "job_not_found"
+                            }
+                        }
+                    });
+                }
+                /* Sudah completed tetapi URL unduhan baru tersedia melalui resolve_job */
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            projectId: args.projectId,
+                            jobs: [{ id: "job_listed_vid_501", status: "completed", durationSeconds: 5 }]
+                        }
+                    }
+                });
+            }
+            if (name === "resolve_job") {
+                resolveJobCalled = true;
+                assert.equal(args.jobId, "job_listed_vid_501");
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            jobId: args.jobId,
+                            status: "completed",
+                            assets: [{ assetId: "ast_v_501", downloadUrl: "https://cdn.opus.pro/videos/resolved-501.mp4" }]
+                        }
+                    }
+                });
+            }
+        }
+        throw new Error(`Unhandled RPC: ${rpc.method}`);
+    };
+
+    try {
+        const model = getOpusVideoModel("opus-seedance-2.5-t2v");
+        const token = "opus-mock-bearer-token";
+
+        const created = await model.createTask(
+            { prompt: "Kucing oranye berlari di taman bunga matahari", duration: "5", resolution: "720p", aspect_ratio: "9:16" },
+            token
+        );
+
+        assert.equal(created.taskId, "opus:proj_no_inline_01:job_listed_vid_501");
+        assert.ok(listJobsCalled >= 1);
+
+        /* Poll 1: job_not_found sementara -> tetap QUEUED/PROCESSING, tidak boleh FAILED */
+        const poll1 = await model.queryTask(created.taskId, token);
+        assert.equal(poll1.failed, false);
+        assert.equal(poll1.processing, true);
+
+        /* Poll 2: completed tanpa URL di get_status -> otomatis resolve_job dan mengembalikan MP4 */
+        const poll2 = await model.queryTask(created.taskId, token);
+        assert.equal(resolveJobCalled, true);
+        assert.equal(poll2.status, "COMPLETED");
+        assert.deepEqual(poll2.outputUrls, ["https://cdn.opus.pro/videos/resolved-501.mp4"]);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("Opus MCP: mempertahankan task QUEUED berbasis projectId saat jobId baru muncul beberapa detik kemudian di list_jobs", async () => {
+    const originalFetch = globalThis.fetch;
+    let projectJobReady = false;
+
+    const fakeTools = [
+        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+        { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+        { name: "generate_video_clips", inputSchema: { type: "object", properties: { projectId: { type: "string" }, prompt: { type: "string" } } } },
+        { name: "list_jobs", inputSchema: { type: "object", properties: { projectId: { type: "string" } } } },
+        { name: "get_status", inputSchema: { type: "object", required: ["jobId"], properties: { projectId: { type: "string" }, jobId: { type: "string" }, watch: { type: "boolean" } } } }
+    ];
+
+    globalThis.fetch = async (url, init = {}) => {
+        const rpc = JSON.parse(String(init.body || "{}"));
+        if (rpc.method === "initialize") {
+            return Response.json(
+                { jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: "2025-03-26" } },
+                { headers: { "Mcp-Session-Id": "sess_delayed_job" } }
+            );
+        }
+        if (rpc.method === "notifications/initialized") return new Response("", { status: 202 });
+        if (rpc.method === "tools/list") return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { tools: fakeTools } });
+        if (rpc.method === "tools/call") {
+            const { name, arguments: args } = rpc.params;
+            if (name === "opus_video_tools_whoami") return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { structuredContent: { orgId: "org_1" } } });
+            if (name === "create_project") return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { structuredContent: { projectId: "proj_delayed_09" } } });
+            if (name === "generate_video_clips") {
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: { content: [{ type: "text", text: "Video generation request accepted into project queue." }] }
+                });
+            }
+            if (name === "list_jobs") {
+                if (!projectJobReady) {
+                    return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { structuredContent: { projectId: args.projectId, jobs: [] } } });
+                }
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            projectId: args.projectId,
+                            jobs: [{ id: "job_delayed_777", status: "running" }]
+                        }
+                    }
+                });
+            }
+            if (name === "get_status") {
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            projectId: args.projectId,
+                            jobs: [{ id: args.jobId, status: "completed", outputAssetId: "ast_out_777" }],
+                            assets: [
+                                { assetId: "ast_ref_input", role: "reference", url: "https://cdn.opus.pro/ref/input.mp4" },
+                                { assetId: "ast_out_777", resultUrl: "https://cdn.opus.pro/videos/final-777.mp4" }
+                            ]
+                        }
+                    }
+                });
+            }
+        }
+        throw new Error(`Unhandled RPC: ${rpc.method}`);
+    };
+
+    try {
+        const model = getOpusVideoModel("opus-hailuo-3-t2v");
+        const token = "opus-mock-bearer-token";
+
+        /* Saat createTask, list_jobs masih kosong -> TIDAK boleh gagal MISSING_TASK_ID */
+        const created = await model.createTask(
+            { prompt: "Ombak laut biru sinematik saat matahari terbenam", duration: "5", resolution: "768p", aspect_ratio: "9:16" },
+            token
+        );
+        assert.equal(created.taskId, "opus:proj_delayed_09:__project_pending__");
+        assert.equal(created.status, "QUEUED");
+
+        /* Poll 1 sebelum job muncul di list_jobs -> tetap QUEUED */
+        const pollEarly = await model.queryTask(created.taskId, token);
+        assert.equal(pollEarly.status, "QUEUED");
+        assert.equal(pollEarly.processing, true);
+
+        /* Sekarang job sudah muncul di proyek Opus dan selesai */
+        projectJobReady = true;
+        const pollCompleted = await model.queryTask(created.taskId, token);
+        assert.equal(pollCompleted.status, "COMPLETED");
+        assert.equal(pollCompleted.taskId, created.taskId, "taskId asli tetap dipertahankan untuk sinkronisasi generation_history");
+        assert.equal(pollCompleted.jobId, "job_delayed_777");
+        /* Harus mengambil ast_out_777, bukan ast_ref_input */
+        assert.deepEqual(pollCompleted.outputUrls, ["https://cdn.opus.pro/videos/final-777.mp4"]);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+

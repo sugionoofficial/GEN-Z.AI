@@ -52,8 +52,21 @@ const CLIENT_ITEM_IDS = new Set([
     "shot-1",
     "item-1",
     "task-1",
-    "kf-1"
+    "kf-1",
+    "first_frame",
+    "last_frame",
+    "image1",
+    "image2",
+    "image3"
 ]);
+
+const PROJECT_PENDING_JOB_ID = "__project_pending__";
+
+function sleep(ms) {
+    const delay = Math.max(0, Number(ms) || 0);
+    if (!delay) return Promise.resolve();
+    return new Promise(resolve => setTimeout(resolve, delay));
+}
 
 /* Cache ringan di memori untuk menekan subrequest berulang di Worker */
 let cachedOAuthState = {
@@ -426,35 +439,41 @@ function encodeOpusTaskId(projectId, jobId) {
 function parseOpusTaskId(taskId) {
     const raw = String(taskId || "").trim();
     if (!raw) {
-        return { projectId: "", jobId: "", isInlineDone: false };
+        return { projectId: "", jobId: "", isInlineDone: false, isProjectPending: false };
     }
     if (raw.startsWith("opus-inline:")) {
         return {
             projectId: "",
             jobId: raw,
-            isInlineDone: true
+            isInlineDone: true,
+            isProjectPending: false
         };
     }
     if (raw.startsWith("opus:")) {
         const rest = raw.slice(5);
         const sepIndex = rest.indexOf(":");
         if (sepIndex >= 0) {
+            const projectId = rest.slice(0, sepIndex).trim();
+            const jobId = rest.slice(sepIndex + 1).trim();
             return {
-                projectId: rest.slice(0, sepIndex).trim(),
-                jobId: rest.slice(sepIndex + 1).trim(),
-                isInlineDone: false
+                projectId,
+                jobId,
+                isInlineDone: false,
+                isProjectPending: Boolean(projectId && jobId === PROJECT_PENDING_JOB_ID)
             };
         }
         return {
             projectId: "",
             jobId: rest.trim(),
-            isInlineDone: false
+            isInlineDone: false,
+            isProjectPending: false
         };
     }
     return {
         projectId: "",
         jobId: raw,
-        isInlineDone: false
+        isInlineDone: false,
+        isProjectPending: false
     };
 }
 
@@ -523,22 +542,40 @@ function tryParseJsonFromText(text) {
     if (typeof text !== "string") return null;
     const trimmed = text.trim();
     if (!trimmed) return null;
-    if (
-        (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-        (trimmed.startsWith("[") && trimmed.endsWith("]"))
-    ) {
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
         try {
             return JSON.parse(trimmed);
         } catch {
-            /* lanjut */
+            /* lanjut ekstraksi blok JSON */
         }
     }
     const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(trimmed);
     if (fenced?.[1]) {
+        const candidate = fenced[1].trim();
+        if (candidate.startsWith("{") || candidate.startsWith("[")) {
+            try {
+                return JSON.parse(candidate);
+            } catch {
+                /* lanjut */
+            }
+        }
+    }
+    const firstBrace = trimmed.indexOf("{");
+    const lastBrace = trimmed.lastIndexOf("}");
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
         try {
-            return JSON.parse(fenced[1].trim());
+            return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
         } catch {
-            /* abaikan */
+            /* abaikan bila bukan objek JSON utuh */
+        }
+    }
+    const firstBracket = trimmed.indexOf("[");
+    const lastBracket = trimmed.lastIndexOf("]");
+    if (firstBracket >= 0 && lastBracket > firstBracket) {
+        try {
+            return JSON.parse(trimmed.slice(firstBracket, lastBracket + 1));
+        } catch {
+            /* abaikan bila bukan array JSON utuh */
         }
     }
     return null;
@@ -1155,13 +1192,21 @@ function matchEnumCaseInsensitive(candidates, allowedValues = []) {
 ========================================================= */
 
 function unwrapEnvelope(raw) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-    for (const key of ["data", "result", "payload", "response"]) {
-        if (raw[key] && typeof raw[key] === "object" && !Array.isArray(raw[key])) {
-            return { ...raw, ...raw[key] };
+    let curr = raw;
+    for (let depth = 0; depth < 3; depth += 1) {
+        if (!curr || typeof curr !== "object" || Array.isArray(curr)) break;
+        const inner = curr.data ?? curr.result ?? curr.output ?? curr.payload ?? curr.response;
+        if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+            curr = { ...curr, ...inner };
+            const subInner = inner.data ?? inner.result ?? inner.output ?? inner.payload ?? inner.response;
+            if (!subInner || typeof subInner !== "object" || Array.isArray(subInner)) {
+                break;
+            }
+            continue;
         }
+        break;
     }
-    return raw;
+    return curr;
 }
 
 async function ensureProjectId(session) {
@@ -2144,9 +2189,68 @@ function extractUsageSeconds(rootData) {
     return null;
 }
 
+function looksLikeErrorOrStatusToken(val) {
+    const s = String(val || "").trim();
+    if (!s) return true;
+    const lower = s.toLowerCase();
+    if (
+        TERMINAL_FAILED_TOKENS.has(lower) ||
+        TERMINAL_COMPLETED_TOKENS.has(lower) ||
+        ACTIVE_PROCESSING_TOKENS.has(lower) ||
+        /^(?:ok|true|false|null|undefined|none|concluded|job_queue_timeout|queue_timeout|job_not_found|not_found|unsupported_model|invalid_arguments|invalid_request|credit_admission_rejected|insufficient_credits|content_policy|model_unavailable|generation_unavailable)$/i.test(s)
+    ) {
+        return true;
+    }
+    if (
+        !/\d/.test(s) &&
+        /(?:^|[_.-])(?:timeout|timed_out|error|failed|failure|rejected|invalid|missing|not_found|unauthorized|forbidden|denied|cancelled|canceled|unknown|exceeded|unavailable|expired|exhausted|blocked|limit|pending|queued|status|state|empty|aborted)(?:$|[_.-])/i.test(s)
+    ) {
+        return true;
+    }
+    return false;
+}
+
 function findJobIdFromResponse(rawData, rawText = "", projectId = "") {
     const excluded = new Set(CLIENT_ITEM_IDS);
-    if (projectId) excluded.add(projectId);
+    if (projectId) excluded.add(String(projectId).trim());
+
+    const collectExcluded = obj => {
+        if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
+        for (const exKey of [
+            "projectId",
+            "project_id",
+            "assetId",
+            "asset_id",
+            "outputAssetId",
+            "output_asset_id",
+            "resultAssetId",
+            "result_asset_id",
+            "requestKey",
+            "request_key",
+            "idempotencyKey",
+            "idempotency_key",
+            "organizationId",
+            "orgId",
+            "clipId",
+            "clip_id",
+            "shotId",
+            "shot_id",
+            "model",
+            "workflow",
+            "code",
+            "errorCode",
+            "error_code",
+            "error",
+            "status",
+            "state",
+            "reason",
+            "field"
+        ]) {
+            if (typeof obj[exKey] === "string" && obj[exKey].trim()) {
+                excluded.add(obj[exKey].trim());
+            }
+        }
+    };
 
     const isUsable = val => {
         const s = typeof val === "string" ? val.trim() : "";
@@ -2154,35 +2258,83 @@ function findJobIdFromResponse(rawData, rawText = "", projectId = "") {
             s &&
             !/\s/.test(s) &&
             !excluded.has(s) &&
-            !TERMINAL_FAILED_TOKENS.has(s.toLowerCase()) &&
-            !TERMINAL_COMPLETED_TOKENS.has(s.toLowerCase()) &&
-            !ACTIVE_PROCESSING_TOKENS.has(s.toLowerCase()) &&
+            !looksLikeErrorOrStatusToken(s) &&
             !/^https?:\/\//i.test(s) &&
-            !/^data:/i.test(s)
+            !/^data:/i.test(s) &&
+            !/^(?:projects|\/tmp)\//i.test(s)
         );
     };
 
+    const candidateRoots = [];
     if (rawData && typeof rawData === "object") {
+        candidateRoots.push(rawData);
+    }
+    if (rawText) {
+        const parsedFromText = tryParseJsonFromText(rawText);
+        if (parsedFromText && typeof parsedFromText === "object" && parsedFromText !== rawData) {
+            candidateRoots.push(parsedFromText);
+        }
+    }
+
+    const idKeys = [
+        "jobId",
+        "job_id",
+        "videoJobId",
+        "video_job_id",
+        "clipJobId",
+        "clip_job_id",
+        "taskId",
+        "task_id",
+        "submissionId",
+        "submission_id",
+        "operationId",
+        "operation_id",
+        "executionId",
+        "execution_id",
+        "generationId",
+        "generation_id",
+        "runId",
+        "run_id",
+        "asyncJobId",
+        "async_job_id",
+        "batchJobId",
+        "batch_job_id"
+    ];
+
+    const arrayIdKeys = [
+        "jobIds",
+        "job_ids",
+        "taskIds",
+        "task_ids",
+        "submissionIds",
+        "submission_ids",
+        "operationIds",
+        "operation_ids",
+        "executionIds",
+        "submittedJobIds",
+        "queuedJobIds",
+        "createdJobIds"
+    ];
+
+    const containerKeys = [
+        "jobs",
+        "clips",
+        "videos",
+        "items",
+        "results",
+        "submissions",
+        "tasks",
+        "outputs",
+        "generations",
+        "operations",
+        "records",
+        "entries",
+        "batches"
+    ];
+
+    for (const root of candidateRoots) {
         const seen = new WeakSet();
-        const queue = [{ node: rawData, depth: 0 }];
-        const idKeys = [
-            "jobId",
-            "job_id",
-            "videoJobId",
-            "video_job_id",
-            "clipJobId",
-            "clip_job_id",
-            "taskId",
-            "task_id",
-            "submissionId",
-            "submission_id",
-            "operationId",
-            "operation_id",
-            "executionId",
-            "execution_id",
-            "generationId",
-            "generation_id"
-        ];
+        const queue = [{ node: root, depth: 0 }];
 
         while (queue.length > 0) {
             const { node, depth } = queue.shift();
@@ -2190,35 +2342,111 @@ function findJobIdFromResponse(rawData, rawText = "", projectId = "") {
             seen.add(node);
 
             if (!Array.isArray(node)) {
-                for (const exKey of ["projectId", "project_id", "assetId", "asset_id", "requestKey", "idempotencyKey"]) {
-                    if (typeof node[exKey] === "string" && node[exKey].trim()) {
-                        excluded.add(node[exKey].trim());
-                    }
-                }
+                collectExcluded(node);
+
                 for (const key of idKeys) {
                     if (isUsable(node[key])) return String(node[key]).trim();
                 }
-                for (const arrKey of ["jobIds", "job_ids", "taskIds", "submissionIds"]) {
-                    if (Array.isArray(node[arrKey])) {
-                        for (const el of node[arrKey]) {
+
+                for (const [dynKey, dynVal] of Object.entries(node)) {
+                    if (
+                        /(?:job|task|submission|operation|execution|generation|run|video|clip)_?id$/i.test(dynKey) &&
+                        !/^(?:clipId|clip_id|shotId|shot_id|projectId|project_id|assetId|asset_id|outputAssetId|output_asset_id)$/i.test(dynKey) &&
+                        isUsable(dynVal)
+                    ) {
+                        return String(dynVal).trim();
+                    }
+                    if (/(?:job|task|submission|operation|execution|generation|run)_?ids$/i.test(dynKey) && Array.isArray(dynVal)) {
+                        for (const el of dynVal) {
                             if (isUsable(el)) return String(el).trim();
                         }
                     }
                 }
-                for (const listKey of ["jobs", "clips", "submissions", "tasks", "items"]) {
-                    if (Array.isArray(node[listKey])) {
-                        for (const item of node[listKey]) {
-                            if (isUsable(item)) return String(item).trim();
-                            if (item && typeof item === "object") {
-                                const candidate = item.jobId || item.job_id || item.taskId || item.submissionId || item.id;
-                                if (isUsable(candidate)) return String(candidate).trim();
+
+                if (typeof node.job === "string" && isUsable(node.job)) {
+                    return node.job.trim();
+                }
+
+                for (const arrKey of arrayIdKeys) {
+                    if (Array.isArray(node[arrKey])) {
+                        for (const el of node[arrKey]) {
+                            if (isUsable(el)) return String(el).trim();
+                            if (el && typeof el === "object") {
+                                collectExcluded(el);
+                                const subId = el.jobId || el.job_id || el.taskId || el.submissionId || el.operationId || el.executionId || el.id;
+                                if (isUsable(subId)) return String(subId).trim();
                             }
                         }
                     }
                 }
+
+                for (const subKey of ["job", "submission", "task", "operation", "execution", "clip", "video", "result", "generation"]) {
+                    const sub = node[subKey];
+                    if (sub && typeof sub === "object" && !Array.isArray(sub)) {
+                        collectExcluded(sub);
+                        const subId = sub.jobId || sub.job_id || sub.taskId || sub.submissionId || sub.operationId || sub.executionId || sub.id;
+                        if (isUsable(subId)) return String(subId).trim();
+                    }
+                }
+
+                for (const listKey of containerKeys) {
+                    const container = node[listKey];
+                    if (Array.isArray(container)) {
+                        for (const item of container) {
+                            if (isUsable(item)) return String(item).trim();
+                            if (item && typeof item === "object") {
+                                collectExcluded(item);
+                                const candidate =
+                                    item.jobId ||
+                                    item.job_id ||
+                                    item.taskId ||
+                                    item.submissionId ||
+                                    item.operationId ||
+                                    item.executionId ||
+                                    item.id;
+                                if (isUsable(candidate)) return String(candidate).trim();
+                            }
+                        }
+                    } else if (container && typeof container === "object") {
+                        for (const [mapKey, mapVal] of Object.entries(container)) {
+                            if (isUsable(mapVal)) return String(mapVal).trim();
+                            if (mapVal && typeof mapVal === "object") {
+                                collectExcluded(mapVal);
+                                const mvId =
+                                    mapVal.jobId ||
+                                    mapVal.job_id ||
+                                    mapVal.taskId ||
+                                    mapVal.submissionId ||
+                                    mapVal.operationId ||
+                                    mapVal.executionId ||
+                                    mapVal.id;
+                                if (isUsable(mvId)) return String(mvId).trim();
+                                if (isUsable(mapKey)) return mapKey.trim();
+                            }
+                        }
+                    }
+                }
+
+                /* Objek job langsung yang hanya memakai field `id` (bukan container assets/uploads) */
+                const isPureAssetObj =
+                    (Array.isArray(node.assets) || Array.isArray(node.uploads)) &&
+                    !Array.isArray(node.jobs) &&
+                    !Array.isArray(node.clips);
+                const hasJobContext = Boolean(
+                    node.status !== undefined ||
+                    node.state !== undefined ||
+                    node.projectId !== undefined ||
+                    node.project_id !== undefined ||
+                    node.estimatedCredits !== undefined ||
+                    node.reservedCredits !== undefined ||
+                    node.outputs !== undefined
+                );
+                if (!isPureAssetObj && hasJobContext && isUsable(node.id)) {
+                    return String(node.id).trim();
+                }
             }
 
-            if (depth < 5) {
+            if (depth < 6) {
                 const children = Array.isArray(node) ? node : Object.values(node);
                 for (const child of children) {
                     if (child && typeof child === "object") {
@@ -2229,34 +2457,76 @@ function findJobIdFromResponse(rawData, rawText = "", projectId = "") {
         }
     }
 
-    const kvMatch = /\b(?:jobId|job_id|taskId|submissionId)\s*["']?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9_.:-]{2,})["']?/i.exec(
-        String(rawText || "")
-    );
-    if (kvMatch && isUsable(kvMatch[1])) {
-        return kvMatch[1].trim();
+    const cleanText = String(rawText || "").trim();
+    if (cleanText) {
+        const kvMatch = /\b(?:jobId|job_id|videoJobId|clipJobId|taskId|task_id|submissionId|operationId|executionId)\s*["']?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9_.:-]{2,})["']?/i.exec(
+            cleanText
+        );
+        if (kvMatch && isUsable(kvMatch[1])) {
+            return kvMatch[1].trim();
+        }
+        const arrayTextMatch = /\b(?:jobIds|job_ids|taskIds|submissionIds)\s*["']?\s*[:=]\s*\[\s*["']([A-Za-z0-9][A-Za-z0-9_.:-]{2,})["']/i.exec(
+            cleanText
+        );
+        if (arrayTextMatch && isUsable(arrayTextMatch[1])) {
+            return arrayTextMatch[1].trim();
+        }
+        const prefixMatch = /\b((?:job|exec|task|op|sub|genjob|vjob|clipjob)[_-](?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{4,})\b/i.exec(
+            cleanText
+        );
+        if (prefixMatch && isUsable(prefixMatch[1])) {
+            return prefixMatch[1].trim();
+        }
     }
     return "";
 }
 
 function inspectJobOutcome(rawData, rawText = "", targetJobId = "") {
-    const unwrapped = unwrapEnvelope(rawData);
+    const parsedSource =
+        rawData && typeof rawData === "object"
+            ? rawData
+            : tryParseJsonFromText(rawText);
+    const unwrapped = unwrapEnvelope(parsedSource);
     let focus = unwrapped;
 
     if (unwrapped && typeof unwrapped === "object") {
-        for (const listKey of ["jobs", "clips", "items", "results", "tasks", "submissions"]) {
-            if (Array.isArray(unwrapped[listKey]) && unwrapped[listKey].length > 0) {
+        const containerKeys = ["jobs", "clips", "videos", "items", "results", "tasks", "submissions", "outputs", "operations"];
+        for (const listKey of containerKeys) {
+            const container = unwrapped[listKey];
+            if (Array.isArray(container) && container.length > 0) {
                 const matched = targetJobId
-                    ? unwrapped[listKey].find(
+                    ? container.find(
                         el =>
                             el &&
                             typeof el === "object" &&
-                            [el.jobId, el.job_id, el.taskId, el.id].includes(targetJobId)
+                            [el.jobId, el.job_id, el.taskId, el.submissionId, el.operationId, el.executionId, el.id].includes(targetJobId)
                     )
                     : null;
-                const firstObj = matched || unwrapped[listKey].find(el => el && typeof el === "object");
+                const firstObj = matched || container.find(el => el && typeof el === "object");
                 if (firstObj) {
                     focus = { ...unwrapped, ...firstObj };
                     break;
+                }
+            } else if (container && typeof container === "object") {
+                const entries = Object.entries(container);
+                if (entries.length > 0) {
+                    const matchedEntry = targetJobId
+                        ? entries.find(([k, v]) => {
+                            if (k === targetJobId || v === targetJobId) return true;
+                            if (v && typeof v === "object") {
+                                return [v.jobId, v.job_id, v.taskId, v.id].includes(targetJobId);
+                            }
+                            return false;
+                        })
+                        : null;
+                    const chosen = matchedEntry || entries[0];
+                    if (chosen) {
+                        const [, val] = chosen;
+                        if (val && typeof val === "object") {
+                            focus = { ...unwrapped, ...val };
+                        }
+                        break;
+                    }
                 }
             }
         }
@@ -2275,7 +2545,9 @@ function inspectJobOutcome(rawData, rawText = "", targetJobId = "") {
         focus?.errorCode ||
         focus?.error_code ||
         errorObj?.code ||
+        (typeof focus?.error === "string" && /^[a-z0-9_.-]+$/i.test(focus.error.trim()) ? focus.error.trim() : "") ||
         (TERMINAL_FAILED_TOKENS.has(rawState.toLowerCase()) ? focus?.code || rawState : "") ||
+        (focus?.code && /timeout|error|failed|rejected|invalid|unavailable|not_found/i.test(String(focus.code)) ? focus.code : "") ||
         ""
     ).trim();
 
@@ -2284,7 +2556,7 @@ function inspectJobOutcome(rawData, rawText = "", targetJobId = "") {
         focus?.error_message ||
         errorObj?.message ||
         (typeof focus?.error === "string" ? focus.error : "") ||
-        (TERMINAL_FAILED_TOKENS.has(rawState.toLowerCase()) ? focus?.message || focus?.reason || rawText : "") ||
+        (TERMINAL_FAILED_TOKENS.has(rawState.toLowerCase()) || errorCode ? focus?.message || focus?.reason || rawText : "") ||
         ""
     ).trim();
 
@@ -2296,12 +2568,52 @@ function inspectJobOutcome(rawData, rawText = "", targetJobId = "") {
         status = "FAILED";
     }
 
-    const videoUrls = status === "FAILED" ? [] : extractVideoUrls(focus || rawData);
+    let videoUrls = [];
+    if (status !== "FAILED") {
+        /*
+         * Jika job merujuk outputAssetId di sibling `assets`, prioritaskan aset output tersebut
+         * terlebih dahulu agar tidak salah mengambil aset referensi input.
+         */
+        const targetOutputAssetId = String(
+            focus?.outputAssetId ||
+            focus?.output_asset_id ||
+            focus?.resultAssetId ||
+            focus?.result_asset_id ||
+            ""
+        ).trim();
+
+        if (targetOutputAssetId && Array.isArray(unwrapped?.assets)) {
+            const matchedAsset = unwrapped.assets.find(
+                a => a && typeof a === "object" && (a.assetId === targetOutputAssetId || a.id === targetOutputAssetId)
+            );
+            if (matchedAsset) {
+                videoUrls = extractVideoUrls(matchedAsset);
+            }
+        }
+
+        if (videoUrls.length === 0) {
+            /* Filter sibling assets agar aset input/reference tidak ikut diekstrak */
+            let sanitizedSource = focus || parsedSource;
+            if (sanitizedSource && typeof sanitizedSource === "object" && Array.isArray(sanitizedSource.assets)) {
+                const filteredAssets = sanitizedSource.assets.filter(a => {
+                    if (!a || typeof a !== "object") return true;
+                    const role = String(a.role || a.kind || "").toLowerCase();
+                    if (/^(?:reference|first_frame|last_frame|input|subject|style)$/.test(role)) {
+                        return false;
+                    }
+                    return true;
+                });
+                sanitizedSource = { ...sanitizedSource, assets: filteredAssets };
+            }
+            videoUrls = extractVideoUrls(sanitizedSource);
+        }
+    }
+
     if (videoUrls.length > 0 && status !== "FAILED") {
         status = "COMPLETED";
     }
 
-    const usageSeconds = extractUsageSeconds(focus || rawData);
+    const usageSeconds = extractUsageSeconds(focus || parsedSource);
 
     return {
         status,
@@ -2311,6 +2623,163 @@ function inspectJobOutcome(rawData, rawText = "", targetJobId = "") {
         errorCode: status === "FAILED" ? (errorCode || "OPUS_TASK_FAILED") : null,
         errorMessage: status === "FAILED" ? translateOpusError(errorCode, rawErrorMessage) : null
     };
+}
+
+function isTransientNotFoundError(code, message = "", rawText = "") {
+    return /\b(?:job_not_found|task_not_found|not_found)\b/i.test(
+        `${code || ""} ${message || ""} ${rawText || ""}`
+    );
+}
+
+function isQueueTimeoutError(code, message = "", rawText = "") {
+    return /\b(?:job_queue_timeout|queue_timeout)\b/i.test(
+        `${code || ""} ${message || ""} ${rawText || ""}`
+    );
+}
+
+function buildListJobsArgs(listJobsTool, projectId) {
+    const rootSchema = listJobsTool?.inputSchema;
+    const objSchema = resolveObjectSchema(rootSchema, rootSchema);
+    const props = objSchema.properties;
+    const args = {};
+
+    const projKey = pickSupportedKey(
+        props,
+        ["projectId", "project_id", "project"],
+        !props ? "projectId" : ""
+    );
+    if (projKey && projectId) {
+        args[projKey] = projectId;
+    }
+
+    const limitKey = pickSupportedKey(
+        props,
+        ["limit", "pageSize", "page_size", "maxResults", "max_results"],
+        ""
+    );
+    if (limitKey) {
+        const maxLimit = typeof props?.[limitKey]?.maximum === "number" ? props[limitKey].maximum : 10;
+        args[limitKey] = Math.max(1, Math.min(10, maxLimit));
+    }
+
+    return args;
+}
+
+function buildResolveJobArgs(resolveTool, projectId, jobId) {
+    const rootSchema = resolveTool?.inputSchema;
+    const objSchema = resolveObjectSchema(rootSchema, rootSchema);
+    const props = objSchema.properties;
+    const args = {};
+
+    const projKey = pickSupportedKey(
+        props,
+        ["projectId", "project_id"],
+        projectId && !props ? "projectId" : ""
+    );
+    if (projKey && projectId) {
+        args[projKey] = projectId;
+    }
+
+    const jobKey = pickSupportedKey(
+        props,
+        ["jobId", "job_id", "taskId", "id"],
+        !props ? "jobId" : ""
+    );
+    if (jobKey && jobId) {
+        args[jobKey] = jobId;
+    }
+
+    return args;
+}
+
+async function discoverProjectVideoJob(
+    session,
+    projectId,
+    { targetJobId = "", retries = 1, retryDelayMs = 350 } = {}
+) {
+    if (!projectId) {
+        return { jobId: "", outcome: null, projectConfirmedEmpty: false };
+    }
+
+    let projectConfirmedEmpty = false;
+    const listJobsTool = findMcpTool(session.tools, "list_jobs");
+
+    if (listJobsTool) {
+        const maxAttempts = Math.max(1, Number(retries) + 1);
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            if (attempt > 0 && retryDelayMs > 0) {
+                await sleep(retryDelayMs);
+            }
+            const listRes = await session
+                .callTool(listJobsTool.name, buildListJobsArgs(listJobsTool, projectId))
+                .catch(() => null);
+            if (!listRes || listRes.isError) {
+                break;
+            }
+            const foundJobId =
+                (targetJobId && findJobIdFromResponse(listRes.data, listRes.text, projectId) ? targetJobId : "") ||
+                findJobIdFromResponse(listRes.data, listRes.text, projectId);
+            const outcome = inspectJobOutcome(listRes.data, listRes.text, targetJobId || foundJobId);
+
+            if (foundJobId || outcome.videoUrls.length > 0 || (outcome.status === "FAILED" && !isTransientNotFoundError(outcome.errorCode, outcome.errorMessage, listRes.text))) {
+                return {
+                    jobId: foundJobId || targetJobId || "",
+                    outcome,
+                    projectConfirmedEmpty: false
+                };
+            }
+
+            const unwrapped = unwrapEnvelope(listRes.data);
+            if (
+                unwrapped &&
+                typeof unwrapped === "object" &&
+                (
+                    (Array.isArray(unwrapped.jobs) && unwrapped.jobs.length === 0) ||
+                    (Array.isArray(unwrapped.items) && unwrapped.items.length === 0) ||
+                    (Array.isArray(unwrapped.clips) && unwrapped.clips.length === 0)
+                )
+            ) {
+                projectConfirmedEmpty = true;
+            }
+        }
+    }
+
+    /* Probe get_status berbasis projectId jika skema tidak mewajibkan jobId eksplisit */
+    const statusTool =
+        findMcpTool(session.tools, "get_status") ||
+        findMcpTool(session.tools, "opusclip_get_job") ||
+        findMcpTool(session.tools, "get_job");
+
+    if (statusTool) {
+        const rootSchema = statusTool.inputSchema;
+        const objSchema = resolveObjectSchema(rootSchema, rootSchema);
+        const props = objSchema.properties;
+        const required = Array.isArray(objSchema.required) ? objSchema.required : [];
+        const requiresExplicitJob = required.some(k => /^(?:jobId|job_id|jobIds|job_ids|taskId|taskIds|id|ids)$/i.test(k));
+        const projKey = pickSupportedKey(props, ["projectId", "project_id"], !props ? "projectId" : "");
+
+        if (!requiresExplicitJob && projKey) {
+            const probeArgs = { [projKey]: projectId };
+            const watchKey = pickSupportedKey(props, ["watch", "wait", "block"], "");
+            if (watchKey && schemaTypeIncludes(props?.[watchKey], rootSchema, "boolean")) {
+                probeArgs[watchKey] = false;
+            }
+            const probeRes = await session.callTool(statusTool.name, probeArgs).catch(() => null);
+            if (probeRes && !probeRes.isError) {
+                const probedJobId = findJobIdFromResponse(probeRes.data, probeRes.text, projectId);
+                const outcome = inspectJobOutcome(probeRes.data, probeRes.text, targetJobId || probedJobId);
+                if (probedJobId || outcome.videoUrls.length > 0) {
+                    return {
+                        jobId: probedJobId || targetJobId || "",
+                        outcome,
+                        projectConfirmedEmpty: false
+                    };
+                }
+            }
+        }
+    }
+
+    return { jobId: "", outcome: null, projectConfirmedEmpty };
 }
 
 /* =========================================================
@@ -2426,33 +2895,105 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
 
     let lastCallResult = null;
     let lastError = null;
+    let discoveredDuringTimeout = null;
 
     for (let idx = 0; idx < argVariants.length; idx += 1) {
-        try {
-            const callRes = await session.callTool(videoTool.name, argVariants[idx]);
-            lastCallResult = callRes;
+        let variantAccepted = false;
+        for (let sameKeyAttempt = 0; sameKeyAttempt < 2; sameKeyAttempt += 1) {
+            try {
+                const callRes = await session.callTool(videoTool.name, argVariants[idx]);
+                lastCallResult = callRes;
 
-            const outcome = inspectJobOutcome(callRes.data, callRes.text);
-            const isValidationFailure =
-                (callRes.isError || outcome.status === "FAILED") &&
-                /invalid_request|validation|unrecognized|unexpected|additional propert/i.test(
-                    `${outcome.errorCode || ""} ${outcome.errorMessage || ""} ${callRes.text || ""}`
-                );
+                const tempOutcome = inspectJobOutcome(callRes.data, callRes.text);
+                if (
+                    isQueueTimeoutError(
+                        tempOutcome.errorCode,
+                        tempOutcome.errorMessage,
+                        callRes.text
+                    )
+                ) {
+                    /*
+                     * Pada job_queue_timeout:
+                     * 1) Cek list_jobs proyek terlebih dahulu (job bisa saja sudah masuk antrian).
+                     * 2) Jika proyek masih kosong, ulangi 1x dengan requestKey UUID yang SAMA PERSIS.
+                     */
+                    if (projectId) {
+                        const checked = await discoverProjectVideoJob(session, projectId, {
+                            retries: 0
+                        });
+                        if (checked.jobId || checked.outcome?.videoUrls?.length > 0) {
+                            discoveredDuringTimeout = checked;
+                            variantAccepted = true;
+                            break;
+                        }
+                    }
+                    if (sameKeyAttempt === 0) {
+                        await sleep(400);
+                        continue;
+                    }
+                }
 
-            /* Jangan pernah retry otomatis pada submission_unknown atau credit_admission_rejected */
-            if (isValidationFailure && idx + 1 < argVariants.length) {
-                continue;
+                const isValidationFailure =
+                    (callRes.isError || tempOutcome.status === "FAILED") &&
+                    /invalid_request|invalid_arguments|unsupported_model|validation|unrecognized|unexpected|additional propert/i.test(
+                        `${tempOutcome.errorCode || ""} ${tempOutcome.errorMessage || ""} ${callRes.text || ""}`
+                    );
+
+                /* Jangan pernah retry otomatis pada submission_unknown atau credit_admission_rejected */
+                if (isValidationFailure && idx + 1 < argVariants.length) {
+                    break;
+                }
+                variantAccepted = true;
+                break;
+            } catch (err) {
+                lastError = err;
+                const retryableSchemaErr =
+                    (err?.status === 422 || /invalid_request|invalid_arguments|-32602|unrecognized/i.test(String(err?.code || ""))) &&
+                    idx + 1 < argVariants.length;
+                if (retryableSchemaErr) {
+                    break;
+                }
+                throw err;
             }
+        }
+        if (variantAccepted) {
             break;
-        } catch (err) {
-            lastError = err;
-            const retryableSchemaErr =
-                (err?.status === 422 || /invalid_request|-32602|unrecognized/i.test(String(err?.code || ""))) &&
-                idx + 1 < argVariants.length;
-            if (retryableSchemaErr) {
-                continue;
-            }
-            throw err;
+        }
+    }
+
+    if (discoveredDuringTimeout) {
+        if (discoveredDuringTimeout.outcome?.videoUrls?.length > 0 && !discoveredDuringTimeout.jobId) {
+            const inlineTaskId = `opus-inline:${makeUuid()}`;
+            inlineCompletedResults.set(inlineTaskId, {
+                videoUrls: discoveredDuringTimeout.outcome.videoUrls,
+                usageSeconds: discoveredDuringTimeout.outcome.usageSeconds,
+                createdAtMs: Date.now()
+            });
+            return {
+                success: true,
+                provider: PROVIDER_ID,
+                providerName: PROVIDER_NAME,
+                taskId: inlineTaskId,
+                task_id: inlineTaskId,
+                jobId: inlineTaskId,
+                projectId,
+                status: "COMPLETED",
+                outputUrls: discoveredDuringTimeout.outcome.videoUrls
+            };
+        }
+        if (discoveredDuringTimeout.jobId) {
+            const compositeTaskId = encodeOpusTaskId(projectId, discoveredDuringTimeout.jobId);
+            return {
+                success: true,
+                provider: PROVIDER_ID,
+                providerName: PROVIDER_NAME,
+                taskId: compositeTaskId,
+                task_id: compositeTaskId,
+                jobId: discoveredDuringTimeout.jobId,
+                projectId,
+                status: discoveredDuringTimeout.outcome?.status === "COMPLETED" ? "COMPLETED" : "QUEUED",
+                outputUrls: discoveredDuringTimeout.outcome?.videoUrls || []
+            };
         }
     }
 
@@ -2464,7 +3005,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
         });
     }
 
-    const outcome = inspectJobOutcome(lastCallResult.data, lastCallResult.text);
+    let outcome = inspectJobOutcome(lastCallResult.data, lastCallResult.text);
     if (lastCallResult.isError || outcome.status === "FAILED") {
         throw createProviderError({
             message: outcome.errorMessage || translateOpusError(outcome.errorCode, lastCallResult.text),
@@ -2475,7 +3016,36 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
         });
     }
 
-    const jobId = findJobIdFromResponse(lastCallResult.data, lastCallResult.text, projectId);
+    let jobId = findJobIdFromResponse(lastCallResult.data, lastCallResult.text, projectId);
+
+    /*
+     * Fallback resmi MCP Opus Labs v2:
+     * Saat generate_video_clips sukses mengantrekan job di dalam projectId
+     * tanpa menyertakan jobId inline (mis. hanya mengembalikan items:[{id:"clip-1", ok:true, status:"queued"}]),
+     * ambil jobId aktual melalui list_jobs / get_status proyek.
+     */
+    if (!jobId && outcome.videoUrls.length === 0 && projectId) {
+        const discovered = await discoverProjectVideoJob(session, projectId, {
+            retries: 2,
+            retryDelayMs: 350
+        });
+        if (discovered.outcome?.status === "FAILED") {
+            throw createProviderError({
+                message: discovered.outcome.errorMessage || "Job video Opus Labs gagal saat masuk antrian.",
+                code: discovered.outcome.errorCode || "OPUS_CREATE_REJECTED",
+                providerCode: discovered.outcome.errorCode || "create_rejected",
+                status: 422,
+                raw: lastCallResult.data
+            });
+        }
+        if (discovered.jobId) {
+            jobId = discovered.jobId;
+        }
+        if (discovered.outcome?.videoUrls?.length > 0) {
+            outcome = discovered.outcome;
+        }
+    }
+
     if (jobId) {
         const compositeTaskId = encodeOpusTaskId(projectId, jobId);
         return {
@@ -2509,6 +3079,27 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
             projectId,
             status: "COMPLETED",
             outputUrls: outcome.videoUrls
+        };
+    }
+
+    /*
+     * Jika generate_video_clips sudah sukses diterima di bawah projectId unik
+     * namun jobId baru muncul beberapa detik kemudian di list_jobs (eventual consistency),
+     * kembalikan taskId berbasis proyek agar /api/generate-status terus memantau proyek tersebut
+     * alih-alih menggagalkan task padahal video sedang digenerate di web Opus.
+     */
+    if (projectId) {
+        const pendingProjectTaskId = encodeOpusTaskId(projectId, PROJECT_PENDING_JOB_ID);
+        return {
+            success: true,
+            provider: PROVIDER_ID,
+            providerName: PROVIDER_NAME,
+            taskId: pendingProjectTaskId,
+            task_id: pendingProjectTaskId,
+            jobId: PROJECT_PENDING_JOB_ID,
+            projectId,
+            status: "QUEUED",
+            outputUrls: []
         };
     }
 
@@ -2558,6 +3149,55 @@ async function getVideoTask(taskId, apiKey, options = {}) {
         includeTools: true
     });
 
+    let activeJobId = parsedId.jobId;
+
+    /*
+     * Jika saat createVideoTask job baru didaftarkan pada projectId dan jobId-nya
+     * belum muncul di respons pertama, cari jobId aktual lewat list_jobs / get_status proyek.
+     */
+    if (parsedId.isProjectPending) {
+        const discovered = await discoverProjectVideoJob(session, parsedId.projectId, {
+            retries: 0
+        });
+        if (discovered.outcome?.status === "FAILED") {
+            return {
+                status: "FAILED",
+                providerState: discovered.outcome.rawState || "failed",
+                videoUrls: [],
+                usageSeconds: null,
+                errorCode: discovered.outcome.errorCode || "OPUS_STATUS_FAILED",
+                errorMessage: discovered.outcome.errorMessage || "Job video Opus Labs gagal.",
+                projectId: parsedId.projectId,
+                jobId: discovered.jobId || parsedId.projectId
+            };
+        }
+        if (discovered.outcome?.videoUrls?.length > 0) {
+            return {
+                status: "COMPLETED",
+                providerState: "completed",
+                videoUrls: discovered.outcome.videoUrls,
+                usageSeconds: discovered.outcome.usageSeconds,
+                errorCode: null,
+                errorMessage: null,
+                projectId: parsedId.projectId,
+                jobId: discovered.jobId || parsedId.projectId
+            };
+        }
+        if (!discovered.jobId) {
+            return {
+                status: "QUEUED",
+                providerState: "queued",
+                videoUrls: [],
+                usageSeconds: null,
+                errorCode: null,
+                errorMessage: null,
+                projectId: parsedId.projectId,
+                jobId: parsedId.projectId
+            };
+        }
+        activeJobId = discovered.jobId;
+    }
+
     const statusTool =
         findMcpTool(session.tools, "get_status") ||
         findMcpTool(session.tools, "opusclip_get_job") ||
@@ -2588,11 +3228,11 @@ async function getVideoTask(taskId, apiKey, options = {}) {
     );
 
     if (jobSingleKey) {
-        args[jobSingleKey] = parsedId.jobId;
+        args[jobSingleKey] = activeJobId;
     } else if (jobArrayKey) {
-        args[jobArrayKey] = [parsedId.jobId];
+        args[jobArrayKey] = [activeJobId];
     } else if (!props) {
-        args.jobId = parsedId.jobId;
+        args.jobId = activeJobId;
     }
 
     const projKey = pickSupportedKey(
@@ -2610,46 +3250,151 @@ async function getVideoTask(taskId, apiKey, options = {}) {
         args[watchKey] = false;
     }
 
-    let statusRes = await session.callTool(statusTool.name, args);
+    const statusRes = await session.callTool(statusTool.name, args);
+    let outcome = inspectJobOutcome(statusRes.data, statusRes.text, activeJobId);
 
-    /* Fallback ringan ke list_jobs bila get_status melaporkan not found untuk projectId yang valid */
-    if (statusRes.isError && parsedId.projectId) {
-        const listJobsTool = findMcpTool(session.tools, "list_jobs");
-        if (listJobsTool) {
-            const listObj = resolveObjectSchema(listJobsTool.inputSchema, listJobsTool.inputSchema);
-            const listProjKey = pickSupportedKey(listObj.properties, ["projectId", "project_id"], "projectId");
-            const listRes = await session.callTool(listJobsTool.name, {
-                [listProjKey]: parsedId.projectId
-            }).catch(() => null);
-            if (listRes && !listRes.isError) {
-                statusRes = listRes;
+    /*
+     * Toleransi eventual consistency: sesaat setelah submit, get_status kadang
+     * mengembalikan job_not_found sebelum indeks proyek sinkron. Cek list_jobs,
+     * dan bila belum muncul tetap laporkan QUEUED agar polling tidak putus prematur.
+     */
+    if (
+        (statusRes.isError || outcome.status === "FAILED") &&
+        isTransientNotFoundError(outcome.errorCode, outcome.errorMessage, statusRes.text)
+    ) {
+        if (parsedId.projectId) {
+            const listed = await discoverProjectVideoJob(session, parsedId.projectId, {
+                targetJobId: activeJobId,
+                retries: 0
+            });
+            if (listed.outcome) {
+                outcome = listed.outcome;
+                if (listed.jobId) activeJobId = listed.jobId;
+            } else {
+                return {
+                    status: "QUEUED",
+                    providerState: "queued",
+                    videoUrls: [],
+                    usageSeconds: null,
+                    errorCode: null,
+                    errorMessage: null,
+                    projectId: parsedId.projectId,
+                    jobId: activeJobId
+                };
             }
+        }
+    } else if (statusRes.isError && outcome.status !== "COMPLETED") {
+        if (parsedId.projectId) {
+            const listed = await discoverProjectVideoJob(session, parsedId.projectId, {
+                targetJobId: activeJobId,
+                retries: 0
+            });
+            if (listed.outcome && listed.outcome.status !== "FAILED") {
+                outcome = listed.outcome;
+                if (listed.jobId) activeJobId = listed.jobId;
+            } else {
+                return {
+                    status: "FAILED",
+                    providerState: outcome.rawState || "failed",
+                    videoUrls: [],
+                    usageSeconds: null,
+                    errorCode: outcome.errorCode || "OPUS_STATUS_FAILED",
+                    errorMessage: outcome.errorMessage || translateOpusError(outcome.errorCode, statusRes.text),
+                    projectId: parsedId.projectId,
+                    jobId: activeJobId
+                };
+            }
+        } else {
+            return {
+                status: "FAILED",
+                providerState: outcome.rawState || "failed",
+                videoUrls: [],
+                usageSeconds: null,
+                errorCode: outcome.errorCode || "OPUS_STATUS_FAILED",
+                errorMessage: outcome.errorMessage || translateOpusError(outcome.errorCode, statusRes.text),
+                projectId: parsedId.projectId,
+                jobId: activeJobId
+            };
         }
     }
 
-    const outcome = inspectJobOutcome(statusRes.data, statusRes.text, parsedId.jobId);
-    if (statusRes.isError && outcome.status !== "COMPLETED") {
-        return {
-            status: "FAILED",
-            providerState: outcome.rawState || "failed",
-            videoUrls: [],
-            usageSeconds: null,
-            errorCode: outcome.errorCode || "OPUS_STATUS_FAILED",
-            errorMessage: outcome.errorMessage || translateOpusError(outcome.errorCode, statusRes.text),
-            projectId: parsedId.projectId,
-            jobId: parsedId.jobId
-        };
+    /*
+     * Jika status job sudah COMPLETED namun URL video belum ada di respons get_status
+     * (mis. URL unduhan diekspos lewat resolve_job atau sibling assets di list_jobs),
+     * panggil resolve_job lalu list_jobs untuk mengambil URL video finalnya.
+     */
+    if (outcome.status === "COMPLETED" && outcome.videoUrls.length === 0) {
+        const resolveTool = findMcpTool(session.tools, "resolve_job");
+        if (resolveTool) {
+            const resolvedRes = await session
+                .callTool(
+                    resolveTool.name,
+                    buildResolveJobArgs(resolveTool, parsedId.projectId, activeJobId)
+                )
+                .catch(() => null);
+            if (resolvedRes && !resolvedRes.isError) {
+                const resolvedOutcome = inspectJobOutcome(resolvedRes.data, resolvedRes.text, activeJobId);
+                if (resolvedOutcome.videoUrls.length > 0) {
+                    outcome = {
+                        ...outcome,
+                        videoUrls: resolvedOutcome.videoUrls,
+                        usageSeconds: outcome.usageSeconds || resolvedOutcome.usageSeconds
+                    };
+                }
+            }
+        }
+
+        if (outcome.videoUrls.length === 0 && parsedId.projectId) {
+            const listed = await discoverProjectVideoJob(session, parsedId.projectId, {
+                targetJobId: activeJobId,
+                retries: 0
+            });
+            if (listed.outcome?.videoUrls?.length > 0) {
+                outcome = {
+                    ...outcome,
+                    videoUrls: listed.outcome.videoUrls,
+                    usageSeconds: outcome.usageSeconds || listed.outcome.usageSeconds
+                };
+            }
+        }
+
+        /*
+         * Jangan laporkan providerState = "completed" dengan videoUrls kosong ke
+         * api/generate-status.js (karena normalizeProviderResult akan menandainya selesai tanpa video).
+         * Kembalikan PROCESSING ("finalizing") agar siklus polling berikutnya mengambil URL final.
+         */
+        if (outcome.videoUrls.length === 0) {
+            return {
+                status: "PROCESSING",
+                providerState: "processing",
+                videoUrls: [],
+                usageSeconds: outcome.usageSeconds,
+                errorCode: null,
+                errorMessage: null,
+                projectId: parsedId.projectId,
+                jobId: activeJobId
+            };
+        }
     }
+
+    const safeProviderState =
+        outcome.status === "COMPLETED"
+            ? "completed"
+            : outcome.status === "FAILED"
+                ? (outcome.rawState && TERMINAL_FAILED_TOKENS.has(outcome.rawState.toLowerCase()) ? outcome.rawState : "failed")
+                : outcome.status === "QUEUED"
+                    ? "queued"
+                    : "processing";
 
     return {
         status: outcome.status,
-        providerState: outcome.rawState,
+        providerState: safeProviderState,
         videoUrls: outcome.videoUrls,
         usageSeconds: outcome.usageSeconds,
         errorCode: outcome.errorCode,
         errorMessage: outcome.errorMessage,
         projectId: parsedId.projectId,
-        jobId: parsedId.jobId
+        jobId: activeJobId
     };
 }
 
