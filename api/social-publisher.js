@@ -94,7 +94,7 @@ import {
     renderQuoteStoryCard,
     STORY_MAX_DURATION_FEED_REELS_SEC
 } from "../lib/social-publisher/story-video.js";
-import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
+import { stripImageMetadataBytes } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 import { describeApiFailure, loggableErrorDetails } from "../lib/social-publisher/api-error.js";
 
 const GRAPH_VERSION = "v26.0";
@@ -2967,11 +2967,17 @@ async function generateManualPost(config, userId, env, body = {}) {
          * sehingga wajahnya ~2x lebih besar dan kemiripan naik. Versi 512 px
          * hanya menyisakan wajah ~40 px pada foto badan penuh.
          */
-        const referenceSource = await downloadModelReference(
-            config,
-            character.reference_object_key,
-            { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
-        );
+        const referenceSource = imageProvider === "opus"
+            ? {
+                bytes: await downloadReferenceObject(config, character.reference_object_key),
+                mimeType: character.reference_mime_type,
+                source: "original"
+            }
+            : await downloadModelReference(
+                config,
+                character.reference_object_key,
+                { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
+            );
         const referenceBytes = referenceSource.bytes;
         if (!referenceBytes.length || referenceBytes.length > MAX_REFERENCE_BYTES) {
             throw new Error("Ukuran foto referensi karakter tidak valid.");
@@ -2980,9 +2986,17 @@ async function generateManualPost(config, userId, env, body = {}) {
         /*
          * Outfit juga diunduh untuk Cloudflare: FLUX.2 klein menerima foto
          * pakaian sebagai `input_image_1` agar potongan pakaian konsisten.
+         * Khusus Opus, lewati percobaan transformasi 512px Supabase agar hemat
+         * subrequest dan resolusi asli (300px–6000px) terjaga.
          */
         const garmentSource = garmentObjectKey
-            ? await downloadModelReference(config, garmentObjectKey)
+            ? (imageProvider === "opus"
+                ? {
+                    bytes: await downloadReferenceObject(config, garmentObjectKey),
+                    mimeType: garmentMimeType,
+                    source: "original"
+                }
+                : await downloadModelReference(config, garmentObjectKey))
             : null;
         const garmentBytes = garmentSource?.bytes || null;
         const garmentMime = garmentSource?.mimeType || garmentMimeType;
@@ -3057,15 +3071,16 @@ async function generateManualPost(config, userId, env, body = {}) {
                 console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
             });
         }
-        const cleanedBlob = await stripImageMetadata(
-            new Blob([generated.bytes], { type: generated.mimeType }),
+        const stripped = stripImageMetadataBytes(
+            generated.bytes,
             generated.mimeType
         );
-        const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+        const cleanedBytes = stripped.bytes;
+        const cleanedMimeType = stripped.mimeType;
         const contextualCaption = await generateSocialContextCaption({
             env,
             imageBytes: cleanedBytes,
-            imageMimeType: cleanedBlob.type,
+            imageMimeType: cleanedMimeType,
             characterName: character.display_name,
             scene,
             imageProvider,
@@ -3104,7 +3119,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             status: "preview",
             page_name: page.page_name,
             image_base64: bytesToBase64(cleanedBytes),
-            image_mime_type: cleanedBlob.type,
+            image_mime_type: cleanedMimeType,
             image_model: generated.model,
             ...(imageNote ? { image_note: imageNote } : {}),
             aspect_ratio: effectiveAspectRatio,
@@ -3217,15 +3232,14 @@ async function publishManualPost(req, res, config, userId, env) {
                 target: quoteTarget
             });
         } else {
-            const cleanedBlob = await stripImageMetadata(new Blob([payloadBytes], { type: imageMimeType }), imageMimeType);
-            const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+            const stripped = stripImageMetadataBytes(payloadBytes, imageMimeType);
             published = await publishFacebookPhoto({
                 env,
                 pageId: page.page_id,
                 pageAccessToken,
                 caption: run.caption,
-                imageBytes: cleanedBytes,
-                imageMimeType: cleanedBlob.type
+                imageBytes: stripped.bytes,
+                imageMimeType: stripped.mimeType
             });
         }
         const profileShareUrl = makeProfileShareUrl(published.permalinkUrl);
