@@ -139,7 +139,13 @@ npx wrangler@4 secret put OPUS_AUTH_TOKEN
 
 `OPUS_AUTH_TOKEN` menerima:
 - objek JSON kredensial OAuth hasil `npm run opus:login` (`{ "access_token", "refresh_token", "client_id", "expires_at", "token_endpoint" }`) — Worker otomatis menukar `refresh_token` ke `https://focused-horizon-38.authkit.app/oauth2/token` sebelum kedaluwarsa, atau
-- Bearer token string mentah + pasangan opsional `OPUS_REFRESH_TOKEN` dan `OPUS_CLIENT_ID` sebagai secret terpisah.
+- Bearer token string mentah + pasangan opsional `OPUS_REFRESH_TOKEN` dan `OPUS_CLIENT_ID` sebagai secret terpisah, atau
+- beberapa kredensial per baris (JSONL) maupun JSON Array `[ {...}, {...} ]`.
+
+**Multi-API-Key Berurutan Otomatis (Failover saat Credit Habis):**
+- Untuk menambahkan akun/API key Opus cadangan berikutnya di Cloudflare Secrets, cukup tambahkan secret bernomor secara berurutan: `OPUS_AUTH_TOKEN` (akun ke-1), `OPUS_AUTH_TOKEN_2` (akun ke-2), `OPUS_AUTH_TOKEN_3` (akun ke-3), dst. hingga `OPUS_AUTH_TOKEN_20` (atau daftar JSON array di `OPUS_AUTH_TOKENS`).
+- Saat sebuah API key kehabisan kredit (`credit_admission_rejected` / `insufficient_credits`), sistem otomatis berpindah secara berurutan ke key berikutnya (`1 → 2 → 3 → ...`) sampai kembali bertemu key pertama.
+- Pada `/generate`, bila 1 putaran penuh seluruh API key masih kehabisan kredit, sistem melakukan jeda **5 menit** lalu mencoba ulang maksimal **3 kali jeda 5 menit**. Bila kredit tetap habis setelah 3 kali jeda 5 menit, sistem berhenti dan menampilkan notifikasi error merah `"SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI"`.
 
 Variabel opsional:
 - Pilihan model di **Admin Panel → SET Studio Medsos** (tersimpan di `social_publisher_config.image_model`, atau dioverride via `OPUS_IMAGE_MODEL`):

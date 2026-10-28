@@ -8,11 +8,20 @@ import opusVideoModels, {
 
 import {
     encodeOpusTaskId,
+    extractOpusApiKeyPool,
     extractVideoUrls,
+    getActiveOpusKeyIndex,
+    isOpusCreditExhaustedError,
     parseOpusTaskId,
     redactSecrets,
+    resetOpusKeyRotation,
     translateOpusError
 } from "../provider/opus/client.js";
+
+import {
+    collectOpusCredentialEntries,
+    resolveOpusApiKeyPoolPayload
+} from "../lib/social-publisher/opus.js";
 
 import {
     isOpusModel,
@@ -41,6 +50,7 @@ import {
 import {
     OPUS_QUEUE_FINAL_ERROR_MESSAGE,
     OPUS_QUEUE_MAX_ATTEMPTS,
+    OPUS_QUEUE_MAX_WAIT_RETRIES,
     OPUS_QUEUE_RETRY_STATUS_LABEL,
     OPUS_QUEUE_RUNTIME_MS,
     OPUS_QUEUE_WAIT_MESSAGE,
@@ -1484,11 +1494,12 @@ test("semua 6 model provider Opus mendukung pilihan durasi sistem checkbox di Ed
     }
 });
 
-test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu runtime 5 menit berstatus putih MENCOBA, dan berhenti setelah 3 kali gagal dengan SISTEM SIBUK, COBA LAGI", async () => {
+test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu 3 kali jeda 5 menit berstatus MENCOBA, lalu STOP dengan notif merah SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI", async () => {
     assert.equal(OPUS_QUEUE_RUNTIME_MS, 5 * 60 * 1000);
-    assert.equal(OPUS_QUEUE_MAX_ATTEMPTS, 3);
+    assert.equal(OPUS_QUEUE_MAX_WAIT_RETRIES, 3, "wajib tepat 3 kali jeda 5 menit mencoba");
+    assert.equal(OPUS_QUEUE_MAX_ATTEMPTS, 4, "1 percobaan awal + 3 kali jeda 5 menit mencoba = 4");
     assert.equal(OPUS_QUEUE_WAIT_MESSAGE, "mohon tunggu antrian, sistem sedang padat");
-    assert.equal(OPUS_QUEUE_FINAL_ERROR_MESSAGE, "SISTEM SIBUK, COBA LAGI");
+    assert.equal(OPUS_QUEUE_FINAL_ERROR_MESSAGE, "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI");
     assert.equal(OPUS_QUEUE_RETRY_STATUS_LABEL, "MENCOBA");
     assert.equal(formatQueueCountdown(OPUS_QUEUE_RUNTIME_MS), "05:00");
     assert.equal(formatQueueCountdown(61000), "01:01");
@@ -1520,13 +1531,12 @@ test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu runtime 5
         false
     );
 
-    /* 3. Skenario giliran tiba pada percobaan ke-3 setelah 2 kali antrian 5 menit */
+    /* 3. Skenario giliran tiba pada jeda ke-3 (percobaan ke-4 setelah 3 kali jeda 5 menit) */
     const sleptSlicesSuccess = [];
     const waitStartsSuccess = [];
     let attemptCounterSuccess = 0;
 
     const recoveredResult = await runOpusQueueRetryLoop({
-        maxAttempts: 3,
         runtimeMs: 5 * 60 * 1000,
         tickMs: 60 * 1000,
         sleepFn: async ms => {
@@ -1537,7 +1547,7 @@ test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu runtime 5
         },
         executeAttempt: async attempt => {
             attemptCounterSuccess = attempt;
-            if (attempt < 3) {
+            if (attempt < 4) {
                 const err = new Error(
                     "Saldo kredit akun Opus Labs (upstream OpusClip) tidak mencukupi untuk durasi/resolusi video ini. (Detail Opus: Insufficient credits. No provider request was made.)"
                 );
@@ -1548,19 +1558,22 @@ test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu runtime 5
         }
     });
 
-    assert.equal(attemptCounterSuccess, 3);
+    assert.equal(attemptCounterSuccess, 4);
     assert.equal(recoveredResult.completed, true);
-    assert.equal(waitStartsSuccess.length, 2);
+    assert.equal(waitStartsSuccess.length, 3);
+    assert.equal(waitStartsSuccess[0].waitRetryIndex, 1);
+    assert.equal(waitStartsSuccess[2].waitRetryIndex, 3);
+    assert.equal(waitStartsSuccess[0].maxWaitRetries, 3);
     assert.equal(waitStartsSuccess[0].message, "mohon tunggu antrian, sistem sedang padat");
     assert.equal(waitStartsSuccess[0].statusLabel, "MENCOBA");
     assert.equal(waitStartsSuccess[0].formattedRemaining, "05:00");
     assert.equal(
         sleptSlicesSuccess.reduce((sum, v) => sum + v, 0),
-        2 * 5 * 60 * 1000,
-        "2 kali menunggu masing-masing tepat 5 menit"
+        3 * 5 * 60 * 1000,
+        "3 kali jeda masing-masing tepat 5 menit"
     );
 
-    /* 4. Skenario 3 kali percobaan gagal -> sistem langsung STOP dan mengeluarkan notif SISTEM SIBUK, COBA LAGI */
+    /* 4. Skenario 3 kali jeda 5 menit mencoba masih habis -> sistem STOP dan mengeluarkan notif SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI */
     const sleptSlicesFail = [];
     const waitStartsFail = [];
     let attemptCounterFail = 0;
@@ -1568,7 +1581,6 @@ test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu runtime 5
     await assert.rejects(
         async () => {
             await runOpusQueueRetryLoop({
-                maxAttempts: 3,
                 runtimeMs: 5 * 60 * 1000,
                 tickMs: 60 * 1000,
                 sleepFn: async ms => {
@@ -1587,28 +1599,31 @@ test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu runtime 5
             });
         },
         err => {
-            assert.equal(err.message, "SISTEM SIBUK, COBA LAGI");
+            assert.equal(err.message, "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI");
             assert.equal(err.code, OPUS_SYSTEM_BUSY_FINAL_CODE);
-            assert.equal(err.attempts, 3);
+            assert.equal(err.waitRetries, 3);
+            assert.equal(err.attempts, 4);
+            assert.equal(err.isRedErrorNotification, true);
             assert.equal(err.suppressRefundSuffix, true);
             return true;
         }
     );
 
-    assert.equal(attemptCounterFail, 3, "harus berhenti tepat setelah 3 kali percobaan gagal");
-    assert.equal(waitStartsFail.length, 2, "percobaan ke-3 yang gagal langsung berhenti tanpa menunggu 5 menit lagi");
+    assert.equal(attemptCounterFail, 4, "1 percobaan awal + 3 kali jeda 5 menit mencoba lalu STOP");
+    assert.equal(waitStartsFail.length, 3, "tepat 3 kali jeda 5 menit, tanpa jeda ke-4");
     assert.equal(
         sleptSlicesFail.reduce((sum, v) => sum + v, 0),
-        2 * 5 * 60 * 1000
+        3 * 5 * 60 * 1000
     );
 
-    /* 5. Verifikasi CSS & status warna putih MENCOBA di UI /generate */
+    /* 5. Verifikasi CSS status putih MENCOBA & notifikasi error warna MERAH di UI /generate */
     const appJs = readFileSync(
         new URL("../generate/assets/js/generate-app.js", import.meta.url),
         "utf8"
     );
     assert.match(appJs, /title\s*=\s*"MENCOBA"/);
     assert.match(appJs, /\.genz-generate-status-title\.retrying\s*\{\s*color:#ffffff\s*!important;/);
+    assert.match(appJs, /\.genz-generate-status-message\.failed\s*\{\s*color:#ff4d4f;/);
 
     const progressCardJs = readFileSync(
         new URL("../generate/assets/js/generate-progress-card.js", import.meta.url),
@@ -1624,6 +1639,17 @@ test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu runtime 5
         progressCardCss,
         /\.genz-progress-card\[data-state="retrying"\]\s+\.gpc-status\s*\{\s*color:\s*#ffffff;\s*\}/
     );
+    assert.match(
+        progressCardCss,
+        /\.genz-progress-card\[data-state="failed"\]\s+\.gpc-title\s*\{\s*color:\s*#ff4d4f;/
+    );
+
+    const premiumCss = readFileSync(
+        new URL("../generate/assets/css/generate-premium.css", import.meta.url),
+        "utf8"
+    );
+    assert.match(premiumCss, /#pageErrorMessage[\s\S]*?color:\s*#ff4d4f\s*!important;/);
+    assert.match(premiumCss, /#status\[data-error="true"\][\s\S]*?color:\s*#ff4d4f\s*!important;/);
 });
 
 test("Seedance 2.5 R2V dan Seedance 2.0 mendukung upload Video Referensi (video_urls) sekaligus staging import_assets video ke Opus MCP", async () => {
@@ -1901,6 +1927,301 @@ test("Seedance 2.5 R2V dan Seedance 2.0 mendukung upload Video Referensi (video_
         ]);
     } finally {
         globalThis.fetch = originalFetch;
+    }
+});
+
+test("Multi-API-Key Opus: rotasi berurutan sampai ketemu key pertama saat credit habis, polling sesuai slot pemilik proyek, lalu 3x jeda 5 menit dan STOP merah", async () => {
+    resetOpusKeyRotation();
+
+    /* 1. Pembacaan pool multi-key dari Cloudflare Secrets bernomor + JSONL + JSON array */
+    const cfEnv = {
+        OPUS_AUTH_TOKEN: JSON.stringify({
+            access_token: "test-opus-slot1",
+            refresh_token: "rt-slot1",
+            client_id: "cid-opus"
+        }),
+        OPUS_AUTH_TOKEN_2: JSON.stringify({
+            access_token: "test-opus-slot2",
+            refresh_token: "rt-slot2",
+            client_id: "cid-opus"
+        }),
+        OPUS_AUTH_TOKEN_3: JSON.stringify({
+            access_token: "test-opus-slot3",
+            refresh_token: "rt-slot3",
+            client_id: "cid-opus"
+        })
+    };
+
+    const collected = collectOpusCredentialEntries(cfEnv);
+    assert.equal(collected.length, 3);
+
+    const serializedPool = await resolveOpusApiKeyPoolPayload(cfEnv);
+    const extractedFromSerialized = extractOpusApiKeyPool(serializedPool, cfEnv);
+    assert.equal(extractedFromSerialized.length, 3);
+
+    const jsonlInput = [
+        JSON.stringify({ access_token: "tok-line-1", refresh_token: "rt-line-1" }),
+        JSON.stringify({ access_token: "tok-line-2", refresh_token: "rt-line-2" })
+    ].join("\n");
+    assert.equal(extractOpusApiKeyPool(jsonlInput, {}).length, 2);
+
+    /* Encoding & parsing slot pada taskId */
+    assert.equal(encodeOpusTaskId("proj_a", "job_a", 0), "opus:proj_a:job_a");
+    assert.equal(encodeOpusTaskId("proj_b", "job_b", 2), "opus-k2:proj_b:job_b");
+    assert.deepEqual(parseOpusTaskId("opus-k2:proj_b:job_b"), {
+        projectId: "proj_b",
+        jobId: "job_b",
+        keySlot: 2,
+        hasExplicitSlot: true,
+        isInlineDone: false,
+        isProjectPending: false
+    });
+    assert.equal(
+        isOpusCreditExhaustedError({ code: "credit_admission_rejected", status: 402 }),
+        true
+    );
+    assert.equal(
+        isOpusCreditExhaustedError({ code: "submission_unknown", status: 502 }),
+        false,
+        "submission_unknown dilarang pindah key agar tidak terpotong dua kali"
+    );
+
+    /* 2. Simulasi rotasi berurutan Key 1 -> Key 2 -> Key 3 -> kembali ke Key 1 */
+    const t2vModel = getOpusVideoModel("opus-seedance-2.5-t2v");
+    const originalFetch = globalThis.fetch;
+    const creditStateByToken = {
+        "Bearer test-opus-slot1": false,
+        "Bearer test-opus-slot2": false,
+        "Bearer test-opus-slot3": true
+    };
+    const videoSubmissionSequence = [];
+    const statusPollAuthSequence = [];
+
+    try {
+        globalThis.fetch = async (url, init = {}) => {
+            const authHeader = String(init.headers?.Authorization || init.headers?.authorization || "");
+            const body = JSON.parse(String(init.body || "{}"));
+
+            if (body.method === "initialize") {
+                return new Response(
+                    JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { protocolVersion: "2025-03-26", capabilities: {} }
+                    }),
+                    { status: 200, headers: { "content-type": "application/json", "mcp-session-id": `sess-${authHeader}` } }
+                );
+            }
+            if (body.method === "notifications/initialized") {
+                return new Response("", { status: 202 });
+            }
+            if (body.method === "tools/list") {
+                return new Response(
+                    JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            tools: [
+                                { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+                                {
+                                    name: "generate_video_clips",
+                                    inputSchema: {
+                                        type: "object",
+                                        properties: {
+                                            projectId: { type: "string" },
+                                            clips: {
+                                                type: "array",
+                                                items: {
+                                                    type: "object",
+                                                    properties: {
+                                                        prompt: { type: "string" },
+                                                        model: { type: "string" },
+                                                        durationSeconds: { type: "integer" }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    name: "get_status",
+                                    inputSchema: {
+                                        type: "object",
+                                        properties: {
+                                            projectId: { type: "string" },
+                                            jobId: { type: "string" },
+                                            watch: { type: "boolean" }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }),
+                    { status: 200, headers: { "content-type": "application/json" } }
+                );
+            }
+            if (body.method === "tools/call") {
+                const toolName = body.params?.name;
+                const slotSuffix = authHeader.replace("Bearer test-opus-", "");
+                if (toolName === "create_project") {
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                content: [{ type: "text", text: JSON.stringify({ projectId: `proj_${slotSuffix}` }) }]
+                            }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+                if (toolName === "generate_video_clips") {
+                    videoSubmissionSequence.push(authHeader);
+                    if (!creditStateByToken[authHeader]) {
+                        return new Response(
+                            JSON.stringify({
+                                jsonrpc: "2.0",
+                                id: body.id,
+                                result: {
+                                    isError: true,
+                                    content: [{
+                                        type: "text",
+                                        text: JSON.stringify({
+                                            error: "credit_admission_rejected",
+                                            message: "Insufficient credits. No provider request was made."
+                                        })
+                                    }]
+                                }
+                            }),
+                            { status: 200, headers: { "content-type": "application/json" } }
+                        );
+                    }
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                content: [{
+                                    type: "text",
+                                    text: JSON.stringify({
+                                        jobId: `job_${slotSuffix}`,
+                                        status: "queued"
+                                    })
+                                }]
+                            }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+                if (toolName === "get_status") {
+                    statusPollAuthSequence.push({
+                        authHeader,
+                        projectId: body.params?.arguments?.projectId,
+                        jobId: body.params?.arguments?.jobId
+                    });
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                content: [{
+                                    type: "text",
+                                    text: JSON.stringify({
+                                        jobId: body.params?.arguments?.jobId,
+                                        status: "completed",
+                                        videoUrl: "https://cdn.opus.pro/out/final-video.mp4"
+                                    })
+                                }]
+                            }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+            }
+            throw new Error(`Unexpected MCP call: ${url}`);
+        };
+
+        /* A. Key #1 habis -> Key #2 habis -> Key #3 punya credit -> sukses di slot 2 */
+        const created1 = await t2vModel.createTask(
+            { prompt: "Pemandangan pegunungan sinematik", aspect_ratio: "9:16", resolution: "720p", duration: "8" },
+            serializedPool
+        );
+        assert.deepEqual(videoSubmissionSequence, [
+            "Bearer test-opus-slot1",
+            "Bearer test-opus-slot2",
+            "Bearer test-opus-slot3"
+        ]);
+        assert.equal(created1.taskId, "opus-k2:proj_slot3:job_slot3");
+        assert.equal(getActiveOpusKeyIndex(), 2);
+
+        /* B. Polling status wajib memakai akun slot 2 (test-opus-slot3) pemilik proyek */
+        const polled1 = await t2vModel.queryTask(created1.taskId, serializedPool);
+        assert.equal(polled1.completed, true);
+        assert.equal(polled1.outputUrl, "https://cdn.opus.pro/out/final-video.mp4");
+        assert.equal(statusPollAuthSequence.length, 1);
+        assert.equal(statusPollAuthSequence[0].authHeader, "Bearer test-opus-slot3");
+        assert.equal(statusPollAuthSequence[0].projectId, "proj_slot3");
+
+        /* C. Key #3 sekarang habis, tapi Key #1 sudah diisi ulang -> berputar dari Key #3 kembali ketemu Key #1 */
+        videoSubmissionSequence.length = 0;
+        creditStateByToken["Bearer test-opus-slot3"] = false;
+        creditStateByToken["Bearer test-opus-slot1"] = true;
+
+        const created2 = await t2vModel.createTask(
+            { prompt: "Kucing lucu berlari di taman", aspect_ratio: "9:16", resolution: "720p", duration: "8" },
+            serializedPool
+        );
+        assert.deepEqual(videoSubmissionSequence, [
+            "Bearer test-opus-slot3",
+            "Bearer test-opus-slot1"
+        ]);
+        assert.equal(created2.taskId, "opus:proj_slot1:job_slot1");
+        assert.equal(getActiveOpusKeyIndex(), 0);
+
+        /* D. Semua 3 key habis -> tiap siklus memutar penuh Key 1 -> Key 2 -> Key 3 sampai ketemu kembali Key 1,
+              lalu jeda 5 menit sebanyak 3 kali mencoba, dan akhirnya STOP merah */
+        videoSubmissionSequence.length = 0;
+        creditStateByToken["Bearer test-opus-slot1"] = false;
+        creditStateByToken["Bearer test-opus-slot2"] = false;
+        creditStateByToken["Bearer test-opus-slot3"] = false;
+
+        const pauseDurations = [];
+        await assert.rejects(
+            async () => {
+                await runOpusQueueRetryLoop({
+                    sleepFn: async ms => {
+                        pauseDurations.push(ms);
+                    },
+                    tickMs: 5 * 60 * 1000,
+                    executeAttempt: async () => {
+                        return await t2vModel.createTask(
+                            { prompt: "Ombak pantai saat senja", aspect_ratio: "9:16", resolution: "720p", duration: "8" },
+                            serializedPool
+                        );
+                    }
+                });
+            },
+            err => {
+                assert.equal(err.code, OPUS_SYSTEM_BUSY_FINAL_CODE);
+                assert.equal(err.message, "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI");
+                assert.equal(err.waitRetries, 3);
+                assert.equal(err.attempts, 4);
+                return true;
+            }
+        );
+
+        /* 4 siklus (1 awal + 3 kali jeda 5 menit) x 3 API key per siklus = 12 percobaan berurutan */
+        assert.equal(videoSubmissionSequence.length, 12);
+        assert.deepEqual(videoSubmissionSequence.slice(0, 3), [
+            "Bearer test-opus-slot1",
+            "Bearer test-opus-slot2",
+            "Bearer test-opus-slot3"
+        ]);
+        assert.equal(pauseDurations.length, 3, "tepat 3 kali jeda 5 menit");
+        assert.deepEqual(pauseDurations, [5 * 60 * 1000, 5 * 60 * 1000, 5 * 60 * 1000]);
+    } finally {
+        globalThis.fetch = originalFetch;
+        resetOpusKeyRotation();
     }
 });
 

@@ -598,10 +598,13 @@ async function saveBundleAndFinish(rawBundle, outputPath, mcpUrl) {
     console.log(`Refresh token  : ${cleanBundle.refresh_token ? "Tersedia (auto-refresh aktif)" : "Tidak disertakan server"}`);
     console.log(`Tes koneksi MCP: OK (HTTP ${check.status})`);
     console.log(`Clipboard      : ${copied ? "SUDAH TERSALIN OTOMATIS (tinggal Ctrl + V!)" : "Salin isi file .opus-auth-token.json"}`);
-    console.log("\nLangkah terakhir:");
+    console.log("\nLangkah terakhir di Cloudflare:");
     console.log("1. Buka Cloudflare Dashboard -> Workers & Pages -> genzai -> Settings -> Variables and Secrets");
-    console.log("2. Edit Secret bernama: OPUS_AUTH_TOKEN");
-    console.log("3. Hapus isi lama, tekan Ctrl + V di kolom Value, lalu klik Save/Deploy.");
+    console.log("2. Untuk Akun Utama (#1): Edit/Buat Secret bernama OPUS_AUTH_TOKEN");
+    console.log("   Untuk Menambah Akun Cadangan berikutnya secara berurutan:");
+    console.log("   Buat Secret baru bernama OPUS_AUTH_TOKEN_2, OPUS_AUTH_TOKEN_3, dst. (hingga OPUS_AUTH_TOKEN_20)");
+    console.log("3. Tekan Ctrl + V di kolom Value, lalu klik Save/Deploy.");
+    console.log("   (Sistem otomatis berpindah ke OPUS_AUTH_TOKEN selanjutnya secara berurutan saat credit habis!)");
     console.log("=========================================================\n");
 }
 

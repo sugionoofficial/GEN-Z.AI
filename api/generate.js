@@ -60,6 +60,7 @@ import opusVideoModels
     from "../models/opus-video/index.js";
 
 import {
+    resolveOpusApiKeyPoolPayload,
     resolveOpusBearerToken
 } from "../lib/social-publisher/opus.js";
 
@@ -2590,6 +2591,13 @@ async function loadProviderApiKey(
         if (
             normalizedProviderCode.toLowerCase() === "opus"
         ) {
+            const poolPayload =
+                await resolveOpusApiKeyPoolPayload(
+                    runtimeEnv || process.env
+                );
+            if (poolPayload) {
+                return poolPayload;
+            }
             const resolvedOpus =
                 await resolveOpusBearerToken(
                     runtimeEnv || process.env
@@ -2778,6 +2786,19 @@ async function loadProviderApiKey(
         }
     );
 
+
+    if (
+        normalizedProviderCode.toLowerCase() === "opus"
+    ) {
+        const mergedPoolPayload =
+            await resolveOpusApiKeyPoolPayload(
+                runtimeEnv || process.env,
+                normalizedApiKey
+            );
+        if (mergedPoolPayload) {
+            return mergedPoolPayload;
+        }
+    }
 
     return normalizedApiKey;
 

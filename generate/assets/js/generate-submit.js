@@ -1586,8 +1586,8 @@ async function handleGenerateSubmit(
                     getAppState()?.generationCancelled === true,
                 onQueueWaitStart: info => {
                     refreshUserCreditProfile();
+                    hideError();
                     const waitLabel = `${OPUS_QUEUE_WAIT_MESSAGE} (${info.formattedRemaining})`;
-                    showError(OPUS_QUEUE_WAIT_MESSAGE);
                     showLoading(waitLabel);
                     setGenerateStatus("retrying", waitLabel);
                     progressRetrying({
@@ -1611,7 +1611,11 @@ async function handleGenerateSubmit(
                 },
                 onRetryAttemptStart: info => {
                     hideError();
-                    const retryMsg = `Melanjutkan tugas generate (percobaan ${info.attempt}/${info.maxAttempts})...`;
+                    const retryStepLabel =
+                        Number.isFinite(info.waitRetryIndex) && Number.isFinite(info.maxWaitRetries) && info.maxWaitRetries > 0
+                            ? `${info.waitRetryIndex}/${info.maxWaitRetries}`
+                            : `${info.attempt}/${info.maxAttempts}`;
+                    const retryMsg = `Melanjutkan tugas generate (mencoba ulang ${retryStepLabel})...`;
                     showLoading(retryMsg);
                     setGenerateStatus("retrying", retryMsg);
                     progressUpdate({
@@ -2079,8 +2083,15 @@ async function handleGenerateSubmit(
         ) {
 
             elements.status.textContent =
-                "Generate error: " +
-                errorMessage;
+                isOpusFinalBusy
+                    ? errorMessage
+                    : (
+                        "Generate error: " +
+                        errorMessage
+                    );
+
+            elements.status.dataset.error =
+                "true";
 
             elements.status.hidden =
                 false;
