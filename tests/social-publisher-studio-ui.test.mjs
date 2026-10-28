@@ -1219,9 +1219,30 @@ test("5 blok fitur Studio Medsos tampil sebagai blok kecil kompak (termasuk KOLE
         if (urlStr.includes("action=dashboard")) {
             return Response.json({
                 success: true,
-                characters: [],
-                pages: [],
-                schedules: [],
+                characters: [{ id: "char-1", name: "Karakter Uji" }],
+                pages: [{ id: "page-1", page_name: "Page Uji" }],
+                schedules: [
+                    {
+                        id: "sched-on",
+                        character_id: "char-1",
+                        page_connection_id: "page-1",
+                        interval_minutes: 60,
+                        next_run_at: new Date(Date.now() + 1800000).toISOString(),
+                        aspect_ratio: "9:16",
+                        enabled: true,
+                        autopublish_enabled: true
+                    },
+                    {
+                        id: "sched-off",
+                        character_id: "char-1",
+                        page_connection_id: "page-1",
+                        interval_minutes: 120,
+                        next_run_at: new Date(Date.now() + 3600000).toISOString(),
+                        aspect_ratio: "9:16",
+                        enabled: false,
+                        autopublish_enabled: false
+                    }
+                ],
                 runs: [],
                 runsPagination: { page: 1, perPage: 10, total: 0, totalPages: 1 },
                 outfits: [],
@@ -1301,13 +1322,31 @@ test("5 blok fitur Studio Medsos tampil sebagai blok kecil kompak (termasuk KOLE
             assert.equal(btn.getAttribute("aria-expanded"), "false");
             assert.equal(chip.textContent, "Buka");
         }
+
+        // Verifikasi tombol Autopost: ON berwarna hijau terang (.autopost-on) & Autopost: OFF berwarna merah terang (.autopost-off)
+        const schedulesListEl = elementsById.get("schedules-list");
+        assert.equal(schedulesListEl.children.length, 2, "2 kartu jadwal harus ter-render di blok Jadwal autopost aktif");
+        const firstActions = schedulesListEl.children[0].children[1];
+        const secondActions = schedulesListEl.children[1].children[1];
+        const autopostOnBtn = firstActions.children[1];
+        const autopostOffBtn = secondActions.children[1];
+
+        assert.equal(autopostOnBtn.textContent, "Autopost: ON");
+        assert.match(autopostOnBtn.className, /\bautopost-on\b/, "Tombol Autopost: ON harus memakai class hijau terang autopost-on");
+        assert.doesNotMatch(autopostOnBtn.className, /\bdanger\b/, "Tombol Autopost: ON tidak boleh lagi memakai class merah danger");
+        assert.equal(autopostOnBtn.dataset.autopostState, "on");
+
+        assert.equal(autopostOffBtn.textContent, "Autopost: OFF");
+        assert.match(autopostOffBtn.className, /\bautopost-off\b/, "Tombol Autopost: OFF harus memakai class merah terang autopost-off");
+        assert.doesNotMatch(autopostOffBtn.className, /\bgreen\b/, "Tombol Autopost: OFF tidak boleh lagi memakai class hijau green");
+        assert.equal(autopostOffBtn.dataset.autopostState, "off");
     } finally {
         for (const id of intervalIds) clearInterval(id);
         Object.assign(globalThis, prevGlobals);
     }
 });
 
-test("Jadwal autopost aktif tampil pada blok mandiri baru tepat di atas blok riwayat, tidak lagi di dalam blok Buat jadwal autopost", () => {
+test("Jadwal autopost aktif tampil pada blok mandiri baru tepat di atas blok riwayat, tidak lagi di dalam blok Buat jadwal autopost, dengan warna hijau terang ON dan merah terang OFF", () => {
     const scheduleCardMatch = htmlSource.match(
         /<section id="schedule-card"[\s\S]*?<\/section>/
     );
@@ -1339,4 +1378,13 @@ test("Jadwal autopost aktif tampil pada blok mandiri baru tepat di atas blok riw
         activeSectionIndex < runsSectionIndex,
         "Blok #active-schedules-section harus berada tepat di atas blok riwayat (#runs-section)"
     );
+
+    const lightCssSource = readFileSync(
+        fileURLToPath(new URL("../admin-control/assets/css/social-publisher-light.css", import.meta.url)),
+        "utf8"
+    );
+    assert.match(htmlSource, /\.btn\.autopost-on:not\(\.is-confirming\)\{[^}]*#39ff71/);
+    assert.match(htmlSource, /\.btn\.autopost-off:not\(\.is-confirming\)\{[^}]*#ef4444/);
+    assert.match(lightCssSource, /\.btn\.autopost-on:not\(\.is-confirming\)[\s\S]*?#39f076/);
+    assert.match(lightCssSource, /\.btn\.autopost-off:not\(\.is-confirming\)[\s\S]*?#e11d2f/);
 });

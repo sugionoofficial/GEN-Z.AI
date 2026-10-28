@@ -2415,7 +2415,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             edit.textContent = "Edit";
             edit.addEventListener("click", () => editSchedule(schedule));
             const autopublish = document.createElement("button");
-            autopublish.className = `btn small ${scheduleAutopublishOn ? "danger" : "green"}`;
+            autopublish.className = `btn small ${scheduleAutopublishOn ? "autopost-on" : "autopost-off"}`;
+            autopublish.dataset.autopostState = scheduleAutopublishOn ? "on" : "off";
             autopublish.type = "button";
             autopublish.textContent = scheduleAutopublishOn ? "Autopost: ON" : "Autopost: OFF";
             autopublish.title = scheduleAutopublishOn
