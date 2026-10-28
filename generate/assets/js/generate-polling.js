@@ -84,6 +84,10 @@ import {
     getAccessToken
 } from "./generate-auth.js";
 
+import {
+    buildOpusQueueAttemptFields
+} from "./opus-queue-retry.js?v=20261029-historygate";
+
 
 /* =========================================================
    CONFIG
@@ -2078,7 +2082,15 @@ export async function requestTaskStatus(
                                 normalizedTaskId,
 
                             model_id:
-                                normalizedModelId
+                                normalizedModelId,
+
+                            ...buildOpusQueueAttemptFields({
+                                attempt:
+                                    options?.opusQueueAttempt,
+
+                                maxAttempts:
+                                    options?.opusQueueMaxAttempts
+                            })
 
                         }),
 
@@ -2422,6 +2434,23 @@ function normalizePollingOptions(
         retryUntilTerminal:
             options.retryUntilTerminal === true,
 
+        /*
+         * Metadata percobaan antrian Opus (diteruskan ke backend
+         * agar History tidak menulis "GAGAL" selama masih ada
+         * API key / percobaan berikutnya).
+         */
+        opusQueueAttempt:
+            normalizeNumber(
+                options.opusQueueAttempt,
+                0
+            ),
+
+        opusQueueMaxAttempts:
+            normalizeNumber(
+                options.opusQueueMaxAttempts,
+                0
+            ),
+
         signal:
             options.signal ||
             null,
@@ -2750,7 +2779,13 @@ export async function pollTask(
                                 polling.signal,
 
                             token:
-                                accessToken
+                                accessToken,
+
+                            opusQueueAttempt:
+                                polling.opusQueueAttempt,
+
+                            opusQueueMaxAttempts:
+                                polling.opusQueueMaxAttempts
                         }
 
                     );

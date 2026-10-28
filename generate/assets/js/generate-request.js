@@ -45,6 +45,10 @@ import {
     validateClientParameters
 } from "./generate-validation.js";
 
+import {
+    buildOpusQueueAttemptFields
+} from "./opus-queue-retry.js?v=20261029-historygate";
+
 
 /* =========================================================
    CONFIG
@@ -1294,6 +1298,18 @@ export function buildGeneratePayload(
               .filter(v => Number.isInteger(v) && v >= 0 && v < 100)
         : [];
 
+    /*
+     * Metadata percobaan antrian Opus.
+     * Dipakai backend agar baris "GAGAL" di History hanya ditulis
+     * pada percobaan terakhir (setelah semua API key + 3 kali jeda
+     * 5 menit), bukan setiap kali berpindah API key.
+     */
+    const opusQueueAttemptFields =
+        buildOpusQueueAttemptFields({
+            attempt: options?.opusQueueAttempt,
+            maxAttempts: options?.opusQueueMaxAttempts
+        });
+
     return {
 
         model_id:
@@ -1308,7 +1324,9 @@ export function buildGeneratePayload(
 
         ...(excludedSlots.length > 0
             ? { opus_exclude_key_slots: excludedSlots }
-            : {})
+            : {}),
+
+        ...opusQueueAttemptFields
 
     };
 
