@@ -19,7 +19,7 @@
 ====================================================== -->
 
 <script src="../assets/js/config.js"></script>
-<script src="/assets/js/feature-credit.js" defer></script>
+<script src="/assets/js/feature-credit.js?v=feature-history-20261028" defer></script>
 
 
 <!-- =====================================================
@@ -2961,21 +2961,29 @@ body::before {
             }
 
             try {
-                await window.GENZFeatureCredit.run("prompt_studio", async function () {
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        try {
-                            await navigator.clipboard.writeText(text);
-                            return;
-                        } catch (clipboardError) {
-                            if (!fallbackCopy(text)) throw clipboardError;
-                            return;
+                await window.GENZFeatureCredit.run(
+                    "prompt_studio",
+                    async function () {
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            try {
+                                await navigator.clipboard.writeText(text);
+                                return;
+                            } catch (clipboardError) {
+                                if (!fallbackCopy(text)) throw clipboardError;
+                                return;
+                            }
                         }
-                    }
 
-                    if (!fallbackCopy(text)) {
-                        throw new Error("Gagal menyalin prompt ke clipboard.");
+                        if (!fallbackCopy(text)) {
+                            throw new Error("Gagal menyalin prompt ke clipboard.");
+                        }
+                    },
+                    {
+                        prompt: text,
+                        modelId: "prompt-studio",
+                        modelName: "Studio Prompt"
                     }
-                });
+                );
                 showCopied();
             } catch (error) {
                 showToast(error.message || "Gagal menyalin prompt", true);

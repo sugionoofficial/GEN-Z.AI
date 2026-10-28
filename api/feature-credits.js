@@ -40,6 +40,17 @@ function fail(message, status = 500) {
     return error;
 }
 
+function sanitizeOptionalText(value, maxLength = 4000) {
+    if (value == null) {
+        return "";
+    }
+    const text = String(value).trim();
+    if (!text) {
+        return "";
+    }
+    return text.slice(0, maxLength);
+}
+
 async function supabase(config, path, options = {}) {
     const SERVICE_ROLE_KEY = config.serviceRoleKey;
     if (!config.url || !config.serviceRoleKey) {
@@ -226,13 +237,21 @@ export default async function handler(req, res) {
                 throw fail("Fitur atau ID transaksi tidak valid.", 400);
             }
 
+            const prompt = sanitizeOptionalText(body.prompt, 4000);
+            const modelId = sanitizeOptionalText(body.model_id, 120);
+            const modelName = sanitizeOptionalText(body.model_name, 160);
+            const rpcPayload = {
+                p_user_id: user.id,
+                p_feature_id: featureId,
+                p_transaction_id: transactionId
+            };
+            if (prompt) rpcPayload.p_prompt = prompt;
+            if (modelId) rpcPayload.p_model_id = modelId;
+            if (modelName) rpcPayload.p_model_name = modelName;
+
             const result = await supabase(config, "/rest/v1/rpc/charge_feature_credits", {
                 method: "POST",
-                body: JSON.stringify({
-                    p_user_id: user.id,
-                    p_feature_id: featureId,
-                    p_transaction_id: transactionId
-                })
+                body: JSON.stringify(rpcPayload)
             });
             return send(res, 200, { success: true, ...result });
         }
@@ -244,13 +263,19 @@ export default async function handler(req, res) {
                 throw fail("Data penyelesaian transaksi tidak valid.", 400);
             }
 
+            const errorMessage = sanitizeOptionalText(body.error_message, 1000);
+            const prompt = sanitizeOptionalText(body.prompt, 4000);
+            const rpcPayload = {
+                p_user_id: user.id,
+                p_transaction_id: transactionId,
+                p_outcome: outcome
+            };
+            if (errorMessage) rpcPayload.p_error_message = errorMessage;
+            if (prompt) rpcPayload.p_prompt = prompt;
+
             const result = await supabase(config, "/rest/v1/rpc/settle_feature_credits", {
                 method: "POST",
-                body: JSON.stringify({
-                    p_user_id: user.id,
-                    p_transaction_id: transactionId,
-                    p_outcome: outcome
-                })
+                body: JSON.stringify(rpcPayload)
             });
             return send(res, 200, { success: true, ...result });
         }

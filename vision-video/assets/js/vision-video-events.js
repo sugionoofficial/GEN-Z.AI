@@ -2175,7 +2175,7 @@
        REFUND CREDIT
     ===================================================== */
 
-    async function refundCredit() {
+    async function refundCredit(errorMessage = null) {
 
         const credit =
             getCredit();
@@ -2204,7 +2204,10 @@
 
 
         const metadata =
-            getCreditMetadata();
+            {
+                ...getCreditMetadata(),
+                errorMessage: errorMessage || null
+            };
 
 
         return credit.refundCredit(
@@ -2219,7 +2222,8 @@
     ===================================================== */
 
     async function saveSuccessHistory(
-        prompt
+        prompt,
+        extra = {}
     ) {
 
         const state =
@@ -2234,12 +2238,27 @@
             getCurrentSettings();
 
 
+        const creditState =
+            getCredit().getCreditState?.() || {};
+
+        const transactionId =
+            extra?.transactionId ||
+            creditState.transactionId ||
+            null;
+
         const taskId =
-            ensureTaskId();
+            transactionId
+                ? `vision-video-${transactionId}`
+                : ensureTaskId();
 
 
         const result =
             await history.saveSuccess({
+
+                featureId:
+                    "vision_video",
+
+                transactionId,
 
                 taskId,
 
@@ -2260,6 +2279,8 @@
                     ),
 
                 creditCost:
+                    extra?.creditCost ??
+                    creditState.amount ??
                     getCredit().getCost()
 
             });
@@ -2275,7 +2296,8 @@
     ===================================================== */
 
     async function saveFailedHistory(
-        error
+        error,
+        extra = {}
     ) {
 
         const state =
@@ -2289,9 +2311,18 @@
         const settings =
             getCurrentSettings();
 
+        const creditState =
+            getCredit().getCreditState?.() || {};
+
+        const transactionId =
+            extra?.transactionId ||
+            creditState.transactionId ||
+            null;
 
         const taskId =
-            ensureTaskId();
+            transactionId
+                ? `vision-video-${transactionId}`
+                : ensureTaskId();
 
 
         try {
@@ -2299,6 +2330,11 @@
             return await history.saveFailed(
                 error,
                 {
+
+                    featureId:
+                        "vision_video",
+
+                    transactionId,
 
                     taskId,
 
@@ -2317,7 +2353,17 @@
                         ),
 
                     creditCost:
-                        getCredit().getCost()
+                        extra?.creditDeducted === false
+                            ? 0
+                            : (extra?.creditCost ??
+                                creditState.amount ??
+                                getCredit().getCost()),
+
+                    creditRefunded:
+                        Boolean(extra?.creditRefunded === true),
+
+                    creditDeducted:
+                        extra?.creditDeducted !== false
 
                 }
             );
@@ -2486,6 +2532,7 @@
                TASK ID
             ============================================= */
 
+            state.setProcess({ taskId: "" });
             ensureTaskId();
 
 
@@ -2495,6 +2542,15 @@
 
             const creditResult =
                 await deductCredit();
+
+            const activeTransactionId =
+                creditResult?.transactionId ||
+                getCredit().getCreditState?.()?.transactionId ||
+                null;
+            const activeChargedCost =
+                Number.isFinite(Number(creditResult?.amount))
+                    ? Number(creditResult.amount)
+                    : getCredit().getCost();
 
 
             creditWasDeducted =
@@ -2715,7 +2771,11 @@
             try {
 
                 await saveSuccessHistory(
-                    prompt || analysisText
+                    prompt || analysisText,
+                    {
+                        transactionId: activeTransactionId,
+                        creditCost: activeChargedCost
+                    }
                 );
 
             } catch (historyError) {
@@ -2857,6 +2917,9 @@
                REFUND
             ============================================= */
 
+            let creditWasRefunded =
+                false;
+
             if (
                 creditWasDeducted
             ) {
@@ -2875,7 +2938,11 @@
                     );
 
 
-                    await refundCredit();
+                    const refundResult =
+                        await refundCredit(message);
+
+                    creditWasRefunded =
+                        refundResult?.refunded !== false;
 
 
                     ui.renderCreditFromState();
@@ -2896,9 +2963,15 @@
                FAILED HISTORY
             ============================================= */
 
-            await saveFailedHistory(
-                error
-            );
+            if (creditWasDeducted) {
+                await saveFailedHistory(
+                    error,
+                    {
+                        creditRefunded: creditWasRefunded,
+                        creditDeducted: true
+                    }
+                );
+            }
 
 
             /* =============================================

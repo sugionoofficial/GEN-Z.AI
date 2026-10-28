@@ -1186,10 +1186,42 @@ import {
                     ).trim() || "Generate";
 
 
-                const modelSub =
+                const rawModelId =
                     String(
                         item.model_id || ""
                     ).trim();
+
+                const rawPrompt =
+                    String(item.prompt || "")
+                        .replace(/\s+/g, " ")
+                        .trim();
+
+                const isFeatureRow =
+                    rawModelId === "metadata-cleaner" ||
+                    rawModelId === "prompt-studio" ||
+                    rawModelId === "upscale-photo" ||
+                    rawModelId === "upscale-video" ||
+                    rawModelId === "vision-image" ||
+                    rawModelId === "vision-video" ||
+                    String(item.task_id || "").startsWith("feature:") ||
+                    String(item.task_id || "").startsWith("vision-");
+
+                const promptSnippet =
+                    isFeatureRow && rawPrompt
+                        ? (rawPrompt.length > 56
+                            ? rawPrompt.slice(0, 56) + "…"
+                            : rawPrompt)
+                        : "";
+
+                const baseSub =
+                    rawModelId && rawModelId !== modelName
+                        ? rawModelId
+                        : "";
+
+                const modelSub =
+                    baseSub && promptSnippet
+                        ? `${baseSub} • ${promptSnippet}`
+                        : (promptSnippet || baseSub);
 
 
                 const creditHtml =

@@ -1385,8 +1385,10 @@
             deducted:
                 true,
 
+            transactionId,
+
             amount:
-                getCost(),
+                chargedCost,
 
             credits:
                 remaining,
@@ -1507,15 +1509,19 @@
                         creditState.transactionId,
 
                     task_id:
-                        metadata.taskId ||
+                        metadata?.taskId ||
                         null,
 
                     model_id:
-                        metadata.modelId ||
+                        metadata?.modelId ||
                         null,
 
                     model_name:
-                        metadata.modelName ||
+                        metadata?.modelName ||
+                        null,
+
+                    error_message:
+                        metadata?.errorMessage ||
                         null
 
                 }
@@ -1729,7 +1735,16 @@
             refunded:
                 Boolean(
                     credit.refunded
-                )
+                ),
+
+            transactionId:
+                credit.transactionId ||
+                null,
+
+            amount:
+                Number.isFinite(Number(credit.amount))
+                    ? Number(credit.amount)
+                    : getCost()
 
         };
 

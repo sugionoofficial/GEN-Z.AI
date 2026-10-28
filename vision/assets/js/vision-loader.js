@@ -27,36 +27,36 @@
    MODULE IMPORT
 ========================================================= */
 
-import "./vision-state.js";
-import "./vision-dom.js";
-import "./vision-upload.js";
-import "./vision-preview.js";
-import "./vision-ui.js";
-import "./vision-premium.js";
-import "./vision-supabase.js";
-import "./vision-credit.js";
+import "./vision-state.js?v=20261028-fc";
+import "./vision-dom.js?v=20261028-fc";
+import "./vision-upload.js?v=20261028-fc";
+import "./vision-preview.js?v=20261028-fc";
+import "./vision-ui.js?v=20261028-fc";
+import "./vision-premium.js?v=20261028-fc";
+import "./vision-supabase.js?v=20261028-fc";
+import "./vision-credit.js?v=20261028-fc";
 
 
 /* =========================================================
    VISION API DEPENDENCY CHAIN
 ========================================================= */
 
-import "./vision-api-core.js";
-import "./vision-api-models.js";
-import "./vision-api-response.js";
-import "./vision-api-analysis.js";
-import "./vision-api-prompt.js";
-import "./vision-api.js";
+import "./vision-api-core.js?v=20261028-fc";
+import "./vision-api-models.js?v=20261028-fc";
+import "./vision-api-response.js?v=20261028-fc";
+import "./vision-api-analysis.js?v=20261028-fc";
+import "./vision-api-prompt.js?v=20261028-fc";
+import "./vision-api.js?v=20261028-fc";
 
 
 /* =========================================================
    VISION PROCESS MODULES
 ========================================================= */
 
-import "./vision-analysis.js";
-import "./vision-prompt.js";
-import "./vision-history.js";
-import "./vision-events.js";
+import "./vision-analysis.js?v=20261028-fc";
+import "./vision-prompt.js?v=20261028-fc";
+import "./vision-history.js?v=20261028-fc";
+import "./vision-events.js?v=20261028-fc";
 
 
 /* =========================================================
