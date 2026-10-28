@@ -814,6 +814,79 @@
 
 
     /* =====================================================
+       NOTIFIKASI UNDUHAN
+       -----------------------------------------------------
+       Sebelumnya tombol hanya berubah teks 2,5 detik sehingga
+       pengguna tidak tahu unduhan berhasil atau gagal.
+       Sekarang setiap langkah memberi toast:
+         info    -> "Menyiapkan unduhan…"
+         success -> "Berhasil diunduh" + nama file
+         info    -> "Unduhan dibuka di tab baru" (fallback)
+         error   -> "Gagal mengunduh" + tombol "Coba lagi"
+    ===================================================== */
+
+    const DOWNLOAD_TOAST_KEY = "history-download";
+
+    function notifyDownload(options = {}) {
+        const toast = window.GENZToast;
+
+        if (!toast || typeof toast.show !== "function") {
+            if (options.type === "error") {
+                console.warn("[download]", options.message || "");
+            }
+            return "";
+        }
+
+        return toast.show(options.message || "", {
+            type: options.type || "info",
+            description: options.description || "",
+            actionLabel: options.actionLabel || "",
+            onAction: options.onAction || null,
+            duration: options.duration,
+            key: options.key || DOWNLOAD_TOAST_KEY
+        });
+    }
+
+    function notifyDownloadStart(filename) {
+        notifyDownload({
+            type: "info",
+            message: "Menyiapkan unduhan…",
+            description: filename,
+            duration: 0
+        });
+    }
+
+    function notifyDownloadSuccess(message, filename) {
+        notifyDownload({
+            type: "success",
+            message,
+            description: filename,
+            duration: 5200
+        });
+    }
+
+    function notifyDownloadFallback(filename) {
+        notifyDownload({
+            type: "info",
+            message: "Unduhan dibuka di tab baru",
+            description: `${filename} — jika tidak muncul, izinkan unduhan otomatis di browser.`,
+            duration: 6000
+        });
+    }
+
+    function notifyDownloadFailure(reason, retry) {
+        notifyDownload({
+            type: "error",
+            message: "GAGAL MENGUNDUH",
+            description: reason || "Silakan coba kembali.",
+            actionLabel: typeof retry === "function" ? "Coba lagi" : "",
+            onAction: typeof retry === "function" ? retry : null,
+            duration: 0
+        });
+    }
+
+
+    /* =====================================================
        DOWNLOAD HANDLER
     ===================================================== */
 
@@ -823,13 +896,13 @@
 
         const item = getHistoryById(historyId);
         if (!item) {
-            alert("Data history tidak ditemukan");
+            notifyDownloadFailure("Data history tidak ditemukan.");
             return;
         }
 
         const url = getResultUrl(item);
         if (!url) {
-            alert("Hasil tidak tersedia untuk diunduh");
+            notifyDownloadFailure("Hasil tidak tersedia atau sudah kedaluwarsa untuk diunduh.");
             return;
         }
 
@@ -844,6 +917,8 @@
         button.disabled = true;
         button.innerHTML = '<span class="download-icon">⏳</span> Menyiapkan...';
 
+        notifyDownloadStart(filename);
+
         if (isNativeApp) {
             try {
                 const bridge = window.GENZAndroidDownloads;
@@ -854,6 +929,7 @@
                     triggerDirectDownload(url, filename);
                     button.innerHTML =
                         '<span class="download-icon">⬇</span> Permintaan unduhan dikirim';
+                    notifyDownloadFallback(filename);
                     setTimeout(() => {
                         button.innerHTML = originalHTML;
                         button.disabled = false;
@@ -870,6 +946,7 @@
                 );
                 button.innerHTML = '<span class="download-icon">✓</span> Unduhan dimulai';
                 button.classList.add("download-button-success");
+                notifyDownloadSuccess("Unduhan dimulai", filename);
                 setTimeout(() => {
                     button.innerHTML = originalHTML;
                     button.classList.remove("download-button-success");
@@ -877,7 +954,10 @@
                 }, 2500);
             } catch (error) {
                 console.error("[download] Android download failed:", error);
-                alert(error.message || "Gagal mengunduh. Silakan coba kembali.");
+                notifyDownloadFailure(
+                    error?.message || "Silakan coba kembali.",
+                    () => handleDownload(button)
+                );
                 button.innerHTML = originalHTML;
                 button.disabled = false;
             }
@@ -898,6 +978,7 @@
                 if (saved === true) {
                     button.innerHTML = '<span class="download-icon">✓</span> Tersimpan di Downloads';
                     button.classList.add("download-button-success");
+                    notifyDownloadSuccess("Tersimpan di Downloads", filename);
                     setTimeout(() => {
                         button.innerHTML = originalHTML;
                         button.classList.remove("download-button-success");
@@ -925,6 +1006,8 @@
             button.innerHTML = '<span class="download-icon">✓</span> Terunduh';
             button.classList.add("download-button-success");
 
+            notifyDownloadSuccess("Berhasil diunduh", filename);
+
             setTimeout(() => {
                 button.innerHTML = originalHTML;
                 button.classList.remove("download-button-success");
@@ -944,6 +1027,8 @@
                 ? '<span class="download-icon">⬇</span> Permintaan unduhan dikirim'
                 : '<span class="download-icon">↗</span> Membuka unduhan';
 
+            notifyDownloadFallback(filename);
+
             setTimeout(() => {
                 button.innerHTML = originalHTML;
                 button.disabled = false;
@@ -951,7 +1036,10 @@
 
         } catch (err2) {
             console.error("[download] Fallback failed:", err2);
-            alert("Gagal mengunduh. Silakan coba kembali.");
+            notifyDownloadFailure(
+                err2?.message || "Silakan coba kembali.",
+                () => handleDownload(button)
+            );
             button.innerHTML = originalHTML;
             button.disabled = false;
         }
