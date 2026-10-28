@@ -264,8 +264,12 @@
     white-space: nowrap;
     flex-shrink: 0;
 }
+.genz-progress-card[data-state="failed"] .gpc-title {
+    color: #ff4d4f;
+    font-weight: 700;
+}
 .genz-progress-card[data-state="success"] .gpc-status { color: #66ffa6; }
-.genz-progress-card[data-state="failed"] .gpc-status { color: #ff8794; }
+.genz-progress-card[data-state="failed"] .gpc-status { color: #ff4d4f; }
 .genz-progress-card[data-state="retrying"] .gpc-status { color: #ffffff; }
 
 .gpc-close {

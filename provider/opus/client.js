@@ -73,12 +73,10 @@ function sleep(ms) {
 }
 
 /* Cache ringan di memori untuk menekan subrequest berulang di Worker */
-let cachedOAuthState = {
-    fingerprint: "",
-    accessToken: "",
-    refreshToken: "",
-    expiresAtMs: 0
-};
+const oauthStateByFingerprint = new Map();
+const MAX_OPUS_ENV_KEY_SLOTS = 20;
+
+let activeOpusKeyIndex = 0;
 
 let cachedToolsState = {
     endpoint: "",
@@ -87,6 +85,15 @@ let cachedToolsState = {
 };
 
 const inlineCompletedResults = new Map();
+
+function getActiveOpusKeyIndex() {
+    return activeOpusKeyIndex;
+}
+
+function resetOpusKeyRotation() {
+    activeOpusKeyIndex = 0;
+    oauthStateByFingerprint.clear();
+}
 
 /* =========================================================
    UTILITIES & SECRET REDACTION
@@ -196,35 +203,260 @@ function isJwtFresh(token, minTtlMs = 90_000) {
     return expMs - Date.now() > minTtlMs;
 }
 
-function parseApiKeyInput(apiKey) {
-    const env = getEnv();
+function unwrapOuterQuotesText(raw) {
+    const text = String(raw || "").trim();
+    if (
+        (text.startsWith("\"") && text.endsWith("\"")) ||
+        (text.startsWith("'") && text.endsWith("'"))
+    ) {
+        try {
+            const parsed = JSON.parse(text);
+            if (typeof parsed === "string") return parsed.trim();
+        } catch {
+            return text.slice(1, -1).trim();
+        }
+    }
+    return text;
+}
+
+function readEnvSlotRawCredential(envObj, slotNumber) {
+    const env = envObj && typeof envObj === "object" ? envObj : {};
+    const suffix = slotNumber <= 1 ? "" : `_${slotNumber}`;
+    const explicitNumbered = slotNumber === 1 ? "_1" : suffix;
+
+    const rawAuth = unwrapOuterQuotesText(
+        env[`OPUS_AUTH_TOKEN${suffix}`] ||
+        (slotNumber === 1 ? env[`OPUS_AUTH_TOKEN${explicitNumbered}`] : "") ||
+        env[`OPUS_ACCESS_TOKEN${suffix}`] ||
+        (slotNumber === 1 ? env[`OPUS_ACCESS_TOKEN${explicitNumbered}`] : "") ||
+        env[`OPUSCLIP_API_KEY${suffix}`] ||
+        (slotNumber === 1 ? env[`OPUSCLIP_API_KEY${explicitNumbered}`] : "") ||
+        env[`OPUS_API_KEY${suffix}`] ||
+        (slotNumber === 1 ? env[`OPUS_API_KEY${explicitNumbered}`] : "") ||
+        ""
+    );
+
+    const slotRefresh = String(
+        env[`OPUS_REFRESH_TOKEN${suffix}`] ||
+        (slotNumber === 1 ? env[`OPUS_REFRESH_TOKEN${explicitNumbered}`] : "") ||
+        ""
+    ).trim();
+    const slotClientId = String(
+        env[`OPUS_CLIENT_ID${suffix}`] ||
+        (slotNumber === 1 ? env[`OPUS_CLIENT_ID${explicitNumbered}`] : "") ||
+        env.OPUS_CLIENT_ID ||
+        DEFAULT_OPUS_WORKOS_CLIENT_ID
+    ).trim();
+    const slotClientSecret = String(
+        env[`OPUS_CLIENT_SECRET${suffix}`] ||
+        (slotNumber === 1 ? env[`OPUS_CLIENT_SECRET${explicitNumbered}`] : "") ||
+        env.OPUS_CLIENT_SECRET ||
+        ""
+    ).trim();
+    const slotResource = String(
+        env[`OPUS_RESOURCE_URL${suffix}`] ||
+        (slotNumber === 1 ? env[`OPUS_RESOURCE_URL${explicitNumbered}`] : "") ||
+        env.OPUS_RESOURCE_URL ||
+        ""
+    ).trim();
     const defaultTokenEndpoint = String(env.OPUS_OAUTH_TOKEN_URL || DEFAULT_OAUTH_TOKEN_URL).trim();
-    const raw = String(apiKey || "").trim();
+
+    if (!rawAuth && !slotRefresh) {
+        return "";
+    }
+
+    if (rawAuth && (rawAuth.startsWith("[") || rawAuth.includes("\n") || rawAuth.startsWith("{"))) {
+        return rawAuth;
+    }
+
+    if (slotRefresh) {
+        return JSON.stringify({
+            ...(rawAuth ? { access_token: rawAuth.replace(/^Bearer\s+/i, "").trim() } : {}),
+            refresh_token: slotRefresh,
+            client_id: slotClientId || DEFAULT_OPUS_WORKOS_CLIENT_ID,
+            ...(slotClientSecret ? { client_secret: slotClientSecret } : {}),
+            ...(slotResource ? { resource: slotResource } : {}),
+            token_endpoint: defaultTokenEndpoint
+        });
+    }
+
+    return rawAuth;
+}
+
+function appendExpandedKeyEntries(targetList, rawCandidate) {
+    if (rawCandidate === null || rawCandidate === undefined) return;
+
+    if (Array.isArray(rawCandidate)) {
+        for (const item of rawCandidate) {
+            appendExpandedKeyEntries(targetList, item);
+        }
+        return;
+    }
+
+    if (typeof rawCandidate === "object") {
+        if (Array.isArray(rawCandidate.opus_key_pool)) {
+            appendExpandedKeyEntries(targetList, rawCandidate.opus_key_pool);
+            return;
+        }
+        if (Array.isArray(rawCandidate.keys)) {
+            appendExpandedKeyEntries(targetList, rawCandidate.keys);
+            return;
+        }
+        const serialized = JSON.stringify(rawCandidate);
+        if (serialized && serialized !== "{}") {
+            targetList.push(serialized);
+        }
+        return;
+    }
+
+    const cleaned = unwrapOuterQuotesText(rawCandidate);
+    if (!cleaned) return;
+
+    if (cleaned.startsWith("[") && cleaned.endsWith("]")) {
+        try {
+            const parsedArr = JSON.parse(cleaned);
+            if (Array.isArray(parsedArr)) {
+                appendExpandedKeyEntries(targetList, parsedArr);
+                return;
+            }
+        } catch {
+            /* lanjut evaluasi baris */
+        }
+    }
+
+    if (cleaned.startsWith("{") && cleaned.endsWith("}")) {
+        try {
+            const parsedObj = JSON.parse(cleaned);
+            if (parsedObj && typeof parsedObj === "object") {
+                if (Array.isArray(parsedObj.opus_key_pool)) {
+                    appendExpandedKeyEntries(targetList, parsedObj.opus_key_pool);
+                    return;
+                }
+                if (Array.isArray(parsedObj.keys)) {
+                    appendExpandedKeyEntries(targetList, parsedObj.keys);
+                    return;
+                }
+                targetList.push(JSON.stringify(parsedObj));
+                return;
+            }
+        } catch {
+            /* Bukan 1 objek JSON tunggal — bisa berupa beberapa JSON per baris (JSONL) */
+        }
+    }
+
+    if (/[\r\n]/.test(cleaned)) {
+        const lines = cleaned
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(line => line && !line.startsWith("#"));
+        if (lines.length > 1) {
+            for (const line of lines) {
+                appendExpandedKeyEntries(targetList, line);
+            }
+            return;
+        }
+        if (lines.length === 1) {
+            targetList.push(lines[0]);
+            return;
+        }
+        return;
+    }
+
+    /* Dukung daftar Bearer token sederhana dipisahkan koma/titik-koma jika bukan JSON */
+    if (!cleaned.includes("{") && !cleaned.includes("}") && /[,;]/.test(cleaned)) {
+        const parts = cleaned
+            .split(/[,;]/)
+            .map(part => part.trim())
+            .filter(Boolean);
+        if (parts.length > 1) {
+            for (const part of parts) {
+                targetList.push(part);
+            }
+            return;
+        }
+    }
+
+    targetList.push(cleaned);
+}
+
+function computeCredentialIdentity(rawKey, envObj = null) {
+    try {
+        const parsed = parseApiKeyInput(rawKey, envObj, { isolateFromDefaultRefresh: true });
+        if (parsed.refreshToken) {
+            return `rt:${parsed.clientId}:${parsed.refreshToken}`;
+        }
+        if (parsed.accessToken) {
+            return `at:${parsed.accessToken}`;
+        }
+    } catch {
+        /* abaikan entry tidak valid saat deduplikasi */
+    }
+    return `raw:${String(rawKey || "").trim()}`;
+}
+
+function extractOpusApiKeyPool(apiKeyInput, envOverride = null) {
+    const env = envOverride && typeof envOverride === "object" ? envOverride : getEnv();
+    const rawCandidates = [];
+
+    const hasExplicitInput =
+        Array.isArray(apiKeyInput)
+            ? apiKeyInput.length > 0
+            : apiKeyInput && typeof apiKeyInput === "object"
+                ? Object.keys(apiKeyInput).length > 0
+                : Boolean(String(apiKeyInput || "").trim());
+
+    if (hasExplicitInput) {
+        appendExpandedKeyEntries(rawCandidates, apiKeyInput);
+    } else {
+        const multiEnvRaw = unwrapOuterQuotesText(
+            env.OPUS_AUTH_TOKENS || env.OPUS_API_KEYS || ""
+        );
+        if (multiEnvRaw) {
+            appendExpandedKeyEntries(rawCandidates, multiEnvRaw);
+        }
+        for (let slot = 1; slot <= MAX_OPUS_ENV_KEY_SLOTS; slot += 1) {
+            const slotRaw = readEnvSlotRawCredential(env, slot);
+            if (slotRaw) {
+                appendExpandedKeyEntries(rawCandidates, slotRaw);
+            }
+        }
+    }
+
+    const deduped = [];
+    const seen = new Set();
+    for (const entry of rawCandidates) {
+        const clean = String(entry || "").trim();
+        if (!clean) continue;
+        const identity = computeCredentialIdentity(clean, env);
+        if (seen.has(identity)) continue;
+        seen.add(identity);
+        deduped.push(clean);
+    }
+    return deduped;
+}
+
+function parseApiKeyInput(apiKey, envOverride = null, { isolateFromDefaultRefresh = false } = {}) {
+    const env = envOverride && typeof envOverride === "object" ? envOverride : getEnv();
+    const defaultTokenEndpoint = String(env.OPUS_OAUTH_TOKEN_URL || DEFAULT_OAUTH_TOKEN_URL).trim();
+    const raw = unwrapOuterQuotesText(apiKey);
 
     if (!raw) {
-        const envRaw = String(env.OPUS_AUTH_TOKEN || env.OPUS_ACCESS_TOKEN || env.OPUSCLIP_API_KEY || "").trim();
-        if (envRaw.startsWith("{") && envRaw.endsWith("}")) {
-            return parseApiKeyInput(envRaw);
-        }
-        const envAccess = envRaw.replace(/^Bearer\s+/i, "").trim();
-        const envRefresh = String(env.OPUS_REFRESH_TOKEN || "").trim();
-        const envClient = String(env.OPUS_CLIENT_ID || DEFAULT_OPUS_WORKOS_CLIENT_ID).trim();
-        if (envAccess || envRefresh) {
-            return {
-                accessToken: envAccess,
-                refreshToken: envRefresh,
-                clientId: envClient || DEFAULT_OPUS_WORKOS_CLIENT_ID,
-                clientSecret: String(env.OPUS_CLIENT_SECRET || "").trim(),
-                resource: String(env.OPUS_RESOURCE_URL || "").trim(),
-                scope: "",
-                tokenEndpoint: defaultTokenEndpoint
-            };
+        const pool = extractOpusApiKeyPool("", env);
+        if (pool.length > 0) {
+            return parseApiKeyInput(pool[0], env, { isolateFromDefaultRefresh });
         }
         throw createProviderError({
             message: "Kredensial Opus belum dikonfigurasi. Isi API Key/Token Opus di Admin Panel atau OPUS_AUTH_TOKEN di Worker.",
             code: "MISSING_API_KEY",
             status: 401
         });
+    }
+
+    if (raw.startsWith("[") || (raw.startsWith("{") && raw.includes("\"opus_key_pool\""))) {
+        const pool = extractOpusApiKeyPool(raw, env);
+        if (pool.length > 0 && pool[0] !== raw) {
+            return parseApiKeyInput(pool[0], env, { isolateFromDefaultRefresh });
+        }
     }
 
     if (raw.startsWith("{") && raw.endsWith("}")) {
@@ -242,7 +474,7 @@ function parseApiKeyInput(apiKey) {
                 const refreshToken = String(
                     parsed.refresh_token ||
                     parsed.refreshToken ||
-                    env.OPUS_REFRESH_TOKEN ||
+                    (isolateFromDefaultRefresh ? "" : env.OPUS_REFRESH_TOKEN) ||
                     ""
                 ).trim();
                 const clientId = String(
@@ -308,7 +540,7 @@ function parseApiKeyInput(apiKey) {
 
     return {
         accessToken: stripped,
-        refreshToken: String(env.OPUS_REFRESH_TOKEN || "").trim(),
+        refreshToken: isolateFromDefaultRefresh ? "" : String(env.OPUS_REFRESH_TOKEN || "").trim(),
         clientId: String(env.OPUS_CLIENT_ID || DEFAULT_OPUS_WORKOS_CLIENT_ID).trim(),
         clientSecret: String(env.OPUS_CLIENT_SECRET || "").trim(),
         resource: String(env.OPUS_RESOURCE_URL || "").trim(),
@@ -317,34 +549,35 @@ function parseApiKeyInput(apiKey) {
     };
 }
 
-async function resolveBearerToken(apiKey, { forceRefresh = false } = {}) {
-    const parsed = parseApiKeyInput(apiKey);
+async function resolveBearerToken(apiKey, { forceRefresh = false, isolateFromDefaultRefresh = false } = {}) {
+    const parsed = parseApiKeyInput(apiKey, null, { isolateFromDefaultRefresh });
     const fingerprint = `${parsed.tokenEndpoint}|${parsed.accessToken.slice(0, 18)}|${parsed.refreshToken.slice(-12)}|${parsed.clientId}`;
+    const cachedEntry = oauthStateByFingerprint.get(fingerprint) || null;
 
     if (
         !forceRefresh &&
-        cachedOAuthState.fingerprint === fingerprint &&
-        cachedOAuthState.accessToken &&
-        isJwtFresh(cachedOAuthState.accessToken)
+        cachedEntry &&
+        cachedEntry.accessToken &&
+        isJwtFresh(cachedEntry.accessToken)
     ) {
-        return cachedOAuthState.accessToken;
+        return cachedEntry.accessToken;
     }
 
     if (!forceRefresh && parsed.accessToken) {
         const expMs = parseJwtExpiryMs(parsed.accessToken);
         if (!expMs || expMs - Date.now() > 90_000) {
-            cachedOAuthState = {
+            oauthStateByFingerprint.set(fingerprint, {
                 fingerprint,
                 accessToken: parsed.accessToken,
                 refreshToken: parsed.refreshToken,
                 expiresAtMs: expMs
-            };
+            });
             return parsed.accessToken;
         }
     }
 
     const activeRefreshToken =
-        (cachedOAuthState.fingerprint === fingerprint && cachedOAuthState.refreshToken) ||
+        (cachedEntry && cachedEntry.refreshToken) ||
         parsed.refreshToken;
 
     if (activeRefreshToken && parsed.clientId) {
@@ -394,12 +627,12 @@ async function resolveBearerToken(apiKey, { forceRefresh = false } = {}) {
                 ? data.refresh_token.trim()
                 : activeRefreshToken;
             const expiresInSec = Number(data.expires_in) || 3600;
-            cachedOAuthState = {
+            oauthStateByFingerprint.set(fingerprint, {
                 fingerprint,
                 accessToken: nextAccess,
                 refreshToken: nextRefresh,
                 expiresAtMs: parseJwtExpiryMs(nextAccess) || (Date.now() + expiresInSec * 1000)
-            };
+            });
             return nextAccess;
         }
 
@@ -429,27 +662,64 @@ async function resolveBearerToken(apiKey, { forceRefresh = false } = {}) {
 }
 
 /* =========================================================
-   TASK ID ENCODING (PROJECT + JOB)
+   TASK ID ENCODING (PROJECT + JOB + MULTI-KEY SLOT)
 ========================================================= */
 
-function encodeOpusTaskId(projectId, jobId) {
+function encodeOpusTaskId(projectId, jobId, keySlot = 0) {
     const cleanProject = String(projectId || "").trim();
     const cleanJob = String(jobId || "").trim();
     if (!cleanJob) return "";
-    if (!cleanProject) return `opus::${cleanJob}`;
-    return `opus:${cleanProject}:${cleanJob}`;
+    const slot = Number.isInteger(keySlot) && keySlot > 0 ? keySlot : 0;
+    const prefix = slot > 0 ? `opus-k${slot}` : "opus";
+    if (!cleanProject) return `${prefix}::${cleanJob}`;
+    return `${prefix}:${cleanProject}:${cleanJob}`;
 }
 
 function parseOpusTaskId(taskId) {
     const raw = String(taskId || "").trim();
     if (!raw) {
-        return { projectId: "", jobId: "", isInlineDone: false, isProjectPending: false };
+        return {
+            projectId: "",
+            jobId: "",
+            keySlot: 0,
+            hasExplicitSlot: false,
+            isInlineDone: false,
+            isProjectPending: false
+        };
     }
     if (raw.startsWith("opus-inline:")) {
         return {
             projectId: "",
             jobId: raw,
+            keySlot: 0,
+            hasExplicitSlot: false,
             isInlineDone: true,
+            isProjectPending: false
+        };
+    }
+    const slottedMatch = /^opus-k(\d+):(.*)$/.exec(raw);
+    if (slottedMatch) {
+        const keySlot = Math.max(0, Number.parseInt(slottedMatch[1], 10) || 0);
+        const rest = slottedMatch[2];
+        const sepIndex = rest.indexOf(":");
+        if (sepIndex >= 0) {
+            const projectId = rest.slice(0, sepIndex).trim();
+            const jobId = rest.slice(sepIndex + 1).trim();
+            return {
+                projectId,
+                jobId,
+                keySlot,
+                hasExplicitSlot: true,
+                isInlineDone: false,
+                isProjectPending: Boolean(projectId && jobId === PROJECT_PENDING_JOB_ID)
+            };
+        }
+        return {
+            projectId: "",
+            jobId: rest.trim(),
+            keySlot,
+            hasExplicitSlot: true,
+            isInlineDone: false,
             isProjectPending: false
         };
     }
@@ -462,6 +732,8 @@ function parseOpusTaskId(taskId) {
             return {
                 projectId,
                 jobId,
+                keySlot: 0,
+                hasExplicitSlot: false,
                 isInlineDone: false,
                 isProjectPending: Boolean(projectId && jobId === PROJECT_PENDING_JOB_ID)
             };
@@ -469,6 +741,8 @@ function parseOpusTaskId(taskId) {
         return {
             projectId: "",
             jobId: rest.trim(),
+            keySlot: 0,
+            hasExplicitSlot: false,
             isInlineDone: false,
             isProjectPending: false
         };
@@ -476,9 +750,42 @@ function parseOpusTaskId(taskId) {
     return {
         projectId: "",
         jobId: raw,
+        keySlot: 0,
+        hasExplicitSlot: false,
         isInlineDone: false,
         isProjectPending: false
     };
+}
+
+function isOpusCreditExhaustedError(error) {
+    if (!error || typeof error !== "object") return false;
+    const rawCode = normalizeErrorToken(
+        error.providerCode || error.code || error.error_code || ""
+    );
+    const message = String(error.message || "");
+    if (
+        rawCode === "submission_unknown" ||
+        rawCode === "credit_reservation_pending" ||
+        rawCode === "admission_incomplete" ||
+        /submission_unknown|credit_reservation_pending/i.test(message)
+    ) {
+        return false;
+    }
+    if (
+        Number(error.status) === 402 ||
+        rawCode === "credit_admission_rejected" ||
+        rawCode === "insufficient_credits" ||
+        rawCode === "insufficient_funds" ||
+        rawCode === "payment_required" ||
+        rawCode === "quota_exceeded" ||
+        rawCode === "quotaexceederr" ||
+        rawCode === "opus_upstream_queue_busy"
+    ) {
+        return true;
+    }
+    return /credit_admission_rejected|insufficient[\s_-]*credits|not enough credits|no provider request was made|saldo kredit akun opus|kredit akun opusclip|kuota generasi opus labs sedang penuh atau telah habis/i.test(
+        message
+    );
 }
 
 /* =========================================================
@@ -824,9 +1131,12 @@ async function openMcpSession({
     endpoint,
     apiKey,
     timeoutMs = CREATE_TIMEOUT_MS,
-    includeTools = true
+    includeTools = true,
+    isolateFromDefaultRefresh = false
 }) {
-    let bearerToken = await resolveBearerToken(apiKey);
+    let bearerToken = await resolveBearerToken(apiKey, {
+        isolateFromDefaultRefresh
+    });
     let sessionId = "";
     let rpcCounter = 1;
 
@@ -857,7 +1167,10 @@ async function openMcpSession({
     } catch (err) {
         /* Jika token cached baru saja kedaluwarsa, paksa refresh 1x lalu ulangi initialize */
         if (err?.status === 401 || err?.code === "OPUS_AUTH_REJECTED") {
-            bearerToken = await resolveBearerToken(apiKey, { forceRefresh: true });
+            bearerToken = await resolveBearerToken(apiKey, {
+                forceRefresh: true,
+                isolateFromDefaultRefresh
+            });
             initRes = await sendRpc("initialize", {
                 protocolVersion: MCP_PROTOCOL_VERSION,
                 capabilities: {},
@@ -1644,7 +1957,11 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
     };
 }
 
-async function downloadSourceImageBytes(mediaUrl, mediaType = "image") {
+async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCache = null) {
+    const cacheKey = `${mediaType}:${mediaUrl}`;
+    if (mediaCache instanceof Map && mediaCache.has(cacheKey)) {
+        return mediaCache.get(cacheKey);
+    }
     const isVideo = mediaType === "video";
     const mediaLabel = isVideo ? "video referensi" : "gambar referensi";
     const res = await fetchWithTimeout(
@@ -1671,10 +1988,14 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image") {
     const resolvedMime = isVideo
         ? (contentType.startsWith("video/") ? contentType : inferVideoMimeFromUrl(mediaUrl))
         : (contentType.startsWith("image/") ? contentType : inferImageMimeFromUrl(mediaUrl));
-    return {
+    const downloaded = {
         bytes,
         mimeType: resolvedMime
     };
+    if (mediaCache instanceof Map) {
+        mediaCache.set(cacheKey, downloaded);
+    }
+    return downloaded;
 }
 
 async function stageSingleReferenceImage(session, importTool, projectId, refItem, index) {
@@ -1791,7 +2112,11 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
     ) {
         try {
             if (!cachedDownloaded) {
-                cachedDownloaded = await downloadSourceImageBytes(refItem.url, itemMediaType);
+                cachedDownloaded = await downloadSourceImageBytes(
+                    refItem.url,
+                    itemMediaType,
+                    refItem.mediaCache || null
+                );
             }
             const fallbackEntry = buildBaseEntry();
             const mimeKey = pickSupportedKey(itemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
@@ -1830,7 +2155,11 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
     /* Tangani kontrak resmi Opus MCP: status === "awaiting_upload" -> PUT bytes -> finalize import_assets */
     if ((record.status === "awaiting_upload" || record.uploadUrl) && record.uploadUrl) {
         if (!cachedDownloaded) {
-            cachedDownloaded = await downloadSourceImageBytes(refItem.url, itemMediaType);
+            cachedDownloaded = await downloadSourceImageBytes(
+                refItem.url,
+                itemMediaType,
+                refItem.mediaCache || null
+            );
         }
         const putHeaders = {
             ...(record.uploadHeaders || {})
@@ -3779,13 +4108,17 @@ async function discoverProjectVideoJob(
    PUBLIC CLIENT API: createVideoTask & getVideoTask
 ========================================================= */
 
-async function createVideoTask(payload = {}, apiKey, options = {}) {
+async function createVideoTaskForSingleKey(payload = {}, apiKey, options = {}) {
     const endpoint = getMcpEndpoint(options);
+    const keySlot = Number.isInteger(options?.keySlot) && options.keySlot > 0 ? options.keySlot : 0;
+    const mediaCache = options?.mediaCache instanceof Map ? options.mediaCache : null;
+    const isolateFromDefaultRefresh = Boolean(options?.isolateFromDefaultRefresh);
     const session = await openMcpSession({
         endpoint,
         apiKey,
         timeoutMs: CREATE_TIMEOUT_MS,
-        includeTools: true
+        includeTools: true,
+        isolateFromDefaultRefresh
     });
 
     const videoTool =
@@ -3833,7 +4166,8 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                 label: "first_frame",
                 mimeType: mime,
                 mediaType: "image",
-                fileName: `first-frame.${extFromMime(mime)}`
+                fileName: `first-frame.${extFromMime(mime)}`,
+                mediaCache
             },
             0
         );
@@ -3849,7 +4183,8 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                     label: "last_frame",
                     mimeType: lastMime,
                     mediaType: "image",
-                    fileName: `last-frame.${extFromMime(lastMime)}`
+                    fileName: `last-frame.${extFromMime(lastMime)}`,
+                    mediaCache
                 },
                 1
             );
@@ -3869,7 +4204,8 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                     label: `image${i + 1}`,
                     mimeType: mime,
                     mediaType: "image",
-                    fileName: `reference-${i + 1}.${extFromMime(mime)}`
+                    fileName: `reference-${i + 1}.${extFromMime(mime)}`,
+                    mediaCache
                 },
                 assetOffset
             );
@@ -3889,7 +4225,8 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                     label: `video${j + 1}`,
                     mimeType: mime,
                     mediaType: "video",
-                    fileName: `reference-video-${j + 1}.${extFromMime(mime)}`
+                    fileName: `reference-video-${j + 1}.${extFromMime(mime)}`,
+                    mediaCache
                 },
                 assetOffset
             );
@@ -4011,7 +4348,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
             };
         }
         if (discoveredDuringTimeout.jobId) {
-            const compositeTaskId = encodeOpusTaskId(projectId, discoveredDuringTimeout.jobId);
+            const compositeTaskId = encodeOpusTaskId(projectId, discoveredDuringTimeout.jobId, keySlot);
             return {
                 success: true,
                 provider: PROVIDER_ID,
@@ -4020,6 +4357,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                 task_id: compositeTaskId,
                 jobId: discoveredDuringTimeout.jobId,
                 projectId,
+                keySlot,
                 status: discoveredDuringTimeout.outcome?.status === "COMPLETED" ? "COMPLETED" : "QUEUED",
                 outputUrls: discoveredDuringTimeout.outcome?.videoUrls || [],
                 mcpRequestSummary
@@ -4083,7 +4421,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
     }
 
     if (jobId) {
-        const compositeTaskId = encodeOpusTaskId(projectId, jobId);
+        const compositeTaskId = encodeOpusTaskId(projectId, jobId, keySlot);
         return {
             success: true,
             provider: PROVIDER_ID,
@@ -4092,6 +4430,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
             task_id: compositeTaskId,
             jobId,
             projectId,
+            keySlot,
             status: outcome.status === "COMPLETED" ? "COMPLETED" : "QUEUED",
             outputUrls: outcome.videoUrls,
             mcpRequestSummary
@@ -4114,6 +4453,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
             task_id: inlineTaskId,
             jobId: inlineTaskId,
             projectId,
+            keySlot,
             status: "COMPLETED",
             outputUrls: outcome.videoUrls,
             mcpRequestSummary
@@ -4127,7 +4467,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
      * alih-alih menggagalkan task padahal video sedang digenerate di web Opus.
      */
     if (projectId) {
-        const pendingProjectTaskId = encodeOpusTaskId(projectId, PROJECT_PENDING_JOB_ID);
+        const pendingProjectTaskId = encodeOpusTaskId(projectId, PROJECT_PENDING_JOB_ID, keySlot);
         return {
             success: true,
             provider: PROVIDER_ID,
@@ -4136,6 +4476,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
             task_id: pendingProjectTaskId,
             jobId: PROJECT_PENDING_JOB_ID,
             projectId,
+            keySlot,
             status: "QUEUED",
             outputUrls: [],
             mcpRequestSummary
@@ -4150,42 +4491,99 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
     });
 }
 
-async function getVideoTask(taskId, apiKey, options = {}) {
-    const parsedId = parseOpusTaskId(taskId);
-    if (!parsedId.jobId) {
-        throw createProviderError({
-            message: "Task ID Opus tidak ditemukan.",
-            code: "TASK_ID_MISSING",
-            status: 400
+async function createVideoTask(payload = {}, apiKey, options = {}) {
+    const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
+    if (keyPool.length === 0) {
+        /* Memicu error MISSING_API_KEY standar bila tidak ada kredensial sama sekali */
+        parseApiKeyInput("", options?.env);
+    }
+
+    const totalKeys = keyPool.length;
+    const mediaCache = new Map();
+
+    if (totalKeys <= 1) {
+        activeOpusKeyIndex = 0;
+        return await createVideoTaskForSingleKey(payload, keyPool[0] || apiKey, {
+            ...options,
+            keySlot: 0,
+            mediaCache,
+            isolateFromDefaultRefresh: false
         });
     }
 
-    /* Bersihkan cache inline lama & kembalikan hasil bila inline */
-    for (const [key, entry] of inlineCompletedResults.entries()) {
-        if (Date.now() - entry.createdAtMs > COMPLETED_INLINE_CACHE_TTL_MS) {
-            inlineCompletedResults.delete(key);
+    const startIndex = ((activeOpusKeyIndex % totalKeys) + totalKeys) % totalKeys;
+    let lastExhaustedError = null;
+    let lastAuthError = null;
+
+    for (let step = 0; step < totalKeys; step += 1) {
+        const slotIndex = (startIndex + step) % totalKeys;
+        const candidateKey = keyPool[slotIndex];
+
+        try {
+            const result = await createVideoTaskForSingleKey(payload, candidateKey, {
+                ...options,
+                keySlot: slotIndex,
+                mediaCache,
+                isolateFromDefaultRefresh: slotIndex > 0 || totalKeys > 1
+            });
+            activeOpusKeyIndex = slotIndex;
+            return {
+                ...result,
+                keySlot: slotIndex,
+                keyPoolSize: totalKeys
+            };
+        } catch (err) {
+            if (isOpusCreditExhaustedError(err)) {
+                lastExhaustedError = err;
+                if (step + 1 < totalKeys) {
+                    continue;
+                }
+                /* Seluruh API key sudah dicoba berurutan sampai ketemu kembali key awal putaran */
+                activeOpusKeyIndex = 0;
+                err.exhaustedKeyCount = totalKeys;
+                err.rotatedFullCycle = true;
+                throw err;
+            }
+
+            const isAuthFailure =
+                err?.status === 401 ||
+                err?.status === 403 ||
+                err?.code === "OPUS_AUTH_EXPIRED" ||
+                err?.code === "OPUS_AUTH_REJECTED";
+
+            if (isAuthFailure && step + 1 < totalKeys) {
+                lastAuthError = err;
+                continue;
+            }
+
+            if (isAuthFailure && lastExhaustedError) {
+                activeOpusKeyIndex = 0;
+                lastExhaustedError.exhaustedKeyCount = totalKeys;
+                lastExhaustedError.rotatedFullCycle = true;
+                throw lastExhaustedError;
+            }
+
+            throw err;
         }
     }
-    if (parsedId.isInlineDone && inlineCompletedResults.has(parsedId.jobId)) {
-        const cached = inlineCompletedResults.get(parsedId.jobId);
-        return {
-            status: "COMPLETED",
-            providerState: "completed",
-            videoUrls: cached.videoUrls,
-            usageSeconds: cached.usageSeconds,
-            errorCode: null,
-            errorMessage: null,
-            projectId: "",
-            jobId: parsedId.jobId
-        };
-    }
+
+    activeOpusKeyIndex = 0;
+    throw lastExhaustedError || lastAuthError || createProviderError({
+        message: "Semua API key Opus gagal memproses permintaan.",
+        code: "OPUS_CREATE_REJECTED",
+        status: 503
+    });
+}
+
+async function getVideoTaskForSingleKey(parsedId, apiKey, options = {}) {
 
     const endpoint = getMcpEndpoint(options);
     const session = await openMcpSession({
         endpoint,
         apiKey,
         timeoutMs: QUERY_TIMEOUT_MS,
-        includeTools: true
+        includeTools: true,
+        isolateFromDefaultRefresh: Boolean(options?.isolateFromDefaultRefresh)
     });
 
     let activeJobId = parsedId.jobId;
@@ -4437,6 +4835,94 @@ async function getVideoTask(taskId, apiKey, options = {}) {
     };
 }
 
+async function getVideoTask(taskId, apiKey, options = {}) {
+    const parsedId = parseOpusTaskId(taskId);
+    if (!parsedId.jobId) {
+        throw createProviderError({
+            message: "Task ID Opus tidak ditemukan.",
+            code: "TASK_ID_MISSING",
+            status: 400
+        });
+    }
+
+    /* Bersihkan cache inline lama & kembalikan hasil bila inline */
+    for (const [key, entry] of inlineCompletedResults.entries()) {
+        if (Date.now() - entry.createdAtMs > COMPLETED_INLINE_CACHE_TTL_MS) {
+            inlineCompletedResults.delete(key);
+        }
+    }
+    if (parsedId.isInlineDone && inlineCompletedResults.has(parsedId.jobId)) {
+        const cached = inlineCompletedResults.get(parsedId.jobId);
+        return {
+            status: "COMPLETED",
+            providerState: "completed",
+            videoUrls: cached.videoUrls,
+            usageSeconds: cached.usageSeconds,
+            errorCode: null,
+            errorMessage: null,
+            projectId: "",
+            jobId: parsedId.jobId
+        };
+    }
+
+    const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
+    if (keyPool.length <= 1) {
+        return await getVideoTaskForSingleKey(parsedId, keyPool[0] || apiKey, {
+            ...options,
+            isolateFromDefaultRefresh: false
+        });
+    }
+
+    const totalKeys = keyPool.length;
+    const preferredSlot = parsedId.keySlot >= 0 && parsedId.keySlot < totalKeys
+        ? parsedId.keySlot
+        : 0;
+    const candidateSlots = [preferredSlot];
+    for (let idx = 0; idx < totalKeys; idx += 1) {
+        if (idx !== preferredSlot) {
+            candidateSlots.push(idx);
+        }
+    }
+
+    let lastError = null;
+    for (let c = 0; c < candidateSlots.length; c += 1) {
+        const slotIndex = candidateSlots[c];
+        try {
+            const result = await getVideoTaskForSingleKey(parsedId, keyPool[slotIndex], {
+                ...options,
+                isolateFromDefaultRefresh: true
+            });
+            if (
+                result.status === "FAILED" &&
+                isOpusCreditExhaustedError({
+                    code: result.errorCode,
+                    message: result.errorMessage
+                })
+            ) {
+                activeOpusKeyIndex = (slotIndex + 1) % totalKeys;
+            }
+            return result;
+        } catch (err) {
+            lastError = err;
+            const retryableOnOtherSlot =
+                err?.status === 401 ||
+                err?.status === 403 ||
+                err?.code === "OPUS_AUTH_EXPIRED" ||
+                err?.code === "OPUS_AUTH_REJECTED";
+            if (retryableOnOtherSlot && c + 1 < candidateSlots.length) {
+                continue;
+            }
+            throw err;
+        }
+    }
+
+    throw lastError || createProviderError({
+        message: "Gagal memeriksa status job video Opus Labs.",
+        code: "OPUS_STATUS_FAILED",
+        status: 502
+    });
+}
+
 export {
     DEFAULT_MCP_URL,
     DEFAULT_OPUS_WORKOS_CLIENT_ID,
@@ -4446,12 +4932,16 @@ export {
     PROVIDER_NAME,
     createVideoTask,
     encodeOpusTaskId,
+    extractOpusApiKeyPool,
     extractVideoUrls,
+    getActiveOpusKeyIndex,
     getMcpEndpoint,
     getVideoTask,
+    isOpusCreditExhaustedError,
     normalizeStatus,
     parseOpusTaskId,
     redactSecrets,
+    resetOpusKeyRotation,
     resolveBearerToken,
     translateOpusError
 };
@@ -4463,7 +4953,11 @@ export default {
     createVideoTask,
     getVideoTask,
     encodeOpusTaskId,
+    extractOpusApiKeyPool,
+    getActiveOpusKeyIndex,
+    isOpusCreditExhaustedError,
     parseOpusTaskId,
+    resetOpusKeyRotation,
     normalizeStatus,
     translateOpusError
 };

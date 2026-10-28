@@ -740,7 +740,7 @@ function applyGenerateStatusStyles(
             }
 
             .genz-generate-status-title.failed {
-                color:#f87171;
+                color:#ff4d4f;
             }
 
             .genz-generate-status-message {
@@ -762,7 +762,8 @@ function applyGenerateStatusStyles(
             }
 
             .genz-generate-status-message.failed {
-                color:rgba(252,165,165,.82);
+                color:#ff4d4f;
+                font-weight:700;
             }
 
             @keyframes genzStatusSpin {
@@ -1183,7 +1184,20 @@ function showError(
             false;
 
         elements.pageError.style.display =
-            "block";
+            "flex";
+
+        elements.pageError.dataset.error =
+            "true";
+
+        const heading =
+            elements.pageError.querySelector("h2");
+
+        if (heading) {
+            heading.textContent =
+                /konfigurasi model|model tidak tersedia/i.test(text)
+                    ? "Model tidak tersedia"
+                    : "Notifikasi Error";
+        }
 
     }
 
@@ -1202,6 +1216,9 @@ function showError(
 
         elements.status.textContent =
             text;
+
+        elements.status.dataset.error =
+            "true";
 
         elements.status.hidden =
             false;
@@ -1229,6 +1246,17 @@ function hideError() {
 
         elements.pageError.style.display =
             "none";
+
+        delete elements.pageError.dataset.error;
+
+    }
+
+    if (
+        elements.status &&
+        elements.status.dataset?.error === "true"
+    ) {
+
+        delete elements.status.dataset.error;
 
     }
 

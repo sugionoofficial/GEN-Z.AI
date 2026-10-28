@@ -7,14 +7,15 @@
 
    Menangani kondisi ketika akun upstream Opus Labs (OpusClip)
    menolak pembuatan/eksekusi job karena kredit upstream sedang
-   penuh/tertahan atau tidak mencukupi:
+   penuh/tertahan atau tidak mencukupi setelah seluruh pool API key
+   Opus dicoba secara berurutan sampai kembali ke key pertama:
    - Menampilkan notifikasi antrian:
        "mohon tunggu antrian, sistem sedang padat"
-   - Menjalankan runtime tunggu 5 menit berstatus putih "MENCOBA"
-     untuk melanjutkan tugas generate sampai giliran tiba.
-   - Jika 3 kali percobaan gagal, sistem berhenti otomatis dan
-     mengeluarkan notifikasi error:
-       "SISTEM SIBUK, COBA LAGI"
+   - Menjalankan runtime jeda 5 menit berstatus putih "MENCOBA"
+     sebanyak maksimal 3 kali jeda 5 menit mencoba ulang.
+   - Jika setelah 3 kali jeda 5 menit mencoba kredit masih habis,
+     sistem berhenti otomatis dan mengeluarkan notifikasi error merah:
+       "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI"
 
    CATATAN BUNDLE:
    Modul murni ES (tanpa node:* atau server-only import) agar aman
@@ -31,7 +32,7 @@ export const OPUS_QUEUE_WAIT_MESSAGE =
     "mohon tunggu antrian, sistem sedang padat";
 
 export const OPUS_QUEUE_FINAL_ERROR_MESSAGE =
-    "SISTEM SIBUK, COBA LAGI";
+    "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI";
 
 export const OPUS_QUEUE_RETRY_STATUS_LABEL =
     "MENCOBA";
@@ -39,8 +40,11 @@ export const OPUS_QUEUE_RETRY_STATUS_LABEL =
 export const OPUS_QUEUE_RUNTIME_MS =
     5 * 60 * 1000;
 
-export const OPUS_QUEUE_MAX_ATTEMPTS =
+export const OPUS_QUEUE_MAX_WAIT_RETRIES =
     3;
+
+export const OPUS_QUEUE_MAX_ATTEMPTS =
+    OPUS_QUEUE_MAX_WAIT_RETRIES + 1;
 
 function normalizeToken(value) {
     return String(value ?? "")
@@ -258,12 +262,15 @@ export async function runOpusQueueRetryLoop({
     onRetryAttemptStart = null
 } = {}) {
     const safeMaxAttempts = Math.max(1, Math.floor(Number(maxAttempts) || OPUS_QUEUE_MAX_ATTEMPTS));
+    const maxWaitRetries = Math.max(0, safeMaxAttempts - 1);
 
     for (let attempt = 1; attempt <= safeMaxAttempts; attempt += 1) {
         if (attempt > 1 && typeof onRetryAttemptStart === "function") {
             onRetryAttemptStart({
                 attempt,
                 maxAttempts: safeMaxAttempts,
+                waitRetryIndex: attempt - 1,
+                maxWaitRetries,
                 statusLabel: OPUS_QUEUE_RETRY_STATUS_LABEL
             });
         }
@@ -283,18 +290,23 @@ export async function runOpusQueueRetryLoop({
                 const finalBusyError = new Error(OPUS_QUEUE_FINAL_ERROR_MESSAGE);
                 finalBusyError.code = OPUS_SYSTEM_BUSY_FINAL_CODE;
                 finalBusyError.attempts = attempt;
+                finalBusyError.waitRetries = maxWaitRetries;
+                finalBusyError.isRedErrorNotification = true;
                 finalBusyError.suppressRefundSuffix = true;
                 finalBusyError.details = error?.details || null;
                 throw finalBusyError;
             }
 
             const initialFormatted = formatQueueCountdown(runtimeMs);
+            const waitRetryIndex = attempt;
 
             if (typeof onQueueWaitStart === "function") {
                 onQueueWaitStart({
                     attempt,
                     nextAttempt: attempt + 1,
                     maxAttempts: safeMaxAttempts,
+                    waitRetryIndex,
+                    maxWaitRetries,
                     runtimeMs,
                     formattedRemaining: initialFormatted,
                     message: OPUS_QUEUE_WAIT_MESSAGE,
@@ -314,6 +326,8 @@ export async function runOpusQueueRetryLoop({
                             attempt,
                             nextAttempt: attempt + 1,
                             maxAttempts: safeMaxAttempts,
+                            waitRetryIndex,
+                            maxWaitRetries,
                             message: OPUS_QUEUE_WAIT_MESSAGE,
                             statusLabel: OPUS_QUEUE_RETRY_STATUS_LABEL,
                             ...tickInfo

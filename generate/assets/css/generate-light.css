@@ -163,23 +163,32 @@ html[data-genz-theme="light"][data-genz-theme="light"] body #status {
     color: #14603c;
 }
 
+html[data-genz-theme="light"][data-genz-theme="light"] body #status[data-error="true"] {
+
+    border: 1px solid rgba(220, 38, 38, 0.45) !important;
+    background: #fff1f2 !important;
+    color: #dc2626 !important;
+    font-weight: 700;
+}
+
 html[data-genz-theme="light"][data-genz-theme="light"] body .page-error {
 
-    border: 1px solid rgba(179, 38, 30, 0.32) !important;
-    background: #fff5f5 !important;
-    color: #8c1d2a;
+    border: 1px solid rgba(220, 38, 38, 0.45) !important;
+    background: #fff1f2 !important;
+    color: #dc2626;
 }
 
 html[data-genz-theme="light"][data-genz-theme="light"] body .page-error h2 {
 
-    color: #8c1d2a;
+    color: #dc2626;
 }
 
 html[data-genz-theme="light"][data-genz-theme="light"] body .page-error p,
 html[data-genz-theme="light"][data-genz-theme="light"] body #pageErrorMessage,
 html[data-genz-theme="light"][data-genz-theme="light"] body .page-error strong {
 
-    color: #6d2530 !important;
+    color: #dc2626 !important;
+    font-weight: 700;
 }
 
 html[data-genz-theme="light"][data-genz-theme="light"] body .page-error-icon {

@@ -617,10 +617,39 @@ body {
 
     border:
         1px solid
-        rgba(255,70,90,0.34) !important;
+        rgba(239,68,68,0.55) !important;
 
     background:
-        rgba(35,5,9,0.72) !important;
+        rgba(45,6,10,0.84) !important;
+
+    color:
+        #ff4d4f !important;
+}
+
+.page-error h2,
+#pageErrorMessage {
+
+    color:
+        #ff4d4f !important;
+
+    font-weight:
+        700;
+}
+
+#status[data-error="true"] {
+
+    border:
+        1px solid
+        rgba(239,68,68,0.55) !important;
+
+    background:
+        rgba(220,38,38,0.14) !important;
+
+    color:
+        #ff4d4f !important;
+
+    font-weight:
+        700;
 }
 
 
