@@ -1120,4 +1120,9 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .studio-body-toolbar
     color: #46536a !important;
 }
 
+html[data-genz-theme="light"][data-genz-theme="light"] body .schedule-grid .item.is-schedule-active {
+    border-color: #9de2c3 !important;
+    box-shadow: inset 3px 0 0 #12b866 !important;
+}
+
 

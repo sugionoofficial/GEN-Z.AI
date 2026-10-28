@@ -188,12 +188,14 @@
         .studio-collapse-body[hidden]{display:none!important}
         .studio-body-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;border-radius:11px;border:1px solid #26364d;background:rgba(9,16,28,.66)}
         .studio-body-toolbar-note{font-size:11.5px;color:var(--muted);line-height:1.45}
+        .schedule-grid .item.is-schedule-active{border-color:rgba(53,211,154,.38);box-shadow:inset 3px 0 0 #35d39a}
+        .schedule-grid .item.is-schedule-paused{opacity:.9}
         @keyframes studio-body-reveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
         @media(prefers-reduced-motion:reduce){.card.studio-collapsible,.studio-collapse-chevron,.studio-collapse-body,.master-status-pill .master-status-dot{animation:none;transition:none}}
         @media(max-width:768px){.master-switch-card{flex-direction:column;align-items:stretch;padding:13px 14px;gap:12px}.master-switch-right{justify-content:space-between;width:100%}.master-status-pill{min-width:112px;padding:8px 13px;font-size:11px}.master-switch-controls{width:100%;justify-content:stretch}.master-mode-btn{flex:1 1 0;text-align:center;padding:6px 6px;font-size:10px}.card.studio-collapsible.is-expanded{grid-column:auto}.studio-collapse-trigger{padding:14px 14px;gap:11px}.card.studio-collapsible.is-expanded .studio-collapse-trigger{padding:15px 15px}.studio-collapse-icon{width:38px;height:38px;border-radius:11px}.studio-collapse-copy h3{font-size:14.5px}.studio-collapse-body{padding:15px 14px 17px}.studio-collapse-chip-label{display:none}}
 
     </style>
-    <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261026c">
+    <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261026d">
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
 <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
@@ -715,9 +717,18 @@
                         <div class="field full"><label class="inline-check"><input id="schedule-enabled" type="checkbox"><span>Jadwal ini aktif. Autopost hanya berjalan bila switch autopublish akun dan switch autopublish jadwal ini sama-sama aktif.</span></label></div>
                         <div class="field full"><div class="actions"><button id="save-schedule" class="btn primary" type="submit">Simpan jadwal</button><button id="cancel-edit" class="btn" type="button" hidden>Batal edit</button></div><p id="schedule-limit-notice" class="status error" hidden></p><p id="schedule-status" class="status"></p></div>
                     </form>
-                    <div style="height:1px;background:var(--border);margin:22px 0"></div>
-                    <div id="schedules-list" class="schedule-grid"><div class="empty">Belum ada jadwal.</div></div>
                 </div>
+            </section>
+
+            <section class="card wide" id="active-schedules-section" aria-labelledby="active-schedules-title">
+                <div class="card-head">
+                    <div>
+                        <h3 id="active-schedules-title">Jadwal autopost aktif</h3>
+                        <p class="sub">Daftar jadwal autopost beserta hitung mundur waktu posting berikutnya dan kontrol jeda per jadwal.</p>
+                    </div>
+                    <span id="active-schedules-badge" class="badge">0 aktif</span>
+                </div>
+                <div id="schedules-list" class="schedule-grid"><div class="empty">Belum ada jadwal autopost aktif.</div></div>
             </section>
 
             <section class="card wide" id="runs-section" aria-labelledby="runs-title">
@@ -778,6 +789,6 @@
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=deep-black-bg-20261027"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script type="module" src="./social-publisher.js?v=publish-confirm-inline-premium-20261028"></script>
+    <script type="module" src="./social-publisher.js?v=publish-confirm-inline-premium-20261028b"></script>
 </body>
 </html>

@@ -1306,3 +1306,37 @@ test("5 blok fitur Studio Medsos tampil sebagai blok kecil kompak (termasuk KOLE
         Object.assign(globalThis, prevGlobals);
     }
 });
+
+test("Jadwal autopost aktif tampil pada blok mandiri baru tepat di atas blok riwayat, tidak lagi di dalam blok Buat jadwal autopost", () => {
+    const scheduleCardMatch = htmlSource.match(
+        /<section id="schedule-card"[\s\S]*?<\/section>/
+    );
+    assert.ok(scheduleCardMatch, "Blok #schedule-card wajib ada");
+    assert.doesNotMatch(
+        scheduleCardMatch[0],
+        /id="schedules-list"/,
+        "#schedules-list tidak boleh lagi berada di dalam blok Buat jadwal autopost (#schedule-card)"
+    );
+
+    const activeSectionMatch = htmlSource.match(
+        /<section[^>]*id="active-schedules-section"[\s\S]*?<\/section>/
+    );
+    assert.ok(activeSectionMatch, "Blok baru #active-schedules-section wajib ada");
+    assert.match(activeSectionMatch[0], /class="card wide"/);
+    assert.match(activeSectionMatch[0], /id="active-schedules-title"/);
+    assert.match(activeSectionMatch[0], /id="active-schedules-badge"/);
+    assert.match(activeSectionMatch[0], /id="schedules-list"/);
+
+    const scheduleCardEndIndex = htmlSource.indexOf(scheduleCardMatch[0]) + scheduleCardMatch[0].length;
+    const activeSectionIndex = htmlSource.indexOf('id="active-schedules-section"');
+    const runsSectionIndex = htmlSource.indexOf('id="runs-section"');
+
+    assert.ok(
+        activeSectionIndex > scheduleCardEndIndex,
+        "Blok #active-schedules-section harus berada setelah blok #schedule-card ditutup"
+    );
+    assert.ok(
+        activeSectionIndex < runsSectionIndex,
+        "Blok #active-schedules-section harus berada tepat di atas blok riwayat (#runs-section)"
+    );
+});
