@@ -104,6 +104,9 @@ import klingMotionControl30Pro
 import qwenCloudVideoModels
     from "../models/qwencloud-video/index.js";
 
+import opusVideoModels
+    from "../models/opus-video/index.js";
+
 
 /* =========================================================
    MODEL REGISTRY
@@ -120,7 +123,10 @@ const MODEL_REGISTRY = Object.freeze([
    klingMotionControl30Pro,
 
    /* QwenCloud (Alibaba Cloud Model Studio / DashScope) */
-   ...qwenCloudVideoModels
+   ...qwenCloudVideoModels,
+
+   /* Opus Labs (Opus Video Tools MCP) */
+   ...opusVideoModels
 
 ]);
 

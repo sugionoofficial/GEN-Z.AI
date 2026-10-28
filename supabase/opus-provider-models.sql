@@ -1,0 +1,157 @@
+-- =========================================================
+-- GEN-Z.AI
+-- OPUS LABS (OPUS VIDEO TOOLS MCP)
+-- PROVIDER + 6 MODEL VIDEO
+-- ---------------------------------------------------------
+-- File:
+--   supabase/opus-provider-models.sql
+--
+-- Cara pakai:
+--   1. Jalankan file ini di Supabase → SQL Editor.
+--      (File ini idempotent: aman dijalankan berulang.)
+--   2. Kredensial Opus diambil otomatis dari secret Worker
+--      (`OPUS_AUTH_TOKEN` / `OPUS_REFRESH_TOKEN`), atau dapat
+--      dioverride lewat Admin Panel → Providers → Opus → API Key.
+--   3. Buka Admin Panel → Models untuk menyesuaikan credit
+--      per resolusi sesuai harga jual GEN-Z.AI.
+--
+-- CATATAN CREDIT
+--   Nilai credit di bawah dihitung per BLOK 5 DETIK:
+--     4–5s = 1x | 6–10s = 2x | 11–15s = 3x | ... | 26–30s = 6x
+--   Untuk MiniMax Hailuo 3:
+--     - Resolusi 768p menggunakan slot `credit_720p`
+--     - Resolusi 2K   menggunakan slot `credit_1080p`
+--   PENTING: Generasi video di Opus Labs (`generate_video_clips`)
+--   memotong saldo kredit akun OpusClip Anda per detik video.
+-- =========================================================
+
+-- =========================================================
+-- 1. PROVIDER
+-- =========================================================
+
+insert into public.providers (
+    provider_id,
+    provider_name,
+    description,
+    status,
+    is_default
+)
+values (
+    'opus',
+    'Opus',
+    'Opus Labs Video Tools MCP — model video Seedance 2.5, Seedance 2.0, dan MiniMax Hailuo 3.',
+    'active',
+    false
+)
+on conflict (provider_id) do update
+set
+    provider_name = excluded.provider_name,
+    description = excluded.description,
+    status = excluded.status;
+
+
+-- =========================================================
+-- 2. MODEL VIDEO
+--    provider_id mengacu ke public.providers.id (uuid)
+-- =========================================================
+
+with provider as (
+    select id
+    from public.providers
+    where provider_id = 'opus'
+    limit 1
+),
+seed (
+    model_id,
+    model_name,
+    description,
+    min_duration,
+    max_duration,
+    supported_ratios,
+    supported_resolutions,
+    credit_480p,
+    credit_720p,
+    credit_1080p
+) as (
+    values
+        -- SEEDANCE 2.5 ------------------------------------
+        (
+            'opus-seedance-2.5-t2v',
+            'Seedance 2.5 Text to Video (Opus)',
+            'Text to video Seedance 2.5 via Opus Labs — 4–30 detik, 480p/720p, dukungan audio dialog & musik bawaan.',
+            4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', 15, 25, 0
+        ),
+        (
+            'opus-seedance-2.5-i2v',
+            'Seedance 2.5 Image to Video (Opus)',
+            'Image to video Seedance 2.5 dari gambar frame awal via Opus Labs — 4–30 detik, 480p/720p, audio bawaan.',
+            4, 30, '{}', '{720p,480p}', 15, 25, 0
+        ),
+        (
+            'opus-seedance-2.5-r2v',
+            'Seedance 2.5 Reference to Video (Opus)',
+            'Konsistensi karakter & produk dari 1–3 gambar referensi (@image1–@image3) via Opus Labs — 4–30 detik.',
+            4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', 18, 28, 0
+        ),
+
+        -- SEEDANCE 2.0 ------------------------------------
+        (
+            'opus-seedance-2.0-r2v',
+            'Seedance 2.0 Video (Opus)',
+            'Text & Reference to video Seedance 2.0 via Opus Labs — 4–15 detik, opsional hingga 3 gambar referensi.',
+            4, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', 12, 20, 0
+        ),
+
+        -- MINIMAX HAILUO 3 --------------------------------
+        (
+            'opus-hailuo-3-t2v',
+            'MiniMax Hailuo 3 Text to Video (Opus)',
+            'Text to video MiniMax Hailuo 3 via Opus Labs — 5–15 detik, resolusi tajam 768p & 2K.',
+            5, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{768p,2k}', 0, 25, 45
+        ),
+        (
+            'opus-hailuo-3-i2v',
+            'MiniMax Hailuo 3 First & Last Frame (Opus)',
+            'Image to video MiniMax Hailuo 3 dari frame awal + frame akhir opsional via Opus Labs — 5–15 detik, 768p & 2K.',
+            5, 15, '{}', '{768p,2k}', 0, 25, 45
+        )
+)
+insert into public.models (
+    provider_id,
+    model_id,
+    model_name,
+    description,
+    min_duration,
+    max_duration,
+    supported_ratios,
+    supported_resolutions,
+    credit_480p,
+    credit_720p,
+    credit_1080p,
+    discount_percent,
+    status
+)
+select
+    provider.id,
+    seed.model_id,
+    seed.model_name,
+    seed.description,
+    seed.min_duration,
+    seed.max_duration,
+    seed.supported_ratios::text[],
+    seed.supported_resolutions::text[],
+    seed.credit_480p,
+    seed.credit_720p,
+    seed.credit_1080p,
+    0,
+    'active'
+from seed
+cross join provider
+on conflict (provider_id, model_id) do update
+set
+    model_name = excluded.model_name,
+    description = excluded.description,
+    min_duration = excluded.min_duration,
+    max_duration = excluded.max_duration,
+    supported_ratios = excluded.supported_ratios,
+    supported_resolutions = excluded.supported_resolutions;

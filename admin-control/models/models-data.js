@@ -53,7 +53,7 @@
 ========================================================= */
 
 const MODEL_DATA_VERSION =
-    "2026-10-22-qwencloud-v10";
+    "2026-10-28-opus-v11";
 
 
 /* =========================================================
@@ -104,6 +104,9 @@ import klingMotionControlParameters
 
 import qwenCloudVideoModels
     from "../../models/qwencloud-video/index.js?v=models-registry-qwencloud-20261022";
+
+import opusVideoModels
+    from "../../models/opus-video/index.js?v=models-registry-opus-20261028";
 
 
 /* =========================================================
@@ -207,6 +210,26 @@ const MODEL_REGISTRY = [
         model => ({
             folder:
                 "models/qwencloud-video",
+
+            config:
+                model.config,
+
+            parameters:
+                model.parameters
+        })
+    ),
+
+    /*
+     * Opus Labs (Opus Video Tools MCP)
+     *
+     * Semua model video Opus dibuat dari satu factory di
+     * models/opus-video.
+     */
+
+    ...opusVideoModels.map(
+        model => ({
+            folder:
+                "models/opus-video",
 
             config:
                 model.config,
@@ -3721,12 +3744,27 @@ function getResolutionCredit(
 
     if (
         normalizedResolution === "720p hd" ||
-        normalizedResolution === "720phd"
+        normalizedResolution === "720phd" ||
+        normalizedResolution === "768p"
     ) {
 
         return normalizeNumber(
             model.credit_720p ??
             model.credit720p,
+            0
+        );
+
+    }
+
+
+    if (
+        normalizedResolution === "2k" ||
+        normalizedResolution === "1440p"
+    ) {
+
+        return normalizeNumber(
+            model.credit_1080p ??
+            model.credit1080p,
             0
         );
 

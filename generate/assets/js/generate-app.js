@@ -1619,6 +1619,12 @@ function normalizeResolution(
         ||
         resolution ===
             "480p"
+        ||
+        resolution ===
+            "576"
+        ||
+        resolution ===
+            "576p"
     ) {
 
         return "480p";
@@ -1631,6 +1637,15 @@ function normalizeResolution(
         ||
         resolution ===
             "720p"
+        ||
+        resolution ===
+            "720phd"
+        ||
+        resolution ===
+            "768"
+        ||
+        resolution ===
+            "768p"
     ) {
 
         return "720p";
@@ -1643,6 +1658,15 @@ function normalizeResolution(
         ||
         resolution ===
             "1080p"
+        ||
+        resolution ===
+            "2k"
+        ||
+        resolution ===
+            "1440"
+        ||
+        resolution ===
+            "1440p"
     ) {
 
         return "1080p";
