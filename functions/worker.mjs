@@ -13,6 +13,8 @@ import generate from "../api/generate.js";
 import kieConfig from "../api/kie-config.js";
 import modelConfig from "../api/model-config.js";
 import openkeyChat from "../api/openkey-chat.js";
+import opusOAuthLogin from "../api/opus-oauth-login.js";
+import opusOAuthCallback from "../api/opus-oauth-callback.js";
 import sightengineDetect from "../api/sightengine-detect.js";
 import socialPublisher from "../api/social-publisher.js";
 import facebookDataDeletion from "../api/facebook-data-deletion.js";
@@ -38,6 +40,9 @@ const handlers = new Map([
     ["/api/kie-config", kieConfig],
     ["/api/model-config", modelConfig],
     ["/api/openkey-chat", openkeyChat],
+    // Login OAuth Opus lewat browser (tanpa Termux / Node.js).
+    ["/api/opus-oauth-login", opusOAuthLogin],
+    ["/api/opus-oauth-callback", opusOAuthCallback],
     ["/api/sightengine-detect", sightengineDetect],
     ["/api/social-publisher", socialPublisher],
     ["/api/facebook-oauth-callback", socialPublisher],

@@ -23,6 +23,11 @@
      pkg install -y nodejs-lts
      curl -fsSL https://raw.githubusercontent.com/sugionoofficial/GEN-Z.AI/main/scripts/opus-login.mjs -o opus-login.mjs
      node opus-login.mjs
+
+   TANPA Termux / tanpa Node.js (cukup browser HP):
+     https://genzai.genzai-f37.workers.dev/api/opus-oauth-login
+     (?slot=2 / ?slot=3 untuk akun kedua & ketiga)
+     Endpoint worker: api/opus-oauth-login.js + api/opus-oauth-callback.js
    ========================================================= */
 
 import http from "node:http";
