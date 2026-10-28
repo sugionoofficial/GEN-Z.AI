@@ -94,7 +94,7 @@ import {
     renderQuoteStoryCard,
     STORY_MAX_DURATION_FEED_REELS_SEC
 } from "../lib/social-publisher/story-video.js";
-import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
+import { stripImageMetadataBytes } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 import { describeApiFailure, loggableErrorDetails } from "../lib/social-publisher/api-error.js";
 
 const GRAPH_VERSION = "v26.0";
@@ -3071,15 +3071,16 @@ async function generateManualPost(config, userId, env, body = {}) {
                 console.error("Could not record QwenCloud model usage:", recordError?.message || "unknown error");
             });
         }
-        const cleanedBlob = await stripImageMetadata(
+        const stripped = stripImageMetadataBytes(
             generated.bytes,
             generated.mimeType
         );
-        const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+        const cleanedBytes = stripped.bytes;
+        const cleanedMimeType = stripped.mimeType;
         const contextualCaption = await generateSocialContextCaption({
             env,
             imageBytes: cleanedBytes,
-            imageMimeType: cleanedBlob.type,
+            imageMimeType: cleanedMimeType,
             characterName: character.display_name,
             scene,
             imageProvider,
@@ -3118,7 +3119,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             status: "preview",
             page_name: page.page_name,
             image_base64: bytesToBase64(cleanedBytes),
-            image_mime_type: cleanedBlob.type,
+            image_mime_type: cleanedMimeType,
             image_model: generated.model,
             ...(imageNote ? { image_note: imageNote } : {}),
             aspect_ratio: effectiveAspectRatio,
@@ -3231,15 +3232,14 @@ async function publishManualPost(req, res, config, userId, env) {
                 target: quoteTarget
             });
         } else {
-            const cleanedBlob = await stripImageMetadata(payloadBytes, imageMimeType);
-            const cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+            const stripped = stripImageMetadataBytes(payloadBytes, imageMimeType);
             published = await publishFacebookPhoto({
                 env,
                 pageId: page.page_id,
                 pageAccessToken,
                 caption: run.caption,
-                imageBytes: cleanedBytes,
-                imageMimeType: cleanedBlob.type
+                imageBytes: stripped.bytes,
+                imageMimeType: stripped.mimeType
             });
         }
         const profileShareUrl = makeProfileShareUrl(published.permalinkUrl);

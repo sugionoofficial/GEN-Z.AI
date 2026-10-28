@@ -15,9 +15,6 @@ run_worker_first = ["/api/*"]
 [ai]
 binding = "AI"
 
-[limits]
-cpu_ms = 300000
-
 [triggers]
 crons = ["* * * * *"]
 

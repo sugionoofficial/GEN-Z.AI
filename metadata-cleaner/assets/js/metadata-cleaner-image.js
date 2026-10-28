@@ -268,6 +268,70 @@ function canvasToBlob(
    STRIP IMAGE METADATA
 ========================================================= */
 
+function concatByteChunks(chunks, originalInput) {
+    if (chunks.length === 1) {
+        return chunks[0];
+    }
+    let total = 0;
+    for (let i = 0; i < chunks.length; i += 1) {
+        total += chunks[i].byteLength;
+    }
+    if (originalInput && total === originalInput.byteLength && chunks.length <= 2) {
+        /* Cek apakah semua chunk berurutan persis di buffer asli tanpa celah yang dibuang */
+        let contiguous = true;
+        let expectedOffset = originalInput.byteOffset;
+        for (let i = 0; i < chunks.length; i += 1) {
+            if (chunks[i].buffer !== originalInput.buffer || chunks[i].byteOffset !== expectedOffset) {
+                contiguous = false;
+                break;
+            }
+            expectedOffset += chunks[i].byteLength;
+        }
+        if (contiguous) return originalInput;
+    }
+    const merged = new Uint8Array(total);
+    let pos = 0;
+    for (let i = 0; i < chunks.length; i += 1) {
+        merged.set(chunks[i], pos);
+        pos += chunks[i].byteLength;
+    }
+    return merged;
+}
+
+function computeStrippedChunks(bytes, type) {
+    if (type === "image/jpeg") {
+        if (bytes.length < 4 || bytes[0] !== 0xFF || bytes[1] !== 0xD8) {
+            throw new Error("Struktur JPEG tidak valid; metadata tidak dapat dibersihkan.");
+        }
+        return { chunks: stripJPEGChunks(bytes), mimeType: "image/jpeg" };
+    }
+    if (type === "image/png") {
+        if (bytes.length < 8 || !matchesBytes(bytes, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], 0)) {
+            throw new Error("Struktur PNG tidak valid; metadata tidak dapat dibersihkan.");
+        }
+        return { chunks: stripPNGChunks(bytes), mimeType: "image/png" };
+    }
+    if (type === "image/webp") {
+        if (bytes.length < 12 || readASCII(bytes, 0, 4) !== "RIFF" || readASCII(bytes, 8, 4) !== "WEBP") {
+            throw new Error("Struktur WebP tidak valid; metadata tidak dapat dibersihkan.");
+        }
+        return { chunks: stripWebPChunks(bytes), mimeType: "image/webp" };
+    }
+    throw new Error("Format gambar tidak didukung untuk pembersihan metadata.");
+}
+
+export function stripImageMetadataBytes(input, type) {
+    if (!input || (!(input instanceof Uint8Array) && !(input instanceof ArrayBuffer))) {
+        throw new Error("File gambar tidak tersedia untuk pembersihan metadata.");
+    }
+    const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+    const { chunks, mimeType } = computeStrippedChunks(bytes, type);
+    return {
+        bytes: concatByteChunks(chunks, bytes),
+        mimeType
+    };
+}
+
 export async function stripImageMetadata(
     blob,
     type = blob?.type
@@ -276,49 +340,12 @@ export async function stripImageMetadata(
         throw new Error("File gambar tidak tersedia untuk pembersihan metadata.");
     }
 
-    const buffer = blob instanceof Uint8Array || blob instanceof ArrayBuffer
+    const bytes = blob instanceof Uint8Array
         ? blob
-        : await blob.arrayBuffer();
+        : new Uint8Array(blob instanceof ArrayBuffer ? blob : await blob.arrayBuffer());
 
-    if (
-        type === "image/jpeg"
-    ) {
-        const bytes = new Uint8Array(buffer);
-        if (bytes.length < 4 || bytes[0] !== 0xFF || bytes[1] !== 0xD8) {
-            throw new Error("Struktur JPEG tidak valid; metadata tidak dapat dibersihkan.");
-        }
-        return stripJPEGMetadata(
-            buffer
-        );
-    }
-
-
-    if (
-        type === "image/png"
-    ) {
-        const bytes = new Uint8Array(buffer);
-        if (bytes.length < 8 || !matchesBytes(bytes, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], 0)) {
-            throw new Error("Struktur PNG tidak valid; metadata tidak dapat dibersihkan.");
-        }
-        return stripPNGMetadata(
-            buffer
-        );
-    }
-
-
-    if (
-        type === "image/webp"
-    ) {
-        const bytes = new Uint8Array(buffer);
-        if (bytes.length < 12 || readASCII(bytes, 0, 4) !== "RIFF" || readASCII(bytes, 8, 4) !== "WEBP") {
-            throw new Error("Struktur WebP tidak valid; metadata tidak dapat dibersihkan.");
-        }
-        return stripWebPMetadata(
-            buffer
-        );
-    }
-
-    throw new Error("Format gambar tidak didukung untuk pembersihan metadata.");
+    const { chunks, mimeType } = computeStrippedChunks(bytes, type);
+    return new Blob(chunks, { type: mimeType });
 }
 
 
@@ -361,15 +388,9 @@ export async function stripImageMetadata(
  * HARUS dipertahankan.
  */
 
-function stripJPEGMetadata(
-    buffer
+function stripJPEGChunks(
+    input
 ) {
-
-    const input =
-        new Uint8Array(
-            buffer
-        );
-
 
     if (
         input.length < 4 ||
@@ -377,23 +398,12 @@ function stripJPEGMetadata(
         input[1] !== 0xD8
     ) {
 
-        return new Blob(
-            [
-                buffer
-            ],
-            {
-                type:
-                    "image/jpeg"
-            }
-        );
+        return [input];
     }
 
 
     const chunks = [
-        new Uint8Array([
-            0xFF,
-            0xD8
-        ])
+        input.subarray(0, 2)
     ];
 
 
@@ -615,13 +625,7 @@ function stripJPEGMetadata(
     }
 
 
-    return new Blob(
-        chunks,
-        {
-            type:
-                "image/jpeg"
-        }
-    );
+    return chunks;
 }
 
 
@@ -658,15 +662,9 @@ function stripJPEGMetadata(
  * tetap dipertahankan.
  */
 
-function stripPNGMetadata(
-    buffer
+function stripPNGChunks(
+    input
 ) {
-
-    const input =
-        new Uint8Array(
-            buffer
-        );
-
 
     const signature =
         [
@@ -690,15 +688,7 @@ function stripPNGMetadata(
         )
     ) {
 
-        return new Blob(
-            [
-                buffer
-            ],
-            {
-                type:
-                    "image/png"
-            }
-        );
+        return [input];
     }
 
 
@@ -813,13 +803,7 @@ function stripPNGMetadata(
     }
 
 
-    return new Blob(
-        chunks,
-        {
-            type:
-                "image/png"
-        }
-    );
+    return chunks;
 }
 
 
@@ -840,15 +824,9 @@ function stripPNGMetadata(
  * VP8 / VP8L / VP8X tetap dipertahankan.
  */
 
-function stripWebPMetadata(
-    buffer
+function stripWebPChunks(
+    input
 ) {
-
-    const input =
-        new Uint8Array(
-            buffer
-        );
-
 
     if (
         input.length < 12 ||
@@ -864,15 +842,7 @@ function stripWebPMetadata(
         ) !== "WEBP"
     ) {
 
-        return new Blob(
-            [
-                buffer
-            ],
-            {
-                type:
-                    "image/webp"
-            }
-        );
+        return [input];
     }
 
 
@@ -1002,13 +972,7 @@ function stripWebPMetadata(
     );
 
 
-    return new Blob(
-        chunks,
-        {
-            type:
-                "image/webp"
-        }
-    );
+    return chunks;
 }
 
 

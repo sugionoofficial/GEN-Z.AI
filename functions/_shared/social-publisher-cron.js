@@ -5,7 +5,7 @@ import { createSignedReferenceUrl, downloadModelReference, downloadReferenceObje
 import { encodeStoryMp4, maxQuoteVideoDurationForTarget, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
 import { normalizeQwenCloudImageModel, normalizeQwenCloudLlmModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
 import { normalizeOpusImageModel, resolveOpusAspectRatio } from "../../lib/social-publisher/opus.js";
-import { stripImageMetadata } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
+import { stripImageMetadataBytes } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
 function value(env, key) {
     const processValue = typeof process !== "undefined" ? process.env?.[key] : "";
@@ -459,7 +459,7 @@ async function processRun(env, config, claimedRun) {
         let scenePlanRecord = null;
         let prompt = "";
         let generated = null;
-        let cleanedBlob = null;
+        let cleanedMimeType = "";
         let cleanedBytes = null;
         let storyMp4Bytes = null;
         let caption = "";
@@ -633,15 +633,16 @@ async function processRun(env, config, claimedRun) {
                 });
             }
 
-            cleanedBlob = await stripImageMetadata(
+            const stripped = stripImageMetadataBytes(
                 generated.bytes,
                 generated.mimeType
             );
-            cleanedBytes = new Uint8Array(await cleanedBlob.arrayBuffer());
+            cleanedBytes = stripped.bytes;
+            cleanedMimeType = stripped.mimeType;
             const contextualCaption = await generateSocialContextCaption({
                 env,
                 imageBytes: cleanedBytes,
-                imageMimeType: cleanedBlob.type,
+                imageMimeType: cleanedMimeType,
                 characterName: character.display_name,
                 scene,
                 imageProvider,
@@ -687,7 +688,7 @@ async function processRun(env, config, claimedRun) {
                 pageAccessToken,
                 caption,
                 imageBytes: cleanedBytes,
-                imageMimeType: cleanedBlob.type
+                imageMimeType: cleanedMimeType
             });
         const profileShareUrl = makeProfileShareUrl(published.permalinkUrl);
 
