@@ -20,8 +20,16 @@ import {
 
 import {
     collectOpusCredentialEntries,
-    resolveOpusApiKeyPoolPayload
+    resetOpusTokenCache,
+    resolveOpusApiKeyPoolPayload,
+    resolveOpusBearerToken
 } from "../lib/social-publisher/opus.js";
+
+import {
+    computeOpusSeedHash,
+    resolveOpusOAuthTokenWithVault,
+    writePersistedOpusTokenState
+} from "../provider/opus/oauth-vault.js";
 
 import {
     isOpusModel,
@@ -2453,6 +2461,290 @@ test("Multi-API-Key Opus: anti-collision JWT header, variasi nama secret Cloudfl
         resetOpusKeyRotation();
     }
 });
+
+test("WorkOS single-use rotating refresh_token bertahan melintasi pergantian isolate Worker berkat brankas terenkripsi opus_oauth_tokens", async () => {
+    resetOpusKeyRotation();
+    resetOpusTokenCache();
+    const originalFetch = globalThis.fetch;
+
+    /* Tabel mock Supabase public.opus_oauth_tokens (seed_hash -> row) */
+    const supabaseVaultTable = new Map();
+    const consumedRefreshTokens = new Set();
+    let oauthExchangeCalls = 0;
+
+    const workerEnv = {
+        SUPABASE_URL: "https://vault-test.supabase.local",
+        SUPABASE_SERVICE_ROLE_KEY: "srv-role-test",
+        PROVIDER_CREDENTIAL_KEY: btoa("v".repeat(32)),
+        OPUS_AUTH_TOKEN: JSON.stringify({
+            access_token: "initial-expired-at-0",
+            refresh_token: "seed-rt-0",
+            client_id: "client_workos_opus",
+            expires_at: Math.floor((Date.now() - 300_000) / 1000),
+            token_endpoint: "https://focused-horizon-38.authkit.app/oauth2/token"
+        })
+    };
+
+    /* Peta rotasi ketat single-use WorkOS: RT_0 -> RT_1 -> RT_2 */
+    let rt1ExpiresInSec = 3600;
+    const rotationChain = new Map([
+        ["seed-rt-0", { nextAt: "rotated-at-1", nextRt: "rotated-rt-1" }],
+        ["rotated-rt-1", { nextAt: "rotated-at-2", nextRt: "rotated-rt-2" }]
+    ]);
+
+    const seenMcpBearerTokens = [];
+
+    globalThis.fetch = async (input, init = {}) => {
+        const url = typeof input === "string" ? input : input.url;
+        const method = String(init.method || "GET").toUpperCase();
+
+        /* Mock PostgREST public.opus_oauth_tokens */
+        if (url.startsWith("https://vault-test.supabase.local/rest/v1/opus_oauth_tokens")) {
+            if (method === "GET") {
+                const parsedUrl = new URL(url);
+                const eqFilter = parsedUrl.searchParams.get("seed_hash") || "";
+                const hash = eqFilter.replace(/^eq\./, "");
+                const row = supabaseVaultTable.get(hash);
+                return new Response(JSON.stringify(row ? [row] : []), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" }
+                });
+            }
+            if (method === "POST") {
+                const payload = JSON.parse(String(init.body || "{}"));
+                supabaseVaultTable.set(payload.seed_hash, payload);
+                return new Response("", { status: 201 });
+            }
+        }
+
+        /* Mock WorkOS /oauth2/token dengan aturan single-use ketat */
+        if (url === "https://focused-horizon-38.authkit.app/oauth2/token") {
+            oauthExchangeCalls += 1;
+            const form = new URLSearchParams(String(init.body || ""));
+            const submittedRt = form.get("refresh_token") || "";
+
+            if (consumedRefreshTokens.has(submittedRt) || !rotationChain.has(submittedRt)) {
+                return new Response(
+                    JSON.stringify({
+                        error: "invalid_grant",
+                        error_description: "Refresh token has already been used or revoked."
+                    }),
+                    { status: 400, headers: { "Content-Type": "application/json" } }
+                );
+            }
+
+            consumedRefreshTokens.add(submittedRt);
+            const step = rotationChain.get(submittedRt);
+            return new Response(
+                JSON.stringify({
+                    access_token: step.nextAt,
+                    refresh_token: step.nextRt,
+                    expires_in: rt1ExpiresInSec
+                }),
+                { status: 200, headers: { "Content-Type": "application/json" } }
+            );
+        }
+
+        /* Mock Opus MCP */
+        if (url === "https://labs.opus.pro/opus-video-tools/mcp") {
+            const authHeader = String(init.headers?.Authorization || init.headers?.authorization || "");
+            const bearer = authHeader.replace(/^Bearer\s+/i, "");
+
+            /* Bila Isolate #3 mencoba memakai rotated-at-1 yang sudah kedaluwarsa di sisi MCP -> balas 401 agar memicu forceRefresh */
+            if (bearer === "expired-at-1") {
+                return new Response(JSON.stringify({ error: "token_expired" }), { status: 401 });
+            }
+
+            seenMcpBearerTokens.push(bearer);
+            const rpc = JSON.parse(String(init.body || "{}"));
+            if (rpc.method === "initialize") {
+                return new Response(
+                    JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: rpc.id,
+                        result: { protocolVersion: "2025-03-26", serverInfo: { name: "opus" } }
+                    }),
+                    { status: 200, headers: { "Content-Type": "application/json" } }
+                );
+            }
+            if (rpc.method === "notifications/initialized") {
+                return new Response("", { status: 204 });
+            }
+            if (rpc.method === "tools/list") {
+                return new Response(
+                    JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: rpc.id,
+                        result: {
+                            tools: [
+                                { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+                                { name: "generate_video_clips", inputSchema: { type: "object", properties: { projectId: { type: "string" }, prompt: { type: "string" } } } }
+                            ]
+                        }
+                    }),
+                    { status: 200, headers: { "Content-Type": "application/json" } }
+                );
+            }
+            if (rpc.method === "tools/call") {
+                if (rpc.params.name === "create_project") {
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: rpc.id,
+                            result: { structuredContent: { projectId: "proj_vault_ok" } }
+                        }),
+                        { status: 200, headers: { "Content-Type": "application/json" } }
+                    );
+                }
+                if (rpc.params.name === "generate_video_clips") {
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: rpc.id,
+                            result: { structuredContent: { projectId: "proj_vault_ok", jobId: "job_vault_ok", status: "queued" } }
+                        }),
+                        { status: 200, headers: { "Content-Type": "application/json" } }
+                    );
+                }
+            }
+        }
+
+        throw new Error(`Unexpected fetch URL in vault test: ${url}`);
+    };
+
+    try {
+        const t2vModel = getOpusVideoModel("opus-seedance-2.5-t2v");
+        const poolPayload = await resolveOpusApiKeyPoolPayload(workerEnv);
+
+        /* 1. Isolate #1: AT_0 sudah expired -> tukar seed-rt-0 menjadi rotated-at-1 + rotated-rt-1, simpan terenkripsi ke Supabase */
+        await t2vModel.createTask(
+            { prompt: "Kota futuristik malam hari", aspect_ratio: "16:9", resolution: "720p", duration: "5" },
+            poolPayload,
+            { env: workerEnv }
+        );
+        assert.equal(oauthExchangeCalls, 1);
+        assert.ok(seenMcpBearerTokens.includes("rotated-at-1"));
+        assert.equal(supabaseVaultTable.size, 1, "Token hasil rotasi wajib tersimpan di tabel opus_oauth_tokens");
+
+        /* Pastikan ciphertext di database benar-benar terenkripsi AES-256-GCM (tidak bocor plaintext) */
+        const [storedRow] = [...supabaseVaultTable.values()];
+        assert.ok(!storedRow.token_ciphertext.includes("rotated-rt-1"));
+        assert.ok(!storedRow.token_ciphertext.includes("rotated-at-1"));
+
+        /* 2. Simulasi Isolate #1 dimatikan oleh Cloudflare setelah idle 20 menit (RAM kosong total!) */
+        resetOpusKeyRotation();
+        resetOpusTokenCache();
+        seenMcpBearerTokens.length = 0;
+
+        /* Isolate #2 bangun dengan Cloudflare Secret yang MASIH berisi seed-rt-0 (yang sudah hangus di WorkOS!),
+           tetapi berhasil membaca rotated-at-1 yang masih segar langsung dari Supabase tanpa menembak WorkOS */
+        await t2vModel.createTask(
+            { prompt: "Pantai tropis pagi hari", aspect_ratio: "16:9", resolution: "720p", duration: "5" },
+            poolPayload,
+            { env: workerEnv }
+        );
+        assert.equal(oauthExchangeCalls, 1, "Isolate #2 langsung memakai access_token segar dari brankas DB tanpa memanggil WorkOS");
+        assert.ok(seenMcpBearerTokens.includes("rotated-at-1"));
+
+        /* 3. Simulasi 1 jam kemudian: Isolate #2 juga mati DAN access_token di DB sudah kedaluwarsa.
+           Studio Medsos (resolveOpusBearerToken) bangun di Isolate #3 -> membaca rotated-rt-1 dari DB -> menukar ke rotated-at-2 + rotated-rt-2! */
+        const seedHash = await computeOpusSeedHash({
+            tokenEndpoint: "https://focused-horizon-38.authkit.app/oauth2/token",
+            clientId: "client_workos_opus",
+            seedRefreshToken: "seed-rt-0"
+        });
+        await writePersistedOpusTokenState(workerEnv, seedHash, {
+            accessToken: "expired-at-1",
+            refreshToken: "rotated-rt-1",
+            expiresAtMs: Date.now() - 10_000
+        });
+        resetOpusKeyRotation();
+        resetOpusTokenCache();
+
+        const socialResolved = await resolveOpusBearerToken(workerEnv);
+        assert.equal(socialResolved.token, "rotated-at-2", "Isolate #3 sukses memakai rotated-rt-1 dari DB tanpa terkena 400 invalid_grant");
+        assert.equal(oauthExchangeCalls, 2);
+    } finally {
+        globalThis.fetch = originalFetch;
+        resetOpusKeyRotation();
+        resetOpusTokenCache();
+    }
+});
+
+test("Cross-isolate race condition: ketika isolate lain baru saja memutar refresh_token beberapa milidetik lebih dulu, sistem pulih otomatis dari 400 invalid_grant lewat pembacaan ulang brankas DB", async () => {
+    resetOpusKeyRotation();
+    resetOpusTokenCache();
+    const originalFetch = globalThis.fetch;
+
+    const raceEnv = {
+        SUPABASE_URL: "https://race-vault.supabase.local",
+        SUPABASE_SERVICE_ROLE_KEY: "srv-race-test",
+        PROVIDER_CREDENTIAL_KEY: btoa("r".repeat(32))
+    };
+
+    const seedHash = await computeOpusSeedHash({
+        tokenEndpoint: "https://focused-horizon-38.authkit.app/oauth2/token",
+        clientId: "client_race_opus",
+        seedRefreshToken: "seed-race-0"
+    });
+
+    let vaultReads = 0;
+    let currentVaultRow = null;
+
+    globalThis.fetch = async (input, init = {}) => {
+        const url = typeof input === "string" ? input : input.url;
+        const method = String(init.method || "GET").toUpperCase();
+
+        if (url.startsWith("https://race-vault.supabase.local/rest/v1/opus_oauth_tokens")) {
+            if (method === "GET") {
+                vaultReads += 1;
+                return new Response(JSON.stringify(currentVaultRow ? [currentVaultRow] : []), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" }
+                });
+            }
+            if (method === "POST") {
+                currentVaultRow = JSON.parse(String(init.body || "{}"));
+                return new Response("", { status: 201 });
+            }
+        }
+
+        if (url === "https://focused-horizon-38.authkit.app/oauth2/token") {
+            /* Simulasikan Isolate A menang duluan tepat sebelum Isolate B sampai ke WorkOS:
+               Isolate A menyimpan token segar ke DB, sementara Isolate B mendapat 400 invalid_grant */
+            await writePersistedOpusTokenState(raceEnv, seedHash, {
+                accessToken: "winner-isolate-fresh-at",
+                refreshToken: "winner-isolate-fresh-rt",
+                expiresAtMs: Date.now() + 3600_000
+            });
+            return new Response(
+                JSON.stringify({ error: "invalid_grant" }),
+                { status: 400, headers: { "Content-Type": "application/json" } }
+            );
+        }
+
+        throw new Error(`Unexpected URL in race test: ${url}`);
+    };
+
+    try {
+        const recovered = await resolveOpusOAuthTokenWithVault({
+            env: raceEnv,
+            tokenEndpoint: "https://focused-horizon-38.authkit.app/oauth2/token",
+            clientId: "client_race_opus",
+            accessToken: "expired-seed-at",
+            refreshToken: "seed-race-0",
+            expiresAtMs: Date.now() - 120_000
+        });
+
+        assert.equal(recovered.accessToken, "winner-isolate-fresh-at");
+        assert.ok(vaultReads >= 2, "Wajib membaca ulang brankas DB setelah menerima invalid_grant akibat balapan lintas isolate");
+    } finally {
+        globalThis.fetch = originalFetch;
+        resetOpusKeyRotation();
+        resetOpusTokenCache();
+    }
+});
+
 
 
 
