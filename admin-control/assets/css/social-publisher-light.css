@@ -882,3 +882,242 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .quote-mode-note {
     color: #144960 !important;
 }
 
+/* =========================================================
+   19. MASTER SWITCH 3-STATUS & COLLAPSIBLE STUDIO CARDS
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .state.maintenance {
+    border-color: #eab308 !important;
+    background: #fef9c3 !important;
+    color: #854d0e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-card {
+    border-color: #d6e0ee !important;
+    background: linear-gradient(135deg, #ffffff, #f6f9fe) !important;
+    box-shadow: 0 10px 24px rgba(30, 45, 74, .06) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-card[data-master-status="active"] {
+    border-color: #7adbb0 !important;
+    background: linear-gradient(135deg, #edfcf4, #ffffff 65%) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-card[data-master-status="off"] {
+    border-color: #f5a3b1 !important;
+    background: linear-gradient(135deg, #fff1f3, #ffffff 65%) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-card[data-master-status="maintenance"] {
+    border-color: #f4c430 !important;
+    background: linear-gradient(135deg, #fffbeb, #ffffff 65%) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-emblem {
+    background: #f3f6fc !important;
+    border-color: #d0dceb !important;
+    color: #2f3c52 !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-card[data-master-status="active"] .master-switch-emblem {
+    background: #def8ea !important;
+    border-color: #6fd8a8 !important;
+    color: #067647 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-card[data-master-status="off"] .master-switch-emblem {
+    background: #ffe4e8 !important;
+    border-color: #f59eae !important;
+    color: #b42318 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-card[data-master-status="maintenance"] .master-switch-emblem {
+    background: #fef3c7 !important;
+    border-color: #f3c64f !important;
+    color: #92400e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-kicker {
+    color: #0f1b2d !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-role-tag {
+    background: #eef2fa !important;
+    border-color: #cbd5e4 !important;
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-desc {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-status-pill.is-active {
+    border-color: #16a34a !important;
+    background: #dcfce7 !important;
+    color: #065f46 !important;
+    box-shadow: 0 4px 14px rgba(22, 163, 74, .18) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-status-pill.is-active .master-status-dot {
+    background: #16a34a !important;
+    box-shadow: 0 0 8px rgba(22, 163, 74, .65) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-status-pill.is-off {
+    border-color: #dc2626 !important;
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    box-shadow: 0 4px 14px rgba(220, 38, 38, .16) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-status-pill.is-off .master-status-dot {
+    background: #dc2626 !important;
+    box-shadow: 0 0 8px rgba(220, 38, 38, .6) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-status-pill.is-maintenance {
+    border-color: #d97706 !important;
+    background: #fef3c7 !important;
+    color: #92400e !important;
+    box-shadow: 0 4px 14px rgba(217, 119, 6, .18) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-status-pill.is-maintenance .master-status-dot {
+    background: #eab308 !important;
+    box-shadow: 0 0 8px rgba(234, 179, 8, .75) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-switch-controls {
+    background: #f1f5fb !important;
+    border-color: #cbd5e4 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-mode-btn {
+    color: #46536a !important;
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-mode-btn:hover {
+    background: #e3eaf6 !important;
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-mode-btn.tone-active.is-current {
+    background: #16a34a !important;
+    border-color: #15803d !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-mode-btn.tone-maintenance.is-current {
+    background: #facc15 !important;
+    border-color: #ca8a04 !important;
+    color: #422006 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .master-mode-btn.tone-off.is-current {
+    background: #dc2626 !important;
+    border-color: #b91c1c !important;
+    color: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .card.studio-collapsible {
+    padding: 0 !important;
+    border: 1px solid #d8e1ef !important;
+    background: #ffffff !important;
+    box-shadow: 0 12px 28px rgba(40, 54, 82, .07) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .card.studio-collapsible:not(.is-expanded):hover {
+    border-color: #9f94f0 !important;
+    box-shadow: 0 16px 34px rgba(91, 75, 214, .12) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .card.studio-collapsible.is-expanded {
+    border-color: #8a7ef0 !important;
+    box-shadow: 0 18px 40px rgba(40, 54, 82, .11) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-trigger {
+    background: transparent !important;
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-trigger:hover {
+    background: linear-gradient(90deg, rgba(91, 75, 214, .06), rgba(14, 116, 144, .04) 70%, transparent) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .card.studio-collapsible.is-expanded .studio-collapse-trigger {
+    border-bottom: 1px solid #e2e8f1 !important;
+    background: linear-gradient(90deg, rgba(91, 75, 214, .08), #f8fafd 72%) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-icon {
+    background: #f0edff !important;
+    border-color: #c7bef8 !important;
+    color: #4b3ac4 !important;
+    box-shadow: none !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-icon.accent-cyan {
+    background: #e6f7fb !important;
+    border-color: #9bd7ea !important;
+    color: #0e7490 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-icon.accent-emerald {
+    background: #e7faf1 !important;
+    border-color: #9ae0be !important;
+    color: #0a6b3f !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-icon.accent-amber {
+    background: #fef6df !important;
+    border-color: #f0d078 !important;
+    color: #92400e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-icon.accent-indigo {
+    background: #edf0ff !important;
+    border-color: #b7c2fa !important;
+    color: #3730a3 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-eyebrow {
+    color: #526077 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-meta {
+    background: #f2f0ff !important;
+    border-color: #cbc4f7 !important;
+    color: #4636bd !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .card.studio-collapsible:not(.is-expanded) .studio-collapse-copy .sub {
+    color: #526077 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-chip {
+    background: #f5f7fc !important;
+    border-color: #cbd5e4 !important;
+    color: #2f3c52 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-collapse-trigger:hover .studio-collapse-chip,
+html[data-genz-theme="light"][data-genz-theme="light"] body .card.studio-collapsible.is-expanded .studio-collapse-chip {
+    background: #eef0ff !important;
+    border-color: #6a5ae6 !important;
+    color: #3d32b5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-body-toolbar {
+    background: #f6f8fd !important;
+    border-color: #dce4f0 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .studio-body-toolbar-note {
+    color: #46536a !important;
+}
+
+

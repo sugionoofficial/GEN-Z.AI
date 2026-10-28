@@ -442,6 +442,19 @@
         .view-body{margin-top:8px;padding:12px 14px;border:1px dashed var(--border);border-radius:12px;background:rgba(8,19,30,.55);color:var(--muted);font-size:11px;line-height:1.65}
         .view-body strong{color:#cfe0f5}
         .view-body code{font-size:10px}
+        .set-master-card{margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-left:4px solid #ff6d7f}
+        .set-master-card[data-status="active"]{border-left-color:#40d39d;border-color:rgba(64,211,157,.42)}
+        .set-master-card[data-status="maintenance"]{border-left-color:#facc15;border-color:rgba(250,204,21,.45)}
+        .set-master-card[data-status="off"]{border-left-color:#ff6d7f;border-color:rgba(255,109,127,.42)}
+        .set-master-actions{display:inline-flex;gap:8px;flex-wrap:wrap;align-items:center}
+        .set-master-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;border:1px solid #45536a;background:#0d1725}
+        .set-master-pill.is-active{color:#5ef5b8;border-color:#2ecf96;background:rgba(16,71,55,.85)}
+        .set-master-pill.is-maintenance{color:#ffe066;border-color:#eab308;background:rgba(79,59,13,.85)}
+        .set-master-pill.is-off{color:#ff7a8d;border-color:#e04f67;background:rgba(77,27,40,.85)}
+        .set-master-btn.is-current.tone-active{background:rgba(34,197,94,.22);border-color:#34d399;color:#6ef7be}
+        .set-master-btn.is-current.tone-maintenance{background:rgba(234,179,8,.22);border-color:#facc15;color:#ffe066}
+        .set-master-btn.is-current.tone-off{background:rgba(244,63,94,.22);border-color:#fb7185;color:#ff8fa0}
+        .btn.is-confirming,.btn.is-confirming:hover{background:linear-gradient(135deg,#4ef08a 0%,#22c55e 52%,#12b76a 100%)!important;border-color:#b6ffd0!important;color:#04260f!important;font-weight:900}
         @media (max-width:600px){.price-settings-row{justify-content:stretch;gap:8px}.price-settings-row .btn{flex:1 1 auto}}
     </style>
 
@@ -459,6 +472,19 @@
             </div>
             <a class="back" href="./admin-panel.html">← Kembali ke Admin Panel</a>
         </header>
+
+        <section id="set-master-card" class="card set-master-card" data-status="off" aria-labelledby="set-master-title">
+            <div>
+                <h2 id="set-master-title" style="margin:0;font-size:16px">Master Switch Studio Medsos</h2>
+                <p id="set-master-desc" class="small muted" style="margin:5px 0 0">Atur tanda status global yang tampil pada halaman Studio Medsos milik seluruh user (ACTIVE hijau, MAINTENANCE kuning, atau OFF merah).</p>
+            </div>
+            <div class="set-master-actions">
+                <span id="set-master-pill" class="set-master-pill is-off">OFF</span>
+                <button id="set-master-active" class="btn set-master-btn tone-active" type="button">ACTIVE</button>
+                <button id="set-master-maintenance" class="btn set-master-btn tone-maintenance" type="button">MAINTENANCE</button>
+                <button id="set-master-off" class="btn set-master-btn tone-off is-current" type="button">OFF</button>
+            </div>
+        </section>
 
         <section class="card panel-grid">
             <div>
@@ -816,6 +842,6 @@
     <script src="/navigation/navigation.js?v=deep-black-bg-20261027"></script>
     <script type="module" src="./assets/js/http-failure.js?v=http-failure-20261026"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script src="./studio-medsos-set.js?v=opus-gpt25-20261027"></script>
+    <script src="./studio-medsos-set.js?v=opus-gpt25-master-20261028"></script>
 </body>
 </html>
