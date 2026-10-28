@@ -360,6 +360,6 @@ test("halaman History memuat versi modul terbaru", () => {
     );
     assert.match(
         historyHtml,
-        /history-modal\.js\?v=20261026-expiry-result-only/
+        /history-modal\.js\?v=20261029-download-toast/
     );
 });
