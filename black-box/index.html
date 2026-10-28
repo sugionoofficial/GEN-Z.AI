@@ -64,7 +64,7 @@
 
     <link
         rel="stylesheet"
-        href="./assets/css/black-box.css?v=black-box-20261029"
+        href="./assets/css/black-box.css?v=admin-guard-20261029"
     >
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -75,11 +75,11 @@
 
 </head>
 
-<body class="bb-body">
+<body class="bb-body bb-guard-pending">
 
 <div id="navigation"></div>
 
-<main class="bb-page">
+<main class="bb-page" id="bbPage" aria-busy="true">
 
     <!-- =====================================================
          HERO
@@ -265,11 +265,253 @@
 </main>
 
 <!-- =====================================================
+     GATE — PEMUATAN & PENOLAKAN AKSES
+     ---------------------------------------------
+     Halaman ini HANYA untuk role admin / owner.
+     Konten disembunyikan sejak awal (body.bb-guard-pending)
+     dan baru ditampilkan setelah navigation.js memastikan
+     role pengguna. Role selain admin/owner tidak pernah
+     melihat tombol pintas.
+====================================================== -->
+
+<div
+    class="bb-gate"
+    id="bbLoader"
+    role="status"
+    aria-live="polite"
+>
+
+    <span class="bb-gate-spinner" aria-hidden="true"></span>
+
+    <p class="bb-gate-text" id="bbLoaderText">
+        MEMVERIFIKASI AKSES…
+    </p>
+
+</div>
+
+<div
+    class="bb-gate bb-gate--denied"
+    id="bbDenied"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="bbDeniedTitle"
+    hidden
+>
+
+    <div class="bb-denied-card">
+
+        <span class="bb-denied-icon" aria-hidden="true">
+
+            <svg
+                width="26"
+                height="26"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <rect x="4" y="10" width="16" height="10" rx="2.5"></rect>
+                <path d="M8 10V7.5a4 4 0 0 1 8 0V10"></path>
+                <path d="M12 14v3"></path>
+            </svg>
+
+        </span>
+
+        <h2 class="bb-denied-title" id="bbDeniedTitle">
+            AKSES DITOLAK
+        </h2>
+
+        <p class="bb-denied-text">
+            BLACK BOX hanya dapat dibuka oleh role
+            <strong>ADMIN</strong> atau <strong>OWNER</strong>.
+        </p>
+
+        <p class="bb-denied-meta">
+            Role akun Anda: <b id="bbDeniedRole">USER</b>
+        </p>
+
+        <p class="bb-denied-redirect">
+            Mengalihkan ke Dashboard dalam
+            <b id="bbDeniedCountdown">4</b> detik…
+        </p>
+
+        <a class="bb-denied-link" href="/user/dashboard.html">
+            KEMBALI KE DASHBOARD
+        </a>
+
+    </div>
+
+</div>
+
+<!-- =====================================================
      SHARED NAVIGATION (memuat theme.js otomatis:
      toggle mode cerah/gelap + pratinjau mode HP)
 ====================================================== -->
 
 <script src="/navigation/navigation.js?v=deep-black-bg-20261027"></script>
+
+<!-- =====================================================
+     GUARD — ADMIN / OWNER SAJA
+     navigation.js tetap menjadi sumber kebenaran role
+     (profiles.role -> window.GENZ_NAVIGATION_ROLE).
+====================================================== -->
+
+<script>
+
+(function () {
+
+    "use strict";
+
+    var BODY = document.body;
+    var PAGE = document.getElementById("bbPage");
+    var LOADER = document.getElementById("bbLoader");
+    var LOADER_TEXT = document.getElementById("bbLoaderText");
+    var DENIED = document.getElementById("bbDenied");
+    var DENIED_ROLE = document.getElementById("bbDeniedRole");
+    var COUNTDOWN = document.getElementById("bbDeniedCountdown");
+
+    var DASHBOARD_PATH = "/user/dashboard.html";
+    var REDIRECT_DELAY_MS = 4000;
+
+    function readRole() {
+
+        var globalRole =
+            String(window.GENZ_NAVIGATION_ROLE || "")
+                .trim()
+                .toLowerCase();
+
+        if (globalRole) return globalRole;
+
+        try {
+            if (
+                window.GENZNavigation &&
+                typeof window.GENZNavigation.getRole === "function"
+            ) {
+                return String(
+                    window.GENZNavigation.getRole() || ""
+                )
+                    .trim()
+                    .toLowerCase();
+            }
+        } catch (error) {
+            /* abaikan, dianggap tanpa akses */
+        }
+
+        return "";
+    }
+
+    function hasAdminAccess(role) {
+        return role === "admin" || role === "owner";
+    }
+
+    function revealPage() {
+
+        BODY.classList.remove("bb-guard-pending");
+        BODY.classList.add("bb-guard-ready");
+
+        if (LOADER) LOADER.hidden = true;
+
+        if (PAGE) {
+            PAGE.removeAttribute("aria-busy");
+            PAGE.style.visibility = "";
+        }
+    }
+
+    function denyAccess(role) {
+
+        if (LOADER) LOADER.hidden = true;
+
+        if (DENIED_ROLE) {
+            DENIED_ROLE.textContent = (role || "user").toUpperCase();
+        }
+
+        BODY.classList.remove("bb-guard-pending");
+        BODY.classList.add("bb-guard-denied");
+
+        if (PAGE) {
+            PAGE.setAttribute("aria-hidden", "true");
+            PAGE.style.visibility = "hidden";
+        }
+
+        if (DENIED) {
+            DENIED.hidden = false;
+            DENIED.removeAttribute("aria-hidden");
+        }
+
+        var remaining = Math.round(REDIRECT_DELAY_MS / 1000);
+
+        if (COUNTDOWN) COUNTDOWN.textContent = String(remaining);
+
+        var timer = setInterval(function () {
+
+            remaining -= 1;
+
+            if (COUNTDOWN && remaining > 0) {
+                COUNTDOWN.textContent = String(remaining);
+            }
+
+            if (remaining <= 0) {
+                clearInterval(timer);
+                window.location.replace(DASHBOARD_PATH);
+            }
+
+        }, 1000);
+    }
+
+    async function start() {
+
+        /* Tanpa navigation.js halaman tetap tertutup (fail-closed). */
+
+        if (
+            !window.GENZNavigationReady ||
+            typeof window.GENZNavigationReady.then !== "function"
+        ) {
+            if (LOADER_TEXT) {
+                LOADER_TEXT.textContent =
+                    "Sesi tidak valid. Membuka halaman login…";
+            }
+            return;
+        }
+
+        var navigationReady = false;
+
+        try {
+            navigationReady = await window.GENZNavigationReady;
+        } catch (error) {
+            navigationReady = false;
+        }
+
+        /* navigation.js menangani redirect ke login bila belum login. */
+
+        if (navigationReady !== true) {
+            if (LOADER_TEXT) {
+                LOADER_TEXT.textContent =
+                    "Sesi tidak valid. Membuka halaman login…";
+            }
+            return;
+        }
+
+        var role = readRole();
+
+        if (hasAdminAccess(role)) {
+            revealPage();
+            return;
+        }
+
+        denyAccess(role);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", start, { once: true });
+    } else {
+        start();
+    }
+
+})();
+
+</script>
 
 <script src="/assets/js/support-chat.js?v=guest-session-20261026" defer></script>
 
