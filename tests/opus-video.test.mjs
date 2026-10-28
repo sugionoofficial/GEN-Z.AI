@@ -2225,6 +2225,235 @@ test("Multi-API-Key Opus: rotasi berurutan sampai ketemu key pertama saat credit
     }
 });
 
+test("Multi-API-Key Opus: anti-collision JWT header, variasi nama secret Cloudflare, dan failover langsung pada async credit_admission_rejected tanpa jeda 5 menit", async () => {
+    resetOpusKeyRotation();
+
+    /* 1. Semua variasi penamaan secret ke-2 di Cloudflare wajib terbaca penuh */
+    for (const envVariant of [
+        { OPUS_AUTH_TOKEN: "tok-a", OPUS_AUTH_TOKEN_2: "tok-b" },
+        { OPUS_AUTH_TOKEN: "tok-a", OPUS_AUTH_TOKEN2: "tok-b" },
+        { OPUS_AUTH_TOKEN: "tok-a", OPUS_AUTH_TOKEN_1: "tok-b" },
+        { OPUS_AUTH_TOKEN: "tok-a", OPUS_API_KEY: "tok-b" },
+        { OPUS_AUTH_TOKEN: "tok-a", OPUS_TOKEN_2: "tok-b" }
+    ]) {
+        assert.equal(collectOpusCredentialEntries(envVariant).length, 2);
+        assert.equal(extractOpusApiKeyPool("", envVariant).length, 2);
+    }
+
+    /* 2. Bangun 2 JWT dinamis dengan header RS256 identik (menguji anti-collision cache) */
+    const makeDynamicJwt = sub => {
+        const hdr = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT", kid: "shared-workos-kid-001" })).toString("base64url");
+        const pld = Buffer.from(JSON.stringify({ sub, exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url");
+        const sig = Buffer.from(`sig-for-${sub}`).toString("base64url");
+        return `${hdr}.${pld}.${sig}`;
+    };
+
+    const jwtAcct1 = makeDynamicJwt("opus-account-one");
+    const jwtAcct2 = makeDynamicJwt("opus-account-two");
+    assert.equal(jwtAcct1.slice(0, 28), jwtAcct2.slice(0, 28), "Header awal JWT identik");
+
+    const envTwoJwts = {
+        OPUS_AUTH_TOKEN: jwtAcct1,
+        OPUS_AUTH_TOKEN_2: jwtAcct2
+    };
+    const poolPayload = await resolveOpusApiKeyPoolPayload(envTwoJwts);
+    const t2vModel = getOpusVideoModel("opus-seedance-2.5-t2v");
+    const originalFetch = globalThis.fetch;
+
+    let acct2HasCredit = true;
+    const submittedAuths = [];
+
+    try {
+        globalThis.fetch = async (_url, init = {}) => {
+            const authHeader = String(init.headers?.Authorization || init.headers?.authorization || "");
+            const body = JSON.parse(String(init.body || "{}"));
+            const isAcct1 = authHeader === `Bearer ${jwtAcct1}`;
+            const isAcct2 = authHeader === `Bearer ${jwtAcct2}`;
+            const tag = isAcct1 ? "acct1" : isAcct2 ? "acct2" : "unknown";
+
+            if (body.method === "initialize") {
+                return new Response(
+                    JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { protocolVersion: "2025-03-26", capabilities: {} }
+                    }),
+                    { status: 200, headers: { "content-type": "application/json", "mcp-session-id": `sess-${tag}` } }
+                );
+            }
+            if (body.method === "notifications/initialized") {
+                return new Response("", { status: 202 });
+            }
+            if (body.method === "tools/list") {
+                return new Response(
+                    JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            tools: [
+                                { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+                                { name: "generate_video_clips", inputSchema: { type: "object", properties: { projectId: { type: "string" }, prompt: { type: "string" } } } },
+                                { name: "get_status", inputSchema: { type: "object", properties: { projectId: { type: "string" }, jobId: { type: "string" }, watch: { type: "boolean" } } } }
+                            ]
+                        }
+                    }),
+                    { status: 200, headers: { "content-type": "application/json" } }
+                );
+            }
+            if (body.method === "tools/call") {
+                const toolName = body.params?.name;
+                if (toolName === "create_project") {
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: { content: [{ type: "text", text: JSON.stringify({ projectId: `proj_${tag}` }) }] }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+                if (toolName === "generate_video_clips") {
+                    submittedAuths.push(tag);
+                    /* Simulasi persis perilaku nyata Opus: menerima job sebagai queued terlebih dahulu */
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                content: [{ type: "text", text: JSON.stringify({ jobId: `job_${tag}`, status: "queued" }) }]
+                            }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+                if (toolName === "get_status") {
+                    /* Akun #1 baru ditolak credit_admission_rejected saat polling get_status! */
+                    if (isAcct1 || (isAcct2 && !acct2HasCredit)) {
+                        return new Response(
+                            JSON.stringify({
+                                jsonrpc: "2.0",
+                                id: body.id,
+                                result: {
+                                    content: [{
+                                        type: "text",
+                                        text: JSON.stringify({
+                                            jobId: body.params?.arguments?.jobId,
+                                            status: "failed",
+                                            errorCode: "credit_admission_rejected",
+                                            message: "Insufficient credits. No provider request was made."
+                                        })
+                                    }]
+                                }
+                            }),
+                            { status: 200, headers: { "content-type": "application/json" } }
+                        );
+                    }
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                content: [{
+                                    type: "text",
+                                    text: JSON.stringify({
+                                        jobId: body.params?.arguments?.jobId,
+                                        status: "completed",
+                                        videoUrl: "https://cdn.opus.pro/out/acct2-video.mp4"
+                                    })
+                                }]
+                            }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+            }
+            throw new Error(`Unexpected call in test`);
+        };
+
+        /* A. Akun #1 gagal asinkron di queryTask + isolate Worker di-reset -> wajib LANGSUNG pindah ke Akun #2 tanpa jeda 5 menit! */
+        const waitCalls = [];
+        const outcome = await runOpusQueueRetryLoop({
+            sleepFn: async ms => {
+                waitCalls.push(ms);
+            },
+            tickMs: 5 * 60 * 1000,
+            executeAttempt: async (_attempt, _max, retryCtx) => {
+                /* Simulasikan Cloudflare Worker stateless isolate baru di setiap request POST /api/generate */
+                resetOpusKeyRotation();
+                const created = await t2vModel.createTask(
+                    { prompt: "Kota futuristik malam hari", aspect_ratio: "9:16", resolution: "720p", duration: "5" },
+                    poolPayload,
+                    { excludeKeySlots: retryCtx?.excludedOpusKeySlots }
+                );
+                const polled = await t2vModel.queryTask(created.taskId, poolPayload);
+                if (polled.failed) {
+                    const err = new Error(polled.errorMessage || "Failed");
+                    err.code = "OPUS_UPSTREAM_QUEUE_BUSY";
+                    err.details = {
+                        opus_key_slot: polled.keySlot,
+                        opus_key_pool_size: polled.keyPoolSize,
+                        credit_refunded: true
+                    };
+                    throw err;
+                }
+                return { created, polled };
+            }
+        });
+
+        assert.deepEqual(submittedAuths, ["acct1", "acct2"]);
+        assert.equal(waitCalls.length, 0, "Tidak boleh jeda 5 menit ketika Akun #2 masih tersedia!");
+        assert.equal(outcome.created.taskId, "opus-k1:proj_acct2:job_acct2");
+        assert.equal(outcome.polled.outputUrl, "https://cdn.opus.pro/out/acct2-video.mp4");
+
+        /* B. Jika Akun #1 DAN Akun #2 keduanya gagal asinkron -> barulah jeda 5 menit x 3 setelah mencoba acct1 -> acct2 di setiap siklus */
+        submittedAuths.length = 0;
+        acct2HasCredit = false;
+        const cyclePauses = [];
+
+        await assert.rejects(
+            async () => {
+                await runOpusQueueRetryLoop({
+                    sleepFn: async ms => {
+                        cyclePauses.push(ms);
+                    },
+                    tickMs: 5 * 60 * 1000,
+                    executeAttempt: async (_attempt, _max, retryCtx) => {
+                        resetOpusKeyRotation();
+                        const created = await t2vModel.createTask(
+                            { prompt: "Hutan hujan tropis", aspect_ratio: "9:16", resolution: "720p", duration: "5" },
+                            poolPayload,
+                            { excludeKeySlots: retryCtx?.excludedOpusKeySlots }
+                        );
+                        const polled = await t2vModel.queryTask(created.taskId, poolPayload);
+                        if (polled.failed) {
+                            const err = new Error(polled.errorMessage || "Failed");
+                            err.code = "OPUS_UPSTREAM_QUEUE_BUSY";
+                            err.details = {
+                                opus_key_slot: polled.keySlot,
+                                opus_key_pool_size: polled.keyPoolSize,
+                                credit_refunded: true
+                            };
+                            throw err;
+                        }
+                        return polled;
+                    }
+                });
+            },
+            err => {
+                assert.equal(err.code, OPUS_SYSTEM_BUSY_FINAL_CODE);
+                return true;
+            }
+        );
+
+        assert.equal(submittedAuths.length, 8, "4 siklus x 2 akun = 8 percobaan");
+        assert.deepEqual(submittedAuths.slice(0, 4), ["acct1", "acct2", "acct1", "acct2"]);
+        assert.deepEqual(cyclePauses, [5 * 60 * 1000, 5 * 60 * 1000, 5 * 60 * 1000]);
+    } finally {
+        globalThis.fetch = originalFetch;
+        resetOpusKeyRotation();
+    }
+});
+
 
 
 

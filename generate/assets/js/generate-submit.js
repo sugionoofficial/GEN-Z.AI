@@ -37,7 +37,7 @@ import {
     OPUS_SYSTEM_BUSY_FINAL_CODE,
     isOpusUpstreamCreditBusy,
     runOpusQueueRetryLoop
-} from "./opus-queue-retry.js";
+} from "./opus-queue-retry.js?v=20261028-multikey";
 
 
 /* =========================================================
@@ -1623,12 +1623,25 @@ async function handleGenerateSubmit(
                         message: retryMsg
                     });
                 },
-                executeAttempt: async () => {
+                onKeySwitch: () => {
+                    refreshUserCreditProfile();
+                    hideError();
+                    const switchMsg = "Mengalihkan ke antrean server berikutnya...";
+                    showLoading(switchMsg);
+                    setGenerateStatus("processing", switchMsg);
+                    progressUpdate({
+                        status: "PROCESSING",
+                        message: switchMsg
+                    });
+                },
+                executeAttempt: async (_attempt, _maxAttempts, retryContext) => {
                     setDiagStage("4. Sebelum generateVideo");
 
                     const response =
                         await awaitWithTimeout(
-                            request.generateVideo(parameters),
+                            request.generateVideo(parameters, {
+                                opusExcludeKeySlots: retryContext?.excludedOpusKeySlots
+                            }),
                             "generateVideo",
                             90000
                         );

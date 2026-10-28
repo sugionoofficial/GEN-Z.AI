@@ -224,68 +224,88 @@ function unwrapOuterQuotesText(raw) {
     return text;
 }
 
-function readEnvSlotRawCredential(envObj, slotNumber) {
+const OPUS_ENV_KEY_STEMS = [
+    "OPUS_AUTH_TOKEN",
+    "OPUS_ACCESS_TOKEN",
+    "OPUSCLIP_API_KEY",
+    "OPUS_API_KEY",
+    "OPUS_TOKEN",
+    "OPUS_KEY",
+    "OPUS_SECRET"
+];
+
+const DYNAMIC_OPUS_ENV_SLOT_PATTERN =
+    /^opus(?:clip)?[-_]*(?:auth[-_]*token|access[-_]*token|api[-_]*key|account|secret|token|key)[-_]*(\d+)$/i;
+
+function parseExpiresAtTimestampMs(value) {
+    if (value === null || value === undefined || value === "") return 0;
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value > 1e12 ? value : value * 1000;
+    }
+    const text = String(value).trim();
+    if (/^\d+(\.\d+)?$/.test(text)) {
+        const numeric = Number(text);
+        return numeric > 1e12 ? numeric : numeric * 1000;
+    }
+    const parsed = Date.parse(text);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function collectEnvCredentialsBySuffix(targetList, envObj, suffix = "") {
     const env = envObj && typeof envObj === "object" ? envObj : {};
-    const suffix = slotNumber <= 1 ? "" : `_${slotNumber}`;
-    const explicitNumbered = slotNumber === 1 ? "_1" : suffix;
-
-    const rawAuth = unwrapOuterQuotesText(
-        env[`OPUS_AUTH_TOKEN${suffix}`] ||
-        (slotNumber === 1 ? env[`OPUS_AUTH_TOKEN${explicitNumbered}`] : "") ||
-        env[`OPUS_ACCESS_TOKEN${suffix}`] ||
-        (slotNumber === 1 ? env[`OPUS_ACCESS_TOKEN${explicitNumbered}`] : "") ||
-        env[`OPUSCLIP_API_KEY${suffix}`] ||
-        (slotNumber === 1 ? env[`OPUSCLIP_API_KEY${explicitNumbered}`] : "") ||
-        env[`OPUS_API_KEY${suffix}`] ||
-        (slotNumber === 1 ? env[`OPUS_API_KEY${explicitNumbered}`] : "") ||
-        ""
-    );
-
-    const slotRefresh = String(
-        env[`OPUS_REFRESH_TOKEN${suffix}`] ||
-        (slotNumber === 1 ? env[`OPUS_REFRESH_TOKEN${explicitNumbered}`] : "") ||
-        ""
-    ).trim();
+    const defaultTokenEndpoint = String(env.OPUS_OAUTH_TOKEN_URL || DEFAULT_OAUTH_TOKEN_URL).trim();
+    const slotRefresh = String(env[`OPUS_REFRESH_TOKEN${suffix}`] || "").trim();
     const slotClientId = String(
         env[`OPUS_CLIENT_ID${suffix}`] ||
-        (slotNumber === 1 ? env[`OPUS_CLIENT_ID${explicitNumbered}`] : "") ||
         env.OPUS_CLIENT_ID ||
         DEFAULT_OPUS_WORKOS_CLIENT_ID
     ).trim();
     const slotClientSecret = String(
         env[`OPUS_CLIENT_SECRET${suffix}`] ||
-        (slotNumber === 1 ? env[`OPUS_CLIENT_SECRET${explicitNumbered}`] : "") ||
         env.OPUS_CLIENT_SECRET ||
         ""
     ).trim();
     const slotResource = String(
         env[`OPUS_RESOURCE_URL${suffix}`] ||
-        (slotNumber === 1 ? env[`OPUS_RESOURCE_URL${explicitNumbered}`] : "") ||
         env.OPUS_RESOURCE_URL ||
         ""
     ).trim();
-    const defaultTokenEndpoint = String(env.OPUS_OAUTH_TOKEN_URL || DEFAULT_OAUTH_TOKEN_URL).trim();
 
-    if (!rawAuth && !slotRefresh) {
-        return "";
-    }
-
-    if (rawAuth && (rawAuth.startsWith("[") || rawAuth.includes("\n") || rawAuth.startsWith("{"))) {
+    const formatWithRefresh = (rawAuth, attachRefresh) => {
+        if (!rawAuth && !attachRefresh) return "";
+        if (rawAuth && (rawAuth.startsWith("[") || rawAuth.includes("\n") || rawAuth.startsWith("{"))) {
+            return rawAuth;
+        }
+        if (attachRefresh && slotRefresh) {
+            return JSON.stringify({
+                ...(rawAuth ? { access_token: rawAuth.replace(/^Bearer\s+/i, "").trim() } : {}),
+                refresh_token: slotRefresh,
+                client_id: slotClientId || DEFAULT_OPUS_WORKOS_CLIENT_ID,
+                ...(slotClientSecret ? { client_secret: slotClientSecret } : {}),
+                ...(slotResource ? { resource: slotResource } : {}),
+                token_endpoint: defaultTokenEndpoint
+            });
+        }
         return rawAuth;
+    };
+
+    let refreshUsed = false;
+    for (const stem of OPUS_ENV_KEY_STEMS) {
+        const rawAuth = unwrapOuterQuotesText(env[`${stem}${suffix}`] || "");
+        if (!rawAuth) continue;
+        const formatted = formatWithRefresh(rawAuth, !refreshUsed);
+        refreshUsed = true;
+        if (formatted) {
+            appendExpandedKeyEntries(targetList, formatted);
+        }
     }
 
-    if (slotRefresh) {
-        return JSON.stringify({
-            ...(rawAuth ? { access_token: rawAuth.replace(/^Bearer\s+/i, "").trim() } : {}),
-            refresh_token: slotRefresh,
-            client_id: slotClientId || DEFAULT_OPUS_WORKOS_CLIENT_ID,
-            ...(slotClientSecret ? { client_secret: slotClientSecret } : {}),
-            ...(slotResource ? { resource: slotResource } : {}),
-            token_endpoint: defaultTokenEndpoint
-        });
+    if (!refreshUsed && slotRefresh) {
+        const refreshOnly = formatWithRefresh("", true);
+        if (refreshOnly) {
+            appendExpandedKeyEntries(targetList, refreshOnly);
+        }
     }
-
-    return rawAuth;
 }
 
 function appendExpandedKeyEntries(targetList, rawCandidate) {
@@ -413,16 +433,33 @@ function extractOpusApiKeyPool(apiKeyInput, envOverride = null) {
     if (hasExplicitInput) {
         appendExpandedKeyEntries(rawCandidates, apiKeyInput);
     } else {
-        const multiEnvRaw = unwrapOuterQuotesText(
-            env.OPUS_AUTH_TOKENS || env.OPUS_API_KEYS || ""
-        );
-        if (multiEnvRaw) {
-            appendExpandedKeyEntries(rawCandidates, multiEnvRaw);
+        for (const multiKeyName of ["OPUS_AUTH_TOKENS", "OPUS_API_KEYS", "OPUS_TOKENS"]) {
+            const multiEnvRaw = unwrapOuterQuotesText(env[multiKeyName] || "");
+            if (multiEnvRaw) {
+                appendExpandedKeyEntries(rawCandidates, multiEnvRaw);
+            }
         }
+        collectEnvCredentialsBySuffix(rawCandidates, env, "");
         for (let slot = 1; slot <= MAX_OPUS_ENV_KEY_SLOTS; slot += 1) {
-            const slotRaw = readEnvSlotRawCredential(env, slot);
-            if (slotRaw) {
-                appendExpandedKeyEntries(rawCandidates, slotRaw);
+            collectEnvCredentialsBySuffix(rawCandidates, env, `_${slot}`);
+            collectEnvCredentialsBySuffix(rawCandidates, env, `${slot}`);
+        }
+        if (env && typeof env === "object") {
+            const dynamicItems = [];
+            for (const propName of Object.keys(env)) {
+                const match = DYNAMIC_OPUS_ENV_SLOT_PATTERN.exec(propName);
+                if (!match) continue;
+                const val = unwrapOuterQuotesText(env[propName]);
+                if (!val) continue;
+                dynamicItems.push({
+                    slot: Number.parseInt(match[1], 10) || 0,
+                    propName,
+                    value: val
+                });
+            }
+            dynamicItems.sort((a, b) => (a.slot - b.slot) || a.propName.localeCompare(b.propName));
+            for (const item of dynamicItems) {
+                appendExpandedKeyEntries(rawCandidates, item.value);
             }
         }
     }
@@ -513,6 +550,7 @@ function parseApiKeyInput(apiKey, envOverride = null, { isolateFromDefaultRefres
                         clientSecret,
                         resource,
                         scope,
+                        expiresAtMs: parseExpiresAtTimestampMs(parsed.expires_at ?? parsed.expiresAt),
                         tokenEndpoint: tokenEndpoint || DEFAULT_OAUTH_TOKEN_URL
                     };
                 }
@@ -556,20 +594,25 @@ function parseApiKeyInput(apiKey, envOverride = null, { isolateFromDefaultRefres
 
 async function resolveBearerToken(apiKey, { forceRefresh = false, isolateFromDefaultRefresh = false } = {}) {
     const parsed = parseApiKeyInput(apiKey, null, { isolateFromDefaultRefresh });
-    const fingerprint = `${parsed.tokenEndpoint}|${parsed.accessToken.slice(0, 18)}|${parsed.refreshToken.slice(-12)}|${parsed.clientId}`;
+    /* Gunakan nilai penuh (bukan slice awal JWT yang identik di semua akun RS256!) agar slot akun berbeda tidak pernah tabrakan cache */
+    const fingerprint = `${parsed.tokenEndpoint}|${parsed.clientId}|${parsed.refreshToken}|${parsed.accessToken}`;
     const cachedEntry = oauthStateByFingerprint.get(fingerprint) || null;
 
     if (
         !forceRefresh &&
         cachedEntry &&
         cachedEntry.accessToken &&
-        isJwtFresh(cachedEntry.accessToken)
+        (
+            cachedEntry.expiresAtMs > 0
+                ? cachedEntry.expiresAtMs - Date.now() > 90_000
+                : isJwtFresh(cachedEntry.accessToken)
+        )
     ) {
         return cachedEntry.accessToken;
     }
 
     if (!forceRefresh && parsed.accessToken) {
-        const expMs = parseJwtExpiryMs(parsed.accessToken);
+        const expMs = parseJwtExpiryMs(parsed.accessToken) || Number(parsed.expiresAtMs || 0);
         if (!expMs || expMs - Date.now() > 90_000) {
             oauthStateByFingerprint.set(fingerprint, {
                 fingerprint,
@@ -4550,6 +4593,20 @@ async function createVideoTaskForSingleKey(payload = {}, apiKey, options = {}) {
     });
 }
 
+function normalizeExcludedSlotSet(rawList, totalKeys) {
+    const set = new Set();
+    if (!Array.isArray(rawList) || totalKeys <= 1) {
+        return set;
+    }
+    for (const item of rawList) {
+        const parsed = Number(item);
+        if (Number.isInteger(parsed) && parsed >= 0 && parsed < totalKeys) {
+            set.add(parsed);
+        }
+    }
+    return set;
+}
+
 async function createVideoTask(payload = {}, apiKey, options = {}) {
     const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
     if (keyPool.length === 0) {
@@ -4562,20 +4619,54 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
 
     if (totalKeys <= 1) {
         activeOpusKeyIndex = 0;
-        return await createVideoTaskForSingleKey(payload, keyPool[0] || apiKey, {
-            ...options,
-            keySlot: 0,
-            mediaCache,
-            isolateFromDefaultRefresh: false
-        });
+        try {
+            const singleRes = await createVideoTaskForSingleKey(payload, keyPool[0] || apiKey, {
+                ...options,
+                keySlot: 0,
+                mediaCache,
+                isolateFromDefaultRefresh: false
+            });
+            return {
+                ...singleRes,
+                keySlot: 0,
+                keyPoolSize: 1
+            };
+        } catch (err) {
+            if (isOpusCreditExhaustedError(err)) {
+                err.opusFailedKeySlot = 0;
+                err.opusKeyPoolSize = 1;
+                err.exhaustedKeyCount = 1;
+                err.rotatedFullCycle = true;
+            }
+            throw err;
+        }
     }
 
+    const excludedSet = normalizeExcludedSlotSet(
+        options?.excludeKeySlots ?? payload?.opus_exclude_key_slots,
+        totalKeys
+    );
     const startIndex = ((activeOpusKeyIndex % totalKeys) + totalKeys) % totalKeys;
-    let lastExhaustedError = null;
-    let lastAuthError = null;
-
+    const candidateSlots = [];
     for (let step = 0; step < totalKeys; step += 1) {
         const slotIndex = (startIndex + step) % totalKeys;
+        if (!excludedSet.has(slotIndex)) {
+            candidateSlots.push(slotIndex);
+        }
+    }
+    /* Jika semua slot masuk daftar exclude (siklus baru), putar penuh dari awal */
+    if (candidateSlots.length === 0) {
+        for (let step = 0; step < totalKeys; step += 1) {
+            candidateSlots.push((startIndex + step) % totalKeys);
+        }
+    }
+
+    let lastExhaustedError = null;
+    let lastExhaustedSlot = candidateSlots[0] ?? 0;
+    let lastAuthError = null;
+
+    for (let idx = 0; idx < candidateSlots.length; idx += 1) {
+        const slotIndex = candidateSlots[idx];
         const candidateKey = keyPool[slotIndex];
 
         try {
@@ -4594,11 +4685,14 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
         } catch (err) {
             if (isOpusCreditExhaustedError(err)) {
                 lastExhaustedError = err;
-                if (step + 1 < totalKeys) {
+                lastExhaustedSlot = slotIndex;
+                if (idx + 1 < candidateSlots.length) {
                     continue;
                 }
-                /* Seluruh API key sudah dicoba berurutan sampai ketemu kembali key awal putaran */
+                /* Seluruh kandidat API key pada putaran ini sudah dicoba berurutan */
                 activeOpusKeyIndex = 0;
+                err.opusFailedKeySlot = slotIndex;
+                err.opusKeyPoolSize = totalKeys;
                 err.exhaustedKeyCount = totalKeys;
                 err.rotatedFullCycle = true;
                 throw err;
@@ -4610,13 +4704,15 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                 err?.code === "OPUS_AUTH_EXPIRED" ||
                 err?.code === "OPUS_AUTH_REJECTED";
 
-            if (isAuthFailure && step + 1 < totalKeys) {
+            if (isAuthFailure && idx + 1 < candidateSlots.length) {
                 lastAuthError = err;
                 continue;
             }
 
             if (isAuthFailure && lastExhaustedError) {
                 activeOpusKeyIndex = 0;
+                lastExhaustedError.opusFailedKeySlot = lastExhaustedSlot;
+                lastExhaustedError.opusKeyPoolSize = totalKeys;
                 lastExhaustedError.exhaustedKeyCount = totalKeys;
                 lastExhaustedError.rotatedFullCycle = true;
                 throw lastExhaustedError;
@@ -4926,10 +5022,15 @@ async function getVideoTask(taskId, apiKey, options = {}) {
 
     const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
     if (keyPool.length <= 1) {
-        return await getVideoTaskForSingleKey(parsedId, keyPool[0] || apiKey, {
+        const singleStatus = await getVideoTaskForSingleKey(parsedId, keyPool[0] || apiKey, {
             ...options,
             isolateFromDefaultRefresh: false
         });
+        return {
+            ...singleStatus,
+            keySlot: 0,
+            keyPoolSize: Math.max(1, keyPool.length)
+        };
     }
 
     const totalKeys = keyPool.length;
@@ -4960,7 +5061,11 @@ async function getVideoTask(taskId, apiKey, options = {}) {
             ) {
                 activeOpusKeyIndex = (slotIndex + 1) % totalKeys;
             }
-            return result;
+            return {
+                ...result,
+                keySlot: slotIndex,
+                keyPoolSize: totalKeys
+            };
         } catch (err) {
             lastError = err;
             const retryableOnOtherSlot =

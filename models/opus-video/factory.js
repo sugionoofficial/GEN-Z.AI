@@ -508,7 +508,7 @@ export function createOpusVideoModel(spec) {
         return payload;
     }
 
-    async function createTask(body = {}, apiKey) {
+    async function createTask(body = {}, apiKey, options = {}) {
         const validation = validate(body);
         if (!validation.valid) {
             const error = new Error(validation.errors.join(" "));
@@ -520,7 +520,7 @@ export function createOpusVideoModel(spec) {
         }
 
         const payload = buildPayload(body);
-        const response = await createVideoTask(payload, apiKey);
+        const response = await createVideoTask(payload, apiKey, options);
 
         if (!response?.taskId) {
             const error = new Error("Opus Labs tidak mengembalikan taskId video.");
@@ -555,7 +555,7 @@ export function createOpusVideoModel(spec) {
         return raw.map(normalizeString).filter(isPublicHttpUrl);
     }
 
-    async function queryTask(taskId, apiKey) {
+    async function queryTask(taskId, apiKey, options = {}) {
         const normalizedId = normalizeString(taskId);
         if (!normalizedId) {
             const error = new Error("Opus task ID wajib diisi.");
@@ -565,7 +565,7 @@ export function createOpusVideoModel(spec) {
             throw error;
         }
 
-        const result = await getVideoTask(normalizedId, apiKey);
+        const result = await getVideoTask(normalizedId, apiKey, options);
         const status = normalizeStatus(result.status);
         const outputUrls = status === "COMPLETED" ? normalizeOutputUrls(result) : [];
 
@@ -595,6 +595,8 @@ export function createOpusVideoModel(spec) {
             output_urls: outputUrls,
             outputUrl: outputUrls[0] || null,
             usage: result.usageSeconds ? { duration: result.usageSeconds } : null,
+            keySlot: Number.isInteger(result.keySlot) ? result.keySlot : 0,
+            keyPoolSize: Number.isInteger(result.keyPoolSize) ? result.keyPoolSize : 1,
             errorCode: result.errorCode || null,
             error_code: result.errorCode || null,
             errorMessage: result.errorMessage || null,

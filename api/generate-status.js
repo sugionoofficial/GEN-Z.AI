@@ -1853,7 +1853,8 @@ function getAdapterDiagnostics() {
 async function queryProviderTask(
     adapter,
     taskId,
-    providerApiKey
+    providerApiKey,
+    options = {}
 ) {
     if (
         !adapter
@@ -1876,7 +1877,8 @@ async function queryProviderTask(
 
     return await adapter.queryTask(
         taskId,
-        providerApiKey
+        providerApiKey,
+        options
     );
 }
 
@@ -4378,7 +4380,8 @@ export default async function handler(
                 await queryProviderTask(
                     adapter,
                     taskId,
-                    providerApiKey
+                    providerApiKey,
+                    { env: req?.env }
                 );
         } catch (error) {
             console.error(
@@ -4568,6 +4571,16 @@ export default async function handler(
 
                 refunded_credit:
                     creditRefund?.amount ?? 0,
+
+                opus_key_slot:
+                    Number.isInteger(providerRaw?.keySlot)
+                        ? providerRaw.keySlot
+                        : null,
+
+                opus_key_pool_size:
+                    Number.isInteger(providerRaw?.keyPoolSize)
+                        ? providerRaw.keyPoolSize
+                        : null,
 
                 has_result:
                     normalized.result_urls.length >

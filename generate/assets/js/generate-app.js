@@ -79,13 +79,13 @@ const RENDER_MODULE =
     "./generate-render.js";
 
 const SUBMIT_MODULE =
-    "./generate-submit.js";
+    "./generate-submit.js?v=20261028-multikey";
 
 const VALIDATION_MODULE =
     "./generate-validation.js?v=20261028-urlguard";
 
 const REQUEST_MODULE =
-    "./generate-request.js";
+    "./generate-request.js?v=20261028-multikey";
 
 const POLLING_MODULE =
     "./generate-polling.js";

@@ -1241,7 +1241,8 @@ function sanitizeDiagnostic(
  ========================================================= */
 
 export function buildGeneratePayload(
-    parameters = {}
+    parameters = {},
+    options = {}
 ) {
 
     const model =
@@ -1287,6 +1288,12 @@ export function buildGeneratePayload(
      *     parameters
      * }
      */
+    const excludedSlots = Array.isArray(options?.opusExcludeKeySlots)
+        ? options.opusExcludeKeySlots
+              .map(v => Number(v))
+              .filter(v => Number.isInteger(v) && v >= 0 && v < 100)
+        : [];
+
     return {
 
         model_id:
@@ -1297,7 +1304,11 @@ export function buildGeneratePayload(
             typeof parameters ===
                 "object"
                 ? parameters
-                : {}
+                : {},
+
+        ...(excludedSlots.length > 0
+            ? { opus_exclude_key_slots: excludedSlots }
+            : {})
 
     };
 
@@ -1387,7 +1398,8 @@ export function validateGenerateRequest(
  ========================================================= */
 
 export async function generateVideo(
-    parameters = {}
+    parameters = {},
+    options = {}
 ) {
 
     /* -----------------------------------------------------
@@ -1499,7 +1511,8 @@ export async function generateVideo(
 
     const payload =
         buildGeneratePayload(
-            parameters
+            parameters,
+            options
         );
 
 

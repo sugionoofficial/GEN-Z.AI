@@ -5270,6 +5270,12 @@ export default async function handler(
      * =====================================================
      */
 
+    const opusExcludeKeySlots = Array.isArray(body?.opus_exclude_key_slots)
+        ? body.opus_exclude_key_slots
+              .map(v => Number(v))
+              .filter(v => Number.isInteger(v) && v >= 0 && v < 100)
+        : [];
+
     let task;
 
 
@@ -5278,7 +5284,11 @@ export default async function handler(
         task =
             await adapter.createTask(
                 parameters,
-                providerApiKey
+                providerApiKey,
+                {
+                    excludeKeySlots: opusExcludeKeySlots,
+                    env: req?.env
+                }
             );
 
     } catch (error) {
@@ -5475,7 +5485,20 @@ export default async function handler(
                         : 0,
 
                 credit_refunded:
-                    !creditDeducted
+                    !creditDeducted,
+
+                opus_key_slot:
+                    Number.isInteger(error?.opusFailedKeySlot)
+                        ? error.opusFailedKeySlot
+                        : null,
+
+                opus_key_pool_size:
+                    Number.isInteger(error?.opusKeyPoolSize)
+                        ? error.opusKeyPoolSize
+                        : null,
+
+                opus_rotated_full_cycle:
+                    Boolean(error?.rotatedFullCycle)
 
             }
         );
