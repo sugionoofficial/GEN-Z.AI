@@ -4,7 +4,7 @@ import { decryptSecret, normalizeTextProvider, generateSocialContextCaption, gen
 import { createSignedReferenceUrl, downloadModelReference, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
 import { encodeStoryMp4, maxQuoteVideoDurationForTarget, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
 import { normalizeQwenCloudImageModel, normalizeQwenCloudLlmModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
-import { normalizeOpusImageModel, resolveOpusAspectRatio } from "../../lib/social-publisher/opus.js";
+import { isOpusContentPolicyError, normalizeOpusImageModel, resolveOpusAspectRatio } from "../../lib/social-publisher/opus.js";
 import { stripImageMetadataBytes } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
 function value(env, key) {
@@ -56,10 +56,19 @@ async function updateRun(config, runId, values) {
             body: JSON.stringify(values)
         });
     } catch (error) {
-        if (!isMissingQuoteRunColumn(error) || !hasQuoteOrSongRunFields(values)) throw error;
+        const missingQuote = isMissingQuoteRunColumn(error) && hasQuoteOrSongRunFields(values);
+        const missingOutfit = isMissingRunOutfitColumn(error) && hasOutfitRunFields(values);
+        if (!missingQuote && !missingOutfit) throw error;
         const fallbackValues = { ...values };
-        for (const key of ["post_mode", "quote_text", "quote_theme", "quote_publish_target", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
-            delete fallbackValues[key];
+        if (missingQuote) {
+            for (const key of ["post_mode", "quote_text", "quote_theme", "quote_publish_target", "song_id", "song_title", "song_artist", "song_facebook_url"]) {
+                delete fallbackValues[key];
+            }
+        }
+        if (missingOutfit) {
+            for (const key of ["outfit_id", "outfit_name", "outfit_order_url"]) {
+                delete fallbackValues[key];
+            }
         }
         await dbRequest(config, table("social_post_runs", `id=eq.${encodeURIComponent(runId)}`), {
             method: "PATCH",
@@ -67,6 +76,11 @@ async function updateRun(config, runId, values) {
             body: JSON.stringify(fallbackValues)
         });
     }
+}
+
+function hasOutfitRunFields(values = {}) {
+    return ["outfit_id", "outfit_name", "outfit_order_url"]
+        .some(key => Object.prototype.hasOwnProperty.call(values, key));
 }
 
 function hasQuoteOrSongRunFields(values = {}) {
@@ -298,23 +312,182 @@ async function listRecentPostedRuns(config, scheduleId, includeQuoteMusic = fals
 }
 
 /**
- * Loads the character's active outfit library and picks one at random, skipping
- * outfits used by the latest posts of this schedule when possible.
+ * Pilih satu outfit aktif sambil mengutamakan menghindari outfit yang baru saja
+ * ditolak kebijakan konten/safety system Opus, lalu menghindari outfit dari
+ * postingan berhasil terbaru bila masih ada opsi lain.
  */
-async function pickScheduledOutfit(config, schedule, previousRuns) {
-    let outfits;
-    try {
-        outfits = await dbRequest(config, table(
-            "social_outfits",
-            `select=id,character_id,name,object_key,mime_type,order_url,notes,is_active,created_at&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&character_id=eq.${encodeURIComponent(schedule.character_id)}&is_active=eq.true&order=created_at.desc`
-        ));
-    } catch (error) {
-        if (isMissingOutfitSchema(error)) return { outfit: null, ready: false };
-        throw error;
+function pickOutfitAvoidingPolicyRejections(
+    outfits = [],
+    { rejectedOutfitIds = [], recentPostedOutfitIds = [] } = {}
+) {
+    const active = (Array.isArray(outfits) ? outfits : [])
+        .filter(item => item && item.id && item.is_active !== false);
+    if (!active.length) return null;
+
+    const rejectedSet = new Set(
+        (Array.isArray(rejectedOutfitIds) ? rejectedOutfitIds : [])
+            .filter(Boolean)
+            .map(id => String(id))
+    );
+    const postedSet = new Set(
+        (Array.isArray(recentPostedOutfitIds) ? recentPostedOutfitIds : [])
+            .filter(Boolean)
+            .map(id => String(id))
+    );
+
+    if (rejectedSet.size > 0) {
+        const safeAndFresh = active.filter(
+            item => !rejectedSet.has(String(item.id)) && !postedSet.has(String(item.id))
+        );
+        if (safeAndFresh.length > 0) {
+            return pickRandomOutfit(safeAndFresh, []);
+        }
+        const safeOnly = active.filter(item => !rejectedSet.has(String(item.id)));
+        if (safeOnly.length > 0) {
+            return pickRandomOutfit(safeOnly, []);
+        }
     }
-    if (!Array.isArray(outfits) || !outfits.length) return { outfit: null, ready: true };
+
+    return pickRandomOutfit(active, recentPostedOutfitIds);
+}
+
+/**
+ * Loads the character's active outfit library and picks one at random, skipping
+ * policy-rejected outfits first and then outfits used by the latest posts of
+ * this schedule when possible.
+ */
+async function pickScheduledOutfit(
+    config,
+    schedule,
+    previousRuns,
+    { cachedOutfits = null, rejectedOutfitIds = [] } = {}
+) {
+    let outfits = cachedOutfits;
+    if (!Array.isArray(outfits)) {
+        try {
+            outfits = await dbRequest(config, table(
+                "social_outfits",
+                `select=id,character_id,name,object_key,mime_type,order_url,notes,is_active,created_at&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&character_id=eq.${encodeURIComponent(schedule.character_id)}&is_active=eq.true&order=created_at.desc`
+            ));
+        } catch (error) {
+            if (isMissingOutfitSchema(error)) return { outfit: null, ready: false, outfits: [] };
+            throw error;
+        }
+    }
+    if (!Array.isArray(outfits) || !outfits.length) return { outfit: null, ready: true, outfits: [] };
     const recentOutfitIds = (previousRuns || []).map(run => run.outfit_id).filter(Boolean);
-    return { outfit: pickRandomOutfit(outfits, recentOutfitIds), ready: true };
+    const chosen = pickOutfitAvoidingPolicyRejections(outfits, {
+        rejectedOutfitIds,
+        recentPostedOutfitIds: recentOutfitIds
+    });
+    return { outfit: chosen, ready: true, outfits };
+}
+
+/*
+ * Batas maksimum percobaan ulang beruntun ketika gambar ditolak kebijakan konten
+ * / safety system Opus (0 kredit terpotong di gateway). Selama belum melampaui
+ * batas ini, status failed tetap dikeluarkan ke riwayat namun sistem langsung
+ * membuat ulang gambar baru tanpa menunggu interval jadwal berikutnya.
+ */
+const MAX_CONSECUTIVE_OPUS_POLICY_RETRIES = 4;
+
+async function listRecentOpusPolicyState(config, scheduleId, currentRunId = "") {
+    try {
+        const rows = await dbRequest(config, table(
+            "social_post_runs",
+            `select=id,status,error_message,outfit_id,scene_plan&schedule_id=eq.${encodeURIComponent(scheduleId)}&status=in.(posted,failed)&order=created_at.desc&limit=8`
+        ));
+        if (!Array.isArray(rows) || !rows.length) {
+            return { consecutivePolicyFailures: 0, rejectedOutfitIds: [], rejectedSceneKeys: [] };
+        }
+        let consecutivePolicyFailures = 0;
+        let streakOpen = true;
+        const rejectedOutfitIds = [];
+        const rejectedSceneKeys = [];
+
+        for (const row of rows) {
+            if (!row || String(row.id || "") === String(currentRunId || "")) continue;
+            const isPolicyFail = row.status === "failed" && isOpusContentPolicyError(row.error_message);
+            if (streakOpen) {
+                if (isPolicyFail) {
+                    consecutivePolicyFailures += 1;
+                } else {
+                    streakOpen = false;
+                }
+            }
+            if (isPolicyFail) {
+                if (row.outfit_id) rejectedOutfitIds.push(String(row.outfit_id));
+                if (row.scene_plan?.key) rejectedSceneKeys.push(String(row.scene_plan.key));
+            }
+        }
+
+        return {
+            consecutivePolicyFailures,
+            rejectedOutfitIds: [...new Set(rejectedOutfitIds)],
+            rejectedSceneKeys: [...new Set(rejectedSceneKeys)]
+        };
+    } catch {
+        return { consecutivePolicyFailures: 0, rejectedOutfitIds: [], rejectedSceneKeys: [] };
+    }
+}
+
+async function createReplacementScheduledRun(
+    config,
+    { ownerId, scheduleId, scheduledFor, pageConnectionId, startedAt }
+) {
+    const body = {
+        owner_id: ownerId,
+        schedule_id: scheduleId,
+        ...(pageConnectionId ? { page_connection_id: pageConnectionId } : {}),
+        status: "generating",
+        scheduled_for: scheduledFor,
+        started_at: startedAt
+    };
+    try {
+        const rows = await dbRequest(config, table("social_post_runs", "select=id"), {
+            method: "POST",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(body)
+        });
+        return String(rows?.[0]?.id || "").trim();
+    } catch (error) {
+        if (!pageConnectionId || !/page_connection_id/i.test(String(error?.message || ""))) {
+            throw error;
+        }
+        const fallbackBody = { ...body };
+        delete fallbackBody.page_connection_id;
+        const rows = await dbRequest(config, table("social_post_runs", "select=id"), {
+            method: "POST",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(fallbackBody)
+        });
+        return String(rows?.[0]?.id || "").trim();
+    }
+}
+
+async function requeueScheduleImmediately(config, scheduleId, nowIso = new Date().toISOString()) {
+    await dbRequest(config, table("social_post_schedules", `id=eq.${encodeURIComponent(scheduleId)}`), {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({
+            next_run_at: nowIso,
+            updated_at: nowIso
+        })
+    });
+}
+
+function sanitizeSceneForPolicyRetry(scene, schedule = {}) {
+    if (!scene || typeof scene !== "object") return scene;
+    const next = { ...scene };
+    if (!String(schedule?.scene_atmosphere || "").trim() && /\bintimate\b/i.test(String(next.atmosphere || ""))) {
+        next.atmosphere = "a warm, welcoming atmosphere with soft social energy";
+    }
+    const safeGuidance = "modest, tasteful everyday catalog fashion styling";
+    const existingDetails = String(next.details || "").trim();
+    if (!existingDetails.toLowerCase().includes("modest, tasteful")) {
+        next.details = existingDetails ? `${existingDetails}; ${safeGuidance}` : safeGuidance;
+    }
+    return next;
 }
 
 /**
@@ -361,16 +534,36 @@ function cleanError(error) {
         .slice(0, 1000);
 }
 
-async function processRun(env, config, claimedRun) {
+async function processRun(env, config, claimedRun, options = {}) {
+    const {
+        allowInProcessRetry = true,
+        inProcessRetryAttempt = 0,
+        prefetched = null,
+        inheritedPolicyState = null
+    } = options;
     const runId = claimedRun.run_id;
     const scheduleId = claimedRun.schedule_id;
     const now = new Date().toISOString();
+    let schedule = prefetched?.schedule || null;
+    let postMode = "character";
     let imageProvider = "gemini";
     let imageModel = "";
+    let outfit = null;
+    let outfitLibraryReady = false;
+    let attemptedScene = null;
+    let prompt = "";
+    let policyState = inheritedPolicyState || {
+        consecutivePolicyFailures: 0,
+        rejectedOutfitIds: [],
+        rejectedSceneKeys: []
+    };
+    let nextPrefetched = prefetched ? { ...prefetched } : null;
 
     try {
-        await updateRun(config, runId, { status: "generating", started_at: now });
-        const schedule = await getScheduleForRun(config, scheduleId);
+        if (!prefetched) {
+            await updateRun(config, runId, { status: "generating", started_at: now });
+            schedule = await getScheduleForRun(config, scheduleId);
+        }
         if (!schedule) throw new Error("Schedule was removed or disabled before processing.");
 
         /* Switch autopublish milik blok jadwal ini. RPC claim sudah menyaringnya;
@@ -387,7 +580,8 @@ async function processRun(env, config, claimedRun) {
         }
 
         /* Auto publish wajib berhenti ketika masa aktif langganan habis. */
-        const subscription = await getSubscriptionState(config, schedule.owner_id, Date.now());
+        const subscription = prefetched?.subscription
+            || await getSubscriptionState(config, schedule.owner_id, Date.now());
         if (!subscription.active) {
             const message = buildSubscriptionStopMessage(subscription);
             console.warn(`[Social Publisher] Run ${runId} stopped: ${message}`);
@@ -402,22 +596,30 @@ async function processRun(env, config, claimedRun) {
             return;
         }
 
-        const postMode = normalizeSocialPostMode(schedule.post_mode);
+        postMode = normalizeSocialPostMode(schedule.post_mode);
         const shouldUseRandomSong = postMode === "quote"
             ? schedule.use_random_song !== false
             : schedule.use_random_song === true;
 
-        const [characters, pageConnections, previousRuns, settingsRows, publisherConfigs] = await Promise.all([
-            postMode === "quote"
-                ? Promise.resolve([])
-                : dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
-            dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
-            listRecentPostedRuns(config, schedule.id, postMode === "quote" || shouldUseRandomSong),
-            getUserSettingsRow(config, schedule.owner_id),
-            dbRequest(config, table("social_publisher_config", "select=image_provider,image_model,text_provider,quote_llm_model&id=eq.true&limit=1"))
-                .catch(() => dbRequest(config, table("social_publisher_config", "select=image_provider,image_model,quote_llm_model&id=eq.true&limit=1"))
-                    .catch(() => dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1"))))
-        ]);
+        const [characters, pageConnections, previousRuns, settingsRows, publisherConfigs] = prefetched
+            ? [
+                prefetched.characters,
+                prefetched.pageConnections,
+                prefetched.previousRuns,
+                prefetched.settingsRows,
+                prefetched.publisherConfigs
+            ]
+            : await Promise.all([
+                postMode === "quote"
+                    ? Promise.resolve([])
+                    : dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
+                dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
+                listRecentPostedRuns(config, schedule.id, postMode === "quote" || shouldUseRandomSong),
+                getUserSettingsRow(config, schedule.owner_id),
+                dbRequest(config, table("social_publisher_config", "select=image_provider,image_model,text_provider,quote_llm_model&id=eq.true&limit=1"))
+                    .catch(() => dbRequest(config, table("social_publisher_config", "select=image_provider,image_model,quote_llm_model&id=eq.true&limit=1"))
+                        .catch(() => dbRequest(config, table("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1"))))
+            ]);
         /* Switch autopublish milik user. RPC claim sudah menyaringnya; guard ini
            menjaga run yang terlanjur diklaim sebelum migration dijalankan. */
         if (settingsRows?.[0]?.autopublish_enabled === false) {
@@ -450,21 +652,20 @@ async function processRun(env, config, claimedRun) {
         const textProvider = normalizeTextProvider(publisherConfigs?.[0]?.text_provider);
         const quoteLlmModel = normalizeQwenCloudLlmModel(publisherConfigs?.[0]?.quote_llm_model);
         const settings = settingsRows?.[0];
-        const song = shouldUseRandomSong
-            ? await pickScheduledFacebookSong(config, schedule.owner_id, previousRuns, {
-                requirePlayableAudio: postMode === "quote"
-            })
-            : null;
+        const song = prefetched && Object.prototype.hasOwnProperty.call(prefetched, "song")
+            ? prefetched.song
+            : (shouldUseRandomSong
+                ? await pickScheduledFacebookSong(config, schedule.owner_id, previousRuns, {
+                    requirePlayableAudio: postMode === "quote"
+                })
+                : null);
 
         let scenePlanRecord = null;
-        let prompt = "";
         let generated = null;
         let cleanedMimeType = "";
         let cleanedBytes = null;
         let storyMp4Bytes = null;
         let caption = "";
-        let outfit = null;
-        let outfitLibraryReady = false;
         let quoteText = "";
         let quoteThemeLabel = "";
         const quotePublishTarget = normalizeQuotePublishTarget(schedule.quote_publish_target, "feed");
@@ -533,40 +734,57 @@ async function processRun(env, config, claimedRun) {
         } else {
             const character = characters?.[0];
             if (!character) throw new Error("Character reference was not found.");
-            if (!await isPrivateReferenceBucket(config)) throw new Error("Private Supabase Storage reference bucket is not configured.");
+            const bucketVerified = prefetched?.bucketVerified === true
+                ? true
+                : await isPrivateReferenceBucket(config);
+            if (!bucketVerified) throw new Error("Private Supabase Storage reference bucket is not configured.");
+
+            if (imageProvider === "opus" && !inheritedPolicyState) {
+                policyState = await listRecentOpusPolicyState(config, schedule.id, runId);
+            }
+            const isPolicyRetry = imageProvider === "opus"
+                && (inProcessRetryAttempt > 0 || (policyState?.consecutivePolicyFailures || 0) > 0);
 
             /* Supabase memperkecil gambar lebih dulu agar Worker tidak men-decode
                foto besar di dalam cron (penyebab Error 1102 resource limits).
                Khusus Opus, unduh objek asli tanpa mencoba transformasi 512px agar
                hemat subrequest dan dimensi 300px–6000px terjaga. */
-            const referenceSource = imageProvider === "opus"
-                ? {
-                    bytes: await downloadReferenceObject(config, character.reference_object_key),
-                    mimeType: character.reference_mime_type,
-                    source: "original"
-                }
-                : await downloadModelReference(
-                    config,
-                    character.reference_object_key,
-                    { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
-                );
+            const referenceSource = prefetched?.referenceSource
+                || (imageProvider === "opus"
+                    ? {
+                        bytes: await downloadReferenceObject(config, character.reference_object_key),
+                        mimeType: character.reference_mime_type,
+                        source: "original"
+                    }
+                    : await downloadModelReference(
+                        config,
+                        character.reference_object_key,
+                        { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
+                    ));
             const referenceBytes = referenceSource.bytes;
             if (!referenceBytes.length || referenceBytes.length > 8 * 1024 * 1024) throw new Error("Reference image size is invalid.");
             const referenceMimeType = referenceSource.mimeType || character.reference_mime_type;
 
-            const recentSceneKeys = (previousRuns || [])
-                .map(item => item.scene_plan?.key)
-                .filter(Boolean);
-            const outfitSelection = await pickScheduledOutfit(config, schedule, previousRuns);
+            const recentSceneKeys = [
+                ...new Set([
+                    ...(previousRuns || []).map(item => item.scene_plan?.key).filter(Boolean),
+                    ...(imageProvider === "opus" ? (policyState?.rejectedSceneKeys || []) : [])
+                ])
+            ];
+            const outfitSelection = await pickScheduledOutfit(config, schedule, previousRuns, {
+                cachedOutfits: prefetched?.allOutfits || null,
+                rejectedOutfitIds: imageProvider === "opus" ? (policyState?.rejectedOutfitIds || []) : []
+            });
             outfit = outfitSelection.outfit;
             outfitLibraryReady = outfitSelection.ready;
             /* Pakaian hanya dari outfit terpilih; tanpa outfit, pakaian mengikuti
                foto referensi karakter. Tidak ada unggahan pakaian terpisah. */
             const garmentObjectKey = outfit?.object_key || "";
             const garmentMimeType = outfit?.mime_type || "";
-            const referenceImageUrl = (imageProvider === "cloudflare" || imageProvider === "opus")
-                ? await createSignedReferenceUrl(config, character.reference_object_key)
-                : "";
+            const referenceImageUrl = prefetched?.referenceImageUrl
+                || ((imageProvider === "cloudflare" || imageProvider === "opus")
+                    ? await createSignedReferenceUrl(config, character.reference_object_key)
+                    : "");
             const opusGarmentUrl = (imageProvider === "opus" && garmentObjectKey)
                 ? await createSignedReferenceUrl(config, garmentObjectKey)
                 : "";
@@ -584,10 +802,15 @@ async function processRun(env, config, claimedRun) {
             const garmentMime = garmentSource?.mimeType || garmentMimeType;
             /* Parameter detail dari blok jadwal: kolom kosong otomatis diacak,
                angle kosong jatuh ke medium shot. */
+            let rawScene = createScenePlan(recentSceneKeys, Math.random, sceneOverridesFromSchedule(schedule));
+            if (isPolicyRetry) {
+                rawScene = sanitizeSceneForPolicyRetry(rawScene, schedule);
+            }
             const scene = applyOutfitToScene(
-                { ...createScenePlan(recentSceneKeys, Math.random, sceneOverridesFromSchedule(schedule)), aspect_ratio: aspectRatio },
+                { ...rawScene, aspect_ratio: aspectRatio },
                 outfit
             );
+            attemptedScene = scene;
             prompt = buildImagePrompt({
                 characterName: character.display_name,
                 characterNotes: character.prompt_notes,
@@ -599,6 +822,20 @@ async function processRun(env, config, claimedRun) {
                 useReferenceOutfit: !garmentObjectKey,
                 negativePrompt: schedule.negative_prompt
             });
+            nextPrefetched = {
+                schedule,
+                subscription,
+                characters,
+                pageConnections,
+                previousRuns,
+                settingsRows,
+                publisherConfigs,
+                song,
+                bucketVerified: true,
+                referenceSource,
+                referenceImageUrl,
+                allOutfits: outfitSelection.outfits || null
+            };
             generated = await generateSocialImage({
                 env,
                 prompt,
@@ -731,19 +968,110 @@ async function processRun(env, config, claimedRun) {
         console.error(`[Social Publisher] Run ${runId} failed (${error?.code || "error"}): ${safeMessage}`);
         const failedQuotaModel = error?.llmModel
             ? error.llmModel
-            : (imageProvider === "qwencloud" && normalizeSocialPostMode(job?.post_mode) !== "quote" ? imageModel : "");
+            : (imageProvider === "qwencloud" && postMode !== "quote" ? imageModel : "");
         if (failedQuotaModel && (error?.quotaExhausted === true || error?.status === 429)) {
             recordModelUsage(config, failedQuotaModel, { quotaError: true, message: safeMessage }).catch(recordError => {
                 console.error("Could not record QwenCloud quota failure:", recordError?.message || "unknown error");
             });
         }
+        const isOpusPolicyReject = Boolean(
+            schedule?.id
+            && imageProvider === "opus"
+            && postMode !== "quote"
+            && isOpusContentPolicyError(error)
+        );
         await updateRun(config, runId, {
             status: "failed",
             error_message: safeMessage,
+            ...(isOpusPolicyReject ? {
+                ...(imageModel ? { image_model: imageModel } : {}),
+                ...(attemptedScene ? { scene_plan: attemptedScene } : {}),
+                ...(prompt ? { generated_prompt: prompt } : {}),
+                ...(outfitLibraryReady ? {
+                    outfit_id: outfit?.id || null,
+                    outfit_name: outfit?.name || null,
+                    outfit_order_url: outfit?.order_url || null
+                } : {})
+            } : {}),
             finished_at: new Date().toISOString()
         }).catch(updateError => {
             console.error(`[Social Publisher] Could not record failure for run ${runId}: ${updateError?.message || "unknown error"}`);
         });
+
+        /*
+         * Bila ditolak oleh kebijakan konten / safety system Opus:
+         * 1. Status failed pada run di atas tetap tercatat penuh di riwayat.
+         * 2. Jangan menunggu jadwal berikutnya — langsung buat ulang gambar baru
+         *    saat itu juga (dan bila perlu percobaan lanjutan, majukan next_run_at
+         *    ke waktu sekarang agar dieksekusi segera pada tick berikutnya).
+         */
+        if (isOpusPolicyReject) {
+            const nextConsecutiveFailures = (policyState?.consecutivePolicyFailures || 0) + 1;
+            if (nextConsecutiveFailures <= MAX_CONSECUTIVE_OPUS_POLICY_RETRIES) {
+                const updatedPolicyState = {
+                    consecutivePolicyFailures: nextConsecutiveFailures,
+                    rejectedOutfitIds: [
+                        ...new Set([
+                            ...(policyState?.rejectedOutfitIds || []),
+                            ...(outfit?.id ? [String(outfit.id)] : [])
+                        ])
+                    ],
+                    rejectedSceneKeys: [
+                        ...new Set([
+                            ...(policyState?.rejectedSceneKeys || []),
+                            ...(attemptedScene?.key ? [String(attemptedScene.key)] : [])
+                        ])
+                    ]
+                };
+
+                if (allowInProcessRetry && inProcessRetryAttempt < 1) {
+                    const retryNowIso = new Date().toISOString();
+                    try {
+                        const replacementRunId = await createReplacementScheduledRun(config, {
+                            ownerId: schedule.owner_id,
+                            scheduleId: schedule.id,
+                            scheduledFor: claimedRun.scheduled_for || retryNowIso,
+                            pageConnectionId: schedule.page_connection_id,
+                            startedAt: retryNowIso
+                        });
+                        if (replacementRunId) {
+                            console.warn(
+                                `[Social Publisher] Run ${runId} ditolak policy Opus; langsung men-generate ulang pada run ${replacementRunId} (percobaan ulang ${nextConsecutiveFailures}/${MAX_CONSECUTIVE_OPUS_POLICY_RETRIES}).`
+                            );
+                            await processRun(
+                                env,
+                                config,
+                                {
+                                    run_id: replacementRunId,
+                                    schedule_id: schedule.id,
+                                    scheduled_for: claimedRun.scheduled_for || retryNowIso
+                                },
+                                {
+                                    allowInProcessRetry: false,
+                                    inProcessRetryAttempt: inProcessRetryAttempt + 1,
+                                    prefetched: nextPrefetched,
+                                    inheritedPolicyState: updatedPolicyState
+                                }
+                            );
+                            return;
+                        }
+                    } catch (spawnError) {
+                        console.warn(
+                            `[Social Publisher] Gagal membuat run pengganti langsung (${spawnError?.message || "unknown error"}); beralih ke requeue jadwal instan.`
+                        );
+                    }
+                }
+
+                await requeueScheduleImmediately(config, schedule.id, new Date().toISOString()).catch(requeueError => {
+                    console.error(
+                        `[Social Publisher] Gagal memajukan next_run_at jadwal ${schedule.id} setelah policy reject Opus: ${requeueError?.message || "unknown error"}`
+                    );
+                });
+                console.warn(
+                    `[Social Publisher] Jadwal ${schedule.id} langsung dijadwalkan ulang sekarang juga setelah policy reject Opus (${nextConsecutiveFailures}/${MAX_CONSECUTIVE_OPUS_POLICY_RETRIES}) tanpa menunggu jadwal berikutnya.`
+                );
+            }
+        }
     }
 }
 
@@ -847,8 +1175,9 @@ export async function runSocialPublisherCron(env, scheduledTime = new Date()) {
         body: JSON.stringify({ p_now: new Date(scheduledTime).toISOString(), p_limit: 2 })
     });
     const jobs = Array.isArray(claims) ? claims : [];
+    const allowInProcessRetry = jobs.length <= 1;
     for (const job of jobs) {
-        await processRun(env, config, job);
+        await processRun(env, config, job, { allowInProcessRetry });
     }
 
     /* Run autopost yang terjebak (invocation worker mati mendadak, mis. saat deploy):

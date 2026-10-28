@@ -59,6 +59,7 @@ import {
     OPUS_MAX_REFERENCE_IMAGES,
     OPUS_DEFAULT_ASPECT_RATIO,
     OPUS_DEFAULT_IMAGE_QUALITY,
+    isOpusContentPolicyError,
     normalizeOpusImageModel,
     resolveOpusAspectRatio
 } from "../lib/social-publisher/opus.js";
@@ -2031,15 +2032,33 @@ async function pickOutfitForPost(config, userId, characterId) {
     if (!outfits.length) return { outfit: null, ready: true };
 
     let recentOutfitIds = [];
+    let policyRejectedOutfitIds = [];
     try {
         const recentRuns = await supabaseRequest(
             config,
-            tablePath("social_post_runs", `select=outfit_id&owner_id=eq.${encodeURIComponent(userId)}&outfit_id=not.is.null&order=created_at.desc&limit=6`)
+            tablePath("social_post_runs", `select=outfit_id,status,error_message&owner_id=eq.${encodeURIComponent(userId)}&outfit_id=not.is.null&order=created_at.desc&limit=8`)
         );
         recentOutfitIds = (recentRuns || []).map(run => run.outfit_id).filter(Boolean);
+        policyRejectedOutfitIds = (recentRuns || [])
+            .filter(run => run?.status === "failed" && isOpusContentPolicyError(run?.error_message))
+            .map(run => run.outfit_id)
+            .filter(Boolean);
     } catch (error) {
         // History is a nice-to-have for variety; never block a post because of it.
         console.error("Could not read recent outfit history:", error?.message || "unknown error");
+    }
+
+    if (policyRejectedOutfitIds.length > 0) {
+        const rejectedSet = new Set(policyRejectedOutfitIds.map(String));
+        const recentSet = new Set(recentOutfitIds.map(String));
+        const safeAndFresh = outfits.filter(item => !rejectedSet.has(String(item.id)) && !recentSet.has(String(item.id)));
+        if (safeAndFresh.length > 0) {
+            return { outfit: pickRandomOutfit(safeAndFresh, []), ready: true };
+        }
+        const safeOnly = outfits.filter(item => !rejectedSet.has(String(item.id)));
+        if (safeOnly.length > 0) {
+            return { outfit: pickRandomOutfit(safeOnly, []), ready: true };
+        }
     }
 
     return { outfit: pickRandomOutfit(outfits, recentOutfitIds), ready: true };
@@ -2836,6 +2855,8 @@ async function generateManualPost(config, userId, env, body = {}) {
         throw error;
     }
 
+    let manualAttemptedScene = null;
+    let manualGeneratedPrompt = "";
     try {
         if (isQuoteMode) {
             let recentQuotes = [];
@@ -3003,10 +3024,22 @@ async function generateManualPost(config, userId, env, body = {}) {
         const effectiveAspectRatio = imageProvider === "opus"
             ? resolveOpusAspectRatio(env, aspectRatio)
             : aspectRatio;
+        const isPolicyRetry = imageProvider === "opus" && Number(body?.policy_retry_attempt || 0) > 0;
+        let baseScene = createScenePlan([]);
+        if (isPolicyRetry) {
+            if (/\bintimate\b/i.test(String(baseScene.atmosphere || ""))) {
+                baseScene = { ...baseScene, atmosphere: "a warm, welcoming atmosphere with soft social energy" };
+            }
+            baseScene = {
+                ...baseScene,
+                details: "modest, tasteful everyday catalog fashion styling"
+            };
+        }
         const scene = applyOutfitToScene(
-            { ...createScenePlan([]), aspect_ratio: effectiveAspectRatio },
+            { ...baseScene, aspect_ratio: effectiveAspectRatio },
             outfit
         );
+        manualAttemptedScene = scene;
         const referenceImageUrl = (imageProvider === "cloudflare" || imageProvider === "opus")
             ? await createSignedReferenceUrl(config, character.reference_object_key)
             : "";
@@ -3023,6 +3056,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             hasOutfitReference: Boolean(garmentObjectKey),
             useReferenceOutfit: !garmentObjectKey
         });
+        manualGeneratedPrompt = prompt;
         const generated = await generateSocialImage({
             env,
             prompt,
@@ -3151,6 +3185,8 @@ async function generateManualPost(config, userId, env, body = {}) {
                     body: JSON.stringify({
                         status: "failed",
                         error_message: safeMessage,
+                        ...(manualAttemptedScene ? { scene_plan: manualAttemptedScene } : {}),
+                        ...(manualGeneratedPrompt ? { generated_prompt: manualGeneratedPrompt } : {}),
                         finished_at: new Date().toISOString()
                     })
                 }
@@ -3160,6 +3196,7 @@ async function generateManualPost(config, userId, env, body = {}) {
         }
         const failure = new Error(safeMessage);
         failure.status = Number(error?.status) || 502;
+        if (error?.code) failure.code = error.code;
         throw failure;
     }
 }

@@ -6,6 +6,7 @@ import { PNG } from "pngjs";
 
 import {
     generateOpusSocialImage,
+    isOpusContentPolicyError,
     opusConfigured,
     opusImageModel,
     opusImageQuality,
@@ -20,7 +21,8 @@ import {
     OPUS_DEFAULT_MCP_URL,
     OPUS_OAUTH_TOKEN_URL
 } from "../lib/social-publisher/opus.js";
-import { generateSocialImage, testOpusImageProvider } from "../lib/social-publisher/providers.js";
+import { encryptSecret, generateSocialImage, testOpusImageProvider } from "../lib/social-publisher/providers.js";
+import { runSocialPublisherCron } from "../functions/_shared/social-publisher-cron.js";
 import socialPublisherHandler from "../api/social-publisher.js";
 
 function texturedJpeg({ width = 480, height = 854 } = {}) {
@@ -2655,6 +2657,353 @@ test("generateOpusSocialImage meloloskan karakter WebP VP8X 768x1376 tanpa decod
         restore();
     }
 });
+
+test("isOpusContentPolicyError mengenali penolakan safety system / Egress Gateway Opus secara akurat", () => {
+    const gatewayRejectMessage = "Permintaan gambar ditolak kebijakan konten Opus (failed) (jobId: 85f4d44e-c983-4843-865d-81ba95a6b7fa): Egress Gateway 400: 400 Your request was rejected by the safety system. If you believe this is an error, contact us at help.openai.com and include the request ID req_150bb0a2565d49b4bb4be521b2ef8a2a. safety_violations=[sexual]. The gateway refused the request before it reached a provider, so nothing was charged..";
+    assert.equal(isOpusContentPolicyError(gatewayRejectMessage), true);
+    assert.equal(isOpusContentPolicyError(new Error(gatewayRejectMessage)), true);
+    assert.equal(isOpusContentPolicyError(Object.assign(new Error("Ditolak"), { code: "content_policy" })), true);
+    assert.equal(isOpusContentPolicyError("Kredit akun OpusClip Anda habis atau tidak mencukupi"), false);
+    assert.equal(isOpusContentPolicyError("Token Opus ditolak (invalid_grant)"), false);
+});
+
+test("autopost cron saat ditolak policy Opus tetap mencatat status failed di riwayat lalu langsung generate ulang tanpa menunggu jadwal berikutnya", async () => {
+    resetOpusTokenCache();
+    const encryptionKey = btoa(String.fromCharCode(...new Uint8Array(32).fill(9)));
+    const encryptedToken = await encryptSecret("fb-page-secret-token", encryptionKey);
+    const refJpeg = texturedJpeg({ width: 512, height: 768 });
+    const outputJpeg = texturedJpeg({ width: 720, height: 1280 });
+
+    const runPatchesById = new Map();
+    const createdReplacementRuns = [];
+    const schedulePatches = [];
+    let opusAttempt = 0;
+    let facebookPostedCount = 0;
+
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url.endsWith("/rest/v1/rpc/claim_due_social_post_schedules")) {
+            return Response.json([{
+                run_id: "run-policy-1",
+                schedule_id: "schedule-opus-1",
+                scheduled_for: "2026-10-28T07:00:00.000Z"
+            }]);
+        }
+        if (url.endsWith("/rest/v1/rpc/claim_stuck_social_post_runs")) {
+            return Response.json([]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access?")) {
+            return Response.json([{
+                user_id: "owner-opus",
+                is_active: true,
+                started_at: new Date(Date.now() - 86_400_000).toISOString(),
+                expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString()
+            }]);
+        }
+        if (url.includes("/rest/v1/social_post_schedules?")) {
+            if (options.method === "PATCH") {
+                schedulePatches.push(JSON.parse(options.body));
+                return new Response(null, { status: 204 });
+            }
+            return Response.json([{
+                id: "schedule-opus-1",
+                owner_id: "owner-opus",
+                character_id: "char-opus-1",
+                page_connection_id: "conn-opus-1",
+                enabled: true,
+                autopublish_enabled: true,
+                interval_hours: 1,
+                aspect_ratio: "9:16",
+                caption_template: "Outfit hari ini ✨ #GENZAI",
+                timezone: "Asia/Jakarta"
+            }]);
+        }
+        if (url.includes("/rest/v1/social_characters?")) {
+            return Response.json([{
+                id: "char-opus-1",
+                owner_id: "owner-opus",
+                display_name: "Naresha",
+                reference_object_key: "social-reference/owner-opus/char.jpg",
+                reference_mime_type: "image/jpeg",
+                prompt_notes: "Rambut panjang natural"
+            }]);
+        }
+        if (url.includes("/rest/v1/social_page_connections?")) {
+            return Response.json([{
+                id: "conn-opus-1",
+                owner_id: "owner-opus",
+                page_id: "page-opus-99",
+                page_name: "Naresha Page",
+                can_publish: true,
+                page_token_ciphertext: encryptedToken.ciphertext,
+                page_token_iv: encryptedToken.iv
+            }]);
+        }
+        if (url.includes("/rest/v1/social_post_runs?") && options.method === "POST") {
+            const body = JSON.parse(options.body);
+            createdReplacementRuns.push(body);
+            return Response.json([{ id: "run-policy-replacement-2" }], { status: 201 });
+        }
+        if (url.includes("/rest/v1/social_post_runs?") && options.method === "PATCH") {
+            const matchId = url.match(/id=eq\.([^&]+)/)?.[1] || "";
+            if (matchId) {
+                const list = runPatchesById.get(matchId) || [];
+                list.push(JSON.parse(options.body));
+                runPatchesById.set(matchId, list);
+            }
+            return new Response(null, { status: 204 });
+        }
+        if (url.includes("/rest/v1/social_post_runs?")) {
+            return Response.json([]);
+        }
+        if (url.includes("/rest/v1/social_outfits?")) {
+            return Response.json([
+                {
+                    id: "outfit-risky",
+                    character_id: "char-opus-1",
+                    name: "Gaun tidur sutra",
+                    object_key: "social-outfit/owner-opus/silk.jpg",
+                    mime_type: "image/jpeg",
+                    order_url: "https://shop.example/silk",
+                    notes: "",
+                    is_active: true
+                },
+                {
+                    id: "outfit-safe",
+                    character_id: "char-opus-1",
+                    name: "Blazer kasual wanita",
+                    object_key: "social-outfit/owner-opus/blazer.jpg",
+                    mime_type: "image/jpeg",
+                    order_url: "https://shop.example/blazer",
+                    notes: "",
+                    is_active: true
+                }
+            ]);
+        }
+        if (url.includes("/rest/v1/social_publisher_user_settings?")) {
+            return Response.json([{
+                caption_template: "Cerita hari ini ✨ #GENZAI",
+                external_link: "https://example.com",
+                autopublish_enabled: true
+            }]);
+        }
+        if (url.includes("/rest/v1/social_publisher_config?")) {
+            return Response.json([{
+                image_provider: "opus",
+                image_model: "gpt-image-2.5-flare",
+                text_provider: "cloudflare"
+            }]);
+        }
+        if (url.endsWith("/storage/v1/bucket/social-character-references")) {
+            return Response.json({ id: "social-character-references", public: false });
+        }
+        if (url.includes("/storage/v1/object/authenticated/social-character-references/")) {
+            return new Response(refJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url.includes("/storage/v1/object/sign/social-character-references/")) {
+            const pathPart = url.split("/storage/v1/object/sign/")[1];
+            return Response.json({ signedURL: `/object/sign/${pathPart}?token=signed` });
+        }
+        if (url === "https://api.opus.example/generate") {
+            opusAttempt += 1;
+            const reqPayload = JSON.parse(options.body);
+            if (opusAttempt === 1) {
+                return Response.json({
+                    error: {
+                        code: "failed",
+                        jobId: "85f4d44e-c983-4843-865d-81ba95a6b7fa",
+                        message: "Egress Gateway 400: 400 Your request was rejected by the safety system. safety_violations=[sexual]. The gateway refused the request before it reached a provider, so nothing was charged."
+                    }
+                }, { status: 422 });
+            }
+            assert.match(reqPayload.prompt, /modest, tasteful everyday catalog fashion styling/i);
+            return new Response(outputJpeg, {
+                status: 200,
+                headers: { "content-type": "image/jpeg" }
+            });
+        }
+        if (url.includes("graph.facebook.com/v26.0/page-opus-99?fields=id%2Cname%2Ctasks")) {
+            return Response.json({ id: "page-opus-99", name: "Naresha Page", tasks: ["CREATE_CONTENT"] });
+        }
+        if (url.includes("graph.facebook.com/v26.0/page-opus-99/photos")) {
+            facebookPostedCount += 1;
+            return Response.json({ id: "fb-photo-2", post_id: "page-opus-99_post-2" });
+        }
+        if (url.includes("/page-opus-99_post-2?fields=permalink_url")) {
+            return Response.json({ permalink_url: "https://www.facebook.com/page-opus-99/posts/post-2" });
+        }
+        throw new Error(`Unexpected fetch in Opus policy retry test: ${url}`);
+    });
+
+    try {
+        await runSocialPublisherCron({
+            SUPABASE_URL: "https://project.example",
+            SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
+            SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey,
+            OPUS_AUTH_TOKEN: "opus-test-token",
+            OPUS_API_URL: "https://api.opus.example/generate",
+            AI: {
+                async run() {
+                    return { response: "Tampil rapi dan nyaman hari ini." };
+                }
+            }
+        });
+
+        assert.equal(opusAttempt, 2, "Harus langsung men-generate ulang saat percobaan pertama ditolak safety system Opus");
+        assert.equal(facebookPostedCount, 1, "Percobaan ulang harus langsung memposting ke Facebook tanpa menunggu jadwal berikutnya");
+
+        /* Run pertama tetap mengeluarkan status failed karena policy di riwayat */
+        const firstRunFinal = runPatchesById.get("run-policy-1")?.at(-1);
+        assert.equal(firstRunFinal?.status, "failed");
+        assert.match(firstRunFinal?.error_message || "", /Permintaan gambar ditolak kebijakan konten Opus/);
+        assert.ok(firstRunFinal?.outfit_id, "Outfit yang memicu penolakan harus ikut dicatat pada run failed");
+
+        /* Run pengganti langsung dibuat dan memilih outfit yang berbeda dari yang ditolak */
+        assert.equal(createdReplacementRuns.length, 1);
+        assert.equal(createdReplacementRuns[0].schedule_id, "schedule-opus-1");
+        const secondRunFinal = runPatchesById.get("run-policy-replacement-2")?.at(-1);
+        assert.equal(secondRunFinal?.status, "posted");
+        assert.notEqual(secondRunFinal?.outfit_id, firstRunFinal?.outfit_id, "Retry harus menghindari outfit yang baru saja ditolak policy");
+        assert.equal(schedulePatches.length, 0, "Bila retry langsung berhasil, jadwal normal berikutnya tidak perlu diubah");
+    } finally {
+        restore();
+    }
+});
+
+test("bila percobaan langsung ke-2 masih ditolak policy Opus, jadwal langsung di-requeue ke waktu sekarang tanpa menunggu interval berikutnya", async () => {
+    resetOpusTokenCache();
+    const encryptionKey = btoa(String.fromCharCode(...new Uint8Array(32).fill(7)));
+    const encryptedToken = await encryptSecret("fb-page-secret-token", encryptionKey);
+    const refJpeg = texturedJpeg({ width: 512, height: 768 });
+
+    const runPatchesById = new Map();
+    const schedulePatches = [];
+    let opusAttempt = 0;
+
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url.endsWith("/rest/v1/rpc/claim_due_social_post_schedules")) {
+            return Response.json([{
+                run_id: "run-policy-a",
+                schedule_id: "schedule-opus-2",
+                scheduled_for: "2026-10-28T07:00:00.000Z"
+            }]);
+        }
+        if (url.endsWith("/rest/v1/rpc/claim_stuck_social_post_runs")) {
+            return Response.json([]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access?")) {
+            return Response.json([{
+                user_id: "owner-opus",
+                is_active: true,
+                started_at: new Date(Date.now() - 86_400_000).toISOString(),
+                expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString()
+            }]);
+        }
+        if (url.includes("/rest/v1/social_post_schedules?")) {
+            if (options.method === "PATCH") {
+                schedulePatches.push(JSON.parse(options.body));
+                return new Response(null, { status: 204 });
+            }
+            return Response.json([{
+                id: "schedule-opus-2",
+                owner_id: "owner-opus",
+                character_id: "char-opus-1",
+                page_connection_id: "conn-opus-1",
+                enabled: true,
+                autopublish_enabled: true,
+                interval_hours: 1,
+                aspect_ratio: "9:16",
+                caption_template: "Outfit hari ini ✨",
+                timezone: "Asia/Jakarta"
+            }]);
+        }
+        if (url.includes("/rest/v1/social_characters?")) {
+            return Response.json([{
+                id: "char-opus-1",
+                owner_id: "owner-opus",
+                display_name: "Naresha",
+                reference_object_key: "social-reference/owner-opus/char.jpg",
+                reference_mime_type: "image/jpeg",
+                prompt_notes: ""
+            }]);
+        }
+        if (url.includes("/rest/v1/social_page_connections?")) {
+            return Response.json([{
+                id: "conn-opus-1",
+                owner_id: "owner-opus",
+                page_id: "page-opus-99",
+                page_name: "Naresha Page",
+                can_publish: true,
+                page_token_ciphertext: encryptedToken.ciphertext,
+                page_token_iv: encryptedToken.iv
+            }]);
+        }
+        if (url.includes("/rest/v1/social_post_runs?") && options.method === "POST") {
+            return Response.json([{ id: "run-policy-b" }], { status: 201 });
+        }
+        if (url.includes("/rest/v1/social_post_runs?") && options.method === "PATCH") {
+            const matchId = url.match(/id=eq\.([^&]+)/)?.[1] || "";
+            if (matchId) {
+                const list = runPatchesById.get(matchId) || [];
+                list.push(JSON.parse(options.body));
+                runPatchesById.set(matchId, list);
+            }
+            return new Response(null, { status: 204 });
+        }
+        if (url.includes("/rest/v1/social_post_runs?")) {
+            return Response.json([]);
+        }
+        if (url.includes("/rest/v1/social_outfits?")) {
+            return Response.json([]);
+        }
+        if (url.includes("/rest/v1/social_publisher_user_settings?")) {
+            return Response.json([{ caption_template: "Halo", autopublish_enabled: true }]);
+        }
+        if (url.includes("/rest/v1/social_publisher_config?")) {
+            return Response.json([{ image_provider: "opus", image_model: "gpt-image-2.5-flare" }]);
+        }
+        if (url.endsWith("/storage/v1/bucket/social-character-references")) {
+            return Response.json({ id: "social-character-references", public: false });
+        }
+        if (url.includes("/storage/v1/object/authenticated/social-character-references/")) {
+            return new Response(refJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url.includes("/storage/v1/object/sign/social-character-references/")) {
+            return Response.json({ signedURL: "/object/sign/social-character-references/char.jpg?token=signed" });
+        }
+        if (url === "https://api.opus.example/generate") {
+            opusAttempt += 1;
+            return Response.json({
+                error: {
+                    code: "content_policy",
+                    jobId: `job-reject-${opusAttempt}`,
+                    message: "Egress Gateway 400: Your request was rejected by the safety system. safety_violations=[sexual]."
+                }
+            }, { status: 422 });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const beforeMs = Date.now();
+        await runSocialPublisherCron({
+            SUPABASE_URL: "https://project.example",
+            SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
+            SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey,
+            OPUS_AUTH_TOKEN: "opus-test-token",
+            OPUS_API_URL: "https://api.opus.example/generate"
+        });
+
+        assert.equal(opusAttempt, 2);
+        assert.equal(runPatchesById.get("run-policy-a")?.at(-1)?.status, "failed");
+        assert.equal(runPatchesById.get("run-policy-b")?.at(-1)?.status, "failed");
+        assert.equal(schedulePatches.length, 1, "Jadwal harus langsung dimajukan next_run_at ke sekarang juga");
+        const nextRunMs = Date.parse(schedulePatches[0].next_run_at);
+        assert.ok(nextRunMs >= beforeMs - 1000 && nextRunMs <= Date.now() + 5000);
+    } finally {
+        restore();
+    }
+});
+
 
 
 
