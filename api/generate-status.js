@@ -67,6 +67,13 @@ import klingMotionControl30Pro
 import qwenCloudVideoModels
     from "../models/qwencloud-video/index.js";
 
+import opusVideoModels
+    from "../models/opus-video/index.js";
+
+import {
+    resolveOpusBearerToken
+} from "../lib/social-publisher/opus.js";
+
 /* =========================================================
    CONSTANTS
    ========================================================= */
@@ -81,7 +88,10 @@ const MODEL_REGISTRY = [
     klingMotionControl30Pro,
 
     /* QwenCloud (Alibaba Cloud Model Studio / DashScope) */
-    ...qwenCloudVideoModels
+    ...qwenCloudVideoModels,
+
+    /* Opus Labs (Opus Video Tools MCP) */
+    ...opusVideoModels
 ];
 
 const STALE_TASK_EXPIRED_ERROR =
@@ -1103,7 +1113,8 @@ async function resolveProvider(
    ========================================================= */
 
 async function loadProviderCredential(
-    providerCode
+    providerCode,
+    runtimeEnv = null
 ) {
     const normalizedProviderCode =
         cleanString(
@@ -1180,6 +1191,18 @@ async function loadProviderCredential(
         ) ||
         !credentials.length
     ) {
+        if (
+            normalizedProviderCode.toLowerCase() === "opus"
+        ) {
+            const resolvedOpus =
+                await resolveOpusBearerToken(
+                    runtimeEnv || process.env
+                );
+            if (resolvedOpus?.token) {
+                return resolvedOpus.token;
+            }
+        }
+
         throw new Error(
             `No provider credential found for ${normalizedProviderCode}`
         );
@@ -4268,7 +4291,8 @@ export default async function handler(
         try {
             providerApiKey =
                 await loadProviderCredential(
-                    providerCode
+                    providerCode,
+                    req?.env
                 );
         } catch (error) {
             console.error(

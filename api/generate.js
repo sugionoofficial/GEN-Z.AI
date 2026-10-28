@@ -56,6 +56,13 @@ import klingMotionControl30Pro
 import qwenCloudVideoModels
     from "../models/qwencloud-video/index.js";
 
+import opusVideoModels
+    from "../models/opus-video/index.js";
+
+import {
+    resolveOpusBearerToken
+} from "../lib/social-publisher/opus.js";
+
 import {
     resolveBillableCredit,
     resolveQuotaUsageSeconds,
@@ -112,7 +119,10 @@ const MODEL_REGISTRY = Object.freeze([
     klingMotionControl30Pro,
 
     /* QwenCloud (Alibaba Cloud Model Studio / DashScope) */
-    ...qwenCloudVideoModels
+    ...qwenCloudVideoModels,
+
+    /* Opus Labs (Opus Video Tools MCP) */
+    ...opusVideoModels
 ]);
 
 
@@ -1012,6 +1022,26 @@ function resolveGenerationCredit(
                 );
 
         }
+
+    }
+
+
+    if (
+        creditResolution === "768p" ||
+        creditResolution === "768"
+    ) {
+
+        creditResolution =
+            "720p";
+
+    } else if (
+        creditResolution === "2k" ||
+        creditResolution === "1440p" ||
+        creditResolution === "1440"
+    ) {
+
+        creditResolution =
+            "1080p";
 
     }
 
@@ -2466,7 +2496,8 @@ function decryptAesGcm(
    ========================================================= */
 
 async function loadProviderApiKey(
-    providerCode
+    providerCode,
+    runtimeEnv = null
 ) {
 
     const normalizedProviderCode =
@@ -2549,6 +2580,18 @@ async function loadProviderApiKey(
         ) ||
         !credentials.length
     ) {
+
+        if (
+            normalizedProviderCode.toLowerCase() === "opus"
+        ) {
+            const resolvedOpus =
+                await resolveOpusBearerToken(
+                    runtimeEnv || process.env
+                );
+            if (resolvedOpus?.token) {
+                return resolvedOpus.token;
+            }
+        }
 
         throw new Error(
             `No provider credential found for ${normalizedProviderCode}`
@@ -3049,14 +3092,37 @@ function validateDatabaseRestrictions(
                 model.supported_resolutions
             );
 
+        const requestedResLower =
+            String(
+                parameters.resolution
+            )
+                .trim()
+                .toLowerCase();
+
+        const allowedResLower =
+            new Set(
+                resolutions.map(item =>
+                    String(item).trim().toLowerCase()
+                )
+            );
+
+        /* Alias slot storage Hailuo 3 (768p <-> 720p, 2k <-> 1080p) */
+        if (allowedResLower.has("720p")) {
+            allowedResLower.add("768p");
+        }
+        if (allowedResLower.has("768p")) {
+            allowedResLower.add("720p");
+        }
+        if (allowedResLower.has("1080p")) {
+            allowedResLower.add("2k");
+        }
+        if (allowedResLower.has("2k")) {
+            allowedResLower.add("1080p");
+        }
 
         if (
             resolutions.length > 0 &&
-            !resolutions.includes(
-                String(
-                    parameters.resolution
-                )
-            )
+            !allowedResLower.has(requestedResLower)
         ) {
 
             errors.push(
@@ -4915,7 +4981,8 @@ export default async function handler(
 
         providerApiKey =
             await loadProviderApiKey(
-                providerCode
+                providerCode,
+                req?.env
             );
 
     } catch (error) {

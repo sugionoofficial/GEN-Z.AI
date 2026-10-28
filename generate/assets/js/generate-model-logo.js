@@ -86,6 +86,25 @@ const LOGO_MAP = Object.freeze({
     minimax:
         "minimax.svg",
 
+    hailuo:
+        "minimax.svg",
+
+    "minimax-h3":
+        "minimax.svg",
+
+
+    /* =====================================================
+       OPUS LABS VIDEO
+       Model: opus-seedance-*, opus-hailuo-*
+       Logo file: seedance.svg / minimax.svg
+    ===================================================== */
+
+    opus:
+        "seedance.svg",
+
+    "opus-labs":
+        "seedance.svg",
+
 
     /* =====================================================
        QWENCLOUD / ALIBABA CLOUD MODEL STUDIO (DASHSCOPE)
