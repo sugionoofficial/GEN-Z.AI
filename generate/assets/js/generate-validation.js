@@ -41,6 +41,12 @@ import {
     getCurrentModel
 } from "./generate-state.js";
 
+import {
+    inspectReferenceMediaUrl,
+    isMediaUrlParameterName,
+    validateParametersMediaUrls
+} from "../../../assets/js/media-url-guard.js";
+
 
 /* =========================================================
    INTERNAL PARAMETERS
@@ -1758,6 +1764,12 @@ export function validateClientParameters(
         errors
     );
 
+    const mediaUrlErrors =
+        validateParametersMediaUrls(sanitized);
+    if (mediaUrlErrors.length) {
+        errors.push(...mediaUrlErrors);
+    }
+
 
     return [
         ...new Set(
@@ -1902,6 +1914,18 @@ export function validateParameter(
         value,
         errors
     );
+
+    if (isMediaUrlParameterName(normalizedName)) {
+        const candidates = Array.isArray(value) ? value : [value];
+        for (const candidate of candidates) {
+            if (typeof candidate === "string" && candidate.trim()) {
+                const check = inspectReferenceMediaUrl(candidate);
+                if (!check.valid && check.message) {
+                    errors.push(check.message);
+                }
+            }
+        }
+    }
 
 
     return [

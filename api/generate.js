@@ -20,6 +20,10 @@
 import crypto from "node:crypto";
 
 import {
+    validateParametersMediaUrls
+} from "../assets/js/media-url-guard.js";
+
+import {
     UPLOAD_BUCKET,
     resolveUploadedUpscalePhotoSource,
     resolveUploadedUpscaleVideoSource
@@ -1717,7 +1721,11 @@ async function createGenerationHistory({
     providerCode,
     parameters,
     generationCredit,
-    taskId
+    taskId,
+    status = "processing",
+    errorMessage = null,
+    creditRefunded = false,
+    completedAt = null
 
 }) {
 
@@ -1902,7 +1910,7 @@ async function createGenerationHistory({
         resolution,
 
         status:
-            "processing",
+            status || "processing",
 
         task_id:
             normalizedTaskId,
@@ -1911,10 +1919,15 @@ async function createGenerationHistory({
             null,
 
         error_message:
-            null,
+            normalizeHistoryText(errorMessage),
 
         credit_cost:
-            creditCost
+            creditCost,
+
+        credit_refunded:
+            Boolean(creditRefunded),
+
+        ...(completedAt ? { completed_at: completedAt } : {})
 
     };
 
@@ -4847,6 +4860,28 @@ export default async function handler(
 
     /*
      * =====================================================
+     * VALIDATE DIRECT MEDIA URLS BEFORE CREDIT RESOLUTION
+     * =====================================================
+     */
+
+    const mediaUrlValidationErrors =
+        validateParametersMediaUrls(parameters);
+
+    if (mediaUrlValidationErrors.length > 0) {
+        return failure(
+            res,
+            422,
+            mediaUrlValidationErrors[0],
+            {
+                code: "NON_DIRECT_MEDIA_URL",
+                errors: mediaUrlValidationErrors
+            }
+        );
+    }
+
+
+    /*
+     * =====================================================
      * RESOLVE GENERATION CREDIT
      * =====================================================
      */
@@ -5358,18 +5393,38 @@ export default async function handler(
                 status: statusCode
             });
 
+        const resolvedCreateErrorMessage = opusQueueBusy
+            ? OPUS_QUEUE_WAIT_MESSAGE
+            : (
+                error?.message ||
+                "Failed to create generation task"
+            );
+
+        if (!opusQueueBusy && !creditDeducted && Number(generationCredit?.credit) >= 0) {
+            await createGenerationHistory({
+                user,
+                body,
+                modelConfig,
+                databaseModel,
+                provider,
+                providerCode,
+                parameters,
+                generationCredit,
+                taskId: `failed-init:${providerCode}:${crypto.randomUUID()}`,
+                status: "failed",
+                errorMessage: resolvedCreateErrorMessage,
+                creditRefunded: Number(generationCredit.credit) > 0,
+                completedAt: new Date().toISOString()
+            });
+        }
+
 
         return failure(
             res,
             opusQueueBusy
                 ? 503
                 : statusCode,
-            opusQueueBusy
-                ? OPUS_QUEUE_WAIT_MESSAGE
-                : (
-                    error?.message ||
-                    "Failed to create generation task"
-                ),
+            resolvedCreateErrorMessage,
             {
 
                 code:
@@ -5550,6 +5605,25 @@ export default async function handler(
         }
 
 
+        if (Number(generationCredit?.credit) >= 0) {
+            await createGenerationHistory({
+                user,
+                body,
+                modelConfig,
+                databaseModel,
+                provider,
+                providerCode,
+                parameters,
+                generationCredit,
+                taskId: `failed-init:${providerCode}:${crypto.randomUUID()}`,
+                status: "failed",
+                errorMessage: "Provider did not return a task ID",
+                creditRefunded: refundSuccessful || Number(generationCredit.credit) === 0,
+                completedAt: new Date().toISOString()
+            });
+        }
+
+
         return failure(
             res,
             502,
@@ -5576,6 +5650,11 @@ export default async function handler(
 
                 credit_used:
                     generationCredit.credit,
+
+                refunded_credit:
+                    refundSuccessful
+                        ? generationCredit.credit
+                        : 0,
 
                 credit_refunded:
                     refundSuccessful
