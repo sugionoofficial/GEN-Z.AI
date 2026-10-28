@@ -53,7 +53,7 @@
 ========================================================= */
 
 const MODEL_DATA_VERSION =
-    "2026-10-28-opus-v11";
+    "2026-10-28-opus-v12";
 
 
 /* =========================================================
@@ -106,7 +106,7 @@ import qwenCloudVideoModels
     from "../../models/qwencloud-video/index.js?v=models-registry-qwencloud-20261022";
 
 import opusVideoModels
-    from "../../models/opus-video/index.js?v=models-registry-opus-20261028";
+    from "../../models/opus-video/index.js?v=models-registry-opus-durations-20261028";
 
 
 /* =========================================================
@@ -1985,6 +1985,13 @@ function normalizeRegistryModel(
         );
 
 
+    const registryDurations =
+        getParameterEnum(
+            parameters,
+            "duration"
+        );
+
+
     const durationRange =
         getDurationRange(
             parameters
@@ -1994,6 +2001,18 @@ function normalizeRegistryModel(
     const persisted =
         persistedModel ||
         null;
+
+
+    const persistedDurations =
+        normalizeArray(
+            persisted?.supported_durations
+        );
+
+
+    const supportedDurations =
+        persistedDurations.length
+            ? persistedDurations
+            : registryDurations;
 
 
     const modelName =
@@ -2263,6 +2282,12 @@ function normalizeRegistryModel(
         available_resolutions:
             supportedResolutions,
 
+        supported_durations:
+            supportedDurations,
+
+        available_durations:
+            registryDurations,
+
         adminEditor:
             config.adminEditor || {},
 
@@ -2524,6 +2549,12 @@ function normalizePersistedModel(
         );
 
 
+    const persistedDurations =
+        normalizeArray(
+            persistedModel.supported_durations
+        );
+
+
     const registryRatios =
         registryParameters
             ? getParameterEnum(
@@ -2538,6 +2569,15 @@ function normalizePersistedModel(
             ? getParameterEnum(
                 registryParameters,
                 "resolution"
+            )
+            : [];
+
+
+    const registryDurations =
+        registryParameters
+            ? getParameterEnum(
+                registryParameters,
+                "duration"
             )
             : [];
 
@@ -2596,6 +2636,12 @@ function normalizePersistedModel(
         persistedResolutions.length
             ? persistedResolutions
             : registryResolutions;
+
+
+    const supportedDurations =
+        persistedDurations.length
+            ? persistedDurations
+            : registryDurations;
 
 
     const safeDiscount =
@@ -2777,9 +2823,11 @@ function normalizePersistedModel(
 
         parameters:
             registryParameters
-                ? {
-                    ...registryParameters
-                }
+                ? (
+                    Array.isArray(registryParameters)
+                        ? [...registryParameters]
+                        : { ...registryParameters }
+                )
                 : {},
 
         supported_ratios:
@@ -2790,6 +2838,12 @@ function normalizePersistedModel(
 
         available_resolutions:
             registryResolutions,
+
+        supported_durations:
+            supportedDurations,
+
+        available_durations:
+            registryDurations,
 
         adminEditor:
             registryConfig?.adminEditor || {},

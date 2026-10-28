@@ -1298,7 +1298,8 @@ export function createEnumField(
 
             text.textContent =
                 formatEnumLabel(
-                    value
+                    value,
+                    name
                 );
 
 
@@ -1330,7 +1331,8 @@ export function createEnumField(
 ========================================================= */
 
 export function formatEnumLabel(
-    value
+    value,
+    name = ""
 ) {
 
     if (
@@ -1344,10 +1346,27 @@ export function formatEnumLabel(
 
     }
 
+    const raw =
+        String(
+            value
+        );
 
-    return String(
-        value
-    );
+    if (
+        String(name || "")
+            .trim()
+            .toLowerCase() ===
+            "duration" &&
+        /^\d+$/.test(
+            raw.trim()
+        )
+    ) {
+
+        return `${raw.trim()}s`;
+
+    }
+
+
+    return raw;
 
 }
 
