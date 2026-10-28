@@ -3023,6 +3023,27 @@
 
 </div>
 
+                    <div
+                        class="field full hidden"
+                        id="activeDurationField"
+                    >
+
+                        <label>
+                            Durasi Aktif
+                        </label>
+
+                        <div
+                            id="activeDurationSelector"
+                            class="resolution-selector"
+                        ></div>
+
+                        <div class="resolution-selector-help">
+                            Hanya durasi yang dicentang yang akan
+                            tersedia pada halaman Generate.
+                        </div>
+
+                    </div>
+
                     <div class="form-grid">
 
                         <div class="field">
@@ -3378,7 +3399,7 @@
         loadModels,
         getModelByModelId,
         loadProviders
-    } from "./models/models-data.js?v=admin-editor-config-20261018-wan";
+    } from "./models/models-data.js?v=admin-editor-config-20261028-opus-durations";
 
     import {
         QWENCLOUD_PROVIDER_CODE,
@@ -3544,6 +3565,16 @@
     const activeResolutionSelector =
         document.getElementById(
             "activeResolutionSelector"
+        );
+
+    const activeDurationField =
+        document.getElementById(
+            "activeDurationField"
+        );
+
+    const activeDurationSelector =
+        document.getElementById(
+            "activeDurationSelector"
         );
 
 
@@ -4315,6 +4346,378 @@
             values.map(value => normalizeResolution(value, currentModel)),
             currentModel
         );
+
+    }
+
+
+    /* =========================================================
+       ACTIVE DURATION SELECTOR
+    ========================================================= */
+
+    function normalizeDuration(value) {
+
+        return String(value ?? "")
+            .trim()
+            .replace(/s$/i, "")
+            .trim();
+
+    }
+
+
+    function normalizeDurationArray(value) {
+
+        if (Array.isArray(value)) {
+            return Array.from(
+                new Set(
+                    value
+                        .map(normalizeDuration)
+                        .filter(Boolean)
+                )
+            );
+        }
+
+        if (value === null || value === undefined || value === "") {
+            return [];
+        }
+
+        if (typeof value !== "string") {
+            return [];
+        }
+
+        const text = value.trim();
+        if (!text) {
+            return [];
+        }
+
+        if (text.startsWith("[") && text.endsWith("]")) {
+            try {
+                const parsed = JSON.parse(text);
+                if (Array.isArray(parsed)) {
+                    return normalizeDurationArray(parsed);
+                }
+            } catch (_) {
+                /* fallback */
+            }
+        }
+
+        return Array.from(
+            new Set(
+                text
+                    .split(",")
+                    .map(normalizeDuration)
+                    .filter(Boolean)
+            )
+        );
+
+    }
+
+
+    function sortDurations(values) {
+
+        return normalizeDurationArray(values).sort(
+            (a, b) => {
+                const na = Number(a);
+                const nb = Number(b);
+                if (Number.isFinite(na) && Number.isFinite(nb)) {
+                    return na - nb;
+                }
+                return a.localeCompare(b);
+            }
+        );
+
+    }
+
+
+    function getConfiguredDurationOptions(model = null) {
+
+        const options =
+            getAdminEditorConfig(model)
+                .durationOptions;
+
+        if (!Array.isArray(options)) {
+            return [];
+        }
+
+        return options
+            .filter(option => option && option.value != null)
+            .map(option => {
+                const normalizedValue = normalizeDuration(option.value);
+                return {
+                    value: normalizedValue,
+                    label: String(option.label || `${normalizedValue} detik`).trim()
+                };
+            })
+            .filter(option => Boolean(option.value));
+
+    }
+
+
+    function hasSelectableDurations(model = null) {
+
+        const editorConfig =
+            getAdminEditorConfig(model);
+
+        return (
+            editorConfig.selectableDurations === true ||
+            getConfiguredDurationOptions(model).length > 0
+        );
+
+    }
+
+
+    function getAvailableDurations(model = null) {
+
+        const configured =
+            getConfiguredDurationOptions(model);
+
+        if (configured.length) {
+            return sortDurations(
+                configured.map(option => option.value)
+            );
+        }
+
+        const registry =
+            currentRegistryModel ||
+            model ||
+            {};
+
+        const available =
+            normalizeDurationArray(
+                registry?.available_durations
+            );
+
+        if (available.length) {
+            return sortDurations(available);
+        }
+
+        const parameterValues =
+            getParameterValues(
+                registry,
+                "duration"
+            );
+
+        if (parameterValues.length) {
+            return sortDurations(parameterValues);
+        }
+
+        return [];
+
+    }
+
+
+    function getDurationOptions(model = null) {
+
+        const configured =
+            getConfiguredDurationOptions(model);
+
+        if (configured.length) {
+            return configured;
+        }
+
+        return getAvailableDurations(model)
+            .map(value => ({
+                value,
+                label: `${value} detik`
+            }));
+
+    }
+
+
+    function getActiveDurations(model) {
+
+        if (
+            model &&
+            Object.prototype.hasOwnProperty.call(
+                model,
+                "supported_durations"
+            )
+        ) {
+
+            const value =
+                model.supported_durations;
+
+            if (
+                value !== null &&
+                value !== undefined
+            ) {
+
+                const values =
+                    sortDurations(value);
+
+                if (values.length > 0) {
+                    return values;
+                }
+
+            }
+
+        }
+
+        return getAvailableDurations(model);
+
+    }
+
+
+    function renderActiveDurationSelector(model) {
+
+        if (!activeDurationSelector || !activeDurationField) {
+            return;
+        }
+
+        const sourceModel =
+            currentRegistryModel ||
+            model;
+
+        if (!hasSelectableDurations(sourceModel)) {
+            activeDurationField.classList.add("hidden");
+            activeDurationSelector.innerHTML = "";
+            return;
+        }
+
+        const options =
+            getDurationOptions(sourceModel);
+
+        if (!options.length) {
+            activeDurationField.classList.add("hidden");
+            activeDurationSelector.innerHTML = "";
+            return;
+        }
+
+        activeDurationField.classList.remove("hidden");
+        activeDurationSelector.innerHTML = "";
+
+        const active =
+            new Set(
+                getActiveDurations(model)
+                    .map(normalizeDuration)
+            );
+
+        options.forEach(
+            option => {
+
+                const value =
+                    normalizeDuration(option.value);
+
+                if (!value) {
+                    return;
+                }
+
+                const displayValue =
+                    String(option.label || `${value} detik`);
+
+                const id =
+                    `activeDuration_${
+                        value.replace(/[^a-zA-Z0-9_-]/g, "_")
+                    }`;
+
+                const checked =
+                    active.has(value);
+
+                const wrapper =
+                    document.createElement("div");
+
+                wrapper.className =
+                    "resolution-option";
+
+                wrapper.innerHTML = `
+                    <input
+                        type="checkbox"
+                        id="${id}"
+                        value="${value}"
+                        data-active-duration="${value}"
+                        ${checked ? "checked" : ""}
+                    >
+
+                    <label
+                        class="resolution-option-label"
+                        for="${id}"
+                    >
+
+                        <span
+                            class="resolution-option-check"
+                            aria-hidden="true"
+                        >
+                            ✓
+                        </span>
+
+                        <span
+                            class="resolution-option-text"
+                        >
+
+                            <span
+                                class="resolution-option-name"
+                            >
+                                ${displayValue}
+                            </span>
+
+                            <span
+                                class="resolution-option-status"
+                            >
+                                ${
+                                    checked
+                                        ? "Aktif di Generate"
+                                        : "Tidak aktif"
+                                }
+                            </span>
+
+                        </span>
+
+                    </label>
+                `;
+
+                activeDurationSelector.appendChild(wrapper);
+
+            }
+        );
+
+        activeDurationSelector
+            .querySelectorAll(
+                "input[data-active-duration]"
+            )
+            .forEach(
+                input => {
+
+                    input.addEventListener(
+                        "change",
+                        () => {
+
+                            const status =
+                                input.parentElement
+                                    ?.querySelector(
+                                        ".resolution-option-status"
+                                    );
+
+                            if (status) {
+                                status.textContent =
+                                    input.checked
+                                        ? "Aktif di Generate"
+                                        : "Tidak aktif";
+                            }
+
+                        }
+                    );
+
+                }
+            );
+
+    }
+
+
+    function getSelectedActiveDurations() {
+
+        if (!activeDurationSelector) {
+            return [];
+        }
+
+        const values =
+            Array.from(
+                activeDurationSelector
+                    .querySelectorAll(
+                        "input[data-active-duration]:checked"
+                    )
+            )
+                .map(input => input.value);
+
+        return sortDurations(values);
 
     }
 
@@ -5454,6 +5857,11 @@
         );
 
 
+        renderActiveDurationSelector(
+            model
+        );
+
+
         updatePricePreview();
 
 
@@ -5898,7 +6306,18 @@
                     "supported_resolutions"
                 )
                     ? admin.supported_resolutions
-                    : registry.supported_resolutions
+                    : registry.supported_resolutions,
+
+
+            supported_durations:
+                Object.prototype.hasOwnProperty.call(
+                    admin,
+                    "supported_durations"
+                ) &&
+                admin.supported_durations !== null &&
+                admin.supported_durations !== undefined
+                    ? admin.supported_durations
+                    : registry.supported_durations
 
         };
 
@@ -6241,6 +6660,37 @@
         }
 
 
+        const durationSelectable =
+            hasSelectableDurations(
+                currentRegistryModel ||
+                currentModel
+            );
+
+
+        const activeDurations =
+            durationSelectable
+                ? sortDurations(
+                    getSelectedActiveDurations()
+                )
+                : null;
+
+
+        if (
+            durationSelectable &&
+            (!activeDurations || activeDurations.length === 0)
+        ) {
+
+            showAlert(
+                "Pilih minimal satu durasi untuk diaktifkan di Generate.",
+                "error"
+            );
+
+
+            return;
+
+        }
+
+
         const payload = {
 
             id:
@@ -6273,6 +6723,14 @@
                 activeResolutions
 
         };
+
+
+        if (durationSelectable && activeDurations) {
+
+            payload.supported_durations =
+                activeDurations;
+
+        }
 
 
         const hiddenCreditFields =
@@ -6433,6 +6891,32 @@
             }
 
 
+            if (durationSelectable && activeDurations) {
+
+                const savedDurations =
+                    sortDurations(
+                        verified?.supported_durations
+                    );
+
+                const expectedDurations =
+                    sortDurations(
+                        activeDurations
+                    );
+
+                if (
+                    JSON.stringify(savedDurations) !==
+                    JSON.stringify(expectedDurations)
+                ) {
+
+                    throw new Error(
+                        "Durasi aktif tidak sesuai dengan nilai yang dikirim ke Admin Models."
+                    );
+
+                }
+
+            }
+
+
             currentDatabaseModel =
                 {
                     ...currentDatabaseModel,
@@ -6463,7 +6947,11 @@
                         credit720pValue,
 
                     supported_resolutions:
-                        activeResolutions
+                        activeResolutions,
+
+                    ...(durationSelectable && activeDurations
+                        ? { supported_durations: activeDurations }
+                        : {})
                 };
 
 

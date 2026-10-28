@@ -3040,6 +3040,28 @@ function validateDatabaseRestrictions(
 
             }
 
+
+            const supportedDurations =
+                normalizeArray(
+                    model.supported_durations
+                )
+                    .map(item => String(item).trim())
+                    .filter(Boolean);
+
+
+            if (
+                supportedDurations.length > 0 &&
+                !supportedDurations.some(
+                    item => Number(item) === duration
+                )
+            ) {
+
+                errors.push(
+                    `duration is not supported. Allowed: ${supportedDurations.join(", ")}`
+                );
+
+            }
+
         }
 
     }

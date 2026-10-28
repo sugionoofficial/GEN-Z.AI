@@ -337,6 +337,74 @@ export function getParameterDefinitions(
             }
 
 
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    model,
+                    "supported_durations"
+                )
+            ) {
+
+                const activeDurations =
+                    Array.isArray(
+                        model.supported_durations
+                    )
+                        ? model.supported_durations
+                            .map(
+                                value =>
+                                    String(
+                                        value
+                                    ).trim()
+                            )
+                            .filter(
+                                Boolean
+                            )
+                        : [];
+
+
+                if (
+                    activeDurations.length > 0 &&
+                    normalized.duration &&
+                    typeof normalized.duration ===
+                        "object"
+                ) {
+
+                    const currentDefault =
+                        normalized.duration.default !==
+                            undefined &&
+                        normalized.duration.default !==
+                            null
+                            ? String(
+                                normalized.duration.default
+                            ).trim()
+                            : "";
+
+                    const nextDefault =
+                        activeDurations.includes(
+                            currentDefault
+                        )
+                            ? currentDefault
+                            : activeDurations[0];
+
+                    normalized.duration = {
+
+                        ...normalized.duration,
+
+                        type:
+                            "string",
+
+                        enum:
+                            activeDurations,
+
+                        default:
+                            nextDefault
+
+                    };
+
+                }
+
+            }
+
+
             console.debug(
                 "[GEN-Z.AI][Generate Form] Parameter source ditemukan:",
                 {
@@ -824,7 +892,10 @@ export function getParameterLabel(
             "Duration",
 
         resolution:
-            "Resolution"
+            "Resolution",
+
+        generate_audio:
+            "Generate Audio"
 
     };
 

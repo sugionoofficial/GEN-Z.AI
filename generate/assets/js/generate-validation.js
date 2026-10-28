@@ -1157,6 +1157,25 @@ function getSupportedResolutions(
 }
 
 
+function getSupportedDurations(
+    model
+) {
+
+    if (!model) {
+
+        return [];
+    }
+
+
+    return normalizeArray(
+        model.supported_durations ??
+        model.supportedDurations ??
+        model.config?.supported_durations ??
+        model.config?.supportedDurations
+    );
+}
+
+
 /* =========================================================
    DURATION LIMITS
 ========================================================= */
@@ -1468,6 +1487,26 @@ function validateModelCapabilities(
 
             errors.push(
                 `Durasi maksimum adalah ${limits.max} detik.`
+            );
+        }
+
+
+        const supportedDurations =
+            getSupportedDurations(
+                model
+            );
+
+
+        if (
+            supportedDurations.length > 0 &&
+            !supportedDurations.some(
+                item =>
+                    Number(item) === duration
+            )
+        ) {
+
+            errors.push(
+                `Durasi ${parameters.duration} detik tidak tersedia untuk model ini.`
             );
         }
     }

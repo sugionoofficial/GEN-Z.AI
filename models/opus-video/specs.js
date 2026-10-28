@@ -73,9 +73,12 @@ const OPUS_VIDEO_SPECS = Object.freeze([
         ratios: [],
         resolutions: ["720p", "480p"],
         defaultResolution: "720p",
+        durations: ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
+        selectableDurations: true,
         durationRange: { min: 4, max: 30 },
         defaultDuration: "5",
         generateAudio: true,
+        defaultGenerateAudio: true,
         maxPrompt: 8000
     },
 
@@ -104,9 +107,12 @@ const OPUS_VIDEO_SPECS = Object.freeze([
         defaultRatio: "9:16",
         resolutions: ["720p", "480p"],
         defaultResolution: "720p",
+        durations: ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
+        selectableDurations: true,
         durationRange: { min: 4, max: 30 },
         defaultDuration: "5",
         generateAudio: true,
+        defaultGenerateAudio: true,
         maxPrompt: 8000
     },
 

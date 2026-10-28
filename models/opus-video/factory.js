@@ -90,6 +90,22 @@ function normalizeSeedanceResolution(value, fallback = "720p") {
 
 function buildAdminEditorConfig(spec) {
     const isHailuo = spec.opusModel === "hailuo-3";
+    const durationConfig =
+        spec.selectableDurations &&
+        Array.isArray(spec.durations) &&
+        spec.durations.length > 0
+            ? {
+                selectableDurations: true,
+                durationOptions: spec.durations
+                    .map(value => String(value ?? "").trim())
+                    .filter(Boolean)
+                    .map(value => ({
+                        value,
+                        label: `${value} detik`
+                    }))
+            }
+            : {};
+
     if (isHailuo) {
         return {
             hideParameterSummary: true,
@@ -101,7 +117,8 @@ function buildAdminEditorConfig(spec) {
                 "768p": "720p",
                 "2k": "1080p"
             },
-            hiddenCreditFields: ["credit_480p"]
+            hiddenCreditFields: ["credit_480p"],
+            ...durationConfig
         };
     }
 
@@ -111,7 +128,8 @@ function buildAdminEditorConfig(spec) {
             { value: "480p", label: "480p" },
             { value: "720p", label: "720p" }
         ],
-        hiddenCreditFields: ["credit_1080p"]
+        hiddenCreditFields: ["credit_1080p"],
+        ...durationConfig
     };
 }
 
@@ -182,7 +200,24 @@ function buildParametersForSpec(spec) {
         });
     }
 
-    if (spec.durationRange) {
+    if (Array.isArray(spec.durations) && spec.durations.length > 0) {
+        const normalizedDurations = spec.durations
+            .map(item => String(item ?? "").trim())
+            .filter(Boolean);
+        const numericDurations = normalizedDurations
+            .map(Number)
+            .filter(Number.isFinite);
+        parameters.push({
+            name: "duration",
+            type: "string",
+            required: false,
+            enum: normalizedDurations,
+            min: spec.durationRange?.min ?? (numericDurations.length ? Math.min(...numericDurations) : 4),
+            max: spec.durationRange?.max ?? (numericDurations.length ? Math.max(...numericDurations) : 30),
+            default: String(spec.defaultDuration || normalizedDurations[0] || "5"),
+            description: "Durasi video dalam detik."
+        });
+    } else if (spec.durationRange) {
         parameters.push({
             name: "duration",
             type: "integer",
@@ -195,11 +230,16 @@ function buildParametersForSpec(spec) {
     }
 
     if (spec.generateAudio) {
+        const defaultGenerateAudio =
+            spec.defaultGenerateAudio !== undefined
+                ? Boolean(spec.defaultGenerateAudio)
+                : false;
         parameters.push({
             name: "generate_audio",
             type: "boolean",
             required: false,
-            default: false,
+            default: defaultGenerateAudio,
+            label: "Generate Audio",
             description: "Hasilkan dialog, musik, atau efek suara bawaan (Seedance)."
         });
     }
@@ -284,9 +324,10 @@ export function createOpusVideoModel(spec) {
         }
 
         if (definitions.has("generate_audio")) {
+            const audioDef = definitions.get("generate_audio");
             result.generate_audio = normalizeBoolean(
                 source.generate_audio ?? source.generateAudio,
-                false
+                Boolean(audioDef?.default)
             );
         }
 
@@ -365,6 +406,11 @@ export function createOpusVideoModel(spec) {
             const numDur = Number(params.duration);
             if (!Number.isFinite(numDur) || !Number.isInteger(numDur)) {
                 errors.push("Durasi harus berupa angka bulat detik.");
+            } else if (Array.isArray(durDef.enum) && durDef.enum.length > 0) {
+                const allowedDurations = durDef.enum.map(v => String(v).trim());
+                if (!allowedDurations.includes(String(numDur))) {
+                    errors.push(`Durasi tidak valid. Pilihan: ${allowedDurations.join(", ")} detik.`);
+                }
             } else if (numDur < durDef.min || numDur > durDef.max) {
                 errors.push(`Durasi harus antara ${durDef.min} dan ${durDef.max} detik.`);
             }

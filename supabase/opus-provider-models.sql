@@ -27,6 +27,14 @@
 -- =========================================================
 
 -- =========================================================
+-- 0. KOLOM OPSIONAL DURASI PILIHAN (IDEMPOTENT)
+-- =========================================================
+
+alter table public.models
+    add column if not exists supported_durations text[];
+
+
+-- =========================================================
 -- 1. PROVIDER
 -- =========================================================
 
@@ -70,6 +78,7 @@ seed (
     max_duration,
     supported_ratios,
     supported_resolutions,
+    supported_durations,
     credit_480p,
     credit_720p,
     credit_1080p
@@ -80,19 +89,19 @@ seed (
             'opus-seedance-2.5-t2v',
             'Seedance 2.5 Text to Video (Opus)',
             'Text to video Seedance 2.5 via Opus Labs — 4–30 detik, 480p/720p, dukungan audio dialog & musik bawaan.',
-            4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', 15, 25, 0
+            4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', null, 15, 25, 0
         ),
         (
             'opus-seedance-2.5-i2v',
             'Seedance 2.5 Image to Video (Opus)',
             'Image to video Seedance 2.5 dari gambar frame awal via Opus Labs — 4–30 detik, 480p/720p, audio bawaan.',
-            4, 30, '{}', '{720p,480p}', 15, 25, 0
+            4, 30, '{}', '{720p,480p}', '{4,5,8,10,12,15,20,25,30}', 15, 25, 0
         ),
         (
             'opus-seedance-2.5-r2v',
             'Seedance 2.5 Reference to Video (Opus)',
             'Konsistensi karakter & produk dari 1–3 gambar referensi (@image1–@image3) via Opus Labs — 4–30 detik.',
-            4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', 18, 28, 0
+            4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', '{4,5,8,10,12,15,20,25,30}', 18, 28, 0
         ),
 
         -- SEEDANCE 2.0 ------------------------------------
@@ -100,7 +109,7 @@ seed (
             'opus-seedance-2.0-r2v',
             'Seedance 2.0 Video (Opus)',
             'Text & Reference to video Seedance 2.0 via Opus Labs — 4–15 detik, opsional hingga 3 gambar referensi.',
-            4, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', 12, 20, 0
+            4, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', null, 12, 20, 0
         ),
 
         -- MINIMAX HAILUO 3 --------------------------------
@@ -108,13 +117,13 @@ seed (
             'opus-hailuo-3-t2v',
             'MiniMax Hailuo 3 Text to Video (Opus)',
             'Text to video MiniMax Hailuo 3 via Opus Labs — 5–15 detik, resolusi tajam 768p & 2K.',
-            5, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{768p,2k}', 0, 25, 45
+            5, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{768p,2k}', null, 0, 25, 45
         ),
         (
             'opus-hailuo-3-i2v',
             'MiniMax Hailuo 3 First & Last Frame (Opus)',
             'Image to video MiniMax Hailuo 3 dari frame awal + frame akhir opsional via Opus Labs — 5–15 detik, 768p & 2K.',
-            5, 15, '{}', '{768p,2k}', 0, 25, 45
+            5, 15, '{}', '{768p,2k}', null, 0, 25, 45
         )
 )
 insert into public.models (
@@ -126,6 +135,7 @@ insert into public.models (
     max_duration,
     supported_ratios,
     supported_resolutions,
+    supported_durations,
     credit_480p,
     credit_720p,
     credit_1080p,
@@ -141,6 +151,7 @@ select
     seed.max_duration,
     seed.supported_ratios::text[],
     seed.supported_resolutions::text[],
+    seed.supported_durations::text[],
     seed.credit_480p,
     seed.credit_720p,
     seed.credit_1080p,
@@ -155,4 +166,5 @@ set
     min_duration = excluded.min_duration,
     max_duration = excluded.max_duration,
     supported_ratios = excluded.supported_ratios,
-    supported_resolutions = excluded.supported_resolutions;
+    supported_resolutions = excluded.supported_resolutions,
+    supported_durations = coalesce(public.models.supported_durations, excluded.supported_durations);

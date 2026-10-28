@@ -24,6 +24,22 @@ import {
     getModelLogoFile
 } from "../generate/assets/js/generate-model-logo.js";
 
+import {
+    MODEL_FIELDS,
+    cleanModel,
+    validateModel
+} from "../lib/admin-models/validation.js";
+
+import {
+    getParameterDefinitions
+} from "../generate/assets/js/generate-form-core.js";
+
+import {
+    formatEnumLabel
+} from "../generate/assets/js/generate-form-fields.js";
+
+import { readFileSync } from "node:fs";
+
 /* =========================================================
    1. REGISTRY, LOGO, DAN VALIDASI ADAPTER MODEL
 ========================================================= */
@@ -1225,6 +1241,206 @@ test("Opus MCP: mengisi durasi pada nested config ('30s' + autoDuration:false + 
         globalThis.fetch = originalFetch;
     }
 });
+
+test("Seedance 2.5 I2V dan R2V memiliki pilihan durasi terkonfigurasi checkbox serta generate_audio aktif secara default", () => {
+    const expectedDurations = ["4", "5", "8", "10", "12", "15", "20", "25", "30"];
+
+    for (const modelId of ["opus-seedance-2.5-i2v", "opus-seedance-2.5-r2v"]) {
+        const model = getOpusVideoModel(modelId);
+        assert.ok(model, `Model ${modelId} harus terdaftar`);
+
+        assert.equal(model.config.adminEditor.selectableDurations, true);
+        assert.deepEqual(
+            model.config.adminEditor.durationOptions.map(opt => opt.value),
+            expectedDurations
+        );
+
+        const durationParam = model.parameters.find(param => param.name === "duration");
+        assert.ok(durationParam);
+        assert.equal(durationParam.type, "string");
+        assert.deepEqual(durationParam.enum, expectedDurations);
+        assert.equal(durationParam.default, "5");
+
+        const audioParam = model.parameters.find(param => param.name === "generate_audio");
+        assert.ok(audioParam);
+        assert.equal(audioParam.default, true);
+        assert.equal(audioParam.label, "Generate Audio");
+
+        const defaultParams = model.getParameters({
+            prompt: "Adegan sinematik dengan audio bawaan",
+            image_url: "https://cdn.example.com/frame.jpg",
+            image_urls: ["https://cdn.example.com/ref1.jpg"]
+        });
+        assert.equal(defaultParams.generate_audio, true, `${modelId} harus mengaktifkan generate_audio secara default`);
+
+        const defaultPayload = model.buildPayload({
+            prompt: "Adegan sinematik dengan audio bawaan",
+            image_url: "https://cdn.example.com/frame.jpg",
+            image_urls: ["https://cdn.example.com/ref1.jpg"]
+        });
+        assert.equal(defaultPayload.generate_audio, true);
+
+        const disabledAudioPayload = model.buildPayload({
+            prompt: "Adegan tanpa audio",
+            image_url: "https://cdn.example.com/frame.jpg",
+            image_urls: ["https://cdn.example.com/ref1.jpg"],
+            generate_audio: false
+        });
+        assert.equal(disabledAudioPayload.generate_audio, false);
+
+        const invalidDuration = model.validate({
+            prompt: "Durasi di luar daftar pilihan",
+            image_url: "https://cdn.example.com/frame.jpg",
+            image_urls: ["https://cdn.example.com/ref1.jpg"],
+            duration: "7"
+        });
+        assert.equal(invalidDuration.valid, false);
+    }
+});
+
+test("supported_durations divalidasi di admin-models, diteruskan ke form /generate, dan didukung sistem checkbox model-edit.html", async () => {
+    assert.ok(MODEL_FIELDS.includes("supported_durations"));
+
+    const cleaned = cleanModel({
+        model_id: "opus-seedance-2.5-i2v",
+        supported_durations: ["5", "10", "15"]
+    });
+    assert.deepEqual(cleaned.supported_durations, ["5", "10", "15"]);
+    assert.equal(validateModel(cleaned, false), null);
+
+    const invalid = cleanModel({
+        model_id: "opus-seedance-2.5-i2v",
+        supported_durations: ["5", "abc"]
+    });
+    assert.match(String(validateModel(invalid, false)), /supported_durations/);
+
+    const i2v = getOpusVideoModel("opus-seedance-2.5-i2v");
+    const definitions = getParameterDefinitions({
+        model_id: i2v.config.id,
+        parameters: i2v.parameters,
+        supported_resolutions: ["720p"],
+        supported_durations: ["10", "15", "30"]
+    });
+    assert.deepEqual(definitions.duration.enum, ["10", "15", "30"]);
+    assert.equal(
+        definitions.duration.default,
+        "10",
+        "ketika default lama (5) tidak dicentang admin, default otomatis jatuh ke durasi aktif pertama (10)"
+    );
+    assert.equal(definitions.generate_audio.default, true);
+    assert.equal(formatEnumLabel("10", "duration"), "10s");
+    assert.equal(formatEnumLabel("720p", "resolution"), "720p");
+
+    const modelEditHtml = readFileSync(
+        new URL("../admin-control/model-edit.html", import.meta.url),
+        "utf8"
+    );
+    assert.match(modelEditHtml, /id="activeDurationField"/);
+    assert.match(modelEditHtml, /id="activeDurationSelector"/);
+    assert.match(modelEditHtml, /data-active-duration="/);
+    assert.match(modelEditHtml, /payload\.supported_durations\s*=/);
+    assert.match(modelEditHtml, /Pilih minimal satu durasi untuk diaktifkan di Generate\./);
+});
+
+test("/api/model-config mengembalikan supported_durations terfilter dan menyesuaikan default duration dari database", async () => {
+    const prevUrl = process.env.SUPABASE_URL;
+    const prevKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const originalFetch = globalThis.fetch;
+
+    process.env.SUPABASE_URL = "https://supabase.mock.local";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-service-role-secret";
+
+    globalThis.fetch = async (url) => {
+        const href = String(url);
+        if (href.includes("/auth/v1/user")) {
+            return Response.json({ id: "user-001", email: "user@example.com" });
+        }
+        if (href.includes("/rest/v1/models")) {
+            return Response.json([
+                {
+                    id: "4c21ab91-6e57-410f-b5ed-da9e92c92618",
+                    provider_id: "prov-opus-uuid",
+                    model_id: "opus-seedance-2.5-i2v",
+                    model_name: "Seedance 2.5 Image to Video (Opus)",
+                    description: "Seedance 2.5 I2V",
+                    min_duration: 4,
+                    max_duration: 30,
+                    supported_ratios: [],
+                    supported_resolutions: ["720p"],
+                    supported_durations: ["8", "15"],
+                    credit_480p: 3000,
+                    credit_720p: 5000,
+                    credit_1080p: 0,
+                    discount_percent: 0,
+                    status: "active"
+                }
+            ]);
+        }
+        if (href.includes("/rest/v1/providers")) {
+            return Response.json([
+                {
+                    id: "prov-opus-uuid",
+                    provider_id: "opus",
+                    provider_name: "Opus",
+                    status: "active"
+                }
+            ]);
+        }
+        throw new Error(`Unexpected fetch in model-config test: ${href}`);
+    };
+
+    try {
+        const { default: modelConfigHandler } = await import(
+            `../api/model-config.js?test=${Date.now()}`
+        );
+
+        let statusCode = 200;
+        let rawBody = "";
+        const req = {
+            method: "GET",
+            url: "/api/model-config?model_id=opus-seedance-2.5-i2v",
+            headers: {
+                authorization: "Bearer mock-user-session-token"
+            }
+        };
+        const res = {
+            set statusCode(code) {
+                statusCode = code;
+            },
+            get statusCode() {
+                return statusCode;
+            },
+            setHeader() {},
+            end(payload) {
+                rawBody = String(payload || "");
+            }
+        };
+
+        await modelConfigHandler(req, res);
+        assert.equal(statusCode, 200);
+
+        const body = JSON.parse(rawBody);
+        assert.equal(body.success, true);
+        assert.deepEqual(body.model.supported_durations, ["8", "15"]);
+
+        const durationParam = body.model.parameters.find(p => p.name === "duration");
+        assert.ok(durationParam);
+        assert.deepEqual(durationParam.enum, ["8", "15"]);
+        assert.equal(durationParam.default, "8");
+
+        const audioParam = body.model.parameters.find(p => p.name === "generate_audio");
+        assert.ok(audioParam);
+        assert.equal(audioParam.default, true);
+    } finally {
+        globalThis.fetch = originalFetch;
+        if (prevUrl === undefined) delete process.env.SUPABASE_URL;
+        else process.env.SUPABASE_URL = prevUrl;
+        if (prevKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+        else process.env.SUPABASE_SERVICE_ROLE_KEY = prevKey;
+    }
+});
+
+
 
 
 

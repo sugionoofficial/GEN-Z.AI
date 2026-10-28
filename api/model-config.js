@@ -874,6 +874,69 @@ function serializeParameters(
 }
 
 
+function applyCapabilityOverridesToParameters(
+    serializedParameters,
+    overrides = {}
+) {
+
+    const activeDurations =
+        Array.isArray(overrides.durations)
+            ? overrides.durations
+                .map(item => String(item ?? "").trim())
+                .filter(Boolean)
+            : [];
+
+    if (!activeDurations.length || !serializedParameters) {
+        return serializedParameters;
+    }
+
+    const patchDurationDefinition = (definition = {}) => {
+        const currentDefault =
+            definition.default !== undefined && definition.default !== null
+                ? String(definition.default).trim()
+                : "";
+        const nextDefault =
+            activeDurations.includes(currentDefault)
+                ? currentDefault
+                : activeDurations[0];
+
+        return {
+            ...definition,
+            type: "string",
+            enum: activeDurations,
+            default: nextDefault
+        };
+    };
+
+    if (Array.isArray(serializedParameters)) {
+        return serializedParameters.map(parameter => {
+            if (
+                parameter &&
+                typeof parameter === "object" &&
+                String(parameter.name || "").trim().toLowerCase() === "duration"
+            ) {
+                return patchDurationDefinition(parameter);
+            }
+            return parameter;
+        });
+    }
+
+    if (
+        typeof serializedParameters === "object" &&
+        serializedParameters.duration &&
+        typeof serializedParameters.duration === "object"
+    ) {
+        return {
+            ...serializedParameters,
+            duration: patchDurationDefinition(serializedParameters.duration)
+        };
+    }
+
+    return serializedParameters;
+
+}
+
+
 /* =========================================================
    MODEL REGISTRY LOOKUP
    ========================================================= */
@@ -1499,19 +1562,32 @@ function buildModelConfig(
        MODEL PARAMETERS
        ===================================================== */
 
+    const findParameter = (name) => {
+        if (!parameters || typeof parameters !== "object") {
+            return null;
+        }
+        if (Array.isArray(parameters)) {
+            return (
+                parameters.find(
+                    param =>
+                        String(param?.name || "").trim().toLowerCase() ===
+                        String(name).trim().toLowerCase()
+                ) || null
+            );
+        }
+        return parameters[name] || null;
+    };
+
     const ratioParameter =
-        parameters.aspect_ratio ||
-        null;
+        findParameter("aspect_ratio");
 
 
     const resolutionParameter =
-        parameters.resolution ||
-        null;
+        findParameter("resolution");
 
 
     const durationParameter =
-        parameters.duration ||
-        null;
+        findParameter("duration");
 
 
     const folderRatios =
@@ -1523,6 +1599,12 @@ function buildModelConfig(
     const folderResolutions =
         normalizeArray(
             resolutionParameter?.enum
+        );
+
+
+    const folderDurations =
+        normalizeArray(
+            durationParameter?.enum
         );
 
 
@@ -1542,6 +1624,12 @@ function buildModelConfig(
         );
 
 
+    const databaseDurations =
+        normalizeArray(
+            databaseModel?.supported_durations
+        );
+
+
     const hasDatabaseResolutions =
         databaseModel &&
         Object.prototype.hasOwnProperty.call(
@@ -1556,6 +1644,12 @@ function buildModelConfig(
         databaseRatios.length
             ? databaseRatios
             : folderRatios;
+
+
+    const finalDurations =
+        databaseDurations.length
+            ? databaseDurations
+            : folderDurations;
 
 
     /* =====================================================
@@ -1899,6 +1993,10 @@ function buildModelConfig(
             finalResolutions,
 
 
+        supported_durations:
+            finalDurations,
+
+
         /* =================================================
            FLAT CREDIT FLAGS
            -------------------------------------------------
@@ -1961,8 +2059,14 @@ function buildModelConfig(
            ================================================= */
 
         parameters:
-            serializeParameters(
-                parameters
+            applyCapabilityOverridesToParameters(
+                serializeParameters(
+                    parameters
+                ),
+                {
+                    resolutions: finalResolutions,
+                    durations: finalDurations
+                }
             ),
 
 
