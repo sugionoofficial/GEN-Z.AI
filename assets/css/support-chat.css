@@ -174,15 +174,17 @@
 
 .genz-chat-close {
     display: grid;
-    width: 32px;
-    height: 32px;
-    flex: 0 0 32px;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
     place-items: center;
     border: 0;
-    border-radius: 9px;
+    border-radius: 10px;
     background: transparent;
     color: #c8cbd1;
     cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .genz-chat-close:hover {

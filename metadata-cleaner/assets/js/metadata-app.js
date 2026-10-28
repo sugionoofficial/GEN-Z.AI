@@ -45,7 +45,7 @@ import {
 
 import {
     bindMetadataEvents
-} from "./metadata-events.js?v=metadata-download-status-20261017";
+} from "./metadata-events.js?v=download-toast-20261029";
 
 
 import {

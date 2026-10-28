@@ -196,7 +196,7 @@
     function addStylesheet() {
         const stylesheet = document.createElement("link");
         stylesheet.rel = "stylesheet";
-        stylesheet.href = "/assets/css/support-chat.css";
+        stylesheet.href = "/assets/css/support-chat.css?v=touch-close-20261029";
         document.head.append(stylesheet);
     }
 

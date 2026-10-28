@@ -1154,7 +1154,7 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
     position: sticky;
     top: 0;
     background: #0a0d13;
-    z-index: 2;
+    z-index: 6;
 }
 .modal-header h3 {
     font-size: 16px;
@@ -1162,14 +1162,23 @@ td:nth-child(9) { grid-column: 6; grid-row: 1 / span 3; }
     letter-spacing: -.3px;
 }
 .close-button {
-    width: 34px;
-    height: 34px;
+    /* Target sentuh 44px: di HP tombol 34px sering "tidak bisa diklik". */
+    position: relative;
+    z-index: 5;
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
     border: 1px solid var(--line-hi);
-    border-radius: 9px;
+    border-radius: 10px;
     background: transparent;
     color: var(--text-3);
-    font-size: 16px;
+    font-size: 20px;
+    line-height: 1;
     cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
     transition: all .2s var(--ease);
 }
 .close-button:hover {
@@ -2545,7 +2554,7 @@ tbody tr {
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/generated-file-name.js?v=20261017-generated-download-name"></script>
-<script src="../assets/js/genz-toast.js?v=20261029-history-download"></script>
+<script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
 <script src="../assets/js/generation-regenerate.js?v=20261016-regenerate"></script>
 <script src="/navigation/navigation.js?v=deep-black-bg-20261027"></script>
 <script src="./assets/js/history-config.js"></script>
@@ -2555,7 +2564,7 @@ tbody tr {
 <script src="./assets/js/history-status-sync.js?v=20261028-feature-credit"></script>
 <script src="./assets/js/history-render.js?v=20261026-expiry-result-only-fc20261028"></script>
 <script src="./assets/js/history-runtime.js"></script>
-<script src="./assets/js/history-modal.js?v=20261029-download-toast"></script>
+<script src="./assets/js/history-modal.js?v=20261029-close-fix"></script>
 <script src="./assets/js/history-events.js?v=20261028-feature-credit"></script>
 <script src="./assets/js/history-app.js"></script>
 
@@ -2846,6 +2855,6 @@ tbody tr {
 })();
 </script>
 
-    <script src="/assets/js/support-chat.js?v=guest-session-20261026" defer></script>
+    <script src="/assets/js/support-chat.js?v=touch-close-20261029" defer></script>
 </body>
 </html>

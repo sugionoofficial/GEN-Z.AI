@@ -40,8 +40,14 @@
         error: 0
     };
 
-    /* key -> { id, timer, element } */
+    /*
+     * Registry:
+     * - activeToasts: id -> entry (selalu diisi, sehingga tombol × /
+     *   dismiss(id) selalu bekerja, termasuk toast yang dibuat dengan key)
+     * - keyedToastIds: key -> id (untuk mengganti toast lama, bukan menumpuk)
+     */
     const activeToasts = new Map();
+    const keyedToastIds = new Map();
     let toastSeed = 0;
 
     const ICONS = {
@@ -74,7 +80,9 @@
                 position: fixed;
                 z-index: 100000;
                 right: 18px;
-                bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+                /* Di atas tombol live chat (launcher: bottom 22px, 58px)
+                   supaya notifikasi tidak pernah menutupi tombol chat. */
+                bottom: calc(94px + env(safe-area-inset-bottom, 0px));
                 display: flex;
                 flex-direction: column;
                 gap: 10px;
@@ -182,17 +190,25 @@
             .genz-toast-close {
                 display: grid;
                 place-items: center;
-                width: 24px;
-                height: 24px;
-                margin-top: -2px;
+                /* Target sentuh 44px (standar aksesibilitas HP) agar
+                   tombol × benar-benar bisa diketuk di layar HP. */
+                width: 44px;
+                height: 44px;
+                align-self: start;
+                margin: -6px -6px 0 0;
+                padding: 0;
                 border: 0;
-                border-radius: 7px;
+                border-radius: 10px;
                 background: transparent;
-                color: rgba(255, 255, 255, .45);
+                color: rgba(255, 255, 255, .55);
                 font: inherit;
-                font-size: 16px;
+                font-size: 20px;
                 line-height: 1;
                 cursor: pointer;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                position: relative;
+                z-index: 3;
             }
 
             .genz-toast-close:hover,
@@ -302,7 +318,7 @@
                 #${CONTAINER_ID} {
                     right: 12px;
                     left: 12px;
-                    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+                    bottom: calc(82px + env(safe-area-inset-bottom, 0px));
                     width: auto;
                 }
 
@@ -354,8 +370,15 @@
             entry.timer = null;
         }
 
-        if (entry.entryKey && activeToasts.get(entry.entryKey) === entry) {
-            activeToasts.delete(entry.entryKey);
+        if (entry.id && activeToasts.get(entry.id) === entry) {
+            activeToasts.delete(entry.id);
+        }
+
+        if (
+            entry.entryKey &&
+            keyedToastIds.get(entry.entryKey) === entry.id
+        ) {
+            keyedToastIds.delete(entry.entryKey);
         }
     }
 
@@ -399,11 +422,16 @@
         if (!text) return "";
 
         /* Toast dengan key yang sama diganti seketika, bukan ditumpuk. */
-        if (key && activeToasts.has(key)) {
-            const previous = activeToasts.get(key);
-            clearToastEntry(previous);
-            activeToasts.delete(key);
-            removeElement(previous.element, true);
+        if (key && keyedToastIds.has(key)) {
+            const previousId = keyedToastIds.get(key);
+            const previous = activeToasts.get(previousId);
+
+            if (previous) {
+                clearToastEntry(previous);
+                removeElement(previous.element, true);
+            }
+
+            keyedToastIds.delete(key);
         }
 
         const container = ensureContainer();
@@ -494,16 +522,40 @@
             id,
             element,
             timer: null,
-            entryKey: key || id
+            entryKey: key || ""
         };
 
+        activeToasts.set(id, entry);
+
         if (key) {
-            activeToasts.set(key, entry);
-        } else {
-            activeToasts.set(id, entry);
+            keyedToastIds.set(key, id);
         }
 
-        closeButton.addEventListener("click", () => dismiss(id));
+        /* Klik × harus terasa instan di HP: hapus elemen tanpa animasi
+           keluar yang tertunda. */
+        closeButton.addEventListener("click", event => {
+            event?.preventDefault?.();
+            event?.stopPropagation?.();
+            dismiss(id, true);
+        });
+
+        /* Ketuk di mana saja pada toast juga menutupnya, supaya toast
+           tidak menghalangi tombol di bawahnya terlalu lama. */
+        if (options.dismissible !== false) {
+            element.addEventListener("click", event => {
+                const target = event?.target;
+
+                if (
+                    target &&
+                    typeof target.closest === "function" &&
+                    target.closest(".genz-toast-action")
+                ) {
+                    return;
+                }
+
+                dismiss(id, true);
+            });
+        }
 
         if (duration > 0) {
             bar.style.transition = `transform ${duration}ms linear`;
@@ -520,24 +572,197 @@
         return id;
     }
 
-    function dismiss(id) {
-        const targetId = String(id || "").trim();
-        if (!targetId) return false;
+    /**
+     * Menutup toast berdasarkan id ATAU key.
+     * Penting: toast yang dibuat dengan `key` tetap bisa ditutup lewat
+     * tombol × (yang memakai id), jadi tombol × tidak pernah "mati".
+     */
+    function dismiss(idOrKey, immediate = false) {
+        const target = String(idOrKey || "").trim();
+        if (!target) return false;
 
-        const entry = activeToasts.get(targetId);
+        const resolvedId = activeToasts.has(target)
+            ? target
+            : keyedToastIds.get(target);
+
+        if (!resolvedId) return false;
+
+        const entry = activeToasts.get(resolvedId);
         if (!entry) return false;
 
         clearToastEntry(entry);
-        removeElement(entry.element);
+        removeElement(entry.element, immediate === true);
         return true;
     }
 
     function dismissAll() {
-        for (const [key, entry] of Array.from(activeToasts.entries())) {
+        for (const [id, entry] of Array.from(activeToasts.entries())) {
             clearToastEntry(entry);
             removeElement(entry.element, true);
-            activeToasts.delete(key);
+            activeToasts.delete(id);
         }
+
+        keyedToastIds.clear();
+    }
+
+    /* =====================================================
+       UMPAN BALIK OTOMATIS UNTUK SEMUA TAUTAN UNDUHAN
+       -----------------------------------------------------
+       Setiap <a download> / <a data-download> yang diklik
+       pengguna (bukan klik programatik) otomatis memberi toast
+       sukses "Unduhan dimulai".
+
+       Klik programatik (isTrusted === false) dan tautan yang
+       sudah ditangani sendiri oleh halaman (defaultPrevented)
+       dilewati supaya notifikasi tidak dobel.
+    ===================================================== */
+
+    let globalDownloadCounter = 0;
+
+    function getDownloadName(anchor) {
+        const explicit =
+            anchor.getAttribute("download") ||
+            anchor.dataset?.downloadName ||
+            anchor.dataset?.filename ||
+            "";
+
+        if (explicit && explicit.trim()) {
+            return explicit.trim();
+        }
+
+        try {
+            const url = new URL(anchor.href, window.location.href);
+            const last = url.pathname.split("/").filter(Boolean).pop();
+            return last ? decodeURIComponent(last) : "";
+        } catch {
+            return "";
+        }
+    }
+
+    function installGlobalDownloadFeedback() {
+        if (!document.body) return;
+        if (typeof document.addEventListener !== "function") return;
+        if (document.body.dataset.genzDownloadFeedback === "on") return;
+
+        document.body.dataset.genzDownloadFeedback = "on";
+
+        document.addEventListener(
+            "click",
+            event => {
+                if (event.defaultPrevented) return;
+                if (event.isTrusted === false) return;
+
+                const target = event?.target;
+
+                let anchor = null;
+
+                if (
+                    target &&
+                    typeof target.closest === "function"
+                ) {
+                    try {
+                        anchor = target.closest(
+                            "a[download], a[data-download]"
+                        );
+                    } catch {
+                        anchor = null;
+                    }
+                }
+
+                if (!anchor) return;
+                if (anchor.closest("[data-genz-download-silent]")) return;
+
+                const fileName = getDownloadName(anchor);
+
+                show("Unduhan dimulai", {
+                    type: "success",
+                    description: fileName
+                        ? `${fileName} — periksa folder Download / unduhan browser.`
+                        : "Periksa folder Download / unduhan browser Anda.",
+                    key: `genz-download-${++globalDownloadCounter}`,
+                    duration: 5200
+                });
+            },
+            {
+                capture: false
+            }
+        );
+    }
+
+    if (typeof document.addEventListener === "function") {
+        if (document.readyState === "loading") {
+            document.addEventListener(
+                "DOMContentLoaded",
+                installGlobalDownloadFeedback,
+                { once: true }
+            );
+        } else {
+            installGlobalDownloadFeedback();
+        }
+    }
+
+    /* =====================================================
+       NOTIFIKASI UNDUHAN BERSAMA (dipakai semua halaman)
+    ===================================================== */
+
+    const DOWNLOAD_KEY = "genz-download-main";
+
+    /**
+     * Notifikasi mulai menyiapkan unduhan (menetap sampai diganti).
+     */
+    function downloadStart(fileName) {
+        return show("Menyiapkan unduhan…", {
+            type: "info",
+            key: DOWNLOAD_KEY,
+            duration: 0,
+            description: fileName
+                ? `${fileName} sedang disiapkan.`
+                : "File sedang disiapkan, mohon tunggu.",
+            dismissible: true
+        });
+    }
+
+    /**
+     * Notifikasi sukses. Inilah tanda "berhasil" yang eksplisit.
+     */
+    function downloadSuccess(fileName, message) {
+        return show(message || "Berhasil diunduh", {
+            type: "success",
+            key: DOWNLOAD_KEY,
+            duration: 6500,
+            description: fileName
+                ? `${fileName} — cek folder Download / notifikasi browser.`
+                : "Cek folder Download / notifikasi browser Anda."
+        });
+    }
+
+    /**
+     * Notifikasi saat file dibuka di tab baru / permintaan dikirim ke
+     * aplikasi Android (bukan unduhan langsung).
+     */
+    function downloadFallback(fileName) {
+        return show("Unduhan dibuka di tab baru", {
+            type: "info",
+            key: DOWNLOAD_KEY,
+            duration: 6500,
+            description: fileName
+                ? `${fileName} — gunakan menu Simpan di tab tersebut.`
+                : "Gunakan menu Simpan di tab tersebut."
+        });
+    }
+
+    /**
+     * Notifikasi gagal dengan tombol "Coba lagi".
+     */
+    function downloadFailure(reason, onRetry) {
+        return show("GAGAL MENGUNDUH", {
+            type: "error",
+            key: DOWNLOAD_KEY,
+            duration: 0,
+            description: String(reason || "Silakan coba kembali.").trim(),
+            actionLabel: typeof onRetry === "function" ? "Coba lagi" : "",
+            onAction: typeof onRetry === "function" ? onRetry : undefined
+        });
     }
 
     window.GENZToast = Object.freeze({
@@ -549,6 +774,10 @@
         error: (message, options = {}) =>
             show(message, { ...options, type: "error" }),
         info: (message, options = {}) =>
-            show(message, { ...options, type: "info" })
+            show(message, { ...options, type: "info" }),
+        downloadStart,
+        downloadSuccess,
+        downloadFallback,
+        downloadFailure
     });
 })();

@@ -40,7 +40,7 @@ const historyHtml = read("history/index.html");
 test("halaman History memuat genz-toast.js sebelum history-modal.js", () => {
     assert.match(
         historyHtml,
-        /<script src="\.\.\/assets\/js\/genz-toast\.js\?v=20261029-history-download"><\/script>/
+        /<script src="\/assets\/js\/genz-toast\.js\?v=20261029-global-download-toast"><\/script>/
     );
 
     const toastIndex = historyHtml.indexOf("genz-toast.js");
@@ -53,7 +53,7 @@ test("halaman History memuat genz-toast.js sebelum history-modal.js", () => {
     );
 
     // history-modal ikut di-bump agar browser tidak memakai cache lama.
-    assert.match(historyHtml, /history-modal\.js\?v=20261029-download-toast/);
+    assert.match(historyHtml, /history-modal\.js\?v=20261029-close-fix/);
 });
 
 /* =========================================================
@@ -200,7 +200,11 @@ function createToastSandbox() {
         return element;
     }
 
+    const documentListeners = new Map();
+
     const documentStub = {
+        readyState: "complete",
+        documentElement: { dataset: {} },
         head: {
             appendChild(node) {
                 if (!headChildren.includes(node)) headChildren.push(node);
@@ -208,9 +212,27 @@ function createToastSandbox() {
             }
         },
         body: {
+            dataset: {},
             appendChild(node) {
                 bodyChildren.push(node);
                 return node;
+            },
+            closest() {
+                return null;
+            }
+        },
+        addEventListener(type, handler) {
+            if (!documentListeners.has(type)) documentListeners.set(type, []);
+            documentListeners.get(type).push(handler);
+        },
+        removeEventListener(type, handler) {
+            const list = documentListeners.get(type) || [];
+            const index = list.indexOf(handler);
+            if (index > -1) list.splice(index, 1);
+        },
+        dispatch(type, event) {
+            for (const handler of documentListeners.get(type) || []) {
+                handler(event);
             }
         },
         getElementById(id) {
@@ -239,7 +261,12 @@ function createToastSandbox() {
     vm.createContext(sandbox);
     vm.runInContext(toastSource, sandbox);
 
-    return { window: windowStub, document: documentStub, bodyChildren };
+    return {
+        window: windowStub,
+        document: documentStub,
+        bodyChildren,
+        dispatch: documentStub.dispatch
+    };
 }
 
 test("GENZToast menampilkan toast sukses dengan nama file, aksesibel & bisa ditutup", () => {
