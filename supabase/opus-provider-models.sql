@@ -100,7 +100,7 @@ seed (
         (
             'opus-seedance-2.5-r2v',
             'Seedance 2.5 Reference to Video (Opus)',
-            'Konsistensi karakter & produk dari 1–3 gambar referensi (@image1–@image3) via Opus Labs — 4–30 detik.',
+            'Konsistensi karakter, gerakan & produk dari hingga 3 gambar referensi (@image1–@image3) dan/atau 3 video referensi (@video1–@video3) via Opus Labs — 4–30 detik.',
             4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', '{4,5,8,10,12,15,20,25,30}', 18, 28, 0
         ),
 
@@ -108,7 +108,7 @@ seed (
         (
             'opus-seedance-2.0-r2v',
             'Seedance 2.0 Video (Opus)',
-            'Text & Reference to video Seedance 2.0 via Opus Labs — 4–15 detik, opsional hingga 3 gambar referensi.',
+            'Text & Reference to video Seedance 2.0 via Opus Labs — 4–15 detik, opsional hingga 3 gambar referensi (@image1–@image3) & 3 video referensi (@video1–@video3).',
             4, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', '{4,5,8,10,12,15}', 12, 20, 0
         ),
 

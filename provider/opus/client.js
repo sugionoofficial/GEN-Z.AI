@@ -45,6 +45,7 @@ const QUERY_TIMEOUT_MS = 25_000;
 const TOOLS_CACHE_TTL_MS = 3 * 60 * 1000;
 const COMPLETED_INLINE_CACHE_TTL_MS = 30 * 60 * 1000;
 const MAX_REFERENCE_IMAGES = 3;
+const MAX_REFERENCE_VIDEOS = 3;
 
 const CLIENT_ITEM_IDS = new Set([
     "clip-1",
@@ -57,7 +58,10 @@ const CLIENT_ITEM_IDS = new Set([
     "last_frame",
     "image1",
     "image2",
-    "image3"
+    "image3",
+    "video1",
+    "video2",
+    "video3"
 ]);
 
 const PROJECT_PENDING_JOB_ID = "__project_pending__";
@@ -1486,9 +1490,21 @@ function inferImageMimeFromUrl(url) {
     return "image/jpeg";
 }
 
+function inferVideoMimeFromUrl(url) {
+    const clean = String(url || "").split("?")[0].split("#")[0].toLowerCase();
+    if (clean.endsWith(".mov") || clean.endsWith(".qt")) return "video/quicktime";
+    if (clean.endsWith(".webm")) return "video/webm";
+    if (clean.endsWith(".m4v")) return "video/x-m4v";
+    return "video/mp4";
+}
+
 function extFromMime(mime) {
     if (mime === "image/png") return "png";
     if (mime === "image/webp") return "webp";
+    if (mime === "video/quicktime") return "mov";
+    if (mime === "video/webm") return "webm";
+    if (mime === "video/x-m4v") return "m4v";
+    if (mime === "video/mp4") return "mp4";
     return "jpg";
 }
 
@@ -1628,15 +1644,17 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
     };
 }
 
-async function downloadSourceImageBytes(imageUrl) {
+async function downloadSourceImageBytes(mediaUrl, mediaType = "image") {
+    const isVideo = mediaType === "video";
+    const mediaLabel = isVideo ? "video referensi" : "gambar referensi";
     const res = await fetchWithTimeout(
-        imageUrl,
+        mediaUrl,
         { method: "GET" },
-        20_000
+        isVideo ? 35_000 : 20_000
     );
     if (!res.ok) {
         throw createProviderError({
-            message: `Gagal mengunduh gambar referensi untuk diunggah ke Opus Labs (HTTP ${res.status}).`,
+            message: `Gagal mengunduh ${mediaLabel} untuk diunggah ke Opus Labs (HTTP ${res.status}).`,
             code: "REFERENCE_FETCH_FAILED",
             status: 422
         });
@@ -1645,25 +1663,30 @@ async function downloadSourceImageBytes(imageUrl) {
     const bytes = new Uint8Array(await res.arrayBuffer());
     if (!bytes.byteLength) {
         throw createProviderError({
-            message: "Gambar referensi kosong (0 byte).",
+            message: `${isVideo ? "Video referensi" : "Gambar referensi"} kosong (0 byte).`,
             code: "REFERENCE_EMPTY",
             status: 422
         });
     }
+    const resolvedMime = isVideo
+        ? (contentType.startsWith("video/") ? contentType : inferVideoMimeFromUrl(mediaUrl))
+        : (contentType.startsWith("image/") ? contentType : inferImageMimeFromUrl(mediaUrl));
     return {
         bytes,
-        mimeType: contentType.startsWith("image/") ? contentType : inferImageMimeFromUrl(imageUrl)
+        mimeType: resolvedMime
     };
 }
 
 async function stageSingleReferenceImage(session, importTool, projectId, refItem, index) {
+    const itemMediaType = refItem.mediaType === "video" ? "video" : "image";
     if (!importTool) {
         return {
             assetId: "",
             url: refItem.url,
             role: refItem.role,
             label: refItem.label,
-            mimeType: refItem.mimeType
+            mimeType: refItem.mimeType,
+            mediaType: itemMediaType
         };
     }
 
@@ -1704,15 +1727,21 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         const kindKey = pickSupportedKey(itemProps, ["mediaType", "media_type", "assetType", "asset_type", "type", "kind"], "");
         if (kindKey) {
             const allowedKinds = extractAllowedValues(itemProps[kindKey], rootSchema);
-            const matchedKind = matchEnumCaseInsensitive(["image", "photo", "reference", "frame"], allowedKinds);
+            const kindCandidates = itemMediaType === "video"
+                ? ["video", "clip", "footage", "reference_video", "reference"]
+                : ["image", "photo", "reference", "frame"];
+            const matchedKind = matchEnumCaseInsensitive(kindCandidates, allowedKinds);
             if (matchedKind !== null) entry[kindKey] = matchedKind;
         }
         return entry;
     };
 
+    const urlCandidates = itemMediaType === "video"
+        ? ["url", "sourceUrl", "source_url", "uri", "videoUrl", "video_url", "remoteUrl"]
+        : ["url", "sourceUrl", "source_url", "uri", "imageUrl", "image_url", "remoteUrl"];
     const urlKey = pickSupportedKey(
         itemProps,
-        ["url", "sourceUrl", "source_url", "uri", "imageUrl", "image_url", "remoteUrl"],
+        urlCandidates,
         !itemProps ? "url" : ""
     );
     const dataKey = pickSupportedKey(
@@ -1740,7 +1769,7 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
     if (urlKey) {
         entry[urlKey] = refItem.url;
     } else if (dataKey) {
-        cachedDownloaded = await downloadSourceImageBytes(refItem.url);
+        cachedDownloaded = await downloadSourceImageBytes(refItem.url, itemMediaType);
         const b64 = bytesToBase64(cachedDownloaded.bytes);
         entry[dataKey] = /url|uri/i.test(dataKey)
             ? `data:${cachedDownloaded.mimeType};base64,${b64}`
@@ -1762,7 +1791,7 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
     ) {
         try {
             if (!cachedDownloaded) {
-                cachedDownloaded = await downloadSourceImageBytes(refItem.url);
+                cachedDownloaded = await downloadSourceImageBytes(refItem.url, itemMediaType);
             }
             const fallbackEntry = buildBaseEntry();
             const mimeKey = pickSupportedKey(itemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
@@ -1793,14 +1822,15 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
             url: refItem.url,
             role: refItem.role,
             label: refItem.label,
-            mimeType: refItem.mimeType
+            mimeType: refItem.mimeType,
+            mediaType: itemMediaType
         };
     }
 
     /* Tangani kontrak resmi Opus MCP: status === "awaiting_upload" -> PUT bytes -> finalize import_assets */
     if ((record.status === "awaiting_upload" || record.uploadUrl) && record.uploadUrl) {
         if (!cachedDownloaded) {
-            cachedDownloaded = await downloadSourceImageBytes(refItem.url);
+            cachedDownloaded = await downloadSourceImageBytes(refItem.url, itemMediaType);
         }
         const putHeaders = {
             ...(record.uploadHeaders || {})
@@ -1816,12 +1846,12 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                 headers: putHeaders,
                 body: cachedDownloaded.bytes
             },
-            25_000
+            itemMediaType === "video" ? 40_000 : 25_000
         );
 
         if (!putRes.ok) {
             throw createProviderError({
-                message: `Gagal mengunggah gambar referensi ke penyimpanan Opus Labs (HTTP ${putRes.status}).`,
+                message: `Gagal mengunggah ${itemMediaType === "video" ? "video referensi" : "gambar referensi"} ke penyimpanan Opus Labs (HTTP ${putRes.status}).`,
                 code: "ASSET_UPLOAD_FAILED",
                 status: 502
             });
@@ -1861,7 +1891,8 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         url: record.uri || refItem.url,
         role: refItem.role,
         label: refItem.label,
-        mimeType: cachedDownloaded?.mimeType || refItem.mimeType
+        mimeType: cachedDownloaded?.mimeType || refItem.mimeType,
+        mediaType: itemMediaType
     };
 }
 
@@ -1924,12 +1955,20 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
     const props = itemObj.properties;
     if (props) {
         return stagedRefs.map((ref, idx) => {
+            const isVideo = ref.mediaType === "video";
+            const defaultLabel = ref.label || (isVideo ? `video${idx + 1}` : `image${idx + 1}`);
             const entry = {};
             const idKey = pickSupportedKey(props, ["assetId", "asset_id", "assetRef", "ref", "id"], "");
             if (idKey && ref.assetId) {
                 entry[idKey] = ref.assetId;
             }
-            const urlKey = pickSupportedKey(props, ["url", "uri", "imageUrl", "image_url", "sourceUrl"], "");
+            const urlKey = pickSupportedKey(
+                props,
+                isVideo
+                    ? ["url", "uri", "videoUrl", "video_url", "sourceUrl"]
+                    : ["url", "uri", "imageUrl", "image_url", "sourceUrl"],
+                ""
+            );
             if (urlKey && (!idKey || !ref.assetId || itemObj.required.includes(urlKey)) && ref.url) {
                 entry[urlKey] = ref.url;
             }
@@ -1937,32 +1976,41 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
             if (labelKey && labelKey !== idKey) {
                 const allowedLabels = extractAllowedValues(props[labelKey], rootSchema);
                 const matched = matchEnumCaseInsensitive(
-                    [`image${idx + 1}`, `@image${idx + 1}`, ref.label],
+                    [defaultLabel, `@${defaultLabel}`],
                     allowedLabels
                 );
                 if (matched !== null) {
                     entry[labelKey] = matched;
                 }
             }
-            const roleKey = pickSupportedKey(props, ["role", "kind", "type", "usage"], "");
+            const roleKey = pickSupportedKey(props, ["role", "kind", "type", "usage", "mediaType", "media_type"], "");
             if (roleKey) {
                 const allowedRoles = extractAllowedValues(props[roleKey], rootSchema);
-                const matchedRole = matchEnumCaseInsensitive(
-                    [ref.role, "reference", "image", "subject", "character"],
-                    allowedRoles
-                );
+                const roleCandidates = isVideo
+                    ? [ref.role, "reference", "video", "motion", "style", "clip"]
+                    : [ref.role, "reference", "image", "subject", "character"];
+                const matchedRole = matchEnumCaseInsensitive(roleCandidates, allowedRoles);
                 if (matchedRole !== null) {
                     entry[roleKey] = matchedRole;
                 }
+            }
+            const mimeKey = pickSupportedKey(props, ["mimeType", "mime_type", "contentType", "content_type"], "");
+            if (mimeKey && itemObj.required.includes(mimeKey) && ref.mimeType) {
+                entry[mimeKey] = ref.mimeType;
             }
             return entry;
         });
     }
 
-    return stagedRefs.map((ref, idx) => ({
-        ...(ref.assetId ? { assetId: ref.assetId } : { url: ref.url }),
-        label: `image${idx + 1}`
-    }));
+    return stagedRefs.map((ref, idx) => {
+        const isVideo = ref.mediaType === "video";
+        const defaultLabel = ref.label || (isVideo ? `video${idx + 1}` : `image${idx + 1}`);
+        return {
+            ...(ref.assetId ? { assetId: ref.assetId } : { url: ref.url }),
+            label: defaultLabel,
+            ...(isVideo ? { mediaType: "video" } : {})
+        };
+    });
 }
 
 const DURATION_KEY_CANDIDATES = [
@@ -2255,7 +2303,18 @@ function scoreClipSchemaBranch(branchObj, rootSchema, params) {
         const hasRefProp = Boolean(
             pickSupportedKey(
                 props,
-                ["referenceAssets", "reference_assets", "references", "assets", "referenceAssetIds", "referenceImageUrls"],
+                [
+                    "referenceAssets",
+                    "reference_assets",
+                    "references",
+                    "assets",
+                    "referenceAssetIds",
+                    "referenceImageUrls",
+                    "referenceVideoUrls",
+                    "reference_video_urls",
+                    "videoUrls",
+                    "video_urls"
+                ],
                 ""
             )
         );
@@ -2614,6 +2673,9 @@ function populateClipFields(target, objectSchema, rootSchema, {
             }
         }
     } else if (Array.isArray(stagedReferences) && stagedReferences.length > 0) {
+        const imageRefs = stagedReferences.filter(r => r.mediaType !== "video");
+        const videoRefs = stagedReferences.filter(r => r.mediaType === "video");
+
         const refKey = pickSupportedKey(
             props,
             ["referenceAssets", "reference_assets", "references", "assets", "inputAssets", "input_assets"],
@@ -2624,9 +2686,14 @@ function populateClipFields(target, objectSchema, rootSchema, {
             ["referenceAssetIds", "reference_asset_ids", "assetIds", "asset_ids"],
             ""
         );
-        const refUrlsKey = pickSupportedKey(
+        const refImageUrlsKey = pickSupportedKey(
             props,
             ["referenceImageUrls", "reference_image_urls", "imageUrls", "image_urls"],
+            ""
+        );
+        const refVideoUrlsKey = pickSupportedKey(
+            props,
+            ["referenceVideoUrls", "reference_video_urls", "videoUrls", "video_urls", "referenceVideos", "reference_videos"],
             ""
         );
 
@@ -2634,13 +2701,23 @@ function populateClipFields(target, objectSchema, rootSchema, {
             target[refKey] = buildReferenceAssetsValue(props[refKey], rootSchema, stagedReferences);
         } else if (refIdsKey && stagedReferences.some(r => r.assetId)) {
             target[refIdsKey] = stagedReferences.map(r => r.assetId).filter(Boolean);
-        } else if (refUrlsKey) {
-            target[refUrlsKey] = stagedReferences.map(r => r.url).filter(Boolean);
+        } else if (refImageUrlsKey || refVideoUrlsKey) {
+            if (refImageUrlsKey && imageRefs.length > 0) {
+                target[refImageUrlsKey] = imageRefs.map(r => r.url).filter(Boolean);
+            }
+            if (refVideoUrlsKey && videoRefs.length > 0) {
+                target[refVideoUrlsKey] = buildReferenceAssetsValue(props[refVideoUrlsKey], rootSchema, videoRefs);
+            }
         } else if (!props) {
-            target.referenceAssets = stagedReferences.map((r, idx) => ({
-                ...(r.assetId ? { assetId: r.assetId } : { url: r.url }),
-                label: `image${idx + 1}`
-            }));
+            target.referenceAssets = stagedReferences.map((r, idx) => {
+                const isVideo = r.mediaType === "video";
+                const defaultLabel = r.label || (isVideo ? `video${idx + 1}` : `image${idx + 1}`);
+                return {
+                    ...(r.assetId ? { assetId: r.assetId } : { url: r.url }),
+                    label: defaultLabel,
+                    ...(isVideo ? { mediaType: "video" } : {})
+                };
+            });
         }
     }
 }
@@ -2955,7 +3032,7 @@ function isLikelyVideoOutputUrl(url, keyHint = "", mimeHint = "") {
     const clean = String(url || "").trim();
     if (!/^https?:\/\//i.test(clean)) return false;
     const lowerKey = String(keyHint || "").toLowerCase();
-    if (/(?:upload|presign_put|callback|webhook|firstframe|first_frame|lastframe|last_frame|reference|thumbnail|poster|cover|avatar)/i.test(lowerKey)) {
+    if (/(?:upload|presign_put|callback|webhook|firstframe|first_frame|lastframe|last_frame|reference|inputvideo|input_video|sourcevideo|source_video|inputasset|input_asset|thumbnail|poster|cover|avatar)/i.test(lowerKey)) {
         return false;
     }
     const lowerMime = String(mimeHint || "").toLowerCase();
@@ -3733,6 +3810,12 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
     const referenceUrls = Array.isArray(payload.reference_image_urls)
         ? payload.reference_image_urls.map(u => String(u || "").trim()).filter(Boolean).slice(0, MAX_REFERENCE_IMAGES)
         : [];
+    const referenceVideoUrls = Array.isArray(payload.reference_video_urls)
+        ? payload.reference_video_urls.map(u => String(u || "").trim()).filter(Boolean).slice(0, MAX_REFERENCE_VIDEOS)
+        : Array.isArray(payload.video_urls)
+            ? payload.video_urls.map(u => String(u || "").trim()).filter(Boolean).slice(0, MAX_REFERENCE_VIDEOS)
+            : [];
+    const referenceVideoUrlSet = new Set(referenceVideoUrls);
 
     let stagedFirstFrame = null;
     let stagedLastFrame = null;
@@ -3749,6 +3832,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                 role: "first_frame",
                 label: "first_frame",
                 mimeType: mime,
+                mediaType: "image",
                 fileName: `first-frame.${extFromMime(mime)}`
             },
             0
@@ -3764,12 +3848,14 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                     role: "last_frame",
                     label: "last_frame",
                     mimeType: lastMime,
+                    mediaType: "image",
                     fileName: `last-frame.${extFromMime(lastMime)}`
                 },
                 1
             );
         }
-    } else if (referenceUrls.length > 0) {
+    } else if (referenceUrls.length > 0 || referenceVideoUrls.length > 0) {
+        let assetOffset = 0;
         for (let i = 0; i < referenceUrls.length; i += 1) {
             const url = referenceUrls[i];
             const mime = inferImageMimeFromUrl(url);
@@ -3782,11 +3868,33 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                     role: "reference",
                     label: `image${i + 1}`,
                     mimeType: mime,
+                    mediaType: "image",
                     fileName: `reference-${i + 1}.${extFromMime(mime)}`
                 },
-                i
+                assetOffset
             );
             stagedReferences.push(staged);
+            assetOffset += 1;
+        }
+        for (let j = 0; j < referenceVideoUrls.length; j += 1) {
+            const url = referenceVideoUrls[j];
+            const mime = inferVideoMimeFromUrl(url);
+            const staged = await stageSingleReferenceImage(
+                session,
+                importTool,
+                projectId,
+                {
+                    url,
+                    role: "reference",
+                    label: `video${j + 1}`,
+                    mimeType: mime,
+                    mediaType: "video",
+                    fileName: `reference-video-${j + 1}.${extFromMime(mime)}`
+                },
+                assetOffset
+            );
+            stagedReferences.push(staged);
+            assetOffset += 1;
         }
     }
 
@@ -3928,6 +4036,12 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
     }
 
     let outcome = inspectJobOutcome(lastCallResult.data, lastCallResult.text);
+    if (referenceVideoUrlSet.size > 0 && Array.isArray(outcome.videoUrls) && outcome.videoUrls.length > 0) {
+        outcome = {
+            ...outcome,
+            videoUrls: outcome.videoUrls.filter(url => !referenceVideoUrlSet.has(url))
+        };
+    }
     if (lastCallResult.isError || outcome.status === "FAILED") {
         throw createProviderError({
             message: outcome.errorMessage || translateOpusError(outcome.errorCode, lastCallResult.text),
@@ -4327,6 +4441,7 @@ export {
     DEFAULT_MCP_URL,
     DEFAULT_OPUS_WORKOS_CLIENT_ID,
     MAX_REFERENCE_IMAGES,
+    MAX_REFERENCE_VIDEOS,
     PROVIDER_ID,
     PROVIDER_NAME,
     createVideoTask,

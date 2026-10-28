@@ -1626,6 +1626,285 @@ test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu runtime 5
     );
 });
 
+test("Seedance 2.5 R2V dan Seedance 2.0 mendukung upload Video Referensi (video_urls) sekaligus staging import_assets video ke Opus MCP", async () => {
+    const r2v25 = getOpusVideoModel("opus-seedance-2.5-r2v");
+    const r2v20 = getOpusVideoModel("opus-seedance-2.0-r2v");
+    assert.ok(r2v25);
+    assert.ok(r2v20);
+
+    for (const adapter of [r2v25, r2v20]) {
+        const videoParam = adapter.parameters.find(p => p.name === "video_urls");
+        assert.ok(videoParam, `${adapter.config.id} wajib memiliki parameter video_urls`);
+        assert.equal(videoParam.type, "video_urls");
+        assert.equal(videoParam.maxItems, 3);
+        assert.match(videoParam.accept, /video\/mp4/);
+    }
+
+    /* 1. opus-seedance-2.5-r2v valid jika HANYA mengunggah video referensi tanpa gambar */
+    const videoOnlyCheck = r2v25.validate({
+        prompt: "Ikuti koreografi kamera dari @video1 di jalanan neon malam hari",
+        video_urls: ["https://cdn.example.com/ref-motion-1.mp4"]
+    });
+    assert.equal(videoOnlyCheck.valid, true, videoOnlyCheck.errors.join("; "));
+
+    const videoOnlyPayload = r2v25.buildPayload({
+        prompt: "Ikuti koreografi kamera dari @video1",
+        video_urls: ["https://cdn.example.com/ref-motion-1.mp4"]
+    });
+    assert.deepEqual(videoOnlyPayload.reference_video_urls, ["https://cdn.example.com/ref-motion-1.mp4"]);
+    assert.equal(videoOnlyPayload.reference_image_urls, undefined);
+
+    /* 2. opus-seedance-2.5-r2v menolak jika gambar DAN video sama-sama kosong, atau > 3 video */
+    const emptyBoth = r2v25.validate({
+        prompt: "Adegan tanpa referensi",
+        image_urls: [],
+        video_urls: []
+    });
+    assert.equal(emptyBoth.valid, false);
+    assert.match(emptyBoth.errors.join(" "), /gambar referensi atau video referensi/i);
+
+    const tooManyVideos = r2v25.validate({
+        prompt: "Terlalu banyak video",
+        video_urls: [
+            "https://cdn.example.com/1.mp4",
+            "https://cdn.example.com/2.mp4",
+            "https://cdn.example.com/3.mp4",
+            "https://cdn.example.com/4.mp4"
+        ]
+    });
+    assert.equal(tooManyVideos.valid, false);
+
+    /* 3. End-to-end MCP: staging gambar + video referensi via import_assets -> generate_video_clips */
+    const importedCalls = [];
+    let capturedVideoArgs = null;
+    const originalFetch = globalThis.fetch;
+
+    try {
+        globalThis.fetch = async (url, init = {}) => {
+            const target = String(url);
+            if (target === "https://cdn.example.com/ref-video-1.mp4") {
+                return new Response(new Uint8Array([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70]), {
+                    status: 200,
+                    headers: { "content-type": "video/mp4" }
+                });
+            }
+            if (target === "https://upload.opus.mock/put-video-1") {
+                return new Response("", { status: 200 });
+            }
+
+            const body = JSON.parse(String(init.body || "{}"));
+            if (body.method === "initialize") {
+                return new Response(
+                    JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { protocolVersion: "2025-03-26", serverInfo: { name: "opus-mock" } }
+                    }),
+                    { status: 200, headers: { "content-type": "application/json", "mcp-session-id": "sess-vid-ref" } }
+                );
+            }
+            if (body.method === "notifications/initialized") {
+                return new Response("", { status: 202 });
+            }
+            if (body.method === "tools/list") {
+                return new Response(
+                    JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            tools: [
+                                {
+                                    name: "create_project",
+                                    inputSchema: {
+                                        type: "object",
+                                        properties: { name: { type: "string" }, requestKey: { type: "string" } }
+                                    }
+                                },
+                                {
+                                    name: "import_assets",
+                                    inputSchema: {
+                                        type: "object",
+                                        properties: {
+                                            projectId: { type: "string" },
+                                            assets: {
+                                                type: "array",
+                                                items: {
+                                                    type: "object",
+                                                    properties: {
+                                                        clientId: { type: "string" },
+                                                        assetId: { type: "string" },
+                                                        url: { type: "string" },
+                                                        fileName: { type: "string" },
+                                                        mimeType: { type: "string" },
+                                                        mediaType: { type: "string", enum: ["image", "video", "audio"] }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    name: "generate_video_clips",
+                                    inputSchema: {
+                                        type: "object",
+                                        properties: {
+                                            projectId: { type: "string" },
+                                            clips: {
+                                                type: "array",
+                                                items: {
+                                                    type: "object",
+                                                    properties: {
+                                                        clipId: { type: "string" },
+                                                        model: { type: "string" },
+                                                        workflow: { type: "string" },
+                                                        prompt: { type: "string" },
+                                                        durationSeconds: { type: "integer" },
+                                                        resolution: { type: "string" },
+                                                        aspectRatio: { type: "string" },
+                                                        referenceAssets: {
+                                                            type: "array",
+                                                            items: {
+                                                                type: "object",
+                                                                properties: {
+                                                                    assetId: { type: "string" },
+                                                                    label: { type: "string" },
+                                                                    kind: { type: "string", enum: ["image", "video"] }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }),
+                    { status: 200, headers: { "content-type": "application/json" } }
+                );
+            }
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "create_project") {
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: { content: [{ type: "text", text: JSON.stringify({ projectId: "proj_vidref_1" }) }] }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+                if (name === "import_assets") {
+                    importedCalls.push(args);
+                    const firstItem = args.assets?.[0] || {};
+                    if (firstItem.assetId === "asset_vid_1") {
+                        return new Response(
+                            JSON.stringify({
+                                jsonrpc: "2.0",
+                                id: body.id,
+                                result: {
+                                    content: [{ type: "text", text: JSON.stringify({ assets: [{ assetId: "asset_vid_1", status: "ready" }] }) }]
+                                }
+                            }),
+                            { status: 200, headers: { "content-type": "application/json" } }
+                        );
+                    }
+                    if (firstItem.mediaType === "video") {
+                        return new Response(
+                            JSON.stringify({
+                                jsonrpc: "2.0",
+                                id: body.id,
+                                result: {
+                                    content: [{
+                                        type: "text",
+                                        text: JSON.stringify({
+                                            assets: [{
+                                                clientId: firstItem.clientId,
+                                                assetId: "asset_vid_1",
+                                                status: "awaiting_upload",
+                                                uploadUrl: "https://upload.opus.mock/put-video-1"
+                                            }]
+                                        })
+                                    }]
+                                }
+                            }),
+                            { status: 200, headers: { "content-type": "application/json" } }
+                        );
+                    }
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                content: [{
+                                    type: "text",
+                                    text: JSON.stringify({
+                                        assets: [{ clientId: firstItem.clientId, assetId: "asset_img_1", status: "ready" }]
+                                    })
+                                }]
+                            }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+                if (name === "generate_video_clips") {
+                    capturedVideoArgs = args;
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                content: [{
+                                    type: "text",
+                                    text: JSON.stringify({
+                                        jobId: "job_vidref_99",
+                                        status: "queued",
+                                        echoInputUrl: "https://cdn.example.com/ref-video-1.mp4"
+                                    })
+                                }]
+                            }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+            }
+            throw new Error(`Unexpected request: ${target}`);
+        };
+
+        const task = await r2v25.createTask(
+            {
+                prompt: "@image1 menari mengikuti gerakan kamera @video1",
+                image_urls: ["https://cdn.example.com/ref-char-1.jpg"],
+                video_urls: ["https://cdn.example.com/ref-video-1.mp4"],
+                aspect_ratio: "9:16",
+                resolution: "720p",
+                duration: "10"
+            },
+            "opus-mock-bearer-token"
+        );
+
+        assert.equal(task.taskId, "opus:proj_vidref_1:job_vidref_99");
+        assert.equal(task.status, "QUEUED", "echo URL video input tidak boleh dianggap video hasil selesai");
+        assert.deepEqual(task.outputUrls, []);
+
+        assert.equal(importedCalls.length, 3, "1 image import + 1 video awaiting_upload + 1 video finalize");
+        assert.equal(importedCalls[0].assets[0].mediaType, "image");
+        assert.equal(importedCalls[1].assets[0].mediaType, "video");
+        assert.equal(importedCalls[1].assets[0].mimeType, "video/mp4");
+
+        const clip = capturedVideoArgs.clips[0];
+        assert.deepEqual(clip.referenceAssets, [
+            { assetId: "asset_img_1", label: "image1", kind: "image" },
+            { assetId: "asset_vid_1", label: "video1", kind: "video" }
+        ]);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+
 
 
 
