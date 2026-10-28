@@ -248,6 +248,50 @@ export async function waitWithQueueCountdown({
     }
 }
 
+function extractOpusPoolMetadata(error) {
+    const details =
+        error?.details && typeof error.details === "object"
+            ? error.details
+            : {};
+
+    const rawPoolSize =
+        error?.opus_key_pool_size ??
+        error?.opusKeyPoolSize ??
+        details.opus_key_pool_size ??
+        details.opusKeyPoolSize ??
+        0;
+    const poolSize = Number(rawPoolSize);
+
+    const rawSlot =
+        error?.opus_key_slot ??
+        error?.opusKeySlot ??
+        error?.opusFailedKeySlot ??
+        details.opus_key_slot ??
+        details.opusKeySlot ??
+        details.opusFailedKeySlot;
+    const parsedSlot =
+        rawSlot !== null &&
+        rawSlot !== undefined &&
+        rawSlot !== "" &&
+        Number.isInteger(Number(rawSlot)) &&
+        Number(rawSlot) >= 0
+            ? Number(rawSlot)
+            : null;
+
+    const rotatedFullCycle = Boolean(
+        error?.opus_rotated_full_cycle ??
+        error?.rotatedFullCycle ??
+        details.opus_rotated_full_cycle ??
+        details.rotatedFullCycle
+    );
+
+    return {
+        poolSize: Number.isFinite(poolSize) && poolSize > 0 ? Math.floor(poolSize) : 0,
+        failedSlot: parsedSlot,
+        rotatedFullCycle
+    };
+}
+
 export async function runOpusQueueRetryLoop({
     executeAttempt,
     maxAttempts = OPUS_QUEUE_MAX_ATTEMPTS,
@@ -259,10 +303,12 @@ export async function runOpusQueueRetryLoop({
     shouldAbort = null,
     onQueueWaitStart = null,
     onQueueWaitTick = null,
-    onRetryAttemptStart = null
+    onRetryAttemptStart = null,
+    onKeySwitch = null
 } = {}) {
     const safeMaxAttempts = Math.max(1, Math.floor(Number(maxAttempts) || OPUS_QUEUE_MAX_ATTEMPTS));
     const maxWaitRetries = Math.max(0, safeMaxAttempts - 1);
+    const exhaustedKeySlots = new Set();
 
     for (let attempt = 1; attempt <= safeMaxAttempts; attempt += 1) {
         if (attempt > 1 && typeof onRetryAttemptStart === "function") {
@@ -275,67 +321,111 @@ export async function runOpusQueueRetryLoop({
             });
         }
 
-        try {
-            return await executeAttempt(attempt, safeMaxAttempts);
-        } catch (error) {
-            if (typeof isCancelledError === "function" && isCancelledError(error)) {
-                throw error;
-            }
+        let cycleExhaustedError = null;
 
-            if (!isOpusError(error)) {
-                throw error;
-            }
-
-            if (attempt >= safeMaxAttempts) {
-                const finalBusyError = new Error(OPUS_QUEUE_FINAL_ERROR_MESSAGE);
-                finalBusyError.code = OPUS_SYSTEM_BUSY_FINAL_CODE;
-                finalBusyError.attempts = attempt;
-                finalBusyError.waitRetries = maxWaitRetries;
-                finalBusyError.isRedErrorNotification = true;
-                finalBusyError.suppressRefundSuffix = true;
-                finalBusyError.details = error?.details || null;
-                throw finalBusyError;
-            }
-
-            const initialFormatted = formatQueueCountdown(runtimeMs);
-            const waitRetryIndex = attempt;
-
-            if (typeof onQueueWaitStart === "function") {
-                onQueueWaitStart({
+        while (true) {
+            try {
+                return await executeAttempt(attempt, safeMaxAttempts, {
                     attempt,
-                    nextAttempt: attempt + 1,
                     maxAttempts: safeMaxAttempts,
-                    waitRetryIndex,
-                    maxWaitRetries,
-                    runtimeMs,
-                    formattedRemaining: initialFormatted,
-                    message: OPUS_QUEUE_WAIT_MESSAGE,
-                    statusLabel: OPUS_QUEUE_RETRY_STATUS_LABEL,
-                    lastError: error
+                    excludedOpusKeySlots: Array.from(exhaustedKeySlots)
                 });
-            }
+            } catch (error) {
+                if (typeof isCancelledError === "function" && isCancelledError(error)) {
+                    throw error;
+                }
 
-            await waitWithQueueCountdown({
-                runtimeMs,
-                tickMs,
-                sleepFn,
-                shouldAbort,
-                onTick: tickInfo => {
-                    if (typeof onQueueWaitTick === "function") {
-                        onQueueWaitTick({
-                            attempt,
-                            nextAttempt: attempt + 1,
-                            maxAttempts: safeMaxAttempts,
-                            waitRetryIndex,
-                            maxWaitRetries,
-                            message: OPUS_QUEUE_WAIT_MESSAGE,
-                            statusLabel: OPUS_QUEUE_RETRY_STATUS_LABEL,
-                            ...tickInfo
-                        });
+                if (!isOpusError(error)) {
+                    throw error;
+                }
+
+                const { poolSize, failedSlot, rotatedFullCycle } = extractOpusPoolMetadata(error);
+
+                /*
+                 * Jika ada lebih dari 1 API key Opus di Cloudflare dan kegagalan
+                 * terjadi asinkron pada 1 slot (mis. pada /api/generate-status
+                 * setelah job sempat masuk status queued), LANGSUNG beralih ke
+                 * API key berikutnya tanpa menunggu jeda 5 menit sampai seluruh
+                 * pool key benar-benar sudah dicoba 1 putaran penuh.
+                 */
+                if (
+                    !rotatedFullCycle &&
+                    poolSize > 1 &&
+                    failedSlot !== null &&
+                    !exhaustedKeySlots.has(failedSlot)
+                ) {
+                    exhaustedKeySlots.add(failedSlot);
+                    if (exhaustedKeySlots.size < poolSize) {
+                        if (typeof onKeySwitch === "function") {
+                            onKeySwitch({
+                                attempt,
+                                maxAttempts: safeMaxAttempts,
+                                failedKeySlot: failedSlot,
+                                exhaustedKeySlots: Array.from(exhaustedKeySlots),
+                                keyPoolSize: poolSize
+                            });
+                        }
+                        continue;
                     }
                 }
+
+                exhaustedKeySlots.clear();
+                cycleExhaustedError = error;
+                break;
+            }
+        }
+
+        const error = cycleExhaustedError;
+
+        if (attempt >= safeMaxAttempts) {
+            const finalBusyError = new Error(OPUS_QUEUE_FINAL_ERROR_MESSAGE);
+            finalBusyError.code = OPUS_SYSTEM_BUSY_FINAL_CODE;
+            finalBusyError.attempts = attempt;
+            finalBusyError.waitRetries = maxWaitRetries;
+            finalBusyError.isRedErrorNotification = true;
+            finalBusyError.suppressRefundSuffix = true;
+            finalBusyError.details = error?.details || null;
+            throw finalBusyError;
+        }
+
+        const initialFormatted = formatQueueCountdown(runtimeMs);
+        const waitRetryIndex = attempt;
+
+        if (typeof onQueueWaitStart === "function") {
+            onQueueWaitStart({
+                attempt,
+                nextAttempt: attempt + 1,
+                maxAttempts: safeMaxAttempts,
+                waitRetryIndex,
+                maxWaitRetries,
+                runtimeMs,
+                formattedRemaining: initialFormatted,
+                message: OPUS_QUEUE_WAIT_MESSAGE,
+                statusLabel: OPUS_QUEUE_RETRY_STATUS_LABEL,
+                lastError: error
             });
         }
+
+        await waitWithQueueCountdown({
+            runtimeMs,
+            tickMs,
+            sleepFn,
+            shouldAbort,
+            onTick: tickInfo => {
+                if (typeof onQueueWaitTick === "function") {
+                    onQueueWaitTick({
+                        attempt,
+                        nextAttempt: attempt + 1,
+                        maxAttempts: safeMaxAttempts,
+                        waitRetryIndex,
+                        maxWaitRetries,
+                        message: OPUS_QUEUE_WAIT_MESSAGE,
+                        statusLabel: OPUS_QUEUE_RETRY_STATUS_LABEL,
+                        ...tickInfo
+                    });
+                }
+            }
+        });
     }
 
     const fallbackError = new Error(OPUS_QUEUE_FINAL_ERROR_MESSAGE);
