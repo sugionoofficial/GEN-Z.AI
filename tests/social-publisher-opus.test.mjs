@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { encode as encodeWebp, encodeWithAlpha as encodeWebpWithAlpha } from "@stacksjs/ts-webp";
 import jpeg from "jpeg-js";
 import { PNG } from "pngjs";
 
@@ -2410,6 +2411,251 @@ test("generateOpusSocialImage tidak pernah menganggap kode error job_queue_timeo
         restore();
     }
 });
+
+test("readImageSize membaca dimensi WebP VP8X (768x1376, bukan 16711681x6225923), VP8L lossless, VP8 lossy, dan JPEG ber-EXIF thumbnail", () => {
+    /* 1. Reproduksi tepat bug produksi: WebP VP8X 768x1376 memiliki reserved bytes [0,0,0]
+          di offset 21..23 dan width-1 = 767 ([0xff, 0x02, 0x00]) di offset 24..26 serta
+          height-1 = 1375 ([0x5f, 0x05, 0x00]) di offset 27..29. Offset lama (22..24 & 25..27)
+          salah membacanya sebagai 16711681x6225923px. */
+    const vp8xHeader = new Uint8Array(30);
+    vp8xHeader.set([0x52, 0x49, 0x46, 0x46], 0); // "RIFF"
+    vp8xHeader.set([22, 0, 0, 0], 4);
+    vp8xHeader.set([0x57, 0x45, 0x42, 0x50], 8); // "WEBP"
+    vp8xHeader.set([0x56, 0x50, 0x38, 0x58], 12); // "VP8X"
+    vp8xHeader.set([10, 0, 0, 0], 16); // chunk size = 10
+    vp8xHeader[20] = 0x18; // alpha + exif flags
+    vp8xHeader.set([0x00, 0x00, 0x00], 21); // reserved 24-bit
+    vp8xHeader.set([0xff, 0x02, 0x00], 24); // width - 1 = 767 -> 768
+    vp8xHeader.set([0x5f, 0x05, 0x00], 27); // height - 1 = 1375 -> 1376
+    assert.deepEqual(readImageSize(vp8xHeader), { width: 768, height: 1376 });
+
+    /* 2. WebP VP8L lossless nyata */
+    const rgbaLossless = new Uint8Array(320 * 480 * 4);
+    for (let i = 0; i < 320 * 480; i += 1) {
+        rgbaLossless[i * 4] = (i * 7) & 255;
+        rgbaLossless[i * 4 + 1] = (i * 13) & 255;
+        rgbaLossless[i * 4 + 2] = (i * 19) & 255;
+        rgbaLossless[i * 4 + 3] = 255;
+    }
+    const vp8lBytes = encodeWebp({ data: rgbaLossless, width: 320, height: 480 }, { lossless: true });
+    assert.deepEqual(readImageSize(vp8lBytes), { width: 320, height: 480 });
+
+    /* 3. WebP VP8 lossy nyata */
+    const vp8LossyBytes = encodeWebp({ data: rgbaLossless, width: 320, height: 480 }, { lossless: false, quality: 75 });
+    assert.deepEqual(readImageSize(vp8LossyBytes), { width: 320, height: 480 });
+
+    /* 4. JPEG dengan APP1 EXIF yang berisi penanda SOF0 palsu thumbnail 160x120 di dalam segmen APP1 */
+    const realJpeg = texturedJpeg({ width: 900, height: 1200 });
+    const fakeExifPayload = new Uint8Array([
+        0x45, 0x78, 0x69, 0x66, 0x00, 0x00,
+        0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x78, 0x00, 0xa0 // 160x120 thumbnail SOF0 di dalam APP1
+    ]);
+    const app1Len = fakeExifPayload.length + 2;
+    const jpegWithExif = new Uint8Array(2 + 4 + fakeExifPayload.length + (realJpeg.length - 2));
+    jpegWithExif.set([0xff, 0xd8, 0xff, 0xe1, (app1Len >> 8) & 0xff, app1Len & 0xff], 0);
+    jpegWithExif.set(fakeExifPayload, 6);
+    jpegWithExif.set(realJpeg.subarray(2), 6 + fakeExifPayload.length);
+    assert.deepEqual(readImageSize(jpegWithExif), { width: 900, height: 1200 });
+});
+
+test("generateOpusSocialImage meloloskan karakter WebP VP8X 768x1376 tanpa decode dan meng-upscale outfit WebP <300px secara otomatis", async () => {
+    resetOpusTokenCache();
+
+    /* Karakter VP8X 768x1376 (persis skenario produksi BELA .webp) */
+    const charRgba = new Uint8Array(768 * 1376 * 4);
+    for (let i = 0; i < 768 * 1376; i += 1) {
+        charRgba[i * 4] = (i * 3) & 255;
+        charRgba[i * 4 + 1] = (i * 5) & 255;
+        charRgba[i * 4 + 2] = (i * 11) & 255;
+        charRgba[i * 4 + 3] = i % 17 === 0 ? 240 : 255;
+    }
+    const charVp8xWebp = encodeWebpWithAlpha({ data: charRgba, width: 768, height: 1376 });
+    assert.equal(String.fromCharCode(...charVp8xWebp.subarray(12, 16)), "VP8X");
+    assert.deepEqual(readImageSize(charVp8xWebp), { width: 768, height: 1376 });
+
+    /* Outfit WebP kecil < 300px (220x250 lossy & 240x260 VP8X alpha) */
+    const smallOutfitRgba = new Uint8Array(220 * 250 * 4);
+    for (let i = 0; i < 220 * 250; i += 1) {
+        smallOutfitRgba[i * 4] = (i * 9) & 255;
+        smallOutfitRgba[i * 4 + 1] = 140;
+        smallOutfitRgba[i * 4 + 2] = (i * 15) & 255;
+        smallOutfitRgba[i * 4 + 3] = 255;
+    }
+    const tinyOutfitWebp = encodeWebp({ data: smallOutfitRgba, width: 220, height: 250 }, { lossless: false, quality: 80 });
+    assert.deepEqual(readImageSize(tinyOutfitWebp), { width: 220, height: 250 });
+
+    const outputJpeg = texturedJpeg({ width: 720, height: 1280 });
+    const importedItems = [];
+    const uploadedPayloads = new Map();
+
+    const tools = [
+        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+        {
+            name: "create_project",
+            inputSchema: {
+                type: "object",
+                required: ["name", "requestKey"],
+                properties: { name: { type: "string" }, requestKey: { type: "string" } }
+            }
+        },
+        {
+            name: "import_assets",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "requestKey", "items"],
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string" },
+                    items: {
+                        type: "array",
+                        items: {
+                            oneOf: [
+                                {
+                                    type: "object",
+                                    required: ["id", "url"],
+                                    properties: {
+                                        id: { type: "string" },
+                                        url: { type: "string", format: "uri" }
+                                    }
+                                },
+                                {
+                                    type: "object",
+                                    required: ["id", "fileName", "mimeType", "sizeBytes"],
+                                    properties: {
+                                        id: { type: "string" },
+                                        fileName: { type: "string" },
+                                        mimeType: { type: "string" },
+                                        sizeBytes: { type: "integer" }
+                                    }
+                                },
+                                {
+                                    type: "object",
+                                    required: ["assetId"],
+                                    properties: { assetId: { type: "string" } }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "generate_keyframes",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "requestKey", "prompt"],
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string" },
+                    prompt: { type: "string" },
+                    referenceAssetIds: { type: "array", items: { type: "string" } }
+                }
+            }
+        }
+    ];
+
+    let assetSeq = 0;
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url.startsWith("https://upload.opus.example/")) {
+            const raw = new Uint8Array(options.body);
+            uploadedPayloads.set(url, raw);
+            return new Response("", { status: 200 });
+        }
+        if (url === "https://cdn.opus.pro/out/webp-ok.jpg") {
+            return new Response(outputJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url === OPUS_DEFAULT_MCP_URL) {
+            const body = JSON.parse(options.body);
+            if (body.method === "initialize") return Response.json({ jsonrpc: "2.0", id: body.id, result: {} });
+            if (body.method === "notifications/initialized") return new Response("", { status: 204 });
+            if (body.method === "tools/list") return Response.json({ jsonrpc: "2.0", id: body.id, result: { tools } });
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "opus_video_tools_whoami") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+                }
+                if (name === "create_project") {
+                    return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "proj_webp" } } });
+                }
+                if (name === "import_assets") {
+                    const first = args.items[0];
+                    importedItems.push(first);
+                    if (first.assetId) {
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: { structuredContent: { results: [{ assetId: first.assetId, status: "ready" }] } }
+                        });
+                    }
+                    assetSeq += 1;
+                    const assetId = `asset_webp_${assetSeq}`;
+                    if (first.url) {
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: { structuredContent: { results: [{ id: first.id, assetId, status: "ready" }] } }
+                        });
+                    }
+                    const uploadUrl = `https://upload.opus.example/${assetId}`;
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { results: [{ id: first.id, assetId, status: "awaiting_upload", uploadUrl }] } }
+                    });
+                }
+                if (name === "generate_keyframes") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            structuredContent: {
+                                status: "completed",
+                                downloadUrl: "https://cdn.opus.pro/out/webp-ok.jpg"
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    try {
+        const res = await generateOpusSocialImage({
+            env: { OPUS_AUTH_TOKEN: "tok-webp" },
+            prompt: "Model mengenakan outfit kasual",
+            referenceBytes: charVp8xWebp,
+            referenceMimeType: "image/webp",
+            personImageUrl: "https://project.supabase.co/storage/v1/object/sign/social-character-references/char.webp?token=abc",
+            garmentBytes: tinyOutfitWebp,
+            garmentMimeType: "image/webp",
+            garmentImageUrls: [
+                "https://project.supabase.co/storage/v1/object/sign/social-character-references/tiny-outfit.webp?token=def"
+            ]
+        });
+
+        assert.equal(res.width, 720);
+        assert.equal(res.images_sent, 2);
+
+        /* Karakter WebP 768x1376 sudah valid [300, 6000] -> dikirim byte-for-byte apa adanya sebagai character.webp (image/webp) tanpa decode/resize! */
+        assert.equal(importedItems[0].mimeType, "image/webp");
+        assert.equal(importedItems[0].fileName, "character.webp");
+        assert.equal(importedItems[0].sizeBytes, charVp8xWebp.byteLength);
+        const uploadedChar = uploadedPayloads.get("https://upload.opus.example/asset_webp_1");
+        assert.deepEqual(uploadedChar, charVp8xWebp);
+
+        /* Outfit WebP 220x250 (<300px) -> otomatis di-decode & di-upscale ke JPEG >=512px sebagai outfit.jpg! */
+        assert.equal(importedItems[2].mimeType, "image/jpeg");
+        assert.equal(importedItems[2].fileName, "outfit.jpg");
+        const uploadedOutfit = uploadedPayloads.get("https://upload.opus.example/asset_webp_2");
+        assert.ok(uploadedOutfit?.byteLength > 0);
+        const upscaledDims = readImageSize(uploadedOutfit);
+        assert.ok(upscaledDims.width >= 512 && upscaledDims.height >= 512, `Expected >=512px, got ${upscaledDims?.width}x${upscaledDims?.height}`);
+    } finally {
+        restore();
+    }
+});
+
 
 
 
