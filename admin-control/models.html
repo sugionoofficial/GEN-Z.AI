@@ -4351,7 +4351,7 @@
 
 <script
     type="module"
-    src="./models/models-loader.js?v=models-card-status-20261022"
+    src="./models/models-loader.js?v=models-provider-filter-20261028"
 ></script>
 
 
@@ -4649,6 +4649,17 @@
     }
 
 
+    function getPageSearch() {
+
+        return (
+            window.GENZModelsPageSearch ||
+            window.GENZModelPageSearch ||
+            null
+        );
+
+    }
+
+
     /* =========================================================
        APPLY MODELS
     ========================================================= */
@@ -4668,10 +4679,62 @@
 
 
         if (
-            table &&
-            typeof table.setModels ===
+            !table ||
+            typeof table.setModels !==
                 "function"
         ) {
+
+            throw new Error(
+                "GENZModelTable belum tersedia."
+            );
+
+        }
+
+
+        const pageSearch =
+            getPageSearch();
+
+        const ui =
+            getModelsUI();
+
+
+        if (
+            pageSearch &&
+            typeof pageSearch.setModels ===
+                "function"
+        ) {
+
+            if (
+                ui &&
+                typeof ui.getProviders ===
+                    "function" &&
+                typeof pageSearch.setProviders ===
+                    "function"
+            ) {
+
+                pageSearch.setProviders(
+                    ui.getProviders()
+                );
+
+            }
+
+
+            if (
+                typeof pageSearch.initialize ===
+                    "function"
+            ) {
+
+                pageSearch.initialize();
+
+            }
+
+
+            pageSearch.setModels(
+                list
+            );
+
+        }
+        else {
 
             table.setModels(
                 list
@@ -4686,13 +4749,6 @@
                 table.render();
 
             }
-
-        }
-        else {
-
-            throw new Error(
-                "GENZModelTable belum tersedia."
-            );
 
         }
 

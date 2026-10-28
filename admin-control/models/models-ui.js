@@ -639,11 +639,13 @@
                 ];
 
 
+            syncProviderState();
+
             syncSearchState();
 
-            syncPageSearchState();
-
             syncTableState();
+
+            syncPageSearchState();
 
             updateStatistics(
                 state.models
@@ -701,6 +703,25 @@
                 );
 
             }
+
+        }
+
+
+        try {
+
+            await loadProviders({
+                force: true,
+                includeInactive: true
+            });
+
+        }
+
+        catch (error) {
+
+            console.warn(
+                "[models-ui] refresh loadProviders warning:",
+                error
+            );
 
         }
 
@@ -1067,6 +1088,20 @@
 
 
         try {
+
+            if (
+                typeof pageSearch.setProviders ===
+                "function"
+            ) {
+
+                pageSearch.setProviders(
+                    [
+                        ...state.providers
+                    ]
+                );
+
+            }
+
 
             if (
                 typeof pageSearch.setModels ===
@@ -2210,9 +2245,9 @@
 
                     syncSearchState();
 
-                    syncPageSearchState();
-
                     syncTableState();
+
+                    syncPageSearchState();
 
                     updateStatistics(
                         state.models

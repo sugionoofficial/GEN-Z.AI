@@ -302,8 +302,9 @@
 
     function getPageSearchModule() {
 
-        return getGlobal(
-            "GENZModelsPageSearch"
+        return (
+            getGlobal("GENZModelsPageSearch") ||
+            getGlobal("GENZModelPageSearch")
         );
 
     }
@@ -1522,6 +1523,67 @@
         syncProviderDropdown(
             finalProviders
         );
+
+
+        /*
+         * Page Search & Filter (#modelSearch, #modelStatusFilter,
+         * #modelProviderFilter) dijalankan setelah Table & Provider
+         * agar daftar opsi provider terisi dan filter aktif tidak
+         * tertimpa oleh syncTableWithModels().
+         */
+
+        const pageSearch =
+            getPageSearchModule();
+
+        if (pageSearch) {
+
+            try {
+
+                if (
+                    hasFunction(
+                        pageSearch,
+                        "setProviders"
+                    )
+                ) {
+
+                    pageSearch.setProviders(
+                        finalProviders
+                    );
+
+                }
+
+                if (
+                    hasFunction(
+                        pageSearch,
+                        "setModels"
+                    )
+                ) {
+
+                    pageSearch.setModels(
+                        finalModels
+                    );
+
+                } else if (
+                    hasFunction(
+                        pageSearch,
+                        "apply"
+                    )
+                ) {
+
+                    pageSearch.apply();
+
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "[GEN-Z.AI] Gagal menyinkronkan Page Search:",
+                    error
+                );
+
+            }
+
+        }
 
 
         return {

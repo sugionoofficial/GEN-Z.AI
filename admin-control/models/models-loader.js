@@ -42,7 +42,7 @@ const FUNCTION_PATH =
             id: "models-data",
             src:
                 BASE_PATH +
-                "models-data.js?v=models-registry-20261018-wan",
+                "models-data.js?v=models-provider-filter-20261028",
             global:
                 "GENZModelsData"
         },
@@ -320,7 +320,7 @@ const FUNCTION_PATH =
 
             src:
                 FUNCTION_PATH +
-                "model-page-search.js",
+                "model-page-search.js?v=models-provider-filter-20261028",
 
             global:
                 "GENZModelPageSearch",
@@ -336,7 +336,7 @@ const FUNCTION_PATH =
 
             src:
                 BASE_PATH +
-                "models-ui.js",
+                "models-ui.js?v=models-provider-filter-20261028",
 
             global:
                 "GENZModelsUI"
@@ -348,7 +348,7 @@ const FUNCTION_PATH =
 
             src:
                 BASE_PATH +
-                "models-init.js",
+                "models-init.js?v=models-provider-filter-20261028",
 
             global:
                 "GENZModelsInit"
