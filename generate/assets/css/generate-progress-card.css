@@ -112,7 +112,8 @@
     transition: opacity .25s ease;
 }
 .genz-progress-card[data-state="processing"] .gpc-thumb-spinner,
-.genz-progress-card[data-state="queued"] .gpc-thumb-spinner {
+.genz-progress-card[data-state="queued"] .gpc-thumb-spinner,
+.genz-progress-card[data-state="retrying"] .gpc-thumb-spinner {
     opacity: 1;
 }
 .genz-progress-card[data-state="success"] .gpc-thumb-spinner,
@@ -226,6 +227,13 @@
     background: linear-gradient(90deg, #dc2626, #ff5566);
     box-shadow: 0 0 12px rgba(220,38,38,.55);
 }
+.genz-progress-card[data-state="retrying"] .gpc-bar-fill {
+    background: linear-gradient(90deg, rgba(255,255,255,.68), #ffffff);
+    box-shadow: 0 0 12px rgba(255,255,255,.45);
+}
+.genz-progress-card[data-state="retrying"] .gpc-timer {
+    color: #ffffff;
+}
 @keyframes gpcShimmer {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
@@ -258,6 +266,7 @@
 }
 .genz-progress-card[data-state="success"] .gpc-status { color: #66ffa6; }
 .genz-progress-card[data-state="failed"] .gpc-status { color: #ff8794; }
+.genz-progress-card[data-state="retrying"] .gpc-status { color: #ffffff; }
 
 .gpc-close {
     width: 32px;

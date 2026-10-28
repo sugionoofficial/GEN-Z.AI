@@ -29,6 +29,16 @@
 
 "use strict";
 
+import {
+    OPUS_QUEUE_FINAL_ERROR_MESSAGE,
+    OPUS_QUEUE_MAX_ATTEMPTS,
+    OPUS_QUEUE_RUNTIME_MS,
+    OPUS_QUEUE_WAIT_MESSAGE,
+    OPUS_SYSTEM_BUSY_FINAL_CODE,
+    isOpusUpstreamCreditBusy,
+    runOpusQueueRetryLoop
+} from "./opus-queue-retry.js";
+
 
 /* =========================================================
    STATE
@@ -994,6 +1004,48 @@ function progressUpdate(
 }
 
 
+function progressRetrying(
+    options
+) {
+
+    try {
+
+        if (
+            window.GenzProgress &&
+            typeof window.GenzProgress.retrying ===
+                "function"
+        ) {
+
+            window.GenzProgress.retrying(
+                options || {}
+            );
+
+        }
+
+    } catch (
+        error
+    ) {
+
+        console.warn(
+            "[GENZ] progressRetrying error:",
+            error
+        );
+
+    }
+
+}
+
+
+function refreshUserCreditProfile() {
+    try {
+        window.GENZGenerateAuth?.loadProfile?.()?.catch?.(() => {});
+        window.GENZGeneratePageAuth?.loadProfileDirectly?.()?.catch?.(() => {});
+    } catch {
+        /* Abaikan error refresh profil non-fatal */
+    }
+}
+
+
 function progressSuccess(
     options
 ) {
@@ -1483,274 +1535,244 @@ async function handleGenerateSubmit(
          * =================================================
          */
 
-        setDiagStage(
-            "4. Sebelum generateVideo"
-        );
-
-
-        const response =
-            await awaitWithTimeout(
-
-                request.generateVideo(
-                    parameters
-                ),
-
-                "generateVideo",
-
-                90000
-
-            );
-
-
-        setDiagStage(
-            "5. generateVideo OK, dapat response"
-        );
-
-
-        renderKieDiagnostic(
-            response,
-            "TASK CREATED"
-        );
-
-
-        const taskId =
-            extractTaskId(
-                response
-            );
-
-
-        if (
-            !taskId
-        ) {
-
-            const error =
-                new Error(
-                    "KIE.AI tidak mengembalikan task ID."
-                );
-
-            error.code =
-                "TASK_ID_MISSING";
-
-            error.details =
-                response;
-
-            throw error;
-
-        }
-
-
-        if (
-            elements.resultModel
-        ) {
-
-            elements.resultModel.textContent =
-                getModelName(
-                    model
-                );
-
-        }
-
-
-        if (
-            elements.resultProvider
-        ) {
-
-            elements.resultProvider.textContent =
-                getProviderName(
-                    model
-                );
-
-        }
-
-
-        if (
-            elements.resultTaskId
-        ) {
-
-            elements.resultTaskId.textContent =
-                taskId;
-
-        }
-
-
-        showLoading(
-            `KIE.AI menerima task ${taskId}. Menunggu hasil...`
-        );
-
-
-        /* ===== GENZ PROGRESS CARD — QUEUED ===== */
-
-        progressUpdate({
-
-            status:
-                "QUEUED",
-
-            message:
-                "Task diterima. Menunggu antrean..."
-
-        });
-
-
-        setGenerateStatus(
-            "processing",
-            "Generate sedang diproses. Mohon tunggu..."
-        );
-
-
         /*
          * =================================================
-         * POLLING
+         * CREATE TASK + POLLING (DENGAN ANTRIAN OPUS 5 MENIT x 3)
          * =================================================
          */
 
-        setDiagStage(
-            "6. Sebelum polling"
-        );
+        const providerCodeHint = String(
+            model?.provider_code ||
+            model?.provider?.provider_id ||
+            model?.repository?.provider_id ||
+            model?.provider_id ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
 
-        const result =
-            await polling.pollGenerateTask(
-                taskId,
-                {
+        const checkOpusQueueBusy = candidate =>
+            isOpusUpstreamCreditBusy({
+                providerCode: providerCodeHint,
+                modelId,
+                code:
+                    candidate?.code ??
+                    candidate?.error_code ??
+                    candidate?.errorCode,
+                message:
+                    candidate?.message ??
+                    candidate?.error_message ??
+                    candidate?.error ??
+                    candidate?.msg,
+                creditRefunded:
+                    candidate?.credit_refunded ??
+                    candidate?.details?.credit_refunded,
+                status:
+                    candidate?.status,
+                details:
+                    candidate?.details && typeof candidate.details === "object"
+                        ? candidate.details
+                        : candidate
+            });
 
-                    modelId:
-                        modelId,
+        const attemptOutcome =
+            await runOpusQueueRetryLoop({
+                maxAttempts: OPUS_QUEUE_MAX_ATTEMPTS,
+                runtimeMs: OPUS_QUEUE_RUNTIME_MS,
+                isOpusError: checkOpusQueueBusy,
+                isCancelledError: isCancelled,
+                shouldAbort: () =>
+                    generationInProgress === false ||
+                    getAppState()?.generationCancelled === true,
+                onQueueWaitStart: info => {
+                    refreshUserCreditProfile();
+                    const waitLabel = `${OPUS_QUEUE_WAIT_MESSAGE} (${info.formattedRemaining})`;
+                    showError(OPUS_QUEUE_WAIT_MESSAGE);
+                    showLoading(waitLabel);
+                    setGenerateStatus("retrying", waitLabel);
+                    progressRetrying({
+                        message: OPUS_QUEUE_WAIT_MESSAGE,
+                        remainingText: info.formattedRemaining,
+                        progress: 5
+                    });
+                },
+                onQueueWaitTick: info => {
+                    const waitLabel = `${OPUS_QUEUE_WAIT_MESSAGE} (${info.formattedRemaining})`;
+                    const pct = info.totalMs > 0
+                        ? Math.max(5, Math.min(95, Math.round((info.elapsedMs / info.totalMs) * 100)))
+                        : 50;
+                    showLoading(waitLabel);
+                    setGenerateStatus("retrying", waitLabel);
+                    progressRetrying({
+                        message: OPUS_QUEUE_WAIT_MESSAGE,
+                        remainingText: info.formattedRemaining,
+                        progress: pct
+                    });
+                },
+                onRetryAttemptStart: info => {
+                    hideError();
+                    const retryMsg = `Melanjutkan tugas generate (percobaan ${info.attempt}/${info.maxAttempts})...`;
+                    showLoading(retryMsg);
+                    setGenerateStatus("retrying", retryMsg);
+                    progressUpdate({
+                        status: "PROCESSING",
+                        message: retryMsg
+                    });
+                },
+                executeAttempt: async () => {
+                    setDiagStage("4. Sebelum generateVideo");
 
-                    interval:
-                        10000,
+                    const response =
+                        await awaitWithTimeout(
+                            request.generateVideo(parameters),
+                            "generateVideo",
+                            90000
+                        );
 
-                    timeout:
-                        null,
+                    setDiagStage("5. generateVideo OK, dapat response");
 
-                    retryUntilTerminal:
-                        true,
+                    renderKieDiagnostic(response, "TASK CREATED");
 
-                    onUpdate:
-                        update => {
+                    const currentTaskId = extractTaskId(response);
 
-                            const failed =
-                                isPollingFailed(
-                                    update
-                                );
+                    if (!currentTaskId) {
+                        const error = new Error(
+                            "KIE.AI tidak mengembalikan task ID."
+                        );
+                        error.code = "TASK_ID_MISSING";
+                        error.details = response;
+                        throw error;
+                    }
 
-                            const completed =
-                                isPollingCompleted(
-                                    update
-                                );
+                    if (elements.resultModel) {
+                        elements.resultModel.textContent = getModelName(model);
+                    }
 
+                    if (elements.resultProvider) {
+                        elements.resultProvider.textContent = getProviderName(model);
+                    }
 
-                            if (
-                                failed
-                            ) {
+                    if (elements.resultTaskId) {
+                        elements.resultTaskId.textContent = currentTaskId;
+                    }
 
-                                const failedMessage =
-                                    update?.message ||
-                                    update?.msg ||
-                                    update?.error ||
-                                    update?.data?.message ||
-                                    update?.data?.error ||
-                                    "Generate gagal diproses.";
+                    showLoading(
+                        `KIE.AI menerima task ${currentTaskId}. Menunggu hasil...`
+                    );
 
+                    progressUpdate({
+                        status: "QUEUED",
+                        message: "Task diterima. Menunggu antrean..."
+                    });
 
-                                showLoading(
-                                    "KIE.AI melaporkan generate gagal."
-                                );
+                    setGenerateStatus(
+                        "processing",
+                        "Generate sedang diproses. Mohon tunggu..."
+                    );
 
+                    setDiagStage("6. Sebelum polling");
 
-                                setGenerateStatus(
-                                    "failed",
-                                    failedMessage
-                                );
+                    const currentResult =
+                        await polling.pollGenerateTask(
+                            currentTaskId,
+                            {
+                                modelId,
+                                interval: 10000,
+                                timeout: null,
+                                retryUntilTerminal: true,
+                                onUpdate: update => {
+                                    const failed = isPollingFailed(update);
+                                    const completed = isPollingCompleted(update);
 
+                                    if (failed) {
+                                        if (checkOpusQueueBusy(update)) {
+                                            return;
+                                        }
 
-                                /* ===== GENZ PROGRESS CARD — FAIL (polling) ===== */
+                                        const failedMessage =
+                                            update?.message ||
+                                            update?.msg ||
+                                            update?.error ||
+                                            update?.data?.message ||
+                                            update?.data?.error ||
+                                            "Generate gagal diproses.";
 
-                                progressFail({
+                                        showLoading("KIE.AI melaporkan generate gagal.");
+                                        setGenerateStatus("failed", failedMessage);
+                                        progressFail({ message: failedMessage });
+                                    } else if (completed) {
+                                        showLoading("KIE.AI selesai. Memverifikasi hasil...");
+                                        setGenerateStatus(
+                                            "processing",
+                                            "Generate selesai. Sedang memverifikasi hasil..."
+                                        );
+                                        progressUpdate({
+                                            status: "PROCESSING",
+                                            message: "Memverifikasi hasil..."
+                                        });
+                                    } else {
+                                        showLoading(
+                                            `KIE.AI sedang memproses task ${currentTaskId}...`
+                                        );
+                                        const progressState = String(
+                                            update?.state ||
+                                            update?.provider_state ||
+                                            update?.status ||
+                                            ""
+                                        )
+                                            .trim()
+                                            .toUpperCase();
 
-                                    message:
-                                        failedMessage
+                                        progressUpdate({
+                                            status: progressState || "PROCESSING",
+                                            message: "Sedang diproses oleh AI..."
+                                        });
 
-                                });
-
+                                        setGenerateStatus(
+                                            "processing",
+                                            "Video sedang diproses. Mohon tunggu..."
+                                        );
+                                    }
+                                }
                             }
+                        );
 
-                            else if (
-                                completed
-                            ) {
+                    setDiagStage("7. Polling OK");
 
-                                showLoading(
-                                    "KIE.AI selesai. Memverifikasi hasil..."
-                                );
+                    if (isCancelled(currentResult)) {
+                        return {
+                            taskId: currentTaskId,
+                            result: currentResult,
+                            cancelled: true
+                        };
+                    }
 
+                    if (isPollingFailed(currentResult)) {
+                        const error = new Error(
+                            currentResult?.message ||
+                            currentResult?.msg ||
+                            currentResult?.error ||
+                            "KIE.AI melaporkan task gagal."
+                        );
+                        error.code =
+                            currentResult?.code ||
+                            currentResult?.error_code ||
+                            currentResult?.errorCode ||
+                            "TASK_FAILED";
+                        error.details = currentResult;
+                        throw error;
+                    }
 
-                                setGenerateStatus(
-                                    "processing",
-                                    "Generate selesai. Sedang memverifikasi hasil..."
-                                );
-
-
-                                /* ===== GENZ PROGRESS CARD — VERIFY ===== */
-
-                                progressUpdate({
-
-                                    status:
-                                        "PROCESSING",
-
-                                    message:
-                                        "Memverifikasi hasil..."
-
-                                });
-
-                            }
-
-                            else {
-
-                                showLoading(
-                                    `KIE.AI sedang memproses task ${taskId}...`
-                                );
-
-
-                                /* ===== GENZ PROGRESS CARD — UPDATE ===== */
-
-                                const progressState =
-                                    String(
-                                        update?.state ||
-                                        update?.provider_state ||
-                                        update?.status ||
-                                        ""
-                                    )
-                                        .trim()
-                                        .toUpperCase();
-
-
-                                progressUpdate({
-
-                                    status:
-                                        progressState ||
-                                        "PROCESSING",
-
-                                    message:
-                                        "Sedang diproses oleh AI..."
-
-                                });
-
-
-                                setGenerateStatus(
-                                    "processing",
-                                    "Video sedang diproses. Mohon tunggu..."
-                                );
-
-                            }
-
-                        }
-
+                    return {
+                        taskId: currentTaskId,
+                        result: currentResult,
+                        cancelled: false
+                    };
                 }
-            );
+            });
 
-
-        setDiagStage(
-            "7. Polling OK"
-        );
-
+        const taskId = attemptOutcome.taskId;
+        const result = attemptOutcome.result;
 
         /*
          * =================================================
@@ -1758,6 +1780,7 @@ async function handleGenerateSubmit(
          * ================================================= */
 
         if (
+            attemptOutcome.cancelled ||
             isCancelled(
                 result
             )
@@ -1782,51 +1805,6 @@ async function handleGenerateSubmit(
 
 
             return cancelledResult;
-
-        }
-
-
-        /*
-         * =================================================
-         * FINAL FAILED CHECK
-         * ================================================= */
-
-        if (
-            isPollingFailed(
-                result
-            )
-        ) {
-
-            const error =
-                new Error(
-
-                    result?.message ||
-
-                    result?.msg ||
-
-                    result?.error ||
-
-                    "KIE.AI melaporkan task gagal."
-
-                );
-
-
-            error.code =
-
-                result?.code ||
-
-                result?.error_code ||
-
-                result?.errorCode ||
-
-                "TASK_FAILED";
-
-
-            error.details =
-                result;
-
-
-            throw error;
 
         }
 
@@ -1950,6 +1928,9 @@ async function handleGenerateSubmit(
         }
 
 
+        hideError();
+
+
         setGenerateStatus(
             "success",
             "Check Hasil Generate di History...!!!"
@@ -2016,18 +1997,20 @@ async function handleGenerateSubmit(
         );
 
         if (wasCreditRefunded) {
-            try {
-                window.GENZGenerateAuth?.loadProfile?.()?.catch?.(() => {});
-                window.GENZGeneratePageAuth?.loadProfileDirectly?.()?.catch?.(() => {});
-            } catch {
-                /* Abaikan error refresh profil non-fatal */
-            }
+            refreshUserCreditProfile();
         }
 
-        const errorMessage =
-            wasCreditRefunded && Number.isFinite(refundedAmount) && refundedAmount > 0 && !/dikembalikan/i.test(baseErrorMessage)
-                ? `${baseErrorMessage} (${refundedAmount.toLocaleString("id-ID")} credit telah dikembalikan ke saldo akun Anda.)`
-                : baseErrorMessage;
+        const isOpusFinalBusy =
+            error?.code === OPUS_SYSTEM_BUSY_FINAL_CODE ||
+            error?.suppressRefundSuffix === true;
+
+        const errorMessage = isOpusFinalBusy
+            ? OPUS_QUEUE_FINAL_ERROR_MESSAGE
+            : (
+                wasCreditRefunded && Number.isFinite(refundedAmount) && refundedAmount > 0 && !/dikembalikan/i.test(baseErrorMessage)
+                    ? `${baseErrorMessage} (${refundedAmount.toLocaleString("id-ID")} credit telah dikembalikan ke saldo akun Anda.)`
+                    : baseErrorMessage
+            );
 
 
         showError(

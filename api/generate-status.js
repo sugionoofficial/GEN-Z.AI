@@ -74,6 +74,12 @@ import {
     resolveOpusBearerToken
 } from "../lib/social-publisher/opus.js";
 
+import {
+    OPUS_QUEUE_FINAL_ERROR_MESSAGE,
+    OPUS_UPSTREAM_QUEUE_BUSY_CODE,
+    isOpusUpstreamCreditBusy
+} from "../generate/assets/js/opus-queue-retry.js";
+
 /* =========================================================
    CONSTANTS
    ========================================================= */
@@ -4146,6 +4152,12 @@ export default async function handler(
                 );
             }
 
+            const existingOpusBusy = isOpusUpstreamCreditBusy({
+                modelId,
+                message: existingHistory.error_message,
+                creditRefunded: true
+            });
+
             return json(
                 res,
                 200,
@@ -4160,7 +4172,10 @@ export default async function handler(
                     processing: false,
                     completed: false,
                     failed: true,
-                    error_message: existingHistory.error_message || null,
+                    error_code: existingOpusBusy ? OPUS_UPSTREAM_QUEUE_BUSY_CODE : null,
+                    error_message: existingOpusBusy
+                        ? OPUS_QUEUE_FINAL_ERROR_MESSAGE
+                        : (existingHistory.error_message || null),
                     credit_refunded: true,
                     refunded_credit: refund?.amount ?? 0,
                     history_updated: false,
@@ -4396,6 +4411,26 @@ export default async function handler(
             );
         }
 
+
+        if (
+            providerRaw &&
+            typeof providerRaw === "object" &&
+            isOpusUpstreamCreditBusy({
+                providerCode,
+                modelId,
+                code: providerRaw.errorCode ?? providerRaw.error_code ?? providerRaw.code,
+                message: providerRaw.errorMessage ?? providerRaw.error_message ?? providerRaw.message,
+                creditRefunded: true
+            })
+        ) {
+            providerRaw = {
+                ...providerRaw,
+                errorCode: OPUS_UPSTREAM_QUEUE_BUSY_CODE,
+                error_code: OPUS_UPSTREAM_QUEUE_BUSY_CODE,
+                errorMessage: OPUS_QUEUE_FINAL_ERROR_MESSAGE,
+                error_message: OPUS_QUEUE_FINAL_ERROR_MESSAGE
+            };
+        }
 
         const normalized =
             normalizeProviderResult(
