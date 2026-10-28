@@ -218,6 +218,9 @@ test("extractVideoUrls memilih URL video output dan mengabaikan gambar referensi
 
 test("translateOpusError dan redactSecrets mengamankan pesan error ke Bahasa Indonesia", () => {
     assert.match(translateOpusError("credit_admission_rejected"), /Saldo kredit akun Opus Labs/i);
+    const detailedCreditErr = translateOpusError("insufficient_credits", "Required 90 credits, available 24");
+    assert.match(detailedCreditErr, /upstream OpusClip/i);
+    assert.match(detailedCreditErr, /Required 90 credits, available 24/);
     assert.match(translateOpusError("content_policy"), /kebijakan keamanan Opus Labs/i);
     assert.match(translateOpusError("submission_unknown"), /submission_unknown/i);
 

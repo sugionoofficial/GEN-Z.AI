@@ -1997,11 +1997,37 @@ async function handleGenerateSubmit(
         );
 
 
-        const errorMessage =
+        const baseErrorMessage =
             error?.message ||
             diagnostic?.message ||
             diagnostic?.error ||
+            error?.details?.error_message ||
+            error?.details?.history_update_payload?.error_message ||
             "Generate gagal diproses.";
+
+        const refundedAmount = Number(
+            error?.details?.refunded_credit ??
+            diagnostic?.refunded_credit ??
+            0
+        );
+        const wasCreditRefunded = Boolean(
+            error?.details?.credit_refunded ||
+            diagnostic?.credit_refunded
+        );
+
+        if (wasCreditRefunded) {
+            try {
+                window.GENZGenerateAuth?.loadProfile?.()?.catch?.(() => {});
+                window.GENZGeneratePageAuth?.loadProfileDirectly?.()?.catch?.(() => {});
+            } catch {
+                /* Abaikan error refresh profil non-fatal */
+            }
+        }
+
+        const errorMessage =
+            wasCreditRefunded && Number.isFinite(refundedAmount) && refundedAmount > 0 && !/dikembalikan/i.test(baseErrorMessage)
+                ? `${baseErrorMessage} (${refundedAmount.toLocaleString("id-ID")} credit telah dikembalikan ke saldo akun Anda.)`
+                : baseErrorMessage;
 
 
         showError(

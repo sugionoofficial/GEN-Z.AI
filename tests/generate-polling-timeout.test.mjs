@@ -90,3 +90,54 @@ test("waits for any model's terminal result across time and temporary status err
         }
     }
 });
+
+test("pollTask mengekstrak pesan error spesifik dari error_message atau history_update_payload saat task failed", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalWindow = globalThis.window;
+    globalThis.window = { GENZ_DEBUG: false };
+
+    globalThis.fetch = async () =>
+        new Response(
+            JSON.stringify({
+                success: true,
+                task_id: "opus:gen_test:job_failed_1",
+                model_id: "opus-seedance-2.5-i2v",
+                state: "failed",
+                provider_state: "FAILED",
+                processing: false,
+                completed: false,
+                failed: true,
+                credit_refunded: true,
+                refunded_credit: 5000,
+                history_update_payload: {
+                    status: "failed",
+                    error_message: "Saldo kredit akun Opus Labs (upstream OpusClip) tidak mencukupi untuk durasi/resolusi video ini."
+                }
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+
+    try {
+        await assert.rejects(
+            () =>
+                pollTask("opus:gen_test:job_failed_1", {
+                    modelId: "opus-seedance-2.5-i2v",
+                    interval: 10
+                }),
+            err => {
+                assert.match(err.message, /Saldo kredit akun Opus Labs/i);
+                assert.equal(err.details?.credit_refunded, true);
+                assert.equal(err.details?.refunded_credit, 5000);
+                return true;
+            }
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+        if (originalWindow === undefined) {
+            delete globalThis.window;
+        } else {
+            globalThis.window = originalWindow;
+        }
+    }
+});
+
