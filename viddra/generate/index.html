@@ -4778,10 +4778,14 @@ function showResult(
             event.preventDefault();
             const filename = downloadResultButton.download;
             const originalContent = downloadResultButton.innerHTML;
+            const toast = window.GENZToast;
+
             downloadResultButton.setAttribute("aria-busy", "true");
             downloadResultButton.innerHTML = "<span>⏳</span> Menyiapkan unduhan...";
 
             try {
+                toast?.downloadStart?.(filename);
+
                 const response = await fetch(videoUrl);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
@@ -4794,6 +4798,10 @@ function showResult(
                         throw new Error("File tidak berhasil disimpan di perangkat.");
                     }
                     if (saved === true) {
+                        toast?.downloadSuccess?.(
+                            filename,
+                            "Tersimpan di Downloads"
+                        );
                         return;
                     }
                 }
@@ -4810,6 +4818,8 @@ function showResult(
                     () => URL.revokeObjectURL(objectUrl),
                     60000
                 );
+
+                toast?.downloadSuccess?.(filename);
             } catch (error) {
                 console.error("[VidDra] Gagal menyiapkan unduhan bernama:", error);
                 setStatus(
@@ -4824,6 +4834,8 @@ function showResult(
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
+
+                toast?.downloadFallback?.(filename);
             } finally {
                 downloadResultButton.removeAttribute("aria-busy");
                 downloadResultButton.innerHTML = originalContent;
@@ -5339,7 +5351,8 @@ if (
 
     </script>
 
-    <script src="/assets/js/support-chat.js?v=guest-session-20261026" defer></script>
+    <script src="/assets/js/support-chat.js?v=touch-close-20261029" defer></script>
+    <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
 </body>
 
 </html>

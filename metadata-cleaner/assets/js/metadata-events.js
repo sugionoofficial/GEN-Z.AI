@@ -844,6 +844,23 @@ function onDownload(
         "MENYIAPKAN HASIL CLEANING UNTUK DIUNDUH."
     );
 
+    /*
+       Notifikasi eksplisit (toast) untuk jalur unduhan Metadata
+       Cleaner. Tanpa ini perubahan hanya terjadi pada teks status
+       yang mudah terlewat pengguna.
+    */
+    const toast =
+        window.GENZToast;
+
+    const downloadFileName =
+        state?.cleanedFile?.name ||
+        state?.file?.name ||
+        "media-bersih";
+
+    toast?.downloadStart?.(
+        downloadFileName
+    );
+
     Promise.resolve()
         .then(callback)
         .then(
@@ -859,6 +876,13 @@ function onDownload(
                         ? "FILE BERHASIL DISIMPAN DI FOLDER DOWNLOADS/GEN-Z.AI."
                         : "UNDUHAN FILE HASIL CLEANING DIMULAI."
                 );
+
+                toast?.downloadSuccess?.(
+                    downloadFileName,
+                    window.GENZAndroidDownloads
+                        ? "Tersimpan di Downloads"
+                        : "Berhasil diunduh"
+                );
             }
         )
         .catch(
@@ -870,6 +894,12 @@ function onDownload(
                 setPreviewStatus(
                     error?.message ||
                     "Unduhan gagal. Silakan coba kembali."
+                );
+
+                toast?.downloadFailure?.(
+                    error?.message ||
+                    "Unduhan gagal. Silakan coba kembali.",
+                    () => onDownload(null)
                 );
             }
         )

@@ -1305,7 +1305,16 @@
     ===================================================== */
 
     function closeDetailModal() {
-        stopModalRuntime();
+        /*
+           Jangan biarkan error kecil (mis. timer runtime) membuat
+           tombol × terasa "mati". Semua langkah dibungkus try/catch
+           supaya modal SELALU tertutup.
+        */
+        try {
+            stopModalRuntime();
+        } catch (error) {
+            console.warn("[modal] stopModalRuntime gagal:", error);
+        }
 
         const elements = getElements();
         const modal = elements.detailModal || document.getElementById("detailModal");
@@ -1321,10 +1330,45 @@
         modal.setAttribute("aria-hidden", "true");
         document.body.classList.remove("history-modal-open");
 
-        getState().currentModalHistoryId = null;
+        try {
+            getState().currentModalHistoryId = null;
+        } catch (error) {
+            console.warn("[modal] reset state modal gagal:", error);
+        }
     }
 
     App.closeDetailModal = closeDetailModal;
+
+
+    /* =====================================================
+       FALLBACK KLIK TOMBOL ×
+       -----------------------------------------------------
+       Listener delegasi di document memastikan tombol tutup
+       tetap berfungsi walau elemen di-render ulang atau
+       listener per-elemen hilang.
+    ===================================================== */
+
+    if (
+        typeof document !== "undefined" &&
+        !document.documentElement.dataset.genzModalCloseFallback
+    ) {
+        document.documentElement.dataset.genzModalCloseFallback = "on";
+
+        document.addEventListener(
+            "click",
+            function (event) {
+                const closer = event.target?.closest?.(
+                    "#closeModal, [data-close-modal]"
+                );
+
+                if (!closer) return;
+
+                event.preventDefault();
+                closeDetailModal();
+            },
+            true
+        );
+    }
 
 
     /* =====================================================
