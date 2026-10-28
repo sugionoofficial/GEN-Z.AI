@@ -16,13 +16,14 @@
 --      per resolusi sesuai harga jual GEN-Z.AI.
 --
 -- CATATAN CREDIT
---   Nilai credit di bawah dihitung per BLOK 5 DETIK:
---     4–5s = 1x | 6–10s = 2x | 11–15s = 3x | ... | 26–30s = 6x
+--   Nilai credit di bawah dipotong FLAT (1x) per generasi sesuai
+--   angka resolusi yang diatur Admin pada halaman Edit Model
+--   (tidak dikalikan durasi detik video).
 --   Untuk MiniMax Hailuo 3:
 --     - Resolusi 768p menggunakan slot `credit_720p`
 --     - Resolusi 2K   menggunakan slot `credit_1080p`
---   PENTING: Generasi video di Opus Labs (`generate_video_clips`)
---   memotong saldo kredit akun OpusClip Anda per detik video.
+--   PENTING: Di sisi upstream Opus Labs (`generate_video_clips`),
+--   saldo akun OpusClip tetap dipotong oleh Opus sesuai durasi video.
 -- =========================================================
 
 -- =========================================================

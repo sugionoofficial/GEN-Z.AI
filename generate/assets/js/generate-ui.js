@@ -239,7 +239,9 @@ function normalizeResolution(
 
     if (
         normalized === "480p" ||
-        normalized === "480"
+        normalized === "480" ||
+        normalized === "576p" ||
+        normalized === "576"
     ) {
 
         return "480p";
@@ -249,7 +251,10 @@ function normalizeResolution(
 
     if (
         normalized === "720p" ||
-        normalized === "720"
+        normalized === "720" ||
+        normalized === "720phd" ||
+        normalized === "768p" ||
+        normalized === "768"
     ) {
 
         return "720p";
@@ -259,7 +264,10 @@ function normalizeResolution(
 
     if (
         normalized === "1080p" ||
-        normalized === "1080"
+        normalized === "1080" ||
+        normalized === "2k" ||
+        normalized === "1440p" ||
+        normalized === "1440"
     ) {
 
         return "1080p";

@@ -149,21 +149,28 @@ test("MiniMax Hailuo 3 memetakan alias resolusi 720p->768p dan 1080p->2k serta m
 });
 
 /* =========================================================
-   2. BILLING KREDIT PER BLOK 5 DETIK UNTUK OPUS
+   2. PEMOTONGAN KREDIT SESUAI PENGATURAN EDIT MODEL (FLAT PER RESOLUSI)
 ========================================================= */
 
-test("resolveBillableCredit menghitung faktor durasi 5 detik untuk model Opus", () => {
+test("resolveBillableCredit memotong credit model Opus tepat sesuai pengaturan Edit Model tanpa dikalikan durasi", () => {
     assert.equal(isOpusModel({ providerId: "opus" }, ""), true);
     assert.equal(isOpusModel(null, "opus-seedance-2.5-t2v"), true);
     assert.equal(isOpusModel({ providerId: "motiongen" }, "seedance-25-studio-s14"), false);
 
-    const block1 = resolveBillableCredit(25, { duration: "5" }, { providerId: "opus" }, "opus-seedance-2.5-t2v");
-    assert.equal(block1.durationFactor, 1);
-    assert.equal(block1.billableCredit, 25);
+    const shortClip = resolveBillableCredit(5000, { duration: "5" }, { providerId: "opus" }, "opus-seedance-2.5-i2v");
+    assert.equal(shortClip.durationFactor, 1);
+    assert.equal(shortClip.creditUnit, 5000);
+    assert.equal(shortClip.billableCredit, 5000);
 
-    const block6 = resolveBillableCredit(25, { duration: "30" }, { providerId: "opus" }, "opus-seedance-2.5-t2v");
-    assert.equal(block6.durationFactor, 6);
-    assert.equal(block6.billableCredit, 150);
+    const maxClip30s = resolveBillableCredit(5000, { duration: "30" }, { providerId: "opus" }, "opus-seedance-2.5-i2v");
+    assert.equal(maxClip30s.durationSeconds, 30);
+    assert.equal(maxClip30s.durationFactor, 1);
+    assert.equal(maxClip30s.creditUnit, 5000);
+    assert.equal(maxClip30s.billableCredit, 5000, "jika di Edit Model diatur 5000, durasi 30s wajib tetap memotong 5000 (bukan 30000)");
+
+    const hailuo15s = resolveBillableCredit(2500, { duration: "15" }, null, "opus-hailuo-3-t2v");
+    assert.equal(hailuo15s.durationFactor, 1);
+    assert.equal(hailuo15s.billableCredit, 2500);
 
     /* Kuota tier gratis QwenCloud tidak boleh terpengaruh oleh provider opus */
     assert.equal(resolveQuotaUsageSeconds(15, 5, "opus"), null);
