@@ -26,6 +26,10 @@ import {
     inspectReferenceMediaUrl,
     isNonMediaHttpPayload
 } from "../../assets/js/media-url-guard.js";
+import {
+    clearOpusMemoryTokenVault,
+    resolveOpusOAuthTokenWithVault
+} from "./oauth-vault.js";
 
 function getEnv() {
     return (
@@ -98,6 +102,7 @@ function getActiveOpusKeyIndex() {
 function resetOpusKeyRotation() {
     activeOpusKeyIndex = 0;
     oauthStateByFingerprint.clear();
+    clearOpusMemoryTokenVault();
 }
 
 /* =========================================================
@@ -592,105 +597,41 @@ function parseApiKeyInput(apiKey, envOverride = null, { isolateFromDefaultRefres
     };
 }
 
-async function resolveBearerToken(apiKey, { forceRefresh = false, isolateFromDefaultRefresh = false } = {}) {
-    const parsed = parseApiKeyInput(apiKey, null, { isolateFromDefaultRefresh });
-    /* Gunakan nilai penuh (bukan slice awal JWT yang identik di semua akun RS256!) agar slot akun berbeda tidak pernah tabrakan cache */
-    const fingerprint = `${parsed.tokenEndpoint}|${parsed.clientId}|${parsed.refreshToken}|${parsed.accessToken}`;
-    const cachedEntry = oauthStateByFingerprint.get(fingerprint) || null;
+async function resolveBearerToken(
+    apiKey,
+    {
+        forceRefresh = false,
+        isolateFromDefaultRefresh = false,
+        env = null
+    } = {}
+) {
+    const parsed = parseApiKeyInput(apiKey, env, { isolateFromDefaultRefresh });
 
-    if (
-        !forceRefresh &&
-        cachedEntry &&
-        cachedEntry.accessToken &&
-        (
-            cachedEntry.expiresAtMs > 0
-                ? cachedEntry.expiresAtMs - Date.now() > 90_000
-                : isJwtFresh(cachedEntry.accessToken)
-        )
-    ) {
-        return cachedEntry.accessToken;
-    }
-
-    if (!forceRefresh && parsed.accessToken) {
-        const expMs = parseJwtExpiryMs(parsed.accessToken) || Number(parsed.expiresAtMs || 0);
-        if (!expMs || expMs - Date.now() > 90_000) {
-            oauthStateByFingerprint.set(fingerprint, {
-                fingerprint,
+    if (parsed.refreshToken && parsed.clientId) {
+        try {
+            const resolved = await resolveOpusOAuthTokenWithVault({
+                env,
+                tokenEndpoint: parsed.tokenEndpoint || DEFAULT_OAUTH_TOKEN_URL,
+                clientId: parsed.clientId,
+                clientSecret: parsed.clientSecret,
+                resource: parsed.resource,
+                scope: parsed.scope,
                 accessToken: parsed.accessToken,
                 refreshToken: parsed.refreshToken,
-                expiresAtMs: expMs
+                expiresAtMs: parsed.expiresAtMs,
+                forceRefresh
             });
-            return parsed.accessToken;
-        }
-    }
-
-    const activeRefreshToken =
-        (cachedEntry && cachedEntry.refreshToken) ||
-        parsed.refreshToken;
-
-    if (activeRefreshToken && parsed.clientId) {
-        const sendRefresh = async includeResourceAndScope => {
-            const form = new URLSearchParams({
-                grant_type: "refresh_token",
-                refresh_token: activeRefreshToken,
-                client_id: parsed.clientId
-            });
-            if (parsed.clientSecret) {
-                form.set("client_secret", parsed.clientSecret);
+            if (resolved?.accessToken) {
+                return resolved.accessToken;
             }
-            if (includeResourceAndScope) {
-                if (parsed.resource) form.set("resource", parsed.resource);
-                if (parsed.scope) form.set("scope", parsed.scope);
-            }
-            const res = await fetch(parsed.tokenEndpoint || DEFAULT_OAUTH_TOKEN_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Accept": "application/json"
-                },
-                body: form.toString()
-            });
-            const rawText = await res.text();
-            let data = null;
-            try {
-                data = rawText ? JSON.parse(rawText) : null;
-            } catch {
-                data = null;
-            }
-            return { response: res, data, rawText };
-        };
-
-        let { response, data, rawText } = await sendRefresh(Boolean(parsed.resource || parsed.scope));
-        if (
-            (!response.ok || !data?.access_token) &&
-            (parsed.resource || parsed.scope) &&
-            /^(invalid_target|invalid_scope)$/i.test(String(data?.error || ""))
-        ) {
-            ({ response, data, rawText } = await sendRefresh(false));
-        }
-
-        if (response.ok && typeof data?.access_token === "string" && data.access_token.trim()) {
-            const nextAccess = data.access_token.replace(/^Bearer\s+/i, "").trim();
-            const nextRefresh = typeof data.refresh_token === "string" && data.refresh_token.trim()
-                ? data.refresh_token.trim()
-                : activeRefreshToken;
-            const expiresInSec = Number(data.expires_in) || 3600;
-            oauthStateByFingerprint.set(fingerprint, {
-                fingerprint,
-                accessToken: nextAccess,
-                refreshToken: nextRefresh,
-                expiresAtMs: parseJwtExpiryMs(nextAccess) || (Date.now() + expiresInSec * 1000)
-            });
-            return nextAccess;
-        }
-
-        if (!parsed.accessToken || forceRefresh) {
+        } catch (err) {
+            const status = Number(err?.status) || 401;
             const detail = redactSecrets(
-                data?.error_description || data?.message || data?.error || rawText.slice(0, 180),
-                [activeRefreshToken, parsed.accessToken]
+                err?.oauthDetail || err?.message || "",
+                [parsed.refreshToken, parsed.accessToken]
             );
             throw createProviderError({
-                message: `Sesi OAuth Opus kedaluwarsa dan gagal diperbarui (${response.status})${detail ? `: ${detail}` : "."}`,
+                message: `Sesi OAuth Opus kedaluwarsa dan gagal diperbarui (${status})${detail ? `: ${detail}` : "."}`,
                 code: "OPUS_AUTH_EXPIRED",
                 providerCode: "auth_expired",
                 status: 401
@@ -1180,10 +1121,12 @@ async function openMcpSession({
     apiKey,
     timeoutMs = CREATE_TIMEOUT_MS,
     includeTools = true,
-    isolateFromDefaultRefresh = false
+    isolateFromDefaultRefresh = false,
+    env = null
 }) {
     let bearerToken = await resolveBearerToken(apiKey, {
-        isolateFromDefaultRefresh
+        isolateFromDefaultRefresh,
+        env
     });
     let sessionId = "";
     let rpcCounter = 1;
@@ -1217,7 +1160,8 @@ async function openMcpSession({
         if (err?.status === 401 || err?.code === "OPUS_AUTH_REJECTED") {
             bearerToken = await resolveBearerToken(apiKey, {
                 forceRefresh: true,
-                isolateFromDefaultRefresh
+                isolateFromDefaultRefresh,
+                env
             });
             initRes = await sendRpc("initialize", {
                 protocolVersion: MCP_PROTOCOL_VERSION,
@@ -4220,7 +4164,8 @@ async function createVideoTaskForSingleKey(payload = {}, apiKey, options = {}) {
         apiKey,
         timeoutMs: CREATE_TIMEOUT_MS,
         includeTools: true,
-        isolateFromDefaultRefresh
+        isolateFromDefaultRefresh,
+        env: options?.env || null
     });
 
     const videoTool =
@@ -4738,7 +4683,8 @@ async function getVideoTaskForSingleKey(parsedId, apiKey, options = {}) {
         apiKey,
         timeoutMs: QUERY_TIMEOUT_MS,
         includeTools: true,
-        isolateFromDefaultRefresh: Boolean(options?.isolateFromDefaultRefresh)
+        isolateFromDefaultRefresh: Boolean(options?.isolateFromDefaultRefresh),
+        env: options?.env || null
     });
 
     let activeJobId = parsedId.jobId;
