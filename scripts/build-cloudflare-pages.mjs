@@ -15,6 +15,7 @@ const staticDirectories = [
     "admin",
     "admin-control",
     "assets",
+    "black-box",
     "credit",
     "generate",
     "history",
