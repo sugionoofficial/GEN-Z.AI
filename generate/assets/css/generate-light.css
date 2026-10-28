@@ -663,6 +663,14 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .genz-progress-card[
     color: #b3261e;
 }
 
+html[data-genz-theme="light"][data-genz-theme="light"] body .genz-progress-card[data-state="retrying"] .gpc-status {
+
+    background: #0f1828;
+    color: #ffffff;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
 html[data-genz-theme="light"][data-genz-theme="light"] body .gpc-bar {
 
     background: #e6ecf5;

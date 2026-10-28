@@ -89,7 +89,7 @@ seed (
             'opus-seedance-2.5-t2v',
             'Seedance 2.5 Text to Video (Opus)',
             'Text to video Seedance 2.5 via Opus Labs — 4–30 detik, 480p/720p, dukungan audio dialog & musik bawaan.',
-            4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', null, 15, 25, 0
+            4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', '{4,5,8,10,12,15,20,25,30}', 15, 25, 0
         ),
         (
             'opus-seedance-2.5-i2v',
@@ -109,7 +109,7 @@ seed (
             'opus-seedance-2.0-r2v',
             'Seedance 2.0 Video (Opus)',
             'Text & Reference to video Seedance 2.0 via Opus Labs — 4–15 detik, opsional hingga 3 gambar referensi.',
-            4, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', null, 12, 20, 0
+            4, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', '{4,5,8,10,12,15}', 12, 20, 0
         ),
 
         -- MINIMAX HAILUO 3 --------------------------------
@@ -117,13 +117,13 @@ seed (
             'opus-hailuo-3-t2v',
             'MiniMax Hailuo 3 Text to Video (Opus)',
             'Text to video MiniMax Hailuo 3 via Opus Labs — 5–15 detik, resolusi tajam 768p & 2K.',
-            5, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{768p,2k}', null, 0, 25, 45
+            5, 15, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{768p,2k}', '{5,6,8,10,12,15}', 0, 25, 45
         ),
         (
             'opus-hailuo-3-i2v',
             'MiniMax Hailuo 3 First & Last Frame (Opus)',
             'Image to video MiniMax Hailuo 3 dari frame awal + frame akhir opsional via Opus Labs — 5–15 detik, 768p & 2K.',
-            5, 15, '{}', '{768p,2k}', null, 0, 25, 45
+            5, 15, '{}', '{768p,2k}', '{5,6,8,10,12,15}', 0, 25, 45
         )
 )
 insert into public.models (

@@ -69,6 +69,12 @@ import {
     roundCredit
 } from "../lib/generate/qwencloud-credit.js";
 
+import {
+    OPUS_QUEUE_WAIT_MESSAGE,
+    OPUS_UPSTREAM_QUEUE_BUSY_CODE,
+    isOpusUpstreamCreditBusy
+} from "../generate/assets/js/opus-queue-retry.js";
+
 
 /* =========================================================
    ENVIRONMENT
@@ -5295,16 +5301,45 @@ export default async function handler(
             null;
 
 
+        const opusQueueBusy =
+            isOpusUpstreamCreditBusy({
+                providerCode,
+                modelId,
+                code: error?.code,
+                message: error?.message,
+                creditRefunded: !creditDeducted,
+                status: statusCode
+            });
+
+
         return failure(
             res,
-            statusCode,
-            error?.message ||
-                "Failed to create generation task",
+            opusQueueBusy
+                ? 503
+                : statusCode,
+            opusQueueBusy
+                ? OPUS_QUEUE_WAIT_MESSAGE
+                : (
+                    error?.message ||
+                    "Failed to create generation task"
+                ),
             {
 
                 code:
-                    error?.code ||
-                    "KIE_CREATE_TASK_FAILED",
+                    opusQueueBusy
+                        ? OPUS_UPSTREAM_QUEUE_BUSY_CODE
+                        : (
+                            error?.code ||
+                            "KIE_CREATE_TASK_FAILED"
+                        ),
+
+                error_code:
+                    opusQueueBusy
+                        ? OPUS_UPSTREAM_QUEUE_BUSY_CODE
+                        : (
+                            error?.code ||
+                            "KIE_CREATE_TASK_FAILED"
+                        ),
 
                 provider:
                     providerCode,
@@ -5314,9 +5349,11 @@ export default async function handler(
                     null,
 
                 provider_response:
-                    sanitizeProviderResponse(
-                        providerResponse
-                    ),
+                    opusQueueBusy
+                        ? null
+                        : sanitizeProviderResponse(
+                            providerResponse
+                        ),
 
                 resolution:
                     generationCredit.resolution,
@@ -5329,6 +5366,11 @@ export default async function handler(
 
                 credit_used:
                     generationCredit.credit,
+
+                refunded_credit:
+                    !creditDeducted
+                        ? generationCredit.credit
+                        : 0,
 
                 credit_refunded:
                     !creditDeducted

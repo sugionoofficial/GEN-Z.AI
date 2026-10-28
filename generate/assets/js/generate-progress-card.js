@@ -192,6 +192,15 @@
             var s = String(opts.status || "").toUpperCase();
             if (opts.message) title.textContent = opts.message;
 
+            if (s === "RETRYING" || s === "MENCOBA") {
+                API.retrying(opts);
+                return;
+            }
+
+            if (!state.timerId && (s === "QUEUED" || s === "PENDING" || s === "PROCESSING" || s === "RUNNING" || s === "IN_PROGRESS" || s === "GENERATING")) {
+                startTimer();
+            }
+
             if (s === "QUEUED" || s === "PENDING") {
                 setState("queued");
                 setStatus("DALAM ANTREAN");
@@ -200,6 +209,27 @@
                 setState("processing");
                 setStatus("DIPROSES");
                 setProgress(typeof opts.progress === "number" ? opts.progress : Math.max(state.targetProgress, 70));
+            }
+        },
+
+        retrying: function (opts) {
+            opts = opts || {};
+            buildDom();
+            clearHide();
+            stopTimer();
+
+            el.hidden = false;
+            el.classList.remove("is-exit");
+            setState("retrying");
+            setStatus("MENCOBA");
+            title.textContent = opts.message || "mohon tunggu antrian, sistem sedang padat";
+
+            if (opts.remainingText && timerEl) {
+                timerEl.textContent = String(opts.remainingText);
+            }
+
+            if (typeof opts.progress === "number") {
+                setProgress(opts.progress);
             }
         },
 

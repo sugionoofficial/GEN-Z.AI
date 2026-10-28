@@ -621,6 +621,16 @@ function applyGenerateStatusStyles(
                     inset 0 1px 0 rgba(255,255,255,.07);
             }
 
+            #generateStatus.genz-status-retrying {
+                border-color:
+                    rgba(255,255,255,.34);
+
+                box-shadow:
+                    0 8px 28px rgba(0,0,0,.24),
+                    0 0 22px rgba(255,255,255,.10),
+                    inset 0 1px 0 rgba(255,255,255,.12);
+            }
+
             #generateStatus.genz-status-success {
                 border-color:
                     rgba(34,197,94,.30);
@@ -721,6 +731,10 @@ function applyGenerateStatusStyles(
                 color:#fff;
             }
 
+            .genz-generate-status-title.retrying {
+                color:#ffffff !important;
+            }
+
             .genz-generate-status-title.success {
                 color:#4ade80;
             }
@@ -737,6 +751,10 @@ function applyGenerateStatusStyles(
                 color:rgba(255,255,255,.58);
                 white-space:normal;
                 word-break:break-word;
+            }
+
+            .genz-generate-status-message.retrying {
+                color:rgba(255,255,255,.88);
             }
 
             .genz-generate-status-message.success {
@@ -873,6 +891,45 @@ function setGenerateStatus(
 
         titleClass =
             "processing";
+
+        icon =
+            `
+            <span
+                class="genz-generate-status-icon"
+                aria-hidden="true"
+            >
+                <span
+                    class="genz-status-spinner"
+                ></span>
+            </span>
+            `;
+
+    }
+
+    else if (
+        normalized ===
+            "retrying" ||
+        normalized ===
+            "mencoba"
+    ) {
+
+        status.classList.add(
+            "genz-status-processing",
+            "genz-status-retrying"
+        );
+
+        title =
+            "MENCOBA";
+
+        titleClass =
+            "retrying";
+
+        message =
+            message ||
+            "mohon tunggu antrian, sistem sedang padat";
+
+        messageClass =
+            "retrying";
 
         icon =
             `

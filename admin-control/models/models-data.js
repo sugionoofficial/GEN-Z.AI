@@ -53,7 +53,7 @@
 ========================================================= */
 
 const MODEL_DATA_VERSION =
-    "2026-10-28-opus-v12";
+    "2026-10-28-opus-v13";
 
 
 /* =========================================================
@@ -106,7 +106,7 @@ import qwenCloudVideoModels
     from "../../models/qwencloud-video/index.js?v=models-registry-qwencloud-20261022";
 
 import opusVideoModels
-    from "../../models/opus-video/index.js?v=models-registry-opus-durations-20261028";
+    from "../../models/opus-video/index.js?v=models-registry-opus-all-durations-20261028";
 
 
 /* =========================================================

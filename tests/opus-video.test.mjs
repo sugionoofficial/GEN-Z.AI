@@ -38,6 +38,18 @@ import {
     formatEnumLabel
 } from "../generate/assets/js/generate-form-fields.js";
 
+import {
+    OPUS_QUEUE_FINAL_ERROR_MESSAGE,
+    OPUS_QUEUE_MAX_ATTEMPTS,
+    OPUS_QUEUE_RETRY_STATUS_LABEL,
+    OPUS_QUEUE_RUNTIME_MS,
+    OPUS_QUEUE_WAIT_MESSAGE,
+    OPUS_SYSTEM_BUSY_FINAL_CODE,
+    formatQueueCountdown,
+    isOpusUpstreamCreditBusy,
+    runOpusQueueRetryLoop
+} from "../generate/assets/js/opus-queue-retry.js";
+
 import { readFileSync } from "node:fs";
 
 /* =========================================================
@@ -1439,6 +1451,181 @@ test("/api/model-config mengembalikan supported_durations terfilter dan menyesua
         else process.env.SUPABASE_SERVICE_ROLE_KEY = prevKey;
     }
 });
+
+test("semua 6 model provider Opus mendukung pilihan durasi sistem checkbox di Edit Model dan halaman Generate", () => {
+    const expectedByModel = {
+        "opus-seedance-2.5-t2v": ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
+        "opus-seedance-2.5-i2v": ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
+        "opus-seedance-2.5-r2v": ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
+        "opus-seedance-2.0-r2v": ["4", "5", "8", "10", "12", "15"],
+        "opus-hailuo-3-t2v": ["5", "6", "8", "10", "12", "15"],
+        "opus-hailuo-3-i2v": ["5", "6", "8", "10", "12", "15"]
+    };
+
+    assert.equal(opusVideoModels.length, 6);
+
+    for (const adapter of opusVideoModels) {
+        const modelId = adapter.config.id;
+        assert.equal(
+            adapter.config.adminEditor.selectableDurations,
+            true,
+            `${modelId} wajib mengaktifkan selectableDurations`
+        );
+        assert.deepEqual(
+            adapter.config.adminEditor.durationOptions.map(opt => opt.value),
+            expectedByModel[modelId],
+            `${modelId} wajib memiliki durationOptions checkbox sesuai spesifikasi`
+        );
+
+        const durationParam = adapter.parameters.find(p => p.name === "duration");
+        assert.ok(durationParam);
+        assert.equal(durationParam.type, "string");
+        assert.deepEqual(durationParam.enum, expectedByModel[modelId]);
+    }
+});
+
+test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu runtime 5 menit berstatus putih MENCOBA, dan berhenti setelah 3 kali gagal dengan SISTEM SIBUK, COBA LAGI", async () => {
+    assert.equal(OPUS_QUEUE_RUNTIME_MS, 5 * 60 * 1000);
+    assert.equal(OPUS_QUEUE_MAX_ATTEMPTS, 3);
+    assert.equal(OPUS_QUEUE_WAIT_MESSAGE, "mohon tunggu antrian, sistem sedang padat");
+    assert.equal(OPUS_QUEUE_FINAL_ERROR_MESSAGE, "SISTEM SIBUK, COBA LAGI");
+    assert.equal(OPUS_QUEUE_RETRY_STATUS_LABEL, "MENCOBA");
+    assert.equal(formatQueueCountdown(OPUS_QUEUE_RUNTIME_MS), "05:00");
+    assert.equal(formatQueueCountdown(61000), "01:01");
+    assert.equal(formatQueueCountdown(0), "00:00");
+
+    /* 1. Deteksi pesan persis yang dilaporkan user */
+    assert.equal(
+        isOpusUpstreamCreditBusy({
+            modelId: "opus-seedance-2.5-i2v",
+            message:
+                "Saldo kredit akun Opus Labs (upstream OpusClip) tidak mencukupi untuk durasi/resolusi video ini. (Detail Opus: Insufficient credits. No provider request was made.) (5.000 credit telah dikembalikan ke saldo akun Anda.)"
+        }),
+        true
+    );
+
+    /* 2. Jangan tertukar dengan saldo user GEN-Z.AI sendiri yang kurang (HTTP 402 sebelum provider dipanggil) */
+    assert.equal(
+        isOpusUpstreamCreditBusy({
+            modelId: "opus-seedance-2.5-i2v",
+            status: 402,
+            code: "INSUFFICIENT_CREDITS",
+            message: "Insufficient credits",
+            creditRefunded: false,
+            details: {
+                code: "INSUFFICIENT_CREDITS",
+                model_id: "opus-seedance-2.5-i2v"
+            }
+        }),
+        false
+    );
+
+    /* 3. Skenario giliran tiba pada percobaan ke-3 setelah 2 kali antrian 5 menit */
+    const sleptSlicesSuccess = [];
+    const waitStartsSuccess = [];
+    let attemptCounterSuccess = 0;
+
+    const recoveredResult = await runOpusQueueRetryLoop({
+        maxAttempts: 3,
+        runtimeMs: 5 * 60 * 1000,
+        tickMs: 60 * 1000,
+        sleepFn: async ms => {
+            sleptSlicesSuccess.push(ms);
+        },
+        onQueueWaitStart: info => {
+            waitStartsSuccess.push(info);
+        },
+        executeAttempt: async attempt => {
+            attemptCounterSuccess = attempt;
+            if (attempt < 3) {
+                const err = new Error(
+                    "Saldo kredit akun Opus Labs (upstream OpusClip) tidak mencukupi untuk durasi/resolusi video ini. (Detail Opus: Insufficient credits. No provider request was made.)"
+                );
+                err.code = "insufficient_credits";
+                throw err;
+            }
+            return { taskId: "opus:proj_ok:job_ok", completed: true };
+        }
+    });
+
+    assert.equal(attemptCounterSuccess, 3);
+    assert.equal(recoveredResult.completed, true);
+    assert.equal(waitStartsSuccess.length, 2);
+    assert.equal(waitStartsSuccess[0].message, "mohon tunggu antrian, sistem sedang padat");
+    assert.equal(waitStartsSuccess[0].statusLabel, "MENCOBA");
+    assert.equal(waitStartsSuccess[0].formattedRemaining, "05:00");
+    assert.equal(
+        sleptSlicesSuccess.reduce((sum, v) => sum + v, 0),
+        2 * 5 * 60 * 1000,
+        "2 kali menunggu masing-masing tepat 5 menit"
+    );
+
+    /* 4. Skenario 3 kali percobaan gagal -> sistem langsung STOP dan mengeluarkan notif SISTEM SIBUK, COBA LAGI */
+    const sleptSlicesFail = [];
+    const waitStartsFail = [];
+    let attemptCounterFail = 0;
+
+    await assert.rejects(
+        async () => {
+            await runOpusQueueRetryLoop({
+                maxAttempts: 3,
+                runtimeMs: 5 * 60 * 1000,
+                tickMs: 60 * 1000,
+                sleepFn: async ms => {
+                    sleptSlicesFail.push(ms);
+                },
+                onQueueWaitStart: info => {
+                    waitStartsFail.push(info);
+                },
+                executeAttempt: async () => {
+                    attemptCounterFail += 1;
+                    const err = new Error("mohon tunggu antrian, sistem sedang padat");
+                    err.code = "OPUS_UPSTREAM_QUEUE_BUSY";
+                    err.details = { credit_refunded: true, refunded_credit: 5000 };
+                    throw err;
+                }
+            });
+        },
+        err => {
+            assert.equal(err.message, "SISTEM SIBUK, COBA LAGI");
+            assert.equal(err.code, OPUS_SYSTEM_BUSY_FINAL_CODE);
+            assert.equal(err.attempts, 3);
+            assert.equal(err.suppressRefundSuffix, true);
+            return true;
+        }
+    );
+
+    assert.equal(attemptCounterFail, 3, "harus berhenti tepat setelah 3 kali percobaan gagal");
+    assert.equal(waitStartsFail.length, 2, "percobaan ke-3 yang gagal langsung berhenti tanpa menunggu 5 menit lagi");
+    assert.equal(
+        sleptSlicesFail.reduce((sum, v) => sum + v, 0),
+        2 * 5 * 60 * 1000
+    );
+
+    /* 5. Verifikasi CSS & status warna putih MENCOBA di UI /generate */
+    const appJs = readFileSync(
+        new URL("../generate/assets/js/generate-app.js", import.meta.url),
+        "utf8"
+    );
+    assert.match(appJs, /title\s*=\s*"MENCOBA"/);
+    assert.match(appJs, /\.genz-generate-status-title\.retrying\s*\{\s*color:#ffffff\s*!important;/);
+
+    const progressCardJs = readFileSync(
+        new URL("../generate/assets/js/generate-progress-card.js", import.meta.url),
+        "utf8"
+    );
+    assert.match(progressCardJs, /setStatus\("MENCOBA"\)/);
+
+    const progressCardCss = readFileSync(
+        new URL("../generate/assets/css/generate-progress-card.css", import.meta.url),
+        "utf8"
+    );
+    assert.match(
+        progressCardCss,
+        /\.genz-progress-card\[data-state="retrying"\]\s+\.gpc-status\s*\{\s*color:\s*#ffffff;\s*\}/
+    );
+});
+
 
 
 
