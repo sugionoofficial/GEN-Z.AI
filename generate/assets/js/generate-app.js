@@ -82,7 +82,7 @@ const SUBMIT_MODULE =
     "./generate-submit.js";
 
 const VALIDATION_MODULE =
-    "./generate-validation.js";
+    "./generate-validation.js?v=20261028-urlguard";
 
 const REQUEST_MODULE =
     "./generate-request.js";

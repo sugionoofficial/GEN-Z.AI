@@ -22,6 +22,11 @@
      model di Admin Panel)
 ========================================================= */
 
+import {
+    inspectReferenceMediaUrl,
+    isNonMediaHttpPayload
+} from "../../assets/js/media-url-guard.js";
+
 function getEnv() {
     return (
         typeof process !== "undefined" &&
@@ -1958,6 +1963,14 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
 }
 
 async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCache = null) {
+    const urlCheck = inspectReferenceMediaUrl(mediaUrl);
+    if (!urlCheck.valid) {
+        throw createProviderError({
+            message: urlCheck.message,
+            code: urlCheck.code || "NON_DIRECT_MEDIA_URL",
+            status: 422
+        });
+    }
     const cacheKey = `${mediaType}:${mediaUrl}`;
     if (mediaCache instanceof Map && mediaCache.has(cacheKey)) {
         return mediaCache.get(cacheKey);
@@ -1970,6 +1983,13 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
         isVideo ? 35_000 : 20_000
     );
     if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+            throw createProviderError({
+                message: `Link ${mediaLabel} ditolak oleh server asal (HTTP ${res.status} — link terproteksi atau kedaluwarsa, misalnya dari CDN Facebook/TikTok). Silakan simpan file ke perangkat lalu gunakan menu Upload.`,
+                code: "REFERENCE_FETCH_FORBIDDEN",
+                status: 422
+            });
+        }
         throw createProviderError({
             message: `Gagal mengunduh ${mediaLabel} untuk diunggah ke Opus Labs (HTTP ${res.status}).`,
             code: "REFERENCE_FETCH_FAILED",
@@ -1982,6 +2002,13 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
         throw createProviderError({
             message: `${isVideo ? "Video referensi" : "Gambar referensi"} kosong (0 byte).`,
             code: "REFERENCE_EMPTY",
+            status: 422
+        });
+    }
+    if (isNonMediaHttpPayload(contentType, bytes)) {
+        throw createProviderError({
+            message: `URL referensi mengarah ke halaman web (HTML), bukan file ${mediaLabel} langsung. Silakan gunakan direct link file (.jpg/.png/.mp4) atau unduh medianya lalu gunakan menu Upload.`,
+            code: "NON_DIRECT_MEDIA_URL",
             status: 422
         });
     }
@@ -2000,6 +2027,14 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
 
 async function stageSingleReferenceImage(session, importTool, projectId, refItem, index) {
     const itemMediaType = refItem.mediaType === "video" ? "video" : "image";
+    const urlCheck = inspectReferenceMediaUrl(refItem.url);
+    if (!urlCheck.valid) {
+        throw createProviderError({
+            message: urlCheck.message,
+            code: urlCheck.code || "NON_DIRECT_MEDIA_URL",
+            status: 422
+        });
+    }
     if (!importTool) {
         return {
             assetId: "",
@@ -2098,11 +2133,26 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         if (sizeKey) entry[sizeKey] = cachedDownloaded.bytes.byteLength;
     }
 
-    let stepRes = await session.callTool(importTool.name, wrapCallArgs(entry));
-    let record = extractImportedAssetRecord(stepRes.data, clientItemId);
+    let stepRes;
+    let record;
+    try {
+        stepRes = await session.callTool(importTool.name, wrapCallArgs(entry));
+        record = extractImportedAssetRecord(stepRes.data, clientItemId);
+    } catch (rpcError) {
+        stepRes = { isError: true, error: rpcError };
+        record = {
+            assetId: "",
+            status: "failed",
+            itemFailed: true,
+            uploadUrl: "",
+            uploadMethod: "PUT",
+            uploadHeaders: null,
+            uri: ""
+        };
+    }
 
     /*
-     * Jika import_assets via remote URL gagal (mis. signed URL storage privat ditolak oleh fetcher Opus)
+     * Jika import_assets via remote URL gagal (mis. signed URL storage privat atau CDN pihak ketiga ditolak oleh fetcher Opus)
      * atau tidak mengembalikan assetId maupun uploadUrl, fallback ke upload langsung via dataUrl/base64/presigned upload.
      */
     if (
@@ -2136,8 +2186,17 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                     record = retryRecord;
                 }
             }
-        } catch {
-            /* Biarkan lanjut menggunakan fallback URL bila unduh/stage gagal */
+        } catch (fallbackErr) {
+            if (
+                fallbackErr?.code === "NON_DIRECT_MEDIA_URL" ||
+                fallbackErr?.code === "REFERENCE_FETCH_FORBIDDEN" ||
+                fallbackErr?.code === "REFERENCE_FETCH_FAILED" ||
+                fallbackErr?.code === "REFERENCE_EMPTY" ||
+                fallbackErr?.code === "INVALID_MEDIA_URL"
+            ) {
+                throw fallbackErr;
+            }
+            /* Biarkan lanjut menggunakan fallback URL bila retry MCP gagal karena alasan skema */
         }
     }
 
