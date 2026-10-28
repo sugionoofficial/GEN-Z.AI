@@ -1404,10 +1404,33 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                     aspect_ratio: $("manual-aspect-ratio").value,
                     ...($("manual-character-random-song")?.checked ? { use_random_song: true } : {})
                 };
-            const result = await api("manual-generate", {
-                method: "POST",
-                body: requestBody
-            });
+            let result = null;
+            const maxManualPolicyRetries = isQuote ? 0 : 3;
+            for (let policyAttempt = 0; policyAttempt <= maxManualPolicyRetries; policyAttempt += 1) {
+                try {
+                    result = await api("manual-generate", {
+                        method: "POST",
+                        body: policyAttempt > 0
+                            ? { ...requestBody, policy_retry_attempt: policyAttempt }
+                            : requestBody
+                    });
+                    break;
+                } catch (genError) {
+                    const errText = String(genError?.message || "");
+                    const isOpusPolicy = /Permintaan gambar ditolak kebijakan konten Opus|safety[_\s-]*violations|rejected by the safety system/i.test(errText);
+                    if (!isOpusPolicy || policyAttempt >= maxManualPolicyRetries) {
+                        throw genError;
+                    }
+                    const nextAttemptNumber = policyAttempt + 1;
+                    status(
+                        $("manual-post-status"),
+                        `${errText} — Langsung membuat ulang gambar baru secara otomatis (${nextAttemptNumber}/${maxManualPolicyRetries})…`,
+                        "warn"
+                    );
+                    updateButtonBusyText(button, `Ditolak policy Opus, langsung generate ulang (${nextAttemptNumber}/${maxManualPolicyRetries})…`);
+                    loadRunsPage(1).catch(() => {});
+                }
+            }
             generatedRunId = result.preview.run_id;
             const isQuoteVideoPreview = Boolean(result.preview.video_base64);
             const resolvedQuoteTarget = normalizeClientQuoteTarget(result.preview.quote_publish_target || selectedQuoteTarget);
