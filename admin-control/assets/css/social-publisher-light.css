@@ -1125,4 +1125,32 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .schedule-grid .item
     box-shadow: inset 3px 0 0 #12b866 !important;
 }
 
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.autopost-on:not(.is-confirming) {
+    background: linear-gradient(135deg, #39f076 0%, #16c65a 100%) !important;
+    border: 1px solid #0fa348 !important;
+    color: #032610 !important;
+    font-weight: 850 !important;
+    box-shadow: 0 6px 16px rgba(22, 198, 90, .28) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.autopost-on:not(.is-confirming):hover {
+    background: linear-gradient(135deg, #4ef587 0%, #12b350 100%) !important;
+    border-color: #0c8a3d !important;
+    color: #021f0c !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.autopost-off:not(.is-confirming) {
+    background: linear-gradient(135deg, #ff4d5e 0%, #e11d2f 100%) !important;
+    border: 1px solid #c81425 !important;
+    color: #ffffff !important;
+    font-weight: 850 !important;
+    box-shadow: 0 6px 16px rgba(225, 29, 47, .28) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .btn.autopost-off:not(.is-confirming):hover {
+    background: linear-gradient(135deg, #ff6372 0%, #c81425 100%) !important;
+    border-color: #a80f1d !important;
+    color: #ffffff !important;
+}
+
 
