@@ -8,8 +8,12 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import {
+    buildCallbackSuccessHtml,
     createPkcePair,
     discoverOpusOAuthEndpoints,
+    extractOAuthCallbackCode,
+    isTermuxEnvironment,
+    openBrowserUrl,
     registerDynamicOAuthClient,
     exchangeCodeForOpusTokens,
     extractLatestMcpAuthBundle,
@@ -197,3 +201,51 @@ test("package.json menyediakan npm run opus:login dan .gitignore melindungi file
     assert.equal(pkg.scripts["opus:login"], "node scripts/opus-login.mjs");
     assert.ok(gitignore.includes(DEFAULT_OUTPUT_FILE), ".opus-auth-token.json wajib ada di .gitignore");
 });
+
+test("Dukungan HP Android / Termux: deteksi env, fallback opener aman bebas ENOENT, ekstraksi callback URL manual, dan halaman tombol Salin Token", async () => {
+    assert.equal(isTermuxEnvironment({ TERMUX_VERSION: "0.118.1" }, "linux"), true);
+    assert.equal(isTermuxEnvironment({ PREFIX: "/data/data/com.termux/files/usr" }, "linux"), true);
+    assert.equal(isTermuxEnvironment({}, "android"), true);
+    assert.equal(isTermuxEnvironment({}, "linux"), false);
+
+    /* Bila termux-open-url tidak ada, otomatis jatuh ke Android Activity Manager (am start) */
+    const triedCommands = [];
+    const openedViaAm = await openBrowserUrl("https://focused-horizon-38.authkit.app/oauth2/authorize?client_id=test", {
+        env: { TERMUX_VERSION: "0.118.1" },
+        platform: "linux",
+        spawnFn: async (cmd, args) => {
+            triedCommands.push([cmd, args]);
+            return cmd === "am";
+        }
+    });
+    assert.equal(openedViaAm, true);
+    assert.equal(triedCommands[0][0], "termux-open-url");
+    assert.equal(triedCommands[1][0], "am");
+
+    /* Bila dijalankan nyata di environment minimal yang tidak punya binary opener palsu, tidak boleh melempar unhandled ENOENT */
+    const safeFalse = await openBrowserUrl("https://example.com", {
+        env: {},
+        platform: "linux",
+        spawnFn: undefined
+    });
+    assert.equal(typeof safeFalse, "boolean");
+
+    /* Ekstraksi callback manual dari address bar Chrome HP */
+    const parsedCode = extractOAuthCallbackCode(
+        "http://127.0.0.1:43125/callback?code=auth_mobile_999&state=st_abc",
+        "st_abc"
+    );
+    assert.equal(parsedCode, "auth_mobile_999");
+
+    assert.throws(
+        () => extractOAuthCallbackCode("http://127.0.0.1:43125/callback?code=abc&state=wrong", "st_abc"),
+        /state OAuth tidak cocok/i
+    );
+
+    const sampleJson = JSON.stringify({ access_token: "at_hp", refresh_token: "rt_hp", client_id: "cid_hp" });
+    const html = buildCallbackSuccessHtml(sampleJson);
+    assert.ok(html.includes("SALIN TOKEN JSON KE CLIPBOARD"));
+    assert.ok(html.includes("https://dash.cloudflare.com/"));
+    assert.ok(html.includes("&quot;refresh_token&quot;:&quot;rt_hp&quot;"));
+});
+
