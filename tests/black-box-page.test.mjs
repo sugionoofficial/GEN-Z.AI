@@ -126,3 +126,55 @@ test("folder black-box ikut dibangun ke dist Cloudflare", () => {
     const buildScript = read(path.join("scripts", "build-cloudflare-pages.mjs"));
     assert.match(buildScript, /"black-box",/);
 });
+
+test("BLACK BOX hanya untuk admin/owner: tidak ada di menu role user", () => {
+    const navigation = read(path.join("navigation", "navigation.js"));
+
+    const userBlock = navigation.match(
+        /const commonUserItems = \[([\s\S]*?)\];/,
+    );
+    const adminBlock = navigation.match(
+        /const adminItems = \[([\s\S]*?)\];/,
+    );
+
+    assert.ok(userBlock, "expected commonUserItems");
+    assert.ok(adminBlock, "expected adminItems");
+
+    assert.doesNotMatch(
+        userBlock[1],
+        /Black Box/,
+        "menu Black Box tidak boleh muncul untuk role user",
+    );
+    assert.match(
+        adminBlock[1],
+        /Black Box/,
+        "menu Black Box wajib muncul untuk admin/owner",
+    );
+});
+
+test("halaman BLACK BOX fail-closed: konten disembunyikan sampai role terverifikasi admin/owner", () => {
+    // Gate harus aktif sejak HTML pertama kali dirender.
+    assert.match(pageHtml, /<body class="bb-body bb-guard-pending">/);
+    assert.match(pageCss, /body\.bb-guard-pending \.bb-page\s*\{[^}]*visibility:\s*hidden;/s);
+
+    // Guard membaca role dari navigation.js (sumber kebenaran profiles.role).
+    assert.match(pageHtml, /window\.GENZ_NAVIGATION_ROLE/);
+    assert.match(pageHtml, /GENZNavigationReady/);
+    assert.match(
+        pageHtml,
+        /function hasAdminAccess\(role\) \{\s*return role === "admin" \|\| role === "owner";/,
+    );
+
+    // Role lain mendapat layar AKSES DITOLAK lalu dialihkan ke dashboard.
+    assert.match(pageHtml, /AKSES DITOLAK/);
+    assert.match(pageHtml, /id="bbDenied"/);
+    assert.match(pageHtml, /var DASHBOARD_PATH = "\/user\/dashboard\.html";/);
+    assert.match(pageHtml, /window\.location\.replace\(DASHBOARD_PATH\)/);
+
+    // Guard wajib dimuat SETELAH navigation.js mendefinisikan role global.
+    const navigationIndex = pageHtml.indexOf(
+        'src="/navigation/navigation.js?v=',
+    );
+    const guardIndex = pageHtml.indexOf("window.GENZ_NAVIGATION_ROLE");
+    assert.ok(navigationIndex > -1 && guardIndex > navigationIndex);
+});
