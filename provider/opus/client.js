@@ -919,12 +919,22 @@ function derefSchema(schema, rootSchema, seen = new Set()) {
         const ref = schema.$ref;
         if (seen.has(ref)) return schema;
         seen.add(ref);
-        const match = /^#\/(\$defs|definitions)\/(.+)$/.exec(ref);
-        if (match) {
-            const bucket = rootSchema[match[1]];
-            const key = match[2].replace(/~1/g, "/").replace(/~0/g, "~");
-            if (bucket && typeof bucket[key] === "object") {
-                const resolved = derefSchema(bucket[key], rootSchema, seen);
+        if (ref.startsWith("#/")) {
+            const segments = ref
+                .slice(2)
+                .split("/")
+                .map(seg => seg.replace(/~1/g, "/").replace(/~0/g, "~"));
+            let cursor = rootSchema;
+            for (const seg of segments) {
+                if (cursor && typeof cursor === "object" && Object.prototype.hasOwnProperty.call(cursor, seg)) {
+                    cursor = cursor[seg];
+                } else {
+                    cursor = null;
+                    break;
+                }
+            }
+            if (cursor && typeof cursor === "object") {
+                const resolved = derefSchema(cursor, rootSchema, seen);
                 const { $ref: _ignored, ...rest } = schema;
                 return Object.keys(rest).length ? { ...resolved, ...rest } : resolved;
             }
@@ -1006,7 +1016,24 @@ function resolveObjectSchema(schema, rootSchema, preferBranch = null) {
     const requiredSet = new Set();
     let hasExplicitProps = false;
 
-    const absorb = candidate => {
+    const absorbResolved = resolvedObj => {
+        if (!resolvedObj) return;
+        if (resolvedObj.properties && typeof resolvedObj.properties === "object") {
+            hasExplicitProps = true;
+            for (const [key, val] of Object.entries(resolvedObj.properties)) {
+                if (!(key in mergedProps)) {
+                    mergedProps[key] = derefSchema(val, rootSchema) || val;
+                }
+            }
+        }
+        if (Array.isArray(resolvedObj.required)) {
+            for (const reqKey of resolvedObj.required) {
+                if (typeof reqKey === "string") requiredSet.add(reqKey);
+            }
+        }
+    };
+
+    const absorbDirect = candidate => {
         const c = derefSchema(candidate, rootSchema);
         if (!c || typeof c !== "object") return;
         if (c.properties && typeof c.properties === "object") {
@@ -1024,28 +1051,56 @@ function resolveObjectSchema(schema, rootSchema, preferBranch = null) {
         }
     };
 
-    absorb(node);
+    absorbDirect(node);
+
+    /*
+     * PENTING: Resolusi rekursif penuh pada `allOf` + `anyOf`/`oneOf`!
+     * Zod discriminatedUnion/intersection sering menghasilkan:
+     *   `allOf: [ { properties: { id, prompt } }, { anyOf: [ BranchA, BranchB ] } ]`
+     *   atau `{ properties: { id, prompt }, oneOf: [ BranchA, BranchB ] }`.
+     * Kita WAJIB tetap mengekstrak cabang `anyOf`/`oneOf` walaupun `properties` dasar sudah ada,
+     * agar field seperti `durationSeconds`/`durationSec`, `model`, `workflow`, `firstFrame`, dll. tidak hilang.
+     */
     if (Array.isArray(node.allOf)) {
-        for (const sub of node.allOf) absorb(sub);
+        for (const sub of node.allOf) {
+            const subResolved = resolveObjectSchema(sub, rootSchema, preferBranch);
+            absorbResolved(subResolved);
+        }
     }
-    if (!hasExplicitProps) {
-        for (const combinator of ["anyOf", "oneOf"]) {
-            if (Array.isArray(node[combinator])) {
-                const objBranches = node[combinator]
-                    .map(sub => derefSchema(sub, rootSchema))
-                    .filter(sub => sub && !isNullOnlySchema(sub) && (sub.type === "object" || sub.properties || sub.allOf));
-                if (objBranches.length) {
-                    const chosen =
-                        (typeof preferBranch === "function" && objBranches.find(preferBranch)) ||
-                        objBranches[0];
-                    const resolvedChosen = resolveObjectSchema(chosen, rootSchema);
-                    if (resolvedChosen.properties) {
-                        hasExplicitProps = true;
-                        Object.assign(mergedProps, resolvedChosen.properties);
-                        for (const r of resolvedChosen.required) requiredSet.add(r);
+
+    for (const combinator of ["anyOf", "oneOf"]) {
+        if (Array.isArray(node[combinator])) {
+            const objBranches = node[combinator]
+                .map(sub => derefSchema(sub, rootSchema))
+                .filter(
+                    sub =>
+                        sub &&
+                        !isNullOnlySchema(sub) &&
+                        (sub.type === "object" || sub.properties || sub.allOf || sub.anyOf || sub.oneOf)
+                );
+            if (objBranches.length) {
+                let chosen = null;
+                if (typeof preferBranch === "function") {
+                    let bestScore = -Infinity;
+                    for (const branch of objBranches) {
+                        const resolvedBranch = resolveObjectSchema(branch, rootSchema, preferBranch);
+                        const rawVal = preferBranch(branch, resolvedBranch);
+                        if (typeof rawVal === "boolean") {
+                            if (rawVal) {
+                                chosen = resolvedBranch;
+                                break;
+                            }
+                        } else if (typeof rawVal === "number" && rawVal > bestScore) {
+                            bestScore = rawVal;
+                            chosen = resolvedBranch;
+                        }
                     }
-                    break;
                 }
+                if (!chosen) {
+                    chosen = resolveObjectSchema(objBranches[0], rootSchema, preferBranch);
+                }
+                absorbResolved(chosen);
+                break;
             }
         }
     }
@@ -1055,6 +1110,85 @@ function resolveObjectSchema(schema, rootSchema, preferBranch = null) {
         required: Array.from(requiredSet),
         raw: node
     };
+}
+
+function expandObjectBranches(schema, rootSchema, depth = 0) {
+    const node = derefSchema(schema, rootSchema);
+    if (!node || typeof node !== "object" || depth > 5) return [];
+
+    const mergeTwo = (a, b) => ({
+        properties: {
+            ...(a.properties || {}),
+            ...(b.properties || {})
+        },
+        required: Array.from(new Set([...(a.required || []), ...(b.required || [])])),
+        raw: b.raw || a.raw || node
+    });
+
+    let current = [
+        {
+            properties:
+                node.properties && typeof node.properties === "object"
+                    ? Object.fromEntries(
+                          Object.entries(node.properties).map(([k, v]) => [k, derefSchema(v, rootSchema) || v])
+                      )
+                    : {},
+            required: Array.isArray(node.required) ? node.required.filter(k => typeof k === "string") : [],
+            hasProps: Boolean(node.properties && typeof node.properties === "object"),
+            raw: node
+        }
+    ];
+
+    if (Array.isArray(node.allOf)) {
+        for (const sub of node.allOf) {
+            const subBranches = expandObjectBranches(sub, rootSchema, depth + 1);
+            if (!subBranches.length) continue;
+            const next = [];
+            for (const base of current) {
+                for (const sb of subBranches) {
+                    const merged = mergeTwo(base, sb);
+                    next.push({
+                        ...merged,
+                        hasProps: base.hasProps || sb.hasProps || Object.keys(merged.properties).length > 0
+                    });
+                }
+            }
+            if (next.length) current = next.slice(0, 16);
+        }
+    }
+
+    for (const combinator of ["oneOf", "anyOf"]) {
+        if (Array.isArray(node[combinator])) {
+            const unionBranches = [];
+            for (const sub of node[combinator]) {
+                const resolvedSub = derefSchema(sub, rootSchema);
+                if (!resolvedSub || isNullOnlySchema(resolvedSub)) continue;
+                unionBranches.push(...expandObjectBranches(resolvedSub, rootSchema, depth + 1));
+            }
+            if (unionBranches.length) {
+                const next = [];
+                for (const base of current) {
+                    for (const ub of unionBranches) {
+                        const merged = mergeTwo(base, ub);
+                        next.push({
+                            ...merged,
+                            hasProps: base.hasProps || ub.hasProps || Object.keys(merged.properties).length > 0
+                        });
+                    }
+                }
+                if (next.length) current = next.slice(0, 16);
+                break;
+            }
+        }
+    }
+
+    return current
+        .filter(item => item.hasProps || Object.keys(item.properties).length > 0)
+        .map(item => ({
+            properties: item.properties,
+            required: item.required,
+            raw: item.raw
+        }));
 }
 
 function resolveArrayItemSchema(schema, rootSchema) {
@@ -1095,6 +1229,42 @@ function normalizeCompactToken(value) {
         .replace(/[^a-z0-9]+/g, "");
 }
 
+function stripModelVendorPrefix(value) {
+    const clean = String(value || "").trim();
+    const slashIdx = clean.lastIndexOf("/");
+    return slashIdx >= 0 ? clean.slice(slashIdx + 1) : clean;
+}
+
+function extractModelVersionTag(value) {
+    const s = stripModelVendorPrefix(value).toLowerCase();
+    const decimalMatch = /(?:^|[^0-9])(\d+)[._-](\d+)(?:[^0-9]|$)/.exec(s);
+    if (decimalMatch) {
+        return `${decimalMatch[1]}.${decimalMatch[2]}`;
+    }
+    const majorMatch = /(?:seedance|hailuo|h)[._-\s]*(\d+)(?:[^0-9]|$)/i.exec(s);
+    if (majorMatch) {
+        return `${majorMatch[1]}`;
+    }
+    return "";
+}
+
+function hasConflictingVersionTag(desiredVersion, candidateValue) {
+    if (!desiredVersion) return false;
+    const candVersion = extractModelVersionTag(candidateValue);
+    if (!candVersion) {
+        /* Jika kita minta versi spesifik seperti "2.5", jangan jatuh ke model generik tanpa versi ("seedance") bila ada pilihan lain */
+        return true;
+    }
+    if (desiredVersion === candVersion) return false;
+    if (!desiredVersion.includes(".") && candVersion.startsWith(`${desiredVersion}.0`)) {
+        return false;
+    }
+    if (desiredVersion.endsWith(".0") && candVersion === desiredVersion.slice(0, -2)) {
+        return false;
+    }
+    return true;
+}
+
 function matchVideoModelValue(desiredModel, aliases = [], allowedValues = []) {
     const candidates = [
         desiredModel,
@@ -1107,23 +1277,52 @@ function matchVideoModelValue(desiredModel, aliases = [], allowedValues = []) {
         return candidates[0] || "";
     }
 
+    /* 1. Exact case-insensitive match penuh */
     for (const candidate of candidates) {
         const exact = allowedValues.find(v => String(v).toLowerCase() === candidate.toLowerCase());
         if (exact !== undefined) return exact;
     }
 
+    /* 2. Exact match setelah menghapus prefix vendor (mis. "bytedance/seedance-2.5" -> "seedance-2.5") */
+    for (const candidate of candidates) {
+        const bareCand = stripModelVendorPrefix(candidate).toLowerCase();
+        const hit = allowedValues.find(v => stripModelVendorPrefix(v).toLowerCase() === bareCand);
+        if (hit !== undefined) return hit;
+    }
+
+    /* 3. Compact alphanumeric exact match penuh & tanpa prefix vendor */
     const compactCandidates = candidates.map(normalizeCompactToken).filter(Boolean);
     for (const compact of compactCandidates) {
         const hit = allowedValues.find(v => normalizeCompactToken(v) === compact);
         if (hit !== undefined) return hit;
     }
+    for (const candidate of candidates) {
+        const bareCompact = normalizeCompactToken(stripModelVendorPrefix(candidate));
+        if (!bareCompact) continue;
+        const hit = allowedValues.find(
+            v => normalizeCompactToken(stripModelVendorPrefix(v)) === bareCompact
+        );
+        if (hit !== undefined) return hit;
+    }
+
+    /* 4. Partial match dengan penjaga versi ketat (cegah "seedance-2.5" salah memilih "seedance" atau "seedance-2") */
+    const desiredVersion = extractModelVersionTag(desiredModel);
+    for (const compact of compactCandidates) {
+        const hit = allowedValues.find(v => {
+            if (hasConflictingVersionTag(desiredVersion, v)) return false;
+            const cv = normalizeCompactToken(v);
+            return cv.includes(compact);
+        });
+        if (hit !== undefined) return hit;
+    }
 
     for (const compact of compactCandidates) {
-        const partial = allowedValues.find(v => {
-            const cv = normalizeCompactToken(v);
-            return cv.includes(compact) || compact.includes(cv);
+        const hit = allowedValues.find(v => {
+            if (hasConflictingVersionTag(desiredVersion, v)) return false;
+            const cv = normalizeCompactToken(stripModelVendorPrefix(v));
+            return cv.length >= 6 && compact.includes(cv);
         });
-        if (partial !== undefined) return partial;
+        if (hit !== undefined) return hit;
     }
 
     return null;
@@ -1275,7 +1474,15 @@ function extFromMime(mime) {
 function extractImportedAssetRecord(raw, clientItemId = "") {
     const data = unwrapEnvelope(raw);
     if (!data || typeof data !== "object") {
-        return { assetId: "", status: "", uploadUrl: "", uploadMethod: "PUT", uploadHeaders: null, uri: "" };
+        return {
+            assetId: "",
+            status: "",
+            itemFailed: false,
+            uploadUrl: "",
+            uploadMethod: "PUT",
+            uploadHeaders: null,
+            uri: ""
+        };
     }
 
     const containers = [
@@ -1286,6 +1493,16 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
         data.imported,
         data.records
     ].filter(Array.isArray);
+
+    if (
+        !containers.length &&
+        data.assets &&
+        typeof data.assets === "object" &&
+        !Array.isArray(data.assets)
+    ) {
+        const dictVals = Object.values(data.assets).filter(el => el && typeof el === "object");
+        if (dictVals.length) containers.push(dictVals);
+    }
 
     let item = null;
     for (const list of containers) {
@@ -1304,19 +1521,49 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
         if (item) break;
     }
 
-    const source = item ? { ...data, ...item } : data;
+    const nestedAsset =
+        item && item.asset && typeof item.asset === "object"
+            ? item.asset
+            : data.asset && typeof data.asset === "object"
+              ? data.asset
+              : null;
+
+    const source = item
+        ? { ...data, ...(nestedAsset || {}), ...item }
+        : { ...data, ...(nestedAsset || {}) };
+
     const uploadObj = source.upload && typeof source.upload === "object" ? source.upload : null;
+    const arrayAssetId =
+        Array.isArray(data.assetIds) && typeof data.assetIds[0] === "string"
+            ? data.assetIds[0]
+            : Array.isArray(data.asset_ids) && typeof data.asset_ids[0] === "string"
+              ? data.asset_ids[0]
+              : "";
 
     const assetId = String(
         source.assetId ||
         source.asset_id ||
         source.durableAssetId ||
+        source.durableRef ||
+        source.assetRef ||
+        nestedAsset?.assetId ||
+        nestedAsset?.id ||
+        arrayAssetId ||
         source.id ||
         ""
     ).trim();
 
     const validAssetId = assetId && assetId !== clientItemId ? assetId : "";
     const status = String(source.status || source.state || "").trim().toLowerCase();
+    const itemFailed = Boolean(
+        source.ok === false ||
+        source.error ||
+        source.errorCode ||
+        status === "failed" ||
+        status === "error" ||
+        status === "rejected"
+    );
+
     const uploadUrl = String(
         source.uploadUrl ||
         source.upload_url ||
@@ -1352,6 +1599,7 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
     return {
         assetId: validAssetId,
         status,
+        itemFailed,
         uploadUrl,
         uploadMethod: uploadMethod || "PUT",
         uploadHeaders,
@@ -1406,29 +1654,40 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         ["assets", "items", "files", "inputs", "sources", "media", "uploads"],
         ""
     );
+    const itemSchema = arrayKey ? resolveArrayItemSchema(topProps[arrayKey], rootSchema) : rootSchema;
+    const itemBranches = expandObjectBranches(itemSchema, rootSchema);
     const itemObj = arrayKey
-        ? resolveObjectSchema(resolveArrayItemSchema(topProps[arrayKey], rootSchema), rootSchema)
+        ? resolveObjectSchema(itemSchema, rootSchema, branch => {
+              const p = branch?.properties || {};
+              return Boolean(p.url || p.sourceUrl || p.dataUrl || p.data || p.fileName || p.filename);
+          })
         : topObj;
-    const itemProps = itemObj.properties;
+
+    const mergedItemProps = itemBranches.length > 1
+        ? Object.assign({}, ...itemBranches.map(b => b.properties || {}))
+        : itemObj.properties;
+    const itemProps = mergedItemProps || itemObj.properties;
 
     const clientItemId = `asset-${index + 1}`;
-    const entry = {};
+    const buildBaseEntry = () => {
+        const entry = {};
+        const idKey = pickSupportedKey(itemProps, ["clientId", "client_id", "itemId", "item_id", "id"], "");
+        if (idKey && idKey !== "assetId") entry[idKey] = clientItemId;
 
-    const idKey = pickSupportedKey(itemProps, ["clientId", "client_id", "itemId", "item_id"], "");
-    if (idKey) entry[idKey] = clientItemId;
+        const nameKey = pickSupportedKey(itemProps, ["fileName", "filename", "file_name", "name", "label"], "");
+        if (nameKey) entry[nameKey] = refItem.fileName;
 
-    const nameKey = pickSupportedKey(itemProps, ["fileName", "filename", "file_name", "name", "label"], "");
-    if (nameKey) entry[nameKey] = refItem.fileName;
+        const mimeKey = pickSupportedKey(itemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
+        if (mimeKey) entry[mimeKey] = refItem.mimeType;
 
-    const mimeKey = pickSupportedKey(itemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
-    if (mimeKey) entry[mimeKey] = refItem.mimeType;
-
-    const kindKey = pickSupportedKey(itemProps, ["mediaType", "media_type", "assetType", "asset_type", "type", "kind"], "");
-    if (kindKey) {
-        const allowedKinds = extractAllowedValues(itemProps[kindKey], rootSchema);
-        const matchedKind = matchEnumCaseInsensitive(["image", "photo", "reference", "frame"], allowedKinds);
-        if (matchedKind !== null) entry[kindKey] = matchedKind;
-    }
+        const kindKey = pickSupportedKey(itemProps, ["mediaType", "media_type", "assetType", "asset_type", "type", "kind"], "");
+        if (kindKey) {
+            const allowedKinds = extractAllowedValues(itemProps[kindKey], rootSchema);
+            const matchedKind = matchEnumCaseInsensitive(["image", "photo", "reference", "frame"], allowedKinds);
+            if (matchedKind !== null) entry[kindKey] = matchedKind;
+        }
+        return entry;
+    };
 
     const urlKey = pickSupportedKey(
         itemProps,
@@ -1437,11 +1696,26 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
     );
     const dataKey = pickSupportedKey(
         itemProps,
-        ["data", "base64", "contentBase64", "content_base64", "bytesBase64", "dataUrl", "data_url"],
+        ["dataUrl", "data_url", "mediaBase64", "media_base64", "data", "base64", "contentBase64", "content_base64", "bytesBase64"],
+        ""
+    );
+    const sizeKey = pickSupportedKey(
+        itemProps,
+        ["sizeBytes", "size_bytes", "fileSize", "file_size", "contentLength", "size"],
         ""
     );
 
+    const projKey = pickSupportedKey(topProps, ["projectId", "project_id"], projectId && !topProps ? "projectId" : "");
+    const reqKey = pickSupportedKey(topProps, ["requestKey", "idempotencyKey", "request_key"], "");
+
+    const wrapCallArgs = entryObj => ({
+        ...(projKey && projectId ? { [projKey]: projectId } : {}),
+        ...(reqKey ? { [reqKey]: makeUuid() } : {}),
+        ...(arrayKey ? { [arrayKey]: [entryObj] } : entryObj)
+    });
+
     let cachedDownloaded = null;
+    const entry = buildBaseEntry();
     if (urlKey) {
         entry[urlKey] = refItem.url;
     } else if (dataKey) {
@@ -1450,26 +1724,49 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         entry[dataKey] = /url|uri/i.test(dataKey)
             ? `data:${cachedDownloaded.mimeType};base64,${b64}`
             : b64;
+        if (sizeKey) entry[sizeKey] = cachedDownloaded.bytes.byteLength;
     }
 
-    const callArgs = {};
-    const projKey = pickSupportedKey(topProps, ["projectId", "project_id"], projectId && !topProps ? "projectId" : "");
-    if (projKey && projectId) {
-        callArgs[projKey] = projectId;
-    }
-    const reqKey = pickSupportedKey(topProps, ["requestKey", "idempotencyKey", "request_key"], "");
-    if (reqKey) {
-        callArgs[reqKey] = makeUuid();
+    let stepRes = await session.callTool(importTool.name, wrapCallArgs(entry));
+    let record = extractImportedAssetRecord(stepRes.data, clientItemId);
+
+    /*
+     * Jika import_assets via remote URL gagal (mis. signed URL storage privat ditolak oleh fetcher Opus)
+     * atau tidak mengembalikan assetId maupun uploadUrl, fallback ke upload langsung via dataUrl/base64/presigned upload.
+     */
+    if (
+        (stepRes.isError || record.itemFailed || (!record.assetId && !record.uploadUrl)) &&
+        urlKey &&
+        (dataKey || sizeKey || pickSupportedKey(itemProps, ["fileName", "filename", "file_name"], ""))
+    ) {
+        try {
+            if (!cachedDownloaded) {
+                cachedDownloaded = await downloadSourceImageBytes(refItem.url);
+            }
+            const fallbackEntry = buildBaseEntry();
+            const mimeKey = pickSupportedKey(itemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
+            if (mimeKey) fallbackEntry[mimeKey] = cachedDownloaded.mimeType;
+            if (sizeKey) fallbackEntry[sizeKey] = cachedDownloaded.bytes.byteLength;
+            if (dataKey) {
+                const b64 = bytesToBase64(cachedDownloaded.bytes);
+                fallbackEntry[dataKey] = /url|uri/i.test(dataKey)
+                    ? `data:${cachedDownloaded.mimeType};base64,${b64}`
+                    : b64;
+            }
+            const retryRes = await session.callTool(importTool.name, wrapCallArgs(fallbackEntry));
+            if (!retryRes.isError) {
+                const retryRecord = extractImportedAssetRecord(retryRes.data, clientItemId);
+                if (retryRecord.assetId || retryRecord.uploadUrl) {
+                    stepRes = retryRes;
+                    record = retryRecord;
+                }
+            }
+        } catch {
+            /* Biarkan lanjut menggunakan fallback URL bila unduh/stage gagal */
+        }
     }
 
-    if (arrayKey) {
-        callArgs[arrayKey] = [entry];
-    } else {
-        Object.assign(callArgs, entry);
-    }
-
-    let stepRes = await session.callTool(importTool.name, callArgs);
-    if (stepRes.isError && !urlKey && !dataKey) {
+    if (stepRes.isError && !record.assetId && !record.uploadUrl) {
         return {
             assetId: "",
             url: refItem.url,
@@ -1478,8 +1775,6 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
             mimeType: refItem.mimeType
         };
     }
-
-    let record = extractImportedAssetRecord(stepRes.data, clientItemId);
 
     /* Tangani kontrak resmi Opus MCP: status === "awaiting_upload" -> PUT bytes -> finalize import_assets */
     if ((record.status === "awaiting_upload" || record.uploadUrl) && record.uploadUrl) {
@@ -1649,6 +1944,306 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
     }));
 }
 
+const DURATION_KEY_CANDIDATES = [
+    "durationSeconds",
+    "duration_seconds",
+    "durationSec",
+    "duration_sec",
+    "durationSecs",
+    "duration_secs",
+    "duration",
+    "clipDurationSeconds",
+    "clip_duration_seconds",
+    "clipDurationSec",
+    "clip_duration_sec",
+    "clipDuration",
+    "clip_duration",
+    "targetDurationSeconds",
+    "target_duration_seconds",
+    "targetDurationSec",
+    "target_duration_sec",
+    "targetDuration",
+    "target_duration",
+    "videoDurationSeconds",
+    "video_duration_seconds",
+    "videoDurationSec",
+    "video_duration_sec",
+    "videoDuration",
+    "video_duration",
+    "plannedDurationSeconds",
+    "planned_duration_seconds",
+    "requestedDurationSeconds",
+    "requested_duration_seconds",
+    "lengthSeconds",
+    "length_seconds",
+    "lengthSec",
+    "length_sec",
+    "videoLength",
+    "video_length",
+    "seconds",
+    "length",
+    "durationMs",
+    "duration_ms"
+];
+
+function findSupportedDurationKeys(props, required = [], fallbackWhenSchemaless = "") {
+    if (!props) {
+        return fallbackWhenSchemaless ? [fallbackWhenSchemaless] : [];
+    }
+    const found = [];
+    const primary = pickSupportedKey(props, DURATION_KEY_CANDIDATES, "");
+    if (primary) {
+        found.push(primary);
+    }
+
+    /* Tambahkan key durasi lain bila secara eksplisit diwajibkan oleh schema */
+    for (const reqKey of required) {
+        if (found.includes(reqKey) || !Object.prototype.hasOwnProperty.call(props, reqKey)) continue;
+        if (
+            /(duration|length)/i.test(reqKey) &&
+            !/^(min|max|auto)|mode|type|unit|timeout|expire|cache|poll|retry|audio|music|voice|fade|transition/i.test(reqKey)
+        ) {
+            found.push(reqKey);
+        }
+    }
+
+    /* Fallback dinamis jika server memakai penamaan custom (mis. outputDuration / shotDuration) */
+    if (!found.length) {
+        for (const key of Object.keys(props)) {
+            if (
+                /(duration|length)/i.test(key) &&
+                !/^(min|max|auto)|mode|type|unit|timeout|expire|cache|poll|retry|audio|music|voice|fade|transition/i.test(key)
+            ) {
+                const p = props[key];
+                if (
+                    schemaTypeIncludes(p, null, "integer") ||
+                    schemaTypeIncludes(p, null, "number") ||
+                    schemaTypeIncludes(p, null, "string")
+                ) {
+                    found.push(key);
+                    break;
+                }
+            }
+        }
+    }
+
+    return found;
+}
+
+function formatDurationValueForSchema(durKey, durProp, rootSchema, durationSeconds) {
+    const isMillis = /(?:ms|millis|millisecond)$/i.test(String(durKey || ""));
+    const numericTarget = isMillis
+        ? Math.round(durationSeconds * 1000)
+        : Math.round(durationSeconds);
+
+    if (!durProp) {
+        return numericTarget;
+    }
+
+    const variants = collectSchemaVariants(durProp, rootSchema);
+    const allowedDurs = extractAllowedValues(durProp, rootSchema);
+
+    if (allowedDurs.length > 0) {
+        const exactNumericMatch = allowedDurs.find(v => {
+            if (typeof v === "number") return v === numericTarget;
+            const cleaned = String(v).trim().replace(/(?:ms|s|sec|secs|seconds)$/i, "");
+            const parsed = Number(cleaned);
+            return Number.isFinite(parsed) && parsed > 0 && parsed === numericTarget;
+        });
+        if (exactNumericMatch !== undefined) {
+            return exactNumericMatch;
+        }
+        const enumStrMatch = matchEnumCaseInsensitive(
+            isMillis
+                ? [String(numericTarget), `${numericTarget}ms`, `${Math.round(durationSeconds)}s`]
+                : [String(numericTarget), `${numericTarget}s`, `${numericTarget}sec`],
+            allowedDurs
+        );
+        if (enumStrMatch !== null) {
+            return enumStrMatch;
+        }
+    }
+
+    const hasFreeNumericBranch = variants.some(
+        v =>
+            v &&
+            (v.type === "integer" ||
+                v.type === "number" ||
+                (Array.isArray(v.type) && (v.type.includes("integer") || v.type.includes("number")))) &&
+            !Array.isArray(v.enum) &&
+            v.const === undefined
+    );
+
+    if (hasFreeNumericBranch) {
+        return numericTarget;
+    }
+
+    const allowsNumeric =
+        schemaTypeIncludes(durProp, rootSchema, "integer") ||
+        schemaTypeIncludes(durProp, rootSchema, "number");
+    const allowsString = schemaTypeIncludes(durProp, rootSchema, "string");
+
+    if (allowsString && !allowsNumeric) {
+        const wantsSecondsSuffix = variants.some(
+            v =>
+                (typeof v?.pattern === "string" && /s\$?$/i.test(v.pattern)) ||
+                (typeof v?.default === "string" && /^\d+s$/i.test(v.default))
+        );
+        if (wantsSecondsSuffix && !isMillis) {
+            return `${Math.round(durationSeconds)}s`;
+        }
+        return String(numericTarget);
+    }
+
+    return numericTarget;
+}
+
+function applyDurationControls(target, props, required, rootSchema, durationSeconds, fallbackKey = "") {
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return false;
+
+    const durKeys = findSupportedDurationKeys(props, required, fallbackKey);
+    let wroteDuration = false;
+
+    for (const durKey of durKeys) {
+        target[durKey] = formatDurationValueForSchema(durKey, props?.[durKey], rootSchema, durationSeconds);
+        wroteDuration = true;
+    }
+
+    if (props) {
+        const autoDurKey = pickSupportedKey(
+            props,
+            ["autoDuration", "auto_duration", "isAutoDuration", "useAutoDuration"],
+            ""
+        );
+        if (autoDurKey && schemaTypeIncludes(props[autoDurKey], rootSchema, "boolean")) {
+            target[autoDurKey] = false;
+        }
+
+        const durModeKey = pickSupportedKey(
+            props,
+            ["durationMode", "duration_mode", "lengthMode", "length_mode"],
+            ""
+        );
+        if (durModeKey) {
+            const allowedModes = extractAllowedValues(props[durModeKey], rootSchema);
+            const matchedMode = matchEnumCaseInsensitive(
+                ["fixed", "custom", "manual", "explicit", "exact", "specified"],
+                allowedModes
+            );
+            if (matchedMode !== null) {
+                target[durModeKey] = matchedMode;
+            }
+        }
+
+        const startSecKey = pickSupportedKey(props, ["startSeconds", "start_seconds", "startSec", "start_sec"], "");
+        const endSecKey = pickSupportedKey(props, ["endSeconds", "end_seconds", "endSec", "end_sec"], "");
+        if (startSecKey && endSecKey && (required.includes(startSecKey) || required.includes(endSecKey))) {
+            if (target[startSecKey] === undefined) target[startSecKey] = 0;
+            if (target[endSecKey] === undefined) target[endSecKey] = Math.round(durationSeconds);
+            wroteDuration = true;
+        }
+    }
+
+    return wroteDuration;
+}
+
+function branchSupportsDuration(durProp, rootSchema, durationSeconds) {
+    if (!durProp || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return 0;
+    const variants = collectSchemaVariants(durProp, rootSchema);
+    let maxSeen = null;
+    let minSeen = null;
+    for (const v of variants) {
+        if (typeof v?.maximum === "number") {
+            maxSeen = maxSeen === null ? v.maximum : Math.max(maxSeen, v.maximum);
+        }
+        if (typeof v?.minimum === "number") {
+            minSeen = minSeen === null ? v.minimum : Math.min(minSeen, v.minimum);
+        }
+    }
+    if (maxSeen !== null && durationSeconds > maxSeen) return -45;
+    if (minSeen !== null && durationSeconds < minSeen) return -25;
+
+    const allowed = extractAllowedValues(durProp, rootSchema);
+    const positiveAllowed = allowed
+        .map(v => Number(String(v).trim().replace(/(?:ms|s|sec|secs|seconds)$/i, "")))
+        .filter(n => Number.isFinite(n) && n > 0);
+
+    const hasOpenNumeric = variants.some(
+        v =>
+            (v?.type === "integer" || v?.type === "number") &&
+            !Array.isArray(v?.enum) &&
+            v?.const === undefined
+    );
+
+    if (positiveAllowed.length > 0 && !hasOpenNumeric) {
+        const hit = positiveAllowed.some(
+            n => n === Math.round(durationSeconds) || n === Math.round(durationSeconds * 1000)
+        );
+        return hit ? 35 : -40;
+    }
+
+    return 25;
+}
+
+function scoreClipSchemaBranch(branchObj, rootSchema, params) {
+    const props = branchObj?.properties;
+    if (!props || typeof props !== "object") return 0;
+    let score = 0;
+
+    const wfKey = pickSupportedKey(props, ["workflow", "mode", "generationMode", "generation_mode", "route"], "");
+    if (wfKey && params.workflow) {
+        const allowedWf = extractAllowedValues(props[wfKey], rootSchema);
+        if (allowedWf.length > 0) {
+            const aliases =
+                params.workflow === "first_last_frame"
+                    ? ["first_last_frame", "first-last-frame", "firstlastframe", "image2video", "image_to_video", "i2v", "keyframe2video", "frames"]
+                    : ["reference2video", "reference_to_video", "r2v", "text2video", "text_to_video", "t2v"];
+            const matched = allowedWf.some(v => aliases.includes(String(v).toLowerCase()));
+            score += matched ? 55 : -55;
+        }
+    }
+
+    const modelKey = pickSupportedKey(
+        props,
+        ["model", "videoModel", "video_model", "modelId", "model_id", "providerModel", "modelName", "model_name"],
+        ""
+    );
+    if (modelKey && params.opusModel) {
+        const allowedModels = extractAllowedValues(props[modelKey], rootSchema);
+        if (allowedModels.length > 0) {
+            const matchedModel = matchVideoModelValue(params.opusModel, params.modelAliases, allowedModels);
+            score += matchedModel ? 65 : -65;
+        }
+    }
+
+    const durKeys = findSupportedDurationKeys(props, branchObj.required || [], "");
+    if (durKeys.length > 0) {
+        score += 15 + branchSupportsDuration(props[durKeys[0]], rootSchema, params.durationSeconds);
+    }
+
+    if (params.stagedFirstFrame) {
+        const hasFirstFrameProp = Boolean(
+            pickSupportedKey(
+                props,
+                ["firstFrame", "first_frame", "firstFrameAsset", "firstFrameAssetId", "startFrame", "firstFrameUrl", "imageUrl"],
+                ""
+            )
+        );
+        score += hasFirstFrameProp ? 35 : -20;
+    } else if (Array.isArray(params.stagedReferences) && params.stagedReferences.length > 0) {
+        const hasRefProp = Boolean(
+            pickSupportedKey(
+                props,
+                ["referenceAssets", "reference_assets", "references", "assets", "referenceAssetIds", "referenceImageUrls"],
+                ""
+            )
+        );
+        score += hasRefProp ? 35 : -20;
+    }
+
+    return score;
+}
+
 function populateClipFields(target, objectSchema, rootSchema, {
     prompt,
     opusModel,
@@ -1688,7 +2283,12 @@ function populateClipFields(target, objectSchema, rootSchema, {
     }
 
     const labelKey = pickSupportedKey(props, ["outputLabel", "output_label", "label", "title", "name"], "");
-    if (labelKey && (isBatchItem || required.includes(labelKey) || /outputlabel/i.test(labelKey))) {
+    if (
+        labelKey &&
+        (required.includes(labelKey) ||
+            /outputlabel|output_label/i.test(labelKey) ||
+            (isBatchItem && !minimal))
+    ) {
         target[labelKey] = "clip-1";
     }
 
@@ -1719,10 +2319,24 @@ function populateClipFields(target, objectSchema, rootSchema, {
         target[promptKey] = prompt;
     }
 
+    let wroteModel = false;
     if (opusModel) {
         const modelKey = pickSupportedKey(
             props,
-            ["model", "videoModel", "video_model", "modelId", "model_id", "providerModel"],
+            [
+                "model",
+                "videoModel",
+                "video_model",
+                "modelId",
+                "model_id",
+                "providerModel",
+                "provider_model",
+                "modelName",
+                "model_name",
+                "modelSlug",
+                "model_slug",
+                "engine"
+            ],
             !props ? "model" : ""
         );
         if (modelKey) {
@@ -1730,6 +2344,7 @@ function populateClipFields(target, objectSchema, rootSchema, {
             const matchedModel = matchVideoModelValue(opusModel, modelAliases, allowedModels);
             if (matchedModel !== null && matchedModel !== "") {
                 target[modelKey] = matchedModel;
+                wroteModel = true;
             } else if (allowedModels.length > 0) {
                 throw createProviderError({
                     message: `Model video "${opusModel}" tidak tersedia di akun Opus Labs saat ini (tersedia: ${allowedModels.join(", ")}).`,
@@ -1739,47 +2354,47 @@ function populateClipFields(target, objectSchema, rootSchema, {
                 });
             }
         }
-    }
 
-    const workflowKey = pickSupportedKey(
-        props,
-        ["workflow", "mode", "generationMode", "generation_mode", "route"],
-        !props && workflow ? "workflow" : ""
-    );
-    if (workflowKey && (!minimal || required.includes(workflowKey))) {
-        const allowedWorkflows = extractAllowedValues(props?.[workflowKey], rootSchema);
-        target[workflowKey] = matchWorkflowValue(workflow, allowedWorkflows);
-    }
-
-    if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
-        const durKey = pickSupportedKey(
-            props,
-            ["durationSeconds", "duration_seconds", "duration", "lengthSeconds", "seconds"],
-            !props ? "durationSeconds" : ""
-        );
-        if (durKey) {
-            const durProp = props?.[durKey];
-            const allowedDurs = extractAllowedValues(durProp, rootSchema);
-            if (allowedDurs.length > 0) {
-                const matchedDur =
-                    allowedDurs.find(v => Number(String(v).replace(/s$/i, "")) === durationSeconds) ??
-                    matchEnumCaseInsensitive([String(durationSeconds), `${durationSeconds}s`], allowedDurs);
-                target[durKey] = matchedDur !== null ? matchedDur : durationSeconds;
-            } else if (durProp && schemaTypeIncludes(durProp, rootSchema, "string") && !schemaTypeIncludes(durProp, rootSchema, "number") && !schemaTypeIncludes(durProp, rootSchema, "integer")) {
-                target[durKey] = String(durationSeconds);
-            } else {
-                target[durKey] = Math.round(durationSeconds);
+        const versionKey = pickSupportedKey(props, ["modelVersion", "model_version", "version"], "");
+        if (versionKey) {
+            const wantedVer = extractModelVersionTag(opusModel);
+            if (wantedVer) {
+                const allowedVers = extractAllowedValues(props[versionKey], rootSchema);
+                const matchedVer = matchEnumCaseInsensitive([wantedVer, `v${wantedVer}`], allowedVers);
+                if (matchedVer !== null) {
+                    target[versionKey] = matchedVer;
+                }
             }
         }
     }
 
+    const workflowKey = pickSupportedKey(
+        props,
+        ["workflow", "mode", "generationMode", "generation_mode", "route", "taskType", "task_type"],
+        !props && workflow ? "workflow" : ""
+    );
+    if (workflowKey && workflow) {
+        const allowedWorkflows = extractAllowedValues(props?.[workflowKey], rootSchema);
+        target[workflowKey] = matchWorkflowValue(workflow, allowedWorkflows);
+    }
+
+    let wroteDuration = applyDurationControls(
+        target,
+        props,
+        required,
+        rootSchema,
+        durationSeconds,
+        !props ? "durationSeconds" : ""
+    );
+
+    let wroteResolution = false;
     if (resolution) {
         const resKey = pickSupportedKey(
             props,
-            ["resolution", "videoResolution", "video_resolution", "quality"],
+            ["resolution", "videoResolution", "video_resolution", "outputResolution", "output_resolution", "quality"],
             !props ? "resolution" : ""
         );
-        if (resKey && (!minimal || required.includes(resKey))) {
+        if (resKey) {
             const allowedRes = extractAllowedValues(props?.[resKey], rootSchema);
             const matchedRes = matchEnumCaseInsensitive(
                 [resolution, resolution.toLowerCase(), resolution.toUpperCase()],
@@ -1787,44 +2402,148 @@ function populateClipFields(target, objectSchema, rootSchema, {
             );
             if (matchedRes !== null) {
                 target[resKey] = matchedRes;
+                wroteResolution = true;
             } else if (required.includes(resKey) && allowedRes.length) {
                 target[resKey] = allowedRes[0];
+                wroteResolution = true;
             }
         }
     }
 
-    /* Sesuai docs Opus: jangan paksa aspectRatio saat memakai firstFrame kecuali diwajibkan oleh schema */
+    /*
+     * Sesuai docs Opus & BytePlus Seedance 2.5:
+     * Jangan paksa aspectRatio konkrit saat memakai firstFrame kecuali diwajibkan oleh schema.
+     * Jika schema mewajibkan aspect/aspectRatio pada firstFrame, utamakan "adaptive" / "auto" bila tersedia.
+     */
+    const ratioRequired = required.some(k => /^(aspectRatio|aspect_ratio|aspect|ratio)$/i.test(k));
     const shouldSendRatio =
-        Boolean(aspectRatio) &&
-        (!stagedFirstFrame || required.some(k => /aspect|ratio/i.test(k)));
+        (Boolean(aspectRatio) && !stagedFirstFrame) || ratioRequired;
 
-    if (shouldSendRatio || required.some(k => /aspect|ratio/i.test(k))) {
+    let wroteRatio = false;
+    if (shouldSendRatio) {
         const ratioKey = pickSupportedKey(
             props,
-            ["aspectRatio", "aspect_ratio", "ratio"],
-            !props && shouldSendRatio ? "aspectRatio" : ""
+            ["aspectRatio", "aspect_ratio", "aspect", "ratio"],
+            !props && Boolean(aspectRatio) && !stagedFirstFrame ? "aspectRatio" : ""
         );
         if (ratioKey) {
             const allowedRatios = extractAllowedValues(props?.[ratioKey], rootSchema);
-            const matchedRatio = matchEnumCaseInsensitive([aspectRatio || "9:16"], allowedRatios);
+            const ratioCandidates = stagedFirstFrame && !aspectRatio
+                ? ["adaptive", "auto", "match_input", "source", "9:16", "16:9"]
+                : [aspectRatio || "9:16"];
+            const matchedRatio = matchEnumCaseInsensitive(ratioCandidates, allowedRatios);
             if (matchedRatio !== null) {
                 target[ratioKey] = matchedRatio;
+                wroteRatio = true;
             } else if (required.includes(ratioKey) && allowedRatios.length) {
                 target[ratioKey] = allowedRatios[0];
+                wroteRatio = true;
             }
         }
     }
 
+    let wroteAudio = false;
     if (typeof generateAudio === "boolean") {
         const audioKey = pickSupportedKey(
             props,
-            ["generateAudio", "generate_audio", "withAudio", "with_audio", "enableAudio", "audio"],
+            ["generateAudio", "generate_audio", "withAudio", "with_audio", "enableAudio", "enable_audio", "includeAudio", "include_audio", "audio"],
             ""
         );
         if (audioKey && schemaTypeIncludes(props?.[audioKey], rootSchema, "boolean")) {
             target[audioKey] = generateAudio;
+            wroteAudio = true;
         } else if (!props && generateAudio === true) {
             target.generateAudio = true;
+            wroteAudio = true;
+        }
+    }
+
+    /*
+     * Jika schema menaruh duration / resolution / model / audio di dalam sub-objek konfigurasi
+     * (mis. `settings`, `options`, `config`, `video`, `generation`, `params`, `parameters`, `spec`),
+     * isi sub-objek tersebut secara otomatis.
+     */
+    if (props) {
+        const nestedKeys = [
+            "settings",
+            "options",
+            "config",
+            "videoConfig",
+            "video_config",
+            "clipConfig",
+            "clip_config",
+            "generationConfig",
+            "generation_config",
+            "video",
+            "generation",
+            "params",
+            "parameters",
+            "spec"
+        ];
+        for (const nk of nestedKeys) {
+            if (!Object.prototype.hasOwnProperty.call(props, nk)) continue;
+            if (!schemaTypeIncludes(props[nk], rootSchema, "object")) continue;
+            const nestedObj = resolveObjectSchema(props[nk], rootSchema);
+            if (!nestedObj.properties) continue;
+            const nProps = nestedObj.properties;
+            const nReq = nestedObj.required || [];
+            const sub = {};
+
+            if (!wroteDuration) {
+                wroteDuration = applyDurationControls(sub, nProps, nReq, rootSchema, durationSeconds, "") || wroteDuration;
+            }
+            if (!wroteModel && opusModel) {
+                const nModelKey = pickSupportedKey(
+                    nProps,
+                    ["model", "videoModel", "video_model", "modelId", "model_id", "providerModel", "modelName"],
+                    ""
+                );
+                if (nModelKey) {
+                    const allowedM = extractAllowedValues(nProps[nModelKey], rootSchema);
+                    const matchedM = matchVideoModelValue(opusModel, modelAliases, allowedM);
+                    if (matchedM) {
+                        sub[nModelKey] = matchedM;
+                        wroteModel = true;
+                    }
+                }
+            }
+            if (!wroteResolution && resolution) {
+                const nResKey = pickSupportedKey(nProps, ["resolution", "videoResolution", "quality"], "");
+                if (nResKey) {
+                    const allowedR = extractAllowedValues(nProps[nResKey], rootSchema);
+                    const matchedR = matchEnumCaseInsensitive([resolution, resolution.toLowerCase(), resolution.toUpperCase()], allowedR);
+                    if (matchedR !== null) {
+                        sub[nResKey] = matchedR;
+                        wroteResolution = true;
+                    }
+                }
+            }
+            if (!wroteRatio && shouldSendRatio) {
+                const nRatioKey = pickSupportedKey(nProps, ["aspectRatio", "aspect_ratio", "aspect", "ratio"], "");
+                if (nRatioKey) {
+                    const allowedRatios = extractAllowedValues(nProps[nRatioKey], rootSchema);
+                    const matchedRatio = matchEnumCaseInsensitive([aspectRatio || "adaptive", "9:16"], allowedRatios);
+                    if (matchedRatio !== null) {
+                        sub[nRatioKey] = matchedRatio;
+                        wroteRatio = true;
+                    }
+                }
+            }
+            if (!wroteAudio && typeof generateAudio === "boolean") {
+                const nAudioKey = pickSupportedKey(
+                    nProps,
+                    ["generateAudio", "generate_audio", "withAudio", "with_audio", "enableAudio", "audio"],
+                    ""
+                );
+                if (nAudioKey && schemaTypeIncludes(nProps[nAudioKey], rootSchema, "boolean")) {
+                    sub[nAudioKey] = generateAudio;
+                    wroteAudio = true;
+                }
+            }
+
+            if (Object.keys(sub).length > 0 || required.includes(nk)) {
+                target[nk] = sub;
+            }
         }
     }
 
@@ -1905,12 +2624,144 @@ function populateClipFields(target, objectSchema, rootSchema, {
     }
 }
 
+function populateTopBatchSharedFields(args, topObj, rootSchema, params) {
+    const topProps = topObj?.properties;
+    const topReq = Array.isArray(topObj?.required) ? topObj.required : [];
+    if (!topProps) return;
+
+    const topModelKey = pickSupportedKey(
+        topProps,
+        ["model", "videoModel", "video_model", "modelId", "model_id", "providerModel", "modelName"],
+        ""
+    );
+    if (topModelKey && params.opusModel) {
+        const allowedTopModels = extractAllowedValues(topProps[topModelKey], rootSchema);
+        const matchedTopModel = matchVideoModelValue(params.opusModel, params.modelAliases, allowedTopModels);
+        if (matchedTopModel) {
+            args[topModelKey] = matchedTopModel;
+        }
+    }
+
+    const topWorkflowKey = pickSupportedKey(
+        topProps,
+        ["workflow", "mode", "generationMode", "generation_mode", "route"],
+        ""
+    );
+    if (topWorkflowKey && params.workflow) {
+        const allowedWf = extractAllowedValues(topProps[topWorkflowKey], rootSchema);
+        args[topWorkflowKey] = matchWorkflowValue(params.workflow, allowedWf);
+    }
+
+    applyDurationControls(args, topProps, topReq, rootSchema, params.durationSeconds, "");
+
+    if (params.resolution) {
+        const topResKey = pickSupportedKey(
+            topProps,
+            ["resolution", "videoResolution", "video_resolution", "outputResolution", "quality"],
+            ""
+        );
+        if (topResKey) {
+            const allowedRes = extractAllowedValues(topProps[topResKey], rootSchema);
+            const matchedRes = matchEnumCaseInsensitive(
+                [params.resolution, params.resolution.toLowerCase(), params.resolution.toUpperCase()],
+                allowedRes
+            );
+            if (matchedRes !== null) {
+                args[topResKey] = matchedRes;
+            }
+        }
+    }
+
+    const topRatioRequired = topReq.some(k => /^(aspectRatio|aspect_ratio|aspect|ratio)$/i.test(k));
+    if ((params.aspectRatio && !params.stagedFirstFrame) || topRatioRequired) {
+        const topRatioKey = pickSupportedKey(topProps, ["aspectRatio", "aspect_ratio", "aspect", "ratio"], "");
+        if (topRatioKey) {
+            const allowedRatios = extractAllowedValues(topProps[topRatioKey], rootSchema);
+            const candidates = params.stagedFirstFrame && !params.aspectRatio
+                ? ["adaptive", "auto", "9:16", "16:9"]
+                : [params.aspectRatio || "9:16"];
+            const matchedRatio = matchEnumCaseInsensitive(candidates, allowedRatios);
+            if (matchedRatio !== null) {
+                args[topRatioKey] = matchedRatio;
+            }
+        }
+    }
+
+    if (typeof params.generateAudio === "boolean") {
+        const topAudioKey = pickSupportedKey(
+            topProps,
+            ["generateAudio", "generate_audio", "withAudio", "with_audio", "enableAudio", "audio"],
+            ""
+        );
+        if (topAudioKey && schemaTypeIncludes(topProps[topAudioKey], rootSchema, "boolean")) {
+            args[topAudioKey] = params.generateAudio;
+        }
+    }
+}
+
+function summarizeBuiltVideoArgs(toolName, args, topObj, itemObj) {
+    if (!args || typeof args !== "object") return null;
+    const batchKey = ["clips", "videos", "items", "shots", "requests", "tasks", "generations"].find(
+        k => Array.isArray(args[k]) && args[k].length > 0
+    );
+    const clip = batchKey ? args[batchKey][0] : args;
+    const durEntry = clip && typeof clip === "object"
+        ? Object.entries(clip).find(([k]) => /(duration|length|seconds)/i.test(k))
+        : null;
+    const nestedDurEntry =
+        !durEntry && clip && typeof clip === "object"
+            ? Object.values(clip)
+                  .filter(v => v && typeof v === "object" && !Array.isArray(v))
+                  .flatMap(v => Object.entries(v))
+                  .find(([k]) => /(duration|length|seconds)/i.test(k))
+            : null;
+    const chosenDur = durEntry || nestedDurEntry;
+
+    return {
+        tool: toolName || "",
+        batchKey: batchKey || null,
+        topKeys: Object.keys(args),
+        clipKeys: clip && typeof clip === "object" ? Object.keys(clip) : [],
+        durationKey: chosenDur ? chosenDur[0] : null,
+        durationValue: chosenDur ? chosenDur[1] : null,
+        model: clip?.model ?? clip?.videoModel ?? args?.model ?? null,
+        workflow: clip?.workflow ?? clip?.mode ?? args?.workflow ?? null,
+        resolution: clip?.resolution ?? clip?.quality ?? args?.resolution ?? null,
+        generateAudio: clip?.generateAudio ?? clip?.generate_audio ?? args?.generateAudio ?? null,
+        hasFirstFrame: Boolean(
+            clip?.firstFrame || clip?.first_frame || clip?.firstFrameAssetId || clip?.firstFrameUrl
+        ),
+        hasReferenceAssets: Boolean(
+            (Array.isArray(clip?.referenceAssets) && clip.referenceAssets.length > 0) ||
+            (Array.isArray(clip?.reference_assets) && clip.reference_assets.length > 0)
+        ),
+        schemaTopKeys: topObj?.properties ? Object.keys(topObj.properties) : [],
+        schemaClipKeys: itemObj?.properties ? Object.keys(itemObj.properties) : []
+    };
+}
+
+function stripRequestKeysForComparison(obj) {
+    if (!obj || typeof obj !== "object") return obj;
+    if (Array.isArray(obj)) return obj.map(stripRequestKeysForComparison);
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+        if (/^(requestKey|idempotencyKey|request_key|idempotency_key)$/i.test(k)) continue;
+        out[k] = stripRequestKeysForComparison(v);
+    }
+    return out;
+}
+
 function buildGenerateVideoClipVariants(videoTool, params) {
     const rootSchema = videoTool?.inputSchema;
     const topObj = resolveObjectSchema(
         rootSchema,
         rootSchema,
-        branch => Boolean(branch?.properties?.clips || branch?.properties?.prompt)
+        (_raw, resolved) => {
+            const p = resolved?.properties || {};
+            if (p.clips || p.videos || p.items || p.shots) return 50 + scoreClipSchemaBranch(resolved, rootSchema, params);
+            if (p.prompt || p.description) return 20 + scoreClipSchemaBranch(resolved, rootSchema, params);
+            return scoreClipSchemaBranch(resolved, rootSchema, params);
+        }
     );
     const topProps = topObj.properties;
     const batchArrayKey = pickSupportedKey(
@@ -1919,12 +2770,47 @@ function buildGenerateVideoClipVariants(videoTool, params) {
         ""
     );
 
-    const requestKey = makeUuid();
     const variants = [];
+    const seenShapes = new Set();
 
-    const makeArgs = ({ minimal = false } = {}) => {
-        const args = {};
-        if (batchArrayKey) {
+    const pushUniqueVariant = (args, itemObjForSummary = null) => {
+        const fingerprint = JSON.stringify(stripRequestKeysForComparison(args));
+        if (seenShapes.has(fingerprint)) return;
+        seenShapes.add(fingerprint);
+        Object.defineProperty(args, "__mcpSummary", {
+            value: summarizeBuiltVideoArgs(videoTool?.name, args, topObj, itemObjForSummary || topObj),
+            enumerable: false,
+            configurable: true
+        });
+        variants.push(args);
+    };
+
+    if (batchArrayKey) {
+        const itemSchema = resolveArrayItemSchema(topProps[batchArrayKey], rootSchema);
+        const expandedBranches = expandObjectBranches(itemSchema, rootSchema);
+
+        let rankedItemSchemas = [];
+        if (expandedBranches.length > 1) {
+            rankedItemSchemas = expandedBranches
+                .map((b, idx) => ({
+                    branch: b,
+                    score: scoreClipSchemaBranch(b, rootSchema, params),
+                    idx
+                }))
+                .sort((a, b) => (b.score !== a.score ? b.score - a.score : a.idx - b.idx))
+                .map(entry => entry.branch);
+        } else {
+            const resolvedItem = resolveObjectSchema(
+                itemSchema,
+                rootSchema,
+                (_raw, resolved) => scoreClipSchemaBranch(resolved, rootSchema, params)
+            );
+            rankedItemSchemas = [resolvedItem];
+        }
+
+        const makeBatchArgs = (chosenItemObj, { minimal = false } = {}) => {
+            const variantRequestKey = makeUuid();
+            const args = {};
             const projKey = pickSupportedKey(topProps, ["projectId", "project_id"], "");
             if (projKey && params.projectId) {
                 args[projKey] = params.projectId;
@@ -1935,45 +2821,54 @@ function buildGenerateVideoClipVariants(videoTool, params) {
                 ""
             );
             if (reqKey) {
-                args[reqKey] = requestKey;
+                args[reqKey] = variantRequestKey;
             }
 
-            /* Beberapa schema menaruh model / workflow / aspectRatio juga di top-level batch */
-            const topModelKey = pickSupportedKey(topProps, ["model", "videoModel", "video_model"], "");
-            if (topModelKey && params.opusModel) {
-                const allowedTopModels = extractAllowedValues(topProps[topModelKey], rootSchema);
-                const matchedTopModel = matchVideoModelValue(params.opusModel, params.modelAliases, allowedTopModels);
-                if (matchedTopModel) {
-                    args[topModelKey] = matchedTopModel;
-                }
-            }
+            populateTopBatchSharedFields(args, topObj, rootSchema, params);
 
-            const itemSchema = resolveArrayItemSchema(topProps[batchArrayKey], rootSchema);
-            const itemObj = resolveObjectSchema(itemSchema, rootSchema);
             const clipEntry = {};
-            populateClipFields(clipEntry, itemObj, rootSchema, {
+            populateClipFields(clipEntry, chosenItemObj, rootSchema, {
                 ...params,
-                requestKey,
+                requestKey: variantRequestKey,
                 isBatchItem: true,
                 minimal
             });
             args[batchArrayKey] = [clipEntry];
-        } else {
+            return args;
+        };
+
+        const bestBranch = rankedItemSchemas[0];
+        pushUniqueVariant(makeBatchArgs(bestBranch, { minimal: false }), bestBranch);
+
+        /* Jika ada cabang union kedua yang juga valid (mis. variasi model/workflow berbeda), siapkan sebagai kandidat ke-2 */
+        if (rankedItemSchemas.length > 1) {
+            const secondScore = scoreClipSchemaBranch(rankedItemSchemas[1], rootSchema, params);
+            if (secondScore >= 0) {
+                try {
+                    pushUniqueVariant(makeBatchArgs(rankedItemSchemas[1], { minimal: false }), rankedItemSchemas[1]);
+                } catch {
+                    /* Abaikan cabang alternatif yang menolak model */
+                }
+            }
+        }
+
+        pushUniqueVariant(makeBatchArgs(bestBranch, { minimal: true }), bestBranch);
+    } else {
+        const makeFlatArgs = ({ minimal = false } = {}) => {
+            const variantRequestKey = makeUuid();
+            const args = {};
             populateClipFields(args, topObj, rootSchema, {
                 ...params,
-                requestKey,
+                requestKey: variantRequestKey,
                 isBatchItem: false,
                 minimal
             });
-        }
-        return args;
-    };
-
-    variants.push(makeArgs({ minimal: false }));
-    const minimalVariant = makeArgs({ minimal: true });
-    if (JSON.stringify(minimalVariant) !== JSON.stringify(variants[0])) {
-        variants.push(minimalVariant);
+            return args;
+        };
+        pushUniqueVariant(makeFlatArgs({ minimal: false }), topObj);
+        pushUniqueVariant(makeFlatArgs({ minimal: true }), topObj);
     }
+
     return variants;
 }
 
@@ -2896,11 +3791,13 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
     let lastCallResult = null;
     let lastError = null;
     let discoveredDuringTimeout = null;
+    let acceptedVariant = argVariants[0] || null;
 
     for (let idx = 0; idx < argVariants.length; idx += 1) {
         let variantAccepted = false;
         for (let sameKeyAttempt = 0; sameKeyAttempt < 2; sameKeyAttempt += 1) {
             try {
+                acceptedVariant = argVariants[idx];
                 const callRes = await session.callTool(videoTool.name, argVariants[idx]);
                 lastCallResult = callRes;
 
@@ -2961,6 +3858,8 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
         }
     }
 
+    const mcpRequestSummary = acceptedVariant?.__mcpSummary || null;
+
     if (discoveredDuringTimeout) {
         if (discoveredDuringTimeout.outcome?.videoUrls?.length > 0 && !discoveredDuringTimeout.jobId) {
             const inlineTaskId = `opus-inline:${makeUuid()}`;
@@ -2978,7 +3877,8 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                 jobId: inlineTaskId,
                 projectId,
                 status: "COMPLETED",
-                outputUrls: discoveredDuringTimeout.outcome.videoUrls
+                outputUrls: discoveredDuringTimeout.outcome.videoUrls,
+                mcpRequestSummary
             };
         }
         if (discoveredDuringTimeout.jobId) {
@@ -2992,7 +3892,8 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                 jobId: discoveredDuringTimeout.jobId,
                 projectId,
                 status: discoveredDuringTimeout.outcome?.status === "COMPLETED" ? "COMPLETED" : "QUEUED",
-                outputUrls: discoveredDuringTimeout.outcome?.videoUrls || []
+                outputUrls: discoveredDuringTimeout.outcome?.videoUrls || [],
+                mcpRequestSummary
             };
         }
     }
@@ -3057,7 +3958,8 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
             jobId,
             projectId,
             status: outcome.status === "COMPLETED" ? "COMPLETED" : "QUEUED",
-            outputUrls: outcome.videoUrls
+            outputUrls: outcome.videoUrls,
+            mcpRequestSummary
         };
     }
 
@@ -3078,7 +3980,8 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
             jobId: inlineTaskId,
             projectId,
             status: "COMPLETED",
-            outputUrls: outcome.videoUrls
+            outputUrls: outcome.videoUrls,
+            mcpRequestSummary
         };
     }
 
@@ -3099,7 +4002,8 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
             jobId: PROJECT_PENDING_JOB_ID,
             projectId,
             status: "QUEUED",
-            outputUrls: []
+            outputUrls: [],
+            mcpRequestSummary
         };
     }
 

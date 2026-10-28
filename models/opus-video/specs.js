@@ -24,7 +24,17 @@ const OPUS_VIDEO_SPECS = Object.freeze([
     {
         id: "opus-seedance-2.5-t2v",
         opusModel: "seedance-2.5",
-        modelAliases: ["seedance-2.5", "dreamina-seedance-2-5-260628", "Seedance 2.5"],
+        modelAliases: [
+            "seedance-2.5",
+            "bytedance/seedance-2.5",
+            "byteplus/seedance-2.5",
+            "dreamina/seedance-2.5",
+            "volcengine/seedance-2.5",
+            "dreamina-seedance-2-5-260628",
+            "byteplus/dreamina-seedance-2-5-260628",
+            "seedance-2-5",
+            "Seedance 2.5"
+        ],
         name: "Seedance 2.5 Text to Video (Opus)",
         logo: "seedance.svg",
         kind: "t2v",
@@ -43,7 +53,17 @@ const OPUS_VIDEO_SPECS = Object.freeze([
     {
         id: "opus-seedance-2.5-i2v",
         opusModel: "seedance-2.5",
-        modelAliases: ["seedance-2.5", "dreamina-seedance-2-5-260628", "Seedance 2.5"],
+        modelAliases: [
+            "seedance-2.5",
+            "bytedance/seedance-2.5",
+            "byteplus/seedance-2.5",
+            "dreamina/seedance-2.5",
+            "volcengine/seedance-2.5",
+            "dreamina-seedance-2-5-260628",
+            "byteplus/dreamina-seedance-2-5-260628",
+            "seedance-2-5",
+            "Seedance 2.5"
+        ],
         name: "Seedance 2.5 Image to Video (Opus)",
         logo: "seedance.svg",
         kind: "i2v",
@@ -62,7 +82,17 @@ const OPUS_VIDEO_SPECS = Object.freeze([
     {
         id: "opus-seedance-2.5-r2v",
         opusModel: "seedance-2.5",
-        modelAliases: ["seedance-2.5", "dreamina-seedance-2-5-260628", "Seedance 2.5"],
+        modelAliases: [
+            "seedance-2.5",
+            "bytedance/seedance-2.5",
+            "byteplus/seedance-2.5",
+            "dreamina/seedance-2.5",
+            "volcengine/seedance-2.5",
+            "dreamina-seedance-2-5-260628",
+            "byteplus/dreamina-seedance-2-5-260628",
+            "seedance-2-5",
+            "Seedance 2.5"
+        ],
         name: "Seedance 2.5 Reference to Video (Opus)",
         logo: "seedance.svg",
         kind: "r2v",
@@ -87,7 +117,15 @@ const OPUS_VIDEO_SPECS = Object.freeze([
     {
         id: "opus-seedance-2.0-r2v",
         opusModel: "seedance-2.0",
-        modelAliases: ["seedance-2.0", "Seedance 2.0", "seedance-2"],
+        modelAliases: [
+            "seedance-2.0",
+            "bytedance/seedance-2.0",
+            "byteplus/seedance-2.0",
+            "dreamina/seedance-2.0",
+            "dreamina-seedance-2-0-260128",
+            "Seedance 2.0",
+            "seedance-2"
+        ],
         name: "Seedance 2.0 Video (Opus)",
         logo: "seedance.svg",
         kind: "r2v",
@@ -112,7 +150,14 @@ const OPUS_VIDEO_SPECS = Object.freeze([
     {
         id: "opus-hailuo-3-t2v",
         opusModel: "hailuo-3",
-        modelAliases: ["hailuo-3", "MiniMax-H3", "Hailuo 3", "minimax-hailuo-3"],
+        modelAliases: [
+            "hailuo-3",
+            "minimax/hailuo-3",
+            "minimax/MiniMax-H3",
+            "MiniMax-H3",
+            "Hailuo 3",
+            "minimax-hailuo-3"
+        ],
         name: "MiniMax Hailuo 3 Text to Video (Opus)",
         logo: "minimax.svg",
         kind: "t2v",
@@ -131,7 +176,14 @@ const OPUS_VIDEO_SPECS = Object.freeze([
     {
         id: "opus-hailuo-3-i2v",
         opusModel: "hailuo-3",
-        modelAliases: ["hailuo-3", "MiniMax-H3", "Hailuo 3", "minimax-hailuo-3"],
+        modelAliases: [
+            "hailuo-3",
+            "minimax/hailuo-3",
+            "minimax/MiniMax-H3",
+            "MiniMax-H3",
+            "Hailuo 3",
+            "minimax-hailuo-3"
+        ],
         name: "MiniMax Hailuo 3 First & Last Frame (Opus)",
         logo: "minimax.svg",
         kind: "i2v",
