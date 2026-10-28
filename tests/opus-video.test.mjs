@@ -881,3 +881,340 @@ test("Opus MCP: mempertahankan task QUEUED berbasis projectId saat jobId baru mu
     }
 });
 
+test("Opus MCP: meneruskan durasi 30 detik secara utuh pada schema clips[] gabungan allOf + anyOf, mencocokkan bytedance/seedance-2.5 tanpa tertipu seedance-2, dan fallback import_assets dataUrl", async () => {
+    const originalFetch = globalThis.fetch;
+    let capturedClipArgs = null;
+    let importCallCount = 0;
+
+    const fakeTools = [
+        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+        { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+        {
+            name: "import_assets",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string" },
+                    items: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                clientId: { type: "string" },
+                                fileName: { type: "string" },
+                                mimeType: { type: "string" },
+                                url: { type: "string" },
+                                dataUrl: { type: "string" },
+                                sizeBytes: { type: "integer" }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            name: "generate_video_clips",
+            inputSchema: {
+                $defs: {
+                    BaseClip: {
+                        type: "object",
+                        required: ["id", "prompt"],
+                        properties: {
+                            id: { type: "string" },
+                            outputLabel: { type: "string" },
+                            prompt: { type: "string" }
+                        }
+                    },
+                    Seedance20RefBranch: {
+                        type: "object",
+                        required: ["workflow", "model"],
+                        properties: {
+                            workflow: { const: "reference2video" },
+                            model: { enum: ["seedance", "seedance-2"] },
+                            durationSec: { type: "integer", minimum: 4, maximum: 15, default: 5 },
+                            aspect: { enum: ["9:16", "16:9", "1:1"] },
+                            referenceAssets: { type: "array", items: { type: "string" } }
+                        }
+                    },
+                    Seedance25FrameBranch: {
+                        type: "object",
+                        required: ["workflow", "model"],
+                        properties: {
+                            workflow: { const: "first_last_frame" },
+                            /* Urutan sengaja menaruh "seedance" & "seedance-2" lebih dulu untuk menguji anti-substring bug */
+                            model: { enum: ["seedance", "seedance-2", "bytedance/seedance-2.5", "minimax/hailuo-3"] },
+                            durationSec: {
+                                anyOf: [
+                                    { enum: [-1] },
+                                    { type: "integer", minimum: 4, maximum: 30, default: 5 }
+                                ]
+                            },
+                            resolution: { enum: ["480p", "720p"] },
+                            generateAudio: { type: "boolean" },
+                            firstFrame: { type: "string" },
+                            aspect: { enum: ["adaptive", "9:16", "16:9"] }
+                        }
+                    }
+                },
+                type: "object",
+                required: ["projectId", "clips"],
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string" },
+                    clips: {
+                        type: "array",
+                        items: {
+                            allOf: [
+                                { $ref: "#/$defs/BaseClip" },
+                                {
+                                    anyOf: [
+                                        { $ref: "#/$defs/Seedance20RefBranch" },
+                                        { $ref: "#/$defs/Seedance25FrameBranch" }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    ];
+
+    globalThis.fetch = async (url, init = {}) => {
+        if (String(url) === "https://private-bucket.example.com/first-frame.png") {
+            return new Response(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), {
+                status: 200,
+                headers: { "Content-Type": "image/png" }
+            });
+        }
+        const rpc = JSON.parse(String(init.body || "{}"));
+        if (rpc.method === "initialize") {
+            return Response.json(
+                { jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: "2025-03-26" } },
+                { headers: { "Mcp-Session-Id": "sess_30s_union" } }
+            );
+        }
+        if (rpc.method === "notifications/initialized") return new Response("", { status: 202 });
+        if (rpc.method === "tools/list") return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { tools: fakeTools } });
+        if (rpc.method === "tools/call") {
+            const { name, arguments: args } = rpc.params;
+            if (name === "opus_video_tools_whoami") {
+                return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { structuredContent: { orgId: "org_1" } } });
+            }
+            if (name === "create_project") {
+                return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { structuredContent: { projectId: "proj_30s_01" } } });
+            }
+            if (name === "import_assets") {
+                importCallCount += 1;
+                const item = args.items[0];
+                if (item.url && !item.dataUrl) {
+                    /* Simulasikan kegagalan remote fetch Opus saat menarik signed URL eksternal */
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: rpc.id,
+                        result: {
+                            structuredContent: {
+                                items: [{ clientId: item.clientId, ok: false, error: "remote_url_unreachable" }]
+                            }
+                        }
+                    });
+                }
+                assert.match(item.dataUrl, /^data:image\/png;base64,/);
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            items: [{ clientId: item.clientId, ok: true, asset: { id: "ast_durable_ff_30s" } }]
+                        }
+                    }
+                });
+            }
+            if (name === "generate_video_clips") {
+                capturedClipArgs = args;
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            projectId: args.projectId,
+                            jobId: "job_30s_ok_01",
+                            status: "queued"
+                        }
+                    }
+                });
+            }
+        }
+        throw new Error(`Unhandled RPC: ${rpc.method}`);
+    };
+
+    try {
+        const model = getOpusVideoModel("opus-seedance-2.5-i2v");
+        const created = await model.createTask(
+            {
+                prompt: "Kamera dolly-in perlahan melintasi kota cyberpunk hujan malam selama 30 detik penuh",
+                image_url: "https://private-bucket.example.com/first-frame.png",
+                duration: "30",
+                resolution: "480p",
+                generate_audio: true
+            },
+            "opus-mock-bearer-token"
+        );
+
+        assert.equal(importCallCount, 2, "harus fallback ke dataUrl setelah remote URL import gagal");
+        assert.ok(capturedClipArgs, "generate_video_clips wajib dipanggil");
+        assert.equal(capturedClipArgs.clips.length, 1);
+
+        const clip = capturedClipArgs.clips[0];
+        assert.equal(clip.id, "clip-1");
+        assert.equal(clip.outputLabel, "clip-1");
+        assert.equal(clip.workflow, "first_last_frame");
+        assert.equal(clip.model, "bytedance/seedance-2.5", "tidak boleh salah mencocokkan 'seedance' atau 'seedance-2'");
+        assert.equal(clip.durationSec, 30, "durasi 30 detik wajib terkirim utuh sebagai integer 30, bukan hilang ke default 5 detik");
+        assert.equal(clip.resolution, "480p");
+        assert.equal(clip.generateAudio, true);
+        assert.equal(clip.firstFrame, "ast_durable_ff_30s");
+        assert.equal(clip.aspect, undefined, "aspect tidak boleh dipaksakan pada first_last_frame jika tidak required");
+
+        assert.equal(created.mcpRequestSummary?.durationKey, "durationSec");
+        assert.equal(created.mcpRequestSummary?.durationValue, 30);
+        assert.equal(created.mcpRequestSummary?.model, "bytedance/seedance-2.5");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("Opus MCP: mengisi durasi pada nested config ('30s' + autoDuration:false + durationMode:'fixed'), top-level durationMs, dan membedakan requestKey antar varian berbeda", async () => {
+    const originalFetch = globalThis.fetch;
+    const seenCalls = [];
+
+    const fakeTools = [
+        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+        { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+        {
+            name: "generate_video_clips",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "clips"],
+                properties: {
+                    projectId: { type: "string" },
+                    requestKey: { type: "string" },
+                    durationMs: { type: "integer" },
+                    clips: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            required: ["clipId", "prompt", "config"],
+                            properties: {
+                                clipId: { type: "string" },
+                                label: { type: "string" },
+                                prompt: { type: "string" },
+                                workflow: { enum: ["reference2video", "first_last_frame"] },
+                                config: {
+                                    type: "object",
+                                    properties: {
+                                        modelName: { type: "string" },
+                                        targetDuration: { type: "string", pattern: "^\\d+s$" },
+                                        autoDuration: { type: "boolean" },
+                                        durationMode: { enum: ["auto", "fixed"] },
+                                        resolution: { enum: ["480p", "720p"] },
+                                        generateAudio: { type: "boolean" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ];
+
+    globalThis.fetch = async (_url, init = {}) => {
+        const rpc = JSON.parse(String(init.body || "{}"));
+        if (rpc.method === "initialize") {
+            return Response.json(
+                { jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: "2025-03-26" } },
+                { headers: { "Mcp-Session-Id": "sess_nested_cfg" } }
+            );
+        }
+        if (rpc.method === "notifications/initialized") return new Response("", { status: 202 });
+        if (rpc.method === "tools/list") return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { tools: fakeTools } });
+        if (rpc.method === "tools/call") {
+            const { name, arguments: args } = rpc.params;
+            if (name === "opus_video_tools_whoami") {
+                return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { structuredContent: { orgId: "org_1" } } });
+            }
+            if (name === "create_project") {
+                return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { structuredContent: { projectId: "proj_nested_01" } } });
+            }
+            if (name === "generate_video_clips") {
+                seenCalls.push(structuredClone(args));
+                if (seenCalls.length === 1) {
+                    /* Simulasikan penolakan properti opsional `label` pada varian pertama */
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: rpc.id,
+                        result: {
+                            isError: true,
+                            structuredContent: {
+                                code: "invalid_arguments",
+                                message: "Unrecognized key: label"
+                            }
+                        }
+                    });
+                }
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            projectId: args.projectId,
+                            jobId: "job_nested_30s",
+                            status: "queued"
+                        }
+                    }
+                });
+            }
+        }
+        throw new Error(`Unhandled RPC: ${rpc.method}`);
+    };
+
+    try {
+        const model = getOpusVideoModel("opus-seedance-2.5-t2v");
+        const created = await model.createTask(
+            {
+                prompt: "Astronot berjalan di padang pasir merah Mars",
+                duration: "30",
+                resolution: "720p",
+                aspect_ratio: "16:9",
+                generate_audio: true
+            },
+            "opus-mock-bearer-token"
+        );
+
+        assert.equal(seenCalls.length, 2, "harus mencoba varian ringkas setelah invalid_arguments");
+        assert.notEqual(
+            seenCalls[0].requestKey,
+            seenCalls[1].requestKey,
+            "varian dengan payload berbeda wajib memakai requestKey UUID baru sesuai aturan idempotensi Opus"
+        );
+
+        const acceptedArgs = seenCalls[1];
+        assert.equal(acceptedArgs.durationMs, 30000);
+        const clip = acceptedArgs.clips[0];
+        assert.equal(clip.label, undefined, "varian minimal menghapus label opsional");
+        assert.equal(clip.workflow, "reference2video", "workflow tetap dipertahankan pada varian minimal");
+        assert.equal(clip.config.targetDuration, "30s");
+        assert.equal(clip.config.autoDuration, false);
+        assert.equal(clip.config.durationMode, "fixed");
+        assert.equal(clip.config.resolution, "720p");
+        assert.equal(clip.config.generateAudio, true);
+        assert.equal(created.taskId, "opus:proj_nested_01:job_nested_30s");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+
+
