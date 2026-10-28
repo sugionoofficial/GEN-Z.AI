@@ -2336,13 +2336,36 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
 
     function renderSchedules(schedules = []) {
         const container = $("schedules-list");
+        const activeBadge = $("active-schedules-badge");
         stopScheduleCountdown();
         container.replaceChildren();
         const accountAutopublishOn = state.data?.autopublishEnabled === true && state.data?.globalEnabled !== false;
+        const activeCount = schedules.filter(s => s.enabled === true && s.autopublish_enabled !== false).length;
+        const pausedCount = Math.max(0, schedules.length - activeCount);
+        if (activeBadge) {
+            if (!schedules.length) {
+                activeBadge.className = "badge";
+                activeBadge.textContent = "0 aktif";
+            } else if (activeCount > 0) {
+                activeBadge.className = "badge posted";
+                activeBadge.textContent = pausedCount > 0
+                    ? `${activeCount} aktif · ${pausedCount} dijeda`
+                    : `${activeCount} aktif`;
+            } else {
+                activeBadge.className = "badge queued";
+                activeBadge.textContent = `0 aktif · ${pausedCount} dijeda`;
+            }
+        }
+        const orderedSchedules = [...schedules].sort((a, b) => {
+            const aActive = a.enabled === true && a.autopublish_enabled !== false ? 1 : 0;
+            const bActive = b.enabled === true && b.autopublish_enabled !== false ? 1 : 0;
+            return bActive - aActive;
+        });
         let countdownCards = 0;
-        for (const schedule of schedules) {
+        for (const schedule of orderedSchedules) {
+            const isScheduleActive = schedule.enabled === true && schedule.autopublish_enabled !== false;
             const card = document.createElement("article");
-            card.className = "item";
+            card.className = `item ${isScheduleActive ? "is-schedule-active" : "is-schedule-paused"}`;
             card.style.gridTemplateColumns = "minmax(0,1fr) auto";
             const content = document.createElement("div");
             const title = document.createElement("p");
@@ -2413,7 +2436,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             card.append(content, actions);
             container.append(card);
         }
-        if (!schedules.length) container.innerHTML = '<div class="empty">Belum ada jadwal autopost.</div>';
+        if (!schedules.length) container.innerHTML = '<div class="empty">Belum ada jadwal autopost aktif.</div>';
         if (countdownCards > 0) startScheduleCountdown();
         else scheduleCountdown.nodes = [];
     }
