@@ -371,17 +371,135 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
+    const STUDIO_COLLAPSIBLE_SECTIONS = [
+        { cardId: "outfit-card", btnId: "outfit-collapse-btn", bodyId: "outfit-collapse-body", chipId: "outfit-collapse-chip-label" },
+        { cardId: "songs-card", btnId: "songs-collapse-btn", bodyId: "songs-collapse-body", chipId: "songs-collapse-chip-label" },
+        { cardId: "posting-settings-card", btnId: "posting-settings-collapse-btn", bodyId: "posting-settings-collapse-body", chipId: "posting-settings-collapse-chip-label" },
+        { cardId: "manual-post-card", btnId: "manual-post-collapse-btn", bodyId: "manual-post-collapse-body", chipId: "manual-post-collapse-chip-label" },
+        { cardId: "schedule-card", btnId: "schedule-collapse-btn", bodyId: "schedule-collapse-body", chipId: "schedule-collapse-chip-label" }
+    ];
+
+    function setStudioCardExpanded(cardId, expanded) {
+        const entry = STUDIO_COLLAPSIBLE_SECTIONS.find(item => item.cardId === cardId);
+        if (!entry) return;
+        const card = $(entry.cardId);
+        const btn = $(entry.btnId);
+        const body = $(entry.bodyId);
+        const chip = $(entry.chipId);
+        const isOpen = Boolean(expanded);
+        if (card) card.classList.toggle("is-expanded", isOpen);
+        if (btn) btn.setAttribute("aria-expanded", String(isOpen));
+        if (body) body.hidden = !isOpen;
+        if (chip) chip.textContent = isOpen ? "Tutup" : "Buka";
+    }
+
+    function toggleStudioCard(cardId) {
+        const entry = STUDIO_COLLAPSIBLE_SECTIONS.find(item => item.cardId === cardId);
+        if (!entry) return;
+        const body = $(entry.bodyId);
+        const nextOpen = body ? body.hidden === true : true;
+        setStudioCardExpanded(cardId, nextOpen);
+    }
+
+    function updateCollapsibleSummaries() {
+        const outfits = Array.isArray(state.data?.outfits) ? state.data.outfits : [];
+        const activeOutfits = outfits.filter(item => item.enabled !== false).length;
+        const outfitMeta = $("outfit-summary-meta");
+        if (outfitMeta) {
+            outfitMeta.textContent = outfits.length
+                ? `${activeOutfits} aktif · ${outfits.length} outfit`
+                : "0 outfit";
+        }
+
+        const customSongs = Array.isArray(state.songs) ? state.songs : [];
+        const songsMeta = $("songs-summary-meta");
+        if (songsMeta) {
+            songsMeta.textContent = customSongs.length
+                ? `${customSongs.length} musik tersimpan`
+                : "8 musik bawaan";
+        }
+
+        const extLink = String($("external-post-link")?.value || state.data?.postingSettings?.external_link || "").trim();
+        const postingMeta = $("posting-settings-summary-meta");
+        if (postingMeta) {
+            postingMeta.textContent = extLink ? "Caption + Link aktif" : "Template siap";
+        }
+    }
+
+    function resolveMasterStatus() {
+        const raw = String(state.data?.globalStatus || "").trim().toLowerCase();
+        if (state.data?.globalEnabled === true) return "active";
+        if (raw === "maintenance") return "maintenance";
+        if (raw === "active" && state.data?.globalEnabled !== false) return "active";
+        if (raw === "off") return "off";
+        return state.data?.globalEnabled === false ? "off" : "active";
+    }
+
+    function renderMasterSwitchBlock(masterStatus, canManage) {
+        const block = $("master-switch-block");
+        const roleTag = $("master-switch-role-tag");
+        const desc = $("master-switch-desc");
+        const badge = $("master-status-badge");
+        const badgeText = $("master-status-text");
+        const controls = $("master-switch-controls");
+
+        const statusKey = ["active", "off", "maintenance"].includes(masterStatus) ? masterStatus : "off";
+        const statusLabel = statusKey === "active"
+            ? "ACTIVE"
+            : statusKey === "maintenance"
+                ? "MAINTENANCE"
+                : "OFF";
+
+        if (block) {
+            block.setAttribute("data-master-status", statusKey);
+            block.setAttribute("data-master-role", canManage ? "admin" : "user");
+        }
+        if (roleTag) {
+            roleTag.textContent = canManage ? "Kontrol Admin" : "Status Sistem";
+        }
+        if (desc) {
+            desc.textContent = statusKey === "active"
+                ? "Layanan Studio Medsos aktif penuh — jadwal autopost berjalan normal."
+                : statusKey === "maintenance"
+                    ? "Sistem sedang dalam pemeliharaan (Maintenance) oleh Admin/Owner."
+                    : "Autopost global sedang dinonaktifkan sementara oleh Admin/Owner.";
+        }
+        if (badge) {
+            badge.className = `master-status-pill is-${statusKey}`;
+        }
+        if (badgeText) {
+            badgeText.textContent = statusLabel;
+        }
+        if (controls) {
+            controls.hidden = !canManage;
+        }
+        for (const [id, key] of [
+            ["master-btn-active", "active"],
+            ["master-btn-maintenance", "maintenance"],
+            ["master-btn-off", "off"]
+        ]) {
+            const btn = $(id);
+            if (!btn) continue;
+            const current = key === statusKey;
+            btn.classList.toggle("is-current", current);
+            btn.setAttribute("aria-pressed", String(current));
+        }
+    }
+
     function renderGlobalState() {
         const mine = state.data?.autopublishEnabled === true;
-        const master = state.data?.globalEnabled !== false;
+        const masterStatus = resolveMasterStatus();
+        const master = masterStatus === "active";
         const effective = mine && master;
 
         globalState.textContent = effective
             ? "AUTOPUBLISH ON"
-            : mine && !master
-                ? "AUTOPUBLISH DIJEDA ADMIN"
-                : "AUTOPUBLISH OFF";
-        globalState.className = `state ${effective ? "on" : "off"}`;
+            : masterStatus === "maintenance"
+                ? "MAINTENANCE"
+                : mine && !master
+                    ? "AUTOPUBLISH DIJEDA ADMIN"
+                    : "AUTOPUBLISH OFF";
+        globalState.className = `state ${effective ? "on" : masterStatus === "maintenance" ? "maintenance" : "off"}`;
 
         globalToggle.textContent = mine ? "Autopost saya: ON" : "Autopost saya: OFF";
         globalToggle.title = mine ? "Klik untuk menjeda autopost akun Anda." : "Klik untuk mengaktifkan autopost akun Anda.";
@@ -389,8 +507,10 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         globalToggle.classList.toggle("green", mine);
         globalToggle.classList.toggle("danger", !mine);
 
-        if (!masterToggle) return;
         const canManage = state.data?.canManageGlobalAutopublish === true;
+        renderMasterSwitchBlock(masterStatus, canManage);
+
+        if (!masterToggle) return;
         masterToggle.hidden = !canManage;
         if (!canManage) return;
         masterToggle.textContent = master ? "Master switch: ON" : "Master switch: OFF";
@@ -654,6 +774,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
     }
 
     function focusOutfitLibrary(characterId) {
+        setStudioCardExpanded("outfit-card", true);
         outfitSelect.value = characterId;
         renderOutfits();
         document.getElementById("outfit-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1116,8 +1237,10 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                 state.defaultFacebookSongs = result.defaultSongs;
             }
             renderSongs();
+            updateCollapsibleSummaries();
         } catch {
             renderSongs();
+            updateCollapsibleSummaries();
         }
     }
 
@@ -1155,6 +1278,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
 
     function editSong(song) {
         if (!$("song-form")) return;
+        setStudioCardExpanded("songs-card", true);
         if ($("song-id")) $("song-id").value = song.id || "";
         if ($("song-title")) $("song-title").value = song.title || "";
         if ($("song-artist")) $("song-artist").value = song.artist || "";
@@ -1888,6 +2012,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                 }
             });
             if (state.data) state.data.postingSettings = result.postingSettings;
+            updateCollapsibleSummaries();
             status($("posting-settings-status"), "Caption dasar dan link tersimpan; akan dipakai di semua posting berikutnya.", "good");
         } catch (error) {
             status($("posting-settings-status"), error.message || "Pengaturan caption gagal disimpan.", "error");
@@ -2623,6 +2748,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         renderOutfitSelector(data.characters || []);
         renderOutfits();
         renderSongs();
+        updateCollapsibleSummaries();
         applySchedulePolicyUi();
         const missingMigrations = [];
         if (data.autopublishSchemaReady === false) missingMigrations.push("supabase/social-autopublish-per-user.sql");
@@ -2982,6 +3108,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
     }
 
     function editSchedule(schedule) {
+        setStudioCardExpanded("schedule-card", true);
         const isQuote = schedule.post_mode === "quote";
         $("schedule-id").value = schedule.id;
         setSchedulePostMode(isQuote ? "quote" : "character", { preserveSongToggle: true });
@@ -3205,6 +3332,61 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             showNotice(pageMessage, error.message, "error");
         } finally {
             setButtonBusy(globalToggle, false);
+            renderGlobalState();
+        }
+    }
+
+    async function setMasterStatus(targetStatus, button) {
+        if (!state.data || state.data.canManageGlobalAutopublish !== true) return;
+        const nextStatus = ["active", "off", "maintenance"].includes(targetStatus) ? targetStatus : "off";
+        if (resolveMasterStatus() === nextStatus) return;
+
+        const confirmMap = {
+            active: {
+                label: "Konfirmasi aktifkan",
+                ariaLabel: "Konfirmasi aktifkan master switch semua akun",
+                title: "Aktifkan Master Switch (ACTIVE)? Seluruh user akan melihat indikator ACTIVE berwarna hijau.",
+                notice: "Master switch diatur ke ACTIVE: layanan Studio Medsos aktif penuh.",
+                tone: "success"
+            },
+            maintenance: {
+                label: "Konfirmasi maintenance",
+                ariaLabel: "Konfirmasi setel master switch ke maintenance",
+                title: "Setel Master Switch ke MAINTENANCE? Seluruh user akan melihat indikator MAINTENANCE berwarna kuning dan autopost dijeda sementara.",
+                notice: "Master switch diatur ke MAINTENANCE: user melihat status MAINTENANCE (kuning) dan autopost dijeda.",
+                tone: "warn"
+            },
+            off: {
+                label: "Konfirmasi matikan",
+                ariaLabel: "Konfirmasi matikan master switch semua akun",
+                title: "Matikan Master Switch (OFF)? Seluruh user akan melihat indikator OFF berwarna merah dan semua autopost dihentikan.",
+                notice: "Master switch diatur ke OFF: user melihat status OFF (merah) dan semua autopost berhenti.",
+                tone: "warn"
+            }
+        }[nextStatus];
+
+        if (!confirmInlineAction(button, {
+            label: confirmMap.label,
+            ariaLabel: confirmMap.ariaLabel,
+            title: confirmMap.title
+        })) return;
+
+        setButtonBusy(button, true, "Memperbarui…");
+        try {
+            const result = await api("set-global-enabled", {
+                method: "POST",
+                body: { status: nextStatus, enabled: nextStatus === "active" }
+            });
+            if (state.data) {
+                state.data.globalStatus = result.globalStatus || nextStatus;
+                state.data.globalEnabled = result.globalEnabled === true;
+            }
+            showNotice(pageMessage, confirmMap.notice, confirmMap.tone);
+            await loadDashboard();
+        } catch (error) {
+            showNotice(pageMessage, error.message, "error");
+        } finally {
+            setButtonBusy(button, false);
             renderGlobalState();
         }
     }
@@ -3453,6 +3635,12 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
     $("refresh").addEventListener("click", loadDashboard);
     $("global-toggle").addEventListener("click", toggleAutopublish);
     masterToggle?.addEventListener("click", toggleMasterAutopublish);
+    $("master-btn-active")?.addEventListener("click", event => setMasterStatus("active", event.currentTarget || $("master-btn-active")));
+    $("master-btn-maintenance")?.addEventListener("click", event => setMasterStatus("maintenance", event.currentTarget || $("master-btn-maintenance")));
+    $("master-btn-off")?.addEventListener("click", event => setMasterStatus("off", event.currentTarget || $("master-btn-off")));
+    for (const section of STUDIO_COLLAPSIBLE_SECTIONS) {
+        $(section.btnId)?.addEventListener("click", () => toggleStudioCard(section.cardId));
+    }
     $("cancel-edit").addEventListener("click", resetScheduleForm);
     window.addEventListener("beforeunload", clearObjectUrls);
 

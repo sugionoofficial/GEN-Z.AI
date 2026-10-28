@@ -1059,15 +1059,34 @@ async function listRunsForDashboard(config, userId, paginationOptions = {}) {
     };
 }
 
+const VALID_GLOBAL_PUBLISHER_STATUSES = ["active", "off", "maintenance"];
+
+function normalizeGlobalPublisherStatus(row = null, fallbackStatus = "") {
+    const rawStatus = String(row?.global_status || "").trim().toLowerCase();
+    const hasEnabled = typeof row?.global_enabled === "boolean";
+    if (hasEnabled && row.global_enabled === true) return "active";
+    if (VALID_GLOBAL_PUBLISHER_STATUSES.includes(rawStatus)) {
+        if (hasEnabled && row.global_enabled === false && rawStatus === "active") return "off";
+        return rawStatus;
+    }
+    const cleanFallback = String(fallbackStatus || "").trim().toLowerCase();
+    if (VALID_GLOBAL_PUBLISHER_STATUSES.includes(cleanFallback)) {
+        if (hasEnabled && row.global_enabled === false && cleanFallback === "active") return "off";
+        return cleanFallback;
+    }
+    return row?.global_enabled === true ? "active" : "off";
+}
+
 async function getDashboard(config, userId, env, profile, runsOptions = {}) {
     const [characters, pages, schedulesResult, runsResult, publisherConfig, userSettingsResult, outfitLibrary, referenceStorageConfigured] = await Promise.all([
         supabaseRequest(config, tablePath("social_characters", `select=id,display_name,reference_filename,reference_mime_type,prompt_notes,created_at&owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`)),
         supabaseRequest(config, tablePath("social_page_connections", `select=id,page_id,page_name,can_publish,page_tasks,token_checked_at,updated_at&owner_id=eq.${encodeURIComponent(userId)}&order=page_name.asc`)),
         listSchedulesForDashboard(config, userId),
         listRunsForDashboard(config, userId, runsOptions),
-            supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,text_provider,quote_llm_model,updated_at&id=eq.true&limit=1"))
-                .catch(() => supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,quote_llm_model,updated_at&id=eq.true&limit=1"))
-                    .catch(() => supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,updated_at&id=eq.true&limit=1")))),
+            supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,global_status,image_provider,image_model,text_provider,quote_llm_model,updated_at&id=eq.true&limit=1"))
+                .catch(() => supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,text_provider,quote_llm_model,updated_at&id=eq.true&limit=1"))
+                    .catch(() => supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,quote_llm_model,updated_at&id=eq.true&limit=1"))
+                        .catch(() => supabaseRequest(config, tablePath("social_publisher_config", "select=id,global_enabled,image_provider,image_model,updated_at&id=eq.true&limit=1"))))),
         getUserSettingsForDashboard(config, userId),
         listOutfitsForDashboard(config, userId),
         isPrivateReferenceBucket(config)
@@ -1075,6 +1094,7 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
 
     const schedules = schedulesResult?.rows || [];
     const userSettings = userSettingsResult?.settings ? [userSettingsResult.settings] : [];
+    const globalStatus = normalizeGlobalPublisherStatus(publisherConfig?.[0]);
     const imageProvider = ["cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(publisherConfig?.[0]?.image_provider)
         ? publisherConfig[0].image_provider
         : "gemini";
@@ -1123,7 +1143,8 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
         /* Switch milik user ini saja. Baris yang belum ada dianggap aktif. */
         autopublishEnabled: userSettings?.[0]?.autopublish_enabled !== false,
         /* Master switch untuk seluruh akun; hanya admin/owner yang boleh mengubah. */
-        globalEnabled: publisherConfig?.[0]?.global_enabled === true,
+        globalEnabled: globalStatus === "active",
+        globalStatus,
         canManageGlobalAutopublish: ["ADMIN", "OWNER"].includes(String(profile?.role || "").trim().toUpperCase()),
         postingSettings: userSettings?.[0] || { caption_template: "Cerita hari ini ✨", external_link: "" },
         config: {
@@ -1157,6 +1178,12 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
 async function getSocialImageSettings(config, env = null) {
     const rows = await supabaseRequest(
         config,
+        tablePath("social_publisher_config", "select=global_enabled,global_status,image_provider,image_model,text_provider,quote_llm_model&id=eq.true&limit=1")
+    ).catch(() => supabaseRequest(
+        config,
+        tablePath("social_publisher_config", "select=global_enabled,image_provider,image_model,text_provider,quote_llm_model&id=eq.true&limit=1")
+    ).catch(() => supabaseRequest(
+        config,
         tablePath("social_publisher_config", "select=image_provider,image_model,text_provider,quote_llm_model&id=eq.true&limit=1")
     ).catch(() => supabaseRequest(
         config,
@@ -1164,13 +1191,16 @@ async function getSocialImageSettings(config, env = null) {
     ).catch(() => supabaseRequest(
         config,
         tablePath("social_publisher_config", "select=image_provider,image_model&id=eq.true&limit=1")
-    )));
+    )))));
     const value = rows?.[0]?.image_provider;
     const provider = ["gemini", "cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(value) ? value : "gemini";
     const rawImageModel = String(rows?.[0]?.image_model || "").trim();
+    const globalStatus = normalizeGlobalPublisherStatus(rows?.[0]);
     return {
         provider,
         rawImageModel,
+        globalEnabled: globalStatus === "active",
+        globalStatus,
         imageModel: provider === "opus"
             ? normalizeOpusImageModel(rawImageModel, env)
             : normalizeQwenCloudImageModel(rawImageModel),
@@ -3523,18 +3553,57 @@ async function setUserAutopublish(config, userId, env, enabled) {
 }
 
 /**
- * Master switch global (admin/owner). Menghentikan autopost SEMUA user sekaligus
- * dan dipakai saat perawatan/insiden, bukan sehari-hari.
+ * Master switch global (admin/owner). Mengatur status ACTIVE / OFF / MAINTENANCE
+ * untuk seluruh akun sekaligus.
  */
-async function setGlobalEnabled(config, userId, env, enabled) {
+async function setGlobalEnabled(config, userId, env, statusOrEnabled) {
+    const nextStatus = typeof statusOrEnabled === "string"
+        ? String(statusOrEnabled).trim().toLowerCase()
+        : (statusOrEnabled === true ? "active" : "off");
+    const safeStatus = VALID_GLOBAL_PUBLISHER_STATUSES.includes(nextStatus) ? nextStatus : "off";
+    const enabled = safeStatus === "active";
     if (enabled) await assertAutopublishReady(config, env);
 
-    const rows = await supabaseRequest(config, tablePath("social_publisher_config", "on_conflict=id&select=id,global_enabled,updated_at"), {
-        method: "POST",
-        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-        body: JSON.stringify({ id: true, global_enabled: enabled, updated_by: userId, updated_at: new Date().toISOString() })
+    const updatedAt = new Date().toISOString();
+    const rows = await supabaseRequest(
+        config,
+        tablePath("social_publisher_config", "on_conflict=id&select=id,global_enabled,global_status,updated_at"),
+        {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify({
+                id: true,
+                global_enabled: enabled,
+                global_status: safeStatus,
+                updated_by: userId,
+                updated_at: updatedAt
+            })
+        }
+    ).catch(async err => {
+        const message = String(err?.message || "").toLowerCase();
+        if (!message.includes("global_status")) throw err;
+        return supabaseRequest(
+            config,
+            tablePath("social_publisher_config", "on_conflict=id&select=id,global_enabled,updated_at"),
+            {
+                method: "POST",
+                headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+                body: JSON.stringify({
+                    id: true,
+                    global_enabled: enabled,
+                    updated_by: userId,
+                    updated_at: updatedAt
+                })
+            }
+        );
     });
-    return rows?.[0] || { id: true, global_enabled: enabled };
+    const saved = rows?.[0] || { id: true, global_enabled: enabled, global_status: safeStatus, updated_at: updatedAt };
+    const resolvedStatus = normalizeGlobalPublisherStatus(saved, safeStatus);
+    return {
+        ...saved,
+        global_enabled: resolvedStatus === "active",
+        global_status: resolvedStatus
+    };
 }
 
 async function handlePost(req, res, config, userId, env, action, profile = null) {
@@ -3668,9 +3737,24 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
     }
     if (action === "set-global-enabled") {
         requireStudioAdmin(profile);
-        if (typeof body.enabled !== "boolean") return json(res, 400, { success: false, error: "Nilai enabled harus boolean." });
-        const settings = await setGlobalEnabled(config, userId, env, body.enabled);
-        return json(res, 200, { success: true, globalEnabled: settings.global_enabled === true });
+        let targetStatus = "";
+        if (typeof body.status === "string" && body.status.trim()) {
+            const rawStatus = body.status.trim().toLowerCase();
+            if (!VALID_GLOBAL_PUBLISHER_STATUSES.includes(rawStatus)) {
+                return json(res, 400, { success: false, error: "Status master switch harus active, off, atau maintenance." });
+            }
+            targetStatus = rawStatus;
+        } else if (typeof body.enabled === "boolean") {
+            targetStatus = body.enabled ? "active" : "off";
+        } else {
+            return json(res, 400, { success: false, error: "Nilai enabled harus boolean." });
+        }
+        const settings = await setGlobalEnabled(config, userId, env, targetStatus);
+        return json(res, 200, {
+            success: true,
+            globalEnabled: settings.global_enabled === true,
+            globalStatus: settings.global_status || targetStatus
+        });
     }
     if (action === "save-character") {
         return json(res, 200, { success: true, character: await saveCharacter(config, userId, body) });
@@ -3763,6 +3847,8 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
         return json(res, 200, {
             success: true,
             settings: {
+                global_enabled: imageSettings.globalEnabled === true,
+                global_status: imageSettings.globalStatus || "off",
                 image_provider: imageProvider,
                 text_provider: imageSettings.textProvider,
                 caption_provider: captionProvider,

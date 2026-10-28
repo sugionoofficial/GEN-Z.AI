@@ -116,9 +116,84 @@
          * kosong dengan kontrol 0:00 di bawah hasil generate foto karakter.
          */
         video.manual-preview[hidden],audio.manual-preview-audio[hidden],img.manual-preview[hidden]{display:none!important}
+        .state.maintenance{border-color:#b8871e;background:#36290e;color:#ffe066}
+        [data-legacy-master-toggle]{display:none!important}
+
+        /* ===== PREMIUM MASTER SWITCH BLOCK (USER INDICATOR + ADMIN 3-STATE) ===== */
+        .master-switch-card{position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 18px;margin-bottom:14px;border-radius:15px;border:1px solid #2b3c55;background:linear-gradient(135deg,rgba(15,24,40,.96),rgba(9,16,28,.96));box-shadow:0 12px 28px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden;transition:border-color .22s ease,box-shadow .22s ease,background .22s ease}
+        .master-switch-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#ff667a;box-shadow:0 0 14px rgba(255,102,122,.6)}
+        .master-switch-card[data-master-status="active"]{border-color:rgba(53,211,154,.44);background:linear-gradient(135deg,rgba(12,42,35,.88),rgba(9,19,28,.96) 62%);box-shadow:0 12px 30px rgba(16,185,129,.12),inset 0 1px 0 rgba(119,242,198,.12)}
+        .master-switch-card[data-master-status="active"]::before{background:#35d39a;box-shadow:0 0 16px rgba(53,211,154,.75)}
+        .master-switch-card[data-master-status="off"]{border-color:rgba(255,102,122,.44);background:linear-gradient(135deg,rgba(50,18,28,.86),rgba(11,17,28,.96) 62%);box-shadow:0 12px 30px rgba(244,63,94,.12),inset 0 1px 0 rgba(255,140,158,.10)}
+        .master-switch-card[data-master-status="off"]::before{background:#ff556d;box-shadow:0 0 16px rgba(255,85,109,.75)}
+        .master-switch-card[data-master-status="maintenance"]{border-color:rgba(250,204,21,.48);background:linear-gradient(135deg,rgba(54,40,11,.88),rgba(12,18,29,.96) 62%);box-shadow:0 12px 30px rgba(234,179,8,.13),inset 0 1px 0 rgba(255,224,102,.12)}
+        .master-switch-card[data-master-status="maintenance"]::before{background:#facc15;box-shadow:0 0 16px rgba(250,204,21,.8)}
+        .master-switch-card[data-master-role="user"]{cursor:default;user-select:none}
+        .master-switch-left{display:flex;align-items:center;gap:13px;min-width:0}
+        .master-switch-emblem{flex:0 0 auto;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.12);background:rgba(8,14,24,.65);color:#cbd7ea;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+        .master-switch-card[data-master-status="active"] .master-switch-emblem{border-color:rgba(53,211,154,.42);background:rgba(16,62,48,.65);color:#5ef5b8}
+        .master-switch-card[data-master-status="off"] .master-switch-emblem{border-color:rgba(255,102,122,.42);background:rgba(66,22,33,.65);color:#ff7a8d}
+        .master-switch-card[data-master-status="maintenance"] .master-switch-emblem{border-color:rgba(250,204,21,.45);background:rgba(68,50,12,.68);color:#ffe066}
+        .master-switch-copy{min-width:0}
+        .master-switch-kicker-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px}
+        .master-switch-kicker{font-size:10.5px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#dce6f7}
+        .master-switch-role-tag{display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(158,172,194,.28);background:rgba(15,24,40,.7);color:#aebcd2}
+        .master-switch-desc{margin:0;font-size:12px;line-height:1.45;color:#b8c6dc}
+        .master-switch-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;flex:0 0 auto}
+        .master-status-pill{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-width:128px;padding:9px 16px;border-radius:999px;font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;border:1px solid #3d4c62;background:#101a2b;color:#edf3ff;pointer-events:none;user-select:none;box-shadow:0 6px 18px rgba(0,0,0,.28)}
+        .master-status-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:#94a3b8}
+        .master-status-pill.is-active{border-color:#2ecf96;background:linear-gradient(135deg,#0f4737,#0a3327);color:#5ef5b8;box-shadow:0 6px 20px rgba(46,207,150,.26),inset 0 1px 0 rgba(167,245,214,.22)}
+        .master-status-pill.is-active .master-status-dot{background:#39ff9f;box-shadow:0 0 11px #39ff9f;animation:master-orb-pulse 1.8s ease-in-out infinite}
+        .master-status-pill.is-off{border-color:#e04f67;background:linear-gradient(135deg,#4d1b28,#35121c);color:#ff7a8d;box-shadow:0 6px 20px rgba(224,79,103,.26),inset 0 1px 0 rgba(255,192,202,.18)}
+        .master-status-pill.is-off .master-status-dot{background:#ff556d;box-shadow:0 0 11px #ff556d}
+        .master-status-pill.is-maintenance{border-color:#eab308;background:linear-gradient(135deg,#4f3b0d,#362808);color:#ffe066;box-shadow:0 6px 20px rgba(234,179,8,.26),inset 0 1px 0 rgba(255,236,153,.22)}
+        .master-status-pill.is-maintenance .master-status-dot{background:#facc15;box-shadow:0 0 11px #facc15;animation:master-orb-pulse 1.8s ease-in-out infinite}
+        @keyframes master-orb-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.76);opacity:.55}}
+        .master-switch-controls{display:inline-flex;align-items:center;gap:5px;padding:4px;border-radius:11px;border:1px solid #2d3e57;background:rgba(7,12,22,.78)}
+        .master-switch-controls[hidden]{display:none!important}
+        .master-mode-btn{min-height:31px;padding:5px 10px;border-radius:8px;font-size:10.5px;font-weight:850;letter-spacing:.06em;text-transform:uppercase;border:1px solid transparent;background:transparent;color:#9fb0c8}
+        .master-mode-btn:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14);color:#fff}
+        .master-mode-btn.tone-active.is-current{background:rgba(34,197,94,.2);border-color:#34d399;color:#6ef7be;box-shadow:0 0 12px rgba(52,211,153,.2)}
+        .master-mode-btn.tone-maintenance.is-current{background:rgba(234,179,8,.22);border-color:#facc15;color:#ffe066;box-shadow:0 0 12px rgba(250,204,21,.2)}
+        .master-mode-btn.tone-off.is-current{background:rgba(244,63,94,.22);border-color:#fb7185;color:#ff8fa0;box-shadow:0 0 12px rgba(251,113,133,.2)}
+
+        /* ===== PREMIUM COMPACT -> FULL COLLAPSIBLE STUDIO CARDS ===== */
+        .card.studio-collapsible{padding:0;overflow:hidden;position:relative;border-color:#2a3a54;background:linear-gradient(155deg,rgba(18,28,45,.98),rgba(10,17,29,.98));transition:border-color .22s ease,box-shadow .22s ease,transform .18s ease}
+        .card.studio-collapsible:not(.is-expanded):hover{border-color:#5b6f96;transform:translateY(-2px);box-shadow:0 18px 38px rgba(0,0,0,.3),0 0 0 1px rgba(124,108,255,.18)}
+        .card.studio-collapsible.is-expanded{grid-column:1/-1;border-color:rgba(134,121,255,.52);box-shadow:0 22px 48px rgba(0,0,0,.34),0 0 0 1px rgba(124,108,255,.2),inset 0 1px 0 rgba(255,255,255,.08)}
+        .studio-collapse-trigger{appearance:none;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:left;padding:17px 19px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:14px;position:relative;transition:background .18s ease}
+        .studio-collapse-trigger:hover{background:linear-gradient(90deg,rgba(124,108,255,.08),rgba(70,217,232,.04) 65%,transparent)}
+        .studio-collapse-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+        .card.studio-collapsible.is-expanded .studio-collapse-trigger{padding:19px 21px;border-bottom:1px solid rgba(58,76,104,.65);background:linear-gradient(90deg,rgba(124,108,255,.11),rgba(17,27,44,.4) 68%)}
+        .studio-collapse-lead{display:flex;align-items:center;gap:14px;min-width:0;flex:1}
+        .studio-collapse-icon{flex:0 0 auto;width:44px;height:44px;border-radius:13px;display:grid;place-items:center;border:1px solid rgba(143,133,255,.38);background:linear-gradient(145deg,rgba(124,108,255,.22),rgba(70,217,232,.10));color:#dcd7ff;box-shadow:0 8px 20px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.14)}
+        .studio-collapse-icon.accent-cyan{border-color:rgba(70,217,232,.42);background:linear-gradient(145deg,rgba(70,217,232,.22),rgba(124,108,255,.12));color:#9ef2ff}
+        .studio-collapse-icon.accent-emerald{border-color:rgba(53,211,154,.42);background:linear-gradient(145deg,rgba(53,211,154,.22),rgba(70,217,232,.10));color:#98f7d2}
+        .studio-collapse-icon.accent-amber{border-color:rgba(244,197,109,.44);background:linear-gradient(145deg,rgba(244,197,109,.22),rgba(124,108,255,.12));color:#ffe4a3}
+        .studio-collapse-icon.accent-indigo{border-color:rgba(129,140,248,.45);background:linear-gradient(145deg,rgba(99,102,241,.25),rgba(45,212,191,.12));color:#c7d2fe}
+        .studio-collapse-copy{min-width:0;flex:1}
+        .studio-collapse-eyebrow-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px}
+        .studio-collapse-eyebrow{font-size:10px;font-weight:850;letter-spacing:.12em;text-transform:uppercase;color:#a9b8d0}
+        .studio-collapse-meta{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.03em;border:1px solid rgba(124,108,255,.32);background:rgba(124,108,255,.12);color:#d7d1ff}
+        .studio-collapse-copy h3{margin:0 0 3px;font-size:15.5px;line-height:1.25;letter-spacing:-.01em;color:var(--text)}
+        .card.studio-collapsible:not(.is-expanded) .studio-collapse-copy .sub{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;font-size:11.5px;color:#93a3bc}
+        .card.studio-collapsible.is-expanded .studio-collapse-copy .sub{margin-top:4px}
+        .studio-collapse-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+        .studio-collapse-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;border:1px solid #384964;background:rgba(11,20,33,.86);color:#d4e0f2;font-size:11px;font-weight:800;letter-spacing:.02em;transition:border-color .18s ease,background .18s ease,color .18s ease}
+        .studio-collapse-trigger:hover .studio-collapse-chip{border-color:#8a7fff;background:rgba(124,108,255,.18);color:#fff}
+        .card.studio-collapsible.is-expanded .studio-collapse-chip{border-color:#7c6cff;background:rgba(124,108,255,.22);color:#efeaff}
+        .studio-collapse-chevron{width:14px;height:14px;transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+        .card.studio-collapsible.is-expanded .studio-collapse-chevron{transform:rotate(180deg)}
+        .studio-collapse-body{padding:20px 21px 22px;animation:studio-body-reveal .2s ease-out}
+        .studio-collapse-body[hidden]{display:none!important}
+        .studio-body-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;border-radius:11px;border:1px solid #26364d;background:rgba(9,16,28,.66)}
+        .studio-body-toolbar-note{font-size:11.5px;color:var(--muted);line-height:1.45}
+        @keyframes studio-body-reveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+        @media(prefers-reduced-motion:reduce){.card.studio-collapsible,.studio-collapse-chevron,.studio-collapse-body,.master-status-pill .master-status-dot{animation:none;transition:none}}
+        @media(max-width:768px){.master-switch-card{flex-direction:column;align-items:stretch;padding:13px 14px;gap:12px}.master-switch-right{justify-content:space-between;width:100%}.master-status-pill{min-width:112px;padding:8px 13px;font-size:11px}.master-switch-controls{width:100%;justify-content:stretch}.master-mode-btn{flex:1 1 0;text-align:center;padding:6px 6px;font-size:10px}.card.studio-collapsible.is-expanded{grid-column:auto}.studio-collapse-trigger{padding:14px 14px;gap:11px}.card.studio-collapsible.is-expanded .studio-collapse-trigger{padding:15px 15px}.studio-collapse-icon{width:38px;height:38px;border-radius:11px}.studio-collapse-copy h3{font-size:14.5px}.studio-collapse-body{padding:15px 14px 17px}.studio-collapse-chip-label{display:none}}
 
     </style>
-    <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261026b">
+    <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261026c">
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
 <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
@@ -189,11 +264,36 @@
                 <div><h3 id="config-title">Status konfigurasi</h3><p class="sub">Kredensial disimpan sebagai secret server; tidak ditampilkan di halaman ini.</p></div>
                 <div class="actions" style="margin:0">
                     <button id="global-toggle" class="btn danger" type="button" aria-pressed="false" disabled>Autopost saya: OFF</button>
-                    <button id="master-toggle" class="btn danger" type="button" aria-pressed="false" hidden>Master switch: OFF</button>
+                    <button id="master-toggle" class="btn danger" type="button" aria-pressed="false" data-legacy-master-toggle hidden>Master switch: OFF</button>
+                </div>
+            </div>
+            <div id="master-switch-block" class="master-switch-card" data-master-status="off" data-master-role="user" aria-label="Status Master Switch Sistem">
+                <div class="master-switch-left">
+                    <div class="master-switch-emblem" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                    </div>
+                    <div class="master-switch-copy">
+                        <div class="master-switch-kicker-row">
+                            <span class="master-switch-kicker">Master Switch</span>
+                            <span id="master-switch-role-tag" class="master-switch-role-tag">Status Sistem</span>
+                        </div>
+                        <p id="master-switch-desc" class="master-switch-desc">Memuat status master switch layanan Studio Medsos…</p>
+                    </div>
+                </div>
+                <div class="master-switch-right">
+                    <div id="master-status-badge" class="master-status-pill is-off" role="status" aria-live="polite">
+                        <span class="master-status-dot" aria-hidden="true"></span>
+                        <span id="master-status-text">OFF</span>
+                    </div>
+                    <div id="master-switch-controls" class="master-switch-controls" role="group" aria-label="Kontrol Master Switch Admin" hidden>
+                        <button id="master-btn-active" class="btn small master-mode-btn tone-active" type="button" data-master-target="active">ACTIVE</button>
+                        <button id="master-btn-maintenance" class="btn small master-mode-btn tone-maintenance" type="button" data-master-target="maintenance">MAINTENANCE</button>
+                        <button id="master-btn-off" class="btn small master-mode-btn tone-off is-current" type="button" data-master-target="off">OFF</button>
+                    </div>
                 </div>
             </div>
             <div id="config-list" class="config-list" aria-live="polite"></div>
-            <p class="help" style="margin-top:12px">Tombol <strong>Autopost saya</strong> hanya mengatur jadwal milik akun Anda; akun lain tidak terpengaruh. Aktifkan hanya setelah Meta OAuth, Gemini API, Supabase Storage, dan SQL migration siap. Jadwal tetap bisa disiapkan saat autopublish nonaktif. Master switch hanya muncul untuk admin/owner dan menghentikan autopost seluruh akun.</p>
+            <p class="help" style="margin-top:12px">Tombol <strong>Autopost saya</strong> hanya mengatur jadwal milik akun Anda; akun lain tidak terpengaruh. Blok <strong>Master Switch</strong> menampilkan status layanan global Studio Medsos (<strong style="color:var(--green)">ACTIVE</strong>, <strong style="color:var(--amber)">MAINTENANCE</strong>, atau <strong style="color:var(--red)">OFF</strong>) yang dikelola oleh Admin/Owner.</p>
         </section>
 
         <div class="grid" style="margin-top:18px">
@@ -240,7 +340,7 @@
                             <span class="tutorial-num">3</span>
                             <div>
                                 <p class="tutorial-step-title">Simpan Koleksi Outfit &amp; Musik Auto-Play Facebook</p>
-                                <p class="tutorial-step-body">Pada bagian <strong>3. Outfit &amp; link order</strong>, simpan outfit karakter beserta link order produk. Pada bagian <strong>Koleksi musik auto-play Kata-kata Mutiara</strong>, unggah file lagu Anda sendiri (<code>.mp3</code> / <code>.m4a</code> / <code>.aac</code>) atau video unduhan dari Facebook Reels/Cerita (<code>.mp4</code> — otomatis diekstrak audionya), atau klik <strong>+ Isi 8 Musik Bawaan</strong> agar setiap posting Kata-kata Mutiara langsung auto-play musiknya tanpa mengulang lagu terakhir.</p>
+                                <p class="tutorial-step-body">Pada blok <strong>Outfit &amp; link order</strong>, simpan outfit karakter beserta link order produk. Pada blok <strong>KOLEKSI MUSIK</strong>, unggah file lagu Anda sendiri (<code>.mp3</code> / <code>.m4a</code> / <code>.aac</code>) atau video unduhan dari Facebook Reels/Cerita (<code>.mp4</code> — otomatis diekstrak audionya), atau klik <strong>+ Isi 8 Musik Bawaan</strong> agar setiap posting Kata-kata Mutiara langsung auto-play musiknya tanpa mengulang lagu terakhir.</p>
                             </div>
                         </div>
                         <div class="tutorial-step">
@@ -285,263 +385,339 @@
                 <div id="characters-list" class="list"><div class="empty">Belum ada karakter.</div></div>
             </section>
 
-            <section id="outfit-card" class="card wide" aria-labelledby="outfit-title">
-                <div class="card-head">
-                    <div>
-                        <h3 id="outfit-title">3. Outfit &amp; link order</h3>
-                        <p class="sub">Simpan beberapa outfit untuk satu karakter beserta link order-nya. Setiap post memilih satu outfit aktif secara acak, memakai fotonya sebagai referensi try-on, lalu menambahkan nama outfit dan link order ke caption bersama kalimat dari AI.</p>
+            <section id="outfit-card" class="card studio-collapsible" aria-labelledby="outfit-title">
+                <button id="outfit-collapse-btn" class="studio-collapse-trigger" type="button" aria-expanded="false" aria-controls="outfit-collapse-body">
+                    <div class="studio-collapse-lead">
+                        <div class="studio-collapse-icon" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>
+                        </div>
+                        <div class="studio-collapse-copy">
+                            <div class="studio-collapse-eyebrow-row">
+                                <span class="studio-collapse-eyebrow">03 · Katalog Try-On</span>
+                                <span id="outfit-ready-badge" class="badge">Memuat…</span>
+                                <span id="outfit-summary-meta" class="studio-collapse-meta">0 outfit</span>
+                            </div>
+                            <h3 id="outfit-title">Outfit &amp; link order</h3>
+                            <p class="sub">Simpan beberapa outfit untuk satu karakter beserta link order-nya. Setiap post memilih satu outfit aktif secara acak, memakai fotonya sebagai referensi try-on, lalu menambahkan nama outfit dan link order ke caption bersama kalimat dari AI.</p>
+                        </div>
                     </div>
-                    <span id="outfit-ready-badge" class="badge">Memuat…</span>
+                    <div class="studio-collapse-right">
+                        <span class="studio-collapse-chip"><span id="outfit-collapse-chip-label" class="studio-collapse-chip-label">Buka</span><svg class="studio-collapse-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></span>
+                    </div>
+                </button>
+                <div id="outfit-collapse-body" class="studio-collapse-body" hidden>
+                    <div id="outfit-library-notice" class="notice warn" hidden>Library outfit belum aktif. Jalankan ulang <code>supabase/social-auto-publisher.sql</code> di Supabase SQL Editor.</div>
+                    <form id="outfit-form" class="fields">
+                        <div class="field">
+                            <label for="outfit-character">Karakter</label>
+                            <select id="outfit-character" required><option value="">Pilih karakter…</option></select>
+                        </div>
+                        <div class="field">
+                            <label for="outfit-name">Nama outfit</label>
+                            <input id="outfit-name" maxlength="80" required placeholder="Contoh: Linen Midi Dress">
+                        </div>
+                        <div class="field">
+                            <label for="outfit-order-url">Link order outfit</label>
+                            <input id="outfit-order-url" type="url" maxlength="500" inputmode="url" placeholder="https://toko.contoh.com/produk">
+                            <span class="help">Opsional, harus HTTPS. Link ini tampil di caption setiap kali outfit ini terpilih.</span>
+                        </div>
+                        <div class="field">
+                            <label for="outfit-image">Foto outfit</label>
+                            <input id="outfit-image" type="file" accept="image/jpeg,image/png,image/webp" required>
+                            <span class="help">JPEG, PNG, atau WebP · maksimal 8 MB · minimal 240×240 piksel · dipakai sebagai referensi try-on.</span>
+                        </div>
+                        <div class="field full">
+                            <label for="outfit-notes">Catatan outfit (opsional)</label>
+                            <input id="outfit-notes" maxlength="400" placeholder="Contoh: linen krem, potongan longgar, lengan panjang">
+                            <span class="help">Catatan membantu AI menjaga detail bahan dan potongan, terutama saat provider Gemini dipakai.</span>
+                        </div>
+                        <div class="field full">
+                            <label class="inline-check"><input id="outfit-rights" type="checkbox" required><span>Saya berhak menggunakan foto outfit ini dan link order yang saya masukkan. Foto disimpan di bucket privat Supabase Storage dan hanya dibaca server saat membuat gambar.</span></label>
+                        </div>
+                        <div class="field full">
+                            <button id="save-outfit" class="btn primary" type="submit">Simpan outfit</button>
+                            <p id="outfit-status" class="status" role="status" aria-live="polite"></p>
+                        </div>
+                    </form>
+                    <div style="height:1px;background:var(--border);margin:20px 0"></div>
+                    <p class="outfit-hint">Pemilihan outfit dilakukan di server saat gambar dibuat. Outfit yang baru saja dipakai akan dihindari pada post berikutnya selama masih ada pilihan lain. Maksimal 50 outfit per karakter; nonaktifkan outfit agar tidak ikut dipilih tanpa menghapusnya.</p>
+                    <div id="outfits-list" class="outfit-grid" style="margin-top:12px"><div class="empty" style="grid-column:1/-1">Pilih karakter untuk melihat daftar outfit.</div></div>
                 </div>
-                <div id="outfit-library-notice" class="notice warn" hidden>Library outfit belum aktif. Jalankan ulang <code>supabase/social-auto-publisher.sql</code> di Supabase SQL Editor.</div>
-                <form id="outfit-form" class="fields">
-                    <div class="field">
-                        <label for="outfit-character">Karakter</label>
-                        <select id="outfit-character" required><option value="">Pilih karakter…</option></select>
-                    </div>
-                    <div class="field">
-                        <label for="outfit-name">Nama outfit</label>
-                        <input id="outfit-name" maxlength="80" required placeholder="Contoh: Linen Midi Dress">
-                    </div>
-                    <div class="field">
-                        <label for="outfit-order-url">Link order outfit</label>
-                        <input id="outfit-order-url" type="url" maxlength="500" inputmode="url" placeholder="https://toko.contoh.com/produk">
-                        <span class="help">Opsional, harus HTTPS. Link ini tampil di caption setiap kali outfit ini terpilih.</span>
-                    </div>
-                    <div class="field">
-                        <label for="outfit-image">Foto outfit</label>
-                        <input id="outfit-image" type="file" accept="image/jpeg,image/png,image/webp" required>
-                        <span class="help">JPEG, PNG, atau WebP · maksimal 8 MB · minimal 240×240 piksel · dipakai sebagai referensi try-on.</span>
-                    </div>
-                    <div class="field full">
-                        <label for="outfit-notes">Catatan outfit (opsional)</label>
-                        <input id="outfit-notes" maxlength="400" placeholder="Contoh: linen krem, potongan longgar, lengan panjang">
-                        <span class="help">Catatan membantu AI menjaga detail bahan dan potongan, terutama saat provider Gemini dipakai.</span>
-                    </div>
-                    <div class="field full">
-                        <label class="inline-check"><input id="outfit-rights" type="checkbox" required><span>Saya berhak menggunakan foto outfit ini dan link order yang saya masukkan. Foto disimpan di bucket privat Supabase Storage dan hanya dibaca server saat membuat gambar.</span></label>
-                    </div>
-                    <div class="field full">
-                        <button id="save-outfit" class="btn primary" type="submit">Simpan outfit</button>
-                        <p id="outfit-status" class="status" role="status" aria-live="polite"></p>
-                    </div>
-                </form>
-                <div style="height:1px;background:var(--border);margin:20px 0"></div>
-                <p class="outfit-hint">Pemilihan outfit dilakukan di server saat gambar dibuat. Outfit yang baru saja dipakai akan dihindari pada post berikutnya selama masih ada pilihan lain. Maksimal 50 outfit per karakter; nonaktifkan outfit agar tidak ikut dipilih tanpa menghapusnya.</p>
-                <div id="outfits-list" class="outfit-grid" style="margin-top:12px"><div class="empty" style="grid-column:1/-1">Pilih karakter untuk melihat daftar outfit.</div></div>
             </section>
 
-            <section id="songs-card" class="card wide" aria-labelledby="songs-title">
-                <div class="card-head">
-                    <div>
-                        <h3 id="songs-title">Koleksi musik auto-play Kata-kata Mutiara</h3>
-                        <p class="sub">Unggah file lagu Anda sendiri (<code>.mp3</code>, <code>.m4a</code>, <code>.aac</code>) atau video unduhan dari Facebook Reels/Cerita (<code>.mp4</code> — sistem otomatis mengekstrak audionya saja) agar musik <strong>langsung auto-play</strong> di Postingan Beranda Page, Reels, maupun Cerita. Jika belum ada lagu yang diunggah, <strong>8 musik instrumental bawaan</strong> dipakai acak otomatis.</p>
+            <section id="songs-card" class="card studio-collapsible" aria-labelledby="songs-title">
+                <button id="songs-collapse-btn" class="studio-collapse-trigger" type="button" aria-expanded="false" aria-controls="songs-collapse-body">
+                    <div class="studio-collapse-lead">
+                        <div class="studio-collapse-icon accent-cyan" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                        </div>
+                        <div class="studio-collapse-copy">
+                            <div class="studio-collapse-eyebrow-row">
+                                <span class="studio-collapse-eyebrow">Audio Studio</span>
+                                <span id="songs-ready-badge" class="badge">Memuat…</span>
+                                <span id="songs-summary-meta" class="studio-collapse-meta">Musik siap</span>
+                            </div>
+                            <h3 id="songs-title">KOLEKSI MUSIK</h3>
+                            <p class="sub">Unggah file lagu Anda sendiri (<code>.mp3</code>, <code>.m4a</code>, <code>.aac</code>) atau video unduhan dari Facebook Reels/Cerita (<code>.mp4</code> — sistem otomatis mengekstrak audionya saja) agar musik <strong>langsung auto-play</strong> di Postingan Beranda Page, Reels, maupun Cerita. Jika belum ada lagu yang diunggah, <strong>8 musik instrumental bawaan</strong> dipakai acak otomatis.</p>
+                        </div>
                     </div>
-                    <div class="actions" style="margin:0">
-                        <span id="songs-ready-badge" class="badge">Memuat…</span>
+                    <div class="studio-collapse-right">
+                        <span class="studio-collapse-chip"><span id="songs-collapse-chip-label" class="studio-collapse-chip-label">Buka</span><svg class="studio-collapse-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></span>
+                    </div>
+                </button>
+                <div id="songs-collapse-body" class="studio-collapse-body" hidden>
+                    <div class="studio-body-toolbar">
+                        <span class="studio-body-toolbar-note">Tambahkan musik koleksi pribadi atau muat 8 musik instrumental bawaan dalam 1 klik.</span>
                         <button id="seed-default-songs" class="btn small green" type="button">+ Isi 8 Musik Bawaan</button>
                     </div>
-                </div>
-                <div id="songs-library-notice" class="notice warn" hidden>Tabel koleksi lagu belum aktif di database. Jalankan <code>supabase/social-quote-music.sql</code> di Supabase SQL Editor agar lagu unggahan Anda tersimpan permanen (sementara 8 musik instrumental bawaan tetap aktif otomatis).</div>
-                <form id="song-form" class="fields">
-                    <input type="hidden" id="song-id">
-                    <div class="field full" id="song-file-field">
-                        <label for="song-audio-file">File lagu / video ber-audio (MP3 / M4A / AAC / MP4)</label>
-                        <input id="song-audio-file" type="file" accept=".mp3,.m4a,.aac,.mp4,audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,video/mp4">
-                        <span class="help">Format <code>.mp3</code>, <code>.m4a</code>, <code>.aac</code>, atau video <code>.mp4</code> (mis. unduhan Reels/Story FB) · maksimal 16 MB · otomatis mengikuti durasi musik hingga <strong>maksimal 60 detik</strong> khusus Beranda/Reels (dan maksimal 25 detik khusus Cerita FB).</span>
-                    </div>
-                    <div class="field">
-                        <label for="song-title">Judul lagu</label>
-                        <input id="song-title" maxlength="140" required placeholder="Contoh: Senja Akustik / Judul Lagu">
-                    </div>
-                    <div class="field">
-                        <label for="song-artist">Penyanyi / kreator (opsional)</label>
-                        <input id="song-artist" maxlength="120" placeholder="Contoh: Instrumental / Nama Artis">
-                    </div>
-                    <div class="field">
-                        <label for="song-mood">Nuansa / mood (opsional)</label>
-                        <input id="song-mood" maxlength="60" placeholder="Contoh: Senja &amp; Syukur">
-                    </div>
-                    <div class="field full">
-                        <div class="actions" style="margin:0">
-                            <button id="save-song" class="btn primary" type="submit">Unggah &amp; simpan musik</button>
-                            <button id="cancel-song-edit" class="btn" type="button" hidden>Batal edit</button>
+                    <div id="songs-library-notice" class="notice warn" hidden>Tabel koleksi lagu belum aktif di database. Jalankan <code>supabase/social-quote-music.sql</code> di Supabase SQL Editor agar lagu unggahan Anda tersimpan permanen (sementara 8 musik instrumental bawaan tetap aktif otomatis).</div>
+                    <form id="song-form" class="fields">
+                        <input type="hidden" id="song-id">
+                        <div class="field full" id="song-file-field">
+                            <label for="song-audio-file">File lagu / video ber-audio (MP3 / M4A / AAC / MP4)</label>
+                            <input id="song-audio-file" type="file" accept=".mp3,.m4a,.aac,.mp4,audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,video/mp4">
+                            <span class="help">Format <code>.mp3</code>, <code>.m4a</code>, <code>.aac</code>, atau video <code>.mp4</code> (mis. unduhan Reels/Story FB) · maksimal 16 MB · otomatis mengikuti durasi musik hingga <strong>maksimal 60 detik</strong> khusus Beranda/Reels (dan maksimal 25 detik khusus Cerita FB).</span>
                         </div>
-                        <p id="song-status" class="status" role="status" aria-live="polite"></p>
+                        <div class="field">
+                            <label for="song-title">Judul lagu</label>
+                            <input id="song-title" maxlength="140" required placeholder="Contoh: Senja Akustik / Judul Lagu">
+                        </div>
+                        <div class="field">
+                            <label for="song-artist">Penyanyi / kreator (opsional)</label>
+                            <input id="song-artist" maxlength="120" placeholder="Contoh: Instrumental / Nama Artis">
+                        </div>
+                        <div class="field">
+                            <label for="song-mood">Nuansa / mood (opsional)</label>
+                            <input id="song-mood" maxlength="60" placeholder="Contoh: Senja &amp; Syukur">
+                        </div>
+                        <div class="field full">
+                            <div class="actions" style="margin:0">
+                                <button id="save-song" class="btn primary" type="submit">Unggah &amp; simpan musik</button>
+                                <button id="cancel-song-edit" class="btn" type="button" hidden>Batal edit</button>
+                            </div>
+                            <p id="song-status" class="status" role="status" aria-live="polite"></p>
+                        </div>
+                    </form>
+                    <div id="song-preview-bar" class="song-preview-bar" hidden>
+                        <div class="song-preview-head">
+                            <span id="song-preview-title" class="song-preview-title">🎵 Memutar pratinjau audio…</span>
+                            <button id="song-preview-close" class="btn small" type="button">✕ Tutup pemutar</button>
+                        </div>
+                        <audio id="song-preview-player" controls preload="metadata"></audio>
                     </div>
-                </form>
-                <div id="song-preview-bar" class="song-preview-bar" hidden>
-                    <div class="song-preview-head">
-                        <span id="song-preview-title" class="song-preview-title">🎵 Memutar pratinjau audio…</span>
-                        <button id="song-preview-close" class="btn small" type="button">✕ Tutup pemutar</button>
-                    </div>
-                    <audio id="song-preview-player" controls preload="metadata"></audio>
+                    <div style="height:1px;background:var(--border);margin:20px 0"></div>
+                    <div id="songs-list" class="song-grid"><div class="empty" style="grid-column:1/-1">Memuat koleksi musik…</div></div>
                 </div>
-                <div style="height:1px;background:var(--border);margin:20px 0"></div>
-                <div id="songs-list" class="song-grid"><div class="empty" style="grid-column:1/-1">Memuat koleksi musik…</div></div>
             </section>
 
-            <section class="card wide" aria-labelledby="posting-settings-title">
-                <div class="card-head">
-                    <div>
-                        <h3 id="posting-settings-title">Caption & link untuk semua posting</h3>
-                        <p class="sub">Caption dasar ini dipakai terus untuk posting manual dan terjadwal. Kalimat singkat yang dibuat AI akan ditambahkan; link external diletakkan sebelum hashtag.</p>
+            <section id="posting-settings-card" class="card studio-collapsible" aria-labelledby="posting-settings-title">
+                <button id="posting-settings-collapse-btn" class="studio-collapse-trigger" type="button" aria-expanded="false" aria-controls="posting-settings-collapse-body">
+                    <div class="studio-collapse-lead">
+                        <div class="studio-collapse-icon accent-emerald" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                        </div>
+                        <div class="studio-collapse-copy">
+                            <div class="studio-collapse-eyebrow-row">
+                                <span class="studio-collapse-eyebrow">Template Global</span>
+                                <span id="posting-settings-summary-meta" class="studio-collapse-meta">Caption &amp; Link</span>
+                            </div>
+                            <h3 id="posting-settings-title">Caption &amp; link untuk semua posting</h3>
+                            <p class="sub">Caption dasar ini dipakai terus untuk posting manual dan terjadwal. Kalimat singkat yang dibuat AI akan ditambahkan; link external diletakkan sebelum hashtag.</p>
+                        </div>
                     </div>
+                    <div class="studio-collapse-right">
+                        <span class="studio-collapse-chip"><span id="posting-settings-collapse-chip-label" class="studio-collapse-chip-label">Buka</span><svg class="studio-collapse-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></span>
+                    </div>
+                </button>
+                <div id="posting-settings-collapse-body" class="studio-collapse-body" hidden>
+                    <form id="posting-settings-form" class="fields">
+                        <div class="field full">
+                            <label for="default-caption-template">Caption dasar tetap</label>
+                            <textarea id="default-caption-template" maxlength="1000" required>Seru-seruan hari ini ✨ #GENZAI</textarea>
+                            <span class="help">Hashtag selalu dipindahkan ke bagian akhir. Gunakan <code>{outfit}</code> untuk nama outfit acak, atau <code>{quote}</code>, <code>{theme}</code>, <code>{song}</code>, <code>{artist}</code> pada mode Kata-kata Mutiara + Lagu Facebook.</span>
+                        </div>
+                        <div class="field full">
+                            <label for="external-post-link">Link external (opsional)</label>
+                            <input id="external-post-link" type="url" maxlength="500" inputmode="url" placeholder="https://contoh.com">
+                        </div>
+                        <div class="field full">
+                            <button id="save-posting-settings" class="btn primary" type="submit">Simpan Caption &amp; Link</button>
+                            <p id="posting-settings-status" class="status" role="status" aria-live="polite"></p>
+                        </div>
+                    </form>
                 </div>
-                <form id="posting-settings-form" class="fields">
-                    <div class="field full">
-                        <label for="default-caption-template">Caption dasar tetap</label>
-                        <textarea id="default-caption-template" maxlength="1000" required>Seru-seruan hari ini ✨ #GENZAI</textarea>
-                        <span class="help">Hashtag selalu dipindahkan ke bagian akhir. Gunakan <code>{outfit}</code> untuk nama outfit acak, atau <code>{quote}</code>, <code>{theme}</code>, <code>{song}</code>, <code>{artist}</code> pada mode Kata-kata Mutiara + Lagu Facebook.</span>
-                    </div>
-                    <div class="field full">
-                        <label for="external-post-link">Link external (opsional)</label>
-                        <input id="external-post-link" type="url" maxlength="500" inputmode="url" placeholder="https://contoh.com">
-                    </div>
-                    <div class="field full">
-                        <button id="save-posting-settings" class="btn primary" type="submit">Simpan Caption & Link</button>
-                        <p id="posting-settings-status" class="status" role="status" aria-live="polite"></p>
-                    </div>
-                </form>
             </section>
 
-            <section class="card wide" aria-labelledby="manual-post-title">
-                <div class="card-head">
-                    <div>
-                        <h3 id="manual-post-title">Buat posting manual</h3>
-                        <p class="sub">Pilih mode <strong>Foto Karakter AI (Feed Page)</strong> atau <strong>Kata-kata Mutiara + Musik Auto-Play</strong> (Postingan Beranda Page permanen, Reels, atau Cerita). Tinjau hasil visual dan musiknya terlebih dahulu sebelum diterbitkan ke Facebook Page.</p>
+            <section id="manual-post-card" class="card studio-collapsible" aria-labelledby="manual-post-title">
+                <button id="manual-post-collapse-btn" class="studio-collapse-trigger" type="button" aria-expanded="false" aria-controls="manual-post-collapse-body">
+                    <div class="studio-collapse-lead">
+                        <div class="studio-collapse-icon accent-amber" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z"/></svg>
+                        </div>
+                        <div class="studio-collapse-copy">
+                            <div class="studio-collapse-eyebrow-row">
+                                <span class="studio-collapse-eyebrow">Instant Studio</span>
+                                <span id="manual-post-summary-meta" class="studio-collapse-meta">2 Mode Konten</span>
+                            </div>
+                            <h3 id="manual-post-title">Buat posting manual</h3>
+                            <p class="sub">Pilih mode <strong>Foto Karakter AI (Feed Page)</strong> atau <strong>Kata-kata Mutiara + Musik Auto-Play</strong> (Postingan Beranda Page permanen, Reels, atau Cerita). Tinjau hasil visual dan musiknya terlebih dahulu sebelum diterbitkan ke Facebook Page.</p>
+                        </div>
                     </div>
-                </div>
-                <form id="manual-post-form" class="fields">
-                    <div class="manual-post-layout field full">
-                        <div class="fields">
-                            <div class="field full">
-                                <label for="manual-post-mode">Mode konten posting</label>
-                                <div class="mode-tabs" role="tablist" aria-label="Pilih mode konten manual">
-                                    <button type="button" class="mode-tab is-active" data-manual-mode="character">Foto Karakter AI &amp; Outfit</button>
-                                    <button type="button" class="mode-tab" data-manual-mode="quote">✨ Kata-kata Mutiara + Musik Auto-Play</button>
-                                </div>
-                                <select id="manual-post-mode" hidden>
-                                    <option value="character" selected>character</option>
-                                    <option value="quote">quote</option>
-                                </select>
-                            </div>
-                            <div id="manual-character-fields" class="field full subgrid-fields">
-                                <div class="field full"><label for="manual-character">Foto karakter tersimpan</label><select id="manual-character" required><option value="">Pilih karakter…</option></select></div>
+                    <div class="studio-collapse-right">
+                        <span class="studio-collapse-chip"><span id="manual-post-collapse-chip-label" class="studio-collapse-chip-label">Buka</span><svg class="studio-collapse-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></span>
+                    </div>
+                </button>
+                <div id="manual-post-collapse-body" class="studio-collapse-body" hidden>
+                    <form id="manual-post-form" class="fields">
+                        <div class="manual-post-layout field full">
+                            <div class="fields">
                                 <div class="field full">
-                                    <label class="inline-check"><input id="manual-character-random-song" type="checkbox"><span>Sertakan info musik pilihan di caption foto karakter ini (opsional).</span></label>
-                                </div>
-                            </div>
-                            <div id="manual-quote-fields" class="field full subgrid-fields" hidden>
-                                <div class="field full">
-                                    <div class="quote-mode-note">Default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Facebook Page</strong> (atau pilih Reels / Cerita 24 Jam). Kartu memakai <strong>latar kosong hitam polos (#000000)</strong> agar <strong>0 kuota model gambar terpakai</strong>, kalimat kata-kata mutiara dirangkai oleh <strong>model LLM QwenCloud</strong> (dipilih di SET Studio Medsos) secara 100% tajam di tengah kartu + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, dan musik <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption tambahan, link, atau hashtag.</div>
-                                </div>
-                                <div class="field full">
-                                    <label for="manual-quote-target">Target publikasi di Facebook</label>
-                                    <select id="manual-quote-target">
-                                        <option value="feed" selected>Postingan Beranda Page (Permanen — Default)</option>
-                                        <option value="reels">Facebook Reels + Beranda Page</option>
-                                        <option value="story">Cerita / Story Page saja (24 Jam)</option>
-                                        <option value="feed_story">Postingan Beranda + Cerita sekaligus</option>
+                                    <label for="manual-post-mode">Mode konten posting</label>
+                                    <div class="mode-tabs" role="tablist" aria-label="Pilih mode konten manual">
+                                        <button type="button" class="mode-tab is-active" data-manual-mode="character">Foto Karakter AI &amp; Outfit</button>
+                                        <button type="button" class="mode-tab" data-manual-mode="quote">✨ Kata-kata Mutiara + Musik Auto-Play</button>
+                                    </div>
+                                    <select id="manual-post-mode" hidden>
+                                        <option value="character" selected>character</option>
+                                        <option value="quote">quote</option>
                                     </select>
                                 </div>
-                                <div class="field full"><label for="manual-quote-theme">Tema kata-kata mutiara</label><select id="manual-quote-theme"><option value="">Acak otomatis</option></select></div>
-                                <div class="field" hidden><label for="manual-quote-visual">Gaya latar estetik</label><select id="manual-quote-visual"><option value="">Hitam polos</option></select></div>
-                                <div class="field full">
-                                    <label for="manual-custom-quote">Teks kata-kata mutiara manual (opsional)</label>
-                                    <textarea id="manual-custom-quote" maxlength="220" placeholder="Kosongkan agar AI merangkai kata-kata mutiara/motivasi orisinal otomatis sesuai tema…"></textarea>
+                                <div id="manual-character-fields" class="field full subgrid-fields">
+                                    <div class="field full"><label for="manual-character">Foto karakter tersimpan</label><select id="manual-character" required><option value="">Pilih karakter…</option></select></div>
+                                    <div class="field full">
+                                        <label class="inline-check"><input id="manual-character-random-song" type="checkbox"><span>Sertakan info musik pilihan di caption foto karakter ini (opsional).</span></label>
+                                    </div>
                                 </div>
+                                <div id="manual-quote-fields" class="field full subgrid-fields" hidden>
+                                    <div class="field full">
+                                        <div class="quote-mode-note">Default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Facebook Page</strong> (atau pilih Reels / Cerita 24 Jam). Kartu memakai <strong>latar kosong hitam polos (#000000)</strong> agar <strong>0 kuota model gambar terpakai</strong>, kalimat kata-kata mutiara dirangkai oleh <strong>model LLM QwenCloud</strong> (dipilih di SET Studio Medsos) secara 100% tajam di tengah kartu + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, dan musik <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption tambahan, link, atau hashtag.</div>
+                                    </div>
+                                    <div class="field full">
+                                        <label for="manual-quote-target">Target publikasi di Facebook</label>
+                                        <select id="manual-quote-target">
+                                            <option value="feed" selected>Postingan Beranda Page (Permanen — Default)</option>
+                                            <option value="reels">Facebook Reels + Beranda Page</option>
+                                            <option value="story">Cerita / Story Page saja (24 Jam)</option>
+                                            <option value="feed_story">Postingan Beranda + Cerita sekaligus</option>
+                                        </select>
+                                    </div>
+                                    <div class="field full"><label for="manual-quote-theme">Tema kata-kata mutiara</label><select id="manual-quote-theme"><option value="">Acak otomatis</option></select></div>
+                                    <div class="field" hidden><label for="manual-quote-visual">Gaya latar estetik</label><select id="manual-quote-visual"><option value="">Hitam polos</option></select></div>
+                                    <div class="field full">
+                                        <label for="manual-custom-quote">Teks kata-kata mutiara manual (opsional)</label>
+                                        <textarea id="manual-custom-quote" maxlength="220" placeholder="Kosongkan agar AI merangkai kata-kata mutiara/motivasi orisinal otomatis sesuai tema…"></textarea>
+                                    </div>
+                                    <div class="field full">
+                                        <label class="inline-check"><input id="manual-quote-random-song" type="checkbox" checked><span><strong>Musik auto-play acak.</strong> Menggabungkan satu lagu aktif secara acak dari koleksi musik Anda (atau 8 musik instrumental bawaan) langsung ke dalam kartu video Kata-kata Mutiara.</span></label>
+                                    </div>
+                                </div>
+                                <div class="field"><label for="manual-page">Facebook Page tujuan</label><select id="manual-page" required><option value="">Pilih Page…</option></select></div>
+                                <div class="field" id="manual-aspect-wrap"><label for="manual-aspect-ratio">Rasio gambar</label><select id="manual-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
                                 <div class="field full">
-                                    <label class="inline-check"><input id="manual-quote-random-song" type="checkbox" checked><span><strong>Musik auto-play acak.</strong> Menggabungkan satu lagu aktif secara acak dari koleksi musik Anda (atau 8 musik instrumental bawaan) langsung ke dalam kartu video Kata-kata Mutiara.</span></label>
+                                    <button id="manual-post-button" class="btn primary" type="submit">Buat & bersihkan pratinjau</button>
+                                    <p id="manual-post-status" class="status" role="status" aria-live="polite"></p>
                                 </div>
                             </div>
-                            <div class="field"><label for="manual-page">Facebook Page tujuan</label><select id="manual-page" required><option value="">Pilih Page…</option></select></div>
-                            <div class="field" id="manual-aspect-wrap"><label for="manual-aspect-ratio">Rasio gambar</label><select id="manual-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
-                            <div class="field full">
-                                <button id="manual-post-button" class="btn primary" type="submit">Buat & bersihkan pratinjau</button>
-                                <p id="manual-post-status" class="status" role="status" aria-live="polite"></p>
+                            <div>
+                                <img id="manual-character-preview" class="manual-preview" alt="Pratinjau foto karakter yang dipilih" hidden>
+                                <div id="manual-character-placeholder" class="empty">Pilih karakter untuk melihat foto referensinya.</div>
+                                <div id="manual-generated-result" hidden>
+                                    <img id="manual-generated-preview" class="manual-preview" alt="Pratinjau gambar hasil generasi yang sudah dibersihkan">
+                                    <video id="manual-generated-video" class="manual-preview" controls playsinline loop hidden></video>
+                                    <audio id="manual-generated-audio" class="manual-preview-audio" controls preload="metadata" aria-label="Pratinjau musik untuk kartu kata mutiara" hidden></audio>
+                                    <p id="manual-generated-caption" class="manual-preview-caption"></p>
+                                    <p id="manual-outfit-line" class="manual-outfit-line" hidden></p>
+                                    <p id="manual-song-line" class="manual-song-line" hidden></p>
+                                    <div class="actions">
+                                        <button id="manual-publish-button" class="btn green" type="button">Terbitkan ke Facebook Page</button>
+                                        <button id="manual-discard-button" class="btn" type="button">Buang pratinjau</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <img id="manual-character-preview" class="manual-preview" alt="Pratinjau foto karakter yang dipilih" hidden>
-                            <div id="manual-character-placeholder" class="empty">Pilih karakter untuk melihat foto referensinya.</div>
-                            <div id="manual-generated-result" hidden>
-                                <img id="manual-generated-preview" class="manual-preview" alt="Pratinjau gambar hasil generasi yang sudah dibersihkan">
-                                <video id="manual-generated-video" class="manual-preview" controls playsinline loop hidden></video>
-                                <audio id="manual-generated-audio" class="manual-preview-audio" controls preload="metadata" aria-label="Pratinjau musik untuk kartu kata mutiara" hidden></audio>
-                                <p id="manual-generated-caption" class="manual-preview-caption"></p>
-                                <p id="manual-outfit-line" class="manual-outfit-line" hidden></p>
-                                <p id="manual-song-line" class="manual-song-line" hidden></p>
-                                <div class="actions">
-                                    <button id="manual-publish-button" class="btn green" type="button">Terbitkan ke Facebook Page</button>
-                                    <button id="manual-discard-button" class="btn" type="button">Buang pratinjau</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </section>
 
-            <section class="card wide" aria-labelledby="schedule-title">
-                <div class="card-head"><div><h3 id="schedule-title">4. Buat jadwal autopost</h3><p class="sub">Atur waktu mulai dan interval untuk <strong>Foto Karakter AI (Feed)</strong> maupun <strong>Kata-kata Mutiara + Musik Auto-Play</strong> (Postingan Beranda Page permanen, Reels, atau Cerita). Anda dapat menjalankan jadwal karakter dan jadwal kata-kata mutiara secara bersamaan.</p></div><span id="schedule-quota" class="badge">0 jadwal</span></div>
-                <form id="schedule-form" class="fields">
-                    <input type="hidden" id="schedule-id">
-                    <div class="field full">
-                        <label for="schedule-post-mode">Mode konten jadwal autopost</label>
-                        <div class="mode-tabs" role="tablist" aria-label="Pilih mode jadwal autopost">
-                            <button type="button" class="mode-tab is-active" data-schedule-mode="character">Foto Karakter AI &amp; Outfit</button>
-                            <button type="button" class="mode-tab" data-schedule-mode="quote">✨ Kata-kata Mutiara + Musik Auto-Play</button>
+            <section id="schedule-card" class="card studio-collapsible" aria-labelledby="schedule-title">
+                <button id="schedule-collapse-btn" class="studio-collapse-trigger" type="button" aria-expanded="false" aria-controls="schedule-collapse-body">
+                    <div class="studio-collapse-lead">
+                        <div class="studio-collapse-icon accent-indigo" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         </div>
-                        <select id="schedule-post-mode" hidden>
-                            <option value="character" selected>character</option>
-                            <option value="quote">quote</option>
-                        </select>
+                        <div class="studio-collapse-copy">
+                            <div class="studio-collapse-eyebrow-row">
+                                <span class="studio-collapse-eyebrow">04 · Autopost Engine</span>
+                                <span id="schedule-quota" class="badge">0 jadwal</span>
+                            </div>
+                            <h3 id="schedule-title">Buat jadwal autopost</h3>
+                            <p class="sub">Atur waktu mulai dan interval untuk <strong>Foto Karakter AI (Feed)</strong> maupun <strong>Kata-kata Mutiara + Musik Auto-Play</strong> (Postingan Beranda Page permanen, Reels, atau Cerita). Anda dapat menjalankan jadwal karakter dan jadwal kata-kata mutiara secara bersamaan.</p>
+                        </div>
                     </div>
-                    <div class="field" id="schedule-character-wrap"><label for="schedule-character">Karakter</label><select id="schedule-character" required><option value="">Pilih karakter…</option></select></div>
-                    <div class="field"><label for="schedule-page">Facebook Page</label><select id="schedule-page" required><option value="">Pilih Page…</option></select></div>
-                    <div class="field"><label for="interval-minutes">Posting setiap</label><div style="display:flex;gap:8px;align-items:center"><input id="interval-minutes" type="number" min="5" max="10080" step="1" value="1440" required><span style="font-size:12px;color:var(--muted);white-space:nowrap">menit</span></div><span class="help" id="interval-help">Minimal 5 menit untuk role ADMIN/OWNER dan 60 menit (1 jam) untuk USER; maksimal 10080 menit (7 hari). 1440 menit = satu post per hari.</span></div>
-                    <div class="field"><label for="first-run">Waktu post pertama (WIB)</label><input id="first-run" type="datetime-local" required><span class="help">Berikutnya berulang sesuai interval.</span></div>
-                    <div class="field" id="schedule-aspect-wrap"><label for="schedule-aspect-ratio">Rasio gambar</label><select id="schedule-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
-                    <div id="schedule-quote-fields" class="field full subgrid-fields" hidden>
+                    <div class="studio-collapse-right">
+                        <span class="studio-collapse-chip"><span id="schedule-collapse-chip-label" class="studio-collapse-chip-label">Buka</span><svg class="studio-collapse-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></span>
+                    </div>
+                </button>
+                <div id="schedule-collapse-body" class="studio-collapse-body" hidden>
+                    <form id="schedule-form" class="fields">
+                        <input type="hidden" id="schedule-id">
                         <div class="field full">
-                            <div class="quote-mode-note">Setiap jadwal eksekusi otomatis menerbitkan kartu <strong>Kata-kata Mutiara + Musik Auto-Play 9:16</strong> sesuai target pilihan (default <strong>Postingan Beranda Page permanen</strong>): memakai <strong>latar hitam polos (#000000)</strong> tanpa menghabiskan kuota gambar AI sama sekali, merangkai kalimat mutiara lewat <strong>LLM QwenCloud</strong> di tengah layar + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, lalu menggabungkan lagu acak agar <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption/link/hashtag tambahan.</div>
-                        </div>
-                        <div class="field full">
-                            <label for="schedule-quote-target">Target publikasi di Facebook</label>
-                            <select id="schedule-quote-target">
-                                <option value="feed" selected>Postingan Beranda Page (Permanen — Default)</option>
-                                <option value="reels">Facebook Reels + Beranda Page</option>
-                                <option value="story">Cerita / Story Page saja (24 Jam)</option>
-                                <option value="feed_story">Postingan Beranda + Cerita sekaligus</option>
+                            <label for="schedule-post-mode">Mode konten jadwal autopost</label>
+                            <div class="mode-tabs" role="tablist" aria-label="Pilih mode jadwal autopost">
+                                <button type="button" class="mode-tab is-active" data-schedule-mode="character">Foto Karakter AI &amp; Outfit</button>
+                                <button type="button" class="mode-tab" data-schedule-mode="quote">✨ Kata-kata Mutiara + Musik Auto-Play</button>
+                            </div>
+                            <select id="schedule-post-mode" hidden>
+                                <option value="character" selected>character</option>
+                                <option value="quote">quote</option>
                             </select>
                         </div>
-                        <div class="field full"><label for="schedule-quote-theme">Tema kata-kata mutiara</label><select id="schedule-quote-theme"><option value="">Acak otomatis setiap posting</option></select></div>
-                        <div class="field" hidden><label for="schedule-quote-visual">Gaya latar estetik</label><select id="schedule-quote-visual"><option value="">Hitam polos</option></select></div>
-                    </div>
-                    <div id="schedule-scene-fields-wrap" class="field full subgrid-fields">
-                        <div class="field full">
-                            <div>
-                                <strong style="font-size:12.5px;color:var(--text)">Parameter detail generate gambar</strong>
-                                <span class="help" style="display:block;margin-top:4px">Kosongkan pilihan untuk otomatis. Angle kamera otomatis memakai <strong>medium shot</strong>; lokasi, aktivitas, suasana, kondisi, dan pencahayaan dipilih acak. Negative prompt otomatis selalu dikirim ke model gambar.</span>
+                        <div class="field" id="schedule-character-wrap"><label for="schedule-character">Karakter</label><select id="schedule-character" required><option value="">Pilih karakter…</option></select></div>
+                        <div class="field"><label for="schedule-page">Facebook Page</label><select id="schedule-page" required><option value="">Pilih Page…</option></select></div>
+                        <div class="field"><label for="interval-minutes">Posting setiap</label><div style="display:flex;gap:8px;align-items:center"><input id="interval-minutes" type="number" min="5" max="10080" step="1" value="1440" required><span style="font-size:12px;color:var(--muted);white-space:nowrap">menit</span></div><span class="help" id="interval-help">Minimal 5 menit untuk role ADMIN/OWNER dan 60 menit (1 jam) untuk USER; maksimal 10080 menit (7 hari). 1440 menit = satu post per hari.</span></div>
+                        <div class="field"><label for="first-run">Waktu post pertama (WIB)</label><input id="first-run" type="datetime-local" required><span class="help">Berikutnya berulang sesuai interval.</span></div>
+                        <div class="field" id="schedule-aspect-wrap"><label for="schedule-aspect-ratio">Rasio gambar</label><select id="schedule-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
+                        <div id="schedule-quote-fields" class="field full subgrid-fields" hidden>
+                            <div class="field full">
+                                <div class="quote-mode-note">Setiap jadwal eksekusi otomatis menerbitkan kartu <strong>Kata-kata Mutiara + Musik Auto-Play 9:16</strong> sesuai target pilihan (default <strong>Postingan Beranda Page permanen</strong>): memakai <strong>latar hitam polos (#000000)</strong> tanpa menghabiskan kuota gambar AI sama sekali, merangkai kalimat mutiara lewat <strong>LLM QwenCloud</strong> di tengah layar + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, lalu menggabungkan lagu acak agar <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption/link/hashtag tambahan.</div>
                             </div>
+                            <div class="field full">
+                                <label for="schedule-quote-target">Target publikasi di Facebook</label>
+                                <select id="schedule-quote-target">
+                                    <option value="feed" selected>Postingan Beranda Page (Permanen — Default)</option>
+                                    <option value="reels">Facebook Reels + Beranda Page</option>
+                                    <option value="story">Cerita / Story Page saja (24 Jam)</option>
+                                    <option value="feed_story">Postingan Beranda + Cerita sekaligus</option>
+                                </select>
+                            </div>
+                            <div class="field full"><label for="schedule-quote-theme">Tema kata-kata mutiara</label><select id="schedule-quote-theme"><option value="">Acak otomatis setiap posting</option></select></div>
+                            <div class="field" hidden><label for="schedule-quote-visual">Gaya latar estetik</label><select id="schedule-quote-visual"><option value="">Hitam polos</option></select></div>
                         </div>
-                        <div class="field"><label for="schedule-location">Lokasi</label><select id="schedule-location"><option value="">Acak otomatis</option></select></div>
-                        <div class="field"><label for="schedule-angle">Angle kamera</label><select id="schedule-angle"><option value="">Otomatis — medium shot</option></select></div>
-                        <div class="field"><label for="schedule-situation">Aktivitas</label><select id="schedule-situation"><option value="">Acak otomatis</option></select></div>
-                        <div class="field"><label for="schedule-atmosphere">Suasana</label><select id="schedule-atmosphere"><option value="">Acak otomatis</option></select></div>
-                        <div class="field"><label for="schedule-condition">Kondisi / cuaca</label><select id="schedule-condition"><option value="">Acak otomatis</option></select></div>
-                        <div class="field"><label for="schedule-lighting">Pencahayaan</label><select id="schedule-lighting"><option value="">Acak otomatis</option></select></div>
-                    </div>
-                    <div class="field full"><label for="schedule-details">Detail tambahan (opsional)</label><input id="schedule-details" maxlength="400" placeholder="Contoh: memegang skateboard, memakai topi, atau nuansa kabut pagi"><span class="help">Ditempelkan ke prompt gambar sebagai arahan tambahan untuk jadwal ini.</span></div>
-                    <div class="field full"><label for="schedule-negative">Negative prompt tambahan (opsional)</label><input id="schedule-negative" maxlength="400" placeholder="Contoh: balon udara, keramaian ekstrem"><span class="help">Negative prompt otomatis (blur, watermark, teks rusak, anatomi rusak, wajah plastik) selalu aktif. Isi ini hanya untuk larangan khusus jadwal ini.</span></div>
-                    <div class="field full"><label class="inline-check"><input id="schedule-random-song" type="checkbox"><span><strong>Gunakan lagu random Facebook di setiap post jadwal ini.</strong> Otomatis memilih satu lagu aktif secara acak dari koleksi lagu Facebook (tanpa mengulang lagu terakhir) untuk disertakan di caption.</span></label></div>
-                    <div class="field full"><div id="cost-estimate" class="note-cost">Estimasi biaya gambar dihitung setelah interval dipilih.</div></div>
-                    <div class="field full"><label class="inline-check"><input id="schedule-autopublish" type="checkbox" checked><span><strong>Autopost untuk jadwal ini.</strong> Saat aktif, jadwal ini ikut diposting otomatis. Mematikan switch ini hanya menghentikan jadwal ini; jadwal lain dan akun lain tidak terpengaruh.</span></label></div>
-                    <div class="field full"><label class="inline-check"><input id="schedule-enabled" type="checkbox"><span>Jadwal ini aktif. Autopost hanya berjalan bila switch autopublish akun dan switch autopublish jadwal ini sama-sama aktif.</span></label></div>
-                    <div class="field full"><div class="actions"><button id="save-schedule" class="btn primary" type="submit">Simpan jadwal</button><button id="cancel-edit" class="btn" type="button" hidden>Batal edit</button></div><p id="schedule-limit-notice" class="status error" hidden></p><p id="schedule-status" class="status"></p></div>
-                </form>
-                <div style="height:1px;background:var(--border);margin:22px 0"></div>
-                <div id="schedules-list" class="schedule-grid"><div class="empty">Belum ada jadwal.</div></div>
+                        <div id="schedule-scene-fields-wrap" class="field full subgrid-fields">
+                            <div class="field full">
+                                <div>
+                                    <strong style="font-size:12.5px;color:var(--text)">Parameter detail generate gambar</strong>
+                                    <span class="help" style="display:block;margin-top:4px">Kosongkan pilihan untuk otomatis. Angle kamera otomatis memakai <strong>medium shot</strong>; lokasi, aktivitas, suasana, kondisi, dan pencahayaan dipilih acak. Negative prompt otomatis selalu dikirim ke model gambar.</span>
+                                </div>
+                            </div>
+                            <div class="field"><label for="schedule-location">Lokasi</label><select id="schedule-location"><option value="">Acak otomatis</option></select></div>
+                            <div class="field"><label for="schedule-angle">Angle kamera</label><select id="schedule-angle"><option value="">Otomatis — medium shot</option></select></div>
+                            <div class="field"><label for="schedule-situation">Aktivitas</label><select id="schedule-situation"><option value="">Acak otomatis</option></select></div>
+                            <div class="field"><label for="schedule-atmosphere">Suasana</label><select id="schedule-atmosphere"><option value="">Acak otomatis</option></select></div>
+                            <div class="field"><label for="schedule-condition">Kondisi / cuaca</label><select id="schedule-condition"><option value="">Acak otomatis</option></select></div>
+                            <div class="field"><label for="schedule-lighting">Pencahayaan</label><select id="schedule-lighting"><option value="">Acak otomatis</option></select></div>
+                        </div>
+                        <div class="field full"><label for="schedule-details">Detail tambahan (opsional)</label><input id="schedule-details" maxlength="400" placeholder="Contoh: memegang skateboard, memakai topi, atau nuansa kabut pagi"><span class="help">Ditempelkan ke prompt gambar sebagai arahan tambahan untuk jadwal ini.</span></div>
+                        <div class="field full"><label for="schedule-negative">Negative prompt tambahan (opsional)</label><input id="schedule-negative" maxlength="400" placeholder="Contoh: balon udara, keramaian ekstrem"><span class="help">Negative prompt otomatis (blur, watermark, teks rusak, anatomi rusak, wajah plastik) selalu aktif. Isi ini hanya untuk larangan khusus jadwal ini.</span></div>
+                        <div class="field full"><label class="inline-check"><input id="schedule-random-song" type="checkbox"><span><strong>Gunakan lagu random Facebook di setiap post jadwal ini.</strong> Otomatis memilih satu lagu aktif secara acak dari koleksi lagu Facebook (tanpa mengulang lagu terakhir) untuk disertakan di caption.</span></label></div>
+                        <div class="field full"><div id="cost-estimate" class="note-cost">Estimasi biaya gambar dihitung setelah interval dipilih.</div></div>
+                        <div class="field full"><label class="inline-check"><input id="schedule-autopublish" type="checkbox" checked><span><strong>Autopost untuk jadwal ini.</strong> Saat aktif, jadwal ini ikut diposting otomatis. Mematikan switch ini hanya menghentikan jadwal ini; jadwal lain dan akun lain tidak terpengaruh.</span></label></div>
+                        <div class="field full"><label class="inline-check"><input id="schedule-enabled" type="checkbox"><span>Jadwal ini aktif. Autopost hanya berjalan bila switch autopublish akun dan switch autopublish jadwal ini sama-sama aktif.</span></label></div>
+                        <div class="field full"><div class="actions"><button id="save-schedule" class="btn primary" type="submit">Simpan jadwal</button><button id="cancel-edit" class="btn" type="button" hidden>Batal edit</button></div><p id="schedule-limit-notice" class="status error" hidden></p><p id="schedule-status" class="status"></p></div>
+                    </form>
+                    <div style="height:1px;background:var(--border);margin:22px 0"></div>
+                    <div id="schedules-list" class="schedule-grid"><div class="empty">Belum ada jadwal.</div></div>
+                </div>
             </section>
 
             <section class="card wide" id="runs-section" aria-labelledby="runs-title">
@@ -602,6 +778,6 @@
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=deep-black-bg-20261027"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script type="module" src="./social-publisher.js?v=publish-confirm-inline-opus-policy-regen-20261028"></script>
+    <script type="module" src="./social-publisher.js?v=publish-confirm-inline-premium-20261028"></script>
 </body>
 </html>

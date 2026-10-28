@@ -989,10 +989,73 @@
         }
     }
 
+    let currentMasterStatus = "off";
+
+    function renderSetMasterSwitch(rawStatus) {
+        const safe = ["active", "off", "maintenance"].includes(String(rawStatus || "").toLowerCase())
+            ? String(rawStatus).toLowerCase()
+            : "off";
+        currentMasterStatus = safe;
+        const card = document.getElementById("set-master-card");
+        const pill = document.getElementById("set-master-pill");
+        const desc = document.getElementById("set-master-desc");
+        const label = safe === "active" ? "ACTIVE" : safe === "maintenance" ? "MAINTENANCE" : "OFF";
+        if (card) card.setAttribute("data-status", safe);
+        if (pill) {
+            pill.textContent = label;
+            pill.className = `set-master-pill is-${safe}`;
+        }
+        if (desc) {
+            desc.textContent = safe === "active"
+                ? "Status global ACTIVE (hijau): seluruh user melihat tanda ACTIVE dan autopost berjalan normal."
+                : safe === "maintenance"
+                    ? "Status global MAINTENANCE (kuning): seluruh user melihat tanda MAINTENANCE dan autopost dijeda."
+                    : "Status global OFF (merah): seluruh user melihat tanda OFF dan seluruh autopost berhenti.";
+        }
+        for (const [id, key] of [
+            ["set-master-active", "active"],
+            ["set-master-maintenance", "maintenance"],
+            ["set-master-off", "off"]
+        ]) {
+            const btn = document.getElementById(id);
+            if (!btn) continue;
+            btn.classList.toggle("is-current", key === safe);
+            btn.setAttribute("aria-pressed", String(key === safe));
+        }
+    }
+
+    async function saveSetMasterSwitch(targetStatus, button) {
+        if (!["active", "off", "maintenance"].includes(targetStatus)) return;
+        if (targetStatus === currentMasterStatus) return;
+        const labelMap = {
+            active: "Konfirmasi aktifkan",
+            maintenance: "Konfirmasi maintenance",
+            off: "Konfirmasi matikan"
+        };
+        if (!confirmInlineAction(button, {
+            label: labelMap[targetStatus],
+            ariaLabel: `${labelMap[targetStatus]} master switch`,
+            title: `Ubah status Master Switch menjadi ${targetStatus.toUpperCase()}?`
+        })) return;
+        if (button) button.disabled = true;
+        try {
+            const result = await api("set-global-enabled", {
+                method: "POST",
+                body: { status: targetStatus, enabled: targetStatus === "active" }
+            });
+            renderSetMasterSwitch(result.globalStatus || targetStatus);
+        } catch (error) {
+            setStatusMessage(error.message || "Gagal memperbarui Master Switch.", "error");
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
     async function loadImageProvider() {
         const result = await api("studio-admin-image-provider");
         const settings = result.settings || {};
         providerSettings = settings;
+        renderSetMasterSwitch(settings.global_status || (settings.global_enabled ? "active" : "off"));
         const selected = ["cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(settings.image_provider) ? settings.image_provider : "gemini";
         document.querySelector(`input[name="image-provider"][value="${selected}"]`).checked = true;
         const textSelected = ["auto", "tencent", "cloudflare", "gemini", "qwencloud"].includes(settings.text_provider)
@@ -1301,6 +1364,9 @@
         });
         savePriceButton.addEventListener("click", savePricing);
         saveImageProviderButton.addEventListener("click", saveImageProvider);
+        document.getElementById("set-master-active")?.addEventListener("click", event => saveSetMasterSwitch("active", event.currentTarget));
+        document.getElementById("set-master-maintenance")?.addEventListener("click", event => saveSetMasterSwitch("maintenance", event.currentTarget));
+        document.getElementById("set-master-off")?.addEventListener("click", event => saveSetMasterSwitch("off", event.currentTarget));
         document.getElementById("test-image-provider")?.addEventListener("click", testImageProvider);
         document.getElementById("test-tencent-provider")?.addEventListener("click", testTencentProvider);
         document.getElementById("test-puter-provider")?.addEventListener("click", testPuterProvider);

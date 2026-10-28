@@ -914,3 +914,395 @@ test("tombol Hubungkan Facebook punya jalur manual untuk browser HP", () => {
     assert.match(source, /copyCurrentPageLink/);
     assert.match(htmlSource, /social-publisher\.js\?v=/);
 });
+
+test("Master Switch mendukung 3 status (ACTIVE hijau, OFF merah, MAINTENANCE kuning) dan menjadi tanda indikator non-klik pada role USER", async () => {
+    const lightCss = readFileSync(
+        fileURLToPath(new URL("../admin-control/assets/css/social-publisher-light.css", import.meta.url)),
+        "utf8"
+    );
+
+    // Struktur indikator Master Switch dan CSS warna hijau / merah / kuning di dark & light mode
+    assert.match(htmlSource, /id="master-switch-block"/);
+    assert.match(htmlSource, /id="master-status-badge"/);
+    assert.match(htmlSource, /id="master-status-text"/);
+    assert.match(htmlSource, /\.master-status-pill\{[^}]*pointer-events:none/);
+    assert.match(htmlSource, /\.master-status-pill\.is-active\{[^}]*color:#5ef5b8/);
+    assert.match(htmlSource, /\.master-status-pill\.is-off\{[^}]*color:#ff7a8d/);
+    assert.match(htmlSource, /\.master-status-pill\.is-maintenance\{[^}]*color:#ffe066/);
+    assert.match(lightCss, /\.master-status-pill\.is-active/);
+    assert.match(lightCss, /\.master-status-pill\.is-off/);
+    assert.match(lightCss, /\.master-status-pill\.is-maintenance/);
+
+    // Verifikasi backend set-global-enabled & dashboard untuk 3 status (ACTIVE / MAINTENANCE / OFF)
+    let persistedConfig = {
+        id: true,
+        global_enabled: true,
+        global_status: "active",
+        image_provider: "opus",
+        image_model: "gpt-image-2.5-flare",
+        updated_at: new Date().toISOString()
+    };
+    let currentCaller = { id: "admin-1", role: "ADMIN", status: "active" };
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        if (url.endsWith("/auth/v1/user")) {
+            return Response.json({ id: currentCaller.id, email: `${currentCaller.id}@example.com` });
+        }
+        if (url.includes("/rest/v1/profiles?")) {
+            return Response.json([currentCaller]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access?")) {
+            return Response.json([{
+                user_id: currentCaller.id,
+                is_active: true,
+                duration_days: 30,
+                started_at: new Date(Date.now() - 86400000).toISOString(),
+                expires_at: new Date(Date.now() + 29 * 86400000).toISOString()
+            }]);
+        }
+        if (url.includes("/rest/v1/social_publisher_config?on_conflict=id")) {
+            const payload = JSON.parse(options.body);
+            persistedConfig = { ...persistedConfig, ...payload };
+            return Response.json([persistedConfig], { status: 201 });
+        }
+        if (url.includes("/rest/v1/social_publisher_config?")) {
+            return Response.json([persistedConfig]);
+        }
+        if (url.includes("/storage/v1/bucket/")) {
+            return Response.json({ id: "social-character-references", public: false });
+        }
+        return Response.json([]);
+    };
+
+    const env = {
+        SUPABASE_URL: "https://supabase.example.co",
+        SUPABASE_ANON_KEY: "anon-key",
+        SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+        META_APP_ID: "app-id",
+        META_APP_SECRET: "app-secret",
+        META_REDIRECT_URI: "https://example.com/callback",
+        META_LOGIN_CONFIG_ID: "cfg-id",
+        OPUS_AUTH_TOKEN: "test-opus",
+        SOCIAL_TOKEN_ENCRYPTION_KEY: btoa("x".repeat(32))
+    };
+
+    async function callApi(method, url, body = undefined) {
+        const res = {
+            statusCode: 200,
+            headers: {},
+            body: null,
+            setHeader(k, v) { this.headers[k] = v; },
+            status(code) { this.statusCode = code; return this; },
+            json(payload) { this.body = payload; return this; }
+        };
+        await socialPublisherHandler({
+            method,
+            url,
+            headers: { authorization: "Bearer valid-token" },
+            body,
+            env
+        }, res);
+        return res;
+    }
+
+    try {
+        // 1. Admin set MAINTENANCE -> globalEnabled false, globalStatus 'maintenance'
+        const setMaint = await callApi("POST", "/api/social-publisher?action=set-global-enabled", { status: "maintenance" });
+        assert.equal(setMaint.statusCode, 200);
+        assert.equal(setMaint.body.globalEnabled, false);
+        assert.equal(setMaint.body.globalStatus, "maintenance");
+
+        // Role USER membaca dashboard -> melihat globalStatus 'maintenance' & canManageGlobalAutopublish false
+        currentCaller = { id: "user-1", role: "USER", status: "active" };
+        const userDashMaint = await callApi("GET", "/api/social-publisher?action=dashboard");
+        assert.equal(userDashMaint.statusCode, 200);
+        assert.equal(userDashMaint.body.globalStatus, "maintenance");
+        assert.equal(userDashMaint.body.globalEnabled, false);
+        assert.equal(userDashMaint.body.canManageGlobalAutopublish, false);
+
+        // Role USER dilarang mengubah Master Switch
+        const userAttempt = await callApi("POST", "/api/social-publisher?action=set-global-enabled", { status: "active" });
+        assert.equal(userAttempt.statusCode, 403);
+
+        // 2. Owner set OFF -> globalEnabled false, globalStatus 'off'
+        currentCaller = { id: "owner-1", role: "OWNER", status: "active" };
+        const setOff = await callApi("POST", "/api/social-publisher?action=set-global-enabled", { status: "off" });
+        assert.equal(setOff.statusCode, 200);
+        assert.equal(setOff.body.globalEnabled, false);
+        assert.equal(setOff.body.globalStatus, "off");
+
+        currentCaller = { id: "user-1", role: "USER", status: "active" };
+        const userDashOff = await callApi("GET", "/api/social-publisher?action=dashboard");
+        assert.equal(userDashOff.body.globalStatus, "off");
+        assert.equal(userDashOff.body.globalEnabled, false);
+
+        // 3. Admin set ACTIVE -> globalEnabled true, globalStatus 'active'
+        currentCaller = { id: "admin-1", role: "ADMIN", status: "active" };
+        const setActive = await callApi("POST", "/api/social-publisher?action=set-global-enabled", { status: "active" });
+        assert.equal(setActive.statusCode, 200);
+        assert.equal(setActive.body.globalEnabled, true);
+        assert.equal(setActive.body.globalStatus, "active");
+
+        currentCaller = { id: "user-1", role: "USER", status: "active" };
+        const userDashActive = await callApi("GET", "/api/social-publisher?action=dashboard");
+        assert.equal(userDashActive.body.globalStatus, "active");
+        assert.equal(userDashActive.body.globalEnabled, true);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("5 blok fitur Studio Medsos tampil sebagai blok kecil kompak (termasuk KOLEKSI MUSIK) dan tampil blok penuh saat diklik, serta indikator Master Switch USER sesuai warna", async () => {
+    // Pastikan judul berubah menjadi KOLEKSI MUSIK
+    assert.match(htmlSource, /<h3 id="songs-title">KOLEKSI MUSIK<\/h3>/);
+    assert.doesNotMatch(htmlSource, /Koleksi musik auto-play Kata-kata Mutiara/);
+
+    const expectedCollapsibleSections = [
+        ["outfit-card", "outfit-collapse-btn", "outfit-collapse-body", "outfit-collapse-chip-label"],
+        ["songs-card", "songs-collapse-btn", "songs-collapse-body", "songs-collapse-chip-label"],
+        ["posting-settings-card", "posting-settings-collapse-btn", "posting-settings-collapse-body", "posting-settings-collapse-chip-label"],
+        ["manual-post-card", "manual-post-collapse-btn", "manual-post-collapse-body", "manual-post-collapse-chip-label"],
+        ["schedule-card", "schedule-collapse-btn", "schedule-collapse-body", "schedule-collapse-chip-label"]
+    ];
+
+    for (const [cardId, btnId, bodyId] of expectedCollapsibleSections) {
+        assert.match(htmlSource, new RegExp(`id="${cardId}"[^>]*class="card studio-collapsible"`));
+        assert.match(htmlSource, new RegExp(`id="${btnId}"[^>]*aria-expanded="false"`));
+        assert.match(htmlSource, new RegExp(`id="${bodyId}"[^>]*class="studio-collapse-body"[^>]*hidden`));
+    }
+
+    class MockElement {
+        constructor(tagName = "div", id = "") {
+            this.tagName = String(tagName).toUpperCase();
+            this.id = id;
+            this.className = "";
+            this.textContent = "";
+            this.value = "";
+            this.type = "";
+            this.hidden = false;
+            this.disabled = false;
+            this.checked = false;
+            this.style = {};
+            this.dataset = {};
+            this.attributes = new Map();
+            this.children = [];
+            this.parentElement = null;
+            this.listeners = new Map();
+            this._innerHTML = "";
+            this.classList = {
+                add: (...names) => {
+                    const set = new Set(this.className.split(/\s+/).filter(Boolean));
+                    for (const n of names) set.add(n);
+                    this.className = [...set].join(" ");
+                },
+                remove: (...names) => {
+                    const set = new Set(this.className.split(/\s+/).filter(Boolean));
+                    for (const n of names) set.delete(n);
+                    this.className = [...set].join(" ");
+                },
+                toggle: (name, force) => {
+                    const set = new Set(this.className.split(/\s+/).filter(Boolean));
+                    const next = force === undefined ? !set.has(name) : Boolean(force);
+                    if (next) set.add(name); else set.delete(name);
+                    this.className = [...set].join(" ");
+                },
+                contains: (name) => this.className.split(/\s+/).includes(name)
+            };
+        }
+        get innerHTML() { return this._innerHTML; }
+        set innerHTML(html) { this._innerHTML = String(html); this.children = []; }
+        append(...nodes) {
+            for (const node of nodes) {
+                const el = typeof node === "string" ? Object.assign(new MockElement("#text"), { textContent: node }) : node;
+                el.parentElement = this;
+                this.children.push(el);
+            }
+        }
+        add(option) { this.append(option); }
+        replaceChildren(...nodes) { this.children = []; this._innerHTML = ""; this.append(...nodes); }
+        setAttribute(k, v) { this.attributes.set(k, String(v)); }
+        getAttribute(k) { return this.attributes.get(k) ?? null; }
+        removeAttribute(k) { this.attributes.delete(k); }
+        addEventListener(type, fn) {
+            if (!this.listeners.has(type)) this.listeners.set(type, []);
+            this.listeners.get(type).push(fn);
+        }
+        dispatchEvent(event) {
+            const evt = { target: event.target || this, currentTarget: this, preventDefault() {}, ...event };
+            for (const fn of this.listeners.get(evt.type) || []) fn(evt);
+        }
+        closest() { return null; }
+        scrollIntoView() {}
+        focus() {}
+    }
+
+    const elementsById = new Map();
+    for (const [, id] of htmlSource.matchAll(/\bid="([^"]+)"/g)) {
+        if (!elementsById.has(id)) elementsById.set(id, new MockElement("div", id));
+    }
+    elementsById.get("runs-per-page").value = "10";
+    elementsById.get("interval-minutes").value = "1440";
+    elementsById.get("usage-tutorial").hidden = true;
+    for (const [, btnId, bodyId, chipId] of expectedCollapsibleSections) {
+        elementsById.get(btnId).setAttribute("aria-expanded", "false");
+        elementsById.get(bodyId).hidden = true;
+        elementsById.get(chipId).textContent = "Buka";
+    }
+
+    let simulatedMasterStatus = "maintenance";
+    const intervalIds = [];
+    const prevGlobals = {
+        window: globalThis.window,
+        document: globalThis.document,
+        location: globalThis.location,
+        history: globalThis.history,
+        Option: globalThis.Option,
+        Image: globalThis.Image,
+        fetch: globalThis.fetch
+    };
+
+    globalThis.window = {
+        GENZ_SUPABASE: {
+            auth: {
+                async getSession() {
+                    return { data: { session: { access_token: "valid-token" } }, error: null };
+                }
+            }
+        },
+        localStorage: { getItem: () => null, setItem() {} },
+        innerHeight: 800,
+        scrollY: 0,
+        scrollTo() {},
+        addEventListener() {},
+        setInterval(fn, ms) {
+            const id = setInterval(fn, ms);
+            intervalIds.push(id);
+            return id;
+        }
+    };
+    globalThis.document = {
+        addEventListener() {},
+        getElementById: id => elementsById.get(id) || null,
+        createElement: tag => new MockElement(tag),
+        createTextNode: text => Object.assign(new MockElement("#text"), { textContent: String(text) }),
+        querySelector: () => new MockElement("main")
+    };
+    globalThis.location = { search: "", pathname: "/admin-control/social-publisher.html" };
+    globalThis.history = { replaceState() {} };
+    globalThis.Option = class Option extends MockElement {
+        constructor(label = "", val = "") {
+            super("option");
+            this.textContent = label;
+            this.value = val;
+        }
+    };
+    globalThis.Image = class Image extends MockElement {
+        constructor() { super("img"); }
+    };
+
+    globalThis.fetch = async (input) => {
+        const urlStr = String(input);
+        if (urlStr.includes("action=studio-access-status")) {
+            return Response.json({
+                success: true,
+                access: {
+                    user_id: "user-1",
+                    is_active: true,
+                    duration_days: 30,
+                    started_at: new Date(Date.now() - 86400000).toISOString(),
+                    expires_at: new Date(Date.now() + 29 * 86400000).toISOString()
+                }
+            });
+        }
+        if (urlStr.includes("action=dashboard")) {
+            return Response.json({
+                success: true,
+                characters: [],
+                pages: [],
+                schedules: [],
+                runs: [],
+                runsPagination: { page: 1, perPage: 10, total: 0, totalPages: 1 },
+                outfits: [],
+                autopublishEnabled: true,
+                globalEnabled: simulatedMasterStatus === "active",
+                globalStatus: simulatedMasterStatus,
+                canManageGlobalAutopublish: false,
+                postingSettings: { caption_template: "Halo", external_link: "" },
+                config: {
+                    metaOAuthConfigured: true,
+                    imageProvider: "opus",
+                    imageApiConfigured: true,
+                    captionApiConfigured: true,
+                    tokenEncryptionConfigured: true,
+                    referenceStorageConfigured: true,
+                    outfitLibraryReady: true
+                }
+            });
+        }
+        return Response.json({ success: true, songs: [], pricing: {} });
+    };
+
+    try {
+        await import(`../admin-control/social-publisher.js?collapsible-test=${Date.now()}`);
+        await new Promise(resolve => setTimeout(resolve, 40));
+
+        const masterBlock = elementsById.get("master-switch-block");
+        const masterBadge = elementsById.get("master-status-badge");
+        const masterText = elementsById.get("master-status-text");
+        const masterControls = elementsById.get("master-switch-controls");
+        const refreshBtn = elementsById.get("refresh");
+
+        // Role USER saat Admin menyetel MAINTENANCE -> MAINTENANCE warna kuning, kontrol tersembunyi
+        assert.equal(masterBlock.getAttribute("data-master-role"), "user");
+        assert.equal(masterBlock.getAttribute("data-master-status"), "maintenance");
+        assert.equal(masterText.textContent, "MAINTENANCE");
+        assert.equal(masterBadge.className, "master-status-pill is-maintenance");
+        assert.equal(masterControls.hidden, true);
+
+        // Role USER saat Admin menyetel ACTIVE -> ACTIVE warna hijau
+        simulatedMasterStatus = "active";
+        refreshBtn.dispatchEvent({ type: "click", target: refreshBtn });
+        await new Promise(resolve => setTimeout(resolve, 35));
+        assert.equal(masterBlock.getAttribute("data-master-status"), "active");
+        assert.equal(masterText.textContent, "ACTIVE");
+        assert.equal(masterBadge.className, "master-status-pill is-active");
+        assert.equal(masterControls.hidden, true);
+
+        // Role USER saat Admin menyetel OFF -> OFF warna merah
+        simulatedMasterStatus = "off";
+        refreshBtn.dispatchEvent({ type: "click", target: refreshBtn });
+        await new Promise(resolve => setTimeout(resolve, 35));
+        assert.equal(masterBlock.getAttribute("data-master-status"), "off");
+        assert.equal(masterText.textContent, "OFF");
+        assert.equal(masterBadge.className, "master-status-pill is-off");
+        assert.equal(masterControls.hidden, true);
+
+        // Klik masing-masing dari 5 blok kecil -> tampil blok penuh, klik lagi -> kembali blok kecil
+        for (const [cardId, btnId, bodyId, chipId] of expectedCollapsibleSections) {
+            const card = elementsById.get(cardId);
+            const btn = elementsById.get(btnId);
+            const body = elementsById.get(bodyId);
+            const chip = elementsById.get(chipId);
+
+            assert.equal(body.hidden, true, `${cardId} harus tertutup sebagai blok kecil saat awal`);
+            assert.equal(card.classList.contains("is-expanded"), false);
+
+            btn.dispatchEvent({ type: "click", target: btn });
+            assert.equal(body.hidden, false, `${cardId} harus tampil blok penuh setelah diklik`);
+            assert.equal(card.classList.contains("is-expanded"), true);
+            assert.equal(btn.getAttribute("aria-expanded"), "true");
+            assert.equal(chip.textContent, "Tutup");
+
+            btn.dispatchEvent({ type: "click", target: btn });
+            assert.equal(body.hidden, true, `${cardId} harus kembali menjadi blok kecil saat diklik ulang`);
+            assert.equal(card.classList.contains("is-expanded"), false);
+            assert.equal(btn.getAttribute("aria-expanded"), "false");
+            assert.equal(chip.textContent, "Buka");
+        }
+    } finally {
+        for (const id of intervalIds) clearInterval(id);
+        Object.assign(globalThis, prevGlobals);
+    }
+});
