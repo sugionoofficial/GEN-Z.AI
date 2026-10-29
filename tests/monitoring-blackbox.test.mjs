@@ -1332,3 +1332,82 @@ test("temuan 'diketahui' kembali jadi open setelah masa senyap 24 jam lewat", as
     assert.equal(patches[0].status, "open");
     assert.equal(patches[0].handled_at, null);
 });
+
+/* ---------------------------------------------------------
+   REKAP AKSES & STATUS DEVTOOLS TERAKHIR
+   --------------------------------------------------------- */
+
+test("event 'DevTools ditutup' (devtools_open: false) tidak dipaksa jadi true", () => {
+    const closed = normalizeEventInput({
+        kind: "devtools",
+        devtools_open: false,
+        message: "DevTools ditutup pada halaman ini."
+    });
+    assert.equal(closed.devtools_open, false);
+
+    const omitted = normalizeEventInput({
+        kind: "devtools",
+        message: "DevTools dibuka pada halaman ini."
+    });
+    assert.equal(omitted.devtools_open, true);
+
+    const findings = buildFindings({
+        checks: [],
+        events: [{ ...closed, occurred_at: new Date().toISOString(), ip: "180.242.189.219" }],
+        settings: baseSettings()
+    });
+    assert.equal(findings.filter(f => f.fingerprint === "devtools:open").length, 0);
+});
+
+test("buildAccessRows menampilkan status DevTools dari kunjungan terakhir per IP", () => {
+    const { context } = loadMonitoringUi();
+
+    /* Urutan terbaru -> terlama (seperti respons API): kunjungan terakhir sudah tertutup. */
+    const descEvents = [
+        {
+            ip: "2404:c0:202c:3bcd:1:0:2fea:2ed1",
+            occurred_at: "2026-10-29T10:11:33.000Z",
+            city: "Depok",
+            country: "ID",
+            asn: "AS23693",
+            browser: "Chrome",
+            os: "Android",
+            device: "mobile",
+            devtools_open: false,
+            path: "/history/"
+        },
+        {
+            ip: "2404:c0:202c:3bcd:1:0:2fea:2ed1",
+            occurred_at: "2026-10-29T09:16:04.000Z",
+            city: "Depok",
+            country: "ID",
+            asn: "AS23693",
+            browser: "Chrome",
+            os: "Android",
+            device: "mobile",
+            devtools_open: true,
+            path: "/generate/"
+        }
+    ];
+
+    const rowsDesc = vm.runInContext(`buildAccessRows(${JSON.stringify(descEvents)})`, context);
+    assert.equal(rowsDesc.length, 1);
+    assert.equal(rowsDesc[0].devtools, false, "kunjungan terakhir sudah tertutup");
+    assert.equal(rowsDesc[0].devtoolsEver, true, "riwayat sempat terbuka tetap tercatat untuk tooltip");
+    assert.equal(rowsDesc[0].path, "/history/");
+    assert.equal(rowsDesc[0].hits, 2);
+
+    /* Urutan terlama -> terbaru juga menghasilkan status terakhir yang sama. */
+    const rowsAsc = vm.runInContext(`buildAccessRows(${JSON.stringify([...descEvents].reverse())})`, context);
+    assert.equal(rowsAsc[0].devtools, false);
+    assert.equal(rowsAsc[0].devtoolsEver, true);
+    assert.equal(rowsAsc[0].path, "/history/");
+
+    /* Bila kunjungan terakhir memang sedang membuka DevTools -> tetap TERBUKA. */
+    const stillOpen = [
+        { ...descEvents[0], devtools_open: true },
+        { ...descEvents[1], devtools_open: false }
+    ];
+    const rowsOpen = vm.runInContext(`buildAccessRows(${JSON.stringify(stillOpen)})`, context);
+    assert.equal(rowsOpen[0].devtools, true);
+});

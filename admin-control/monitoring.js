@@ -484,6 +484,7 @@ function buildAccessRows(events) {
                 asn: event.asn,
                 device: [event.browser, event.os, event.device].filter(Boolean).join(" · "),
                 devtools: Boolean(event.devtools_open),
+                devtoolsEver: Boolean(event.devtools_open),
                 path: event.path || "—",
                 hits: 1
             });
@@ -494,8 +495,9 @@ function buildAccessRows(events) {
         if (new Date(event.occurred_at) > new Date(current.at)) {
             current.at = event.occurred_at;
             current.path = event.path || current.path;
+            current.devtools = Boolean(event.devtools_open);
         }
-        if (event.devtools_open) current.devtools = true;
+        if (event.devtools_open) current.devtoolsEver = true;
     }
 
     return [...map.values()].sort((a, b) => new Date(b.at) - new Date(a.at));
@@ -533,11 +535,15 @@ function renderAccess(events) {
         row.append(el("td", "", item.device || "—"));
 
         const devtoolsCell = el("td");
-        devtoolsCell.append(el(
+        const badge = el(
             "span",
             `mon-tag ${item.devtools ? "mon-tag--on" : "mon-tag--off"}`,
             item.devtools ? "TERBUKA" : "tertutup"
-        ));
+        );
+        if (!item.devtools && item.devtoolsEver) {
+            badge.title = "Saat ini tertutup (sempat terbuka di log sebelumnya).";
+        }
+        devtoolsCell.append(badge);
         row.append(devtoolsCell);
 
         row.append(el("td", "mon-log-time", `${item.path} (${item.hits}×)`));
