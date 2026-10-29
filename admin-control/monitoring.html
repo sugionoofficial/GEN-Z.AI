@@ -524,19 +524,27 @@
 
     var BODY = document.body;
     var LOADER = document.getElementById("bbLoader");
+    var LOADER_TEXT = document.getElementById("bbLoaderText");
     var DENIED = document.getElementById("bbDenied");
     var DENIED_ROLE = document.getElementById("bbDeniedRole");
     var COUNTDOWN = document.getElementById("bbDeniedCountdown");
 
+    var ADMIN_ROLES = ["admin", "owner"];
+    var WAIT_LIMIT_MS = 15000;
+    var REDIRECT_DELAY_MS = 4000;
+
+    function normalize(value) {
+        return String(value || "").trim().toLowerCase();
+    }
+
     function readRole() {
 
-        var role = String(window.GENZ_NAVIGATION_ROLE || "").trim().toLowerCase();
-
+        var role = normalize(window.GENZ_NAVIGATION_ROLE);
         if (role) return role;
 
         try {
             if (window.GENZNavigation && typeof window.GENZNavigation.getRole === "function") {
-                return String(window.GENZNavigation.getRole() || "").trim().toLowerCase();
+                return normalize(window.GENZNavigation.getRole());
             }
         } catch (error) {
             /* dianggap tanpa akses */
@@ -545,27 +553,66 @@
         return "";
     }
 
-    function deny(role) {
+    /*
+     * Cadangan: bila navigation.js belum sempat mengisi role, baca
+     * profiles.role langsung dari Supabase memakai sesi yang ada.
+     * Tanpa ini, akun OWNER bisa ditolak saat jaringan lambat.
+     */
+    async function roleFromProfile() {
 
-        if (LOADER) LOADER.hidden = true;
-        if (DENIED) DENIED.hidden = false;
-        if (DENIED_ROLE) DENIED_ROLE.textContent = (role || "user").toUpperCase();
+        try {
+            var client = window.GENZ_SUPABASE || window.supabaseClient;
 
-        var left = 4;
-        var timer = setInterval(function () {
-            left -= 1;
-            if (COUNTDOWN) COUNTDOWN.textContent = String(Math.max(0, left));
-            if (left <= 0) {
-                clearInterval(timer);
-                window.location.replace("/user/dashboard.html");
+            if (!client || !client.auth || typeof client.auth.getSession !== "function") {
+                return "";
             }
-        }, 1000);
+
+            var session = await client.auth.getSession();
+            var user = session && session.data && session.data.session
+                ? session.data.session.user
+                : null;
+
+            if (!user || !user.id) return "";
+
+            var result = await client
+                .from("profiles")
+                .select("role")
+                .eq("id", user.id)
+                .maybeSingle();
+
+            return normalize(result && result.data ? result.data.role : "");
+        } catch (error) {
+            return "";
+        }
+    }
+
+    async function resolveRole() {
+
+        /*
+         * normalizeRole() di navigation.js mengembalikan "user" sebagai
+         * NILAI DEFAULT sebelum profil selesai dimuat. Kalau nilai itu
+         * dipercaya mentah-mentah, akun OWNER ikut ditolak. Jadi role
+         * admin/owner dipakai langsung, selain itu dikonfirmasi ulang
+         * ke tabel profiles.
+         */
+        var direct = readRole();
+        if (hasAccess(direct)) return direct;
+
+        var confirmed = await roleFromProfile();
+        if (confirmed) return confirmed;
+
+        return direct;
+    }
+
+    function hasAccess(role) {
+        return ADMIN_ROLES.indexOf(role) !== -1;
     }
 
     function allow() {
 
         if (LOADER) LOADER.hidden = true;
         if (DENIED) DENIED.hidden = true;
+
         BODY.classList.remove("bb-guard-pending");
 
         var page = document.getElementById("monPage");
@@ -574,45 +621,70 @@
         window.dispatchEvent(new CustomEvent("genz:monitoring-allow"));
     }
 
-    function run() {
+    function deny(role) {
 
-        var role = readRole();
+        if (LOADER) LOADER.hidden = true;
+        if (DENIED) DENIED.hidden = false;
+        if (DENIED_ROLE) DENIED_ROLE.textContent = String(role || "user").toUpperCase();
 
-        if (role === "admin" || role === "owner") {
+        BODY.classList.remove("bb-guard-pending");
+        BODY.classList.add("bb-guard-denied");
+
+        var remaining = Math.round(REDIRECT_DELAY_MS / 1000);
+        if (COUNTDOWN) COUNTDOWN.textContent = String(remaining);
+
+        var timer = setInterval(function () {
+
+            remaining -= 1;
+            if (COUNTDOWN && remaining > 0) COUNTDOWN.textContent = String(remaining);
+
+            if (remaining <= 0) {
+                clearInterval(timer);
+                window.location.replace("/user/dashboard.html");
+            }
+
+        }, 1000);
+    }
+
+    function sendToLogin() {
+
+        if (LOADER_TEXT) LOADER_TEXT.textContent = "Sesi tidak ditemukan. Membuka halaman login…";
+        setTimeout(function () { window.location.replace("/index.html"); }, 1200);
+    }
+
+    async function start() {
+
+        /*
+         * navigation.js adalah sumber kebenaran role. Tunggu promise-nya
+         * selesai (dengan batas waktu) supaya akun OWNER/ADMIN tidak
+         * ditolak hanya karena pemeriksaan sesi belum rampung.
+         */
+        if (window.GENZNavigationReady && typeof window.GENZNavigationReady.then === "function") {
+            await Promise.race([
+                window.GENZNavigationReady.catch(function () { return false; }),
+                new Promise(function (resolve) { setTimeout(resolve, WAIT_LIMIT_MS); })
+            ]);
+        }
+
+        var role = await resolveRole();
+
+        if (hasAccess(role)) {
             allow();
             return;
         }
 
-        if (role) {
-            deny(role);
+        if (!role) {
+            sendToLogin();
             return;
         }
 
-        /* navigation.js belum selesai: tunggu sebentar, lalu tolak. */
-        var attempts = 0;
-        var poll = setInterval(function () {
-
-            attempts += 1;
-            var next = readRole();
-
-            if (next === "admin" || next === "owner") {
-                clearInterval(poll);
-                allow();
-                return;
-            }
-
-            if (next || attempts >= 20) {
-                clearInterval(poll);
-                deny(next);
-            }
-
-        }, 250);
+        deny(role);
     }
 
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", run, { once: true });
+        document.addEventListener("DOMContentLoaded", start, { once: true });
     } else {
-        run();
+        start();
     }
 
 })();
