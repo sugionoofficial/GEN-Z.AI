@@ -36,6 +36,7 @@ const state = {
     settings: null,
     serverTime: null,
     lastLogSignature: "",
+    lastLogError: "",
     pollTimer: null
 };
 
@@ -76,7 +77,18 @@ async function accessToken(force = false) {
 
 async function api(action, options = {}) {
     const token = await accessToken();
-    const response = await fetch(`${ENDPOINT}?action=${encodeURIComponent(action)}`, {
+
+    /* Setiap parameter di-encode sendiri-sendiri. Jangan pernah
+       menyisipkan "&" ke dalam argumen action — dulu itu membuat
+       "events&limit=50" terkirim sebagai satu nilai (%26) dan 404. */
+    const params = new URLSearchParams({ action });
+
+    for (const [key, value] of Object.entries(options.query || {})) {
+        if (value === undefined || value === null || value === "") continue;
+        params.set(key, String(value));
+    }
+
+    const response = await fetch(`${ENDPOINT}?${params.toString()}`, {
         method: options.method || "GET",
         headers: {
             Authorization: `Bearer ${token}`,
@@ -568,10 +580,26 @@ async function refresh(options = {}) {
         renderFindings(data.findings);
         renderSettings(data.settings);
 
-        const eventData = await api(`events&limit=${state.logLimit}`).catch(() => ({ rows: [] }));
+        /* Kegagalan di sini tidak boleh ditelan diam-diam: dulu
+           `.catch(() => ({ rows: [] }))` membuat panel log kosong
+           tanpa penjelasan saat endpoint menolak permintaan. */
+        let eventData = { rows: [] };
+        try {
+            eventData = await api("events", { query: { limit: state.logLimit } });
+        } catch (error) {
+            eventData = { rows: [], error: error.message };
+        }
+
         const limitSelect = $("monLogLimit");
         if (limitSelect) limitSelect.value = String(state.logLimit);
         state.events = (eventData.rows || []).length ? eventData.rows : data.events;
+
+        if (eventData.error && state.lastLogError !== eventData.error) {
+            state.lastLogError = eventData.error;
+            toast(`Log lengkap gagal dimuat: ${eventData.error}`, "error");
+        } else if (!eventData.error) {
+            state.lastLogError = "";
+        }
 
         renderLog(state.events);
         renderAccess(state.events);
@@ -717,7 +745,7 @@ async function openDetail(id) {
     $("monDetailBody").replaceChildren(el("p", "mon-note", "Memuat detail…"));
 
     try {
-        const data = await api(`event&id=${encodeURIComponent(id)}`);
+        const data = await api("event", { query: { id } });
         renderDetail(data);
     } catch (error) {
         $("monDetailBody").replaceChildren(el("p", "mon-note", `Gagal memuat detail: ${error.message}`));
