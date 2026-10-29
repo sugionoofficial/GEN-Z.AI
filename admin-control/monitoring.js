@@ -384,7 +384,11 @@ function renderLog(events) {
 
         row.append(el("td", "mon-log-msg", event.message || "—"));
 
-        if (isNew && index === 0) row.className = "mon-log-new";
+        row.className = "mon-log-row" + (isNew && index === 0 ? " mon-log-new" : "");
+        row.dataset.eventId = String(event.id);
+        row.tabIndex = 0;
+        row.setAttribute("role", "button");
+        row.setAttribute("aria-label", "Lihat detail log");
         body.append(row);
     });
 }
@@ -563,6 +567,152 @@ async function refresh(options = {}) {
 }
 
 /* ---------------------------------------------------------
+   DETAIL LOG
+   --------------------------------------------------------- */
+
+function formatFullTime(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return "—";
+
+    return new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        dateStyle: "long",
+        timeStyle: "medium"
+    }).format(date) + " WIB";
+}
+
+function detailRow(label, value) {
+    const row = el("div", "mon-detail-row");
+    row.append(el("span", "mon-detail-label", label));
+    row.append(el(
+        "span",
+        "mon-detail-value",
+        value === undefined || value === null || value === "" ? "—" : String(value)
+    ));
+    return row;
+}
+
+function detailSection(title, rows) {
+    const box = el("section", "mon-detail-section");
+    box.append(el("h3", "mon-detail-section-title", title));
+
+    const list = el("div", "mon-detail-rows");
+    for (const [label, value] of rows) list.append(detailRow(label, value));
+
+    box.append(list);
+    return box;
+}
+
+function placeOf(event) {
+    return [event.city, event.region, event.country].filter(Boolean).join(", ") || "";
+}
+
+function renderDetail(data) {
+    const event = data.event || {};
+    const profile = data.profile || null;
+    const related = data.related || {};
+
+    $("monDetailTitle").textContent =
+        `${(KIND_LABEL[event.kind] || event.kind || "aktivitas").toUpperCase()} · ${formatTime(event.occurred_at)} WIB`;
+
+    const body = $("monDetailBody");
+    body.replaceChildren();
+
+    body.append(detailSection("Identitas Akun", [
+        ["Email", profile?.email || ""],
+        ["Nama", profile?.name || ""],
+        ["Role", profile?.role ? profile.role.toUpperCase() : ""],
+        ["User ID", event.user_id || ""],
+        [
+            "Status akun",
+            profile
+                ? (event.detail?.identity_verified
+                    ? "terverifikasi lewat token sesi"
+                    : "diklaim browser (belum terverifikasi)")
+                : "belum login / tidak diketahui"
+        ]
+    ]));
+
+    body.append(detailSection("Jaringan", [
+        ["Alamat IP", event.ip || ""],
+        ["Kota", event.city || ""],
+        ["Provinsi / region", event.region || ""],
+        ["Negara", event.country || ""],
+        ["ASN", event.asn || ""],
+        ["Colo Cloudflare", event.colo || ""],
+        ["Akses IP ini (24 jam)", related.ip_events_24h ?? ""],
+        ["Pertama terlihat (24 jam)", related.ip_first_seen_24h ? formatFullTime(related.ip_first_seen_24h) : ""],
+        ["Terakhir terlihat (24 jam)", related.ip_last_seen_24h ? formatFullTime(related.ip_last_seen_24h) : ""]
+    ]));
+
+    body.append(detailSection("Perangkat & Browser", [
+        ["Browser", event.browser || ""],
+        ["Sistem operasi", event.os || ""],
+        ["Tipe perangkat", event.device || ""],
+        ["Viewport", event.detail?.viewport || ""],
+        ["Resolusi layar", event.detail?.screen || ""],
+        ["User agent", event.user_agent || ""]
+    ]));
+
+    body.append(detailSection("Halaman", [
+        ["Path", event.path || ""],
+        ["URL lengkap", event.detail?.href || ""],
+        ["Referrer", event.detail?.referrer || ""],
+        ["Online", event.detail?.online === undefined ? "" : event.detail.online ? "ya" : "tidak"]
+    ]));
+
+    body.append(detailSection("Kejadian", [
+        ["Jenis", KIND_LABEL[event.kind] || event.kind || ""],
+        ["Level", String(event.severity || "").toUpperCase()],
+        ["Waktu", formatFullTime(event.occurred_at)],
+        ["Pesan", event.message || ""],
+        ["DevTools", event.devtools_open ? "TERBUKA" : "tertutup"],
+        ["Session ID", event.session_id || ""],
+        ["Event dalam sesi ini", related.session_events ?? ""],
+        ["Lokasi ringkas", placeOf(event)]
+    ]));
+
+    if (data.remediation) {
+        const fix = el("div", "mon-detail-fix");
+        fix.append(el("strong", "", "CARA MENGATASI: "));
+        fix.append(document.createTextNode(data.remediation));
+        body.append(fix);
+    }
+
+    const raw = el("details", "mon-detail-raw");
+    raw.append(el("summary", "", "Data mentah (JSON)"));
+    const pre = el("pre", "mon-detail-pre", JSON.stringify(event.detail || {}, null, 2));
+    raw.append(pre);
+    body.append(raw);
+}
+
+async function openDetail(id) {
+    const drawer = $("monDetail");
+    if (!drawer) return;
+
+    drawer.hidden = false;
+    document.body.classList.add("mon-detail-open");
+    $("monDetailTitle").textContent = "MEMUAT…";
+    $("monDetailBody").replaceChildren(el("p", "mon-note", "Memuat detail…"));
+
+    try {
+        const data = await api(`event&id=${encodeURIComponent(id)}`);
+        renderDetail(data);
+    } catch (error) {
+        $("monDetailBody").replaceChildren(el("p", "mon-note", `Gagal memuat detail: ${error.message}`));
+    }
+}
+
+function closeDetail() {
+    const drawer = $("monDetail");
+    if (!drawer || drawer.hidden) return;
+
+    drawer.hidden = true;
+    document.body.classList.remove("mon-detail-open");
+}
+
+/* ---------------------------------------------------------
    AKSI
    --------------------------------------------------------- */
 
@@ -663,6 +813,31 @@ function bindEvents() {
     $("monPurge").addEventListener("click", purgeOldLogs);
 
     $("monAuto").addEventListener("change", startPolling);
+
+    $("monLogBody").addEventListener("click", event => {
+        const row = event.target.closest("[data-event-id]");
+        if (row) openDetail(row.dataset.eventId);
+    });
+
+    $("monLogBody").addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+
+        const row = event.target.closest("[data-event-id]");
+        if (!row) return;
+
+        event.preventDefault();
+        openDetail(row.dataset.eventId);
+    });
+
+    $("monDetailClose").addEventListener("click", closeDetail);
+
+    $("monDetail").addEventListener("click", event => {
+        if (event.target.dataset.detailClose) closeDetail();
+    });
+
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeDetail();
+    });
 
     $("monFilterRow").addEventListener("click", event => {
         const button = event.target.closest("[data-filter]");

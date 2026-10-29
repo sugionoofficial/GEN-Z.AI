@@ -12,7 +12,7 @@ yang punya langkah perbaikan. Halaman ini hanya bisa dibuka **ADMIN** dan
 | Ringkasan | Status keseluruhan, jumlah aktivitas/error/akses DevTools 24 jam |
 | Kesehatan Web | 7 pemeriksaan: situs, API, database, auth, storage, cron, Studio Medsos |
 | Temuan & Cara Mengatasi | Hasil pemeriksaan + error berulang, lengkap dengan langkah perbaikan |
-| Log Aktivitas Live | Aliran kejadian (kunjungan, error, DevTools, API gagal), auto-refresh 10 detik |
+| Log Aktivitas Live | Aliran kejadian (kunjungan, error, DevTools, API gagal), auto-refresh 10 detik. **Klik satu baris** untuk membuka detail lengkap |
 | Akses & DevTools | IP, kota/negara, ASN, colo, perangkat, status DevTools per pengunjung |
 | Pemeriksaan Rutin | Interval pemeriksaan, masa simpan log, saklar alert |
 
@@ -38,6 +38,38 @@ IP **tidak pernah** diambil dari browser. `api/monitoring.js` membacanya dari
 diambil dari objek `request.cf` milik Cloudflare (diteruskan `handler-adapter.js`
 sebagai `req.cf`). Kiriman IP dari JavaScript diabaikan, jadi tidak bisa
 dipalsukan pengunjung.
+
+## Detail satu log
+
+Klik baris mana pun di **Log Aktivitas Live** (bisa juga fokus lalu tekan Enter)
+untuk membuka panel detail `GET /api/monitoring?action=event&id=<id>`:
+
+| Bagian | Isi |
+| --- | --- |
+| Identitas akun | Email, nama, role, user ID, dan status verifikasi akun |
+| Jaringan | IP, kota, provinsi, negara, ASN, colo Cloudflare, jumlah akses IP yang sama dalam 24 jam, kapan pertama & terakhir terlihat |
+| Perangkat & browser | Browser, sistem operasi, tipe perangkat, viewport, resolusi layar, user agent penuh |
+| Halaman | Path, URL lengkap, referrer, status online |
+| Kejadian | Jenis, level, waktu lengkap (WIB), pesan, status DevTools, session ID, jumlah event dalam sesi |
+| Cara mengatasi | Saran tindakan otomatis sesuai jenis kejadian |
+
+### Dari mana email didapat?
+
+Beacon membaca UUID akun dari sesi Supabase di browser (`sb-<ref>-auth-token`)
+lalu mengirimnya bersama event. Server **tidak** mempercayainya begitu saja:
+
+- bila permintaan membawa header `Authorization`, identitas **diverifikasi** ke
+  Supabase Auth dan UUID hasil verifikasi yang disimpan
+  (`detail.identity_verified = true`);
+- bila tidak ada token, UUID kiriman browser tetap disimpan tetapi ditandai
+  **"diklaim browser (belum terverifikasi)"** di panel.
+
+Email dan nama baru muncul bila UUID itu cocok dengan baris di `profiles`. Untuk
+pengunjung yang belum login, bagian identitas menampilkan
+"belum login / tidak diketahui" — bukan error.
+
+Panel detail hanya bisa dibuka ADMIN/OWNER karena action `event` melewati
+pemeriksaan role yang sama dengan seluruh aksi monitoring lain.
 
 ## Deteksi DevTools: batas kemampuannya
 

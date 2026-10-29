@@ -524,3 +524,178 @@ test("role admin tetap terbaca walau bentuk select pertama ditolak skema", async
         globalThis.fetch = original;
     }
 });
+
+/* ---------------------------------------------------------
+   DETAIL LOG (klik satu baris)
+   --------------------------------------------------------- */
+
+test("beacon mengirim user_id dari sesi Supabase agar email bisa ditampilkan", () => {
+    const beacon = read("assets/js/security-beacon.js");
+
+    assert.match(beacon, /user_id: currentUserId\(\)/);
+    assert.match(beacon, /-auth-token/);
+    assert.match(beacon, /GENZ_NAVIGATION_USER/);
+});
+
+test("user_id palsu yang bukan UUID dibuang saat ingest", () => {
+    const valid = normalizeEventInput({
+        kind: "page_view",
+        path: "/generate/index.html",
+        user_id: "c237fcef-6456-451e-ae98-691f2dabb60d"
+    });
+    assert.equal(valid.user_id, "c237fcef-6456-451e-ae98-691f2dabb60d");
+
+    const invalid = normalizeEventInput({ kind: "page_view", path: "/x", user_id: "<script>" });
+    assert.equal(invalid.user_id, null);
+});
+
+function detailFetch({ event = {}, profile = null } = {}) {
+    const original = globalThis.fetch;
+
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        const method = String(options.method || "GET").toUpperCase();
+
+        if (url.includes("/auth/v1/user")) return Response.json({ id: "admin-1" });
+        if (url.includes("/rest/v1/profiles")) {
+            if (url.includes("id=eq.c237fcef")) {
+                return Response.json([profile || { id: "c237fcef-6456-451e-ae98-691f2dabb60d", email: "owner@genz.ai", name: "Owner", role: "OWNER" }]);
+            }
+            return Response.json([{ id: "admin-1", role: "admin" }]);
+        }
+        if (url.includes("/rest/v1/monitoring_events")) {
+            if (url.includes("id=eq.12")) return Response.json([event]);
+            if (url.includes("ip=eq.")) {
+                return Response.json([
+                    { id: 1, occurred_at: "2026-10-29T07:00:00.000Z" },
+                    { id: 2, occurred_at: "2026-10-29T07:05:00.000Z" }
+                ]);
+            }
+            if (url.includes("session_id=eq.")) return Response.json([{ id: 1 }, { id: 2 }, { id: 3 }]);
+            return Response.json([]);
+        }
+
+        return Response.json(method === "GET" ? [] : {});
+    };
+
+    return () => { globalThis.fetch = original; };
+}
+
+test("detail log menolak id tidak valid dan log yang tidak ada", async () => {
+    const restore = detailFetch({});
+    try {
+        const bad = await call(makeReq({ action: "event", query: { id: "abc" } }));
+        assert.equal(bad.status, 400);
+
+        const missing = await call(makeReq({ action: "event", query: { id: "99" } }));
+        assert.equal(missing.status, 404);
+    } finally {
+        restore();
+    }
+});
+
+test("detail log memuat email pemilik, jaringan, perangkat, dan cara mengatasi", async () => {
+    const restore = detailFetch({
+        event: {
+            id: 12,
+            kind: "devtools",
+            severity: "warn",
+            path: "/generate/index.html",
+            message: "DevTools dibuka pada halaman ini.",
+            ip: "203.0.113.9",
+            city: "Jakarta",
+            region: "Jakarta",
+            country: "ID",
+            asn: "AS7713",
+            colo: "CGK",
+            browser: "Chrome",
+            os: "Windows",
+            device: "desktop",
+            user_agent: "Mozilla/5.0 Chrome/130",
+            user_id: "c237fcef-6456-451e-ae98-691f2dabb60d",
+            session_id: "s_abc",
+            devtools_open: true,
+            occurred_at: "2026-10-29T07:00:00.000Z",
+            detail: { viewport: "1440x900", screen: "1920x1080", href: "https://site.example/generate/index.html" }
+        }
+    });
+
+    try {
+        const { status, json } = await call(makeReq({ action: "event", query: { id: "12" } }));
+
+        assert.equal(status, 200);
+        assert.equal(json.success, true);
+        assert.equal(json.event.id, 12);
+        assert.equal(json.profile.email, "owner@genz.ai");
+        assert.equal(json.profile.role, "owner");
+        assert.equal(json.event.ip, "203.0.113.9");
+        assert.equal(json.event.browser, "Chrome");
+        assert.equal(json.related.ip_events_24h, 2);
+        assert.equal(json.related.session_events, 3);
+        assert.match(json.remediation, /kata sandi|sesi/i);
+    } finally {
+        restore();
+    }
+});
+
+test("halaman monitoring punya panel detail dan baris log bisa diklik", () => {
+    const page = read("admin-control/monitoring.html");
+    const script = read("admin-control/monitoring.js");
+    const css = read("admin-control/assets/css/monitoring.css");
+
+    assert.match(page, /id="monDetail"/);
+    assert.match(page, /id="monDetailBody"/);
+    assert.match(page, /id="monDetailClose"/);
+    assert.match(page, /class="mon-detail-backdrop"/);
+
+    assert.match(script, /row\.dataset\.eventId = String\(event\.id\)/);
+    assert.match(script, /api\(`event&id=/);
+    assert.match(script, /function renderDetail/);
+    assert.match(script, /Email/);
+
+    assert.match(css, /\.mon-detail-panel/);
+    assert.match(css, /\.mon-detail-row/);
+});
+
+test("identitas dari token sesi menimpa user_id kiriman browser", async () => {
+    const original = globalThis.fetch;
+    let saved = null;
+
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        const method = String(options.method || "GET").toUpperCase();
+
+        if (url.includes("/auth/v1/user")) {
+            return Response.json({ id: "c237fcef-6456-451e-ae98-691f2dabb60d" });
+        }
+        if (url.includes("/rest/v1/monitoring_events")) {
+            if (method === "POST") {
+                saved = JSON.parse(options.body);
+                return new Response(null, { status: 201 });
+            }
+            return Response.json([]);
+        }
+
+        return Response.json([]);
+    };
+
+    try {
+        const { status } = await call(makeReq({
+            method: "POST",
+            action: "ingest",
+            headers: { authorization: "Bearer sesi-valid" },
+            body: {
+                kind: "page_view",
+                path: "/history/index.html",
+                /* Klaim browser yang berbeda dari token. */
+                user_id: "11111111-1111-1111-1111-111111111111"
+            }
+        }));
+
+        assert.equal(status, 202);
+        assert.equal(saved.user_id, "c237fcef-6456-451e-ae98-691f2dabb60d");
+        assert.equal(saved.detail.identity_verified, true);
+    } finally {
+        globalThis.fetch = original;
+    }
+});

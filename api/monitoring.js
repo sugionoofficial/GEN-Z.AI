@@ -33,9 +33,11 @@ import {
     highestSeverity,
     isConfigured,
     normalizeEventInput,
+    normalizeUserId,
     parseUserAgent,
     pruneOldEvents,
     readNetworkContext,
+    REMEDIATION,
     runMonitoringScan,
     saveHealthChecks,
     upsertFindings
@@ -197,9 +199,33 @@ async function handleIngest(req, res, config, fetchImpl) {
         }
     }
 
+    /*
+     * Kalau permintaan membawa token sesi, identitasnya diverifikasi ke
+     * Supabase Auth dan dipakai sebagai sumber kebenaran. Kalau tidak,
+     * user_id dari browser tetap disimpan tetapi ditandai belum terverifikasi.
+     */
+    let verifiedUserId = null;
+    const token = bearer(req);
+
+    if (token) {
+        try {
+            const verify = await fetchImpl(`${config.supabaseUrl}/auth/v1/user`, {
+                headers: { apikey: config.serviceKey, Authorization: `Bearer ${token}` }
+            });
+            if (verify.ok) {
+                const account = await verify.json();
+                verifiedUserId = normalizeUserId(account?.id);
+            }
+        } catch {
+            /* token tidak bisa diverifikasi — lanjut sebagai klaim browser */
+        }
+    }
+
     const agent = parseUserAgent(network.user_agent);
     const row = {
         ...event,
+        user_id: verifiedUserId || event.user_id,
+        detail: { ...event.detail, identity_verified: Boolean(verifiedUserId) },
         ip: network.ip,
         country: network.country,
         region: network.region,
@@ -353,6 +379,104 @@ async function handleList(req, res, config, fetchImpl, table, query) {
 }
 
 /* ---------------------------------------------------------
+   DETAIL SATU LOG
+   Klik satu baris di "Log Aktivitas Live" -> panel detail berisi
+   identitas akun, jaringan, perangkat, jejak sesi, dan saran tindakan.
+   --------------------------------------------------------- */
+
+async function loadProfileDetail(config, userId, fetchImpl) {
+    const variants = ["id,email,name,role", "id,email,role"];
+
+    for (const columns of variants) {
+        try {
+            const rows = await dbRequest(
+                config,
+                `/profiles?id=eq.${encodeURIComponent(userId)}&select=${columns}`,
+                { method: "GET" },
+                fetchImpl
+            );
+            return Array.isArray(rows) ? rows[0] || null : null;
+        } catch {
+            /* coba bentuk select berikutnya */
+        }
+    }
+
+    return null;
+}
+
+export function suggestedRemediation(event = {}) {
+    if (event.devtools_open || event.kind === "devtools") return REMEDIATION.devtools;
+    if (event.kind === "error") return REMEDIATION["client-error"];
+    if (event.kind === "api_failure") return REMEDIATION["api-failure"];
+    if (event.kind === "security") return REMEDIATION.security;
+    return "";
+}
+
+async function handleEventDetail(req, res, config, fetchImpl, query) {
+    const id = String(query.id || "").trim();
+
+    if (!/^\d+$/.test(id)) {
+        return fail(res, 400, "ID log tidak valid.");
+    }
+
+    const rows = await dbRequest(
+        config,
+        `/monitoring_events?id=eq.${encodeURIComponent(id)}&select=*&limit=1`,
+        { method: "GET" },
+        fetchImpl
+    );
+
+    const event = Array.isArray(rows) ? rows[0] : null;
+    if (!event) return fail(res, 404, "Log tidak ditemukan.");
+
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+
+    const [profile, ipEvents, sessionEvents] = await Promise.all([
+        event.user_id
+            ? loadProfileDetail(config, event.user_id, fetchImpl)
+            : Promise.resolve(null),
+        event.ip
+            ? dbRequest(
+                config,
+                `/monitoring_events?ip=eq.${encodeURIComponent(event.ip)}&occurred_at=gte.${encodeURIComponent(since)}&select=id,occurred_at&order=occurred_at.asc&limit=200`,
+                { method: "GET" },
+                fetchImpl
+            ).catch(() => [])
+            : Promise.resolve([]),
+        event.session_id
+            ? dbRequest(
+                config,
+                `/monitoring_events?session_id=eq.${encodeURIComponent(event.session_id)}&select=id&limit=200`,
+                { method: "GET" },
+                fetchImpl
+            ).catch(() => [])
+            : Promise.resolve([])
+    ]);
+
+    const ipList = Array.isArray(ipEvents) ? ipEvents : [];
+    const sessionList = Array.isArray(sessionEvents) ? sessionEvents : [];
+
+    return send(res, 200, {
+        success: true,
+        event,
+        profile: profile
+            ? {
+                email: profile.email || "",
+                name: profile.name || "",
+                role: String(profile.role || "").toLowerCase()
+            }
+            : null,
+        related: {
+            ip_events_24h: ipList.length,
+            ip_first_seen_24h: ipList.length ? ipList[0].occurred_at : null,
+            ip_last_seen_24h: ipList.length ? ipList[ipList.length - 1].occurred_at : null,
+            session_events: sessionList.length
+        },
+        remediation: suggestedRemediation(event)
+    });
+}
+
+/* ---------------------------------------------------------
    MUTASI
    --------------------------------------------------------- */
 
@@ -471,6 +595,7 @@ export default async function handler(req, res) {
         if (!admin.ok) return fail(res, admin.status, admin.error);
 
         if (action === "overview") return await handleOverview(req, res, config, fetchImpl);
+        if (action === "event") return await handleEventDetail(req, res, config, fetchImpl, query);
         if (action === "events") return await handleList(req, res, config, fetchImpl, "events", query);
         if (action === "findings") return await handleList(req, res, config, fetchImpl, "findings", query);
         if (action === "health") return await handleList(req, res, config, fetchImpl, "health", query);

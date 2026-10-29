@@ -59,6 +59,48 @@
         }
     }
 
+    /*
+     * UUID akun yang sedang login, dibaca dari sesi Supabase di localStorage
+     * (atau dari navigasi bila tersedia). Server hanya memakainya untuk
+     * menampilkan email di halaman detail log — bukan untuk otorisasi.
+     */
+    var cachedUserId = null;
+
+    function currentUserId() {
+        if (cachedUserId !== null) return cachedUserId;
+        cachedUserId = "";
+
+        try {
+            var fromNavigation = window.GENZ_NAVIGATION_USER && window.GENZ_NAVIGATION_USER.id;
+            if (fromNavigation) {
+                cachedUserId = String(fromNavigation);
+                return cachedUserId;
+            }
+
+            var storage = window.localStorage;
+            if (!storage) return cachedUserId;
+
+            for (var index = 0; index < storage.length; index += 1) {
+                var key = storage.key(index);
+                if (!key || key.indexOf("sb-") !== 0 || key.indexOf("-auth-token") === -1) continue;
+
+                var raw = storage.getItem(key);
+                if (!raw) continue;
+
+                var parsed = JSON.parse(raw);
+                var user = parsed && (parsed.user || (parsed.currentSession && parsed.currentSession.user));
+                if (user && user.id) {
+                    cachedUserId = String(user.id);
+                    return cachedUserId;
+                }
+            }
+        } catch (error) {
+            cachedUserId = "";
+        }
+
+        return cachedUserId;
+    }
+
     function pageViewKey() {
         return "genz-monitor-seen:" + window.location.pathname;
     }
@@ -121,6 +163,7 @@
                 online: navigator.onLine
             },
             session_id: sessionId,
+            user_id: currentUserId(),
             devtools_open: devtoolsState()
         });
     }
@@ -226,6 +269,7 @@
         report: report,
         devtoolsState: devtoolsState,
         sessionId: sessionId,
+        userId: currentUserId,
         sentCount: function () { return sent; }
     };
 })();
