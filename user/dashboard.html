@@ -2270,13 +2270,18 @@
                         accept="
                             video/mp4,
                             video/webm,
-                            video/quicktime
+                            video/quicktime,
+                            video/x-m4v,
+                            video/3gpp,
+                            .mp4,
+                            .webm,
+                            .mov,
+                            .m4v
                         "
                     >
 
                     <div class="file-help">
-                        Format: MP4, WebM, MOV.
-                        Maksimum 500 MB.
+                        Format: MP4, WebM, MOV, M4V (mendukung durasi 30 detik atau lebih, maksimum 500 MB).
                         Saat edit, kosongkan jika tidak ingin
                         mengganti video.
                     </div>
@@ -4259,9 +4264,32 @@ const VIDEO_TYPES = [
 
     "video/webm",
 
-    "video/quicktime"
+    "video/quicktime",
+
+    "video/x-m4v",
+
+    "video/3gpp"
 
 ];
+
+
+const VIDEO_EXTENSION_TO_MIME = {
+
+    mp4: "video/mp4",
+
+    m4v: "video/mp4",
+
+    webm: "video/webm",
+
+    mov: "video/quicktime",
+
+    qt: "video/quicktime",
+
+    "3gp": "video/3gpp",
+
+    "3gpp": "video/3gpp"
+
+};
 
 
 const IMAGE_TYPES = [
@@ -4275,6 +4303,145 @@ const IMAGE_TYPES = [
 ];
 
 
+const IMAGE_EXTENSION_TO_MIME = {
+
+    jpg: "image/jpeg",
+
+    jpeg: "image/jpeg",
+
+    png: "image/png",
+
+    webp: "image/webp"
+
+};
+
+
+const TUS_CHUNK_SIZE =
+    6 * 1024 * 1024;
+
+
+const FALLBACK_MAX_UPLOAD_BYTES =
+    48_000_000;
+
+
+const FALLBACK_TARGET_VIDEO_BYTES =
+    44_000_000;
+
+
+const FALLBACK_MAX_VIDEO_EDGE =
+    1280;
+
+
+const FALLBACK_VIDEO_FPS =
+    24;
+
+
+function normalizeBaseMimeType(
+    rawType
+) {
+
+    return String(
+        rawType || ""
+    )
+        .split(";")[0]
+        .trim()
+        .toLowerCase();
+}
+
+
+function resolveVideoMimeType(
+    file
+) {
+
+    if (!file) {
+        return "";
+    }
+
+
+    const baseType =
+        normalizeBaseMimeType(
+            file.type
+        );
+
+
+    if (
+        baseType === "video/x-m4v" ||
+        baseType === "video/mp4v-es"
+    ) {
+
+        return "video/mp4";
+    }
+
+
+    if (
+        VIDEO_TYPES.includes(
+            baseType
+        )
+    ) {
+
+        return baseType;
+    }
+
+
+    const ext =
+        extensionFromFile(
+            file
+        );
+
+
+    return (
+        VIDEO_EXTENSION_TO_MIME[ext] ||
+        ""
+    );
+}
+
+
+function resolveImageMimeType(
+    file
+) {
+
+    if (!file) {
+        return "";
+    }
+
+
+    const baseType =
+        normalizeBaseMimeType(
+            file.type
+        );
+
+
+    if (
+        baseType === "image/jpg"
+    ) {
+
+        return "image/jpeg";
+    }
+
+
+    if (
+        IMAGE_TYPES.includes(
+            baseType
+        )
+    ) {
+
+        return baseType;
+    }
+
+
+    const ext =
+        extensionFromFile(
+            file
+        );
+
+
+    return (
+        IMAGE_EXTENSION_TO_MIME[ext] ||
+        ""
+    );
+}
+
+
 function validateVideoFile(
     file
 ) {
@@ -4284,14 +4451,16 @@ function validateVideoFile(
     }
 
 
-    if (
-        !VIDEO_TYPES.includes(
-            file.type
-        )
-    ) {
+    const resolvedType =
+        resolveVideoMimeType(
+            file
+        );
+
+
+    if (!resolvedType) {
 
         throw new Error(
-            "Format video tidak didukung. Gunakan MP4, WebM, atau MOV."
+            "Format video tidak didukung. Gunakan MP4, WebM, MOV, atau M4V."
         );
     }
 
@@ -4317,11 +4486,13 @@ function validateThumbnailFile(
     }
 
 
-    if (
-        !IMAGE_TYPES.includes(
-            file.type
-        )
-    ) {
+    const resolvedType =
+        resolveImageMimeType(
+            file
+        );
+
+
+    if (!resolvedType) {
 
         throw new Error(
             "Format thumbnail tidak didukung. Gunakan JPG, PNG, atau WebP."
@@ -4398,13 +4569,23 @@ function extensionFromFile(
 
 function createStoragePath(
     folder,
-    file
+    file,
+    overrideExtension = ""
 ) {
 
-    const extension =
+    const rawExt =
+        overrideExtension ||
         extensionFromFile(
             file
         );
+
+
+    const normalizedExt =
+        rawExt === "qt"
+            ? "mov"
+            : rawExt === "m4v"
+                ? "mp4"
+                : rawExt;
 
 
     const safeUserId =
@@ -4429,8 +4610,8 @@ function createStoragePath(
         "/" +
         id +
         (
-            extension
-                ? "." + extension
+            normalizedExt
+                ? "." + normalizedExt
                 : ""
         )
     );
@@ -4508,8 +4689,829 @@ function hideProgress() {
 
 
 /* =========================================================
-   STORAGE UPLOAD
+   AUTH SESSION SYNC & STORAGE UPLOAD (30s+ / 500 MB READY)
 ========================================================= */
+
+function getActiveSupabaseClient() {
+
+    return (
+        window.GENZ_SUPABASE ||
+        supabaseClient
+    );
+}
+
+
+function readStoredSupabaseSession() {
+
+    try {
+
+        const match =
+            String(
+                SUPABASE_URL || ""
+            ).match(
+                /https:\/\/([^.]+)/
+            );
+
+        if (!match) {
+            return null;
+        }
+
+        const raw =
+            window.localStorage.getItem(
+                "sb-" + match[1] + "-auth-token"
+            );
+
+        if (!raw) {
+            return null;
+        }
+
+        const parsed =
+            JSON.parse(
+                raw
+            );
+
+        return parsed?.access_token
+            ? parsed
+            : null;
+
+    } catch {
+
+        return null;
+    }
+}
+
+
+async function ensureDashboardSession() {
+
+    let session = null;
+
+    if (
+        window.GENZSession &&
+        typeof window.GENZSession.ensureFreshSession ===
+            "function"
+    ) {
+
+        try {
+
+            session =
+                await window.GENZSession.ensureFreshSession({
+                    force: false
+                });
+
+        } catch (error) {
+
+            console.warn(
+                "[GEN-Z.AI UserDashboard] Refresh sesi gagal, memakai fallback sesi aktif:",
+                error
+            );
+        }
+    }
+
+    const activeClient =
+        getActiveSupabaseClient();
+
+    if (
+        !session?.access_token &&
+        activeClient?.auth?.getSession
+    ) {
+
+        const { data } =
+            await activeClient.auth.getSession();
+
+        session =
+            data?.session || null;
+    }
+
+    if (!session?.access_token) {
+
+        session =
+            readStoredSupabaseSession();
+    }
+
+    if (
+        session?.access_token &&
+        session?.refresh_token &&
+        supabaseClient !== activeClient &&
+        supabaseClient?.auth?.setSession
+    ) {
+
+        try {
+
+            await supabaseClient.auth.setSession({
+                access_token: session.access_token,
+                refresh_token: session.refresh_token
+            });
+
+        } catch {
+            /* abaikan kegagalan sinkronisasi sekunder */
+        }
+    }
+
+    if (session?.user && !currentUser) {
+        currentUser = session.user;
+    }
+
+    return session;
+}
+
+
+function encodeTusMetadataValue(
+    value
+) {
+
+    const bytes =
+        new TextEncoder().encode(
+            String(value ?? "")
+        );
+
+    let binary = "";
+
+    for (let i = 0; i < bytes.length; i += 1) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+
+    return window.btoa(binary);
+}
+
+
+function isStoragePayloadTooLargeError(
+    error
+) {
+
+    const status =
+        Number(
+            error?.status ||
+            error?.statusCode ||
+            0
+        );
+
+    const msg =
+        String(
+            error?.message ||
+            error?.error ||
+            ""
+        ).toLowerCase();
+
+    return (
+        status === 413 ||
+        msg.includes("exceeded the maximum allowed size") ||
+        msg.includes("maximum size exceeded") ||
+        msg.includes("payload too large") ||
+        msg.includes("entity too large")
+    );
+}
+
+
+function readVideoDurationSeconds(
+    file
+) {
+
+    return new Promise(resolve => {
+
+        if (
+            !file ||
+            typeof document === "undefined" ||
+            typeof URL === "undefined" ||
+            typeof URL.createObjectURL !== "function"
+        ) {
+            resolve(0);
+            return;
+        }
+
+        const video =
+            document.createElement("video");
+
+        const objectUrl =
+            URL.createObjectURL(file);
+
+        let settled = false;
+
+        const finish = value => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            video.removeAttribute("src");
+            try {
+                video.load();
+            } catch {
+                /* ignore */
+            }
+            URL.revokeObjectURL(objectUrl);
+            resolve(
+                Number.isFinite(value) && value > 0
+                    ? value
+                    : 0
+            );
+        };
+
+        const timer =
+            setTimeout(() => finish(0), 8000);
+
+        video.preload = "metadata";
+        video.muted = true;
+        video.playsInline = true;
+
+        video.onloadedmetadata = () => finish(video.duration);
+        video.onerror = () => finish(0);
+        video.src = objectUrl;
+    });
+}
+
+
+function getSupportedRecorderMimeType() {
+
+    if (typeof window.MediaRecorder !== "function") {
+        return "";
+    }
+
+    const candidates = [
+        "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+        "video/mp4",
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm"
+    ];
+
+    for (const candidate of candidates) {
+        try {
+            if (
+                typeof window.MediaRecorder.isTypeSupported !== "function" ||
+                window.MediaRecorder.isTypeSupported(candidate)
+            ) {
+                return candidate;
+            }
+        } catch {
+            /* lanjut kandidat berikutnya */
+        }
+    }
+
+    return "";
+}
+
+
+async function compressDashboardVideoForStorage(
+    file,
+    onProgress
+) {
+
+    const recorderMime =
+        getSupportedRecorderMimeType();
+
+    if (
+        !recorderMime ||
+        typeof document === "undefined"
+    ) {
+
+        throw new Error(
+            "Ukuran video melebihi batas server (50 MB) dan browser ini tidak mendukung kompresi otomatis. Kompres ke MP4 <= 48 MB lalu unggah kembali."
+        );
+    }
+
+    const objectUrl =
+        URL.createObjectURL(file);
+
+    const video =
+        document.createElement("video");
+
+    let canvasStream = null;
+    let sourceStream = null;
+    let recorder = null;
+
+    try {
+
+        video.preload = "auto";
+        video.playsInline = true;
+        video.muted = false;
+        video.volume = 0.0001;
+        video.src = objectUrl;
+
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(
+                () => reject(new Error("Gagal membaca metadata video untuk optimasi ukuran.")),
+                15000
+            );
+            video.onloadedmetadata = () => {
+                clearTimeout(timeout);
+                resolve();
+            };
+            video.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error("File video tidak dapat diputar oleh browser untuk optimasi ukuran."));
+            };
+        });
+
+        const duration =
+            Number.isFinite(video.duration) && video.duration > 0
+                ? video.duration
+                : 30;
+
+        const srcW =
+            Math.max(2, Number(video.videoWidth) || 1280);
+        const srcH =
+            Math.max(2, Number(video.videoHeight) || 720);
+        const scale =
+            Math.min(1, FALLBACK_MAX_VIDEO_EDGE / Math.max(srcW, srcH));
+
+        const outW =
+            Math.max(2, Math.round((srcW * scale) / 2) * 2);
+        const outH =
+            Math.max(2, Math.round((srcH * scale) / 2) * 2);
+
+        const canvas =
+            document.createElement("canvas");
+        canvas.width = outW;
+        canvas.height = outH;
+
+        const ctx =
+            canvas.getContext("2d");
+
+        if (!ctx || typeof canvas.captureStream !== "function") {
+            throw new Error(
+                "Browser tidak mendukung pemrosesan kanvas video. Gunakan file MP4 <= 48 MB."
+            );
+        }
+
+        canvasStream =
+            canvas.captureStream(FALLBACK_VIDEO_FPS);
+
+        const captureFn =
+            video.captureStream || video.mozCaptureStream;
+
+        if (typeof captureFn === "function") {
+            try {
+                sourceStream = captureFn.call(video);
+                sourceStream.getAudioTracks().forEach(track => {
+                    canvasStream.addTrack(track);
+                });
+            } catch {
+                /* lanjut tanpa track audio jika diblokir browser */
+            }
+        }
+
+        const audioBitsPerSecond = 96_000;
+        const totalTargetBps =
+            Math.floor((FALLBACK_TARGET_VIDEO_BYTES * 8 * 0.82) / duration);
+        const videoBitsPerSecond =
+            Math.max(350_000, Math.min(8_000_000, totalTargetBps - audioBitsPerSecond));
+
+        recorder =
+            new window.MediaRecorder(canvasStream, {
+                mimeType: recorderMime,
+                videoBitsPerSecond,
+                audioBitsPerSecond
+            });
+
+        const chunks = [];
+
+        const blob = await new Promise((resolve, reject) => {
+            let finished = false;
+            let animId = 0;
+
+            const maxWaitMs =
+                Math.min(15 * 60 * 1000, Math.max(3 * 60 * 1000, duration * 3500 + 90_000));
+
+            const timeoutId =
+                setTimeout(() => {
+                    done(new Error("Optimasi video melewati batas waktu. Pastikan layar tetap menyala lalu coba lagi."));
+                }, maxWaitMs);
+
+            const finalize = () => {
+                clearTimeout(timeoutId);
+                cancelAnimationFrame(animId);
+                resolve(
+                    new Blob(chunks, {
+                        type: recorder.mimeType || recorderMime
+                    })
+                );
+            };
+
+            const done = err => {
+                if (finished) return;
+                finished = true;
+                cancelAnimationFrame(animId);
+                video.pause();
+                if (err) {
+                    clearTimeout(timeoutId);
+                    if (recorder && recorder.state !== "inactive") {
+                        try { recorder.stop(); } catch { /* ignore */ }
+                    }
+                    reject(err);
+                    return;
+                }
+                if (recorder && recorder.state === "recording") {
+                    try {
+                        recorder.requestData();
+                        recorder.stop();
+                    } catch {
+                        finalize();
+                    }
+                } else {
+                    finalize();
+                }
+            };
+
+            recorder.ondataavailable = ev => {
+                if (ev.data && ev.data.size > 0) {
+                    chunks.push(ev.data);
+                }
+            };
+            recorder.onerror = ev => done(ev.error || new Error("Optimasi ukuran video gagal."));
+            recorder.onstop = finalize;
+            video.onended = () => done();
+            video.ontimeupdate = () => {
+                if (duration > 0) {
+                    const pct = Math.min(99, Math.round((video.currentTime / duration) * 100));
+                    onProgress?.(pct);
+                    if (video.currentTime >= duration - 0.08) {
+                        done();
+                    }
+                }
+            };
+
+            const renderFrame = () => {
+                if (finished) return;
+                if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                    try {
+                        ctx.drawImage(video, 0, 0, outW, outH);
+                    } catch (drawErr) {
+                        done(drawErr);
+                        return;
+                    }
+                }
+                if (!video.ended && recorder.state === "recording") {
+                    animId = requestAnimationFrame(renderFrame);
+                }
+            };
+
+            recorder.start(1000);
+            animId = requestAnimationFrame(renderFrame);
+            video.play().catch(playErr => {
+                video.muted = true;
+                video.play().catch(() => done(playErr));
+            });
+        });
+
+        if (blob.size > FALLBACK_MAX_UPLOAD_BYTES) {
+            throw new Error(
+                "Ukuran video masih di atas 48 MB setelah optimasi otomatis. Kompres ke MP4 <= 48 MB lalu coba lagi."
+            );
+        }
+
+        const outMime =
+            normalizeBaseMimeType(blob.type) === "video/mp4"
+                ? "video/mp4"
+                : "video/webm";
+        const outExt =
+            outMime === "video/mp4" ? "mp4" : "webm";
+        const baseName =
+            String(file.name || "video").replace(/\.[^.]+$/, "") || "video";
+
+        return new File(
+            [blob],
+            `${baseName}-optimized.${outExt}`,
+            {
+                type: outMime,
+                lastModified: Date.now()
+            }
+        );
+
+    } finally {
+
+        if (recorder && recorder.state !== "inactive") {
+            try { recorder.stop(); } catch { /* ignore */ }
+        }
+        canvasStream?.getTracks?.().forEach(t => t.stop());
+        sourceStream?.getTracks?.().forEach(t => t.stop());
+        video.pause();
+        video.removeAttribute("src");
+        try { video.load(); } catch { /* ignore */ }
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
+
+function sendChunkWithProgress(
+    url,
+    chunk,
+    offset,
+    accessToken,
+    onChunkProgress
+) {
+
+    return new Promise((resolve, reject) => {
+
+        const xhr =
+            new XMLHttpRequest();
+
+        xhr.open("PATCH", url, true);
+        xhr.setRequestHeader("Authorization", "Bearer " + accessToken);
+        xhr.setRequestHeader("apikey", SUPABASE_KEY);
+        xhr.setRequestHeader("Tus-Resumable", "1.0.0");
+        xhr.setRequestHeader("Upload-Offset", String(offset));
+        xhr.setRequestHeader("Content-Type", "application/offset+octet-stream");
+
+        xhr.upload.onprogress = event => {
+            if (event.lengthComputable) {
+                onChunkProgress?.(event.loaded);
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const nextOffsetHeader =
+                    xhr.getResponseHeader("Upload-Offset");
+                const nextOffset =
+                    nextOffsetHeader !== null
+                        ? Number(nextOffsetHeader)
+                        : offset + chunk.size;
+                resolve(
+                    Number.isFinite(nextOffset)
+                        ? nextOffset
+                        : offset + chunk.size
+                );
+                return;
+            }
+
+            const err =
+                new Error(
+                    `Gagal mengunggah bagian video (HTTP ${xhr.status}).`
+                );
+            err.status = xhr.status;
+            reject(err);
+        };
+
+        xhr.onerror = () => {
+            const err =
+                new Error("Koneksi terputus saat mengunggah bagian video.");
+            err.status = 0;
+            reject(err);
+        };
+
+        xhr.ontimeout = () => {
+            const err =
+                new Error("Waktu unggah bagian video habis.");
+            err.status = 0;
+            reject(err);
+        };
+
+        xhr.timeout = 180_000;
+        xhr.send(chunk);
+    });
+}
+
+
+async function uploadViaTusResumable(
+    file,
+    path,
+    contentType,
+    accessToken,
+    onProgress
+) {
+
+    const baseUrl =
+        String(SUPABASE_URL || "").replace(/\/+$/, "");
+
+    const endpoint =
+        baseUrl + "/storage/v1/upload/resumable";
+
+    const metadata = [
+        "bucketName " + encodeTusMetadataValue(STORAGE_BUCKET),
+        "objectName " + encodeTusMetadataValue(path),
+        "contentType " + encodeTusMetadataValue(contentType),
+        "cacheControl " + encodeTusMetadataValue("3600")
+    ].join(",");
+
+    const createRes =
+        await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                Authorization: "Bearer " + accessToken,
+                apikey: SUPABASE_KEY,
+                "Tus-Resumable": "1.0.0",
+                "Upload-Length": String(file.size),
+                "Upload-Metadata": metadata,
+                "x-upsert": "false"
+            }
+        });
+
+    if (!createRes.ok) {
+        let detail = "";
+        try {
+            const body = await createRes.json();
+            detail = body?.message || body?.error || "";
+        } catch {
+            try {
+                detail = await createRes.text();
+            } catch {
+                detail = "";
+            }
+        }
+        const err =
+            new Error(
+                detail ||
+                `Gagal memulai upload resumable (HTTP ${createRes.status}).`
+            );
+        err.status = createRes.status;
+        throw err;
+    }
+
+    const rawLocation =
+        createRes.headers.get("Location") ||
+        createRes.headers.get("location") ||
+        "";
+
+    if (!rawLocation) {
+        const err =
+            new Error("Server storage tidak mengembalikan URL resumable.");
+        err.status = 501;
+        throw err;
+    }
+
+    const uploadUrl =
+        rawLocation.startsWith("http")
+            ? rawLocation
+            : new URL(rawLocation, baseUrl + "/").toString();
+
+    let offset = 0;
+
+    while (offset < file.size) {
+
+        const end =
+            Math.min(offset + TUS_CHUNK_SIZE, file.size);
+        const chunk =
+            file.slice(offset, end);
+
+        let attempt = 0;
+        let lastError = null;
+
+        while (attempt < 3) {
+            try {
+                offset =
+                    await sendChunkWithProgress(
+                        uploadUrl,
+                        chunk,
+                        offset,
+                        accessToken,
+                        loadedInChunk => {
+                            const totalLoaded =
+                                Math.min(file.size, offset + loadedInChunk);
+                            onProgress?.(
+                                Math.round((totalLoaded / file.size) * 100)
+                            );
+                        }
+                    );
+                lastError = null;
+                break;
+            } catch (chunkErr) {
+                lastError = chunkErr;
+                attempt += 1;
+                if (
+                    isStoragePayloadTooLargeError(chunkErr) ||
+                    chunkErr?.status === 401 ||
+                    chunkErr?.status === 403 ||
+                    attempt >= 3
+                ) {
+                    throw chunkErr;
+                }
+                await new Promise(r => setTimeout(r, 900 * attempt));
+            }
+        }
+
+        if (lastError) {
+            throw lastError;
+        }
+    }
+}
+
+
+function uploadViaXhr(
+    file,
+    path,
+    contentType,
+    accessToken,
+    onProgress
+) {
+
+    return new Promise((resolve, reject) => {
+
+        const baseUrl =
+            String(SUPABASE_URL || "").replace(/\/+$/, "");
+
+        const encodedPath =
+            String(path)
+                .split("/")
+                .map(encodeURIComponent)
+                .join("/");
+
+        const url =
+            `${baseUrl}/storage/v1/object/${encodeURIComponent(STORAGE_BUCKET)}/${encodedPath}`;
+
+        const xhr =
+            new XMLHttpRequest();
+
+        xhr.open("POST", url, true);
+        xhr.setRequestHeader("Authorization", "Bearer " + accessToken);
+        xhr.setRequestHeader("apikey", SUPABASE_KEY);
+        xhr.setRequestHeader("x-upsert", "false");
+        xhr.setRequestHeader("cache-control", "max-age=3600");
+        xhr.setRequestHeader("Content-Type", contentType);
+
+        xhr.upload.onprogress = event => {
+            if (event.lengthComputable && event.total > 0) {
+                onProgress?.(Math.round((event.loaded / event.total) * 100));
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                resolve();
+                return;
+            }
+
+            let detail = "";
+            try {
+                const parsed = JSON.parse(xhr.responseText || "{}");
+                detail = parsed?.message || parsed?.error || "";
+            } catch {
+                detail = xhr.responseText || "";
+            }
+
+            const err =
+                new Error(
+                    detail ||
+                    `Gagal mengunggah file ke Storage (HTTP ${xhr.status}).`
+                );
+            err.status = xhr.status;
+            reject(err);
+        };
+
+        xhr.onerror = () => {
+            const err =
+                new Error("Koneksi jaringan terputus saat mengunggah file.");
+            err.status = 0;
+            reject(err);
+        };
+
+        xhr.ontimeout = () => {
+            const err =
+                new Error("Waktu unggah habis. Periksa koneksi internet Anda lalu coba lagi.");
+            err.status = 0;
+            reject(err);
+        };
+
+        xhr.timeout = 10 * 60 * 1000;
+        xhr.send(file);
+    });
+}
+
+
+async function uploadSingleObjectWithBestTransport(
+    file,
+    path,
+    contentType,
+    accessToken,
+    label
+) {
+
+    const reportUploadPct = pct => {
+        const clamped = Math.max(2, Math.min(99, Number(pct) || 0));
+        updateProgress(label, clamped);
+    };
+
+    if (file.size > TUS_CHUNK_SIZE) {
+        try {
+            await uploadViaTusResumable(
+                file,
+                path,
+                contentType,
+                accessToken,
+                reportUploadPct
+            );
+            return;
+        } catch (tusError) {
+            if (
+                isStoragePayloadTooLargeError(tusError) ||
+                tusError?.status === 401 ||
+                tusError?.status === 403
+            ) {
+                throw tusError;
+            }
+            console.warn(
+                "[GEN-Z.AI UserDashboard] Resumable upload gagal, beralih ke XHR langsung:",
+                tusError
+            );
+        }
+    }
+
+    await uploadViaXhr(
+        file,
+        path,
+        contentType,
+        accessToken,
+        reportUploadPct
+    );
+}
+
 
 async function uploadFile(
     file,
@@ -4522,10 +5524,40 @@ async function uploadFile(
     }
 
 
-    const path =
+    const session =
+        await ensureDashboardSession();
+
+
+    const accessToken =
+        session?.access_token || "";
+
+
+    if (!accessToken) {
+
+        throw new Error(
+            "Sesi login kedaluwarsa. Silakan muat ulang halaman dan login kembali."
+        );
+    }
+
+
+    const isVideoUpload =
+        folder === "videos";
+
+
+    let resolvedMime =
+        isVideoUpload
+            ? (resolveVideoMimeType(file) || "video/mp4")
+            : (resolveImageMimeType(file) || "image/jpeg");
+
+
+    let targetFile =
+        file;
+
+
+    let path =
         createStoragePath(
             folder,
-            file
+            targetFile
         );
 
 
@@ -4536,30 +5568,71 @@ async function uploadFile(
 
     updateProgress(
         label,
-        5
+        2
     );
 
 
-    const {
-        error
-    } =
-        await supabaseClient.storage
-            .from(
-                STORAGE_BUCKET
-            )
-            .upload(
-                path,
-                file,
-                {
-                    cacheControl:"3600",
-                    upsert:false,
-                    contentType:file.type
-                }
+    try {
+
+        await uploadSingleObjectWithBestTransport(
+            targetFile,
+            path,
+            resolvedMime,
+            accessToken,
+            label
+        );
+
+    } catch (uploadError) {
+
+        if (
+            isVideoUpload &&
+            isStoragePayloadTooLargeError(uploadError)
+        ) {
+
+            showProgress(
+                "Mengoptimalkan ukuran video agar sesuai batas server..."
             );
 
+            targetFile =
+                await compressDashboardVideoForStorage(
+                    file,
+                    pct => updateProgress(
+                        "Mengoptimalkan ukuran video...",
+                        pct
+                    )
+                );
 
-    if (error) {
-        throw error;
+            resolvedMime =
+                resolveVideoMimeType(targetFile) ||
+                "video/mp4";
+
+            path =
+                createStoragePath(
+                    folder,
+                    targetFile
+                );
+
+            const refreshedSession =
+                await ensureDashboardSession();
+
+            const freshToken =
+                refreshedSession?.access_token || accessToken;
+
+            showProgress(label);
+            updateProgress(label, 2);
+
+            await uploadSingleObjectWithBestTransport(
+                targetFile,
+                path,
+                resolvedMime,
+                freshToken,
+                label
+            );
+
+        } else {
+
+            throw uploadError;
+        }
     }
 
 
@@ -4662,10 +5735,17 @@ async function removeStorageFile(
     }
 
 
+    await ensureDashboardSession();
+
+
+    const client =
+        getActiveSupabaseClient();
+
+
     const {
         error
     } =
-        await supabaseClient.storage
+        await client.storage
             .from(
                 STORAGE_BUCKET
             )
@@ -5000,6 +6080,9 @@ elements.videoForm.addEventListener(
             true;
 
 
+        let uploadedNewVideoPath = null;
+        let uploadedNewThumbnailPath = null;
+
         try {
 
             const existing =
@@ -5018,6 +6101,14 @@ elements.videoForm.addEventListener(
                     : null;
 
 
+            if (!id && !videoFile) {
+
+                throw new Error(
+                    "Pilih file video terlebih dahulu."
+                );
+            }
+
+
             let newVideoPath =
                 existing?.video_path ||
                 null;
@@ -5030,23 +6121,29 @@ elements.videoForm.addEventListener(
 
             if (videoFile) {
 
-                newVideoPath =
+                uploadedNewVideoPath =
                     await uploadFile(
                         videoFile,
                         "videos",
                         "Mengupload video..."
                     );
+
+                newVideoPath =
+                    uploadedNewVideoPath;
             }
 
 
             if (thumbnailFile) {
 
-                newThumbnailPath =
+                uploadedNewThumbnailPath =
                     await uploadFile(
                         thumbnailFile,
                         "thumbnails",
                         "Mengupload thumbnail..."
                     );
+
+                newThumbnailPath =
+                    uploadedNewThumbnailPath;
             }
 
 
@@ -5097,13 +6194,20 @@ elements.videoForm.addEventListener(
             );
 
 
+            await ensureDashboardSession();
+
+
+            const dbClient =
+                getActiveSupabaseClient();
+
+
             let result;
 
 
             if (id) {
 
                 result =
-                    await supabaseClient
+                    await dbClient
                         .from(
                             "dashboard_videos"
                         )
@@ -5118,7 +6222,7 @@ elements.videoForm.addEventListener(
             } else {
 
                 result =
-                    await supabaseClient
+                    await dbClient
                         .from(
                             "dashboard_videos"
                         )
@@ -5131,6 +6235,10 @@ elements.videoForm.addEventListener(
             if (result.error) {
                 throw result.error;
             }
+
+
+            uploadedNewVideoPath = null;
+            uploadedNewThumbnailPath = null;
 
 
             if (
@@ -5182,6 +6290,15 @@ elements.videoForm.addEventListener(
                 "Save video error:",
                 error
             );
+
+
+            if (uploadedNewVideoPath) {
+                removeStorageFile(uploadedNewVideoPath).catch(() => {});
+            }
+
+            if (uploadedNewThumbnailPath) {
+                removeStorageFile(uploadedNewThumbnailPath).catch(() => {});
+            }
 
 
             hideProgress();
@@ -5241,10 +6358,17 @@ async function deleteVideo(
 
     try {
 
+        await ensureDashboardSession();
+
+
+        const dbClient =
+            getActiveSupabaseClient();
+
+
         const {
             error
         } =
-            await supabaseClient
+            await dbClient
                 .from(
                     "dashboard_videos"
                 )
@@ -5304,7 +6428,7 @@ async function deleteVideo(
 
 elements.videoFile.addEventListener(
     "change",
-    () => {
+    async () => {
 
         const file =
             elements.videoFile.files[0];
@@ -5337,7 +6461,7 @@ elements.videoFile.addEventListener(
         }
 
 
-        elements.currentVideoFile.textContent =
+        const baseSummary =
             "File baru: " +
             file.name +
             " · " +
@@ -5346,9 +6470,32 @@ elements.videoFile.addEventListener(
             );
 
 
+        elements.currentVideoFile.textContent =
+            baseSummary;
+
+
         elements.currentVideoFile.classList.remove(
             "hidden"
         );
+
+
+        const durationSeconds =
+            await readVideoDurationSeconds(
+                file
+            );
+
+
+        if (
+            durationSeconds > 0 &&
+            elements.videoFile.files[0] === file
+        ) {
+
+            elements.currentVideoFile.textContent =
+                baseSummary +
+                " · " +
+                durationSeconds.toFixed(1) +
+                " detik";
+        }
 
     }
 );

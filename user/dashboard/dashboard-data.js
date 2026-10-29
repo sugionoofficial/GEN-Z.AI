@@ -1100,8 +1100,28 @@
         }
 
 
+        if (
+            window.GENZSession &&
+            typeof window.GENZSession.ensureFreshSession === "function"
+        ) {
+            try {
+                await window.GENZSession.ensureFreshSession({ force: false });
+            } catch {
+                /* lanjut dengan sesi aktif */
+            }
+        }
+
+
         const supabase =
             getClient();
+
+
+        const normalizedContentType =
+            options.contentType ||
+            (typeof dashboard.resolveVideoMimeType === "function" && dashboard.resolveVideoMimeType(file)) ||
+            (typeof dashboard.resolveImageMimeType === "function" && dashboard.resolveImageMimeType(file)) ||
+            (typeof file.type === "string" ? file.type.split(";")[0].trim() : "") ||
+            undefined;
 
 
         const result =
@@ -1122,8 +1142,7 @@
                             false,
 
                         contentType:
-                            file.type ||
-                            undefined
+                            normalizedContentType
                     }
                 );
 
