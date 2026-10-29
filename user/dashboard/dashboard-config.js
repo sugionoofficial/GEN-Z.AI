@@ -321,23 +321,90 @@
     }
 
 
+    function getFileExtension(file) {
+
+        const name = file && typeof file.name === "string"
+            ? file.name
+            : "";
+
+        const dot = name.lastIndexOf(".");
+
+        return dot === -1
+            ? ""
+            : name.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, "");
+    }
+
+
+    function resolveVideoMimeType(file) {
+
+        if (!file) return "";
+
+        const raw = typeof file.type === "string"
+            ? file.type.split(";")[0].trim().toLowerCase()
+            : "";
+
+        if (raw === "video/x-m4v" || raw === "video/mp4v-es") {
+            return "video/mp4";
+        }
+
+        if (
+            raw === "video/mp4" ||
+            raw === "video/webm" ||
+            raw === "video/quicktime" ||
+            raw === "video/3gpp"
+        ) {
+            return raw;
+        }
+
+        const ext = getFileExtension(file);
+        const map = {
+            mp4: "video/mp4",
+            m4v: "video/mp4",
+            webm: "video/webm",
+            mov: "video/quicktime",
+            qt: "video/quicktime",
+            "3gp": "video/3gpp",
+            "3gpp": "video/3gpp"
+        };
+
+        return map[ext] || "";
+    }
+
+
+    function resolveImageMimeType(file) {
+
+        if (!file) return "";
+
+        const raw = typeof file.type === "string"
+            ? file.type.split(";")[0].trim().toLowerCase()
+            : "";
+
+        if (raw === "image/jpg") return "image/jpeg";
+        if (raw === "image/jpeg" || raw === "image/png" || raw === "image/webp") {
+            return raw;
+        }
+
+        const ext = getFileExtension(file);
+        const map = {
+            jpg: "image/jpeg",
+            jpeg: "image/jpeg",
+            png: "image/png",
+            webp: "image/webp"
+        };
+
+        return map[ext] || "";
+    }
+
+
     function isVideoFile(file) {
 
-        return !!(
-            file &&
-            typeof file.type === "string" &&
-            file.type.startsWith("video/")
-        );
+        return Boolean(resolveVideoMimeType(file));
     }
 
 
     function isImageFile(file) {
 
-        return !!(
-            file &&
-            typeof file.type === "string" &&
-            file.type.startsWith("image/")
-        );
+        return Boolean(resolveImageMimeType(file));
     }
 
 
@@ -397,6 +464,10 @@
     window.GENZDashboard.isVideoFile = isVideoFile;
 
     window.GENZDashboard.isImageFile = isImageFile;
+
+    window.GENZDashboard.resolveVideoMimeType = resolveVideoMimeType;
+
+    window.GENZDashboard.resolveImageMimeType = resolveImageMimeType;
 
     window.GENZDashboard.formatFileSize = formatFileSize;
 
