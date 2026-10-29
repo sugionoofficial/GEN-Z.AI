@@ -830,6 +830,7 @@ function loadMonitoringUi(extra = {}) {
         body: { classList: { contains: () => true } },
         addEventListener: () => {},
         getElementById: () => null,
+        createElement: () => ({ dataset: {}, className: "", textContent: "", title: "" }),
         visibilityState: "visible"
     };
 
@@ -895,4 +896,52 @@ test("UI tidak lagi menyisipkan & ke dalam argumen action", () => {
     assert.ok(!/api\(`events&/.test(ui), "jangan pakai api(`events&limit=…`)");
     assert.ok(!/api\(`event&/.test(ui), "jangan pakai api(`event&id=…`)");
     assert.ok(ui.includes("new URLSearchParams"), "query harus dibangun dengan URLSearchParams");
+});
+
+/* ---------------------------------------------------------
+   TAMPILAN HP: baris log tidak boleh melar karena IPv6
+   --------------------------------------------------------- */
+
+test("IPv6 diringkas di daftar supaya baris tidak memanjang ke bawah", () => {
+    const { context } = loadMonitoringUi();
+    const short = value => vm.runInContext(`shortIp(${JSON.stringify(value)})`, context);
+
+    assert.equal(short("2404:c0:2540:7d13:18e2:af27:8ce4:bdcc"), "2404:c0:…:bdcc");
+    assert.equal(short("2001:448a:20a0:1234::1"), "2001:448a:…:1");
+
+    /* IPv4 dan alamat pendek tidak diubah. */
+    assert.equal(short("114.122.1.2"), "114.122.1.2");
+    assert.equal(short("2001:448a"), "2001:448a");
+
+    assert.equal(short(""), "—");
+    assert.equal(short(null), "—");
+});
+
+test("sel IP menyimpan alamat utuh untuk tooltip dan data-ip", () => {
+    const { context } = loadMonitoringUi();
+    const full = "2404:c0:2540:7d13:18e2:af27:8ce4:bdcc";
+
+    const result = vm.runInContext(
+        `(() => {
+            const cell = ipCell(${JSON.stringify(full)});
+            return [cell.textContent, cell.title, cell.dataset.ip, cell.className].join("||");
+        })()`,
+        context
+    );
+
+    const [text, title, dataIp, className] = result.split("||");
+    assert.equal(text, "2404:c0:…:bdcc");
+    assert.equal(title, full);
+    assert.equal(dataIp, full);
+    assert.equal(className, "mon-ip");
+});
+
+test("CSS layar sempit menyembunyikan kolom URL dan memotong IP", () => {
+    const css = read("admin-control/assets/css/monitoring.css");
+
+    const mobile = css.slice(css.indexOf("@media (max-width: 640px)"));
+    assert.ok(mobile.includes(".mon-log td:nth-child(4)"), "kolom halaman disembunyikan");
+    assert.ok(mobile.includes(".mon-log-msg"), "pesan dibatasi barisnya");
+    assert.match(mobile, /-webkit-line-clamp:\s*3/);
+    assert.match(css, /\.mon-ip\s*\{[^}]*white-space:\s*nowrap/);
 });
