@@ -82,7 +82,7 @@ function loadBeacon(options = {}) {
         window,
         document,
         navigator,
-        console: { log: value => logged.push(value), warn: () => {}, error: () => {}, clear: () => {} },
+        console: { log: (...args) => logged.push(args), warn: () => {}, error: () => {}, clear: () => {} },
         Date: FakeDate,
         fetch: async () => ({ ok: true, status: 200, text: async () => "{}" }),
         setInterval: () => ({ unref: () => {} }),
@@ -172,10 +172,14 @@ test("probe console dipasang sekali dan dipakai sebagai bukti", () => {
     });
 
     assert.equal(beacon.logged.length, 1, "probe harus dicatat sekali saat halaman dimuat");
+
+    const [label, probe] = beacon.logged[0];
+    assert.equal(label, "[GEN-Z.AI] probe DevTools", "probe diberi label, bukan 'Object' polos");
+    assert.equal(typeof probe, "object");
     assert.equal(beacon.state(), false);
 
     /* Console memformat objek probe = DevTools benar-benar terbuka. */
-    void beacon.logged[0].id;
+    void probe.id;
     assert.equal(beacon.state(), true, "HP tetap bisa mendeteksi DevTools lewat console");
 
     /* Bukti console kedaluwarsa supaya status tidak tersangkut selamanya. */

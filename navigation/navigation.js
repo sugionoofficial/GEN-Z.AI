@@ -61,7 +61,7 @@
 
         if (!monitoringOff) {
             const monitorScript = document.createElement("script");
-            monitorScript.src = "/assets/js/security-beacon.js?v=beacon-20261029-2";
+            monitorScript.src = "/assets/js/security-beacon.js?v=beacon-20261029-3";
             monitorScript.defer = true;
             monitorScript.onerror = error => {
                 console.warn("[GEN-Z.AI] Beacon monitoring tidak termuat:", error);

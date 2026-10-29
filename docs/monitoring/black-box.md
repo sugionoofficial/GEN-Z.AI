@@ -105,9 +105,10 @@ Browser tidak menyediakan API resmi. Beacon memakai dua heuristik:
    dan keyboard membuat `outerHeight - innerHeight` selalu besar — dulu ini
    memicu alarm palsu "DevTools terbuka" setiap kali halaman digulir.
 2. **Getter pada objek console** — objek dengan properti `id` yang punya getter
-   dicetak sekali saat halaman dimuat; DevTools yang memformat objek akan
-   memicunya. Bukti ini dianggap berlaku 15 detik agar status tidak tersangkut
-   "terbuka" selamanya setelah console ditutup.
+   dicetak sekali saat halaman dimuat dengan label
+   `[GEN-Z.AI] probe DevTools`; DevTools yang memformat objek akan memicunya.
+   Bukti ini dianggap berlaku 15 detik agar status tidak tersangkut "terbuka"
+   selamanya setelah console ditutup.
 
 Konsekuensinya:
 

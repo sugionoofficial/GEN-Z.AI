@@ -210,8 +210,10 @@
                     return "genz-probe";
                 }
             });
-            /* DevTools yang memformat objek akan memicu getter di atas. */
-            console.log(probe);
+            /* DevTools yang memformat objek akan memicu getter di atas.
+               Diberi label supaya di console tidak tampil sebagai "Object"
+               polos dan tidak disangka error. */
+            console.log("[GEN-Z.AI] probe DevTools", probe);
         } catch (error) {
             /* beberapa browser memblokir defineProperty pada objek console */
         }
