@@ -235,7 +235,14 @@
 
             var widthGap = (window.outerWidth || 0) - (window.innerWidth || 0);
             var heightGap = (window.outerHeight || 0) - (window.innerHeight || 0);
-            var sizeSaysOpen = widthGap > 160 || heightGap > 160;
+
+            /*
+             * Ambang 160 px terlalu rapat: pada layar 1920x1080 dengan jendela
+             * maksimal, selisih tinggi toolbar saja sudah ~150-190 px sehingga
+             * status bisa berkedip buka/tutup tanpa DevTools. DevTools yang
+             * benar-benar dock menyusutkan lebar konten minimal ~280 px.
+             */
+            var sizeSaysOpen = widthGap > 280 || heightGap > 240;
 
             return Boolean(sizeSaysOpen || consoleSaysOpen());
         } catch (error) {
@@ -246,6 +253,9 @@
     function watchDevtools() {
         probeConsoleGetter();
 
+        var pendingDevtools = null;
+        var pendingTicks = 0;
+
         var timer = setInterval(function () {
             var open = devtoolsState();
 
@@ -255,8 +265,31 @@
                 return;
             }
 
-            if (open === lastDevtools) return;
+            if (open === lastDevtools) {
+                pendingDevtools = null;
+                pendingTicks = 0;
+                return;
+            }
+
+            /*
+             * Perubahan harus bertahan dua pemeriksaan (6 detik) sebelum
+             * dilaporkan. Address bar HP, toolbar, atau keyboard yang
+             * menyusutkan viewport sesaat tidak lagi menghasilkan pasangan
+             * "dibuka"/"ditutup" palsu.
+             */
+            if (pendingDevtools !== open) {
+                pendingDevtools = open;
+                pendingTicks = 1;
+                return;
+            }
+
+            pendingTicks += 1;
+            if (pendingTicks < 2) return;
+
+            pendingDevtools = null;
+            pendingTicks = 0;
             lastDevtools = open;
+
             report("devtools", {
                 throttle: false,
                 message: open
@@ -273,9 +306,41 @@
        PENANGKAP ERROR
        ----------------------------------------------------- */
 
+    /*
+     * Error dari ekstensi browser (dompet kripto, password manager, dsb.)
+     * ikut memicu "error" dan "unhandledrejection" di halaman ini. Dulu
+     * semuanya dilaporkan sebagai error situs, sehingga panel BLACK BOX
+     * penuh temuan palsu seperti:
+     *   "Promise gagal: Cannot read properties of undefined (reading 'M_ID')"
+     * Padahal itu kode ekstensi, bukan situs. Sumbernya dapat dikenali dari
+     * skema URL di stack trace / nama berkas.
+     */
+    var EXTENSION_ORIGIN = /(?:chrome|moz|safari|safari-web|ms-browser|edge|opera)-extension:\/\/|^chrome:\/\/|^moz-extension:\/\//i;
+
+    function looksLikeExtension() {
+        for (var i = 0; i < arguments.length; i += 1) {
+            var text = String(arguments[i] || "");
+            if (text && EXTENSION_ORIGIN.test(text)) return true;
+        }
+        return false;
+    }
+
+    function rejectionStack(reason) {
+        if (!reason) return "";
+        if (typeof reason === "object") return String(reason.stack || "") + " " + String(reason.message || "");
+        return "";
+    }
+
     window.addEventListener("error", function (event) {
         var target = event.target;
         var isResource = target && target !== window && target.tagName;
+        var source = isResource
+            ? String(target.src || target.href || "")
+            : String(event.filename || "");
+
+        /* Aset atau skrip milik ekstensi: bukan tanggung jawab situs. */
+        if (looksLikeExtension(source, event.error && event.error.stack, event.message)) return;
+
         report("error", {
             message: isResource
                 ? "Gagal memuat aset: " + (target.src || target.href || target.tagName)
@@ -287,6 +352,9 @@
 
     window.addEventListener("unhandledrejection", function (event) {
         var reason = event.reason;
+
+        if (looksLikeExtension(rejectionStack(reason))) return;
+
         report("error", {
             message: "Promise gagal: " + (reason && reason.message ? reason.message : String(reason || "unknown")),
             severity: "error"

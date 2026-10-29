@@ -99,11 +99,12 @@ jadi angka besar dari luar tidak bisa memaksa query berat.
 
 Browser tidak menyediakan API resmi. Beacon memakai dua heuristik:
 
-1. **Selisih viewport** — `outerWidth - innerWidth > 160` (DevTools yang
-   menempel/docked memperkecil viewport). Heuristik ini **dimatikan di HP**
-   (lebar < 900 px dengan pointer kasar/`maxTouchPoints`), karena address bar
-   dan keyboard membuat `outerHeight - innerHeight` selalu besar — dulu ini
-   memicu alarm palsu "DevTools terbuka" setiap kali halaman digulir.
+1. **Selisih viewport** — `outerWidth - innerWidth > 280` atau
+   `outerHeight - innerHeight > 240`, dan perubahan harus bertahan **dua
+   pemeriksaan berturut-turut** (6 detik) sebelum dilaporkan supaya tinggi
+   toolbar desktop maupun kedipan resize tidak memicu alarm palsu. Heuristik
+   ini **dimatikan di HP** (lebar < 900 px dengan pointer kasar/`maxTouchPoints`),
+   karena address bar dan keyboard membuat `outerHeight - innerHeight` selalu besar.
 2. **Getter pada objek console** — objek dengan properti `id` yang punya getter
    dicetak sekali saat halaman dimuat dengan label
    `[GEN-Z.AI] probe DevTools`; DevTools yang memformat objek akan memicunya.
@@ -135,13 +136,22 @@ Saat pemeriksaan berjalan:
 
 1. `monitoring_health_checks` diisi hasil 7 target.
 2. `monitoring_findings` di-upsert berdasarkan `fingerprint` — temuan yang sama
-   menambah `occurrence_count`, tidak membuat baris baru.
-3. Temuan kategori `health` yang sudah normal otomatis berstatus `resolved`.
-4. Log lebih tua dari `retention_days` dihapus.
+   menambah `occurrence_count`, tidak membuat baris baru:
+   - **Tandai diketahui (`acknowledged`)** menyenyapkan temuan selama 24 jam sejak
+     `handled_at` (kartu tetap tampil redup dengan tombol **Buka lagi**, tetapi
+     tidak dihitung aktif).
+   - **Tandai selesai (`resolved`)** menyembunyikan temuan dan **tidak** membukanya
+     ulang dari riwayat 24 jam lama — hanya dibuka lagi bila ada kejadian baru
+     setelah `handled_at` (atau pemeriksaan `health` kembali gagal).
+3. Temuan yang sumbernya sudah tidak muncul lagi otomatis berstatus `resolved`.
+4. Error maupun promise gagal yang berasal dari ekstensi browser
+   (`chrome-extension://`, `moz-extension://`, `safari-web-extension://`, dll.)
+   diabaikan beacon agar tidak mengotori log situs.
+5. Log lebih tua dari `retention_days` dihapus.
 
 ## Pemasangan
 
-1. Jalankan `supabase/monitoring-blackbox.sql` lalu `supabase/monitoring-log-cap.sql` (keduanya idempotent).
+1. Jalankan `supabase/monitoring-blackbox.sql`, `supabase/monitoring-log-cap.sql`, dan `supabase/monitoring-finding-handled.sql` (semuanya idempotent).
 2. Deploy Worker: `npm run deploy` (`/api/monitoring` dan cron baru ikut).
 3. Buka **Admin Panel → MONITORING**, tekan **Periksa sekarang**.
 

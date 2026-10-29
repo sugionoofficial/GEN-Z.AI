@@ -35,6 +35,7 @@ function loadBeacon(options = {}) {
 
     const source = read("assets/js/security-beacon.js");
     const logged = [];
+    const sent = [];
 
     let now = 1_700_000_000_000;
     class FakeDate extends Date {
@@ -50,6 +51,8 @@ function loadBeacon(options = {}) {
         removeItem: key => store.delete(key)
     };
 
+    const listeners = new Map();
+
     const window = {
         innerWidth,
         innerHeight,
@@ -59,7 +62,10 @@ function loadBeacon(options = {}) {
         screen: { width: 1440, height: 900 },
         sessionStorage: storage,
         localStorage: storage,
-        addEventListener: () => {},
+        addEventListener: (type, handler) => {
+            if (!listeners.has(type)) listeners.set(type, []);
+            listeners.get(type).push(handler);
+        },
         removeEventListener: () => {},
         matchMedia: query => ({ matches: query.includes("coarse") ? coarse : false })
     };
@@ -84,7 +90,10 @@ function loadBeacon(options = {}) {
         navigator,
         console: { log: (...args) => logged.push(args), warn: () => {}, error: () => {}, clear: () => {} },
         Date: FakeDate,
-        fetch: async () => ({ ok: true, status: 200, text: async () => "{}" }),
+        fetch: async (url, options = {}) => {
+            sent.push(JSON.parse(options.body || "{}"));
+            return { ok: true, status: 200, text: async () => "{}" };
+        },
         setInterval: () => ({ unref: () => {} }),
         clearInterval: () => {},
         setTimeout,
@@ -96,6 +105,10 @@ function loadBeacon(options = {}) {
     return {
         state: () => window.GENZMonitor.devtoolsState(),
         logged,
+        sent,
+        dispatch: (type, event) => {
+            for (const handler of listeners.get(type) || []) handler(event);
+        },
         advance: ms => {
             now += ms;
         }
@@ -185,4 +198,110 @@ test("probe console dipasang sekali dan dipakai sebagai bukti", () => {
     /* Bukti console kedaluwarsa supaya status tidak tersangkut selamanya. */
     beacon.advance(20000);
     assert.equal(beacon.state(), false);
+});
+
+/* ---------------------------------------------------------
+   ERROR DARI EKSTENSI BROWSER BUKAN ERROR SITUS
+   Contoh nyata: "Promise gagal: Cannot read properties of
+   undefined (reading 'M_ID')" berasal dari content script
+   ekstensi dompet, bukan dari kode GEN-Z.AI.
+   --------------------------------------------------------- */
+
+function beaconForErrors() {
+    const beacon = loadBeacon({
+        innerWidth: 1440,
+        innerHeight: 780,
+        outerWidth: 1440,
+        outerHeight: 900
+    });
+
+    /* page_view dikirim saat beacon dimuat; yang diuji hanya laporan error.
+       Debounce beacon 4 detik, jadi waktu dimajukan sebelum memicu error. */
+    beacon.advance(5000);
+    beacon.errors = () => beacon.sent.filter(item => item.kind === "error");
+    return beacon;
+}
+
+test("promise gagal dari ekstensi diabaikan", () => {
+    const beacon = beaconForErrors();
+
+    const reason = new Error("Cannot read properties of undefined (reading 'M_ID')");
+    reason.stack = "TypeError: x\n    at Y (chrome-extension://abcdefghijklmnop/200.js:1:761)";
+
+    beacon.dispatch("unhandledrejection", { reason });
+
+    assert.equal(beacon.errors().length, 0, "error ekstensi tidak boleh dikirim");
+});
+
+test("promise gagal dari kode situs tetap dilaporkan", () => {
+    const beacon = beaconForErrors();
+
+    const reason = new Error("gagal memuat data");
+    reason.stack = "Error: gagal memuat data\n    at muat (https://situs.example/app.js:10:5)";
+
+    beacon.dispatch("unhandledrejection", { reason });
+
+    assert.equal(beacon.errors().length, 1);
+    assert.match(beacon.errors()[0].message, /gagal memuat data/);
+});
+
+test("error resource milik ekstensi tidak dilaporkan", () => {
+    const beacon = beaconForErrors();
+
+    beacon.dispatch("error", {
+        target: { tagName: "SCRIPT", src: "chrome-extension://abcdefghijklmnop/inject.js" }
+    });
+
+    assert.equal(beacon.errors().length, 0);
+});
+
+test("error aset situs yang gagal dimuat tetap dilaporkan", () => {
+    const beacon = beaconForErrors();
+
+    beacon.dispatch("error", {
+        target: { tagName: "SCRIPT", src: "https://situs.example/app.js" }
+    });
+
+    assert.equal(beacon.errors().length, 1);
+    assert.match(beacon.errors()[0].message, /Gagal memuat aset/);
+});
+
+test("selisih tinggi toolbar saja tidak dianggap DevTools", () => {
+    /* Kasus nyata: layar 1080, viewport 911 (selisih 169 px karena toolbar). */
+    const beacon = loadBeacon({
+        innerWidth: 1365,
+        innerHeight: 911,
+        outerWidth: 1365,
+        outerHeight: 1080
+    });
+
+    assert.equal(beacon.state(), false);
+});
+
+test("DevTools dock yang menyusutkan lebar tetap terdeteksi", () => {
+    const beacon = loadBeacon({
+        innerWidth: 1050,
+        innerHeight: 911,
+        outerWidth: 1920,
+        outerHeight: 1040
+    });
+
+    assert.equal(beacon.state(), true);
+});
+
+test("error sinkron dengan stack ekstensi juga diabaikan", () => {
+    const beacon = beaconForErrors();
+
+    const err = new TypeError("Cannot read properties of undefined (reading 'M_ID')");
+    err.stack = "TypeError: x\n    at inject (moz-extension://12345678-1234/contentscript.js:4:12)";
+
+    beacon.dispatch("error", {
+        target: {},
+        message: err.message,
+        filename: "",
+        lineno: 0,
+        error: err
+    });
+
+    assert.equal(beacon.errors().length, 0);
 });

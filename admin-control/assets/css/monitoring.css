@@ -1082,3 +1082,17 @@ html[data-genz-theme="light"] .mon-limit select option {
     background: #ffffff;
     color: #0d1a13;
 }
+
+/* Temuan yang sudah ditandai diketahui: tetap terlihat, tapi redup. */
+.mon-finding--known {
+    opacity: .62;
+    border-style: dashed;
+}
+
+.mon-finding--known .mon-finding-title::after {
+    content: " · diketahui";
+    font-weight: 500;
+    letter-spacing: .06em;
+    color: var(--bb-muted);
+    text-transform: lowercase;
+}
