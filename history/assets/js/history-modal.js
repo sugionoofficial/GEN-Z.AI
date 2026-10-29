@@ -492,13 +492,13 @@
         if (reason === "link") {
             return {
                 title: "Tautan hasil sudah kedaluwarsa",
-                body: "Tautan sementara dari provider sudah melewati masa berlakunya (umumnya 1–24 jam sejak generation selesai), jadi berkasnya tidak bisa dibuka atau diunduh dari tautan ini lagi. Riwayat dan detail generation tetap tersimpan."
+                body: "Tautan sementara dari provider sudah melewati masa berlakunya (maksimal 1 jam sejak generation selesai), jadi berkasnya tidak bisa dibuka atau diunduh dari tautan ini lagi. Riwayat dan detail generation tetap tersimpan."
             };
         }
 
         return {
             title: "Media sudah kedaluwarsa",
-            body: "Berkas hasil sudah tidak tersedia di penyimpanan. Media riwayat disimpan maksimal 24 jam, jadi file tidak bisa dibuka atau diunduh lagi. Riwayat dan detail generation tetap tersimpan."
+            body: "Berkas hasil sudah tidak tersedia di penyimpanan. Media riwayat disimpan maksimal 1 jam, jadi file tidak bisa dibuka atau diunduh lagi. Riwayat dan detail generation tetap tersimpan."
         };
     }
 
@@ -624,7 +624,7 @@
             const reason = getMediaExpiryReason(item);
             const hint = reason === "link"
                 ? "Tautan hasil dari provider sudah kedaluwarsa. Riwayat dan detail generation tetap tersimpan."
-                : "Media hasil sudah tidak tersedia setelah masa simpan 24 jam. Riwayat dan detail generation tetap tersimpan.";
+                : "Media hasil sudah tidak tersedia setelah masa simpan 1 jam. Riwayat dan detail generation tetap tersimpan.";
             return `
                 <div class="detail-row detail-action-row">
                     <div class="detail-label">Action</div>
