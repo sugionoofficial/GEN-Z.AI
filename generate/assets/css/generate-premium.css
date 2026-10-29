@@ -2447,6 +2447,12 @@ textarea,
     display:
         inline-block !important;
 
+    flex-shrink:
+        0;
+
+    box-sizing:
+        border-box;
+
     width:
         15px !important;
 
@@ -2466,8 +2472,40 @@ textarea,
     border-radius:
         50% !important;
 
+    will-change:
+        transform;
+
     animation:
         genzGenerateSpinner .7s linear infinite !important;
+
+    -webkit-animation:
+        genzGenerateSpinner .7s linear infinite !important;
+}
+
+
+#generateButton .spinner[hidden],
+#generateButton .btn-spinner[hidden],
+#generateButton .loading-spinner[hidden],
+#generateButton [class*="spinner"][hidden] {
+
+    display:
+        none !important;
+}
+
+
+#generateButton[aria-busy="true"] .btn-icon,
+#generateButton.is-loading .btn-icon {
+
+    display:
+        none !important;
+}
+
+
+#generateButton[aria-busy="true"] .spinner,
+#generateButton.is-loading .spinner {
+
+    display:
+        inline-block !important;
 }
 
 
@@ -2972,6 +3010,74 @@ textarea,
         transition-duration:
             0.01ms !important;
     }
+
+    /*
+     * Indikator loading berputar adalah umpan balik status proses aktif
+     * (bukan dekorasi), sehingga wajib tetap berputar di HP walau
+     * Penghemat Baterai / prefers-reduced-motion sedang aktif.
+     */
+    #generateButton .spinner,
+    #generateButton .btn-spinner,
+    #generateButton .loading-spinner,
+    #generateButton [class*="spinner"] {
+
+        animation:
+            genzGenerateSpinner 0.7s linear infinite !important;
+
+        -webkit-animation:
+            genzGenerateSpinner 0.7s linear infinite !important;
+
+        animation-duration:
+            0.7s !important;
+
+        animation-iteration-count:
+            infinite !important;
+    }
+
+    .genz-status-spinner {
+
+        animation:
+            genzStatusSpin 0.78s linear infinite !important;
+
+        -webkit-animation:
+            genzStatusSpin 0.78s linear infinite !important;
+
+        animation-duration:
+            0.78s !important;
+
+        animation-iteration-count:
+            infinite !important;
+    }
+
+    .gpc-thumb-spinner {
+
+        animation:
+            gpcSpin 0.8s linear infinite !important;
+
+        -webkit-animation:
+            gpcSpin 0.8s linear infinite !important;
+
+        animation-duration:
+            0.8s !important;
+
+        animation-iteration-count:
+            infinite !important;
+    }
+
+    .generate-media-status[data-state="uploading"]::before {
+
+        animation:
+            genzGenerateSpinner 0.75s linear infinite !important;
+
+        -webkit-animation:
+            genzGenerateSpinner 0.75s linear infinite !important;
+
+        animation-duration:
+            0.75s !important;
+
+        animation-iteration-count:
+            infinite !important;
+    }
 }
 
 
@@ -3269,6 +3375,16 @@ textarea,
 
         overflow:
             visible !important;
+    }
+
+
+    #generateButton .spinner,
+    #generateButton .btn-spinner,
+    #generateButton .loading-spinner,
+    #generateButton [class*="spinner"] {
+
+        margin-right:
+            0 !important;
     }
 
 

@@ -161,6 +161,11 @@ function setUploadState(
     }
 
 
+    statusEl.dataset.state =
+        normalized ||
+        "idle";
+
+
     if (
         normalized ===
         "uploading"

@@ -480,3 +480,40 @@ html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .gene
 html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-stored-upload-thumb {
     background: #eef2f8;
 }
+
+
+/* =========================================================
+   INDIKATOR SPIN SAAT UNGGAH MEDIA (GAMBAR / VIDEO / AUDIO)
+========================================================= */
+
+#dynamicFields .generate-media-status[data-state="uploading"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+#dynamicFields .generate-media-status[data-state="uploading"]::before {
+    content: "";
+    display: inline-block;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px solid rgba(138, 180, 255, 0.25);
+    border-top-color: #8ab4ff;
+    border-right-color: rgba(138, 180, 255, 0.85);
+    will-change: transform;
+    animation: genzGenerateSpinner 0.75s linear infinite;
+    -webkit-animation: genzGenerateSpinner 0.75s linear infinite;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-media-status[data-state="uploading"] {
+    color: #1d4ed8 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-media-status[data-state="uploading"]::before {
+    border-color: rgba(29, 78, 216, 0.2);
+    border-top-color: #1d4ed8;
+    border-right-color: rgba(29, 78, 216, 0.78);
+}

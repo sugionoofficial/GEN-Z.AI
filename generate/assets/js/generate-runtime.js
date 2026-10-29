@@ -558,6 +558,131 @@ function hideError() {
 }
 
 
+function syncRuntimeButtonLoading(
+    button,
+    active,
+    message = ""
+) {
+
+    if (
+        !button
+    ) {
+
+        return;
+
+    }
+
+    const isActive =
+        Boolean(
+            active
+        );
+
+    let spinner =
+        button.querySelector(
+            "#generateButtonSpinner, .spinner, .btn-spinner, .loading-spinner"
+        );
+
+    if (
+        !spinner
+    ) {
+
+        spinner =
+            document.createElement(
+                "span"
+            );
+
+        spinner.id =
+            "generateButtonSpinner";
+
+        spinner.className =
+            "spinner";
+
+        spinner.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        spinner.hidden =
+            true;
+
+        button.insertBefore(
+            spinner,
+            button.firstChild
+        );
+
+    }
+
+    spinner.hidden =
+        !isActive;
+
+    button.classList.toggle(
+        "is-loading",
+        isActive
+    );
+
+    if (
+        isActive
+    ) {
+
+        button.setAttribute(
+            "aria-busy",
+            "true"
+        );
+
+    } else {
+
+        button.removeAttribute(
+            "aria-busy"
+        );
+
+    }
+
+    const label =
+        button.querySelector(
+            ".generate-button-label"
+        ) ||
+        button.querySelector(
+            ".btn-label"
+        ) ||
+        button.querySelector(
+            ".btn-icon + span:not(.generate-button-credit)"
+        );
+
+    if (
+        label
+    ) {
+
+        if (
+            !label.dataset.originalText
+        ) {
+
+            label.dataset.originalText =
+                (label.textContent || "").trim() ||
+                "Generate Video";
+
+        }
+
+        label.textContent =
+            isActive
+                ? (
+                    /memuat\s+model/i.test(
+                        String(
+                            message || ""
+                        )
+                    )
+                        ? "Memuat model..."
+                        : "Memproses..."
+                )
+                : (
+                    label.dataset.originalText ||
+                    "Generate Video"
+                );
+
+    }
+
+}
+
+
 function showLoading(
     message = "Memuat..."
 ) {
@@ -587,6 +712,12 @@ function showLoading(
         );
 
     }
+
+    syncRuntimeButtonLoading(
+        elements.generateButton,
+        true,
+        message
+    );
 
     if (
         elements.status
@@ -630,6 +761,11 @@ function hideLoading() {
         );
 
     }
+
+    syncRuntimeButtonLoading(
+        elements.generateButton,
+        false
+    );
 
 }
 

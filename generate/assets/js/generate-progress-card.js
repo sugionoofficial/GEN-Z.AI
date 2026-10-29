@@ -158,9 +158,11 @@
             if (opts.imageUrl) {
                 thumb.src = opts.imageUrl;
                 thumb.style.display = "";
+                el.setAttribute("data-has-thumb", "true");
             } else {
                 thumb.removeAttribute("src");
                 thumb.style.display = "none";
+                el.setAttribute("data-has-thumb", "false");
             }
 
             if (opts.model) modelEl.textContent = opts.model;
@@ -280,6 +282,7 @@
             if (!url || !thumb) return;
             thumb.src = url;
             thumb.style.display = "";
+            if (el) el.setAttribute("data-has-thumb", "true");
         },
 
         setModel: function (name) {

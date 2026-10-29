@@ -3945,12 +3945,41 @@ export function setLoading(
         generateButton
     ) {
 
-        generateButton.setAttribute(
-            "aria-busy",
-            String(
-                isActive
-            )
+        const spinner =
+            generateButton.querySelector(
+                "#generateButtonSpinner, .spinner, .btn-spinner, .loading-spinner"
+            );
+
+        if (
+            spinner
+        ) {
+
+            spinner.hidden =
+                !isActive;
+
+        }
+
+        generateButton.classList.toggle(
+            "is-loading",
+            isActive
         );
+
+        if (
+            isActive
+        ) {
+
+            generateButton.setAttribute(
+                "aria-busy",
+                "true"
+            );
+
+        } else {
+
+            generateButton.removeAttribute(
+                "aria-busy"
+            );
+
+        }
 
 
         const labelCandidates = [
