@@ -162,6 +162,30 @@ function el(tag, className, text) {
     return node;
 }
 
+/*
+ * IPv6 penuh (39 karakter) memaksa kolom melar dan baris jadi sangat tinggi
+ * di layar HP. Daftar memakai bentuk ringkas; alamat utuh tetap tersedia di
+ * atribut title dan di panel detail.
+ */
+function shortIp(ip) {
+    if (!ip) return "—";
+
+    const value = String(ip);
+    if (!value.includes(":")) return value;
+
+    const groups = value.split(":");
+    if (groups.length <= 4) return value;
+
+    return `${groups[0]}:${groups[1]}:…:${groups[groups.length - 1]}`;
+}
+
+function ipCell(ip) {
+    const cell = el("td", "mon-ip", shortIp(ip));
+    cell.title = ip || "";
+    cell.dataset.ip = ip || "";
+    return cell;
+}
+
 let toastTimer = null;
 
 function toast(message, tone = "ok") {
@@ -403,7 +427,7 @@ function renderLog(events) {
 
         row.append(el("td", "", KIND_LABEL[event.kind] || event.kind));
         row.append(el("td", "mon-log-time", event.path || "—"));
-        row.append(el("td", "mon-ip", event.ip || "—"));
+        row.append(ipCell(event.ip));
 
         const place = [event.city, event.country].filter(Boolean).join(", ") || "—";
         row.append(el("td", "", place));
@@ -481,7 +505,7 @@ function renderAccess(events) {
         const row = el("tr");
 
         row.append(el("td", "mon-log-time", formatDateTime(item.at)));
-        row.append(el("td", "mon-ip", item.ip));
+        row.append(ipCell(item.ip));
 
         const place = [item.city, item.country].filter(Boolean).join(", ") || "—";
         row.append(el("td", "", place));

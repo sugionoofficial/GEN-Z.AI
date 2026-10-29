@@ -587,6 +587,7 @@
 .mon-ip {
     font-family: "JetBrains Mono", Consolas, monospace;
     color: #eaf7ef;
+    white-space: nowrap;
 }
 
 .mon-tag {
@@ -762,6 +763,36 @@ html[data-genz-theme="light"] .mon-finding-fix {
     .mon-btn { flex: 1 1 auto; justify-content: center; text-align: center; }
     .mon-log-wrap { max-height: 360px; }
     .mon-panel { padding: 15px; border-radius: 18px; }
+
+    /*
+     * Di layar sempit, kolom "Halaman" (URL panjang) dan alamat IPv6 penuh
+     * membuat satu baris setinggi 4-5 baris teks sehingga log terlihat punya
+     * jarak jauh ke bawah. Kolom URL disembunyikan (tetap ada di panel detail),
+     * IP diringkas + dipotong, pesan dibatasi 3 baris.
+     */
+    .mon-log th:nth-child(4),
+    .mon-log td:nth-child(4) { display: none; }
+
+    .mon-log tbody td,
+    .mon-table tbody td { padding: 7px 8px; }
+
+    .mon-ip {
+        max-width: 116px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mon-log-msg {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .mon-table th:nth-child(4),
+    .mon-table td:nth-child(4),
+    .mon-table th:nth-child(7),
+    .mon-table td:nth-child(7) { display: none; }
 }
 
 /* ---------------------------------------------------------
