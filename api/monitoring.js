@@ -482,8 +482,20 @@ async function handleEventDetail(req, res, config, fetchImpl, query) {
    MUTASI
    --------------------------------------------------------- */
 
-async function handleScan(res, config, fetchImpl) {
-    const result = await runMonitoringScan(config, { fetchImpl });
+/* Binding ASSETS dipakai supaya pemeriksaan aset tidak bergantung pada
+   subrequest ke host Worker sendiri (lihat checkWeb di lib/monitoring). */
+function assetsFetchFrom(env) {
+    const assets = env?.ASSETS;
+    return assets && typeof assets.fetch === "function"
+        ? assets.fetch.bind(assets)
+        : null;
+}
+
+async function handleScan(res, config, fetchImpl, env) {
+    const result = await runMonitoringScan(config, {
+        fetchImpl,
+        assetsFetch: assetsFetchFrom(env)
+    });
     return send(res, 200, {
         success: true,
         health: result.checks,
@@ -586,7 +598,7 @@ export default async function handler(req, res) {
             const admin = await resolveAdmin(req, config, fetchImpl);
             if (!admin.ok) return fail(res, admin.status, admin.error);
 
-            if (action === "scan") return await handleScan(res, config, fetchImpl);
+            if (action === "scan") return await handleScan(res, config, fetchImpl, req.env || {});
             if (action === "update-settings") return await handleUpdateSettings(req, res, config, fetchImpl);
             if (action === "update-finding") return await handleUpdateFinding(req, res, config, fetchImpl);
             if (action === "purge") {
