@@ -138,7 +138,7 @@ Temuan dari `get_auth_config` + status penerapan:
 | `password_min_length` | `6` | **Belum** — field tidak diekspos connector. Catatan: client sudah mewajibkan 8 (`register.html:2076,2806`, `reset-password.html:1026,1830`), jadi menaikkan ke 8 tidak akan memutus alur. |
 | `password_hibp_enabled` | `false` | **Belum** — field tidak diekspos connector |
 | `security_update_password_require_reauthentication` | `false` | **Sengaja dibiarkan** — alur reset password memakai tautan email (`user/profile.html:1515`), mengaktifkan ini akan memutus reset |
-| `jwt_exp` | `604800` (7 hari) | Bisa diubah lewat connector; **belum diubah** karena mengubah masa sesi user, perlu persetujuan |
+| `jwt_exp` | `86400` (24 jam) | **SUDAH diubah** 2026-10-29 (dari `604800` = 7 hari). Lihat §7 |
 | `refresh_token_rotation_enabled` | `true`, reuse 60 s | Sudah baik |
 | `mailer_autoconfirm` | `false` | Sudah baik (email wajib diverifikasi) |
 | `external_anonymous_users_enabled` | `true` | Dibiarkan — dipakai tamu live-chat (`assets/js/support-chat.js:354`); user baru dibuat dengan `credits = 0` (`handle_new_user`), jadi tidak bisa dipakai farming kredit |
@@ -266,3 +266,38 @@ jadi pemakaian wajar tetap terlihat di sana.
 
 Tetap disarankan memeriksa manual akun dengan saldo 1.050.936 dan 111 refund tersebut, karena
 sebelum perbaikan ini tidak ada log yang bisa membedakan pemakaian sah dan tidak.
+
+---
+
+## 7. Perubahan `jwt_exp` (2026-10-29)
+
+**Sebelum:** `604800` detik = 7 hari. **Sesudah:** `86400` detik = 24 jam.
+
+Diterapkan lewat `update_auth_config` (field ini termasuk yang diekspos connector Supabase),
+lalu diverifikasi dengan `get_auth_config`: `jwt_exp: 86400` — setelan lain utuh
+(`rate_limit_email_sent: 2`, `security_captcha_provider: hcaptcha`, `sessions_*: 0`,
+`refresh_token_rotation_enabled: true`).
+
+### Kenapa aman untuk aplikasi
+
+- Client tidak pernah mengasumsikan umur token. Ia membaca `expires_at` / `expires_in` dari respons
+  auth dan menyimpannya (`assets/js/auth.js:115-130, 314-327`), lalu refresh otomatis bila sisa umur
+  < `TOKEN_REFRESH_BUFFER_SEC = 300` detik (`assets/js/auth.js:76`, `navigation/navigation.js:62`,
+  `generate/assets/js/generate-auth.js:45`).
+- Repo tidak punya nilai `604800` yang di-hardcode untuk token (grep bersih; angka 86400 yang ada
+  hanya dipakai untuk header CORS dan hitungan umur langganan Studio Medsos).
+- Token dibuat saat login untuk pertama kali di perangkat yang belum punya sesi.
+
+### Efek yang perlu diketahui
+
+- **Sesi yang sedang berjalan tidak langsung berubah**: access token yang sudah terbit tetap berlaku
+  sampai `exp` lamanya (sisa hingga 7 hari), token berikutnya baru berumur 24 jam. Tidak perlu
+  memaksa logout.
+- Refresh jadi lebih sering (maksimal 1×/24 jam per tab), jauh di bawah
+  `rate_limit_token_refresh = 150`/jam. Reuse interval 60 detik tetap menutup race multi-tab.
+- Jendela penyalahgunaan bila access token dicuri menyempit dari 7 hari menjadi 24 jam.
+
+### Langkah lanjutan (opsional)
+
+Bila setelah beberapa hari tidak ada keluhan sesi, turunkan lagi ke `3600` (1 jam) lewat
+`update_auth_config`; pantau `rate_limit_token_refresh` dan keluhan logout mendadak.
