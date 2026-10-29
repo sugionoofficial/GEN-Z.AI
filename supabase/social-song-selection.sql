@@ -44,6 +44,13 @@ update public.social_post_schedules
  where use_random_song = true
    and song_mode = 'off';
 
+-- Lagu hanya dipakai untuk Kata-kata Mutiara. Foto karakter AI & outfit tidak
+-- memakai lagu, jadi matikan pilihan lagu pada jadwal mode karakter.
+update public.social_post_schedules
+   set song_mode = 'off', song_id = null, use_random_song = false
+ where post_mode <> 'quote'
+   and (song_mode <> 'off' or song_id is not null or use_random_song);
+
 -- Indeks kecil untuk pencarian lagu tetap.
 create index if not exists social_post_schedules_song_idx
     on public.social_post_schedules (song_id)

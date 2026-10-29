@@ -18,7 +18,14 @@ Konsekuensinya, "lagu Facebook" di GEN-Z.AI berarti **koleksi lagu milik akun**:
 tabel `public.social_facebook_songs` diisi dari panel **Lagu Facebook** (unggah MP3/MP4/AAC)
 atau tombol seed 8 musik instrumental bawaan.
 
-## 2. Tiga mode lagu
+## 2. Lagu hanya untuk Kata-kata Mutiara
+
+Opsi lagu **hanya** tersedia pada mode *quote* (Kata-kata Mutiara). Foto **karakter AI & outfit
+tidak memakai lagu sama sekali**: tidak ada pilihan lagu di panel, dan API/cron memaksa
+`song_mode = 'off'` untuk `post_mode = 'character'` — termasuk untuk jadwal lama yang masih
+menyimpan `use_random_song = true`.
+
+## 3. Tiga mode lagu
 
 Kolom `social_post_schedules.song_mode`:
 
@@ -31,12 +38,14 @@ Kolom `social_post_schedules.song_mode`:
 `use_random_song` (boolean lama) tetap ditulis: bernilai `true` hanya untuk mode `random`.
 Deployment lama yang belum mengenal `song_mode` tetap berjalan seperti sebelumnya.
 
-## 3. Di halaman
+## 4. Di halaman
 
-- **Jadwal autopost** → "Lagu untuk jadwal ini": pilih mode, lalu pilih lagu (dropdown diisi dari
-  koleksi aktif akun; kosong berarti belum ada lagu untuk dipilih).
-- **Posting manual → foto karakter** → "Musik di caption foto karakter": tanpa musik / satu lagu
-  tetap / acak.
+- **Jadwal autopost** → blok "Lagu untuk jadwal ini" hanya muncul saat memilih mode
+  **Kata-kata Mutiara** (tema lagu). Pilih mode, lalu pilih lagu — dropdown diisi dari koleksi
+  aktif akun; kosong berarti belum ada lagu untuk dipilih. Pada mode foto karakter AI & outfit
+  blok ini disembunyikan.
+- **Posting manual → foto karakter** → tidak ada pilihan lagu (hanya keterangan bahwa musik
+  tersedia untuk Kata-kata Mutiara).
 - **Posting manual → kata-kata mutiara** → "Musik auto-play video mutiara": lagu dipilih lalu
   digabungkan ke dalam berkas video; opsi acak tetap jadi bawaan.
 - Kartu **Lagu Facebook** menampilkan seluruh koleksi (jumlah aktif, pemutar audio, status).
@@ -44,7 +53,7 @@ Deployment lama yang belum mengenal `song_mode` tetap berjalan seperti sebelumny
 Ringkasan tiap jadwal di daftar menampilkan mode yang dipakai, contoh: `🎵 lagu tetap: Musik Latar 1`
 atau `🎵 lagu acak (hindari lagu terakhir)`.
 
-## 4. Operasi database
+## 5. Operasi database
 
 ```sql
 -- lihat pilihan lagu per jadwal
@@ -63,15 +72,26 @@ update public.social_post_schedules
  where id = '<uuid-jadwal>';
 ```
 
-Migration: `supabase/social-song-selection.sql` (idempotent, sudah dijalankan).
+Migration: `supabase/social-song-selection.sql` (idempotent, sudah dijalankan). Migrasi ini juga
+mematikan pilihan lagu pada seluruh jadwal mode karakter.
 
-## 5. Catatan penting soal judul lagu
+Contoh mengganti judul lagu:
+
+```sql
+update public.social_facebook_songs
+   set title = 'Musik Latar 1', updated_at = now()
+ where id = '<uuid-lagu>';
+```
+
+## 6. Catatan penting soal judul lagu
 
 Judul lagu yang berasal dari nama berkas unduhan (contoh
 `FDownload.app 1125438713302255 (320kbps)`) dibersihkan sebelum masuk caption; bila tidak layak,
 blok lagu dihapus. Health check `public.social_publisher_health()` memunculkan alert
 `SONG_TITLE_NOT_CAPTION_SAFE` bila seluruh lagu aktif berjudul seperti itu.
 Ganti judulnya di kartu **Lagu Facebook** agar baris lagu muncul lagi di caption.
+Satu-satunya lagu di akun ini sudah diganti menjadi **"Musik Latar 1"**, sehingga health check
+kembali bersih (`songs.unusable_title = 0`).
 
 Lihat juga: `docs/security/credit-token-audit.md` §9 (kenapa caption seperti itu membuat
 autopost ditolak Facebook dengan code 368).

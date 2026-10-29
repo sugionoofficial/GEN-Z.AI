@@ -492,3 +492,17 @@ Detail lengkap: `docs/social-publisher/song-selection.md`.
 Poin penting: **Meta tidak menyediakan API katalog musik Facebook untuk Page**, jadi daftar lagu
 di halaman berasal dari koleksi akun sendiri (`social_facebook_songs`), bukan dari katalog
 Facebook. Instagram punya *Audio API* untuk Reels, tetapi aplikasi ini menerbitkan ke Page.
+
+### Koreksi 2026-10-29: lagu hanya untuk Kata-kata Mutiara
+
+Opsi lagu **dihapus** dari mode foto karakter AI & outfit. Penegakannya di tiga lapis:
+
+| Lapis | Perilaku |
+| --- | --- |
+| Panel | Blok "Lagu untuk jadwal ini" hanya tampil pada mode Kata-kata Mutiara; pilihan lagu di posting manual foto karakter dihapus |
+| API | `saveSchedule` & posting manual memaksa `song_mode = 'off'` bila `post_mode = 'character'` |
+| Cron | `resolveScheduleSongMode()` mengembalikan `off` untuk semua mode selain quote, termasuk data lama `use_random_song = true` |
+
+Judul lagu di koleksi juga sudah dirapikan menjadi **"Musik Latar 1"** (sebelumnya
+`FDownload.app 1125438713302255 (320kbps)`), sehingga `songs.unusable_title = 0` dan alert
+`SONG_TITLE_NOT_CAPTION_SAFE` hilang.

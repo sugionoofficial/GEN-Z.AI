@@ -591,16 +591,7 @@
                                 <div id="manual-character-fields" class="field full subgrid-fields">
                                     <div class="field full"><label for="manual-character">Foto karakter tersimpan</label><select id="manual-character" required><option value="">Pilih karakter…</option></select></div>
                                     <div class="field full">
-                                        <div class="field">
-                                            <label for="manual-character-song-mode">Musik di caption foto karakter</label>
-                                            <select id="manual-character-song-mode">
-                                                <option value="off">Tanpa musik</option>
-                                                <option value="fixed">Satu lagu tetap — saya pilih sendiri</option>
-                                                <option value="random">Acak — hindari lagu terakhir</option>
-                                            </select>
-                                            <select id="manual-character-song" hidden aria-label="Pilih lagu untuk foto karakter"></select>
-                                        </div>
-                                        <label class="inline-check" hidden><input id="manual-character-random-song" type="checkbox"><span>Sertakan info musik pilihan di caption.</span></label>
+                                        <span class="help">Foto karakter AI &amp; outfit tidak memakai lagu. Musik hanya tersedia untuk Kata-kata Mutiara.</span>
                                     </div>
                                 </div>
                                 <div id="manual-quote-fields" class="field full subgrid-fields" hidden>
@@ -734,7 +725,7 @@
                         </div>
                         <div class="field full"><label for="schedule-details">Detail tambahan (opsional)</label><input id="schedule-details" maxlength="400" placeholder="Contoh: memegang skateboard, memakai topi, atau nuansa kabut pagi"><span class="help">Ditempelkan ke prompt gambar sebagai arahan tambahan untuk jadwal ini.</span></div>
                         <div class="field full"><label for="schedule-negative">Negative prompt tambahan (opsional)</label><input id="schedule-negative" maxlength="400" placeholder="Contoh: balon udara, keramaian ekstrem"><span class="help">Negative prompt otomatis (blur, watermark, teks rusak, anatomi rusak, wajah plastik) selalu aktif. Isi ini hanya untuk larangan khusus jadwal ini.</span></div>
-                        <div class="field full">
+                        <div class="field full" id="schedule-song-fields" hidden>
                             <label for="schedule-song-mode">Lagu untuk jadwal ini</label>
                             <select id="schedule-song-mode">
                                 <option value="off">Tanpa lagu</option>

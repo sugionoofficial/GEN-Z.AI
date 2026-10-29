@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+    isSongAllowedForPostMode,
     normalizeSongMode,
     pickRandomFacebookSong,
     resolveScheduleSongMode
@@ -27,15 +28,24 @@ test("mode lagu: off / fixed / random + kompatibilitas use_random_song", () => {
     assert.equal(normalizeSongMode("RANDOM"), "random");
     assert.equal(normalizeSongMode("aneh", "off"), "off");
 
-    /* Data lama tanpa song_mode. */
-    assert.equal(resolveScheduleSongMode({ use_random_song: true }, "character"), "random");
-    assert.equal(resolveScheduleSongMode({ use_random_song: false }, "character"), "off");
+    /* Data lama tanpa song_mode (hanya relevan untuk Kata-kata Mutiara). */
+    assert.equal(resolveScheduleSongMode({ use_random_song: true }, "quote"), "random");
     assert.equal(resolveScheduleSongMode({ use_random_song: false }, "quote"), "off");
     assert.equal(resolveScheduleSongMode({}, "quote"), "random");
 
     /* song_mode menang atas kolom lama. */
-    assert.equal(resolveScheduleSongMode({ song_mode: "fixed", use_random_song: true }, "character"), "fixed");
+    assert.equal(resolveScheduleSongMode({ song_mode: "fixed", use_random_song: true }, "quote"), "fixed");
     assert.equal(resolveScheduleSongMode({ song_mode: "off", use_random_song: true }, "quote"), "off");
+});
+
+test("lagu hanya untuk Kata-kata Mutiara, bukan foto karakter AI & outfit", () => {
+    assert.equal(isSongAllowedForPostMode("quote"), true);
+    assert.equal(isSongAllowedForPostMode("character"), false);
+
+    /* Data lama yang masih menyimpan use_random_song = true tetap diabaikan. */
+    assert.equal(resolveScheduleSongMode({ use_random_song: true }, "character"), "off");
+    assert.equal(resolveScheduleSongMode({ song_mode: "fixed", song_id: "song-a" }, "character"), "off");
+    assert.equal(resolveScheduleSongMode({ song_mode: "random" }, "character"), "off");
 });
 
 test("lagu tetap selalu dipakai, walau baru saja dipakai", () => {
@@ -74,8 +84,10 @@ test("API, cron, dan panel memakai song_mode", () => {
     /* Panel: tiga mode + pemilih lagu dari koleksi akun. */
     assert.match(panelHtml, /id="schedule-song-mode"/);
     assert.match(panelHtml, /id="schedule-song-choice"/);
-    assert.match(panelHtml, /id="manual-character-song-mode"/);
     assert.match(panelHtml, /id="manual-quote-song-mode"/);
+    /* Pemilih lagu untuk foto karakter AI & outfit sudah dihapus. */
+    assert.doesNotMatch(panelHtml, /id="manual-character-song-mode"/);
+    assert.match(panelHtml, /Foto karakter AI &amp; outfit tidak memakai lagu/);
     assert.match(panelJs, /function fillSongChoices/);
     /* Kompatibilitas: elemen lama tetap ada walau disembunyikan. */
     assert.match(panelHtml, /id="schedule-random-song"/);

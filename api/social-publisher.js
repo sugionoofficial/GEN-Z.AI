@@ -2556,14 +2556,17 @@ async function saveSchedule(config, userId, body, profile) {
         || (typeof body?.use_random_song === "boolean"
             ? (body.use_random_song ? "random" : "off")
             : (isQuoteMode ? "random" : "off"));
+    /* Lagu hanya untuk Kata-kata Mutiara; foto karakter AI & outfit tidak
+       memakai lagu walau klien lama mengirim use_random_song = true. */
+    const effectiveSongMode = isQuoteMode ? songMode : "off";
     const quoteParams = {
         post_mode: postMode,
         quote_theme: isQuoteMode ? cleanText(body?.quote_theme, 120) : "",
         quote_visual_style: isQuoteMode ? cleanText(body?.quote_visual_style, 240) : "",
         quote_publish_target: isQuoteMode ? quotePublishTarget : "feed",
-        use_random_song: songMode === "random",
-        song_mode: songMode,
-        song_id: songMode === "fixed" ? (fixedSongId || null) : null
+        use_random_song: isQuoteMode && effectiveSongMode === "random",
+        song_mode: effectiveSongMode,
+        song_id: isQuoteMode && effectiveSongMode === "fixed" ? (fixedSongId || null) : null
     };
     const scheduleAutopublish = typeof body?.autopublish_enabled === "boolean" ? body.autopublish_enabled : true;
 
@@ -2596,7 +2599,7 @@ async function saveSchedule(config, userId, body, profile) {
         throw error;
     }
 
-    if (songMode === "fixed") {
+    if (isQuoteMode && effectiveSongMode === "fixed") {
         if (!fixedSongId) {
             const error = new Error("Pilih satu lagu untuk mode lagu tetap, atau ganti ke mode acak.");
             error.status = 400;
@@ -2772,9 +2775,11 @@ async function generateManualPost(config, userId, env, body = {}) {
             : (isQuoteMode ? "random" : "off"))
         : normalizeSongMode(body.song_mode, "off");
     const manualSongId = cleanText(body.song_id, 64);
-    const useSong = manualSongMode !== "off";
-    const preferredSongId = manualSongMode === "fixed" ? manualSongId : null;
-    if (manualSongMode === "fixed" && !manualSongId) {
+    /* Lagu hanya untuk Kata-kata Mutiara. */
+    const effectiveManualSongMode = isQuoteMode ? manualSongMode : "off";
+    const useSong = effectiveManualSongMode !== "off";
+    const preferredSongId = isQuoteMode && effectiveManualSongMode === "fixed" ? manualSongId : null;
+    if (isQuoteMode && effectiveManualSongMode === "fixed" && !manualSongId) {
         const error = new Error("Pilih lagu yang akan dipakai, atau ganti ke mode acak.");
         error.status = 400;
         throw error;
