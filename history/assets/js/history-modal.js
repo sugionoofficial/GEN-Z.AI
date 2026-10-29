@@ -492,7 +492,7 @@
         if (reason === "link") {
             return {
                 title: "Tautan hasil sudah kedaluwarsa",
-                body: "Tautan hasil dari provider hanya berlaku sekitar 24 jam sejak generation selesai, jadi berkasnya tidak bisa dibuka atau diunduh dari tautan ini lagi. Riwayat dan detail generation tetap tersimpan."
+                body: "Tautan sementara dari provider sudah melewati masa berlakunya (umumnya 1–24 jam sejak generation selesai), jadi berkasnya tidak bisa dibuka atau diunduh dari tautan ini lagi. Riwayat dan detail generation tetap tersimpan."
             };
         }
 

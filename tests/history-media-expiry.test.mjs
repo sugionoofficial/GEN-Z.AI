@@ -363,3 +363,39 @@ test("halaman History memuat versi modul terbaru", () => {
         /history-modal\.js\?v=20261029-close-fix/
     );
 });
+
+test("URL signed CDN Opus (hdnts=Expires=...) dikenali kedaluwarsa tanpa menembak <video>", () => {
+    const App = loadRenderModule();
+
+    const past = Math.floor(Date.now() / 1000) - 3600;
+    const future = Math.floor(Date.now() / 1000) + 3600;
+
+    const expiredOpusUrl =
+        `https://signed-opus-lab-ext.cdn.opus.pro/opus-video-tools/projects/gen_x/generated/58a13483/clips/clip-1.mp4` +
+        `?v=1793212234992114&hdnts=Expires=${past}~FullPath~Signature=abc123`;
+
+    const liveOpusUrl =
+        `https://signed-opus-lab-ext.cdn.opus.pro/opus-video-tools/projects/gen_x/generated/58a13483/clips/clip-1.mp4` +
+        `?v=1793212234992114&hdnts=Expires=${future}~FullPath~Signature=abc123`;
+
+    assert.equal(App.getSignedLinkExpiresAt(expiredOpusUrl), past * 1000);
+    assert.equal(App.getMediaExpiryReason({ status: "success", result_url: expiredOpusUrl }), "link");
+    assert.equal(App.isExpiredMedia({ status: "success", result_url: expiredOpusUrl }), true);
+
+    assert.equal(App.getMediaExpiryReason({ status: "success", result_url: liveOpusUrl }), "");
+    assert.equal(App.isExpiredMedia({ status: "success", result_url: liveOpusUrl }), false);
+});
+
+test("token Akamai hdnea (exp=...) dan S3 SigV4 (X-Amz-Date + X-Amz-Expires) ikut terbaca", () => {
+    const App = loadRenderModule();
+
+    const past = Math.floor(Date.now() / 1000) - 120;
+    const hdneaUrl = `https://cdn.example/video.mp4?hdnea=st=${past - 3600}~exp=${past}~acl=/*~hmac=xyz`;
+    assert.equal(App.getSignedLinkExpiresAt(hdneaUrl), past * 1000);
+    assert.equal(App.getMediaExpiryReason({ status: "success", result_url: hdneaUrl }), "link");
+
+    const s3Expired =
+        "https://bucket.s3.amazonaws.com/clip.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250101T000000Z&X-Amz-Expires=3600&X-Amz-Signature=deadbeef";
+    assert.equal(App.getSignedLinkExpiresAt(s3Expired), Date.UTC(2025, 0, 1, 1, 0, 0));
+    assert.equal(App.getMediaExpiryReason({ status: "success", result_url: s3Expired }), "link");
+});
