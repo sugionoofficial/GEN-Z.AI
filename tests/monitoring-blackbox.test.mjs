@@ -524,3 +524,288 @@ test("role admin tetap terbaca walau bentuk select pertama ditolak skema", async
         globalThis.fetch = original;
     }
 });
+
+/* ---------------------------------------------------------
+   DETAIL LOG (klik satu baris)
+   --------------------------------------------------------- */
+
+test("beacon mengirim user_id dari sesi Supabase agar email bisa ditampilkan", () => {
+    const beacon = read("assets/js/security-beacon.js");
+
+    assert.match(beacon, /user_id: currentUserId\(\)/);
+    assert.match(beacon, /-auth-token/);
+    assert.match(beacon, /GENZ_NAVIGATION_USER/);
+});
+
+test("user_id palsu yang bukan UUID dibuang saat ingest", () => {
+    const valid = normalizeEventInput({
+        kind: "page_view",
+        path: "/generate/index.html",
+        user_id: "c237fcef-6456-451e-ae98-691f2dabb60d"
+    });
+    assert.equal(valid.user_id, "c237fcef-6456-451e-ae98-691f2dabb60d");
+
+    const invalid = normalizeEventInput({ kind: "page_view", path: "/x", user_id: "<script>" });
+    assert.equal(invalid.user_id, null);
+});
+
+function detailFetch({ event = {}, profile = null } = {}) {
+    const original = globalThis.fetch;
+
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        const method = String(options.method || "GET").toUpperCase();
+
+        if (url.includes("/auth/v1/user")) return Response.json({ id: "admin-1" });
+        if (url.includes("/rest/v1/profiles")) {
+            if (url.includes("id=eq.c237fcef")) {
+                return Response.json([profile || { id: "c237fcef-6456-451e-ae98-691f2dabb60d", email: "owner@genz.ai", name: "Owner", role: "OWNER" }]);
+            }
+            return Response.json([{ id: "admin-1", role: "admin" }]);
+        }
+        if (url.includes("/rest/v1/monitoring_events")) {
+            if (url.includes("id=eq.12")) return Response.json([event]);
+            if (url.includes("ip=eq.")) {
+                return Response.json([
+                    { id: 1, occurred_at: "2026-10-29T07:00:00.000Z" },
+                    { id: 2, occurred_at: "2026-10-29T07:05:00.000Z" }
+                ]);
+            }
+            if (url.includes("session_id=eq.")) return Response.json([{ id: 1 }, { id: 2 }, { id: 3 }]);
+            return Response.json([]);
+        }
+
+        return Response.json(method === "GET" ? [] : {});
+    };
+
+    return () => { globalThis.fetch = original; };
+}
+
+test("detail log menolak id tidak valid dan log yang tidak ada", async () => {
+    const restore = detailFetch({});
+    try {
+        const bad = await call(makeReq({ action: "event", query: { id: "abc" } }));
+        assert.equal(bad.status, 400);
+
+        const missing = await call(makeReq({ action: "event", query: { id: "99" } }));
+        assert.equal(missing.status, 404);
+    } finally {
+        restore();
+    }
+});
+
+test("detail log memuat email pemilik, jaringan, perangkat, dan cara mengatasi", async () => {
+    const restore = detailFetch({
+        event: {
+            id: 12,
+            kind: "devtools",
+            severity: "warn",
+            path: "/generate/index.html",
+            message: "DevTools dibuka pada halaman ini.",
+            ip: "203.0.113.9",
+            city: "Jakarta",
+            region: "Jakarta",
+            country: "ID",
+            asn: "AS7713",
+            colo: "CGK",
+            browser: "Chrome",
+            os: "Windows",
+            device: "desktop",
+            user_agent: "Mozilla/5.0 Chrome/130",
+            user_id: "c237fcef-6456-451e-ae98-691f2dabb60d",
+            session_id: "s_abc",
+            devtools_open: true,
+            occurred_at: "2026-10-29T07:00:00.000Z",
+            detail: { viewport: "1440x900", screen: "1920x1080", href: "https://site.example/generate/index.html" }
+        }
+    });
+
+    try {
+        const { status, json } = await call(makeReq({ action: "event", query: { id: "12" } }));
+
+        assert.equal(status, 200);
+        assert.equal(json.success, true);
+        assert.equal(json.event.id, 12);
+        assert.equal(json.profile.email, "owner@genz.ai");
+        assert.equal(json.profile.role, "owner");
+        assert.equal(json.event.ip, "203.0.113.9");
+        assert.equal(json.event.browser, "Chrome");
+        assert.equal(json.related.ip_events_24h, 2);
+        assert.equal(json.related.session_events, 3);
+        assert.match(json.remediation, /kata sandi|sesi/i);
+    } finally {
+        restore();
+    }
+});
+
+test("halaman monitoring punya panel detail dan baris log bisa diklik", () => {
+    const page = read("admin-control/monitoring.html");
+    const script = read("admin-control/monitoring.js");
+    const css = read("admin-control/assets/css/monitoring.css");
+
+    assert.match(page, /id="monDetail"/);
+    assert.match(page, /id="monDetailBody"/);
+    assert.match(page, /id="monDetailClose"/);
+    assert.match(page, /class="mon-detail-backdrop"/);
+
+    assert.match(script, /row\.dataset\.eventId = String\(event\.id\)/);
+    assert.match(script, /api\(`event&id=/);
+    assert.match(script, /function renderDetail/);
+    assert.match(script, /Email/);
+
+    assert.match(css, /\.mon-detail-panel/);
+    assert.match(css, /\.mon-detail-row/);
+});
+
+test("identitas dari token sesi menimpa user_id kiriman browser", async () => {
+    const original = globalThis.fetch;
+    let saved = null;
+
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        const method = String(options.method || "GET").toUpperCase();
+
+        if (url.includes("/auth/v1/user")) {
+            return Response.json({ id: "c237fcef-6456-451e-ae98-691f2dabb60d" });
+        }
+        if (url.includes("/rest/v1/monitoring_events")) {
+            if (method === "POST") {
+                saved = JSON.parse(options.body);
+                return new Response(null, { status: 201 });
+            }
+            return Response.json([]);
+        }
+
+        return Response.json([]);
+    };
+
+    try {
+        const { status } = await call(makeReq({
+            method: "POST",
+            action: "ingest",
+            headers: { authorization: "Bearer sesi-valid" },
+            body: {
+                kind: "page_view",
+                path: "/history/index.html",
+                /* Klaim browser yang berbeda dari token. */
+                user_id: "11111111-1111-1111-1111-111111111111"
+            }
+        }));
+
+        assert.equal(status, 202);
+        assert.equal(saved.user_id, "c237fcef-6456-451e-ae98-691f2dabb60d");
+        assert.equal(saved.detail.identity_verified, true);
+    } finally {
+        globalThis.fetch = original;
+    }
+});
+
+/* ---------------------------------------------------------
+   BATAS JUMLAH LOG (500) + PILIHAN 50 / 100 / 500
+   --------------------------------------------------------- */
+
+test("migrasi menambah max_events dan fungsi pangkas log", () => {
+    const sql = read("supabase/monitoring-log-cap.sql");
+
+    assert.match(sql, /add column if not exists max_events integer not null default 500/);
+    assert.match(sql, /check \(max_events between 50 and 10000\)/);
+    assert.match(sql, /create or replace function public\.prune_monitoring_events\(p_keep integer default 500\)/);
+    assert.match(sql, /offset v_keep/);
+    assert.match(sql, /revoke all on function public\.prune_monitoring_events/);
+});
+
+test("filter log dibatasi maksimal 500 baris", async () => {
+    const { buildEventFilter } = await import("../api/monitoring.js");
+
+    assert.equal(buildEventFilter({ limit: "500" }).endsWith("limit=500"), true);
+    assert.match(buildEventFilter({ limit: "9000" }), /limit=500$/, "tidak boleh lebih dari 500");
+    assert.match(buildEventFilter({}), /limit=50$/, "bawaan 50 baris");
+});
+
+test("validasi pengaturan menolak batas log di luar rentang", () => {
+    assert.ok(normalizeSettingsInput({ scan_interval_minutes: 15, retention_days: 30, max_events: 10 }).error);
+    assert.ok(normalizeSettingsInput({ scan_interval_minutes: 15, retention_days: 30, max_events: 20000 }).error);
+
+    const ok = normalizeSettingsInput({ scan_interval_minutes: 15, retention_days: 30, max_events: 500 });
+    assert.equal(ok.value.max_events, 500);
+
+    const fallback = normalizeSettingsInput({ scan_interval_minutes: 15, retention_days: 30 });
+    assert.equal(fallback.value.max_events, 500, "tanpa isian, bawaan 500");
+});
+
+test("halaman menyediakan pilihan 50 / 100 / 500 dan mengirim limit ke API", () => {
+    const page = read("admin-control/monitoring.html");
+    const script = read("admin-control/monitoring.js");
+
+    assert.match(page, /id="monLogLimit"/);
+    for (const value of ["50", "100", "500"]) {
+        assert.match(page, new RegExp(`<option value="${value}">${value}</option>`));
+    }
+
+    assert.match(script, /const LOG_LIMIT_OPTIONS = \[50, 100, 500\];/);
+    assert.match(script, /api\(`events&limit=\$\{state\.logLimit\}`\)/);
+    assert.match(script, /filtered\.slice\(0, state\.logLimit\)/);
+});
+
+test("cron menegakkan batas log setiap menit meski pemeriksaan belum jatuh tempo", async () => {
+    let pruned = false;
+
+    const original = globalThis.fetch;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        const method = String(options.method || "GET").toUpperCase();
+
+        if (url.includes("/rpc/prune_monitoring_events")) {
+            pruned = true;
+            return Response.json(3);
+        }
+        if (url.includes("/rest/v1/monitoring_settings")) {
+            return Response.json([baseSettings({ last_scan_at: new Date().toISOString(), max_events: 500 })]);
+        }
+
+        return Response.json(method === "GET" ? [] : {});
+    };
+
+    try {
+        const result = await runMonitoringCron(ENV, new Date());
+        assert.equal(result.skipped, true);
+        assert.equal(result.pruned, 3);
+        assert.equal(pruned, true, "RPC pangkas harus dipanggil walaupun scan belum due");
+    } finally {
+        globalThis.fetch = original;
+    }
+});
+
+test("pemangkas log memanggil RPC dengan batas yang benar", async () => {
+    const { pruneEventOverflow } = await import("../lib/monitoring/health.js");
+
+    let payload = null;
+    let target = "";
+    const original = globalThis.fetch;
+
+    globalThis.fetch = async (input, options = {}) => {
+        target = String(input);
+        payload = JSON.parse(options.body || "{}");
+        return Response.json(7);
+    };
+
+    try {
+        const removed = await pruneEventOverflow(
+            { supabaseUrl: "https://project.example", serviceKey: "k" },
+            500
+        );
+
+        assert.equal(removed, 7);
+        assert.match(target, /\/rest\/v1\/rpc\/prune_monitoring_events$/);
+        assert.equal(payload.p_keep, 500);
+
+        /* Di bawah 50 harus dinaikkan, di atas 10000 diturunkan. */
+        await pruneEventOverflow({ supabaseUrl: "https://project.example", serviceKey: "k" }, 5);
+        assert.equal(payload.p_keep, 50);
+
+        await pruneEventOverflow({ supabaseUrl: "https://project.example", serviceKey: "k" }, 999999);
+        assert.equal(payload.p_keep, 10000);
+    } finally {
+        globalThis.fetch = original;
+    }
+});

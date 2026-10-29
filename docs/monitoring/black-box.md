@@ -12,9 +12,9 @@ yang punya langkah perbaikan. Halaman ini hanya bisa dibuka **ADMIN** dan
 | Ringkasan | Status keseluruhan, jumlah aktivitas/error/akses DevTools 24 jam |
 | Kesehatan Web | 7 pemeriksaan: situs, API, database, auth, storage, cron, Studio Medsos |
 | Temuan & Cara Mengatasi | Hasil pemeriksaan + error berulang, lengkap dengan langkah perbaikan |
-| Log Aktivitas Live | Aliran kejadian (kunjungan, error, DevTools, API gagal), auto-refresh 10 detik |
+| Log Aktivitas Live | Aliran kejadian (kunjungan, error, DevTools, API gagal), auto-refresh 10 detik. **Klik satu baris** untuk membuka detail lengkap |
 | Akses & DevTools | IP, kota/negara, ASN, colo, perangkat, status DevTools per pengunjung |
-| Pemeriksaan Rutin | Interval pemeriksaan, masa simpan log, saklar alert |
+| Pemeriksaan Rutin | Interval pemeriksaan, masa simpan log, batas jumlah log, saklar alert |
 
 ## Alur data
 
@@ -38,6 +38,62 @@ IP **tidak pernah** diambil dari browser. `api/monitoring.js` membacanya dari
 diambil dari objek `request.cf` milik Cloudflare (diteruskan `handler-adapter.js`
 sebagai `req.cf`). Kiriman IP dari JavaScript diabaikan, jadi tidak bisa
 dipalsukan pengunjung.
+
+## Detail satu log
+
+Klik baris mana pun di **Log Aktivitas Live** (bisa juga fokus lalu tekan Enter)
+untuk membuka panel detail `GET /api/monitoring?action=event&id=<id>`:
+
+| Bagian | Isi |
+| --- | --- |
+| Identitas akun | Email, nama, role, user ID, dan status verifikasi akun |
+| Jaringan | IP, kota, provinsi, negara, ASN, colo Cloudflare, jumlah akses IP yang sama dalam 24 jam, kapan pertama & terakhir terlihat |
+| Perangkat & browser | Browser, sistem operasi, tipe perangkat, viewport, resolusi layar, user agent penuh |
+| Halaman | Path, URL lengkap, referrer, status online |
+| Kejadian | Jenis, level, waktu lengkap (WIB), pesan, status DevTools, session ID, jumlah event dalam sesi |
+| Cara mengatasi | Saran tindakan otomatis sesuai jenis kejadian |
+
+### Dari mana email didapat?
+
+Beacon membaca UUID akun dari sesi Supabase di browser (`sb-<ref>-auth-token`)
+lalu mengirimnya bersama event. Server **tidak** mempercayainya begitu saja:
+
+- bila permintaan membawa header `Authorization`, identitas **diverifikasi** ke
+  Supabase Auth dan UUID hasil verifikasi yang disimpan
+  (`detail.identity_verified = true`);
+- bila tidak ada token, UUID kiriman browser tetap disimpan tetapi ditandai
+  **"diklaim browser (belum terverifikasi)"** di panel.
+
+Email dan nama baru muncul bila UUID itu cocok dengan baris di `profiles`. Untuk
+pengunjung yang belum login, bagian identitas menampilkan
+"belum login / tidak diketahui" — bukan error.
+
+Panel detail hanya bisa dibuka ADMIN/OWNER karena action `event` melewati
+pemeriksaan role yang sama dengan seluruh aksi monitoring lain.
+
+## Penyimpanan & batas log
+
+Semua event disimpan di **Supabase**, tabel `public.monitoring_events` (bukan di
+browser). Karena itu jumlahnya dibatasi dua lapis:
+
+1. **Batas jumlah** — `monitoring_settings.max_events` (default **500**).
+   Fungsi `prune_monitoring_events(p_keep)` hanya menyisakan N baris terbaru.
+   `runMonitoringCron()` memanggilnya **setiap menit**, jadi tabel tidak pernah
+   menyimpan jauh lebih dari batas — walaupun pemeriksaan penuh baru jatuh tempo
+   setiap 15 menit. Pemangkasan juga berjalan setiap kali "Periksa sekarang"
+   selesai dan saat tombol "Bersihkan log lama" ditekan.
+2. **Batas umur** — `monitoring_settings.retention_days` (default 30 hari).
+   Baris yang lebih tua dari batas ini dihapus pada pemeriksaan terjadwal.
+
+Keduanya berlaku bersamaan: mana pun yang lebih dulu tercapai, baris lama yang
+dihapus.
+
+### Tampilan log
+
+Panel log punya pemilih **50 / 100 / 500** baris. Pilihan disimpan di
+`localStorage` (`genz-monitoring-log-limit`) sehingga bertahan saat halaman
+dimuat ulang. Server membatasi `limit` maksimal 500 lewat `buildEventFilter()`,
+jadi angka besar dari luar tidak bisa memaksa query berat.
 
 ## Deteksi DevTools: batas kemampuannya
 
@@ -78,7 +134,7 @@ Saat pemeriksaan berjalan:
 
 ## Pemasangan
 
-1. Jalankan `supabase/monitoring-blackbox.sql` (idempotent).
+1. Jalankan `supabase/monitoring-blackbox.sql` lalu `supabase/monitoring-log-cap.sql` (keduanya idempotent).
 2. Deploy Worker: `npm run deploy` (`/api/monitoring` dan cron baru ikut).
 3. Buka **Admin Panel → MONITORING**, tekan **Periksa sekarang**.
 

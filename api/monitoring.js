@@ -33,9 +33,12 @@ import {
     highestSeverity,
     isConfigured,
     normalizeEventInput,
+    normalizeUserId,
     parseUserAgent,
+    pruneEventOverflow,
     pruneOldEvents,
     readNetworkContext,
+    REMEDIATION,
     runMonitoringScan,
     saveHealthChecks,
     upsertFindings
@@ -197,9 +200,33 @@ async function handleIngest(req, res, config, fetchImpl) {
         }
     }
 
+    /*
+     * Kalau permintaan membawa token sesi, identitasnya diverifikasi ke
+     * Supabase Auth dan dipakai sebagai sumber kebenaran. Kalau tidak,
+     * user_id dari browser tetap disimpan tetapi ditandai belum terverifikasi.
+     */
+    let verifiedUserId = null;
+    const token = bearer(req);
+
+    if (token) {
+        try {
+            const verify = await fetchImpl(`${config.supabaseUrl}/auth/v1/user`, {
+                headers: { apikey: config.serviceKey, Authorization: `Bearer ${token}` }
+            });
+            if (verify.ok) {
+                const account = await verify.json();
+                verifiedUserId = normalizeUserId(account?.id);
+            }
+        } catch {
+            /* token tidak bisa diverifikasi — lanjut sebagai klaim browser */
+        }
+    }
+
     const agent = parseUserAgent(network.user_agent);
     const row = {
         ...event,
+        user_id: verifiedUserId || event.user_id,
+        detail: { ...event.detail, identity_verified: Boolean(verifiedUserId) },
         ip: network.ip,
         country: network.country,
         region: network.region,
@@ -334,7 +361,8 @@ function buildEventFilter(query) {
         filters.push(`occurred_at=gte.${encodeURIComponent(since)}`);
     }
 
-    const limit = Math.min(200, Math.max(1, Number(query.limit) || 50));
+    /* Halaman menyediakan pilihan 50 / 100 / 500 baris. */
+    const limit = Math.min(500, Math.max(1, Number(query.limit) || 50));
     filters.push(`limit=${limit}`);
 
     return `/monitoring_events?${filters.join("&")}`;
@@ -350,6 +378,104 @@ async function handleList(req, res, config, fetchImpl, table, query) {
 
     const rows = await dbRequest(config, path, { method: "GET" }, fetchImpl);
     return send(res, 200, { success: true, rows: Array.isArray(rows) ? rows : [] });
+}
+
+/* ---------------------------------------------------------
+   DETAIL SATU LOG
+   Klik satu baris di "Log Aktivitas Live" -> panel detail berisi
+   identitas akun, jaringan, perangkat, jejak sesi, dan saran tindakan.
+   --------------------------------------------------------- */
+
+async function loadProfileDetail(config, userId, fetchImpl) {
+    const variants = ["id,email,name,role", "id,email,role"];
+
+    for (const columns of variants) {
+        try {
+            const rows = await dbRequest(
+                config,
+                `/profiles?id=eq.${encodeURIComponent(userId)}&select=${columns}`,
+                { method: "GET" },
+                fetchImpl
+            );
+            return Array.isArray(rows) ? rows[0] || null : null;
+        } catch {
+            /* coba bentuk select berikutnya */
+        }
+    }
+
+    return null;
+}
+
+export function suggestedRemediation(event = {}) {
+    if (event.devtools_open || event.kind === "devtools") return REMEDIATION.devtools;
+    if (event.kind === "error") return REMEDIATION["client-error"];
+    if (event.kind === "api_failure") return REMEDIATION["api-failure"];
+    if (event.kind === "security") return REMEDIATION.security;
+    return "";
+}
+
+async function handleEventDetail(req, res, config, fetchImpl, query) {
+    const id = String(query.id || "").trim();
+
+    if (!/^\d+$/.test(id)) {
+        return fail(res, 400, "ID log tidak valid.");
+    }
+
+    const rows = await dbRequest(
+        config,
+        `/monitoring_events?id=eq.${encodeURIComponent(id)}&select=*&limit=1`,
+        { method: "GET" },
+        fetchImpl
+    );
+
+    const event = Array.isArray(rows) ? rows[0] : null;
+    if (!event) return fail(res, 404, "Log tidak ditemukan.");
+
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+
+    const [profile, ipEvents, sessionEvents] = await Promise.all([
+        event.user_id
+            ? loadProfileDetail(config, event.user_id, fetchImpl)
+            : Promise.resolve(null),
+        event.ip
+            ? dbRequest(
+                config,
+                `/monitoring_events?ip=eq.${encodeURIComponent(event.ip)}&occurred_at=gte.${encodeURIComponent(since)}&select=id,occurred_at&order=occurred_at.asc&limit=200`,
+                { method: "GET" },
+                fetchImpl
+            ).catch(() => [])
+            : Promise.resolve([]),
+        event.session_id
+            ? dbRequest(
+                config,
+                `/monitoring_events?session_id=eq.${encodeURIComponent(event.session_id)}&select=id&limit=200`,
+                { method: "GET" },
+                fetchImpl
+            ).catch(() => [])
+            : Promise.resolve([])
+    ]);
+
+    const ipList = Array.isArray(ipEvents) ? ipEvents : [];
+    const sessionList = Array.isArray(sessionEvents) ? sessionEvents : [];
+
+    return send(res, 200, {
+        success: true,
+        event,
+        profile: profile
+            ? {
+                email: profile.email || "",
+                name: profile.name || "",
+                role: String(profile.role || "").toLowerCase()
+            }
+            : null,
+        related: {
+            ip_events_24h: ipList.length,
+            ip_first_seen_24h: ipList.length ? ipList[0].occurred_at : null,
+            ip_last_seen_24h: ipList.length ? ipList[ipList.length - 1].occurred_at : null,
+            session_events: sessionList.length
+        },
+        remediation: suggestedRemediation(event)
+    });
 }
 
 /* ---------------------------------------------------------
@@ -369,6 +495,7 @@ async function handleScan(res, config, fetchImpl) {
 export function normalizeSettingsInput(body = {}) {
     const interval = Number(body.scan_interval_minutes);
     const retention = Number(body.retention_days);
+    const maxEvents = body.max_events === undefined ? 500 : Number(body.max_events);
 
     if (!Number.isFinite(interval) || interval < 1 || interval > 1440) {
         return { error: "Interval pemeriksaan harus antara 1 dan 1440 menit." };
@@ -376,11 +503,15 @@ export function normalizeSettingsInput(body = {}) {
     if (!Number.isFinite(retention) || retention < 1 || retention > 365) {
         return { error: "Masa simpan log harus antara 1 dan 365 hari." };
     }
+    if (!Number.isFinite(maxEvents) || maxEvents < 50 || maxEvents > 10000) {
+        return { error: "Batas jumlah log harus antara 50 dan 10000 baris." };
+    }
 
     return {
         value: {
             scan_interval_minutes: Math.round(interval),
             retention_days: Math.round(retention),
+            max_events: Math.round(maxEvents),
             devtools_alerts: body.devtools_alerts !== false,
             error_alerts: body.error_alerts !== false,
             updated_at: new Date().toISOString()
@@ -461,7 +592,8 @@ export default async function handler(req, res) {
             if (action === "purge") {
                 const settings = await fetchSettings(config, fetchImpl).catch(() => null);
                 const cutoff = await pruneOldEvents(config, settings?.retention_days || 30, fetchImpl);
-                return send(res, 200, { success: true, cutoff });
+                const removed = await pruneEventOverflow(config, settings?.max_events || 500, fetchImpl);
+                return send(res, 200, { success: true, cutoff, removed });
             }
 
             return fail(res, 404, "Aksi tidak dikenal.");
@@ -471,6 +603,7 @@ export default async function handler(req, res) {
         if (!admin.ok) return fail(res, admin.status, admin.error);
 
         if (action === "overview") return await handleOverview(req, res, config, fetchImpl);
+        if (action === "event") return await handleEventDetail(req, res, config, fetchImpl, query);
         if (action === "events") return await handleList(req, res, config, fetchImpl, "events", query);
         if (action === "findings") return await handleList(req, res, config, fetchImpl, "findings", query);
         if (action === "health") return await handleList(req, res, config, fetchImpl, "health", query);
@@ -496,4 +629,4 @@ export default async function handler(req, res) {
 }
 
 /* Dipakai test supaya perilakunya sama dengan cron. */
-export { buildFindings, saveHealthChecks, upsertFindings };
+export { buildEventFilter, buildFindings, saveHealthChecks, upsertFindings };

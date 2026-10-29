@@ -763,3 +763,291 @@ html[data-genz-theme="light"] .mon-finding-fix {
     .mon-log-wrap { max-height: 360px; }
     .mon-panel { padding: 15px; border-radius: 18px; }
 }
+
+/* ---------------------------------------------------------
+   DETAIL LOG (drawer kanan)
+   --------------------------------------------------------- */
+
+.mon-log-row {
+    cursor: pointer;
+}
+
+.mon-log-row:focus-visible {
+    outline: 2px solid var(--bb-green-line);
+    outline-offset: -2px;
+}
+
+.mon-detail {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.mon-detail[hidden] {
+    display: none;
+}
+
+.mon-detail-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .68);
+    backdrop-filter: blur(3px);
+}
+
+.mon-detail-panel {
+    position: relative;
+    width: min(540px, 100%);
+    height: 100%;
+    overflow-y: auto;
+    background: #040806;
+    border-left: 1px solid var(--bb-green-line);
+    box-shadow: -30px 0 90px rgba(0, 0, 0, .66);
+    padding: 20px 20px 34px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: mon-slide-in .22s ease;
+}
+
+@keyframes mon-slide-in {
+    from { transform: translateX(22px); opacity: .35; }
+    to { transform: none; opacity: 1; }
+}
+
+body.mon-detail-open {
+    overflow: hidden;
+}
+
+.mon-detail-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--bb-shell-border);
+}
+
+.mon-detail-kicker {
+    display: block;
+    font-size: 10px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--bb-muted);
+    margin-bottom: 6px;
+}
+
+.mon-detail-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    color: var(--bb-green);
+}
+
+.mon-detail-close {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid var(--bb-shell-border);
+    background: transparent;
+    color: var(--bb-muted);
+    font-size: 15px;
+    cursor: pointer;
+    transition: all .16s ease;
+}
+
+.mon-detail-close:hover {
+    color: var(--bb-green);
+    border-color: var(--bb-green-line);
+}
+
+.mon-detail-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.mon-detail-section {
+    border: 1px solid var(--bb-shell-border);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .022);
+    padding: 12px 14px 14px;
+}
+
+.mon-detail-section-title {
+    margin: 0 0 10px;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--bb-green);
+}
+
+.mon-detail-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mon-detail-row {
+    display: grid;
+    grid-template-columns: 148px minmax(0, 1fr);
+    gap: 10px;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.mon-detail-label {
+    color: var(--bb-muted);
+    letter-spacing: .04em;
+}
+
+.mon-detail-value {
+    color: #e8f5ee;
+    overflow-wrap: anywhere;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 11.5px;
+}
+
+.mon-detail-fix {
+    border: 1px solid rgba(57, 255, 113, .2);
+    background: rgba(57, 255, 113, .08);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: #bfe9cf;
+}
+
+.mon-detail-fix strong {
+    color: var(--bb-green);
+    letter-spacing: .05em;
+}
+
+.mon-detail-raw summary {
+    cursor: pointer;
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--bb-muted);
+    padding: 6px 0;
+}
+
+.mon-detail-pre {
+    margin: 6px 0 0;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--bb-shell-border);
+    background: rgba(0, 0, 0, .45);
+    color: #cfe0d6;
+    font-size: 11px;
+    line-height: 1.55;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* Mode cerah */
+
+html[data-genz-theme="light"] .mon-detail-panel {
+    background: #ffffff;
+    box-shadow: -20px 0 60px rgba(10, 20, 14, .18);
+}
+
+html[data-genz-theme="light"] .mon-detail-section {
+    background: #f7faf8;
+    border-color: rgba(10, 20, 14, .12);
+}
+
+html[data-genz-theme="light"] .mon-detail-value {
+    color: #10221a;
+}
+
+html[data-genz-theme="light"] .mon-detail-fix {
+    background: rgba(5, 120, 60, .07);
+    border-color: rgba(5, 120, 60, .2);
+    color: #145232;
+}
+
+html[data-genz-theme="light"] .mon-detail-pre {
+    background: #f1f6f3;
+    color: #16241c;
+    border-color: rgba(10, 20, 14, .12);
+}
+
+@media (max-width: 640px) {
+    .mon-detail-panel {
+        width: 100%;
+        padding: 16px 14px 30px;
+    }
+
+    .mon-detail-row {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+
+    .mon-detail-label {
+        font-size: 10px;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+    }
+}
+
+/* ---------------------------------------------------------
+   PEMILIH JUMLAH LOG (50 / 100 / 500)
+   --------------------------------------------------------- */
+
+.mon-limit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--bb-muted);
+}
+
+.mon-limit select {
+    appearance: none;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--bb-shell-border);
+    border-radius: 9px;
+    color: var(--bb-text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    padding: 6px 26px 6px 10px;
+    cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--bb-muted) 50%),
+        linear-gradient(135deg, var(--bb-muted) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 52%, calc(100% - 9px) 52%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+}
+
+.mon-limit select:focus {
+    outline: none;
+    border-color: var(--bb-green-line);
+    box-shadow: 0 0 0 3px rgba(57, 255, 113, .12);
+}
+
+.mon-limit select option {
+    background: #061009;
+    color: var(--bb-text);
+}
+
+html[data-genz-theme="light"] .mon-limit select {
+    background-color: #ffffff;
+    border-color: rgba(10, 20, 14, .16);
+    color: #0d1a13;
+}
+
+html[data-genz-theme="light"] .mon-limit select option {
+    background: #ffffff;
+    color: #0d1a13;
+}

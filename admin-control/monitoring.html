@@ -291,6 +291,22 @@
 
                 </div>
 
+                <div class="mon-field">
+
+                    <label for="monMaxEvents">Batas jumlah log</label>
+
+                    <input
+                        type="number"
+                        id="monMaxEvents"
+                        min="50"
+                        max="10000"
+                        step="50"
+                        value="500"
+                        required
+                    >
+
+                </div>
+
             </form>
 
             <div class="mon-form-foot">
@@ -321,8 +337,9 @@
 
             <p class="mon-note">
                 Cron Worker berjalan setiap menit, tetapi pemeriksaan penuh hanya
-                dijalankan bila interval di atas sudah terlewati. Log yang lebih tua
-                dari batas simpan dihapus otomatis.
+                dijalankan bila interval di atas sudah terlewati. Log disimpan di
+                Supabase dan dipangkas otomatis: hanya <b>N log terbaru</b> (bawaan
+                500) yang disisakan, dan yang lebih tua dari batas hari juga dihapus.
             </p>
 
         </section>
@@ -338,6 +355,20 @@
                 </h2>
 
                 <span class="mon-panel-meta" id="monLogMeta">—</span>
+
+                <label class="mon-limit" for="monLogLimit">
+
+                    <span>Tampilkan</span>
+
+                    <select id="monLogLimit" aria-label="Jumlah log yang ditampilkan">
+
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="500">500</option>
+
+                    </select>
+
+                </label>
 
             </div>
 
@@ -364,6 +395,11 @@
                 </button>
 
             </div>
+
+            <p class="mon-note">
+                Klik salah satu baris untuk melihat detail lengkap: email akun,
+                IP, kota/negara, ASN, perangkat, dan jejak sesinya.
+            </p>
 
             <div class="mon-log-wrap">
 
@@ -448,6 +484,56 @@
             </p>
 
         </section>
+
+    </div>
+
+    <!-- =====================================================
+         DETAIL LOG (klik salah satu baris log)
+    ====================================================== -->
+
+    <div class="mon-detail" id="monDetail" hidden>
+
+        <div class="mon-detail-backdrop" data-detail-close="1"></div>
+
+        <aside
+            class="mon-detail-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="monDetailTitle"
+        >
+
+            <header class="mon-detail-head">
+
+                <div class="mon-detail-heading">
+
+                    <span class="mon-detail-kicker">
+                        BLACK BOX // DETAIL LOG
+                    </span>
+
+                    <h2 class="mon-detail-title" id="monDetailTitle">
+                        MEMUAT…
+                    </h2>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="mon-detail-close"
+                    id="monDetailClose"
+                    aria-label="Tutup detail log"
+                >
+                    ✕
+                </button>
+
+            </header>
+
+            <div class="mon-detail-body" id="monDetailBody">
+
+                <p class="mon-note">Memuat detail…</p>
+
+            </div>
+
+        </aside>
 
     </div>
 
