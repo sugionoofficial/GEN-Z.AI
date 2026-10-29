@@ -173,41 +173,77 @@
        ----------------------------------------------------- */
 
     var consoleOpened = false;
+    var consoleProbeAt = 0;
+    var consoleProbeDone = false;
+
+    /* Getter hanya dipanggil saat console benar-benar memformat objek,
+       jadi jejaknya dipakai sebagai bukti yang berlaku sesaat. */
+    var CONSOLE_FRESH_MS = 15000;
+
+    function isMobileViewport() {
+        try {
+            var width = window.innerWidth || 0;
+            if (width && width < 900) {
+                var coarse = window.matchMedia
+                    ? window.matchMedia("(pointer: coarse)").matches
+                    : false;
+                var touch = (navigator.maxTouchPoints || 0) > 0;
+                if (coarse || touch) return true;
+            }
+            return false;
+        } catch (error) {
+            return false;
+        }
+    }
 
     function probeConsoleGetter() {
+        if (consoleProbeDone) return;
+        consoleProbeDone = true;
+
         var probe = {};
-        var triggered = false;
 
         try {
             Object.defineProperty(probe, "id", {
                 get: function () {
-                    triggered = true;
+                    consoleOpened = true;
+                    consoleProbeAt = Date.now();
                     return "genz-probe";
                 }
             });
             /* DevTools yang memformat objek akan memicu getter di atas. */
             console.log(probe);
-            console.clear && console.clear();
         } catch (error) {
             /* beberapa browser memblokir defineProperty pada objek console */
         }
+    }
 
-        if (triggered) consoleOpened = true;
-        return triggered;
+    function consoleSaysOpen() {
+        return Boolean(consoleOpened) && (Date.now() - consoleProbeAt) < CONSOLE_FRESH_MS;
     }
 
     function devtoolsState() {
         try {
+            /*
+             * Di HP, address bar dan keyboard mengubah innerHeight, sehingga
+             * selisih outerHeight-innerHeight bukan bukti DevTools. Contoh
+             * nyata: layar 795 vs viewport 603 (selisih 192) hanya karena
+             * address bar Chrome — dulu itu memicu alarm palsu.
+             */
+            if (isMobileViewport()) return consoleSaysOpen();
+
             var widthGap = (window.outerWidth || 0) - (window.innerWidth || 0);
             var heightGap = (window.outerHeight || 0) - (window.innerHeight || 0);
             var sizeSaysOpen = widthGap > 160 || heightGap > 160;
-            return Boolean(sizeSaysOpen || consoleOpened);
+
+            return Boolean(sizeSaysOpen || consoleSaysOpen());
         } catch (error) {
             return false;
         }
     }
 
     function watchDevtools() {
+        probeConsoleGetter();
+
         var timer = setInterval(function () {
             var open = devtoolsState();
 
