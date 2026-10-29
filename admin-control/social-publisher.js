@@ -2403,6 +2403,130 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
+    /* ------------------------------------------------------------------
+       Cek kesehatan autopost: memanggil RPC social_publisher_health() lewat
+       API server, lalu menampilkan ringkasan + alert yang bisa ditindaklanjuti.
+       ------------------------------------------------------------------ */
+    const HEALTH_LEVEL_LABEL = { error: "Perlu tindakan", warning: "Perhatian", info: "Info" };
+
+    function healthNumber(value) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? String(parsed) : "—";
+    }
+
+    function healthTimestamp(value) {
+        const parsed = value ? Date.parse(value) : Number.NaN;
+        if (!Number.isFinite(parsed)) return "baru saja";
+        return new Date(parsed).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) + " WIB";
+    }
+
+    function renderAutopostHealth(payload) {
+        const box = $("autopost-health-report");
+        if (!box) return;
+        box.textContent = "";
+        box.hidden = false;
+
+        if (!payload || payload.available === false || !payload.health) {
+            const note = document.createElement("p");
+            note.className = "status error";
+            note.textContent = "Health check belum tersedia di database. Jalankan supabase/social-publisher-monitoring.sql di SQL Editor.";
+            box.appendChild(note);
+            return;
+        }
+
+        const health = payload.health;
+        const alerts = Array.isArray(health.alerts) ? health.alerts : [];
+
+        const summary = document.createElement("p");
+        summary.className = `status ${health.ok ? "good" : "error"}`;
+        summary.textContent = health.ok
+            ? "Semua pemeriksaan normal."
+            : `${alerts.length} hal perlu diperhatikan.`;
+        box.appendChild(summary);
+
+        const runs = health.runs || {};
+        const subscriptions = health.subscriptions || {};
+        const schedules = health.schedules || {};
+        const songs = health.songs || {};
+        const tokens = health.opus_tokens || {};
+        const items = [
+            ["Langganan aktif", subscriptions.active],
+            ["Berakhir ≤3 hari", subscriptions.expiring_3d],
+            ["Jadwal aktif", schedules.enabled],
+            ["Run sukses 24 jam", runs.success_24h],
+            ["Run gagal 24 jam", runs.failed_24h],
+            ["Run menggantung", runs.stale_30m],
+            ["Lagu aktif", songs.active],
+            ["Token Opus kedaluwarsa", tokens.expired]
+        ];
+        const facts = document.createElement("p");
+        for (const [label, value] of items) {
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.textContent = `${label}: ${healthNumber(value)}`;
+            facts.appendChild(badge);
+            facts.appendChild(document.createTextNode(" "));
+        }
+        box.appendChild(facts);
+
+        if (alerts.length) {
+            const list = document.createElement("ul");
+            for (const alert of alerts) {
+                const item = document.createElement("li");
+                const level = String(alert?.level || "").toLowerCase();
+                item.textContent = `${HEALTH_LEVEL_LABEL[level] || "Info"} — `;
+                const code = document.createElement("code");
+                code.textContent = alert?.code || "ALERT";
+                item.appendChild(code);
+                item.appendChild(document.createTextNode(`: ${alert?.message || ""}`));
+                list.appendChild(item);
+            }
+            box.appendChild(list);
+        }
+
+        const stamp = document.createElement("p");
+        stamp.className = "help";
+        stamp.textContent = `Diperbarui ${healthTimestamp(health.generated_at)}`;
+        box.appendChild(stamp);
+    }
+
+    async function checkAutopostHealth(button = null) {
+        const box = $("autopost-health-report");
+        if (button) setButtonBusy(button, true);
+        if (box) {
+            box.hidden = false;
+            box.textContent = "";
+            const loading = document.createElement("p");
+            loading.className = "help";
+            loading.textContent = "Membaca status autopost…";
+            box.appendChild(loading);
+        }
+        try {
+            const payload = await api("autopost-health");
+            renderAutopostHealth(payload);
+        } catch (error) {
+            if (box) {
+                box.textContent = "";
+                const failed = document.createElement("p");
+                failed.className = "status error";
+                failed.textContent = error.message || "Gagal membaca status autopost.";
+                box.appendChild(failed);
+            }
+        } finally {
+            if (button) setButtonBusy(button, false);
+        }
+    }
+
+    function applyAutopostHealthAccess() {
+        const button = $("autopost-health-btn");
+        if (!button) return;
+        const canManage = state.data?.canManageGlobalAutopublish === true;
+        button.hidden = !canManage;
+        if (!canManage && $("autopost-health-report")) {
+            $("autopost-health-report").hidden = true;
+        }
+    }
+
     function songSummaryLabel(schedule = {}) {
         const isQuote = schedule.post_mode === "quote";
         /* Foto karakter AI & outfit tidak pernah memakai lagu. */
@@ -2881,6 +3005,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         renderOutfitSelector(data.characters || []);
         renderOutfits();
         renderSongs();
+        applyAutopostHealthAccess();
         updateCollapsibleSummaries();
         applySchedulePolicyUi();
         const missingMigrations = [];
@@ -3774,6 +3899,9 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
      */
     $("manual-page")?.addEventListener("change", () => disarmManualPublish());
     $("schedule-form").addEventListener("submit", submitSchedule);
+    $("autopost-health-btn")?.addEventListener("click", event => {
+        checkAutopostHealth(event.currentTarget || $("autopost-health-btn"));
+    });
     /* Pemilih lagu: menampilkan/menyembunyikan daftar lagu sesuai mode. */
     for (const [modeId, choiceId, legacyId] of [
         ["schedule-song-mode", "schedule-song-choice", "schedule-random-song"],

@@ -362,7 +362,13 @@ Otorisasi: `SECURITY DEFINER`, tapi **tidak** memakai `current_user` (di definer
 owner). Dipakai `current_setting('role')` + `is_admin_or_owner()`; `anon` dicabut, `authenticated`
 (admin) dan `service_role` boleh. Diuji: `authenticated` non-admin → `ADMIN_ONLY / 42501`.
 
-Pemakaian:
+**Dari panel (tanpa SQL Editor):** buka **Studio Medsos → Autopost Engine**, klik tombol
+**"Cek kesehatan autopost"**. Tombol ini (hanya tampil untuk ADMIN/OWNER) memanggil
+`GET /api/social-publisher?action=autopost-health`, yang di server memanggil RPC di atas memakai
+service role, lalu menampilkan ringkasan angka + daftar alert. Tidak ada kredensial yang dikirim
+ke browser dan pesan alert dirender lewat `textContent` (bukan `innerHTML`).
+
+Pemakaian langsung:
 
 ```sql
 -- ringkas
