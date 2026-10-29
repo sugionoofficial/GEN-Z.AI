@@ -65,6 +65,38 @@ function bearer(req) {
     return match ? match[1].trim() : "";
 }
 
+function short(value, max = 160) {
+    const text = String(value ?? "");
+    return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+/*
+ * Tabel `profiles` memakai kolom `name`, bukan `full_name`. Dulu select
+ * `id,role,full_name` membuat PostgREST menolak (400) sehingga seluruh
+ * endpoint monitoring menjawab 502. Sekarang bentuk select dicoba bertahap
+ * supaya perbedaan skema antar-deployment tidak mematikan halaman.
+ */
+async function loadProfile(config, userId, fetchImpl) {
+    const variants = ["id,role,name", "id,role"];
+    let lastError = null;
+
+    for (const columns of variants) {
+        try {
+            const rows = await dbRequest(
+                config,
+                `/profiles?id=eq.${encodeURIComponent(userId)}&select=${columns}`,
+                { method: "GET" },
+                fetchImpl
+            );
+            return Array.isArray(rows) ? rows[0] || null : null;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError || new Error("Profil tidak terbaca.");
+}
+
 function isMissingTable(error) {
     const message = String(error?.message || "");
     return (
@@ -96,24 +128,32 @@ async function resolveAdmin(req, config, fetchImpl) {
 
     if (!userId) return { ok: false, status: 401, error: "Sesi login tidak valid." };
 
+    let profile = null;
+
     try {
-        const rows = await dbRequest(
-            config,
-            `/profiles?id=eq.${encodeURIComponent(userId)}&select=id,role,full_name`,
-            { method: "GET" },
-            fetchImpl
-        );
-        const profile = Array.isArray(rows) ? rows[0] : null;
-        const role = String(profile?.role || "").toLowerCase();
-
-        if (role !== "admin" && role !== "owner") {
-            return { ok: false, status: 403, error: "Halaman ini hanya untuk ADMIN atau OWNER." };
-        }
-
-        return { ok: true, userId, role, name: profile?.full_name || "" };
-    } catch {
-        return { ok: false, status: 502, error: "Gagal membaca profil pengguna." };
+        profile = await loadProfile(config, userId, fetchImpl);
+    } catch (error) {
+        /* Pesan asli ikut dikirim supaya kegagalan kolom/skema langsung
+           terlihat di panel, bukan sekadar "Bad Gateway". */
+        return {
+            ok: false,
+            status: 502,
+            error: `Gagal membaca profil pengguna: ${short(error?.message || "unknown error")}`
+        };
     }
+
+    const role = String(profile?.role || "").trim().toLowerCase();
+
+    if (role !== "admin" && role !== "owner") {
+        return {
+            ok: false,
+            status: 403,
+            error: `Halaman ini hanya untuk ADMIN atau OWNER. Role akun ini: ${role || "tidak diketahui"}.`,
+            role
+        };
+    }
+
+    return { ok: true, userId, role, name: String(profile?.name || profile?.full_name || "") };
 }
 
 /* ---------------------------------------------------------
