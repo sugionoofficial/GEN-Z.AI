@@ -212,7 +212,7 @@ begin
     if v_fb_restricted > 0 then
         v_alerts := v_alerts || jsonb_build_object(
             'level', 'error',
-            'code', 'FACEBOOK_PAGE_RESTRICTED',
+            'code', 'FACEBOOK_ACTION_REJECTED',
             'message', v_fb_restricted || ' run gagal karena Page dibatasi Facebook (code 368). Periksa Page di Facebook.'
         );
     end if;
@@ -262,7 +262,7 @@ begin
             'success_24h', v_runs_success_24h,
             'last_success_at', v_last_success_at,
             'opus_relogin_24h', v_opus_relogin,
-            'facebook_restricted_24h', v_fb_restricted,
+            'facebook_rejected_24h', v_fb_restricted,
             'content_policy_24h', v_policy_rejects
         ),
         'songs', jsonb_build_object(

@@ -45,7 +45,7 @@ test("health check melaporkan penyebab autopost berhenti (bukan hanya jumlah)", 
     assert.match(sql, /invalid_grant/i);
     assert.match(sql, /OPUS_RELOGIN_REQUIRED/);
     assert.match(sql, /code 368/i);
-    assert.match(sql, /FACEBOOK_PAGE_RESTRICTED/);
+    assert.match(sql, /FACEBOOK_ACTION_REJECTED/);
     assert.match(sql, /CONTENT_POLICY_REJECTED/);
     assert.match(sql, /SONG_TITLE_NOT_CAPTION_SAFE/);
     assert.match(sql, /from public\.social_facebook_songs/);

@@ -352,11 +352,11 @@ memotong kredit user (memakai langganan Studio Medsos + kuota provider).
 File: `supabase/social-publisher-monitoring.sql` (sudah dijalankan).
 
 Mengembalikan satu `jsonb` berisi: `ok`, `alerts[]`, `schedules`, `subscriptions`, `runs`
-(termasuk `stale_30m`, `opus_relogin_24h`, `facebook_restricted_24h`, `content_policy_24h`),
+(termasuk `stale_30m`, `opus_relogin_24h`, `facebook_rejected_24h`, `content_policy_24h`),
 dan `opus_tokens`.
 
 Kode alert: `SUBSCRIPTION_EXPIRING`, `SCHEDULE_WITHOUT_SUBSCRIPTION`, `STALE_RUNS`,
-`OPUS_RELOGIN_REQUIRED`, `FACEBOOK_PAGE_RESTRICTED`, `CONTENT_POLICY_REJECTED`, `ALL_FAILING`.
+`OPUS_RELOGIN_REQUIRED`, `FACEBOOK_ACTION_REJECTED`, `CONTENT_POLICY_REJECTED`, `SONG_TITLE_NOT_CAPTION_SAFE`, `ALL_FAILING`.
 
 Otorisasi: `SECURITY DEFINER`, tapi **tidak** memakai `current_user` (di definer nilainya jadi
 owner). Dipakai `current_setting('role')` + `is_admin_or_owner()`; `anon` dicabut, `authenticated`
@@ -384,7 +384,7 @@ Pemanggilan pertama langsung memunculkan insiden yang sedang berjalan:
 | --- | --- | --- |
 | `ALL_FAILING` | 27 run gagal / 0 sukses (24 jam) | autopost sedang **tidak menghasilkan post sama sekali** |
 | `CONTENT_POLICY_REJECTED` | 17 | "Permintaan gambar ditolak kebijakan konten Opus" → prompt/scene perlu diubah |
-| `FACEBOOK_PAGE_RESTRICTED` | 5 | Page dibatasi Facebook **code 368** → cek di Facebook |
+| `FACEBOOK_ACTION_REJECTED` | 5 | Facebook menolak **aksi** itu (code 368), bukan blokir Page → periksa caption & frekuensi |
 | `OPUS_RELOGIN_REQUIRED` | 4 | refresh token Opus → `invalid_grant` → **login ulang ke Opus Labs** |
 | `opus_tokens` | 3/3 expired | seluruh access token Opus sudah lewat masa berlaku |
 
@@ -422,7 +422,7 @@ ditukar pada detik yang sama (05:43:18).
 
 | Alert | Jumlah 24 jam | Tindakan |
 | --- | --- | --- |
-| `FACEBOOK_PAGE_RESTRICTED` (code 368) | 5 | Pembatasan dari Facebook pada Page; tunggu/ajukan banding, bukan bug aplikasi |
+| `FACEBOOK_ACTION_REJECTED` (code 368) | 5 | Aksi ditolak Meta (abusive/spam); Page tetap bisa posting → periksa caption & frekuensi |
 | `CONTENT_POLICY_REJECTED` | 16 | Prompt/scene kena filter kebijakan Opus; longgarkan prompt |
 | `OPUS_RELOGIN_REQUIRED` | 4 | Riwayat lama sebelum kredensial dilengkapi; akan hilang sendiri dari jendela 24 jam |
 
@@ -469,9 +469,9 @@ di riwayat: **code 368 "The action attempted has been deemed abusive or is other
    sekarang ikut tersimpan (cron `functions/_shared/social-publisher-cron.js` dan
    `api/social-publisher.js`). Sebelumnya data lagu hilang saat gagal sehingga penyebabnya
    tidak bisa ditelusuri.
-3. **Code 368 tidak lagi `retrySafe`** (`lib/social-publisher/providers.js`): mengulang terus
-   saat Page dibatasi justru memperpanjang pembatasan. Pesannya kini menyebut langkah konkret:
-   buang tautan/nama situs pengunduh, turunkan frekuensi, tunggu pembatasan mereda.
+3. **Code 368 tidak lagi `retrySafe`** (`lib/social-publisher/providers.js`): percobaan beruntun
+   ke aksi yang sama memperbesar risiko. Pesannya kini menyebut langkah konkret: periksa caption
+   (tautan/nama situs pengunduh, teks yang terlalu mirip post sebelumnya) dan frekuensi post.
 4. **Health check v3** menambah bagian `songs {total, active, unusable_title}` dan alert
    `SONG_TITLE_NOT_CAPTION_SAFE` — aktif sekarang karena 1/1 lagu berjudul nama berkas.
 
@@ -479,8 +479,8 @@ di riwayat: **code 368 "The action attempted has been deemed abusive or is other
 
 - Ganti judul lagu di panel **Lagu Facebook** menjadi nama lagu yang wajar (mis. "Musik Latar 1"),
   supaya blok lagu muncul lagi di caption.
-- Selama Page masih kena 368, kurangi frekuensi post; pembatasan ini datang dari Meta, bukan bug
-  aplikasi, dan tidak ada konfigurasi Supabase yang bisa mematikannya.
+- Bila 368 muncul lagi, periksa caption & frekuensi post. Ini penolakan per-aksi dari Meta, bukan
+  blokir Page: tidak ada konfigurasi Supabase yang bisa mematikannya.
 
 ---
 
@@ -506,3 +506,23 @@ Opsi lagu **dihapus** dari mode foto karakter AI & outfit. Penegakannya di tiga 
 Judul lagu di koleksi juga sudah dirapikan menjadi **"Musik Latar 1"** (sebelumnya
 `FDownload.app 1125438713302255 (320kbps)`), sehingga `songs.unusable_title = 0` dan alert
 `SONG_TITLE_NOT_CAPTION_SAFE` hilang.
+
+### Koreksi 2026-10-29 (konfirmasi pemilik akun): Page TIDAK diblokir
+
+Pemilik akun memastikan Page tetap bisa posting manual. Data mendukung:
+
+| Waktu (UTC) | Hasil |
+| --- | --- |
+| 02:22, 02:52, 03:22, 03:53, 04:23 | ditolak **code 368** |
+| 03:27, 05:43, 05:47 | **posted** ke Page yang sama |
+
+Jadi 368 di sini adalah **penolakan per-aksi** (aksi dinilai abusive/spam oleh Meta), bukan
+pembatasan Page. Label lama "Page ini sedang dibatasi sementara" menyesatkan dan sudah diganti:
+
+- Pesan error: "Facebook menolak aksi ini (code 368: dianggap abusive/spam). Ini bukan blokir Page…"
+- `code` error: `page_restricted` → `action_rejected`
+- Alert health check: `FACEBOOK_PAGE_RESTRICTED` (level error) → `FACEBOOK_ACTION_REJECTED` (level warning)
+- Field ringkasan: `runs.facebook_restricted_24h` → `runs.facebook_rejected_24h`
+
+Pemicu yang paling mungkin pada kasus ini adalah caption berisi nama situs pengunduh
+(`FDownload.app …`) — sudah dihilangkan — dan teks caption yang terlalu mirip antar-post.
