@@ -100,14 +100,20 @@ jadi angka besar dari luar tidak bisa memaksa query berat.
 Browser tidak menyediakan API resmi. Beacon memakai dua heuristik:
 
 1. **Selisih viewport** — `outerWidth - innerWidth > 160` (DevTools yang
-   menempel/docked memperkecil viewport).
+   menempel/docked memperkecil viewport). Heuristik ini **dimatikan di HP**
+   (lebar < 900 px dengan pointer kasar/`maxTouchPoints`), karena address bar
+   dan keyboard membuat `outerHeight - innerHeight` selalu besar — dulu ini
+   memicu alarm palsu "DevTools terbuka" setiap kali halaman digulir.
 2. **Getter pada objek console** — objek dengan properti `id` yang punya getter
-   dicetak ke console; DevTools yang memformat objek akan memicunya.
+   dicetak sekali saat halaman dimuat; DevTools yang memformat objek akan
+   memicunya. Bukti ini dianggap berlaku 15 detik agar status tidak tersangkut
+   "terbuka" selamanya setelah console ditutup.
 
 Konsekuensinya:
 
-- **Positif palsu** bisa terjadi saat pengguna memperbesar zoom, memakai sidebar
-  browser, atau jendela tidak maksimal.
+- **Positif palsu** di desktop masih mungkin saat pengguna memperbesar zoom,
+  memakai sidebar browser, atau jendela tidak maksimal. Di HP, alarm jenis ini
+  tidak lagi muncul.
 - **Negatif palsu** terjadi bila DevTools dibuka pada jendela terpisah
   (*undocked*), karena viewport tidak berubah dan console tidak diformat.
 - Karena itu data ini ditampilkan sebagai **indikasi**, bukan bukti. Temuan
