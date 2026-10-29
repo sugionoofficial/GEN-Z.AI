@@ -472,3 +472,55 @@ test("guard mengonfirmasi role ke tabel profiles sebelum menolak", () => {
     /* Penolakan hanya boleh terjadi setelah role dikonfirmasi. */
     assert.match(page, /var role = await resolveRole\(\);[\s\S]{0,600}deny\(role\);/);
 });
+
+test("API memakai kolom profiles.name, bukan full_name", () => {
+    const source = read("api/monitoring.js");
+
+    assert.match(source, /const variants = \["id,role,name", "id,role"\];/);
+    assert.doesNotMatch(source, /select=id,role,full_name/);
+    assert.match(source, /profile\?\.name \|\| profile\?\.full_name/);
+});
+
+test("role admin tetap terbaca walau bentuk select pertama ditolak skema", async () => {
+    const original = globalThis.fetch;
+
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        const method = String(options.method || "GET").toUpperCase();
+
+        if (url.includes("/auth/v1/user")) return Response.json({ id: "admin-1" });
+        if (url.includes("/auth/v1/health")) return Response.json({ name: "GoTrue" });
+        if (url.includes("/storage/v1/bucket")) return Response.json([]);
+        if (url.endsWith("/index.html")) return new Response("ok", { status: 200 });
+        if (url.includes("/api/announcements")) return Response.json({ success: true });
+
+        if (url.includes("/rest/v1/profiles")) {
+            /* Simulasi deployment yang belum punya kolom `name`. */
+            if (url.includes("select=id,role,name")) {
+                return Response.json(
+                    { code: "42703", message: 'column profiles.name does not exist' },
+                    { status: 400 }
+                );
+            }
+            return Response.json([{ id: "admin-1", role: "owner" }]);
+        }
+
+        if (url.includes("/rest/v1/monitoring_settings")) return Response.json([baseSettings()]);
+        if (url.includes("/rest/v1/monitoring_health_checks")) return method === "POST"
+            ? new Response(null, { status: 201 })
+            : Response.json([]);
+        if (url.includes("/rest/v1/monitoring_events")) return Response.json([]);
+        if (url.includes("/rest/v1/monitoring_findings")) return Response.json([]);
+        if (url.includes("/rest/v1/social_post_runs")) return Response.json([]);
+
+        return Response.json({});
+    };
+
+    try {
+        const { status, json } = await call(makeReq());
+        assert.equal(status, 200, "fallback select harus menyelamatkan akses OWNER");
+        assert.equal(json.success, true);
+    } finally {
+        globalThis.fetch = original;
+    }
+});
