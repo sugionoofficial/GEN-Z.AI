@@ -349,14 +349,16 @@
             }
 
             /*
-             * Logo sidebar sekarang berupa aset gambar; varian terang
-             * otomatis dipakai lewat aturan di navigation.js, jadi
-             * tidak perlu warna latar/border lagi.
+             * Logo sidebar berupa aset gambar (lockup chrome + aksen
+             * merah) yang butuh latar gelap supaya wordmark putihnya
+             * tetap terbaca di sidebar tema terang.
              */
 
             html[data-genz-theme="light"] body .genz-logo {
-                background: none;
-                border-color: transparent;
+                padding: 5px 8px;
+                border: 0;
+                border-radius: 12px;
+                background: #10151f;
             }
 
             html[data-genz-theme="light"] body .genz-mobile-toggle span {

@@ -16,16 +16,13 @@ const themeJs = fs.readFileSync(
 test('navigation.js preserves existing brand logo, icons, and navigation labels unchanged without triggering browser URL status preview', () => {
   assert.match(
     navigationJs,
-    /<a class="genz-logo" role="link" tabindex="0" data-genz-href="\/" aria-label="gen-z\.ai — beranda">/,
+    /<a class="genz-logo" role="link" tabindex="0" data-genz-href="\/" aria-label="GEN-Z\.AI — beranda">/,
   );
   assert.match(
     navigationJs,
-    /src="\/assets\/brand\/gen-z-ai-mark-tile\.svg\?v=2"/,
+    /<img\s+class="genz-logo-img"\s+src="\/assets\/brand\/genz-ai-logo\.png\?v=genzai-logo-\d+"\s+alt="GEN-Z\.AI"/,
   );
-  assert.match(
-    navigationJs,
-    /<span class="genz-logo-text">gen-z<span class="genz-logo-ai">\.ai<\/span><\/span>/,
-  );
+  assert.doesNotMatch(navigationJs, /genz-logo-mark-img|genz-logo-text|genz-logo-ai/);
   assert.match(
     navigationJs,
     /<a class="genz-nav-item\$\{active \? " active" : ""\}" role="link" tabindex="0" data-genz-href="\$\{escapeHTML\(item\.href\)\}" data-genz-nav-link="true"/,
