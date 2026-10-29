@@ -47,6 +47,8 @@ test("health check melaporkan penyebab autopost berhenti (bukan hanya jumlah)", 
     assert.match(sql, /code 368/i);
     assert.match(sql, /FACEBOOK_PAGE_RESTRICTED/);
     assert.match(sql, /CONTENT_POLICY_REJECTED/);
+    assert.match(sql, /SONG_TITLE_NOT_CAPTION_SAFE/);
+    assert.match(sql, /from public\.social_facebook_songs/);
 
     // token Opus (nearest_expiry hanya yang masih berlaku)
     assert.match(sql, /from public\.opus_oauth_tokens/);
@@ -73,6 +75,7 @@ test("health check mengembalikan ringkasan jsonb yang bisa dipantau", () => {
         "'schedules',",
         "'subscriptions',",
         "'runs',",
+        "'songs',",
         "'opus_tokens',",
         "'generated_at',",
     ]) {

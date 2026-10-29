@@ -652,7 +652,7 @@ async function processRun(env, config, claimedRun, options = {}) {
         const textProvider = normalizeTextProvider(publisherConfigs?.[0]?.text_provider);
         const quoteLlmModel = normalizeQwenCloudLlmModel(publisherConfigs?.[0]?.quote_llm_model);
         const settings = settingsRows?.[0];
-        const song = prefetched && Object.prototype.hasOwnProperty.call(prefetched, "song")
+        song = prefetched && Object.prototype.hasOwnProperty.call(prefetched, "song")
             ? prefetched.song
             : (shouldUseRandomSong
                 ? await pickScheduledFacebookSong(config, schedule.owner_id, previousRuns, {
@@ -662,6 +662,8 @@ async function processRun(env, config, claimedRun, options = {}) {
 
         let scenePlanRecord = null;
         let generated = null;
+        /* `song` dipakai juga di blok catch untuk merekam sebab kegagalan. */
+        let song = null;
         let cleanedMimeType = "";
         let cleanedBytes = null;
         let storyMp4Bytes = null;
@@ -983,6 +985,19 @@ async function processRun(env, config, claimedRun, options = {}) {
         await updateRun(config, runId, {
             status: "failed",
             error_message: safeMessage,
+            /* Diagnostik: bila lagu dipakai, simpan judulnya + caption yang
+               dicoba beserta modenya, supaya kegagalan bisa ditelusuri
+               (mis. caption ditolak moderasi Facebook). */
+            ...(song || caption ? {
+                post_mode: postMode,
+                ...(song ? {
+                    song_id: song.id || null,
+                    song_title: song.title || "",
+                    song_artist: song.artist || "",
+                    song_facebook_url: song.facebook_url || ""
+                } : {}),
+                ...(caption ? { caption: String(caption).slice(0, 2000) } : {})
+            } : {}),
             ...(isOpusPolicyReject ? {
                 ...(imageModel ? { image_model: imageModel } : {}),
                 ...(attemptedScene ? { scene_plan: attemptedScene } : {}),

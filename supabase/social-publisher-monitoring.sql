@@ -16,6 +16,10 @@
      3. run menggantung > 30 menit     (AUTO_ABANDONED_TTL_MS)
      4. kuota model/provider habis     (model auto-disabled)
 
+   CATATAN LAGU: judul lagu hasil unduhan (nama situs + bitrate) dibersihkan
+   sebelum masuk caption; koleksi yang judulnya tidak layak memunculkan alert
+   SONG_TITLE_NOT_CAPTION_SAFE.
+
    CATATAN STATUS: run Social Publisher yang sukses berstatus 'posted'
    (bukan 'success'). Kumpulan status sukses dibuat eksplisit:
    ('posted','success','published','completed','done').
@@ -156,6 +160,22 @@ begin
       into v_opus_tokens, v_opus_expired, v_opus_nearest
       from public.opus_oauth_tokens;
 
+    /* ---------- koleksi lagu ----------
+       Judul lagu hasil unduhan (contoh "FDownload.app 1125438713302255 (320kbps)")
+       terbaca seperti spam bila masuk caption Facebook, jadi blok lagu dihilangkan
+       dari caption. Koleksi seperti ini perlu diganti judulnya di panel lagu. */
+    select count(*),
+           count(*) filter (where is_active),
+           count(*) filter (where is_active and (
+               title ~* '(fdownload|y2mate|ssyoutube|savefrom|savemp3|mp3juice|mp3skull|yt1s|yt5s|9convert|onlinevideoconverter)'
+               or title ~* '(https?://|www\.)'
+               or title ~* '\.(mp3|m4a|aac|wav|ogg|opus|flac|mp4)$'
+               or title ~* '[0-9]{2,3}\s*kbps'
+               or title ~ '^\s*[0-9]{6,}\s*$'
+           ))
+      into v_songs_total, v_songs_active, v_songs_unusable
+      from public.social_facebook_songs;
+
     /* ---------- alert ---------- */
     if v_subs_expiring > 0 then
         v_alerts := v_alerts || jsonb_build_object(
@@ -205,6 +225,13 @@ begin
         );
     end if;
 
+    if v_songs_active > 0 and v_songs_unusable = v_songs_active then
+        v_alerts := v_alerts || jsonb_build_object(
+            'level', 'warning',
+            'code', 'SONG_TITLE_NOT_CAPTION_SAFE',
+            'message', v_songs_unusable || ' lagu aktif berjudul nama berkas/situs unduhan. Blok lagu otomatis dihilangkan dari caption; ganti judul lagu di panel Lagu Facebook agar fitur lagu random tetap terpakai.'
+        );
+    end if;
     if v_runs_failed_24h > 0 and v_runs_success_24h = 0 then
         v_alerts := v_alerts || jsonb_build_object(
             'level', 'error',
@@ -237,6 +264,11 @@ begin
             'opus_relogin_24h', v_opus_relogin,
             'facebook_restricted_24h', v_fb_restricted,
             'content_policy_24h', v_policy_rejects
+        ),
+        'songs', jsonb_build_object(
+            'total', v_songs_total,
+            'active', v_songs_active,
+            'unusable_title', v_songs_unusable
         ),
         'opus_tokens', jsonb_build_object(
             'total', v_opus_tokens,

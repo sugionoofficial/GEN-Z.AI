@@ -428,3 +428,56 @@ ditukar pada detik yang sama (05:43:18).
 
 `jwt_exp` 1 jam tetap tidak berperan di semua ini: autopost dan generate memakai token provider
 dan service role di sisi server.
+
+---
+
+## 9. Autopost gagal saat opsi "lagu random Facebook" aktif (2026-10-29)
+
+### Bukti dari database
+
+| Fakta | Angka |
+| --- | --- |
+| Run `posted` yang memakai lagu | 35 |
+| Di antaranya mode **karakter** | **0** |
+| Caption-nya memuat baris lagu | **0** |
+
+Artinya: opsi lagu **belum pernah sekali pun berhasil pada mode karakter**. Seluruh 35 sukses
+berada di mode *quote*, yang caption-nya hanya berisi teks mutiara (blok lagu tidak ikut caption).
+Jadi satu-satunya hal yang berbeda pada mode karakter adalah **baris lagu yang disisipkan ke caption**.
+
+### Akar masalah
+
+Satu-satunya lagu di koleksi berjudul nama berkas hasil unduhan:
+
+```
+FDownload.app 1125438713302255 (320kbps)
+```
+
+Fungsi `formatSongBlockForCaption` dulu memakai judul itu apa adanya, sehingga caption berisi
+`🎵 Lagu Facebook: FDownload.app 1125438713302255 (320kbps)`. Teks seperti itu (nama situs
+pengunduh + bitrate) adalah pola khas spam bagi moderasi Meta — cocok dengan error yang muncul
+di riwayat: **code 368 "The action attempted has been deemed abusive or is otherwise disallowed"**
+(5 kali dalam 24 jam).
+
+### Perbaikan yang diterapkan
+
+1. **`cleanSongTitleForCaption()`** di `lib/social-publisher/utils.js`: membersihkan nama situs
+   pengunduh, penanda bitrate, ekstensi berkas, garis bawah, dan id angka acak. Dipakai oleh
+   `formatSongBlockForCaption()` (utils) dan `formatFacebookSongCaption()` (quotes).
+   Judul yang tidak layak → blok lagu **dihapus** dari caption, bukan ditampilkan sebagai sampah.
+2. **Diagnostik**: saat run gagal, `song_id/song_title/song_artist` + `caption` + `post_mode`
+   sekarang ikut tersimpan (cron `functions/_shared/social-publisher-cron.js` dan
+   `api/social-publisher.js`). Sebelumnya data lagu hilang saat gagal sehingga penyebabnya
+   tidak bisa ditelusuri.
+3. **Code 368 tidak lagi `retrySafe`** (`lib/social-publisher/providers.js`): mengulang terus
+   saat Page dibatasi justru memperpanjang pembatasan. Pesannya kini menyebut langkah konkret:
+   buang tautan/nama situs pengunduh, turunkan frekuensi, tunggu pembatasan mereda.
+4. **Health check v3** menambah bagian `songs {total, active, unusable_title}` dan alert
+   `SONG_TITLE_NOT_CAPTION_SAFE` — aktif sekarang karena 1/1 lagu berjudul nama berkas.
+
+### Yang perlu dilakukan pengguna
+
+- Ganti judul lagu di panel **Lagu Facebook** menjadi nama lagu yang wajar (mis. "Musik Latar 1"),
+  supaya blok lagu muncul lagi di caption.
+- Selama Page masih kena 368, kurangi frekuensi post; pembatasan ini datang dari Meta, bukan bug
+  aplikasi, dan tidak ada konfigurasi Supabase yang bisa mematikannya.

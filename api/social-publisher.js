@@ -3348,7 +3348,20 @@ async function publishManualPost(req, res, config, userId, env) {
             {
                 method: "PATCH",
                 headers: { Prefer: "return=minimal" },
-                body: JSON.stringify({ status: "failed", error_message: safeMessage, finished_at: new Date().toISOString() })
+                body: JSON.stringify({
+                    status: "failed",
+                    error_message: safeMessage,
+                    /* Diagnostik: rekam lagu + caption yang dicoba agar penyebab
+                       kegagalan (mis. caption ditolak moderasi Facebook) terlihat. */
+                    ...(song ? {
+                        song_id: song.id || null,
+                        song_title: song.title || "",
+                        song_artist: song.artist || "",
+                        song_facebook_url: song.facebook_url || ""
+                    } : {}),
+                    ...(run?.caption ? { caption: String(run.caption).slice(0, 2000) } : {}),
+                    finished_at: new Date().toISOString()
+                })
             }
         ).catch(updateError => {
             console.error("Could not record manual Social Publisher failure:", updateError?.message || "unknown error");
