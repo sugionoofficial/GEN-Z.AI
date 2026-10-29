@@ -591,7 +591,16 @@
                                 <div id="manual-character-fields" class="field full subgrid-fields">
                                     <div class="field full"><label for="manual-character">Foto karakter tersimpan</label><select id="manual-character" required><option value="">Pilih karakter…</option></select></div>
                                     <div class="field full">
-                                        <label class="inline-check"><input id="manual-character-random-song" type="checkbox"><span>Sertakan info musik pilihan di caption foto karakter ini (opsional).</span></label>
+                                        <div class="field">
+                                            <label for="manual-character-song-mode">Musik di caption foto karakter</label>
+                                            <select id="manual-character-song-mode">
+                                                <option value="off">Tanpa musik</option>
+                                                <option value="fixed">Satu lagu tetap — saya pilih sendiri</option>
+                                                <option value="random">Acak — hindari lagu terakhir</option>
+                                            </select>
+                                            <select id="manual-character-song" hidden aria-label="Pilih lagu untuk foto karakter"></select>
+                                        </div>
+                                        <label class="inline-check" hidden><input id="manual-character-random-song" type="checkbox"><span>Sertakan info musik pilihan di caption.</span></label>
                                     </div>
                                 </div>
                                 <div id="manual-quote-fields" class="field full subgrid-fields" hidden>
@@ -614,7 +623,17 @@
                                         <textarea id="manual-custom-quote" maxlength="220" placeholder="Kosongkan agar AI merangkai kata-kata mutiara/motivasi orisinal otomatis sesuai tema…"></textarea>
                                     </div>
                                     <div class="field full">
-                                        <label class="inline-check"><input id="manual-quote-random-song" type="checkbox" checked><span><strong>Musik auto-play acak.</strong> Menggabungkan satu lagu aktif secara acak dari koleksi musik Anda (atau 8 musik instrumental bawaan) langsung ke dalam kartu video Kata-kata Mutiara.</span></label>
+                                        <div class="field">
+                                            <label for="manual-quote-song-mode">Musik auto-play video mutiara</label>
+                                            <select id="manual-quote-song-mode">
+                                                <option value="fixed">Satu lagu tetap — saya pilih sendiri</option>
+                                                <option value="random" selected>Acak — hindari lagu terakhir</option>
+                                                <option value="off">Tanpa musik</option>
+                                            </select>
+                                            <select id="manual-quote-song" hidden aria-label="Pilih lagu untuk video mutiara"></select>
+                                            <span class="help">Lagu digabungkan langsung ke dalam kartu video. Bila koleksi kosong, dipakai 8 musik instrumental bawaan.</span>
+                                        </div>
+                                        <label class="inline-check" hidden><input id="manual-quote-random-song" type="checkbox" checked><span>Musik auto-play acak.</span></label>
                                     </div>
                                 </div>
                                 <div class="field"><label for="manual-page">Facebook Page tujuan</label><select id="manual-page" required><option value="">Pilih Page…</option></select></div>
@@ -715,7 +734,17 @@
                         </div>
                         <div class="field full"><label for="schedule-details">Detail tambahan (opsional)</label><input id="schedule-details" maxlength="400" placeholder="Contoh: memegang skateboard, memakai topi, atau nuansa kabut pagi"><span class="help">Ditempelkan ke prompt gambar sebagai arahan tambahan untuk jadwal ini.</span></div>
                         <div class="field full"><label for="schedule-negative">Negative prompt tambahan (opsional)</label><input id="schedule-negative" maxlength="400" placeholder="Contoh: balon udara, keramaian ekstrem"><span class="help">Negative prompt otomatis (blur, watermark, teks rusak, anatomi rusak, wajah plastik) selalu aktif. Isi ini hanya untuk larangan khusus jadwal ini.</span></div>
-                        <div class="field full"><label class="inline-check"><input id="schedule-random-song" type="checkbox"><span><strong>Gunakan lagu random Facebook di setiap post jadwal ini.</strong> Otomatis memilih satu lagu aktif secara acak dari koleksi lagu Facebook (tanpa mengulang lagu terakhir) untuk disertakan di caption.</span></label></div>
+                        <div class="field full">
+                            <label for="schedule-song-mode">Lagu untuk jadwal ini</label>
+                            <select id="schedule-song-mode">
+                                <option value="off">Tanpa lagu</option>
+                                <option value="fixed">Satu lagu tetap — selalu lagu yang saya pilih</option>
+                                <option value="random">Acak — hindari lagu terakhir</option>
+                            </select>
+                            <select id="schedule-song-choice" hidden aria-label="Pilih lagu tetap"></select>
+                            <span class="help" id="schedule-song-help">Daftar lagu diambil dari koleksi <strong>Lagu Facebook</strong> milik akun ini (kartu Lagu). Facebook tidak membuka API katalog musik resminya, jadi yang bisa dipilih hanya lagu yang Anda unggah/seed sendiri. Mode <em>tetap</em> selalu memakai lagu yang sama; mode <em>acak</em> memilih otomatis dan menghindari lagu terakhir bila ada opsi lain.</span>
+                            <label class="inline-check" hidden><input id="schedule-random-song" type="checkbox"><span>Gunakan lagu random Facebook di setiap post jadwal ini.</span></label>
+                        </div>
                         <div class="field full"><div id="cost-estimate" class="note-cost">Estimasi biaya gambar dihitung setelah interval dipilih.</div></div>
                         <div class="field full"><label class="inline-check"><input id="schedule-autopublish" type="checkbox" checked><span><strong>Autopost untuk jadwal ini.</strong> Saat aktif, jadwal ini ikut diposting otomatis. Mematikan switch ini hanya menghentikan jadwal ini; jadwal lain dan akun lain tidak terpengaruh.</span></label></div>
                         <div class="field full"><label class="inline-check"><input id="schedule-enabled" type="checkbox"><span>Jadwal ini aktif. Autopost hanya berjalan bila switch autopublish akun dan switch autopublish jadwal ini sama-sama aktif.</span></label></div>

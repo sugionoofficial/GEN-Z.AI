@@ -481,3 +481,14 @@ di riwayat: **code 368 "The action attempted has been deemed abusive or is other
   supaya blok lagu muncul lagi di caption.
 - Selama Page masih kena 368, kurangi frekuensi post; pembatasan ini datang dari Meta, bukan bug
   aplikasi, dan tidak ada konfigurasi Supabase yang bisa mematikannya.
+
+---
+
+## 10. Pilihan lagu per jadwal (2026-10-29)
+
+Ditambahkan `song_mode` (`off` / `fixed` / `random`) + `song_id` pada `social_post_schedules`.
+Detail lengkap: `docs/social-publisher/song-selection.md`.
+
+Poin penting: **Meta tidak menyediakan API katalog musik Facebook untuk Page**, jadi daftar lagu
+di halaman berasal dari koleksi akun sendiri (`social_facebook_songs`), bukan dari katalog
+Facebook. Instagram punya *Audio API* untuk Reels, tetapi aplikasi ini menerbitkan ke Page.

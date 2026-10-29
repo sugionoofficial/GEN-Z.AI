@@ -30,6 +30,8 @@ import {
     normalizeSocialPostMode,
     pickRandomFacebookSong,
     QUOTE_PRESETS,
+    normalizeSongMode,
+    resolveScheduleSongMode,
     quoteOverridesFromSchedule,
     sanitizeFacebookSongUrl
 } from "../lib/social-publisher/quotes.js";
@@ -129,7 +131,9 @@ const SCHEDULE_QUOTE_BASE_COLUMNS = [
     "post_mode",
     "quote_theme",
     "quote_visual_style",
-    "use_random_song"
+    "use_random_song",
+    "song_mode",
+    "song_id"
 ].join(",");
 const SCHEDULE_FULL_COLUMNS = [
     SCHEDULE_QUOTE_BASE_COLUMNS,
@@ -1534,6 +1538,8 @@ const SCHEDULE_QUOTE_COLUMNS = [
     "quote_theme",
     "quote_visual_style",
     "use_random_song",
+    "song_mode",
+    "song_id",
     "quote_publish_target"
 ];
 
@@ -1959,7 +1965,7 @@ async function seedDefaultFacebookSongs(config, userId) {
     }
 }
 
-async function pickSongForPost(config, userId, { requirePlayableAudio = false } = {}) {
+async function pickSongForPost(config, userId, { requirePlayableAudio = false, preferredSongId = null } = {}) {
     let songs = [];
     try {
         songs = await listFacebookSongs(config, userId, { activeOnly: true });
@@ -1987,7 +1993,8 @@ async function pickSongForPost(config, userId, { requirePlayableAudio = false } 
 
     return pickRandomFacebookSong(songs, recentSongs, Math.random, {
         fallbackToDefaults: true,
-        requirePlayableAudio
+        requirePlayableAudio,
+        preferredSongId
     });
 }
 
@@ -2510,7 +2517,8 @@ async function saveSchedule(config, userId, body, profile) {
         body?.quote_theme !== undefined ||
         body?.quote_visual_style !== undefined ||
         body?.quote_publish_target !== undefined ||
-        body?.use_random_song !== undefined;
+        body?.use_random_song !== undefined ||
+        body?.song_mode !== undefined;
     const quotePublishTarget = normalizeQuotePublishTarget(body?.quote_publish_target, "feed");
     const characterId = isQuoteMode ? "" : cleanText(body?.character_id, 80);
     const pageConnectionId = cleanText(body?.page_connection_id, 80);
@@ -2533,14 +2541,29 @@ async function saveSchedule(config, userId, body, profile) {
         scene_details: cleanText(body?.scene_details, 400),
         negative_prompt: cleanText(body?.negative_prompt, 400)
     };
+    /* Pilihan lagu: off / fixed (song_id) / random. `use_random_song` tetap
+       ditulis untuk kompatibilitas deployment lama. */
+    const requestedSongMode = body?.song_mode === undefined
+        ? null
+        : normalizeSongMode(body?.song_mode, null);
+    if (body?.song_mode !== undefined && !requestedSongMode) {
+        const error = new Error("Mode lagu tidak dikenal. Pilih tanpa lagu, satu lagu tetap, atau acak.");
+        error.status = 400;
+        throw error;
+    }
+    const fixedSongId = cleanText(body?.song_id, 64);
+    const songMode = requestedSongMode
+        || (typeof body?.use_random_song === "boolean"
+            ? (body.use_random_song ? "random" : "off")
+            : (isQuoteMode ? "random" : "off"));
     const quoteParams = {
         post_mode: postMode,
         quote_theme: isQuoteMode ? cleanText(body?.quote_theme, 120) : "",
         quote_visual_style: isQuoteMode ? cleanText(body?.quote_visual_style, 240) : "",
         quote_publish_target: isQuoteMode ? quotePublishTarget : "feed",
-        use_random_song: typeof body?.use_random_song === "boolean"
-            ? body.use_random_song
-            : isQuoteMode
+        use_random_song: songMode === "random",
+        song_mode: songMode,
+        song_id: songMode === "fixed" ? (fixedSongId || null) : null
     };
     const scheduleAutopublish = typeof body?.autopublish_enabled === "boolean" ? body.autopublish_enabled : true;
 
@@ -2571,6 +2594,28 @@ async function saveSchedule(config, userId, body, profile) {
         const error = new Error("Zona waktu Social Publisher saat ini ditetapkan ke Asia/Jakarta (WIB).");
         error.status = 400;
         throw error;
+    }
+
+    if (songMode === "fixed") {
+        if (!fixedSongId) {
+            const error = new Error("Pilih satu lagu untuk mode lagu tetap, atau ganti ke mode acak.");
+            error.status = 400;
+            throw error;
+        }
+        const rows = await supabaseRequest(
+            config,
+            tablePath("social_facebook_songs", `select=id,title,is_active&id=eq.${encodeURIComponent(fixedSongId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+        );
+        if (!rows?.length) {
+            const error = new Error("Lagu yang dipilih tidak ditemukan di koleksi akun ini.");
+            error.status = 404;
+            throw error;
+        }
+        if (rows[0].is_active === false) {
+            const error = new Error(`Lagu "${rows[0].title || ""}" sedang nonaktif. Aktifkan dulu atau pilih lagu lain.`);
+            error.status = 400;
+            throw error;
+        }
     }
 
     const [characters, pages] = await Promise.all([
@@ -2719,9 +2764,21 @@ async function generateManualPost(config, userId, env, body = {}) {
     const postMode = normalizeSocialPostMode(body.post_mode);
     const isQuoteMode = postMode === "quote";
     const quotePublishTarget = normalizeQuotePublishTarget(body.quote_publish_target, "feed");
-    const useRandomSong = typeof body.use_random_song === "boolean"
-        ? body.use_random_song
-        : isQuoteMode;
+    /* Manual: pengguna boleh menunjuk lagu tertentu (song_id) atau memilih acak.
+       Tanpa `song_mode`, perilaku lama dipertahankan. */
+    const manualSongMode = body.song_mode === undefined
+        ? (typeof body.use_random_song === "boolean"
+            ? (body.use_random_song ? "random" : "off")
+            : (isQuoteMode ? "random" : "off"))
+        : normalizeSongMode(body.song_mode, "off");
+    const manualSongId = cleanText(body.song_id, 64);
+    const useSong = manualSongMode !== "off";
+    const preferredSongId = manualSongMode === "fixed" ? manualSongId : null;
+    if (manualSongMode === "fixed" && !manualSongId) {
+        const error = new Error("Pilih lagu yang akan dipakai, atau ganti ke mode acak.");
+        error.status = 400;
+        throw error;
+    }
     const characterId = isQuoteMode ? "" : cleanText(body.character_id, 80);
     const pageConnectionId = cleanText(body.page_connection_id, 80);
     const aspectRatio = isQuoteMode ? "9:16" : normalizeSocialAspectRatio(body.aspect_ratio);
@@ -2819,7 +2876,9 @@ async function generateManualPost(config, userId, env, body = {}) {
             config,
             tablePath("social_post_runs", "select=id&status=eq.generating&schedule_id=is.null&owner_id=eq." + encodeURIComponent(userId))
         ),
-        useRandomSong ? pickSongForPost(config, userId, { requirePlayableAudio: isQuoteMode }) : Promise.resolve(null)
+        useSong
+            ? pickSongForPost(config, userId, { requirePlayableAudio: isQuoteMode, preferredSongId })
+            : Promise.resolve(null)
     ]);
     for (const previous of previousPreviews || []) {
         await supabaseRequest(
