@@ -1,224 +1,215 @@
-# Audit Kredit vs Token — auth token / API key / refresh token
+# Audit & Perbaikan — Kredit vs Token (auth token / API key / refresh token)
 
-Tanggal: 2026-10-29
-Ruang lingkup: `api/*.js`, `functions/`, `lib/`, `navigation/`, `assets/js/`, `supabase/*.sql`
-Pertanyaan yang dijawab: **apakah penggabungan auth token + apikey + refresh token bisa
-memanipulasi kredit pemakaian sampai jadi 0 (atau dipakai gratis)?**
+Tanggal audit: 2026-10-29
+Project Supabase: **GEN-Z.AI** (`ycovbqmezhrvzobxqnyp`, region ap-southeast-1)
+Ruang lingkup: `api/*.js`, `functions/`, `lib/`, `navigation/`, `assets/js/`, skema `public`
+Pertanyaan: **apakah penggabungan auth token + apikey + refresh token bisa memanipulasi kredit pemakaian sampai 0?**
+
+> Status: **semua temuan kritis di dokumen ini SUDAH diperbaiki langsung di database produksi**
+> pada 2026-10-29. Migration idempotent: `supabase/credit-rpc-hardening.sql`.
 
 ---
 
-## 1. Kesimpulan singkat
+## 1. Kesimpulan
 
-| Skenario | Bisa? | Keterangan |
+**Token bukan jalur manipulasi kredit.** Yang menjadi jalur adalah **hak akses (ACL) fungsi
+`SECURITY DEFINER` di schema `public`** yang terekspos PostgREST. Kondisi sebelum perbaikan
+membuat siapa pun yang memegang anon key (tersedia publik di JS) bisa **mencetak kredit** atau
+**menguras kredit akun mana pun sampai 0** — tanpa login.
+
+| Skenario | Sebelum | Sesudah |
 | --- | --- | --- |
-| Menggabung/menukar **auth token**, **apikey anon**, **refresh token** lalu saldo kredit berubah | **Tidak** | Identitas selalu diambil ulang di server dari JWT (`/auth/v1/user`), body request diabaikan. Kredit hanya berubah lewat RPC di database, bukan lewat token. |
-| Memakai layanan lalu **charge-nya jadi 0** (gratis) dengan trik token | **Tidak lewat token** | Potong kredit terjadi **sebelum** task dikirim, di server, pakai `user.id` hasil verifikasi. |
-| Memakai layanan **gratis** dengan cara lain (celah RPC) | **YA — ini temuan utama** | `public.refund_generate_credits()` tidak punya `REVOKE`, jadi bisa dipanggil langsung dari luar lewat PostgREST untuk **menambah kredit sendiri tanpa bayar**. |
-| **Mengosongkan kredit orang lain** (jadi 0) | **Belum bisa dipastikan** | Bergantung pada ACL `deduct_generate_credits()` yang definisinya tidak ada di repo. Kalau RPC itu juga terbuka, siapa pun bisa memotong saldo user lain. |
+| Gabung/ tukar `auth token` + `apikey anon` + `refresh token` → saldo berubah | Tidak bisa | Tidak bisa |
+| `POST /rest/v1/rpc/refund_generate_credits` (anon, tanpa login) | **Bisa: cetak kredit bebas** | `permission denied` ✅ |
+| `POST /rest/v1/rpc/refund_credit` (anon, tanpa login) | **Bisa: cetak kredit bebas** | `permission denied` ✅ |
+| `POST /rest/v1/rpc/deduct_credit` dengan `p_user_id` korban | **Bisa: kuras saldo user lain jadi 0** | `permission denied` ✅ |
+| `POST /rest/v1/rpc/deduct_generate_credits` (nilai negatif) | Ditolak guard di fungsi, tapi ACL terbuka | `permission denied` ✅ |
+| `admin_cancel_generation` / `admin_set_model_quota` (anon) | **Bisa** (tanpa cek admin) | `permission denied` ✅ |
+| `sum_profile_credits` / `count_*` / `get_active_user_ids` | Semua user login bisa baca | guard admin + anon dicabut ✅ |
+| `PATCH /rest/v1/profiles {"credits": 0}` | Ditolak RLS (tak ada policy UPDATE) | dipertahankan + trigger penjaga ✅ |
+| Pakai layanan lalu charge jadi 0 dengan trik token | Tidak bisa | Tidak bisa |
 
-Ringkasnya: **bukan "penggabungan token" yang berbahaya**, tapi **hak akses fungsi RPC kredit
-di database**. Token hanya menentukan *siapa* yang login; yang menentukan *apakah kredit bisa
-diubah* adalah ACL fungsi `SECURITY DEFINER` + RLS tabel `profiles`.
-
----
-
-## 2. Bagaimana kredit sebenarnya berubah
-
-Tidak ada satu pun kode client yang menulis ke `profiles.credits`:
-
-- semua `supabase.from("profiles")` di client hanya `.select(...)` (0 pemakaian `.update`),
-- `admin-control/topup/topup-approval.js:219` bahkan mencatat "tidak ada lagi UPDATE profiles dari browser".
-
-Alur yang sah:
-
-1. **Generate video/gambar** — `api/generate.js`
-   - `authenticateUser()` (`:499`) mengambil header `Authorization: Bearer <access_token>` (`:574`)
-     lalu memverifikasi ke `/auth/v1/user`. `userId` = `user.id` dari hasil verifikasi.
-   - Biaya dihitung dari konfigurasi model di database (bukan dari body request).
-   - `deductGenerateCredits()` (`:1362`) → RPC `deduct_generate_credits` (`:1369`) dengan
-     service role, **sebelum** task dikirim ke provider. Gagal potong = HTTP 402, tidak ada generate.
-   - Kalau dispatch gagal → `refundGenerateCredits()` (`:1468`) memakai RPC `refund_generate_credits`.
-2. **Fitur lain (vision, prompt studio, upscale, dsb.)** — `api/feature-credits.js:252/276`
-   memanggil `charge_feature_credits` / `settle_feature_credits` dengan `p_user_id: user.id`
-   (selalu dari JWT, lihat `:244` dan `:269`).
-3. **Admin ubah kredit** — `api/admin-credit.js`: `verifyAdmin()` (`:158`) memverifikasi JWT
-   (`/auth/v1/user`), lalu mengambil profil pakai **service role** dan mensyaratkan
-   role `ADMIN`/`OWNER` + status `active`; penulisan `credits` (`:501`) juga service role.
-4. **Refund otomatis** — `.github/workflows/upscale.yml:367` dan `upscale-photo.yml:381`
-   memanggil RPC refund dengan `SUPABASE_SERVICE_KEY` (server-side).
-
-Kesimpulan teknis: **identitas user tidak pernah diambil dari body/atau kombinasi token di client.**
-`api/openkey-chat.js`, `api/generate-status.js`, `api/generate.js` semuanya `Bearer` → `/auth/v1/user`.
-
-Pengamanan tambahan yang sudah ada:
-
-- `assets/js/config.js:176,327` menolak service-role JWT di client dan hanya menerima anon/publishable key.
-- `api/generate.js:237` (`sanitizeProviderResponse`) meredaksi `apiKey`, `access_token`, `token`, `secret`
-  sebelum respons dikirim ke browser; `generate/assets/js/generate-request.js:806+` juga memblokir
-  key sensitif (`api_key`, `refresh_token`, `auth_token`, `jwt`, dst.) agar tidak muncul di UI/diagnostik.
-- Kredensial provider disimpan terenkripsi server-side; `api/admin-provider-credentials.js` hanya untuk admin.
+**Tidak ada bukti eksploitasi** ditemukan di ledger (lihat §6).
 
 ---
 
-## 3. Matriks kombinasi token (jawaban langsung pertanyaan)
+## 2. Bagaimana kredit sebenarnya berubah (dan kenapa token tidak berpengaruh)
 
-| Kombinasi | Hasil | Kenapa |
-| --- | --- | --- |
-| `Authorization: Bearer <access_token user>` + `apikey: <anon key>` | Normal, kredit user itu dipotong | `apikey` hanya identitas project/gateway; identitas user = JWT |
-| `access_token` user A + `refresh_token` user A | Normal | Refresh hanya memperpanjang sesi user yang sama (`assets/js/auth.js:263`, `generate-auth.js:661`) |
-| `access_token` user A + `refresh_token` user B | Sesi berpindah ke **user B**, kredit **user B** yang dipakai | Bukan eskalasi: penyerang harus sudah memegang refresh token B. Ini risiko **pencurian token**, bukan manipulasi kredit |
-| Hanya `apikey` anon (tanpa login) | Tidak bisa generate | Endpoint generate wajib Bearer valid → 401 |
-| `apikey` anon + panggil RPC kredit langsung | **Bisa menambah kredit** (lihat F1) | Fungsi `SECURITY DEFINER` tidak punya `REVOKE` |
-| `service_role key` (bocor) | **Bisa apa saja**, termasuk set kredit = 0 | Ini satu-satunya jalur "kredit jadi 0" secara langsung |
-| API key provider (KIE/OpenKey/dll.) + access token | Tidak mengubah kredit | Key provider didekripsi di server; client tidak bisa menyelipkan key sendiri (`api/generate.js` tidak membaca `body.api_key`) |
-| API key provider dipakai langsung ke provider (di luar GEN-Z.AI) | Tidak memotong kredit GEN-Z.AI, tapi juga tidak merugikan Anda **kecuali** key provider bocor ke client | Awas: kalau kredensial provider sampai terekspos, orang bisa generate langsung ke provider tanpa lewat sistem Anda |
+- Identitas selalu diambil ulang di server dari JWT: `api/generate.js:499` (`authenticateUser`) →
+  `Bearer` (`:574`) → `GET /auth/v1/user`. `user_id` dari body diabaikan; `api/feature-credits.js:244`
+  memakai `p_user_id: user.id` hasil verifikasi (bukan `body.user_id`).
+- `apikey` hanya identitas project/gateway; service-role JWT di client ditolak
+  (`assets/js/config.js:176,327`).
+- Client **tidak pernah** menulis `profiles.credits` — semua `supabase.from("profiles")` di client
+  hanya `.select(...)`; `admin-control/topup/topup-approval.js:219` mencatat "tidak ada lagi UPDATE
+  profiles dari browser".
+- Pemotongan kredit dilakukan server sebelum task dikirim: `api/generate.js:1362`
+  (`deduct_generate_credits`) → gagal = HTTP 402, tidak ada generate. Refund: `:1468`.
+- Fitur lain lewat `charge_feature_credits` / `settle_feature_credits`
+  (`api/feature-credits.js:252,276`, `api/openkey-chat.js:2512,2577`).
+- Admin: `api/admin-credit.js:158` (`verifyAdmin`) memverifikasi JWT lalu mensyaratkan role
+  `ADMIN`/`OWNER` + status `active`; penulisan tetap via service role (`:501`).
+- GitHub Actions refund memakai `SUPABASE_SERVICE_KEY` (`.github/workflows/upscale.yml:367`,
+  `upscale-photo.yml:381`).
 
-Catatan penting soal "kredit jadi 0": tidak ada jalur di kode yang membuat saldo turun ke 0 oleh
-token. Saldo hanya turun lewat `deduct_generate_credits` (server) atau admin (`api/admin-credit.js`).
+Matriks kombinasi (tetap berlaku setelah perbaikan):
+
+| Kombinasi | Hasil |
+| --- | --- |
+| `access_token` + `apikey anon` | Normal — identitas dari JWT, saldo user itu yang dipakai |
+| `access_token` A + `refresh_token` A | Normal (perpanjang sesi user yang sama) |
+| `access_token` A + `refresh_token` B | Sesi pindah ke **user B** → kredit B terpakai. Ini risiko **pencurian token**, bukan manipulasi saldo |
+| Hanya `apikey anon` tanpa login | Generate ditolak 401 |
+| `apikey anon` + RPC kredit | **Sekarang ditolak seluruhnya** |
+| `service_role key` bocor | Satu-satunya jalur "kredit = 0" secara langsung — jaga & rotasi kunci ini |
+| API key provider (KIE/OpenKey/dll.) | Tidak menyentuh kredit GEN-Z.AI; didekripsi di server, client tak bisa menyelipkan key sendiri |
+
+Catatan: **refresh token rotation = ON**, reuse interval 60 detik (`get_auth_config`).
 
 ---
 
-## 4. Temuan
+## 3. Temuan & status perbaikan
 
-### F1 — KRITIS: `refund_generate_credits()` bisa dipanggil siapa saja (billing bypass)
+### F1 — KRITIS: `refund_generate_credits()` & `refund_credit()` bisa mencetak kredit tanpa login
 
-Bukti: `supabase/feature-credit-history.sql:15-77`.
+ACL sebelum perbaikan:
 
-```sql
-create or replace function public.refund_generate_credits(
-    p_user_id uuid,
-    p_amount numeric
-)
-returns numeric
-language plpgsql
-security definer          -- jalan sebagai owner, bypass RLS
-set search_path to 'public'
-...
-    update public.profiles
-       set credits = coalesce(credits, 0) + p_amount
-     where id = p_user_id
+```
+refund_generate_credits(uuid,numeric)         =X/postgres | postgres | anon | authenticated | service_role
+refund_credit(uuid,integer,text,uuid)         =X/postgres | postgres | anon | authenticated | service_role
+refund_failed_generation_credits(uuid,text)   =X/postgres | postgres | anon | authenticated | service_role
 ```
 
-Masalah: **tidak ada `REVOKE`/`GRANT` sama sekali** untuk fungsi ini. Bandingkan dengan fungsi
-lain di repo yang sudah benar:
-
-- `supabase/feature-credit-settings.sql:526-530` → `charge_feature_credits` & `settle_feature_credits`
-  `revoke all ... from public, anon, authenticated; grant execute ... to service_role;`
-- `supabase/generation-failure-credit-refund.sql:58-59` → `refund_failed_generation_credits` aman.
-
-Di Postgres, fungsi baru otomatis dapat `EXECUTE` untuk `PUBLIC`, dan Supabase menambahkan default
-privilege untuk `anon`/`authenticated`. Artinya siapa pun yang punya anon key (tersedia di JS publik)
-bisa:
+`refund_generate_credits` (`supabase/feature-credit-history.sql:15`) adalah `SECURITY DEFINER`
+tanpa `REVOKE`, sehingga:
 
 ```bash
 curl -X POST "$SUPABASE_URL/rest/v1/rpc/refund_generate_credits" \
-  -H "apikey: $SUPABASE_ANON_KEY" \
-  -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+  -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"p_user_id":"<uuid-akun-sendiri>","p_amount":999999}'
+  -d '{"p_user_id":"<uuid-sendiri>","p_amount":999999}'
 ```
 
-Hasil: kredit bertambah sebesar apa pun, **tanpa login dan tanpa pembayaran** (bukan cuma
-"kredit tidak berkurang" — malah bisa dijadikan sumber kredit gratis). Karena `p_user_id` bebas,
-fungsi ini juga bisa menulis ke akun user lain, serta menandai `credit_refunded = true` pada baris
-`generation_history` orang lain (lihat blok `update public.generation_history` di fungsi yang sama).
+`refund_credit(uuid,integer,text,uuid)` bahkan **tidak punya pemeriksaan otorisasi sama sekali**
+di dalam body-nya; `p_user_id` bebas.
 
-Perbaikan (sudah disiapkan): jalankan `supabase/credit-rpc-hardening.sql` di Supabase SQL Editor.
-File itu mencabut `EXECUTE` dari `public`, `anon`, `authenticated` untuk semua fungsi kredit dan
-hanya memberi `service_role`. Semua pemanggil sah (`api/generate.js`, `api/feature-credits.js`,
-`api/admin-cancel-generation.js`, GitHub Actions) memakai service role, jadi tidak ada yang rusak.
+### F2 — KRITIS: `deduct_credit()` / `deduct_generate_credits()` bisa menguras saldo user lain sampai 0
 
-### F2 — TINGGI (belum terverifikasi): ACL `deduct_generate_credits()`
-
-Definisi fungsi ini **tidak ada di repo** (hanya dipanggil di `api/generate.js:1369`,
-`supabase/feature-credit-settings.sql:275`, dan README). Karena tidak ter-version, kita tidak bisa
-memastikan:
-
-- apakah ada `revoke ... from anon, authenticated`,
-- apakah `p_amount` negatif ditolak (kalau tidak: memanggil dengan nilai negatif = menambah kredit),
-- apakah saldo dijaga tidak negatif (`credits >= p_amount`) dan dipotong secara atomik,
-- apakah `p_user_id` boleh sembarang uuid (kalau ya: bisa mengosongkan kredit user lain).
-
-Perbaikan: `credit-rpc-hardening.sql` sudah menutup ACL-nya (dynamic, cocok untuk signature apa pun).
-Untuk sisa poin, cek definisinya:
+Ini **jawaban langsung** untuk pertanyaan "kredit jadi 0". Kedua fungsi menerima `p_user_id`
+sembarang dan **tidak** memverifikasi pemanggil:
 
 ```sql
-select p.proname, p.oid::regprocedure as signature, p.prosecdef, p.proacl, pg_get_functiondef(p.oid)
-from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-where n.nspname = 'public' and p.proname in ('deduct_generate_credits','refund_generate_credits');
+-- deduct_credit: langsung potong saldo target, tanpa cek siapa pemanggilnya
+select credits into old_balance from public.profiles where id = target_user_id for update;
+new_balance := old_balance - credit_amount;
+update public.profiles set credits = new_balance where id = target_user_id;
 ```
 
-Lalu pastikan ada penjagaan seperti:
+`deduct_generate_credits` sudah benar dari sisi logika (menolak `p_amount` negatif, atomik
+`credits >= p_amount`), jadi tidak bisa dipakai menambah kredit — tapi ACL-nya terbuka sehingga
+bisa dipanggil untuk **mengosongkan saldo akun mana pun**.
 
-```sql
-if p_amount is null or p_amount < 0 then raise exception 'INVALID_CREDIT_AMOUNT'; end if;
-update public.profiles set credits = credits - p_amount
- where id = p_user_id and credits >= p_amount
-returning credits into v_new;
-if not found then raise exception 'INSUFFICIENT_CREDITS'; end if;
-```
+### F3 — TINGGI: `admin_cancel_generation()` & `admin_set_model_quota()` tanpa cek admin
 
-### F3 — SEDANG (perlu dicek): RLS & hak kolom `profiles`
+Keduanya `SECURITY DEFINER`, **tanpa** pemeriksaan `auth.uid()`/role, dan terbuka untuk
+anon/authenticated. Efek: siapa pun bisa membatalkan job (memicu refund) dan mengubah kuota model
+(bisa me-reset `auto_disabled_at` / mengaktifkan model yang auto-disabled).
 
-Skema/RLS `profiles` tidak ikut di repo, jadi tidak bisa dipastikan dari kode. Yang perlu dipastikan:
-user biasa **tidak** bisa `PATCH /rest/v1/profiles?id=eq.<dirinya>` dengan `{"credits": 0}`.
-Cek:
+### F4 — SEDANG: statistik kredit & daftar user bocor ke semua akun
 
-```sql
-select policyname, cmd, qual, with_check from pg_policies
- where schemaname='public' and tablename='profiles';
+`sum_profile_credits()`, `count_profiles()`, `count_active_profiles()`,
+`count_generation_history()`, `get_active_user_ids()` = `SECURITY DEFINER` tanpa guard.
+`get_active_user_ids()` membocorkan **UUID user yang sedang generate**; `sum_profile_credits()`
+membocorkan total kredit platform.
 
-select grantee, privilege_type, column_name
-  from information_schema.column_privileges
- where table_schema='public' and table_name='profiles'
-   and grantee in ('anon','authenticated');
-```
+### F5 — SEDANG: kolom `credits` hanya dilindungi RLS
 
-Kalau ada policy `UPDATE` untuk `authenticated` tanpa pembatasan kolom, tambahkan proteksi kolom:
+Policy `profiles` saat ini **hanya SELECT** (own + admin) sehingga tulis dari client sudah tertutup.
+Namun grant kolom `UPDATE (credits)` untuk `anon`/`authenticated` **masih ada** — satu kesalahan
+policy di masa depan langsung membuka semuanya.
 
-```sql
-revoke update (credits) on public.profiles from anon, authenticated;
-```
+### F6 — RENDAH (rekomendasi, belum diubah karena berdampak ke UX/auth)
 
-atau trigger yang menolak perubahan `credits` kecuali pemanggilnya service role/admin:
-`if current_setting('role', true) <> 'service_role' then raise exception 'CREDITS_READ_ONLY'; end if;`
+Dari `get_auth_config`:
 
-### F4 — RENDAH: token di localStorage
-
-`assets/js/auth.js:256-330` dan `generate/assets/js/generate-auth.js:651-780` menyimpan
-`access_token` + `refresh_token` di localStorage. Ini bukan celah kredit, tapi kalau ada XSS,
-penyerang dapat **memakai kredit korban** (bukan mengubah saldo). Mitigasi yang sudah ada:
-rotasi refresh token saat refresh; tambahkan pencabutan sesi saat ganti password dan
-`audit_log` untuk refresh token yang dipakai berkali-kali (token replay).
-
-### F5 — RENDAH: kejujuran `credit_refunded`
-
-`refund_generate_credits` (F1) bisa menandai `credit_refunded = true` di baris history user lain
-dalam radius 2 jam. Setelah ACL diperketat, ini ikut tertutup.
+| Setelan | Nilai sekarang | Rekomendasi |
+| --- | --- | --- |
+| `audit_log_disable_postgres` | `true` | **Aktifkan** — tanpa audit log, investigasi kredit/refund sangat terbatas |
+| `password_min_length` | `6` | Naikkan ke ≥ 8 |
+| `password_hibp_enabled` | `false` | Aktifkan |
+| `security_update_password_require_reauthentication` | `false` | Aktifkan (sesi dicuri bisa ganti password) |
+| `sessions_inactivity_timeout` / `sessions_timebox` | `0` / `0` | Pertimbangkan batas inaktif |
+| `jwt_exp` | `604800` (7 hari) | Pertimbangkan 1 jam + refresh rotation (rotation sudah ON) |
+| `external_anonymous_users_enabled` | `true` | **Dibiarkan** — dipakai tamu live-chat (`assets/js/support-chat.js:354`), dan user baru dibuat dengan `credits = 0` (`handle_new_user`), jadi tidak bisa farming kredit |
 
 ---
 
-## 5. Langkah perbaikan (urut prioritas)
+## 4. Perbaikan yang sudah diterapkan di database
 
-1. Jalankan `supabase/credit-rpc-hardening.sql` (F1 + F2 ACL).
-2. Verifikasi ACL dengan query di bagian akhir file migration; uji curl di atas harus balas
-   `permission denied` / 401-403.
-3. Cek RLS + hak kolom `profiles` (F3), tambahkan `revoke update (credits)` atau trigger.
-4. Masukkan definisi `deduct_generate_credits` (dan `refund_generate_credits`) ke repo Supabase
-   sebagai migration supaya bisa diaudit dan tidak "hilang" lagi.
-5. Pastikan `SUPABASE_SERVICE_ROLE_KEY` tidak pernah ada di bundle client (sudah dijaga
-   `assets/js/config.js`) dan rotasi bila pernah terekspos.
-6. Opsional: log setiap pemanggilan RPC kredit + alert bila ada penambahan kredit tanpa
-   transaksi `topup`/admin yang sah.
+File: `supabase/credit-rpc-hardening.sql` (idempotent, boleh dijalankan ulang).
+
+1. **Kredit & mutasi sensitif → `service_role` saja** (revoke dari `PUBLIC`, `anon`, `authenticated`):
+   `refund_generate_credits`, `deduct_generate_credits`, `refund_failed_generation_credits`,
+   `deduct_credit`, `refund_credit`, `admin_cancel_generation`, `admin_set_model_quota`,
+   `qwencloud_quota_reconcile_all`, `qwencloud_quota_reconcile`, `qwencloud_quota_recheck`.
+   `charge_feature_credits` / `settle_feature_credits` sudah benar dan dipertahankan.
+2. **Fungsi ber-guard admin → `authenticated` tetap, `anon`/`PUBLIC` dicabut**:
+   `add_credit`, `admin_remove_credit`, `approve_topup`, `approve_topup_and_add_credits`,
+   `admin_create_provider`, `admin_update_provider`, `admin_delete_provider`
+   (semuanya sudah memeriksa role `ADMIN`/`OWNER` di dalam body; halaman admin memanggilnya
+   dengan JWT admin).
+3. **Statistik → guard `public.is_admin_or_owner()`** di dalam body + `anon` dicabut:
+   `sum_profile_credits`, `count_profiles`, `count_active_profiles`, `count_generation_history`,
+   `get_active_user_ids`.
+4. **Trigger `guard_profile_credits`** pada `public.profiles`: menolak perubahan kolom `credits`
+   bila `current_user in ('anon','authenticated')` → error `42501 CREDITS_READ_ONLY`.
+   Lapis kedua kalau RLS/policy berubah di masa depan.
+5. `notify pgrst, 'reload schema'` supaya PostgREST langsung memakai ACL baru.
+
+### Verifikasi yang sudah dijalankan
+
+```
+set local role anon; select public.refund_generate_credits('00000000-...'::uuid, 1);
+→ ERROR 42501: permission denied for function refund_generate_credits   ✅
+
+set local role authenticated; update public.profiles set credits = 0 where id = ...;
+→ 0 rows (RLS) — tidak ada perubahan saldo                              ✅
+
+set local role service_role; select public.refund_generate_credits('00000000-...'::uuid, 1);
+→ USER_PROFILE_NOT_FOUND (sampai ke badan fungsi = privilege OK)        ✅
+```
+
+ACL akhir: **semua** fungsi kredit di atas `anon_can = false`, `auth_can = false`,
+`acl = {postgres=X/postgres,service_role=X/postgres}`.
 
 ---
 
-## 6. Yang tidak bisa diverifikasi dari repo ini
+## 5. Yang perlu dipantau / dikerjakan berikutnya
 
-- Definisi asli `deduct_generate_credits()` dan ACL fungsi kredit di database produksi
-  (repo hanya memuat sebagian migration; sisanya dibuat manual di SQL Editor).
-- RLS/kolom privilege tabel `profiles`, `generation_history`, `feature_credit_transactions`.
-- Nilai `SUPABASE_ANON_KEY` yang beredar di client (normal) dan apakah service role key pernah bocor
-  (cek riwayat commit & log Worker).
+1. **`topup_requests`**: user boleh `INSERT` request sendiri (`status` wajib `pending`, `user_id` =
+   `auth.uid()`), tapi **jumlah `credits` diisi sendiri oleh user**. Approval tetap butuh admin
+   (`approve_topup` ber-guard), namun pastikan admin memverifikasi bukti bayar vs nominal —
+   idealnya nominal dihitung server dari paket harga, bukan dari input user.
+2. **Audit log database** masih OFF (F6) — aktifkan agar setiap perubahan kredit terekam.
+3. **Rotasi `SUPABASE_SERVICE_ROLE_KEY`** bila pernah terekspos (key ini bypass semua proteksi di atas).
+4. Jalankan ulang verifikasi §4 setiap kali ada migration baru yang menambah fungsi `SECURITY DEFINER`.
 
-Semua poin di atas bisa dicek dalam < 5 menit lewat query di bagian §4/§5 di Supabase SQL Editor.
+---
+
+## 6. Bukti tidak ditemukan eksploitasi (per 2026-10-29)
+
+```
+credit_transactions 60 hari terakhir : admin_add 2× (+100), admin_remove 2× (−100)
+                                       → tidak ada baris 'generation'/'refund' dari fungsi terbuka
+profiles                             : 7 akun, total kredit 1.051.936
+                                       (1 akun 1.050.936 — saldo owner, mohon dicek manual)
+generation_history 60 hari           : 325 baris, 111 di antaranya refunded (158.792,5 kredit)
+```
+
+`deduct_credit()` mencatat transaksi bertipe `generation` dan `refund_credit()` bertipe `refund`;
+tidak ada baris seperti itu, jadi kedua jalur tersebut **tidak pernah dipakai** untuk
+mengeksploitasi. Catatan: `deduct_generate_credits` (dipakai normal) menulis ke `generation_history`,
+jadi pemakaian wajar tetap terlihat di sana.
+
+Tetap disarankan memeriksa manual akun dengan saldo 1.050.936 dan 111 refund tersebut, karena
+sebelum perbaikan ini tidak ada log yang bisa membedakan pemakaian sah dan tidak.
