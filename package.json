@@ -9,7 +9,10 @@
     "build": "node scripts/build-cloudflare-pages.mjs",
     "preview": "node scripts/build-cloudflare-pages.mjs && npx wrangler preview",
     "opus:login": "node scripts/opus-login.mjs",
-    "postinstall": "node scripts/cloudflare-ci-postinstall.mjs"
+    "postinstall": "node scripts/cloudflare-ci-postinstall.mjs",
+    "check:deps": "node scripts/check-dependencies.mjs",
+    "prebuild": "node scripts/check-dependencies.mjs",
+    "deploy": "node scripts/check-dependencies.mjs && npm run build && npx wrangler deploy"
   },
   "engines": {
     "node": ">=20"

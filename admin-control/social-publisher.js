@@ -1150,7 +1150,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             const option = document.createElement("option");
             option.value = "";
             option.textContent = "Belum ada lagu aktif — unggah di kartu Lagu Facebook";
-            select.appendChild(option);
+            select.append(option);
             select.value = "";
             return;
         }
@@ -1158,7 +1158,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             const option = document.createElement("option");
             option.value = song.id;
             option.textContent = songLabel(song);
-            select.appendChild(option);
+            select.append(option);
         }
         select.value = songs.some(song => song.id === previous) ? previous : songs[0].id;
     }
@@ -2430,7 +2430,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             const note = document.createElement("p");
             note.className = "status error";
             note.textContent = "Health check belum tersedia di database. Jalankan supabase/social-publisher-monitoring.sql di SQL Editor.";
-            box.appendChild(note);
+            box.append(note);
             return;
         }
 
@@ -2442,7 +2442,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         summary.textContent = health.ok
             ? "Semua pemeriksaan normal."
             : `${alerts.length} hal perlu diperhatikan.`;
-        box.appendChild(summary);
+        box.append(summary);
 
         const runs = health.runs || {};
         const subscriptions = health.subscriptions || {};
@@ -2464,10 +2464,9 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             const badge = document.createElement("span");
             badge.className = "badge";
             badge.textContent = `${label}: ${healthNumber(value)}`;
-            facts.appendChild(badge);
-            facts.appendChild(document.createTextNode(" "));
+            facts.append(badge, " ");
         }
-        box.appendChild(facts);
+        box.append(facts);
 
         if (alerts.length) {
             const list = document.createElement("ul");
@@ -2477,17 +2476,16 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                 item.textContent = `${HEALTH_LEVEL_LABEL[level] || "Info"} — `;
                 const code = document.createElement("code");
                 code.textContent = alert?.code || "ALERT";
-                item.appendChild(code);
-                item.appendChild(document.createTextNode(`: ${alert?.message || ""}`));
-                list.appendChild(item);
+                item.append(code, `: ${alert?.message || ""}`);
+                list.append(item);
             }
-            box.appendChild(list);
+            box.append(list);
         }
 
         const stamp = document.createElement("p");
         stamp.className = "help";
         stamp.textContent = `Diperbarui ${healthTimestamp(health.generated_at)}`;
-        box.appendChild(stamp);
+        box.append(stamp);
     }
 
     async function checkAutopostHealth(button = null) {
@@ -2499,7 +2497,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             const loading = document.createElement("p");
             loading.className = "help";
             loading.textContent = "Membaca status autopost…";
-            box.appendChild(loading);
+            box.append(loading);
         }
         try {
             const payload = await api("autopost-health");
@@ -2510,7 +2508,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                 const failed = document.createElement("p");
                 failed.className = "status error";
                 failed.textContent = error.message || "Gagal membaca status autopost.";
-                box.appendChild(failed);
+                box.append(failed);
             }
         } finally {
             if (button) setButtonBusy(button, false);
