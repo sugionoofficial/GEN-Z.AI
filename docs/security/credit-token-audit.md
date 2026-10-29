@@ -315,3 +315,80 @@ Dengan token 1 jam, rotasi terjadi ≈ **1×/jam per tab** (bukan tiap 4 menit),
 `sessions_timebox: 0` dan `sessions_inactivity_timeout: 0` → sesi bisa bertahan berbulan-bulan
 selama refresh token dipakai. Kalau ingin ada logout otomatis (mis. 30 hari), itu setelan
 terpisah di Dashboard, bukan `jwt_exp`.
+
+---
+
+## 8. Autopost Facebook vs `jwt_exp` 1 jam (2026-10-29)
+
+**Kesimpulan: autopost tidak terpengaruh.** Autopost berjalan di server, bukan di browser:
+
+| Bukti | Isi |
+| --- | --- |
+| `wrangler.toml` → `[triggers] crons = ["* * * * *"]` | cron tiap menit, 24/7 |
+| `functions/worker.mjs:105` → `scheduled()` memanggil `runSocialPublisherCron(env, …)` | tidak ada JWT user di jalur ini |
+| `functions/_shared/social-publisher-cron.js:17-30` | memakai `SUPABASE_SERVICE_ROLE_KEY` |
+| `lib/social-publisher/opus.js` + `opus_oauth_tokens` | token Opus di-refresh di server |
+| `social_page_connections` | token Facebook dibaca server-side saat publish |
+
+Panel admin di browser juga tahan dibiarkan terbuka berjam-jam:
+`admin-control/social-publisher.js:96` (`sessionToken()` selalu `ensureFreshSession()`) dan `:131`
+(401 → force refresh → retry otomatis), ditambah keep-alive 4 menit dari `navigation.js:1230`.
+
+Penambalan RPC kredit sebelumnya juga tidak menyentuh autopost: `claim_due_social_post_schedules`
+dan `claim_stuck_social_post_runs` masih `EXECUTE` untuk `service_role`, dan autopost tidak
+memotong kredit user (memakai langganan Studio Medsos + kuota provider).
+
+### Yang benar-benar bisa menghentikan autopost
+
+1. **Langganan Studio Medsos habis** — `getSubscriptionState()` (`social-publisher-cron.js:208,584`)
+   → jadwal di-*pause* dengan `paused_reason`.
+2. **Token Facebook dicabut / Page dibatasi (code 368)**.
+3. **Token Opus mati** (`invalid_grant`) → perlu login ulang ke Opus Labs.
+4. **Run menggantung > 30 menit** (`AUTO_ABANDONED_TTL_MS`) → ditandai gagal.
+5. **Kuota model/provider habis** → model auto-disabled.
+
+### Monitoring: `public.social_publisher_health()`
+
+File: `supabase/social-publisher-monitoring.sql` (sudah dijalankan).
+
+Mengembalikan satu `jsonb` berisi: `ok`, `alerts[]`, `schedules`, `subscriptions`, `runs`
+(termasuk `stale_30m`, `opus_relogin_24h`, `facebook_restricted_24h`, `content_policy_24h`),
+dan `opus_tokens`.
+
+Kode alert: `SUBSCRIPTION_EXPIRING`, `SCHEDULE_WITHOUT_SUBSCRIPTION`, `STALE_RUNS`,
+`OPUS_RELOGIN_REQUIRED`, `FACEBOOK_PAGE_RESTRICTED`, `CONTENT_POLICY_REJECTED`, `ALL_FAILING`.
+
+Otorisasi: `SECURITY DEFINER`, tapi **tidak** memakai `current_user` (di definer nilainya jadi
+owner). Dipakai `current_setting('role')` + `is_admin_or_owner()`; `anon` dicabut, `authenticated`
+(admin) dan `service_role` boleh. Diuji: `authenticated` non-admin → `ADMIN_ONLY / 42501`.
+
+Pemakaian:
+
+```sql
+-- ringkas
+select jsonb_pretty(public.social_publisher_health());
+
+-- hanya bila ada masalah
+select public.social_publisher_health() -> 'alerts' as alerts
+ where (public.social_publisher_health() ->> 'ok') = 'false';
+
+-- dari client admin (PostgREST)
+-- POST /rest/v1/rpc/social_publisher_health
+```
+
+### Kondisi nyata saat audit (29 Okt 2026)
+
+Pemanggilan pertama langsung memunculkan insiden yang sedang berjalan:
+
+| Alert | Jumlah | Arti |
+| --- | --- | --- |
+| `ALL_FAILING` | 27 run gagal / 0 sukses (24 jam) | autopost sedang **tidak menghasilkan post sama sekali** |
+| `CONTENT_POLICY_REJECTED` | 17 | "Permintaan gambar ditolak kebijakan konten Opus" → prompt/scene perlu diubah |
+| `FACEBOOK_PAGE_RESTRICTED` | 5 | Page dibatasi Facebook **code 368** → cek di Facebook |
+| `OPUS_RELOGIN_REQUIRED` | 4 | refresh token Opus → `invalid_grant` → **login ulang ke Opus Labs** |
+| `opus_tokens` | 3/3 expired | seluruh access token Opus sudah lewat masa berlaku |
+
+Catatan data: `social_post_schedules` = 0 dan run menggantung = 0, jadi tidak ada jadwal aktif
+saat ini — kegagalan di atas berasal dari percobaan manual/riwayat. Langganan aktif 2 (22 hari &
+291 hari). Tindakan yang perlu: login ulang Opus, periksa pembatasan Page, dan longgarkan prompt
+yang kena kebijakan konten.
