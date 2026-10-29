@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 
 import handler, { normalizeSettingsInput } from "../api/monitoring.js";
 import { buildFindings, normalizeEventInput, parseUserAgent, readNetworkContext } from "../lib/monitoring/health.js";
@@ -649,7 +650,7 @@ test("halaman monitoring punya panel detail dan baris log bisa diklik", () => {
     assert.match(page, /class="mon-detail-backdrop"/);
 
     assert.match(script, /row\.dataset\.eventId = String\(event\.id\)/);
-    assert.match(script, /api\(`event&id=/);
+    assert.match(script, /api\("event", \{ query: \{ id \} \}\)/);
     assert.match(script, /function renderDetail/);
     assert.match(script, /Email/);
 
@@ -743,7 +744,7 @@ test("halaman menyediakan pilihan 50 / 100 / 500 dan mengirim limit ke API", () 
     }
 
     assert.match(script, /const LOG_LIMIT_OPTIONS = \[50, 100, 500\];/);
-    assert.match(script, /api\(`events&limit=\$\{state\.logLimit\}`\)/);
+    assert.match(script, /api\("events", \{ query: \{ limit: state\.logLimit \} \}\)/);
     assert.match(script, /filtered\.slice\(0, state\.logLimit\)/);
 });
 
@@ -808,4 +809,90 @@ test("pemangkas log memanggil RPC dengan batas yang benar", async () => {
     } finally {
         globalThis.fetch = original;
     }
+});
+
+/* ---------------------------------------------------------
+   URL API: parameter harus terpisah, bukan "events&limit=50"
+   yang ter-encode menjadi events%26limit%3D50 (404).
+   --------------------------------------------------------- */
+
+function loadMonitoringUi(extra = {}) {
+    const source = read("admin-control/monitoring.js");
+    const calls = [];
+
+    const window = {
+        localStorage: { getItem: () => null, setItem: () => {} },
+        addEventListener: () => {}
+    };
+    window.GENZSession = { ensureFreshSession: async () => ({ access_token: "token-uji" }) };
+
+    const document = {
+        body: { classList: { contains: () => true } },
+        addEventListener: () => {},
+        getElementById: () => null,
+        visibilityState: "visible"
+    };
+
+    const context = {
+        window,
+        document,
+        console,
+        URLSearchParams,
+        setTimeout,
+        clearTimeout,
+        fetch: async url => {
+            calls.push(String(url));
+            return {
+                ok: true,
+                status: 200,
+                text: async () => JSON.stringify({ success: true, rows: [] })
+            };
+        },
+        ...extra
+    };
+
+    vm.createContext(context);
+    vm.runInContext(source, context);
+
+    return { context, calls };
+}
+
+test("permintaan log memakai query terpisah (bukan %26)", async () => {
+    const { context, calls } = loadMonitoringUi();
+
+    await vm.runInContext('api("events", { query: { limit: 500 } })', context);
+
+    assert.equal(calls.length, 1);
+    assert.ok(!calls[0].includes("%26"), "action tidak boleh ter-encode jadi %26");
+
+    const url = new URL(calls[0], "https://contoh.test");
+    assert.equal(url.pathname, "/api/monitoring");
+    assert.equal(url.searchParams.get("action"), "events");
+    assert.equal(url.searchParams.get("limit"), "500");
+});
+
+test("permintaan detail log mengirim action dan id terpisah", async () => {
+    const { context, calls } = loadMonitoringUi();
+
+    await vm.runInContext('api("event", { query: { id: 26 } })', context);
+
+    const url = new URL(calls[0], "https://contoh.test");
+    assert.equal(url.searchParams.get("action"), "event");
+    assert.equal(url.searchParams.get("id"), "26");
+});
+
+test("action tunggal tetap rapi tanpa query tambahan", async () => {
+    const { context, calls } = loadMonitoringUi();
+
+    await vm.runInContext('api("overview")', context);
+
+    assert.equal(calls[0], "/api/monitoring?action=overview");
+});
+
+test("UI tidak lagi menyisipkan & ke dalam argumen action", () => {
+    const ui = read("admin-control/monitoring.js");
+
+    assert.ok(!/api\(`events&/.test(ui), "jangan pakai api(`events&limit=…`)");
+    assert.ok(!/api\(`event&/.test(ui), "jangan pakai api(`event&id=…`)");
+    assert.ok(ui.includes("new URLSearchParams"), "query harus dibangun dengan URLSearchParams");
 });
