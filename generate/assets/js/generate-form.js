@@ -97,7 +97,7 @@ import {
     registerImageMediaHandlers,
     registerAudioMediaHandlers,
     registerVideoMediaHandlers
-} from "./generate-form-media.js?v=stored-uploads-20261026";
+} from "./generate-form-media.js?v=stored-uploads-20261026-mobile-spinner-20261029";
 
 
 /* =========================================================

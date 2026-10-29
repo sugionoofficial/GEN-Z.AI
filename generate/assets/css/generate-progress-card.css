@@ -102,12 +102,18 @@
     position: absolute;
     inset: 0;
     margin: auto;
+    z-index: 2;
+    display: block;
+    box-sizing: border-box;
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    border: 2px solid rgba(255,255,255,.12);
+    border: 2.5px solid rgba(255,255,255,.18);
     border-top-color: var(--gpc-accent);
+    border-right-color: rgba(255,51,85,.72);
+    will-change: transform;
     animation: gpcSpin .8s linear infinite;
+    -webkit-animation: gpcSpin .8s linear infinite;
     opacity: 0;
     transition: opacity .25s ease;
 }
@@ -120,7 +126,10 @@
 .genz-progress-card[data-state="failed"] .gpc-thumb-spinner {
     opacity: 0;
 }
-@keyframes gpcSpin { to { transform: rotate(360deg); } }
+@keyframes gpcSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
 
 /* ===== BODY ===== */
 .gpc-body {
@@ -334,9 +343,15 @@
 @media (prefers-reduced-motion: reduce) {
     .genz-progress-card,
     .gpc-bar-fill,
-    .gpc-thumb-spinner,
     .gpc-pulse {
         transition: none !important;
         animation: none !important;
+    }
+    .gpc-thumb-spinner {
+        transition: none !important;
+        animation: gpcSpin .8s linear infinite !important;
+        -webkit-animation: gpcSpin .8s linear infinite !important;
+        animation-duration: .8s !important;
+        animation-iteration-count: infinite !important;
     }
 }

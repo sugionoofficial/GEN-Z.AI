@@ -64,13 +64,13 @@ const AUTH_MODULE =
     "./generate-auth.js?v=20261013-auth-refresh";
 
 const UI_MODULE =
-    "./generate-ui.js";
+    "./generate-ui.js?v=20261029-mobile-spinner";
 
 const MODEL_MODULE =
     "./generate-model.js?v=20261016-regenerate-history";
 
 const FORM_MODULE =
-    "./generate-form.js?v=20261016-regenerate-history";
+    "./generate-form.js?v=20261029-mobile-spinner";
 
 const SEEDANCE_MODULE =
     "./generate-seedance.js";
@@ -481,22 +481,13 @@ function ensureGenerateStatus() {
         );
 
         /*
-         * Status ditempatkan tepat di samping
-         * tombol Generate.
+         * Status ditempatkan tepat di samping tombol Generate
+         * pada desktop, dan melebar penuh di bawah tombol pada
+         * Mode HP / mobile (diatur lewat stylesheet agar media
+         * query tidak dikalahkan oleh inline style).
          */
-        status.style.cssText =
-            [
-                "display:none",
-                "align-items:center",
-                "justify-content:flex-start",
-                "gap:10px",
-                "min-width:190px",
-                "max-width:320px",
-                "margin-left:14px",
-                "font-family:inherit",
-                "box-sizing:border-box",
-                "vertical-align:middle"
-            ].join(";");
+        status.style.display =
+            "none";
 
         wrapper.style.display =
             "flex";
@@ -566,8 +557,16 @@ function applyGenerateStatusStyles(
             #generateStatus {
                 position:relative;
                 box-sizing:border-box;
+                align-items:center;
+                justify-content:flex-start;
+                gap:10px;
+                min-width:190px;
+                max-width:320px;
                 min-height:42px;
+                margin-left:14px;
                 padding:7px 13px;
+                font-family:inherit;
+                vertical-align:middle;
                 border-radius:12px;
                 border:1px solid rgba(255,255,255,.08);
                 background:
@@ -672,13 +671,17 @@ function applyGenerateStatusStyles(
             }
 
             .genz-status-spinner {
+                display:inline-block;
+                flex-shrink:0;
                 width:17px;
                 height:17px;
                 border-radius:50%;
                 border:2px solid rgba(255,255,255,.18);
                 border-top-color:#fff;
                 border-right-color:rgba(255,255,255,.72);
+                will-change:transform;
                 animation:genzStatusSpin .78s linear infinite;
+                -webkit-animation:genzStatusSpin .78s linear infinite;
                 box-sizing:border-box;
             }
 
@@ -767,6 +770,9 @@ function applyGenerateStatusStyles(
             }
 
             @keyframes genzStatusSpin {
+                from {
+                    transform:rotate(0deg);
+                }
                 to {
                     transform:rotate(360deg);
                 }
@@ -783,7 +789,54 @@ function applyGenerateStatusStyles(
                 }
             }
 
-            @media (max-width:640px) {
+            html[data-genz-theme="light"] #generateStatus {
+                border-color:#d7e1ee;
+                background:linear-gradient(180deg, #ffffff 0%, #f5f8fc 100%);
+                box-shadow:0 6px 18px rgba(40,54,82,.08);
+            }
+
+            html[data-genz-theme="light"] #generateStatus.genz-status-processing,
+            html[data-genz-theme="light"] #generateStatus.genz-status-retrying {
+                border-color:#cbd6e6;
+                box-shadow:0 8px 20px rgba(40,54,82,.09);
+            }
+
+            html[data-genz-theme="light"] #generateStatus .genz-status-spinner {
+                border:2px solid rgba(15,24,40,.16);
+                border-top-color:#ff3355;
+                border-right-color:rgba(255,51,85,.72);
+            }
+
+            html[data-genz-theme="light"] #generateStatus .genz-generate-status-title.processing,
+            html[data-genz-theme="light"] #generateStatus .genz-generate-status-title.retrying {
+                color:#0f1828 !important;
+            }
+
+            html[data-genz-theme="light"] #generateStatus .genz-generate-status-title.success {
+                color:#0a7a49;
+            }
+
+            html[data-genz-theme="light"] #generateStatus .genz-generate-status-title.failed {
+                color:#b3261e;
+            }
+
+            html[data-genz-theme="light"] #generateStatus .genz-generate-status-message {
+                color:#4a566b;
+            }
+
+            html[data-genz-theme="light"] #generateStatus .genz-generate-status-message.retrying {
+                color:#1e293b;
+            }
+
+            html[data-genz-theme="light"] #generateStatus .genz-generate-status-message.success {
+                color:#0a7a49;
+            }
+
+            html[data-genz-theme="light"] #generateStatus .genz-generate-status-message.failed {
+                color:#b3261e;
+            }
+
+            @media (max-width:980px) {
 
                 #generateStatus {
                     width:100%;
@@ -795,6 +848,21 @@ function applyGenerateStatusStyles(
 
                 .genz-generate-status-message {
                     max-width:none;
+                }
+
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+
+                #generateStatus::before {
+                    animation:none !important;
+                }
+
+                .genz-status-spinner {
+                    animation:genzStatusSpin .78s linear infinite !important;
+                    -webkit-animation:genzStatusSpin .78s linear infinite !important;
+                    animation-duration:.78s !important;
+                    animation-iteration-count:infinite !important;
                 }
 
             }
@@ -1267,6 +1335,164 @@ function hideError() {
    LOADING
 ========================================================= */
 
+function ensureButtonSpinnerElement(
+    button
+) {
+
+    if (
+        !button
+    ) {
+
+        return null;
+
+    }
+
+    let spinner =
+        button.querySelector(
+            "#generateButtonSpinner, .spinner, .btn-spinner, .loading-spinner"
+        );
+
+    if (
+        !spinner
+    ) {
+
+        spinner =
+            document.createElement(
+                "span"
+            );
+
+        spinner.id =
+            "generateButtonSpinner";
+
+        spinner.className =
+            "spinner";
+
+        spinner.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        spinner.hidden =
+            true;
+
+        button.insertBefore(
+            spinner,
+            button.firstChild
+        );
+
+    }
+
+    return spinner;
+
+}
+
+
+function syncGenerateButtonLoading(
+    button,
+    active,
+    message = ""
+) {
+
+    if (
+        !button
+    ) {
+
+        return;
+
+    }
+
+    const isActive =
+        Boolean(
+            active
+        );
+
+    const spinner =
+        ensureButtonSpinnerElement(
+            button
+        );
+
+    if (
+        spinner
+    ) {
+
+        spinner.hidden =
+            !isActive;
+
+    }
+
+    button.classList.toggle(
+        "is-loading",
+        isActive
+    );
+
+    if (
+        isActive
+    ) {
+
+        button.setAttribute(
+            "aria-busy",
+            "true"
+        );
+
+    } else {
+
+        button.removeAttribute(
+            "aria-busy"
+        );
+
+    }
+
+    const label =
+        button.querySelector(
+            ".generate-button-label"
+        ) ||
+        button.querySelector(
+            ".btn-label"
+        ) ||
+        button.querySelector(
+            ".btn-icon + span:not(.generate-button-credit)"
+        );
+
+    if (
+        label
+    ) {
+
+        if (
+            !label.dataset.originalText
+        ) {
+
+            label.dataset.originalText =
+                (label.textContent || "").trim() ||
+                "Generate Video";
+
+        }
+
+        if (
+            isActive
+        ) {
+
+            label.textContent =
+                /memuat\s+model/i.test(
+                    String(
+                        message || ""
+                    )
+                )
+                    ? "Memuat model..."
+                    : "Memproses...";
+
+        } else {
+
+            label.textContent =
+                label.dataset.originalText ||
+                "Generate Video";
+
+        }
+
+    }
+
+}
+
+
 function showLoading(
     message = "Memuat..."
 ) {
@@ -1296,6 +1522,12 @@ function showLoading(
         );
 
     }
+
+    syncGenerateButtonLoading(
+        elements.generateButton,
+        true,
+        message
+    );
 
     if (
         elements.status
@@ -1343,6 +1575,11 @@ function hideLoading() {
         );
 
     }
+
+    syncGenerateButtonLoading(
+        elements.generateButton,
+        false
+    );
 
 }
 
@@ -3417,6 +3654,11 @@ function enableGenerateButton(
 
         elements.generateButton.removeAttribute(
             "aria-busy"
+        );
+
+        syncGenerateButtonLoading(
+            elements.generateButton,
+            false
         );
 
         elements.generateButton.style.pointerEvents =

@@ -637,6 +637,18 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .gpc-thumb {
     border: 1px solid #dde5f0;
 }
 
+html[data-genz-theme="light"][data-genz-theme="light"] body .genz-progress-card[data-has-thumb="false"] .gpc-thumb-overlay {
+
+    display: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .gpc-thumb-spinner {
+
+    border-color: rgba(15, 24, 40, 0.16);
+    border-top-color: #ff3355;
+    border-right-color: rgba(255, 51, 85, 0.72);
+}
+
 html[data-genz-theme="light"][data-genz-theme="light"] body .gpc-kicker {
 
     color: #4f5b70;
