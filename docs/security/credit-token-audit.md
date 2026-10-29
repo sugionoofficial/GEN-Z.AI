@@ -128,19 +128,25 @@ Policy `profiles` saat ini **hanya SELECT** (own + admin) sehingga tulis dari cl
 Namun grant kolom `UPDATE (credits)` untuk `anon`/`authenticated` **masih ada** — satu kesalahan
 policy di masa depan langsung membuka semuanya.
 
-### F6 — RENDAH (rekomendasi, belum diubah karena berdampak ke UX/auth)
+### F6 — RENDAH (belum bisa diterapkan lewat connector, perlu dashboard)
 
-Dari `get_auth_config`:
+Temuan dari `get_auth_config` + status penerapan:
 
-| Setelan | Nilai sekarang | Rekomendasi |
+| Setelan | Nilai | Status |
 | --- | --- | --- |
-| `audit_log_disable_postgres` | `true` | **Aktifkan** — tanpa audit log, investigasi kredit/refund sangat terbatas |
-| `password_min_length` | `6` | Naikkan ke ≥ 8 |
-| `password_hibp_enabled` | `false` | Aktifkan |
-| `security_update_password_require_reauthentication` | `false` | Aktifkan (sesi dicuri bisa ganti password) |
-| `sessions_inactivity_timeout` / `sessions_timebox` | `0` / `0` | Pertimbangkan batas inaktif |
-| `jwt_exp` | `604800` (7 hari) | Pertimbangkan 1 jam + refresh rotation (rotation sudah ON) |
-| `external_anonymous_users_enabled` | `true` | **Dibiarkan** — dipakai tamu live-chat (`assets/js/support-chat.js:354`), dan user baru dibuat dengan `credits = 0` (`handle_new_user`), jadi tidak bisa farming kredit |
+| `audit_log_disable_postgres` | `true` | **Belum** — MCP Supabase tidak mengekspos field ini. Diganti audit trail kredit sendiri (§4a). Aktifkan manual di Dashboard untuk event auth. |
+| `password_min_length` | `6` | **Belum** — field tidak diekspos connector. Catatan: client sudah mewajibkan 8 (`register.html:2076,2806`, `reset-password.html:1026,1830`), jadi menaikkan ke 8 tidak akan memutus alur. |
+| `password_hibp_enabled` | `false` | **Belum** — field tidak diekspos connector |
+| `security_update_password_require_reauthentication` | `false` | **Sengaja dibiarkan** — alur reset password memakai tautan email (`user/profile.html:1515`), mengaktifkan ini akan memutus reset |
+| `jwt_exp` | `604800` (7 hari) | Bisa diubah lewat connector; **belum diubah** karena mengubah masa sesi user, perlu persetujuan |
+| `refresh_token_rotation_enabled` | `true`, reuse 60 s | Sudah baik |
+| `mailer_autoconfirm` | `false` | Sudah baik (email wajib diverifikasi) |
+| `external_anonymous_users_enabled` | `true` | Dibiarkan — dipakai tamu live-chat (`assets/js/support-chat.js:354`); user baru dibuat dengan `credits = 0` (`handle_new_user`), jadi tidak bisa dipakai farming kredit |
+
+Field yang bisa diubah connector: `disable_signup`, `external_email_enabled`,
+`external_phone_enabled`, `jwt_exp`, `mailer_autoconfirm`,
+`security_refresh_token_reuse_interval`, `security_refresh_token_rotation_enabled`,
+`site_url`, `sms_autoconfirm`, `uri_allow_list`.
 
 ---
 
@@ -182,17 +188,64 @@ set local role service_role; select public.refund_generate_credits('00000000-...
 ACL akhir: **semua** fungsi kredit di atas `anon_can = false`, `auth_can = false`,
 `acl = {postgres=X/postgres,service_role=X/postgres}`.
 
+### 4a. Audit trail kredit (pengganti audit log Postgres)
+
+File: `supabase/credit-audit-log.sql` (sudah dijalankan, idempotent).
+
+- Tabel `public.credit_change_audit`: satu baris setiap `profiles.credits` berubah —
+  `old_credits`, `new_credits`, `delta`, role DB pemanggil (`db_user`), `auth_uid` dari JWT,
+  `source`, `changed_at`. RLS aktif; hanya admin (`is_admin_or_owner()`) dan `service_role`
+  yang bisa membaca; `anon`/`authenticated` dicabut.
+- Trigger `guard_profile_credits_trg` (BEFORE, **SECURITY INVOKER**) + `log_credit_changes_trg`
+  (AFTER, definer). Catatan penting: guard **wajib** INVOKER — pada fungsi `SECURITY DEFINER`,
+  `current_user` berubah menjadi owner sehingga pengecekan `anon`/`authenticated` tidak pernah
+  terpicu. Versi awal migration sempat salah dan sudah diperbaiki.
+- Batasan yang diakui: percobaan tulis yang **ditolak** tidak menghasilkan baris audit karena
+  statement tersebut ikut rollback (Postgres tanpa autonomous transaction). Yang tercatat adalah
+  perubahan yang benar-benar diterapkan. Untuk mencatat percobaan gagal, aktifkan audit log
+  Postgres di Dashboard.
+
+Uji yang dijalankan:
+
+```
+-- service_role: tercatat
+begin; set local role service_role;
+update profiles set credits = credits + 1 where id = <uuid>;
+reset role; select * from credit_change_audit order by id desc limit 1;
+-- db_user = 'service_role', source = 'applied'
+rollback;
+
+-- authenticated dengan policy UPDATE longgar (skenario terburuk):
+--   -> DIBLOKIR: CREDITS_READ_ONLY | sqlstate=42501
+```
+
 ---
 
 ## 5. Yang perlu dipantau / dikerjakan berikutnya
 
-1. **`topup_requests`**: user boleh `INSERT` request sendiri (`status` wajib `pending`, `user_id` =
-   `auth.uid()`), tapi **jumlah `credits` diisi sendiri oleh user**. Approval tetap butuh admin
-   (`approve_topup` ber-guard), namun pastikan admin memverifikasi bukti bayar vs nominal —
-   idealnya nominal dihitung server dari paket harga, bukan dari input user.
-2. **Audit log database** masih OFF (F6) — aktifkan agar setiap perubahan kredit terekam.
-3. **Rotasi `SUPABASE_SERVICE_ROLE_KEY`** bila pernah terekspos (key ini bypass semua proteksi di atas).
-4. Jalankan ulang verifikasi §4 setiap kali ada migration baru yang menambah fungsi `SECURITY DEFINER`.
+1. **Dashboard Supabase** (tidak bisa lewat connector): aktifkan
+   `audit_log_disable_postgres = false`, `password_min_length = 8`, `password_hibp_enabled = true`
+   di Project Settings → Authentication.
+2. **`topup_requests`**: user boleh `INSERT` request sendiri (`status` wajib `pending`,
+   `user_id = auth.uid()`), tapi **nominal `credits` diisi sendiri oleh user**. Approval tetap
+   butuh admin (`approve_topup` ber-guard), namun idealnya nominal dihitung server dari paket harga.
+3. **Rotasi `SUPABASE_SERVICE_ROLE_KEY`** bila pernah terekspos — key ini melewati semua proteksi.
+4. **Monitoring rutin** pakai audit baru:
+
+   ```sql
+   -- perubahan kredit besar 24 jam terakhir
+   select * from public.credit_change_audit
+    where changed_at > now() - interval '24 hours' and abs(delta) >= 1000
+    order by changed_at desc;
+
+   -- perubahan dari role yang bukan server
+   select * from public.credit_change_audit
+    where db_user not in ('service_role','postgres')
+    order by changed_at desc;
+   ```
+5. Jalankan ulang verifikasi §4 setiap kali ada migration yang menambah fungsi `SECURITY DEFINER`.
+6. `jwt_exp` 7 hari → bisa dipersingkat (mis. 1 jam); client sudah auto-refresh dengan buffer 5 menit
+   (`assets/js/auth.js:76`, `navigation/navigation.js:62`, `generate/assets/js/generate-auth.js:45`).
 
 ---
 
