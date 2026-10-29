@@ -52,15 +52,19 @@ sehingga tinggi total sama dengan lebar wordmark.
 
 ## Aset sidebar (dipakai di aplikasi)
 
+Sidebar aplikasi (dibuat oleh `navigation/navigation.js`) memakai lockup
+horizontal yang sama dengan navbar landing page:
+
 | File | Isi |
 | --- | --- |
-| `assets/brand/gen-z-ai-sidebar.svg` | lockup horizontal: tile Z + wordmark `gen-z.ai`, latar transparan (tema gelap) |
-| `assets/brand/gen-z-ai-sidebar-light.svg` | versi tema terang: wordmark navy + aksen `.ai` lebih pekat |
-| `assets/brand/gen-z-ai-mark-tile.svg` | mark Z dalam tile rounded, 120×120 (1:1) |
+| `assets/brand/genz-ai-logo.png` | lockup horizontal `GEN-Z.AI` (chrome + aksen merah), latar transparan, 720 × 293 |
 
-Lockup sidebar 378.8 × 96 px (rasio 3.95:1), tinggi tampil 38px di desktop,
-34px di tablet, 30px di layar ≤480px. Varian terang/gelap dipilih otomatis
-lewat `html[data-genz-theme="light"]` di `navigation/navigation.js`.
+Ukuran tampil: lebar **164px** di desktop, **140px** di ≤768px, **126px** di
+≤480px (tinggi otomatis, rasio 2.46:1). Di tema terang, logo diberi latar
+gelap `#10151f` supaya wordmark putihnya tetap terbaca.
+
+Aset lama berikut tidak dipakai lagi oleh sidebar (disimpan untuk arsip/pemakaian lain):
+`gen-z-ai-sidebar.svg`, `gen-z-ai-sidebar-light.svg`, `gen-z-ai-mark-tile.svg`.
 
 
 ## Favicon & app icon

@@ -38,7 +38,7 @@
     if (!window.__GENZ_THEME_SCRIPT_LOADING) {
         window.__GENZ_THEME_SCRIPT_LOADING = true;
         const themeScript = document.createElement("script");
-        themeScript.src = "/assets/js/theme.js?v=deep-black-bg-20261027";
+        themeScript.src = "/assets/js/theme.js?v=navlockup-20261029";
         themeScript.onerror = error => {
             console.error("[GEN-Z.AI] Failed to load shared theme controls:", error);
             window.__GENZ_THEME_SCRIPT_LOADING = false;
@@ -1029,17 +1029,16 @@
             <aside class="genz-sidebar" id="genz-sidebar" aria-label="GEN-Z.AI Navigation">
                 <div class="genz-sidebar-header">
                     <div class="genz-brand">
-                        <a class="genz-logo" role="link" tabindex="0" data-genz-href="/" aria-label="gen-z.ai — beranda">
+                        <a class="genz-logo" role="link" tabindex="0" data-genz-href="/" aria-label="GEN-Z.AI — beranda">
                             <img
-                                class="genz-logo-mark-img"
-                                src="/assets/brand/gen-z-ai-mark-tile.svg?v=2"
-                                alt=""
-                                aria-hidden="true"
-                                width="120"
-                                height="120"
+                                class="genz-logo-img"
+                                src="/assets/brand/genz-ai-logo.png?v=genzai-logo-20261027"
+                                alt="GEN-Z.AI"
+                                width="720"
+                                height="293"
                                 decoding="async"
+                                fetchpriority="high"
                             >
-                            <span class="genz-logo-text">gen-z<span class="genz-logo-ai">.ai</span></span>
                         </a>
                     </div>
                     <button type="button" class="genz-mobile-close" id="genz-mobile-close" aria-label="Close menu">×</button>
@@ -1372,19 +1371,22 @@
             .genz-brand { min-width: 0; }
 
             /*
-             * Logo sidebar: mark Z (aset 1:1) berdampingan dengan
-             * teks URL "gen-z.ai". Teksnya tetap teks asli supaya
-             * bisa diseleksi, tajam di semua DPI, dan ikut tema.
+             * Logo sidebar: lockup lengkap GEN-Z.AI (chrome + aksen
+             * merah) sebagai satu gambar, menggantikan mark Z +
+             * teks "gen-z.ai". Ukuran mengikuti lebar sidebar supaya
+             * tetap besar di desktop dan mengecil di layar HP.
              */
 
             .genz-logo {
                 display: inline-flex;
                 align-items: center;
-                gap: 10px;
+                width: auto;
+                max-width: 100%;
                 min-height: 40px;
                 padding: 0;
                 border: 0;
                 background: none;
+                border-radius: 12px;
                 text-decoration: none;
                 cursor: pointer;
                 user-select: none;
@@ -1400,41 +1402,13 @@
 
             .genz-logo:hover { opacity: .85; }
 
-            .genz-logo-mark-img {
+            .genz-logo-img {
                 display: block;
-                width: 36px;
-                height: 36px;
-                flex: 0 0 36px;
-                border-radius: 9px;
+                width: 164px;
+                max-width: 100%;
+                height: auto;
                 user-select: none;
                 -webkit-user-drag: none;
-            }
-
-            .genz-logo-text {
-                color: #ffffff;
-                font-size: 19px;
-                font-weight: 900;
-                letter-spacing: -.45px;
-                line-height: 1;
-                white-space: nowrap;
-            }
-
-            .genz-logo-ai {
-                background: linear-gradient(135deg, #b7a8ff 0%, #7fa9ff 52%, #55d9f2 100%);
-                -webkit-background-clip: text;
-                background-clip: text;
-                -webkit-text-fill-color: transparent;
-                color: transparent;
-            }
-
-            html[data-genz-theme="light"] .genz-logo-text {
-                color: #0f172a;
-            }
-
-            html[data-genz-theme="light"] .genz-logo-ai {
-                background: linear-gradient(135deg, #6d55e8 0%, #3b7be0 52%, #1f9fc0 100%);
-                -webkit-background-clip: text;
-                background-clip: text;
             }
 
             .genz-mobile-close {
@@ -2011,9 +1985,8 @@
                     padding: 13px 11px;
                 }
                 .genz-brand { flex: 1 1 auto; }
-                .genz-logo { min-height: 36px; gap: 9px; }
-                .genz-logo-mark-img { width: 32px; height: 32px; flex-basis: 32px; border-radius: 8px; }
-                .genz-logo-text { font-size: 17px; }
+                .genz-logo { min-height: 34px; }
+                .genz-logo-img { width: 140px; }
                 .genz-mobile-close {
                     display: flex;
                     flex: 0 0 40px;
@@ -2032,9 +2005,8 @@
             }
 
             @media (max-width: 480px) {
-                .genz-logo { min-height: 32px; gap: 8px; }
-                .genz-logo-mark-img { width: 30px; height: 30px; flex-basis: 30px; border-radius: 8px; }
-                .genz-logo-text { font-size: 16px; }
+                .genz-logo { min-height: 30px; }
+                .genz-logo-img { width: 126px; }
                 .genz-nav { padding: 9px 8px 14px; }
                 .genz-sidebar-footer { padding: 11px 8px 13px; }
                 .genz-account-box { margin-bottom: 9px; }
