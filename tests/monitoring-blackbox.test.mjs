@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
 import handler, { normalizeSettingsInput } from "../api/monitoring.js";
-import { buildFindings, normalizeEventInput, parseUserAgent, readNetworkContext, runHealthChecks } from "../lib/monitoring/health.js";
+import { buildFindings, normalizeEventInput, parseUserAgent, readNetworkContext, runHealthChecks, upsertFindings } from "../lib/monitoring/health.js";
 import { runMonitoringCron } from "../functions/_shared/monitoring-cron.js";
 
 /* =========================================================
@@ -1116,4 +1116,219 @@ test("temuan health:api tidak dibuat saat endpoint hanya butuh login", async () 
 
     assert.equal(findings.filter(item => item.fingerprint === "health:api").length, 0);
     assert.equal(findings.filter(item => item.fingerprint === "health:web").length, 0);
+});
+
+/* ---------------------------------------------------------
+   TEMUAN YANG SUDAH DITANDAI TIDAK BOLEH TERBIT ULANG SENDIRI
+   --------------------------------------------------------- */
+
+function findingFetcher(existingRows = []) {
+    const patches = [];
+
+    const fetchImpl = async (url, options = {}) => {
+        const target = String(url);
+        const method = (options.method || "GET").toUpperCase();
+
+        if (target.includes("/monitoring_findings") && method === "GET") {
+            return Response.json(existingRows);
+        }
+
+        if (target.includes("/monitoring_findings") && method === "PATCH") {
+            patches.push(JSON.parse(options.body || "{}"));
+            return new Response(null, { status: 204 });
+        }
+
+        return Response.json([]);
+    };
+
+    return { fetchImpl, patches };
+}
+
+test("temuan 'diketahui' tidak dibuka ulang oleh pemeriksaan berikutnya", async () => {
+    const nowIso = new Date().toISOString();
+    const { fetchImpl, patches } = findingFetcher([
+        {
+            id: "11111111-1111-1111-1111-111111111111",
+            fingerprint: "devtools:open",
+            status: "acknowledged",
+            occurrence_count: 12,
+            category: "security",
+            handled_at: nowIso,
+            last_seen_at: nowIso,
+            updated_at: nowIso
+        }
+    ]);
+
+    const findings = [{
+        fingerprint: "devtools:open",
+        title: "Ada akses dengan DevTools terbuka",
+        category: "security",
+        severity: "warn",
+        description: "45 kejadian dalam 24 jam terakhir dari 3 IP.",
+        remediation: "uji",
+        evidence: { events: 45, latest_at: nowIso }
+    }];
+
+    await upsertFindings(HEALTH_CONFIG, findings, fetchImpl);
+
+    assert.equal(patches.length, 0, "tidak boleh ada PATCH yang membuka ulang temuan");
+});
+
+test("temuan 'selesai' tetap tertutup bila tidak ada kejadian baru", async () => {
+    const nowMs = Date.now();
+    const { fetchImpl, patches } = findingFetcher([
+        {
+            id: "22222222-2222-2222-2222-222222222222",
+            fingerprint: "client-error:/admin-control/monitoring",
+            status: "resolved",
+            occurrence_count: 18,
+            category: "bug",
+            handled_at: new Date(nowMs - 60_000).toISOString(),
+            last_seen_at: new Date(nowMs - 60_000).toISOString(),
+            updated_at: new Date(nowMs - 60_000).toISOString()
+        }
+    ]);
+
+    const findings = [{
+        fingerprint: "client-error:/admin-control/monitoring",
+        title: "Error berulang di /admin-control/monitoring",
+        category: "bug",
+        severity: "critical",
+        description: "18 error dalam 24 jam.",
+        remediation: "uji",
+        /* Bukti lama, sebelum ditandai selesai. */
+        evidence: { path: "/admin-control/monitoring", count: 18, latest_at: new Date(nowMs - 5 * 60_000).toISOString() }
+    }];
+
+    await upsertFindings(HEALTH_CONFIG, findings, fetchImpl);
+    assert.equal(patches.length, 0);
+});
+
+test("temuan 'selesai' dibuka lagi bila ada kejadian baru sesudahnya", async () => {
+    const nowMs = Date.now();
+    const { fetchImpl, patches } = findingFetcher([
+        {
+            id: "33333333-3333-3333-3333-333333333333",
+            fingerprint: "devtools:open",
+            status: "resolved",
+            occurrence_count: 5,
+            category: "security",
+            handled_at: new Date(nowMs - 10 * 60_000).toISOString(),
+            last_seen_at: new Date(nowMs - 10 * 60_000).toISOString(),
+            updated_at: new Date(nowMs - 10 * 60_000).toISOString()
+        }
+    ]);
+
+    const findings = [{
+        fingerprint: "devtools:open",
+        title: "Ada akses dengan DevTools terbuka",
+        category: "security",
+        severity: "warn",
+        description: "1 kejadian baru.",
+        remediation: "uji",
+        evidence: { events: 1, latest_at: new Date(nowMs - 1000).toISOString() }
+    }];
+
+    await upsertFindings(HEALTH_CONFIG, findings, fetchImpl);
+
+    assert.equal(patches.length, 1);
+    assert.equal(patches[0].status, "open");
+});
+
+test("temuan yang sumbernya hilang ditutup otomatis", async () => {
+    const { fetchImpl, patches } = findingFetcher([
+        {
+            id: "44444444-4444-4444-4444-444444444444",
+            fingerprint: "client-error:/halaman-lama",
+            status: "open",
+            occurrence_count: 18,
+            category: "bug",
+            handled_at: null,
+            last_seen_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }
+    ]);
+
+    /* Pemeriksaan terbaru tidak lagi menghasilkan temuan itu. */
+    await upsertFindings(HEALTH_CONFIG, [], fetchImpl);
+
+    assert.equal(patches.length, 1);
+    assert.equal(patches[0].status, "resolved");
+});
+
+test("temuan berbasis event menyertakan waktu kejadian terbaru", () => {
+    const findings = buildFindings({
+        checks: [],
+        settings: null,
+        events: [
+            { kind: "devtools", severity: "warn", path: "/a", occurred_at: "2026-10-29T08:00:00.000Z", devtools_open: true },
+            { kind: "devtools", severity: "warn", path: "/a", occurred_at: "2026-10-29T09:30:00.000Z", devtools_open: true }
+        ]
+    });
+
+    const devtools = findings.find(item => item.fingerprint === "devtools:open");
+    assert.equal(devtools.evidence.latest_at, "2026-10-29T09:30:00.000Z");
+});
+
+test("temuan 'health' yang sempat resolved langsung dibuka lagi saat kembali gagal", async () => {
+    const nowIso = new Date().toISOString();
+    const { fetchImpl, patches } = findingFetcher([
+        {
+            id: "55555555-5555-5555-5555-555555555555",
+            fingerprint: "health:database",
+            status: "resolved",
+            occurrence_count: 2,
+            category: "health",
+            handled_at: null,
+            last_seen_at: nowIso,
+            updated_at: nowIso
+        }
+    ]);
+
+    const findings = [{
+        fingerprint: "health:database",
+        title: "Database Supabase bermasalah",
+        category: "health",
+        severity: "critical",
+        description: "Database mengembalikan 503.",
+        remediation: "uji",
+        evidence: { status: "fail", status_code: 503 }
+    }];
+
+    await upsertFindings(HEALTH_CONFIG, findings, fetchImpl);
+
+    assert.equal(patches.length, 1);
+    assert.equal(patches[0].status, "open");
+});
+
+test("temuan 'diketahui' kembali jadi open setelah masa senyap 24 jam lewat", async () => {
+    const twoDaysAgo = new Date(Date.now() - 25 * 3600 * 1000).toISOString();
+    const { fetchImpl, patches } = findingFetcher([
+        {
+            id: "66666666-6666-6666-6666-666666666666",
+            fingerprint: "devtools:open",
+            status: "acknowledged",
+            occurrence_count: 4,
+            category: "security",
+            handled_at: twoDaysAgo,
+            last_seen_at: twoDaysAgo,
+            updated_at: twoDaysAgo
+        }
+    ]);
+
+    const findings = [{
+        fingerprint: "devtools:open",
+        title: "Ada akses dengan DevTools terbuka",
+        category: "security",
+        severity: "warn",
+        description: "Masih ada kejadian baru.",
+        remediation: "uji",
+        evidence: { events: 2, latest_at: new Date().toISOString() }
+    }];
+
+    await upsertFindings(HEALTH_CONFIG, findings, fetchImpl);
+
+    assert.equal(patches.length, 1);
+    assert.equal(patches[0].status, "open");
+    assert.equal(patches[0].handled_at, null);
 });

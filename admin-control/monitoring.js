@@ -301,15 +301,22 @@ function renderHealth(checks) {
    --------------------------------------------------------- */
 
 function renderFindings(findings) {
-    const list = (findings || []).filter(item => item.status !== "resolved");
+    const rows = (findings || []).filter(item => item.status !== "resolved");
+    const list = rows.filter(item => item.status === "open");
+    const known = rows.filter(item => item.status === "acknowledged");
+
     const container = $("monFindings");
     container.replaceChildren();
 
+    /* Temuan yang sudah ditandai "diketahui" tidak lagi dihitung aktif,
+       tapi tetap terlihat di daftar supaya bisa dibuka kembali. */
     $("monFindingsMeta").textContent = list.length
-        ? `${list.length} AKTIF`
-        : "TIDAK ADA";
+        ? `${list.length} AKTIF${known.length ? ` · ${known.length} DIKETAHUI` : ""}`
+        : known.length
+            ? `0 AKTIF · ${known.length} DIKETAHUI`
+            : "TIDAK ADA";
 
-    if (list.length === 0) {
+    if (rows.length === 0) {
         container.append(el(
             "div",
             "mon-empty",
@@ -318,8 +325,12 @@ function renderFindings(findings) {
         return;
     }
 
-    for (const item of list) {
-        const card = el("div", `mon-finding mon-finding--${item.severity}`);
+    for (const item of [...list, ...known]) {
+        const isKnown = item.status === "acknowledged";
+        const card = el(
+            "div",
+            `mon-finding mon-finding--${item.severity}${isKnown ? " mon-finding--known" : ""}`
+        );
 
         const head = el("div", "mon-finding-head");
         head.append(el("span", "mon-finding-title", item.title));
@@ -344,14 +355,23 @@ function renderFindings(findings) {
         if (item.status === "open") {
             const ack = el("button", "mon-mini-btn", "Tandai diketahui");
             ack.type = "button";
+            ack.title = "Senyap 24 jam, lalu muncul lagi bila masih ada kejadian.";
             ack.addEventListener("click", () => updateFinding(item.id, "acknowledged", ack));
             foot.append(ack);
         } else {
-            foot.append(el("span", "mon-tag", "DIKETAHUI"));
+            const tag = el("span", "mon-tag", "DIKETAHUI");
+            tag.title = "Disenyapkan 24 jam sejak ditandai.";
+            foot.append(tag);
+
+            const reopen = el("button", "mon-mini-btn", "Buka lagi");
+            reopen.type = "button";
+            reopen.addEventListener("click", () => updateFinding(item.id, "open", reopen));
+            foot.append(reopen);
         }
 
         const resolve = el("button", "mon-mini-btn", "Tandai selesai");
         resolve.type = "button";
+        resolve.title = "Tetap senyap sampai ada kejadian baru.";
         resolve.addEventListener("click", () => updateFinding(item.id, "resolved", resolve));
         foot.append(resolve);
 

@@ -565,7 +565,13 @@ async function handleUpdateFinding(req, res, config, fetchImpl) {
         {
             method: "PATCH",
             headers: { Prefer: "return=representation" },
-            body: JSON.stringify({ status, updated_at: new Date().toISOString() })
+            body: JSON.stringify({
+                status,
+                /* Dipakai upsertFindings: temuan yang sudah ditandai tidak
+                   dibuka ulang kecuali ada bukti baru setelah waktu ini. */
+                handled_at: status === "open" ? null : new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
         },
         fetchImpl
     );

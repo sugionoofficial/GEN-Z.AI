@@ -93,10 +93,14 @@ create table if not exists public.monitoring_findings (
     evidence jsonb not null default '{}'::jsonb,
     status text not null default 'open',
     occurrence_count integer not null default 1,
+    handled_at timestamp with time zone,
     first_seen_at timestamp with time zone not null default now(),
     last_seen_at timestamp with time zone not null default now(),
     updated_at timestamp with time zone not null default now()
 );
+
+alter table public.monitoring_findings
+    add column if not exists handled_at timestamp with time zone;
 
 alter table public.monitoring_findings
     drop constraint if exists monitoring_findings_status_chk;
@@ -112,6 +116,9 @@ alter table public.monitoring_findings
 
 create index if not exists monitoring_findings_status_idx
     on public.monitoring_findings (status, last_seen_at desc);
+
+create index if not exists monitoring_findings_handled_idx
+    on public.monitoring_findings (status, handled_at desc);
 
 create table if not exists public.monitoring_settings (
     id boolean primary key default true check (id),
