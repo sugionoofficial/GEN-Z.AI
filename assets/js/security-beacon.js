@@ -331,6 +331,31 @@
         return "";
     }
 
+    var MEDIA_TAGS = { VIDEO: 1, IMG: 1, AUDIO: 1, SOURCE: 1 };
+
+    function cleanAssetUrl(raw) {
+        var text = String(raw || "");
+        if (!text) return "";
+        /* Buang query string & hash supaya signed token/Signature tidak tercatat di log. */
+        return text.split("#")[0].split("?")[0];
+    }
+
+    function extractHost(raw) {
+        var match = /^https?:\/\/([^\/?#]+)/i.exec(String(raw || "").trim());
+        return match ? match[1].toLowerCase() : "";
+    }
+
+    function isExternalMediaResource(target, source) {
+        var tag = String((target && target.tagName) || "").toUpperCase();
+        if (!MEDIA_TAGS[tag] || !source) return false;
+
+        var assetHost = extractHost(source);
+        if (!assetHost) return false; /* URL relatif = aset milik situs sendiri */
+
+        var siteHost = extractHost(window.location && window.location.href);
+        return Boolean(siteHost && assetHost !== siteHost);
+    }
+
     window.addEventListener("error", function (event) {
         var target = event.target;
         var isResource = target && target !== window && target.tagName;
@@ -341,11 +366,15 @@
         /* Aset atau skrip milik ekstensi: bukan tanggung jawab situs. */
         if (looksLikeExtension(source, event.error && event.error.stack, event.message)) return;
 
+        /* Media pratinjau dari CDN provider eksternal (Opus, OSS, dll.) akan
+           kedaluwarsa sesuai retensi provider — bukan modul situs yang rusak. */
+        if (isResource && isExternalMediaResource(target, source)) return;
+
         report("error", {
             message: isResource
-                ? "Gagal memuat aset: " + (target.src || target.href || target.tagName)
+                ? "Gagal memuat aset: " + (cleanAssetUrl(source) || target.tagName)
                 : (event.message || "Error JavaScript tanpa pesan") +
-                  (event.filename ? " @ " + event.filename + ":" + (event.lineno || 0) : ""),
+                  (event.filename ? " @ " + cleanAssetUrl(event.filename) + ":" + (event.lineno || 0) : ""),
             severity: "error"
         });
     }, true);

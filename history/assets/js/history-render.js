@@ -679,17 +679,29 @@
        (image_reference_url / video_reference_url).
     ================================================= */
 
+    function isSignedUrlAlreadyExpired(url) {
+        if (!url) return false;
+        const expiresAt = getSignedLinkExpiresAt(url);
+        return expiresAt > 0 && Date.now() >= expiresAt;
+    }
+
     function getReferenceThumbnail(item) {
 
-        const imageUrl =
+        const rawImage =
             String(
                 item?.image_reference_url || ""
             ).trim();
 
-        const videoUrl =
+        const rawVideo =
             String(
                 item?.video_reference_url || ""
             ).trim();
+
+        const imageUrl =
+            rawImage && !isSignedUrlAlreadyExpired(rawImage) ? rawImage : "";
+
+        const videoUrl =
+            rawVideo && !isSignedUrlAlreadyExpired(rawVideo) ? rawVideo : "";
 
         if (!imageUrl && !videoUrl) {
 
@@ -825,6 +837,26 @@
      * akan dianggap kedaluwarsa sejak awal — itu bug yang harus
      * dijaga tes.
      */
+    function parseIsoCompactUtc(raw) {
+        const match =
+            /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/i.exec(
+                String(raw || "").trim()
+            );
+
+        if (!match) {
+            return 0;
+        }
+
+        return Date.UTC(
+            Number(match[1]),
+            Number(match[2]) - 1,
+            Number(match[3]),
+            Number(match[4]),
+            Number(match[5]),
+            Number(match[6])
+        );
+    }
+
     function getSignedLinkExpiresAt(
         url
     ) {
@@ -856,6 +888,7 @@
             return 0;
         }
 
+        /* 1. Parameter langsung (?Expires=... / ?expires=...) — OSS, S3 v2, CloudFront. */
         const raw =
             parsed.searchParams.get(
                 "Expires"
@@ -864,23 +897,58 @@
                 "expires"
             );
 
-        if (!raw) {
-            return 0;
+        if (raw) {
+            const seconds = Number(raw);
+            if (Number.isFinite(seconds) && seconds > 0) {
+                return seconds * 1000;
+            }
         }
 
-        const seconds =
-            Number(
-                raw
-            );
+        /* 2. Token CDN Akamai / Fastly / Opus:
+              ?hdnts=Expires=1793215842~FullPath~Signature=...
+              ?hdnea=st=1793212234~exp=1793215842~acl=/*~hmac=... */
+        const tokenFields = ["hdnts", "hdnea", "__token__"];
 
-        if (
-            !Number.isFinite(seconds) ||
-            seconds <= 0
-        ) {
-            return 0;
+        for (let i = 0; i < tokenFields.length; i += 1) {
+            const token = parsed.searchParams.get(tokenFields[i]);
+            if (!token) continue;
+
+            const match =
+                /(?:^|[~&])(?:Expires|expires|exp)=(\d{9,11})(?:[~&]|$)/.exec(
+                    token
+                );
+
+            if (match) {
+                const seconds = Number(match[1]);
+                if (Number.isFinite(seconds) && seconds > 0) {
+                    return seconds * 1000;
+                }
+            }
         }
 
-        return seconds * 1000;
+        /* 3. AWS S3 / R2 / GCS SigV4 (?X-Amz-Date=YYYYMMDDTHHMMSSZ&X-Amz-Expires=3600). */
+        const amzDate =
+            parsed.searchParams.get("X-Amz-Date") ||
+            parsed.searchParams.get("x-amz-date") ||
+            parsed.searchParams.get("X-Goog-Date") ||
+            parsed.searchParams.get("x-goog-date");
+
+        const amzDuration =
+            parsed.searchParams.get("X-Amz-Expires") ||
+            parsed.searchParams.get("x-amz-expires") ||
+            parsed.searchParams.get("X-Goog-Expires") ||
+            parsed.searchParams.get("x-goog-expires");
+
+        if (amzDate && amzDuration) {
+            const startMs = parseIsoCompactUtc(amzDate);
+            const ttlSeconds = Number(amzDuration);
+
+            if (startMs > 0 && Number.isFinite(ttlSeconds) && ttlSeconds > 0) {
+                return startMs + ttlSeconds * 1000;
+            }
+        }
+
+        return 0;
     }
 
 
@@ -2676,6 +2744,24 @@
                 "loadedmetadata",
                 function () {
                     applyThumbnailPosterFrame(video);
+                },
+                { once: true }
+            );
+
+            video.addEventListener(
+                "error",
+                function () {
+                    const wrap =
+                        typeof video.closest === "function"
+                            ? video.closest(".history-thumbnail")
+                            : null;
+                    if (!wrap) return;
+                    wrap.className = "history-thumbnail thumbnail-expired";
+                    wrap.removeAttribute("data-video-url");
+                    wrap.setAttribute("aria-label", "Media sudah kedaluwarsa");
+                    wrap.innerHTML =
+                        '<span class="thumbnail-expired-icon">⏳</span>' +
+                        '<span class="thumbnail-expired-label">KEDALUWARSA</span>';
                 },
                 { once: true }
             );

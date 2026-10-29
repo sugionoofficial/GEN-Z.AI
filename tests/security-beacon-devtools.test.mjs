@@ -305,3 +305,30 @@ test("error sinkron dengan stack ekstensi juga diabaikan", () => {
 
     assert.equal(beacon.errors().length, 0);
 });
+
+test("media pratinjau eksternal yang kedaluwarsa (mis. CDN Opus) tidak dianggap modul situs rusak", () => {
+    const beacon = beaconForErrors();
+
+    beacon.dispatch("error", {
+        target: {
+            tagName: "VIDEO",
+            src: "https://signed-opus-lab-ext.cdn.opus.pro/opus-video-tools/clips/clip-1.mp4?v=1&hdnts=Expires=1793215842~FullPath~Signature=secret"
+        }
+    });
+
+    assert.equal(beacon.errors().length, 0);
+});
+
+test("media milik domain situs sendiri tetap dilaporkan tanpa membocorkan query token", () => {
+    const beacon = beaconForErrors();
+
+    beacon.dispatch("error", {
+        target: {
+            tagName: "IMG",
+            src: "https://contoh.test/assets/banner.png?token=rahasia123#frag"
+        }
+    });
+
+    assert.equal(beacon.errors().length, 1);
+    assert.equal(beacon.errors()[0].message, "Gagal memuat aset: https://contoh.test/assets/banner.png");
+});
