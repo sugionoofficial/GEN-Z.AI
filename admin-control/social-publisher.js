@@ -967,6 +967,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         const aspectWrap = $("schedule-aspect-wrap");
         const aspectSelect = $("schedule-aspect-ratio");
         const songCheck = $("schedule-random-song");
+        const songModeSelect = $("schedule-song-mode");
+        const songFields = $("schedule-song-fields");
         if (charWrap) charWrap.hidden = isQuote;
         if (charSelect) charSelect.required = !isQuote;
         if (quoteFields) quoteFields.hidden = !isQuote;
@@ -976,6 +978,16 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         if (!preserveSongToggle && songCheck) {
             songCheck.checked = isQuote;
         }
+        /* Lagu hanya untuk Kata-kata Mutiara. Mode quote default memakai lagu;
+           foto karakter AI & outfit tidak menampilkan pilihan lagu sama sekali. */
+        if (songFields) songFields.hidden = !isQuote;
+        if (!isQuote) {
+            if (songModeSelect) songModeSelect.value = "off";
+            if (songCheck) songCheck.checked = false;
+        } else if (!preserveSongToggle && songModeSelect && songModeSelect.value === "off") {
+            songModeSelect.value = "random";
+        }
+        syncSongPicker(songModeSelect, $("schedule-song-choice"), songCheck);
     }
 
     let activeSongPreviewId = "";
@@ -1112,6 +1124,78 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
+    /* ------------------------------------------------------------------
+       Pemilih lagu (jadwal & manual).
+       Facebook tidak menyediakan API katalog musik resminya, jadi daftar
+       lagu berasal dari koleksi akun sendiri (tabel social_facebook_songs,
+       kartu "Lagu Facebook"). Tiga mode: tanpa lagu / satu lagu tetap / acak.
+       ------------------------------------------------------------------ */
+    function activeSongList() {
+        return (Array.isArray(state.songs) ? state.songs : [])
+            .filter(song => song && song.id && song.is_active !== false);
+    }
+
+    function songLabel(song) {
+        const title = String(song?.title || "").trim() || "Tanpa judul";
+        const artist = String(song?.artist || "").trim();
+        return artist && artist !== title ? `${title} — ${artist}` : title;
+    }
+
+    function fillSongChoices(select, selectedId = "") {
+        if (!select) return;
+        const songs = activeSongList();
+        const previous = selectedId || select.value || "";
+        select.textContent = "";
+        if (!songs.length) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "Belum ada lagu aktif — unggah di kartu Lagu Facebook";
+            select.appendChild(option);
+            select.value = "";
+            return;
+        }
+        for (const song of songs) {
+            const option = document.createElement("option");
+            option.value = song.id;
+            option.textContent = songLabel(song);
+            select.appendChild(option);
+        }
+        select.value = songs.some(song => song.id === previous) ? previous : songs[0].id;
+    }
+
+    function syncSongPicker(modeSelect, choiceSelect, legacyCheck = null) {
+        if (!modeSelect) return;
+        const mode = ["off", "fixed", "random"].includes(modeSelect.value) ? modeSelect.value : "off";
+        if (choiceSelect) choiceSelect.hidden = mode !== "fixed";
+        if (legacyCheck) legacyCheck.checked = mode !== "off";
+    }
+
+    function refreshSongPickers() {
+        const scheduleMode = $("schedule-song-mode");
+        if (scheduleMode) {
+            fillSongChoices($("schedule-song-choice"), $("schedule-song-choice")?.value || "");
+            syncSongPicker(scheduleMode, $("schedule-song-choice"), $("schedule-random-song"));
+        }
+        for (const prefix of ["manual-quote"]) {
+            const modeSelect = $(`${prefix}-song-mode`);
+            if (!modeSelect) continue;
+            fillSongChoices($(`${prefix}-song`), $(`${prefix}-song`)?.value || "");
+            syncSongPicker(modeSelect, $(`${prefix}-song`), $(`${prefix}-random-song`));
+        }
+    }
+
+    function songRequestFields(prefix) {
+        const modeSelect = $(`${prefix}-song-mode`);
+        const mode = ["off", "fixed", "random"].includes(modeSelect?.value) ? modeSelect.value : "off";
+        const songId = $(`${prefix}-song`)?.value || "";
+        return {
+            song_mode: mode,
+            ...(mode === "fixed" && songId ? { song_id: songId } : {}),
+            /* Kompatibilitas: API lama hanya membaca use_random_song. */
+            use_random_song: mode === "random"
+        };
+    }
+
     function renderSongs() {
         const container = $("songs-list");
         if (!container) return;
@@ -1237,9 +1321,11 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                 state.defaultFacebookSongs = result.defaultSongs;
             }
             renderSongs();
+            refreshSongPickers();
             updateCollapsibleSummaries();
         } catch {
             renderSongs();
+            refreshSongPickers();
             updateCollapsibleSummaries();
         }
     }
@@ -1515,18 +1601,23 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                 ? {
                     post_mode: "quote",
                     quote_publish_target: selectedQuoteTarget,
+                    tag_name: $("manual-tag-name")?.value?.trim() || "",
+                    tag_url: $("manual-tag-url")?.value?.trim() || "",
                     page_connection_id: pageConnectionId,
                     aspect_ratio: $("manual-aspect-ratio").value,
                     quote_theme: $("manual-quote-theme")?.value || "",
                     quote_visual_style: $("manual-quote-visual")?.value || "",
                     custom_quote: $("manual-custom-quote")?.value?.trim() || "",
-                    use_random_song: $("manual-quote-random-song") ? $("manual-quote-random-song").checked : true
+                    ...songRequestFields("manual-quote")
                 }
                 : {
                     character_id: characterId,
                     page_connection_id: pageConnectionId,
                     aspect_ratio: $("manual-aspect-ratio").value,
-                    ...($("manual-character-random-song")?.checked ? { use_random_song: true } : {})
+                    tag_name: $("manual-tag-name")?.value?.trim() || "",
+                    tag_url: $("manual-tag-url")?.value?.trim() || "",
+                    /* Foto karakter AI & outfit tidak memakai lagu. */
+                    use_random_song: false, song_mode: "off"
                 };
             let result = null;
             const maxManualPolicyRetries = isQuote ? 0 : 3;
@@ -2312,13 +2403,31 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         }
     }
 
+    function songSummaryLabel(schedule = {}) {
+        const isQuote = schedule.post_mode === "quote";
+        /* Foto karakter AI & outfit tidak pernah memakai lagu. */
+        if (!isQuote) return "";
+        const mode = ["off", "fixed", "random"].includes(schedule.song_mode)
+            ? schedule.song_mode
+            : (isQuote
+                ? (schedule.use_random_song === false ? "off" : "random")
+                : (schedule.use_random_song === true ? "random" : "off"));
+        if (mode === "off") return "";
+        if (mode === "fixed") {
+            const song = (Array.isArray(state.songs) ? state.songs : [])
+                .find(item => item.id === schedule.song_id);
+            return `🎵 lagu tetap${song ? `: ${songLabel(song)}` : ""}`;
+        }
+        return isQuote ? "🎵 musik auto-play acak" : "🎵 lagu acak (hindari lagu terakhir)";
+    }
+
     function sceneSummary(schedule) {
         if (schedule.post_mode === "quote") {
             const parts = [quoteTargetLabel(schedule.quote_publish_target || "feed")];
             const themeLabel = state.data?.quotePresets?.themes?.find(t => (t.value ?? t.id) === schedule.quote_theme)?.label || schedule.quote_theme;
             parts.push(themeLabel ? `tema ${themeLabel}` : "tema acak");
             parts.push("latar hitam hemat kuota");
-            parts.push(schedule.use_random_song !== false ? "🎵 musik auto-play ON" : "tanpa musik acak");
+            parts.push(songSummaryLabel(schedule));
             return parts.join(" · ");
         }
         const parts = [];
@@ -2328,7 +2437,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         if (schedule.scene_atmosphere) parts.push(`suasana ${schedule.scene_atmosphere}`);
         if (schedule.scene_condition) parts.push(`kondisi ${schedule.scene_condition}`);
         if (schedule.scene_lighting) parts.push(`cahaya ${schedule.scene_lighting}`);
-        if (schedule.use_random_song === true) parts.push("🎵 lagu FB acak ON");
+        if (schedule.tag_url || schedule.tag_name) parts.push("👤 tautan profil");
         if (schedule.scene_details) parts.push("detail khusus");
         if (schedule.negative_prompt) parts.push("negative tambahan");
         return parts.join(" · ");
@@ -3149,6 +3258,16 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                 ? schedule.use_random_song !== false
                 : schedule.use_random_song === true;
         }
+        if ($("schedule-song-mode")) {
+            const mode = ["off", "fixed", "random"].includes(schedule.song_mode)
+                ? schedule.song_mode
+                : (isQuote
+                    ? (schedule.use_random_song === false ? "off" : "random")
+                    : (schedule.use_random_song === true ? "random" : "off"));
+            $("schedule-song-mode").value = mode;
+            fillSongChoices($("schedule-song-choice"), schedule.song_id || "");
+            syncSongPicker($("schedule-song-mode"), $("schedule-song-choice"), $("schedule-random-song"));
+        }
         $("schedule-location").value = schedule.scene_location || "";
         $("schedule-angle").value = schedule.camera_angle || "";
         $("schedule-situation").value = schedule.scene_situation || "";
@@ -3157,6 +3276,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         $("schedule-lighting").value = schedule.scene_lighting || "";
         $("schedule-details").value = schedule.scene_details || "";
         $("schedule-negative").value = schedule.negative_prompt || "";
+        if ($("schedule-tag-name")) $("schedule-tag-name").value = schedule.tag_name || "";
+        if ($("schedule-tag-url")) $("schedule-tag-url").value = schedule.tag_url || "";
         $("schedule-autopublish").checked = schedule.autopublish_enabled !== false;
         $("schedule-enabled").checked = schedule.enabled === true;
         saveScheduleButton.textContent = "Simpan perubahan";
@@ -3168,6 +3289,11 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
 
     function resetScheduleForm() {
         $("schedule-form").reset();
+        if ($("schedule-song-mode")) {
+            $("schedule-song-mode").value = "off";
+            fillSongChoices($("schedule-song-choice"));
+            syncSongPicker($("schedule-song-mode"), $("schedule-song-choice"), $("schedule-random-song"));
+        }
         $("schedule-id").value = "";
         setSchedulePostMode("character");
         if ($("schedule-quote-target")) $("schedule-quote-target").value = "feed";
@@ -3184,6 +3310,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         $("schedule-lighting").value = "";
         $("schedule-details").value = "";
         $("schedule-negative").value = "";
+        if ($("schedule-tag-name")) $("schedule-tag-name").value = "";
+        if ($("schedule-tag-url")) $("schedule-tag-url").value = "";
         $("schedule-autopublish").checked = true;
         $("schedule-enabled").checked = false;
         saveScheduleButton.textContent = "Simpan jadwal";
@@ -3222,9 +3350,17 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             );
             return;
         }
-        const useRandomSong = $("schedule-random-song")
-            ? $("schedule-random-song").checked
-            : isQuote;
+        /* Mode lagu dari pemilih baru; checkbox lama hanya cermin kompatibilitas. */
+        const scheduleSongFields = !isQuote
+            /* Foto karakter AI & outfit tidak memakai lagu. */
+            ? { song_mode: "off", use_random_song: false }
+            : ($("schedule-song-mode")
+                ? songRequestFields("schedule")
+                : { use_random_song: $("schedule-random-song") ? $("schedule-random-song").checked : true });
+        if (scheduleSongFields.song_mode === "fixed" && !scheduleSongFields.song_id) {
+            status(scheduleStatus, "Pilih satu lagu untuk mode lagu tetap, atau ganti ke mode acak.", "error");
+            return;
+        }
         const body = {
             id: $("schedule-id").value || undefined,
             post_mode: postMode,
@@ -3238,7 +3374,9 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             quote_publish_target: isQuote ? normalizeClientQuoteTarget($("schedule-quote-target")?.value) : "feed",
             quote_theme: isQuote ? ($("schedule-quote-theme")?.value || "") : "",
             quote_visual_style: isQuote ? ($("schedule-quote-visual")?.value || "") : "",
-            use_random_song: useRandomSong,
+            ...scheduleSongFields,
+            tag_name: $("schedule-tag-name")?.value?.trim() || "",
+            tag_url: $("schedule-tag-url")?.value?.trim() || "",
             scene_location: $("schedule-location").value,
             camera_angle: $("schedule-angle").value,
             scene_situation: $("schedule-situation").value,
@@ -3636,6 +3774,16 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
      */
     $("manual-page")?.addEventListener("change", () => disarmManualPublish());
     $("schedule-form").addEventListener("submit", submitSchedule);
+    /* Pemilih lagu: menampilkan/menyembunyikan daftar lagu sesuai mode. */
+    for (const [modeId, choiceId, legacyId] of [
+        ["schedule-song-mode", "schedule-song-choice", "schedule-random-song"],
+        ["manual-quote-song-mode", "manual-quote-song", "manual-quote-random-song"]
+    ]) {
+        $(modeId)?.addEventListener("change", () => {
+            fillSongChoices($(choiceId), $(choiceId)?.value || "");
+            syncSongPicker($(modeId), $(choiceId), $(legacyId));
+        });
+    }
     $("interval-minutes").addEventListener("input", updateCostEstimate);
     if ($("runs-per-page")) {
         $("runs-per-page").value = String(state.runsPerPage);

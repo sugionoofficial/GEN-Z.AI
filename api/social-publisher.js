@@ -5,6 +5,8 @@ import {
     clampIntervalMinutes,
     formatIntervalMinutes,
     composeSocialCaption,
+    formatTagBlockForCaption,
+    sanitizeFacebookProfileUrl,
     createScenePlan,
     DEFAULT_SOCIAL_RUNS_PER_PAGE,
     extensionForMime,
@@ -30,6 +32,8 @@ import {
     normalizeSocialPostMode,
     pickRandomFacebookSong,
     QUOTE_PRESETS,
+    normalizeSongMode,
+    resolveScheduleSongMode,
     quoteOverridesFromSchedule,
     sanitizeFacebookSongUrl
 } from "../lib/social-publisher/quotes.js";
@@ -129,7 +133,11 @@ const SCHEDULE_QUOTE_BASE_COLUMNS = [
     "post_mode",
     "quote_theme",
     "quote_visual_style",
-    "use_random_song"
+    "use_random_song",
+    "song_mode",
+    "song_id",
+    "tag_name",
+    "tag_url"
 ].join(",");
 const SCHEDULE_FULL_COLUMNS = [
     SCHEDULE_QUOTE_BASE_COLUMNS,
@@ -1534,6 +1542,10 @@ const SCHEDULE_QUOTE_COLUMNS = [
     "quote_theme",
     "quote_visual_style",
     "use_random_song",
+    "song_mode",
+    "song_id",
+    "tag_name",
+    "tag_url",
     "quote_publish_target"
 ];
 
@@ -1959,7 +1971,7 @@ async function seedDefaultFacebookSongs(config, userId) {
     }
 }
 
-async function pickSongForPost(config, userId, { requirePlayableAudio = false } = {}) {
+async function pickSongForPost(config, userId, { requirePlayableAudio = false, preferredSongId = null } = {}) {
     let songs = [];
     try {
         songs = await listFacebookSongs(config, userId, { activeOnly: true });
@@ -1987,7 +1999,8 @@ async function pickSongForPost(config, userId, { requirePlayableAudio = false } 
 
     return pickRandomFacebookSong(songs, recentSongs, Math.random, {
         fallbackToDefaults: true,
-        requirePlayableAudio
+        requirePlayableAudio,
+        preferredSongId
     });
 }
 
@@ -2510,7 +2523,8 @@ async function saveSchedule(config, userId, body, profile) {
         body?.quote_theme !== undefined ||
         body?.quote_visual_style !== undefined ||
         body?.quote_publish_target !== undefined ||
-        body?.use_random_song !== undefined;
+        body?.use_random_song !== undefined ||
+        body?.song_mode !== undefined;
     const quotePublishTarget = normalizeQuotePublishTarget(body?.quote_publish_target, "feed");
     const characterId = isQuoteMode ? "" : cleanText(body?.character_id, 80);
     const pageConnectionId = cleanText(body?.page_connection_id, 80);
@@ -2533,16 +2547,45 @@ async function saveSchedule(config, userId, body, profile) {
         scene_details: cleanText(body?.scene_details, 400),
         negative_prompt: cleanText(body?.negative_prompt, 400)
     };
+    /* Pilihan lagu: off / fixed (song_id) / random. `use_random_song` tetap
+       ditulis untuk kompatibilitas deployment lama. */
+    const requestedSongMode = body?.song_mode === undefined
+        ? null
+        : normalizeSongMode(body?.song_mode, null);
+    if (body?.song_mode !== undefined && !requestedSongMode) {
+        const error = new Error("Mode lagu tidak dikenal. Pilih tanpa lagu, satu lagu tetap, atau acak.");
+        error.status = 400;
+        throw error;
+    }
+    const fixedSongId = cleanText(body?.song_id, 64);
+    const songMode = requestedSongMode
+        || (typeof body?.use_random_song === "boolean"
+            ? (body.use_random_song ? "random" : "off")
+            : (isQuoteMode ? "random" : "off"));
+    /* Lagu hanya untuk Kata-kata Mutiara; foto karakter AI & outfit tidak
+       memakai lagu walau klien lama mengirim use_random_song = true. */
+    const effectiveSongMode = isQuoteMode ? songMode : "off";
     const quoteParams = {
         post_mode: postMode,
         quote_theme: isQuoteMode ? cleanText(body?.quote_theme, 120) : "",
         quote_visual_style: isQuoteMode ? cleanText(body?.quote_visual_style, 240) : "",
         quote_publish_target: isQuoteMode ? quotePublishTarget : "feed",
-        use_random_song: typeof body?.use_random_song === "boolean"
-            ? body.use_random_song
-            : isQuoteMode
+        use_random_song: isQuoteMode && effectiveSongMode === "random",
+        song_mode: effectiveSongMode,
+        song_id: isQuoteMode && effectiveSongMode === "fixed" ? (fixedSongId || null) : null
     };
     const scheduleAutopublish = typeof body?.autopublish_enabled === "boolean" ? body.autopublish_enabled : true;
+
+    /* Tautan profil di caption (opsional). Meta tidak mengizinkan men-tag akun
+       lewat API, jadi yang disimpan adalah nama tampilan + URL profil Facebook. */
+    const tagName = cleanText(body?.tag_name, 80);
+    const rawTagUrl = cleanText(body?.tag_url, 300);
+    const tagUrl = rawTagUrl ? sanitizeFacebookProfileUrl(rawTagUrl) : "";
+    if (rawTagUrl && !tagUrl) {
+        const error = new Error("Tautan profil harus URL https:// dari domain Facebook (contoh: https://www.facebook.com/username).");
+        error.status = 400;
+        throw error;
+    }
 
     /* Interval autopost berbasis role dalam menit: ADMIN/OWNER tercepat 5 menit,
        USER tercepat 60 menit (1 jam). */
@@ -2573,6 +2616,28 @@ async function saveSchedule(config, userId, body, profile) {
         throw error;
     }
 
+    if (isQuoteMode && effectiveSongMode === "fixed") {
+        if (!fixedSongId) {
+            const error = new Error("Pilih satu lagu untuk mode lagu tetap, atau ganti ke mode acak.");
+            error.status = 400;
+            throw error;
+        }
+        const rows = await supabaseRequest(
+            config,
+            tablePath("social_facebook_songs", `select=id,title,is_active&id=eq.${encodeURIComponent(fixedSongId)}&owner_id=eq.${encodeURIComponent(userId)}&limit=1`)
+        );
+        if (!rows?.length) {
+            const error = new Error("Lagu yang dipilih tidak ditemukan di koleksi akun ini.");
+            error.status = 404;
+            throw error;
+        }
+        if (rows[0].is_active === false) {
+            const error = new Error(`Lagu "${rows[0].title || ""}" sedang nonaktif. Aktifkan dulu atau pilih lagu lain.`);
+            error.status = 400;
+            throw error;
+        }
+    }
+
     const [characters, pages] = await Promise.all([
         isQuoteMode
             ? Promise.resolve([{ id: null }])
@@ -2601,6 +2666,8 @@ async function saveSchedule(config, userId, body, profile) {
         aspect_ratio: aspectRatio,
         caption_template: captionTemplate,
         ...sceneParams,
+        tag_name: tagName,
+        tag_url: tagUrl,
         ...(hasExplicitQuoteFields ? quoteParams : {}),
         enabled: body?.enabled === true,
         updated_at: new Date().toISOString()
@@ -2719,9 +2786,23 @@ async function generateManualPost(config, userId, env, body = {}) {
     const postMode = normalizeSocialPostMode(body.post_mode);
     const isQuoteMode = postMode === "quote";
     const quotePublishTarget = normalizeQuotePublishTarget(body.quote_publish_target, "feed");
-    const useRandomSong = typeof body.use_random_song === "boolean"
-        ? body.use_random_song
-        : isQuoteMode;
+    /* Manual: pengguna boleh menunjuk lagu tertentu (song_id) atau memilih acak.
+       Tanpa `song_mode`, perilaku lama dipertahankan. */
+    const manualSongMode = body.song_mode === undefined
+        ? (typeof body.use_random_song === "boolean"
+            ? (body.use_random_song ? "random" : "off")
+            : (isQuoteMode ? "random" : "off"))
+        : normalizeSongMode(body.song_mode, "off");
+    const manualSongId = cleanText(body.song_id, 64);
+    /* Lagu hanya untuk Kata-kata Mutiara. */
+    const effectiveManualSongMode = isQuoteMode ? manualSongMode : "off";
+    const useSong = effectiveManualSongMode !== "off";
+    const preferredSongId = isQuoteMode && effectiveManualSongMode === "fixed" ? manualSongId : null;
+    if (isQuoteMode && effectiveManualSongMode === "fixed" && !manualSongId) {
+        const error = new Error("Pilih lagu yang akan dipakai, atau ganti ke mode acak.");
+        error.status = 400;
+        throw error;
+    }
     const characterId = isQuoteMode ? "" : cleanText(body.character_id, 80);
     const pageConnectionId = cleanText(body.page_connection_id, 80);
     const aspectRatio = isQuoteMode ? "9:16" : normalizeSocialAspectRatio(body.aspect_ratio);
@@ -2810,6 +2891,12 @@ async function generateManualPost(config, userId, env, body = {}) {
     const garmentObjectKey = outfit?.object_key || "";
     const garmentMimeType = outfit?.mime_type || "";
 
+    /* Tautan profil di caption (bukan tag resmi Meta). */
+    const manualTag = {
+        tag_name: cleanText(body.tag_name, 80),
+        tag_url: sanitizeFacebookProfileUrl(body.tag_url)
+    };
+
     const [settingsRows, previousPreviews, song] = await Promise.all([
         supabaseRequest(
             config,
@@ -2819,7 +2906,9 @@ async function generateManualPost(config, userId, env, body = {}) {
             config,
             tablePath("social_post_runs", "select=id&status=eq.generating&schedule_id=is.null&owner_id=eq." + encodeURIComponent(userId))
         ),
-        useRandomSong ? pickSongForPost(config, userId, { requirePlayableAudio: isQuoteMode }) : Promise.resolve(null)
+        useSong
+            ? pickSongForPost(config, userId, { requirePlayableAudio: isQuoteMode, preferredSongId })
+            : Promise.resolve(null)
     ]);
     for (const previous of previousPreviews || []) {
         await supabaseRequest(
@@ -2947,7 +3036,10 @@ async function generateManualPost(config, userId, env, body = {}) {
                 maxDurationSec: maxQuoteVideoDurationForTarget(quotePublishTarget)
             });
             // Postingan Kata-kata Mutiara + Musik memakai latar hitam polos (#000000) tanpa kuota gambar + teks LLM QwenCloud.
-            const caption = quoteText;
+            /* Caption mutiara = teks mutiara + tautan profil (bila diisi). */
+            const caption = [quoteText, formatTagBlockForCaption(manualTag)]
+                .filter(Boolean)
+                .join("\n\n");
             const sceneRecord = {
                 ...quotePlan,
                 background_mode: "solid_black",
@@ -3156,7 +3248,8 @@ async function generateManualPost(config, userId, env, body = {}) {
             contextualCaption,
             externalLink: postingSettings.external_link,
             outfit: outfitCaptionSource(outfit),
-            song
+            song,
+            tag: manualTag
         });
         const sceneRecord = song
             ? {
@@ -3348,7 +3441,20 @@ async function publishManualPost(req, res, config, userId, env) {
             {
                 method: "PATCH",
                 headers: { Prefer: "return=minimal" },
-                body: JSON.stringify({ status: "failed", error_message: safeMessage, finished_at: new Date().toISOString() })
+                body: JSON.stringify({
+                    status: "failed",
+                    error_message: safeMessage,
+                    /* Diagnostik: rekam lagu + caption yang dicoba agar penyebab
+                       kegagalan (mis. caption ditolak moderasi Facebook) terlihat. */
+                    ...(song ? {
+                        song_id: song.id || null,
+                        song_title: song.title || "",
+                        song_artist: song.artist || "",
+                        song_facebook_url: song.facebook_url || ""
+                    } : {}),
+                    ...(run?.caption ? { caption: String(run.caption).slice(0, 2000) } : {}),
+                    finished_at: new Date().toISOString()
+                })
             }
         ).catch(updateError => {
             console.error("Could not record manual Social Publisher failure:", updateError?.message || "unknown error");

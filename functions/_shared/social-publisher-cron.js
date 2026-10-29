@@ -1,5 +1,5 @@
-import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
-import { buildQuoteImagePrompt, createQuotePlan, normalizeQuotePublishTarget, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule } from "../../lib/social-publisher/quotes.js";
+import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, formatTagBlockForCaption, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
+import { buildQuoteImagePrompt, createQuotePlan, normalizeQuotePublishTarget, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule, resolveScheduleSongMode } from "../../lib/social-publisher/quotes.js";
 import { decryptSecret, normalizeTextProvider, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookQuoteVideo } from "../../lib/social-publisher/providers.js";
 import { createSignedReferenceUrl, downloadModelReference, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
 import { encodeStoryMp4, maxQuoteVideoDurationForTarget, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
@@ -100,7 +100,7 @@ const SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive";
 
 const LEGACY_SCHEDULE_COLUMNS = "id,owner_id,character_id,page_connection_id,enabled,interval_hours,aspect_ratio,caption_template,timezone";
 const SCENE_SCHEDULE_COLUMNS = `${LEGACY_SCHEDULE_COLUMNS},autopublish_enabled,scene_location,camera_angle,scene_situation,scene_lighting,scene_atmosphere,scene_condition,scene_details,negative_prompt`;
-const QUOTE_BASE_SCHEDULE_COLUMNS = `${SCENE_SCHEDULE_COLUMNS},post_mode,quote_theme,quote_visual_style,use_random_song`;
+const QUOTE_BASE_SCHEDULE_COLUMNS = `${SCENE_SCHEDULE_COLUMNS},post_mode,quote_theme,quote_visual_style,use_random_song,song_mode,song_id,tag_name,tag_url`;
 const FULL_SCHEDULE_COLUMNS = `${QUOTE_BASE_SCHEDULE_COLUMNS},quote_publish_target`;
 
 function isMissingColumnError(error) {
@@ -115,7 +115,7 @@ function isMissingQuoteTargetColumn(error) {
 
 function isMissingQuoteScheduleColumn(error) {
     const message = String(error?.message || "");
-    return /\b(post_mode|quote_theme|quote_visual_style|use_random_song|quote_publish_target)\b/i.test(message)
+    return /\b(post_mode|quote_theme|quote_visual_style|use_random_song|song_mode|song_id|tag_name|tag_url|quote_publish_target)\b/i.test(message)
         && isMissingColumnError(error);
 }
 
@@ -495,7 +495,7 @@ function sanitizeSceneForPolicyRetry(scene, schedule = {}) {
  * curated popular Facebook songs list when none are saved yet) and picks one at random,
  * avoiding songs used by recent posts.
  */
-async function pickScheduledFacebookSong(config, ownerId, previousRuns = [], { requirePlayableAudio = false } = {}) {
+async function pickScheduledFacebookSong(config, ownerId, previousRuns = [], { requirePlayableAudio = false, preferredSongId = null } = {}) {
     let songs = [];
     try {
         songs = await dbRequest(config, table(
@@ -523,7 +523,8 @@ async function pickScheduledFacebookSong(config, ownerId, previousRuns = [], { r
         .filter(item => item.id || item.title);
     return pickRandomFacebookSong(songs, recentSongs, Math.random, {
         fallbackToDefaults: true,
-        requirePlayableAudio
+        requirePlayableAudio,
+        preferredSongId
     });
 }
 
@@ -597,9 +598,10 @@ async function processRun(env, config, claimedRun, options = {}) {
         }
 
         postMode = normalizeSocialPostMode(schedule.post_mode);
-        const shouldUseRandomSong = postMode === "quote"
-            ? schedule.use_random_song !== false
-            : schedule.use_random_song === true;
+        /* off / fixed / random. Data lama tanpa song_mode memakai use_random_song. */
+        const songMode = resolveScheduleSongMode(schedule, postMode);
+        const shouldUseSong = songMode !== "off";
+        const fixedSongId = songMode === "fixed" ? (schedule.song_id || null) : null;
 
         const [characters, pageConnections, previousRuns, settingsRows, publisherConfigs] = prefetched
             ? [
@@ -614,7 +616,7 @@ async function processRun(env, config, claimedRun, options = {}) {
                     ? Promise.resolve([])
                     : dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
                 dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
-                listRecentPostedRuns(config, schedule.id, postMode === "quote" || shouldUseRandomSong),
+                listRecentPostedRuns(config, schedule.id, postMode === "quote" || shouldUseSong),
                 getUserSettingsRow(config, schedule.owner_id),
                 dbRequest(config, table("social_publisher_config", "select=image_provider,image_model,text_provider,quote_llm_model&id=eq.true&limit=1"))
                     .catch(() => dbRequest(config, table("social_publisher_config", "select=image_provider,image_model,quote_llm_model&id=eq.true&limit=1"))
@@ -652,16 +654,19 @@ async function processRun(env, config, claimedRun, options = {}) {
         const textProvider = normalizeTextProvider(publisherConfigs?.[0]?.text_provider);
         const quoteLlmModel = normalizeQwenCloudLlmModel(publisherConfigs?.[0]?.quote_llm_model);
         const settings = settingsRows?.[0];
-        const song = prefetched && Object.prototype.hasOwnProperty.call(prefetched, "song")
+        song = prefetched && Object.prototype.hasOwnProperty.call(prefetched, "song")
             ? prefetched.song
-            : (shouldUseRandomSong
+            : (shouldUseSong
                 ? await pickScheduledFacebookSong(config, schedule.owner_id, previousRuns, {
-                    requirePlayableAudio: postMode === "quote"
+                    requirePlayableAudio: postMode === "quote",
+                    preferredSongId: fixedSongId
                 })
                 : null);
 
         let scenePlanRecord = null;
         let generated = null;
+        /* `song` dipakai juga di blok catch untuk merekam sebab kegagalan. */
+        let song = null;
         let cleanedMimeType = "";
         let cleanedBytes = null;
         let storyMp4Bytes = null;
@@ -715,7 +720,11 @@ async function processRun(env, config, claimedRun, options = {}) {
             });
             storyMp4Bytes = encodedStory.mp4Bytes;
             // Postingan Kata-kata Mutiara + Musik memakai latar hitam polos (#000000) tanpa kuota gambar + teks LLM QwenCloud.
-            caption = quoteText;
+            /* Caption mutiara = teks mutiara + tautan profil (bila diisi). */
+            caption = [quoteText, formatTagBlockForCaption({
+                tag_name: schedule.tag_name || "",
+                tag_url: schedule.tag_url || ""
+            })].filter(Boolean).join("\n\n");
             scenePlanRecord = {
                 ...quotePlan,
                 background_mode: "solid_black",
@@ -891,7 +900,9 @@ async function processRun(env, config, claimedRun, options = {}) {
                 contextualCaption,
                 externalLink: settings?.external_link,
                 outfit: outfit ? { id: outfit.id, name: outfit.name, order_url: outfit.order_url || "" } : null,
-                song
+                song,
+                /* Tautan profil dari blok jadwal (bukan tag resmi Meta). */
+                tag: { tag_name: schedule.tag_name || "", tag_url: schedule.tag_url || "" }
             });
             scenePlanRecord = song
                 ? {
@@ -983,6 +994,19 @@ async function processRun(env, config, claimedRun, options = {}) {
         await updateRun(config, runId, {
             status: "failed",
             error_message: safeMessage,
+            /* Diagnostik: bila lagu dipakai, simpan judulnya + caption yang
+               dicoba beserta modenya, supaya kegagalan bisa ditelusuri
+               (mis. caption ditolak moderasi Facebook). */
+            ...(song || caption ? {
+                post_mode: postMode,
+                ...(song ? {
+                    song_id: song.id || null,
+                    song_title: song.title || "",
+                    song_artist: song.artist || "",
+                    song_facebook_url: song.facebook_url || ""
+                } : {}),
+                ...(caption ? { caption: String(caption).slice(0, 2000) } : {})
+            } : {}),
             ...(isOpusPolicyReject ? {
                 ...(imageModel ? { image_model: imageModel } : {}),
                 ...(attemptedScene ? { scene_plan: attemptedScene } : {}),

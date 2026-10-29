@@ -553,6 +553,10 @@ Content-Type: application/json
 - NSFW checker dipaksa di server-side (tidak bisa di-bypass dari client)
 - Auth menggunakan Supabase JWT (Bearer token)
 - Service Role Key hanya digunakan di server (serverless functions)
+- Semua RPC kredit (`refund/deduct/charge/settle`, `admin_*`) hanya `EXECUTE` untuk `service_role`;
+  client tidak bisa memanggilnya lewat anon key — lihat `supabase/credit-rpc-hardening.sql`
+  dan `docs/security/credit-token-audit.md`
+- Kolom `profiles.credits` dijaga trigger: perubahan dari role `anon`/`authenticated` ditolak
 
 ---
 
