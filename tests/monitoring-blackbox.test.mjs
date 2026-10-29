@@ -449,3 +449,26 @@ test("beacon mendeteksi DevTools dan tidak pernah memakai alamat lokal", () => {
     assert.match(beacon, /defineProperty/);
     assert.doesNotMatch(beacon, /localhost|127\.0\.0\.1/);
 });
+
+test("guard monitoring menunggu GENZNavigationReady sebelum memutuskan akses", () => {
+    const page = read("admin-control/monitoring.html");
+
+    assert.match(page, /window\.GENZNavigationReady/, "harus menunggu promise navigasi");
+    assert.match(page, /Promise\.race/, "harus punya batas waktu tunggu");
+
+    /* Regresi: polling cepat yang dulu menolak akun OWNER karena role
+       default navigation.js masih \"user\" saat profil belum termuat. */
+    assert.doesNotMatch(page, /attempts >= 20/);
+});
+
+test("guard mengonfirmasi role ke tabel profiles sebelum menolak", () => {
+    const page = read("admin-control/monitoring.html");
+
+    assert.match(page, /var ADMIN_ROLES = \["admin", "owner"\];/);
+    assert.match(page, /async function roleFromProfile/);
+    assert.match(page, /\.from\("profiles"\)/);
+    assert.match(page, /hasAccess\(direct\)/);
+
+    /* Penolakan hanya boleh terjadi setelah role dikonfirmasi. */
+    assert.match(page, /var role = await resolveRole\(\);[\s\S]{0,600}deny\(role\);/);
+});
