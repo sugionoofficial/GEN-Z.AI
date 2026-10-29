@@ -14,7 +14,7 @@ yang punya langkah perbaikan. Halaman ini hanya bisa dibuka **ADMIN** dan
 | Temuan & Cara Mengatasi | Hasil pemeriksaan + error berulang, lengkap dengan langkah perbaikan |
 | Log Aktivitas Live | Aliran kejadian (kunjungan, error, DevTools, API gagal), auto-refresh 10 detik. **Klik satu baris** untuk membuka detail lengkap |
 | Akses & DevTools | IP, kota/negara, ASN, colo, perangkat, status DevTools per pengunjung |
-| Pemeriksaan Rutin | Interval pemeriksaan, masa simpan log, saklar alert |
+| Pemeriksaan Rutin | Interval pemeriksaan, masa simpan log, batas jumlah log, saklar alert |
 
 ## Alur data
 
@@ -71,6 +71,30 @@ pengunjung yang belum login, bagian identitas menampilkan
 Panel detail hanya bisa dibuka ADMIN/OWNER karena action `event` melewati
 pemeriksaan role yang sama dengan seluruh aksi monitoring lain.
 
+## Penyimpanan & batas log
+
+Semua event disimpan di **Supabase**, tabel `public.monitoring_events` (bukan di
+browser). Karena itu jumlahnya dibatasi dua lapis:
+
+1. **Batas jumlah** — `monitoring_settings.max_events` (default **500**).
+   Fungsi `prune_monitoring_events(p_keep)` hanya menyisakan N baris terbaru.
+   `runMonitoringCron()` memanggilnya **setiap menit**, jadi tabel tidak pernah
+   menyimpan jauh lebih dari batas — walaupun pemeriksaan penuh baru jatuh tempo
+   setiap 15 menit. Pemangkasan juga berjalan setiap kali "Periksa sekarang"
+   selesai dan saat tombol "Bersihkan log lama" ditekan.
+2. **Batas umur** — `monitoring_settings.retention_days` (default 30 hari).
+   Baris yang lebih tua dari batas ini dihapus pada pemeriksaan terjadwal.
+
+Keduanya berlaku bersamaan: mana pun yang lebih dulu tercapai, baris lama yang
+dihapus.
+
+### Tampilan log
+
+Panel log punya pemilih **50 / 100 / 500** baris. Pilihan disimpan di
+`localStorage` (`genz-monitoring-log-limit`) sehingga bertahan saat halaman
+dimuat ulang. Server membatasi `limit` maksimal 500 lewat `buildEventFilter()`,
+jadi angka besar dari luar tidak bisa memaksa query berat.
+
 ## Deteksi DevTools: batas kemampuannya
 
 Browser tidak menyediakan API resmi. Beacon memakai dua heuristik:
@@ -110,7 +134,7 @@ Saat pemeriksaan berjalan:
 
 ## Pemasangan
 
-1. Jalankan `supabase/monitoring-blackbox.sql` (idempotent).
+1. Jalankan `supabase/monitoring-blackbox.sql` lalu `supabase/monitoring-log-cap.sql` (keduanya idempotent).
 2. Deploy Worker: `npm run deploy` (`/api/monitoring` dan cron baru ikut).
 3. Buka **Admin Panel → MONITORING**, tekan **Periksa sekarang**.
 

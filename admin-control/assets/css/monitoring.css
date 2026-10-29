@@ -995,3 +995,59 @@ html[data-genz-theme="light"] .mon-detail-pre {
         text-transform: uppercase;
     }
 }
+
+/* ---------------------------------------------------------
+   PEMILIH JUMLAH LOG (50 / 100 / 500)
+   --------------------------------------------------------- */
+
+.mon-limit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--bb-muted);
+}
+
+.mon-limit select {
+    appearance: none;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid var(--bb-shell-border);
+    border-radius: 9px;
+    color: var(--bb-text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    padding: 6px 26px 6px 10px;
+    cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--bb-muted) 50%),
+        linear-gradient(135deg, var(--bb-muted) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 52%, calc(100% - 9px) 52%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+}
+
+.mon-limit select:focus {
+    outline: none;
+    border-color: var(--bb-green-line);
+    box-shadow: 0 0 0 3px rgba(57, 255, 113, .12);
+}
+
+.mon-limit select option {
+    background: #061009;
+    color: var(--bb-text);
+}
+
+html[data-genz-theme="light"] .mon-limit select {
+    background-color: #ffffff;
+    border-color: rgba(10, 20, 14, .16);
+    color: #0d1a13;
+}
+
+html[data-genz-theme="light"] .mon-limit select option {
+    background: #ffffff;
+    color: #0d1a13;
+}

@@ -35,6 +35,7 @@ import {
     normalizeEventInput,
     normalizeUserId,
     parseUserAgent,
+    pruneEventOverflow,
     pruneOldEvents,
     readNetworkContext,
     REMEDIATION,
@@ -360,7 +361,8 @@ function buildEventFilter(query) {
         filters.push(`occurred_at=gte.${encodeURIComponent(since)}`);
     }
 
-    const limit = Math.min(200, Math.max(1, Number(query.limit) || 50));
+    /* Halaman menyediakan pilihan 50 / 100 / 500 baris. */
+    const limit = Math.min(500, Math.max(1, Number(query.limit) || 50));
     filters.push(`limit=${limit}`);
 
     return `/monitoring_events?${filters.join("&")}`;
@@ -493,6 +495,7 @@ async function handleScan(res, config, fetchImpl) {
 export function normalizeSettingsInput(body = {}) {
     const interval = Number(body.scan_interval_minutes);
     const retention = Number(body.retention_days);
+    const maxEvents = body.max_events === undefined ? 500 : Number(body.max_events);
 
     if (!Number.isFinite(interval) || interval < 1 || interval > 1440) {
         return { error: "Interval pemeriksaan harus antara 1 dan 1440 menit." };
@@ -500,11 +503,15 @@ export function normalizeSettingsInput(body = {}) {
     if (!Number.isFinite(retention) || retention < 1 || retention > 365) {
         return { error: "Masa simpan log harus antara 1 dan 365 hari." };
     }
+    if (!Number.isFinite(maxEvents) || maxEvents < 50 || maxEvents > 10000) {
+        return { error: "Batas jumlah log harus antara 50 dan 10000 baris." };
+    }
 
     return {
         value: {
             scan_interval_minutes: Math.round(interval),
             retention_days: Math.round(retention),
+            max_events: Math.round(maxEvents),
             devtools_alerts: body.devtools_alerts !== false,
             error_alerts: body.error_alerts !== false,
             updated_at: new Date().toISOString()
@@ -585,7 +592,8 @@ export default async function handler(req, res) {
             if (action === "purge") {
                 const settings = await fetchSettings(config, fetchImpl).catch(() => null);
                 const cutoff = await pruneOldEvents(config, settings?.retention_days || 30, fetchImpl);
-                return send(res, 200, { success: true, cutoff });
+                const removed = await pruneEventOverflow(config, settings?.max_events || 500, fetchImpl);
+                return send(res, 200, { success: true, cutoff, removed });
             }
 
             return fail(res, 404, "Aksi tidak dikenal.");
@@ -621,4 +629,4 @@ export default async function handler(req, res) {
 }
 
 /* Dipakai test supaya perilakunya sama dengan cron. */
-export { buildFindings, saveHealthChecks, upsertFindings };
+export { buildEventFilter, buildFindings, saveHealthChecks, upsertFindings };

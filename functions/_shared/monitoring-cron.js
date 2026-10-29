@@ -16,6 +16,7 @@ import {
     fetchSettings,
     getMonitoringConfig,
     isConfigured,
+    pruneEventOverflow,
     pruneOldEvents,
     runMonitoringScan
 } from "../../lib/monitoring/health.js";
@@ -36,8 +37,15 @@ export async function runMonitoringCron(env, scheduledTime = new Date()) {
     const intervalMs = Math.max(1, Number(settings.scan_interval_minutes) || 15) * 60 * 1000;
     const lastScan = settings.last_scan_at ? Date.parse(settings.last_scan_at) : 0;
 
+    /*
+     * Batas jumlah log ditegakkan SETIAP menit, bukan hanya saat pemeriksaan
+     * penuh jatuh tempo — supaya tabel monitoring_events tidak pernah
+     * menyimpan jauh lebih dari `max_events` baris.
+     */
+    const pruned = await pruneEventOverflow(config, settings.max_events || 500);
+
     if (lastScan && Number.isFinite(lastScan) && now - lastScan < intervalMs) {
-        return { skipped: true, reason: "not_due", next_in_ms: intervalMs - (now - lastScan) };
+        return { skipped: true, reason: "not_due", next_in_ms: intervalMs - (now - lastScan), pruned };
     }
 
     /* Retensi dijalankan bersamaan dengan pemeriksaan (paling sering
@@ -55,5 +63,5 @@ export async function runMonitoringCron(env, scheduledTime = new Date()) {
         `[Monitoring] Pemeriksaan selesai: ${checks.length} target, ${failed} gagal, ${warned} peringatan, ${findings.length} temuan.`
     );
 
-    return { skipped: false, checks: checks.length, failed, warned, findings: findings.length };
+    return { skipped: false, checks: checks.length, failed, warned, findings: findings.length, pruned };
 }

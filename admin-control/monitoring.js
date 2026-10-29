@@ -14,9 +14,23 @@
 const ENDPOINT = "/api/monitoring";
 const REFRESH_MS = 10000;
 
+const LOG_LIMIT_OPTIONS = [50, 100, 500];
+const LOG_LIMIT_STORAGE_KEY = "genz-monitoring-log-limit";
+
+function readLogLimit() {
+    try {
+        const saved = Number(window.localStorage?.getItem(LOG_LIMIT_STORAGE_KEY));
+        if (LOG_LIMIT_OPTIONS.includes(saved)) return saved;
+    } catch {
+        /* localStorage bisa dibatasi browser */
+    }
+    return 50;
+}
+
 const state = {
     busy: false,
     filter: "all",
+    logLimit: readLogLimit(),
     events: [],
     accessRows: [],
     settings: null,
@@ -349,7 +363,7 @@ function renderLog(events) {
     const filtered = (events || []).filter(matchesFilter);
 
     $("monLogMeta").textContent =
-        `${filtered.length} BARIS · ${state.filter.toUpperCase()}`;
+        `${filtered.length} BARIS · ${state.filter.toUpperCase()} · MAKS ${state.logLimit}`;
 
     const signature = filtered.map(event => event.id).join(",");
     const isNew = signature !== state.lastLogSignature;
@@ -366,7 +380,7 @@ function renderLog(events) {
         return;
     }
 
-    filtered.slice(0, 120).forEach((event, index) => {
+    filtered.slice(0, state.logLimit).forEach((event, index) => {
         const row = el("tr");
 
         row.append(el("td", "mon-log-time", formatTime(event.occurred_at)));
@@ -495,6 +509,10 @@ function renderSettings(settings) {
         $("monRetention").value = String(settings.retention_days ?? 30);
     }
 
+    if (document.activeElement !== $("monMaxEvents")) {
+        $("monMaxEvents").value = String(settings.max_events ?? 500);
+    }
+
     $("monDevtoolsAlerts").checked = settings.devtools_alerts !== false;
     $("monErrorAlerts").checked = settings.error_alerts !== false;
 
@@ -550,7 +568,9 @@ async function refresh(options = {}) {
         renderFindings(data.findings);
         renderSettings(data.settings);
 
-        const eventData = await api("events&limit=120").catch(() => ({ rows: [] }));
+        const eventData = await api(`events&limit=${state.logLimit}`).catch(() => ({ rows: [] }));
+        const limitSelect = $("monLogLimit");
+        if (limitSelect) limitSelect.value = String(state.logLimit);
         state.events = (eventData.rows || []).length ? eventData.rows : data.events;
 
         renderLog(state.events);
@@ -752,6 +772,7 @@ async function saveSettings() {
             body: {
                 scan_interval_minutes: Number($("monInterval").value),
                 retention_days: Number($("monRetention").value),
+                max_events: Number($("monMaxEvents").value),
                 devtools_alerts: $("monDevtoolsAlerts").checked,
                 error_alerts: $("monErrorAlerts").checked
             }
@@ -813,6 +834,20 @@ function bindEvents() {
     $("monPurge").addEventListener("click", purgeOldLogs);
 
     $("monAuto").addEventListener("change", startPolling);
+
+    $("monLogLimit").addEventListener("change", event => {
+        const value = Number(event.target.value);
+
+        state.logLimit = LOG_LIMIT_OPTIONS.includes(value) ? value : 50;
+
+        try {
+            window.localStorage?.setItem(LOG_LIMIT_STORAGE_KEY, String(state.logLimit));
+        } catch {
+            /* abaikan */
+        }
+
+        refresh({ silent: true });
+    });
 
     $("monLogBody").addEventListener("click", event => {
         const row = event.target.closest("[data-event-id]");

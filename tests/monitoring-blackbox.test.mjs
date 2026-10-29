@@ -699,3 +699,113 @@ test("identitas dari token sesi menimpa user_id kiriman browser", async () => {
         globalThis.fetch = original;
     }
 });
+
+/* ---------------------------------------------------------
+   BATAS JUMLAH LOG (500) + PILIHAN 50 / 100 / 500
+   --------------------------------------------------------- */
+
+test("migrasi menambah max_events dan fungsi pangkas log", () => {
+    const sql = read("supabase/monitoring-log-cap.sql");
+
+    assert.match(sql, /add column if not exists max_events integer not null default 500/);
+    assert.match(sql, /check \(max_events between 50 and 10000\)/);
+    assert.match(sql, /create or replace function public\.prune_monitoring_events\(p_keep integer default 500\)/);
+    assert.match(sql, /offset v_keep/);
+    assert.match(sql, /revoke all on function public\.prune_monitoring_events/);
+});
+
+test("filter log dibatasi maksimal 500 baris", async () => {
+    const { buildEventFilter } = await import("../api/monitoring.js");
+
+    assert.equal(buildEventFilter({ limit: "500" }).endsWith("limit=500"), true);
+    assert.match(buildEventFilter({ limit: "9000" }), /limit=500$/, "tidak boleh lebih dari 500");
+    assert.match(buildEventFilter({}), /limit=50$/, "bawaan 50 baris");
+});
+
+test("validasi pengaturan menolak batas log di luar rentang", () => {
+    assert.ok(normalizeSettingsInput({ scan_interval_minutes: 15, retention_days: 30, max_events: 10 }).error);
+    assert.ok(normalizeSettingsInput({ scan_interval_minutes: 15, retention_days: 30, max_events: 20000 }).error);
+
+    const ok = normalizeSettingsInput({ scan_interval_minutes: 15, retention_days: 30, max_events: 500 });
+    assert.equal(ok.value.max_events, 500);
+
+    const fallback = normalizeSettingsInput({ scan_interval_minutes: 15, retention_days: 30 });
+    assert.equal(fallback.value.max_events, 500, "tanpa isian, bawaan 500");
+});
+
+test("halaman menyediakan pilihan 50 / 100 / 500 dan mengirim limit ke API", () => {
+    const page = read("admin-control/monitoring.html");
+    const script = read("admin-control/monitoring.js");
+
+    assert.match(page, /id="monLogLimit"/);
+    for (const value of ["50", "100", "500"]) {
+        assert.match(page, new RegExp(`<option value="${value}">${value}</option>`));
+    }
+
+    assert.match(script, /const LOG_LIMIT_OPTIONS = \[50, 100, 500\];/);
+    assert.match(script, /api\(`events&limit=\$\{state\.logLimit\}`\)/);
+    assert.match(script, /filtered\.slice\(0, state\.logLimit\)/);
+});
+
+test("cron menegakkan batas log setiap menit meski pemeriksaan belum jatuh tempo", async () => {
+    let pruned = false;
+
+    const original = globalThis.fetch;
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        const method = String(options.method || "GET").toUpperCase();
+
+        if (url.includes("/rpc/prune_monitoring_events")) {
+            pruned = true;
+            return Response.json(3);
+        }
+        if (url.includes("/rest/v1/monitoring_settings")) {
+            return Response.json([baseSettings({ last_scan_at: new Date().toISOString(), max_events: 500 })]);
+        }
+
+        return Response.json(method === "GET" ? [] : {});
+    };
+
+    try {
+        const result = await runMonitoringCron(ENV, new Date());
+        assert.equal(result.skipped, true);
+        assert.equal(result.pruned, 3);
+        assert.equal(pruned, true, "RPC pangkas harus dipanggil walaupun scan belum due");
+    } finally {
+        globalThis.fetch = original;
+    }
+});
+
+test("pemangkas log memanggil RPC dengan batas yang benar", async () => {
+    const { pruneEventOverflow } = await import("../lib/monitoring/health.js");
+
+    let payload = null;
+    let target = "";
+    const original = globalThis.fetch;
+
+    globalThis.fetch = async (input, options = {}) => {
+        target = String(input);
+        payload = JSON.parse(options.body || "{}");
+        return Response.json(7);
+    };
+
+    try {
+        const removed = await pruneEventOverflow(
+            { supabaseUrl: "https://project.example", serviceKey: "k" },
+            500
+        );
+
+        assert.equal(removed, 7);
+        assert.match(target, /\/rest\/v1\/rpc\/prune_monitoring_events$/);
+        assert.equal(payload.p_keep, 500);
+
+        /* Di bawah 50 harus dinaikkan, di atas 10000 diturunkan. */
+        await pruneEventOverflow({ supabaseUrl: "https://project.example", serviceKey: "k" }, 5);
+        assert.equal(payload.p_keep, 50);
+
+        await pruneEventOverflow({ supabaseUrl: "https://project.example", serviceKey: "k" }, 999999);
+        assert.equal(payload.p_keep, 10000);
+    } finally {
+        globalThis.fetch = original;
+    }
+});
