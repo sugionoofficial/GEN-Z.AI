@@ -292,7 +292,7 @@ test("worker menjalankan cron retensi bersama cron social publisher", () => {
     assert.match(worker, /Promise\.allSettled/);
 });
 
-test("UI: info 1 jam di Generate, 24 jam di History & Upscale", () => {
+test("UI: info 1 jam di Generate & History, 24 jam di Upscale", () => {
     const generate = read("generate/index.html");
     assert.match(generate, /id="generateStorageNote"/);
     assert.match(generate, /hanya bisa dipakai[\s\S]*?<strong>1 jam<\/strong>/);
@@ -300,8 +300,15 @@ test("UI: info 1 jam di Generate, 24 jam di History & Upscale", () => {
 
     const history = read("history/index.html");
     assert.match(history, /id="historyRetentionNotice"/);
-    assert.match(history, /maksimal 24 jam/);
-    assert.match(history, /KEDALUWARSA/);
+    assert.match(
+        history,
+        /Media hasil generate &amp; upscale disimpan <strong>maksimal 1 jam<\/strong>\./
+    );
+    assert.match(
+        history,
+        /Setelah itu file dihapus otomatis dan riwayatnya ditandai[\s\S]*?<strong>KEDALUWARSA<\/strong>\./
+    );
+    assert.doesNotMatch(history, /maksimal 24 jam/);
     assert.match(history, /thumbnail-expired/);
 
     const upscale = read("upscale/index.html");
