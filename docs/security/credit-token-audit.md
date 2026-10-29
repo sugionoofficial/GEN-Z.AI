@@ -138,7 +138,7 @@ Temuan dari `get_auth_config` + status penerapan:
 | `password_min_length` | `6` | **Belum** — field tidak diekspos connector. Catatan: client sudah mewajibkan 8 (`register.html:2076,2806`, `reset-password.html:1026,1830`), jadi menaikkan ke 8 tidak akan memutus alur. |
 | `password_hibp_enabled` | `false` | **Belum** — field tidak diekspos connector |
 | `security_update_password_require_reauthentication` | `false` | **Sengaja dibiarkan** — alur reset password memakai tautan email (`user/profile.html:1515`), mengaktifkan ini akan memutus reset |
-| `jwt_exp` | `86400` (24 jam) | **SUDAH diubah** 2026-10-29 (dari `604800` = 7 hari). Lihat §7 |
+| `jwt_exp` | `3600` (1 jam) | **SUDAH diubah** 2026-10-29 (dari `604800` = 7 hari → 24 jam → 1 jam). Lihat §7 |
 | `refresh_token_rotation_enabled` | `true`, reuse 60 s | Sudah baik |
 | `mailer_autoconfirm` | `false` | Sudah baik (email wajib diverifikasi) |
 | `external_anonymous_users_enabled` | `true` | Dibiarkan — dipakai tamu live-chat (`assets/js/support-chat.js:354`); user baru dibuat dengan `credits = 0` (`handle_new_user`), jadi tidak bisa dipakai farming kredit |
@@ -271,33 +271,47 @@ sebelum perbaikan ini tidak ada log yang bisa membedakan pemakaian sah dan tidak
 
 ## 7. Perubahan `jwt_exp` (2026-10-29)
 
-**Sebelum:** `604800` detik = 7 hari. **Sesudah:** `86400` detik = 24 jam.
+**Sebelum:** `604800` detik = 7 hari → **24 jam** (`86400`) → **akhirnya 1 jam** (`3600`).
 
 Diterapkan lewat `update_auth_config` (field ini termasuk yang diekspos connector Supabase),
-lalu diverifikasi dengan `get_auth_config`: `jwt_exp: 86400` — setelan lain utuh
-(`rate_limit_email_sent: 2`, `security_captcha_provider: hcaptcha`, `sessions_*: 0`,
-`refresh_token_rotation_enabled: true`).
+diverifikasi ulang dengan `get_auth_config`: `jwt_exp: 3600`, setelan lain utuh
+(`rate_limit_token_refresh: 150`, `rate_limit_email_sent: 2`,
+`security_captcha_provider: hcaptcha`, `sessions_*: 0`,
+`refresh_token_rotation_enabled: true`, `security_refresh_token_reuse_interval: 60`).
 
-### Kenapa aman untuk aplikasi
+### Ini BUKAN auto-logout
 
-- Client tidak pernah mengasumsikan umur token. Ia membaca `expires_at` / `expires_in` dari respons
-  auth dan menyimpannya (`assets/js/auth.js:115-130, 314-327`), lalu refresh otomatis bila sisa umur
-  < `TOKEN_REFRESH_BUFFER_SEC = 300` detik (`assets/js/auth.js:76`, `navigation/navigation.js:62`,
-  `generate/assets/js/generate-auth.js:45`).
-- Repo tidak punya nilai `604800` yang di-hardcode untuk token (grep bersih; angka 86400 yang ada
-  hanya dipakai untuk header CORS dan hitungan umur langganan Studio Medsos).
-- Token dibuat saat login untuk pertama kali di perangkat yang belum punya sesi.
+`jwt_exp` hanya umur **access token** (tiket per-request). Sesi login ditentukan
+**refresh token**, yang tidak ikut kedaluwarsa selama dipakai. Konsekuensinya user
+tidak perlu login ulang tiap jam; token lama ditukar otomatis sebelum habis.
 
-### Efek yang perlu diketahui
+### Mekanisme refresh di aplikasi (sudah diverifikasi)
 
-- **Sesi yang sedang berjalan tidak langsung berubah**: access token yang sudah terbit tetap berlaku
-  sampai `exp` lamanya (sisa hingga 7 hari), token berikutnya baru berumur 24 jam. Tidak perlu
-  memaksa logout.
-- Refresh jadi lebih sering (maksimal 1×/24 jam per tab), jauh di bawah
-  `rate_limit_token_refresh = 150`/jam. Reuse interval 60 detik tetap menutup race multi-tab.
-- Jendela penyalahgunaan bila access token dicuri menyempit dari 7 hari menjadi 24 jam.
+| Lokasi | Mekanisme |
+| --- | --- |
+| `navigation/navigation.js:63,1230` | keep-alive tiap **4 menit** memanggil `ensureFreshToken()` (non-force) |
+| `navigation/navigation.js:1237-1260` | refresh saat tab kembali aktif, window fokus, jaringan online, `storage` event lintas tab |
+| `navigation/navigation.js:557-561` | rotasi refresh token hanya bila sisa umur < `TOKEN_REFRESH_BUFFER_SEC = 300` detik; selain itu hanya sinkronisasi sesi ke memori |
+| `assets/js/auth.js:238-330` | `ensureFreshStoredSession()`, buffer 300 detik, baca `expires_at`/`expires_in` (tidak pernah hardcode umur token) |
+| `generate/assets/js/generate-auth.js:1163-1178` | `getAccessToken()` selalu `ensureFreshToken()` dulu → semua request generate & polling status memakai token segar |
+| `topup/payment/index.html:1015` | memakai `supabase.createClient` (autoRefreshToken bawaan supabase-js) |
+| `assets/js/auth.js:294-300` | storage baru dibersihkan (→ login) hanya bila endpoint refresh menjawab 400/401/403 (refresh token benar-benar tidak valid) |
 
-### Langkah lanjutan (opsional)
+Dengan token 1 jam, rotasi terjadi ≈ **1×/jam per tab** (bukan tiap 4 menit), jauh di bawah
+`rate_limit_token_refresh = 150`/jam. Reuse interval 60 detik menutup race antar-tab saat rotasi.
 
-Bila setelah beberapa hari tidak ada keluhan sesi, turunkan lagi ke `3600` (1 jam) lewat
-`update_auth_config`; pantau `rate_limit_token_refresh` dan keluhan logout mendadak.
+### Yang perlu dipantau
+
+- **Server yang clock-nya melenceng** bisa memicu 401 lebih sering; pantau log 401 di Worker.
+- **Tab yang lama di-background** (browser membekukan timer) akan me-refresh saat kembali aktif —
+  jalur ini sudah ditangani listener `visibilitychange`/`focus`.
+- **Task panjang** (video > 1 jam) aman: polling status memanggil `getAccessToken()` setiap kali,
+  dan token diverifikasi di awal tiap request (`api/generate.js:499`).
+- Bila muncul keluhan login mendadak, naikkan kembali ke `86400` lewat `update_auth_config`
+  (satu field, instan, tanpa deploy).
+
+### Sesi tetap tidak dibatasi waktu
+
+`sessions_timebox: 0` dan `sessions_inactivity_timeout: 0` → sesi bisa bertahan berbulan-bulan
+selama refresh token dipakai. Kalau ingin ada logout otomatis (mis. 30 hari), itu setelan
+terpisah di Dashboard, bukan `jwt_exp`.
