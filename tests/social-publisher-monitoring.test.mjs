@@ -82,3 +82,21 @@ test("health check mengembalikan ringkasan jsonb yang bisa dipantau", () => {
         assert.ok(sql.includes(key), `output harus memuat ${key}`);
     }
 });
+
+test("riwayat gagal lama yang sudah pulih tidak menyalakan alarm merah palsu", () => {
+    /* Variabel lagu wajib terdeklarasi di DECLARE agar migrasi valid. */
+    assert.match(sql, /v_songs_total\s+int\s*:=\s*0/i);
+    assert.match(sql, /v_songs_active\s+int\s*:=\s*0/i);
+    assert.match(sql, /v_songs_unusable\s+int\s*:=\s*0/i);
+
+    /* OPUS_RELOGIN_REQUIRED hanya bila invalid_grant terjadi SETELAH post sukses terakhir. */
+    assert.match(sql, /if v_opus_relogin_unresolved > 0 then[\s\S]{0,160}OPUS_RELOGIN_REQUIRED/);
+
+    /* Code 368 tidak boleh disebut blokir/pembatasan Page. */
+    assert.doesNotMatch(sql, /run gagal karena Page dibatasi Facebook/i);
+    assert.match(sql, /Bukan blokir Page/i);
+
+    /* Catatan level 'info' tidak boleh membuat status `ok` jadi false. */
+    assert.match(sql, /where item ->> 'level' in \('error', 'warning'\)/);
+    assert.match(sql, /'ok',\s*not v_has_problem/);
+});

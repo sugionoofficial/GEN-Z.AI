@@ -2,7 +2,7 @@
    GEN-Z.AI — SOCIAL PUBLISHER HEALTH CHECK
    ---------------------------------------------------------
    Status: SUDAH DIJALANKAN di project ycovbqmezhrvzobxqnyp
-           (GEN-Z.AI) pada 2026-10-29. Idempotent.
+           (GEN-Z.AI). Idempotent.
 
    LATAR BELAKANG
    Autopost Facebook berjalan lewat cron Cloudflare Worker tiap
@@ -24,8 +24,15 @@
    (bukan 'success'). Kumpulan status sukses dibuat eksplisit:
    ('posted','success','published','completed','done').
 
-   Fungsi ini merangkum keempat risiko itu dalam satu panggilan
-   supaya bisa dipantau manusia maupun cron/dashboard.
+   CATATAN RIWAYAT VS GANGGUAN AKTIF:
+   - OPUS_RELOGIN_REQUIRED hanya diangkat sebagai error bila masih ada
+     kegagalan invalid_grant SETELAH posting sukses terakhir (kalau sudah
+     login ulang dan posting berikutnya sukses, riwayat lama tidak lagi
+     menyuruh login ulang).
+   - FACEBOOK_ACTION_REJECTED (code 368 = aksi dianggap spam/abusive oleh
+     Meta, BUKAN blokir Page) dan CONTENT_POLICY_REJECTED diturunkan jadi
+     catatan 'info' bila posting sesudahnya sudah kembali berhasil, sehingga
+     status `ok` mencerminkan kondisi autopost saat ini.
 
    KEAMANAN
    SECURITY DEFINER (perlu membaca tabel yang RLS-nya tertutup
@@ -64,8 +71,15 @@ declare
     v_opus_expired int := 0;
     v_opus_nearest timestamptz;
     v_opus_relogin int := 0;
-    v_fb_restricted int := 0;
+    v_opus_relogin_unresolved int := 0;
+    v_fb_rejected int := 0;
+    v_fb_rejected_unresolved int := 0;
     v_policy_rejects int := 0;
+    v_policy_unresolved int := 0;
+    v_songs_total int := 0;
+    v_songs_active int := 0;
+    v_songs_unusable int := 0;
+    v_has_problem boolean := false;
     v_alerts jsonb := '[]'::jsonb;
 begin
     /* ---------- otorisasi ---------- */
@@ -105,10 +119,16 @@ begin
               and a.expires_at > now()
        );
 
-    /* ---------- run (24 jam terakhir + penyebab gagal) ---------- */
-    select count(*) filter (where status in ('generating', 'publishing', 'running')),
+    /* ---------- waktu sukses terakhir ---------- */
+    select max(coalesce(finished_at, created_at))
+      into v_last_success_at
+      from public.social_post_runs
+     where lower(coalesce(status, '')) in ('posted', 'success', 'published', 'completed', 'done');
+
+    /* ---------- run (24 jam terakhir + apakah masih belum pulih setelah sukses terakhir) ---------- */
+    select count(*) filter (where lower(coalesce(status, '')) in ('generating', 'publishing', 'running')),
            count(*) filter (
-               where status in ('generating', 'publishing', 'running')
+               where lower(coalesce(status, '')) in ('generating', 'publishing', 'running')
                  and coalesce(started_at, created_at) < now() - interval '30 minutes'
            ),
            count(*) filter (
@@ -119,9 +139,6 @@ begin
                where lower(coalesce(status, '')) in ('posted', 'success', 'published', 'completed', 'done')
                  and coalesce(finished_at, created_at) > now() - interval '24 hours'
            ),
-           max(coalesce(finished_at, created_at)) filter (
-               where lower(coalesce(status, '')) in ('posted', 'success', 'published', 'completed', 'done')
-           ),
            count(*) filter (
                where lower(coalesce(status, '')) = 'failed'
                  and coalesce(finished_at, created_at) > now() - interval '24 hours'
@@ -130,8 +147,25 @@ begin
            count(*) filter (
                where lower(coalesce(status, '')) = 'failed'
                  and coalesce(finished_at, created_at) > now() - interval '24 hours'
+                 and coalesce(finished_at, created_at) > coalesce(v_last_success_at, '-infinity'::timestamptz)
+                 and lower(coalesce(error_message, '')) like '%invalid_grant%'
+           ),
+           count(*) filter (
+               where lower(coalesce(status, '')) = 'failed'
+                 and coalesce(finished_at, created_at) > now() - interval '24 hours'
                  and (
                      lower(coalesce(error_message, '')) like '%code 368%'
+                     or lower(coalesce(error_message, '')) like '%ditolak facebook%'
+                     or lower(coalesce(error_message, '')) like '%dibatasi sementara%'
+                 )
+           ),
+           count(*) filter (
+               where lower(coalesce(status, '')) = 'failed'
+                 and coalesce(finished_at, created_at) > now() - interval '24 hours'
+                 and coalesce(finished_at, created_at) > coalesce(v_last_success_at, '-infinity'::timestamptz)
+                 and (
+                     lower(coalesce(error_message, '')) like '%code 368%'
+                     or lower(coalesce(error_message, '')) like '%ditolak facebook%'
                      or lower(coalesce(error_message, '')) like '%dibatasi sementara%'
                  )
            ),
@@ -142,15 +176,26 @@ begin
                      lower(coalesce(error_message, '')) like '%kebijakan konten%'
                      or lower(coalesce(error_message, '')) like '%was rejec%'
                  )
+           ),
+           count(*) filter (
+               where lower(coalesce(status, '')) = 'failed'
+                 and coalesce(finished_at, created_at) > now() - interval '24 hours'
+                 and coalesce(finished_at, created_at) > coalesce(v_last_success_at, '-infinity'::timestamptz)
+                 and (
+                     lower(coalesce(error_message, '')) like '%kebijakan konten%'
+                     or lower(coalesce(error_message, '')) like '%was rejec%'
+                 )
            )
       into v_runs_active,
            v_runs_stale,
            v_runs_failed_24h,
            v_runs_success_24h,
-           v_last_success_at,
            v_opus_relogin,
-           v_fb_restricted,
-           v_policy_rejects
+           v_opus_relogin_unresolved,
+           v_fb_rejected,
+           v_fb_rejected_unresolved,
+           v_policy_rejects,
+           v_policy_unresolved
       from public.social_post_runs;
 
     /* ---------- token Opus ---------- */
@@ -201,27 +246,40 @@ begin
         );
     end if;
 
-    if v_opus_relogin > 0 then
+    /* Hanya minta login ulang bila invalid_grant masih terjadi SETELAH post sukses terakhir. */
+    if v_opus_relogin_unresolved > 0 then
         v_alerts := v_alerts || jsonb_build_object(
             'level', 'error',
             'code', 'OPUS_RELOGIN_REQUIRED',
-            'message', v_opus_relogin || ' run gagal karena refresh token Opus ditolak (invalid_grant). Perlu login ulang ke Opus Labs.'
+            'message', v_opus_relogin_unresolved || ' run terbaru gagal karena refresh token Opus ditolak (invalid_grant). Perlu login ulang ke Opus Labs.'
         );
     end if;
 
-    if v_fb_restricted > 0 then
+    if v_fb_rejected_unresolved > 0 then
         v_alerts := v_alerts || jsonb_build_object(
-            'level', 'error',
+            'level', 'warning',
             'code', 'FACEBOOK_ACTION_REJECTED',
-            'message', v_fb_restricted || ' run gagal karena Page dibatasi Facebook (code 368). Periksa Page di Facebook.'
+            'message', v_fb_rejected_unresolved || ' run terbaru ditolak Facebook (code 368: aksi dianggap abusive/spam). Bukan blokir Page - periksa caption dan frekuensi post.'
+        );
+    elsif v_fb_rejected > 0 then
+        v_alerts := v_alerts || jsonb_build_object(
+            'level', 'info',
+            'code', 'FACEBOOK_ACTION_REJECTED',
+            'message', v_fb_rejected || ' run sempat ditolak Facebook (code 368, bukan blokir Page) dalam 24 jam terakhir, tetapi posting terbaru sudah kembali berhasil.'
         );
     end if;
 
-    if v_policy_rejects > 0 then
+    if v_policy_unresolved > 0 then
         v_alerts := v_alerts || jsonb_build_object(
             'level', 'warning',
             'code', 'CONTENT_POLICY_REJECTED',
-            'message', v_policy_rejects || ' run ditolak kebijakan konten provider; perlu ubah prompt/scene.'
+            'message', v_policy_unresolved || ' run terbaru ditolak kebijakan konten provider; perlu ubah prompt/scene.'
+        );
+    elsif v_policy_rejects > 0 then
+        v_alerts := v_alerts || jsonb_build_object(
+            'level', 'info',
+            'code', 'CONTENT_POLICY_REJECTED',
+            'message', v_policy_rejects || ' run dalam 24 jam sempat kena filter kebijakan konten provider, tetapi posting terbaru sudah kembali berhasil.'
         );
     end if;
 
@@ -232,6 +290,7 @@ begin
             'message', v_songs_unusable || ' lagu aktif berjudul nama berkas/situs unduhan. Blok lagu otomatis dihilangkan dari caption; ganti judul lagu di panel Lagu Facebook agar fitur lagu random tetap terpakai.'
         );
     end if;
+
     if v_runs_failed_24h > 0 and v_runs_success_24h = 0 then
         v_alerts := v_alerts || jsonb_build_object(
             'level', 'error',
@@ -240,9 +299,16 @@ begin
         );
     end if;
 
+    select exists (
+        select 1
+          from jsonb_array_elements(v_alerts) as item
+         where item ->> 'level' in ('error', 'warning')
+    )
+      into v_has_problem;
+
     return jsonb_build_object(
         'generated_at', now(),
-        'ok', jsonb_array_length(v_alerts) = 0,
+        'ok', not v_has_problem,
         'alerts', v_alerts,
         'schedules', jsonb_build_object(
             'total', v_schedules_total,
@@ -262,8 +328,11 @@ begin
             'success_24h', v_runs_success_24h,
             'last_success_at', v_last_success_at,
             'opus_relogin_24h', v_opus_relogin,
-            'facebook_rejected_24h', v_fb_restricted,
-            'content_policy_24h', v_policy_rejects
+            'opus_relogin_unresolved', v_opus_relogin_unresolved,
+            'facebook_rejected_24h', v_fb_rejected,
+            'facebook_rejected_unresolved', v_fb_rejected_unresolved,
+            'content_policy_24h', v_policy_rejects,
+            'content_policy_unresolved', v_policy_unresolved
         ),
         'songs', jsonb_build_object(
             'total', v_songs_total,
