@@ -18,9 +18,11 @@ import opusOAuthCallback from "../api/opus-oauth-callback.js";
 import sightengineDetect from "../api/sightengine-detect.js";
 import socialPublisher from "../api/social-publisher.js";
 import facebookDataDeletion from "../api/facebook-data-deletion.js";
+import monitoring from "../api/monitoring.js";
 import { runSocialPublisherCron } from "./_shared/social-publisher-cron.js";
 import { runStorageRetentionCron } from "./_shared/storage-retention-cron.js";
 import { runSupportGuestCleanupCron } from "./_shared/support-guest-cleanup-cron.js";
+import { runMonitoringCron } from "./_shared/monitoring-cron.js";
 import viddraAccount from "../api/viddra/account.js";
 import viddraGenerate from "../api/viddra/generate.js";
 import handleTempmail from "./_shared/tempmail-handler.js";
@@ -47,6 +49,8 @@ const handlers = new Map([
     ["/api/social-publisher", socialPublisher],
     ["/api/facebook-oauth-callback", socialPublisher],
     ["/api/facebook-data-deletion", facebookDataDeletion],
+    // BLACK BOX // MONITORING — log aktivitas, kesehatan web, temuan bug.
+    ["/api/monitoring", monitoring],
     // Alias kept for the Deauthorize/Deletion URL field in the Meta dashboard.
     ["/api/data-deletion", facebookDataDeletion],
     ["/api/viddra/account", viddraAccount],
@@ -129,6 +133,12 @@ export default {
             runSupportGuestCleanupCron(env, scheduledAt)
                 .catch(error => {
                     console.error("[Cloudflare Worker] Support guest cleanup cron failed:", error?.message || "unknown error");
+                }),
+
+            // Pemeriksaan rutin BLACK BOX (mengikuti interval di monitoring_settings).
+            runMonitoringCron(env, scheduledAt)
+                .catch(error => {
+                    console.error("[Cloudflare Worker] Monitoring cron failed:", error?.message || "unknown error");
                 })
         ];
 
