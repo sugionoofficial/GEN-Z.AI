@@ -336,6 +336,29 @@ async function ensureStudioAccess(config, userId) {
     return access;
 }
 
+/**
+ * Membaca `public.social_publisher_health()` lewat PostgREST memakai service
+ * role. RPC-nya sendiri sudah menolak anon dan non-admin, tetapi endpoint ini
+ * tetap dibatasi admin supaya panel tidak membocorkan status operasional.
+ */
+async function getAutopostHealth(config) {
+    try {
+        const health = await supabaseRequest(config, "/rest/v1/rpc/social_publisher_health", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({})
+        });
+        return { available: true, health: health || null };
+    } catch (error) {
+        const message = String(error?.message || "");
+        /* Migration belum dijalankan di deployment ini. */
+        if (/social_publisher_health/i.test(message) && /does not exist|schema cache|function/i.test(message)) {
+            return { available: false, health: null };
+        }
+        throw error;
+    }
+}
+
 async function listStudioUsers(config) {
     const [profiles, accessRows] = await Promise.all([
         supabaseRequest(
@@ -4010,6 +4033,11 @@ async function handleGet(req, res, config, userId, env, action, profile = null) 
             outfitLibraryReady: ready,
             outfits: characterId ? outfits.filter(outfit => outfit.character_id === characterId) : outfits
         });
+    }
+    if (action === "autopost-health") {
+        requireStudioAdmin(profile);
+        const { available, health } = await getAutopostHealth(config);
+        return json(res, 200, { success: true, available, health });
     }
     if (action === "songs") {
         const { songs, ready } = await listFacebookSongsForUser(config, userId);
