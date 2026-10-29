@@ -239,6 +239,9 @@ export async function runHandlerAdapter(handler, request, context, env) {
         headers,
         query: getQuery(url),
         env,
+        /* Data Cloudflare (kota/negara/ASN/colo) — satu-satunya sumber
+           lokasi yang tidak bisa dipalsukan dari browser. */
+        cf: request.cf || null,
         body,
         on(event, listener) {
             if (event === "close" && typeof listener === "function") {

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta name="theme-color" content="#000000">
+
+    <meta name="color-scheme" content="dark light">
+
+    <meta
+        name="description"
+        content="GEN-Z.AI Black Box Monitoring — log aktivitas live, kesehatan web, temuan bug, dan pemantauan akses DevTools."
+    >
+
+    <meta name="robots" content="noindex, nofollow">
+
+    <title>GEN-Z.AI — BLACK BOX // MONITORING</title>
+
+    <!-- =====================================================
+         GLOBAL CONFIG + SUPABASE BRIDGE
+    ====================================================== -->
+
+    <script src="../assets/js/config.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+
+    <!-- =====================================================
+         STYLE — premium BLACK BOX + komponen monitoring
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="../assets/css/genz-premium.css?v=navlockup-20261029"
+    >
+
+    <link
+        rel="stylesheet"
+        href="../black-box/assets/css/black-box.css?v=monitoring-20261029"
+    >
+
+    <link
+        rel="stylesheet"
+        href="./assets/css/monitoring.css?v=monitoring-20261029"
+    >
+
+    <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
+    <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
+    <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
+    <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
+
+</head>
+
+<body class="bb-body bb-guard-pending">
+
+<div id="navigation"></div>
+
+<main class="bb-page mon-page" id="monPage" aria-busy="true">
+
+    <!-- =====================================================
+         HERO
+    ====================================================== -->
+
+    <header class="bb-hero">
+
+        <div class="bb-hero-badge">
+
+            <span class="bb-pulse" aria-hidden="true"></span>
+
+            <span>GEN-Z.AI // BLACK BOX RECORDER</span>
+
+        </div>
+
+        <h1 class="bb-title">
+            MONI<em>TORING</em>
+        </h1>
+
+        <p class="bb-sub">
+            Kotak hitam situs: merekam aktivitas, memeriksa kesehatan layanan,
+            menemukan bug lebih awal, dan memberi tahu bila ada yang membuka
+            DevTools pada sesi yang tidak kamu kenali.
+        </p>
+
+        <div class="bb-chip-row">
+
+            <span class="bb-chip">
+                <span class="bb-chip-dot" aria-hidden="true"></span>
+                <span id="monChipOverall">MEMUAT…</span>
+            </span>
+
+            <span class="bb-chip" id="monChipServer">SERVER —</span>
+
+            <span class="bb-chip" id="monChipUpdated">UPDATE —</span>
+
+        </div>
+
+    </header>
+
+    <!-- =====================================================
+         TOOLBAR
+    ====================================================== -->
+
+    <section class="mon-toolbar" aria-label="Kendali monitoring">
+
+        <span class="mon-live" id="monLive">
+
+            <span class="mon-live-dot" aria-hidden="true"></span>
+
+            <span id="monLiveText">LIVE</span>
+
+        </span>
+
+        <label class="mon-switch">
+
+            <input type="checkbox" id="monAuto" checked>
+
+            AUTO-REFRESH 10s
+
+        </label>
+
+        <span class="mon-toolbar-spacer"></span>
+
+        <button type="button" class="mon-btn" id="monScan">
+            Periksa sekarang
+        </button>
+
+        <button type="button" class="mon-btn mon-btn--ghost" id="monRefresh">
+            Muat ulang
+        </button>
+
+        <button type="button" class="mon-btn mon-btn--danger" id="monPurge">
+            Bersihkan log lama
+        </button>
+
+    </section>
+
+    <!-- =====================================================
+         RINGKASAN
+    ====================================================== -->
+
+    <section class="mon-summary" aria-label="Ringkasan 24 jam">
+
+        <div class="mon-stat">
+
+            <span class="mon-stat-label">Status keseluruhan</span>
+
+            <span class="mon-stat-value" id="statOverall">—</span>
+
+            <span class="mon-stat-hint" id="statOverallHint">menunggu pemeriksaan</span>
+
+        </div>
+
+        <div class="mon-stat">
+
+            <span class="mon-stat-label">Aktivitas 24 jam</span>
+
+            <span class="mon-stat-value" id="statEvents">0</span>
+
+            <span class="mon-stat-hint">kejadian terekam</span>
+
+        </div>
+
+        <div class="mon-stat">
+
+            <span class="mon-stat-label">Error 24 jam</span>
+
+            <span class="mon-stat-value" id="statErrors">0</span>
+
+            <span class="mon-stat-hint">error &amp; kegagalan API</span>
+
+        </div>
+
+        <div class="mon-stat">
+
+            <span class="mon-stat-label">Akses DevTools</span>
+
+            <span class="mon-stat-value" id="statDevtools">0</span>
+
+            <span class="mon-stat-hint">dalam 24 jam terakhir</span>
+
+        </div>
+
+    </section>
+
+    <!-- =====================================================
+         PANEL
+    ====================================================== -->
+
+    <div class="mon-grid">
+
+        <!-- KESEHATAN WEB -->
+
+        <section class="mon-panel mon-panel--wide" aria-labelledby="monHealthTitle">
+
+            <div class="mon-panel-head">
+
+                <h2 class="mon-panel-title" id="monHealthTitle">
+                    Kesehatan Web
+                </h2>
+
+                <span class="mon-panel-meta" id="monHealthMeta">—</span>
+
+            </div>
+
+            <div class="mon-health-grid" id="monHealthGrid">
+
+                <div class="mon-empty">
+                    Memuat hasil pemeriksaan…
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- TEMUAN BUG -->
+
+        <section class="mon-panel" aria-labelledby="monFindingsTitle">
+
+            <div class="mon-panel-head">
+
+                <h2 class="mon-panel-title" id="monFindingsTitle">
+                    Temuan &amp; Cara Mengatasi
+                </h2>
+
+                <span class="mon-panel-meta" id="monFindingsMeta">—</span>
+
+            </div>
+
+            <div class="mon-findings" id="monFindings">
+
+                <div class="mon-empty">
+                    Belum ada temuan.
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- PEMERIKSAAN RUTIN -->
+
+        <section class="mon-panel" aria-labelledby="monScheduleTitle">
+
+            <div class="mon-panel-head">
+
+                <h2 class="mon-panel-title" id="monScheduleTitle">
+                    Pemeriksaan Rutin
+                </h2>
+
+                <span class="mon-panel-meta" id="monSettingsMeta">—</span>
+
+            </div>
+
+            <form class="mon-form" id="monSettingsForm">
+
+                <div class="mon-field">
+
+                    <label for="monInterval">Interval (menit)</label>
+
+                    <input
+                        type="number"
+                        id="monInterval"
+                        min="1"
+                        max="1440"
+                        step="1"
+                        value="15"
+                        required
+                    >
+
+                </div>
+
+                <div class="mon-field">
+
+                    <label for="monRetention">Simpan log (hari)</label>
+
+                    <input
+                        type="number"
+                        id="monRetention"
+                        min="1"
+                        max="365"
+                        step="1"
+                        value="30"
+                        required
+                    >
+
+                </div>
+
+            </form>
+
+            <div class="mon-form-foot">
+
+                <label class="mon-switch">
+                    <input type="checkbox" id="monDevtoolsAlerts" checked>
+                    ALERT DEVTOOLS
+                </label>
+
+                <label class="mon-switch">
+                    <input type="checkbox" id="monErrorAlerts" checked>
+                    ALERT ERROR
+                </label>
+
+            </div>
+
+            <div class="mon-form-foot">
+
+                <button type="button" class="mon-btn" id="monSaveSettings">
+                    Simpan jadwal
+                </button>
+
+                <span class="mon-note" id="monNextScan">
+                    Pemeriksaan berikutnya: —
+                </span>
+
+            </div>
+
+            <p class="mon-note">
+                Cron Worker berjalan setiap menit, tetapi pemeriksaan penuh hanya
+                dijalankan bila interval di atas sudah terlewati. Log yang lebih tua
+                dari batas simpan dihapus otomatis.
+            </p>
+
+        </section>
+
+        <!-- LOG AKTIVITAS -->
+
+        <section class="mon-panel mon-panel--wide" aria-labelledby="monLogTitle">
+
+            <div class="mon-panel-head">
+
+                <h2 class="mon-panel-title" id="monLogTitle">
+                    Log Aktivitas Live
+                </h2>
+
+                <span class="mon-panel-meta" id="monLogMeta">—</span>
+
+            </div>
+
+            <div class="mon-filter-row" id="monFilterRow" role="group" aria-label="Filter log">
+
+                <button type="button" class="mon-filter" data-filter="all" aria-pressed="true">
+                    Semua
+                </button>
+
+                <button type="button" class="mon-filter" data-filter="devtools" aria-pressed="false">
+                    DevTools
+                </button>
+
+                <button type="button" class="mon-filter" data-filter="error" aria-pressed="false">
+                    Error
+                </button>
+
+                <button type="button" class="mon-filter" data-filter="page_view" aria-pressed="false">
+                    Kunjungan
+                </button>
+
+                <button type="button" class="mon-filter" data-filter="api_failure" aria-pressed="false">
+                    API gagal
+                </button>
+
+            </div>
+
+            <div class="mon-log-wrap">
+
+                <table class="mon-log">
+
+                    <thead>
+
+                        <tr>
+                            <th scope="col">Waktu</th>
+                            <th scope="col">Level</th>
+                            <th scope="col">Jenis</th>
+                            <th scope="col">Halaman</th>
+                            <th scope="col">IP</th>
+                            <th scope="col">Lokasi</th>
+                            <th scope="col">Pesan</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="monLogBody">
+
+                        <tr>
+                            <td colspan="7" class="mon-log-time">Memuat log…</td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+        <!-- AKSES & DEVTOOLS -->
+
+        <section class="mon-panel mon-panel--wide" aria-labelledby="monAccessTitle">
+
+            <div class="mon-panel-head">
+
+                <h2 class="mon-panel-title" id="monAccessTitle">
+                    Akses &amp; DevTools
+                </h2>
+
+                <span class="mon-panel-meta" id="monAccessMeta">—</span>
+
+            </div>
+
+            <div class="mon-table-wrap">
+
+                <table class="mon-table">
+
+                    <thead>
+
+                        <tr>
+                            <th scope="col">Waktu</th>
+                            <th scope="col">IP</th>
+                            <th scope="col">Kota / Negara</th>
+                            <th scope="col">ASN</th>
+                            <th scope="col">Perangkat</th>
+                            <th scope="col">DevTools</th>
+                            <th scope="col">Halaman</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="monAccessBody">
+
+                        <tr>
+                            <td colspan="7" class="mon-log-time">Belum ada data akses.</td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <p class="mon-note">
+                IP, kota, negara, dan ASN diisi oleh server dari data Cloudflare —
+                bukan dari browser — sehingga tidak bisa dipalsukan pengunjung.
+                Deteksi DevTools bersifat indikasi (lihat catatan di bawah).
+            </p>
+
+        </section>
+
+    </div>
+
+    <footer class="bb-foot">
+
+        <span class="bb-foot-dot" aria-hidden="true"></span>
+
+        <span>
+            BLACK BOX // MONITORING · hanya ADMIN / OWNER · IP &amp; lokasi dari Cloudflare
+        </span>
+
+    </footer>
+
+</main>
+
+<!-- =====================================================
+     GATE — hanya ADMIN / OWNER (fail-closed)
+====================================================== -->
+
+<div class="bb-gate" id="bbLoader" role="status" aria-live="polite">
+
+    <span class="bb-gate-spinner" aria-hidden="true"></span>
+
+    <p class="bb-gate-text" id="bbLoaderText">
+        MEMVERIFIKASI AKSES…
+    </p>
+
+</div>
+
+<div
+    class="bb-gate bb-gate--denied"
+    id="bbDenied"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="bbDeniedTitle"
+    hidden
+>
+
+    <div class="bb-denied-card">
+
+        <h2 class="bb-denied-title" id="bbDeniedTitle">
+            AKSES DITOLAK
+        </h2>
+
+        <p class="bb-denied-text">
+            MONITORING hanya dapat dibuka oleh role
+            <strong>ADMIN</strong> atau <strong>OWNER</strong>.
+        </p>
+
+        <p class="bb-denied-meta">
+            Role akun Anda: <b id="bbDeniedRole">USER</b>
+        </p>
+
+        <p class="bb-denied-redirect">
+            Mengalihkan ke Dashboard dalam
+            <b id="bbDeniedCountdown">4</b> detik…
+        </p>
+
+        <a class="bb-denied-link" href="/user/dashboard.html">
+            KEMBALI KE DASHBOARD
+        </a>
+
+    </div>
+
+</div>
+
+<script src="/navigation/navigation.js?v=navlockup-20261029"></script>
+
+<script>
+
+(function () {
+
+    "use strict";
+
+    var BODY = document.body;
+    var LOADER = document.getElementById("bbLoader");
+    var DENIED = document.getElementById("bbDenied");
+    var DENIED_ROLE = document.getElementById("bbDeniedRole");
+    var COUNTDOWN = document.getElementById("bbDeniedCountdown");
+
+    function readRole() {
+
+        var role = String(window.GENZ_NAVIGATION_ROLE || "").trim().toLowerCase();
+
+        if (role) return role;
+
+        try {
+            if (window.GENZNavigation && typeof window.GENZNavigation.getRole === "function") {
+                return String(window.GENZNavigation.getRole() || "").trim().toLowerCase();
+            }
+        } catch (error) {
+            /* dianggap tanpa akses */
+        }
+
+        return "";
+    }
+
+    function deny(role) {
+
+        if (LOADER) LOADER.hidden = true;
+        if (DENIED) DENIED.hidden = false;
+        if (DENIED_ROLE) DENIED_ROLE.textContent = (role || "user").toUpperCase();
+
+        var left = 4;
+        var timer = setInterval(function () {
+            left -= 1;
+            if (COUNTDOWN) COUNTDOWN.textContent = String(Math.max(0, left));
+            if (left <= 0) {
+                clearInterval(timer);
+                window.location.replace("/user/dashboard.html");
+            }
+        }, 1000);
+    }
+
+    function allow() {
+
+        if (LOADER) LOADER.hidden = true;
+        if (DENIED) DENIED.hidden = true;
+        BODY.classList.remove("bb-guard-pending");
+
+        var page = document.getElementById("monPage");
+        if (page) page.setAttribute("aria-busy", "false");
+
+        window.dispatchEvent(new CustomEvent("genz:monitoring-allow"));
+    }
+
+    function run() {
+
+        var role = readRole();
+
+        if (role === "admin" || role === "owner") {
+            allow();
+            return;
+        }
+
+        if (role) {
+            deny(role);
+            return;
+        }
+
+        /* navigation.js belum selesai: tunggu sebentar, lalu tolak. */
+        var attempts = 0;
+        var poll = setInterval(function () {
+
+            attempts += 1;
+            var next = readRole();
+
+            if (next === "admin" || next === "owner") {
+                clearInterval(poll);
+                allow();
+                return;
+            }
+
+            if (next || attempts >= 20) {
+                clearInterval(poll);
+                deny(next);
+            }
+
+        }, 250);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+        run();
+    }
+
+})();
+
+</script>
+
+<!-- =====================================================
+     MONITORING
+====================================================== -->
+
+<script type="module" src="./monitoring.js?v=monitoring-20261029"></script>
+
+<!-- Penangkap aktivitas halaman ini sendiri (error + DevTools). -->
+<script src="/assets/js/security-beacon.js?v=monitoring-20261029" defer></script>
+
+<script src="/assets/js/support-chat.js?v=touch-close-20261029" defer></script>
+
+<script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
+
+</body>
+
+</html>

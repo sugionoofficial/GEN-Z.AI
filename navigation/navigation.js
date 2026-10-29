@@ -47,6 +47,31 @@
     }
 
 
+    /*
+     * BLACK BOX // MONITORING
+     * Beacon ringan: error halaman + deteksi DevTools, dikirim ke
+     * /api/monitoring. Dimuat sekali per halaman dan bisa dimatikan
+     * dengan <html data-genz-monitoring="off">.
+     */
+    if (!window.__GENZ_MONITOR_SCRIPT_LOADING) {
+        window.__GENZ_MONITOR_SCRIPT_LOADING = true;
+
+        const monitoringOff =
+            document.documentElement.dataset.genzMonitoring === "off";
+
+        if (!monitoringOff) {
+            const monitorScript = document.createElement("script");
+            monitorScript.src = "/assets/js/security-beacon.js?v=monitoring-20261029";
+            monitorScript.defer = true;
+            monitorScript.onerror = error => {
+                console.warn("[GEN-Z.AI] Beacon monitoring tidak termuat:", error);
+                window.__GENZ_MONITOR_SCRIPT_LOADING = false;
+            };
+            document.head.appendChild(monitorScript);
+        }
+    }
+
+
     const STYLE_ID = "genz-shared-navigation-style";
 
     const NAVIGATION_CONTAINER_IDS = [
@@ -894,7 +919,9 @@
 
             chinaapi: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2"></rect><path d="m3 6.5 9 7 9-7"></path></svg>`,
 
-            blackBox: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.7 21 7v10l-9 4.3L3 17V7z"></path><path d="M3 7l9 4.3L21 7"></path><path d="M12 11.3v10"></path></svg>`
+            blackBox: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.7 21 7v10l-9 4.3L3 17V7z"></path><path d="M3 7l9 4.3L21 7"></path><path d="M12 11.3v10"></path></svg>`,
+
+            monitoring: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path><circle cx="12" cy="12" r="2.6"></circle><path d="M12 2v2"></path><path d="M22 12h-2"></path></svg>`
 
         });
 
@@ -929,7 +956,8 @@
             { label: "TempMail", href: "/email.html", icon: ICONS.chinaapi },
             { label: "Admin Panel", href: "/admin-control/admin-panel.html", icon: ICONS.adminPanel },
             { label: "Informasi Penting", href: "/admin-control/announcements.html", icon: ICONS.announcements },
-            { label: "Black Box", href: "/black-box/index.html", icon: ICONS.blackBox }
+            { label: "Black Box", href: "/black-box/index.html", icon: ICONS.blackBox },
+            { label: "Monitoring", href: "/admin-control/monitoring.html", icon: ICONS.monitoring }
         ];
 
 
