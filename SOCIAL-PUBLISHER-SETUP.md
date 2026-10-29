@@ -368,6 +368,8 @@ Existing `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` Wo
 
 ### Cloudflare Workers Builds preview command
 
+Run `npm install` (or `npm ci`) before deploying from a fresh clone: `lib/social-publisher/*` imports `jpeg-js`, `pngjs`, and `@stacksjs/ts-webp`, so `npx wrangler deploy` fails with `Could not resolve "jpeg-js"` when `node_modules` is missing. Use `npm run deploy` — it runs `scripts/check-dependencies.mjs` first and stops with a clear message instead of a bundler error.
+
 The `dist/` directory is generated, not committed. For Workers Builds, keep Production configured with build command `node scripts/build-cloudflare-pages.mjs` and deploy command `npx wrangler deploy`. In **Previews Base**, use `npm run preview` as the Preview command; that script builds `dist/` before running `npx wrangler preview`. The package `postinstall` hook also detects Cloudflare Workers Builds on non-`main` branches and builds `dist/` before the Preview command, so branch previews remain resilient when the dashboard omits its optional Build command. To avoid duplicate work, the Previews Base Build command can be left empty. This affects branch previews only, not the Production deploy command.
 
 ### Connecting from a phone

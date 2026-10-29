@@ -559,6 +559,10 @@ async function processRun(env, config, claimedRun, options = {}) {
         rejectedSceneKeys: []
     };
     let nextPrefetched = prefetched ? { ...prefetched } : null;
+    /* Dipakai juga di blok catch untuk merekam sebab kegagalan, jadi harus
+       berada di scope fungsi — bukan di dalam try. */
+    let song = null;
+    let caption = "";
 
     try {
         if (!prefetched) {
@@ -665,12 +669,9 @@ async function processRun(env, config, claimedRun, options = {}) {
 
         let scenePlanRecord = null;
         let generated = null;
-        /* `song` dipakai juga di blok catch untuk merekam sebab kegagalan. */
-        let song = null;
         let cleanedMimeType = "";
         let cleanedBytes = null;
         let storyMp4Bytes = null;
-        let caption = "";
         let quoteText = "";
         let quoteThemeLabel = "";
         const quotePublishTarget = normalizeQuotePublishTarget(schedule.quote_publish_target, "feed");

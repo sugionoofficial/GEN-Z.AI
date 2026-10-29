@@ -331,6 +331,29 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-secret-key
 Workflow membangun aset statis ke `dist/`, lalu menjalankan `wrangler deploy`
 untuk menerbitkan Worker dan route API.
 
+#### Deploy manual dari komputer sendiri
+
+Clone baru **wajib** di-`npm install` lebih dulu. Tanpa itu, bundler Wrangler
+gagal dengan pesan yang menyesatkan seperti:
+
+```
+✘ [ERROR] Could not resolve "jpeg-js"
+✘ [ERROR] Could not resolve "pngjs"
+✘ [ERROR] Could not resolve "@stacksjs/ts-webp"
+```
+
+Paket-paket itu sudah tercatat di `package.json`; yang kurang hanya `node_modules`.
+Langkah yang benar:
+
+```bash
+npm install          # atau: npm ci
+npm run deploy       # cek dependensi -> build dist/ -> wrangler deploy
+```
+
+`npm run deploy` menjalankan `scripts/check-dependencies.mjs` lebih dulu, jadi
+bila dependensi belum ada, perintah berhenti dengan instruksi yang jelas
+(exit code 1) sebelum menyentuh Wrangler.
+
 ### Email Link Authentication
 
 `SITE_URL` in `assets/js/config.js` uses the current site origin, including the
