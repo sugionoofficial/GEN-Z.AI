@@ -1,4 +1,4 @@
-import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
+import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, formatTagBlockForCaption, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
 import { buildQuoteImagePrompt, createQuotePlan, normalizeQuotePublishTarget, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule, resolveScheduleSongMode } from "../../lib/social-publisher/quotes.js";
 import { decryptSecret, normalizeTextProvider, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookQuoteVideo } from "../../lib/social-publisher/providers.js";
 import { createSignedReferenceUrl, downloadModelReference, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
@@ -100,7 +100,7 @@ const SUBSCRIPTION_INACTIVE_REASON = "subscription_inactive";
 
 const LEGACY_SCHEDULE_COLUMNS = "id,owner_id,character_id,page_connection_id,enabled,interval_hours,aspect_ratio,caption_template,timezone";
 const SCENE_SCHEDULE_COLUMNS = `${LEGACY_SCHEDULE_COLUMNS},autopublish_enabled,scene_location,camera_angle,scene_situation,scene_lighting,scene_atmosphere,scene_condition,scene_details,negative_prompt`;
-const QUOTE_BASE_SCHEDULE_COLUMNS = `${SCENE_SCHEDULE_COLUMNS},post_mode,quote_theme,quote_visual_style,use_random_song,song_mode,song_id`;
+const QUOTE_BASE_SCHEDULE_COLUMNS = `${SCENE_SCHEDULE_COLUMNS},post_mode,quote_theme,quote_visual_style,use_random_song,song_mode,song_id,tag_name,tag_url`;
 const FULL_SCHEDULE_COLUMNS = `${QUOTE_BASE_SCHEDULE_COLUMNS},quote_publish_target`;
 
 function isMissingColumnError(error) {
@@ -115,7 +115,7 @@ function isMissingQuoteTargetColumn(error) {
 
 function isMissingQuoteScheduleColumn(error) {
     const message = String(error?.message || "");
-    return /\b(post_mode|quote_theme|quote_visual_style|use_random_song|song_mode|song_id|quote_publish_target)\b/i.test(message)
+    return /\b(post_mode|quote_theme|quote_visual_style|use_random_song|song_mode|song_id|tag_name|tag_url|quote_publish_target)\b/i.test(message)
         && isMissingColumnError(error);
 }
 
@@ -720,7 +720,11 @@ async function processRun(env, config, claimedRun, options = {}) {
             });
             storyMp4Bytes = encodedStory.mp4Bytes;
             // Postingan Kata-kata Mutiara + Musik memakai latar hitam polos (#000000) tanpa kuota gambar + teks LLM QwenCloud.
-            caption = quoteText;
+            /* Caption mutiara = teks mutiara + tautan profil (bila diisi). */
+            caption = [quoteText, formatTagBlockForCaption({
+                tag_name: schedule.tag_name || "",
+                tag_url: schedule.tag_url || ""
+            })].filter(Boolean).join("\n\n");
             scenePlanRecord = {
                 ...quotePlan,
                 background_mode: "solid_black",
@@ -896,7 +900,9 @@ async function processRun(env, config, claimedRun, options = {}) {
                 contextualCaption,
                 externalLink: settings?.external_link,
                 outfit: outfit ? { id: outfit.id, name: outfit.name, order_url: outfit.order_url || "" } : null,
-                song
+                song,
+                /* Tautan profil dari blok jadwal (bukan tag resmi Meta). */
+                tag: { tag_name: schedule.tag_name || "", tag_url: schedule.tag_url || "" }
             });
             scenePlanRecord = song
                 ? {

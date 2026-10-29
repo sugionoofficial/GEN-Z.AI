@@ -1601,6 +1601,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                 ? {
                     post_mode: "quote",
                     quote_publish_target: selectedQuoteTarget,
+                    tag_name: $("manual-tag-name")?.value?.trim() || "",
+                    tag_url: $("manual-tag-url")?.value?.trim() || "",
                     page_connection_id: pageConnectionId,
                     aspect_ratio: $("manual-aspect-ratio").value,
                     quote_theme: $("manual-quote-theme")?.value || "",
@@ -1612,6 +1614,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                     character_id: characterId,
                     page_connection_id: pageConnectionId,
                     aspect_ratio: $("manual-aspect-ratio").value,
+                    tag_name: $("manual-tag-name")?.value?.trim() || "",
+                    tag_url: $("manual-tag-url")?.value?.trim() || "",
                     /* Foto karakter AI & outfit tidak memakai lagu. */
                     use_random_song: false, song_mode: "off"
                 };
@@ -2433,6 +2437,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         if (schedule.scene_atmosphere) parts.push(`suasana ${schedule.scene_atmosphere}`);
         if (schedule.scene_condition) parts.push(`kondisi ${schedule.scene_condition}`);
         if (schedule.scene_lighting) parts.push(`cahaya ${schedule.scene_lighting}`);
+        if (schedule.tag_url || schedule.tag_name) parts.push("👤 tautan profil");
         if (schedule.scene_details) parts.push("detail khusus");
         if (schedule.negative_prompt) parts.push("negative tambahan");
         return parts.join(" · ");
@@ -3271,6 +3276,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         $("schedule-lighting").value = schedule.scene_lighting || "";
         $("schedule-details").value = schedule.scene_details || "";
         $("schedule-negative").value = schedule.negative_prompt || "";
+        if ($("schedule-tag-name")) $("schedule-tag-name").value = schedule.tag_name || "";
+        if ($("schedule-tag-url")) $("schedule-tag-url").value = schedule.tag_url || "";
         $("schedule-autopublish").checked = schedule.autopublish_enabled !== false;
         $("schedule-enabled").checked = schedule.enabled === true;
         saveScheduleButton.textContent = "Simpan perubahan";
@@ -3303,6 +3310,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         $("schedule-lighting").value = "";
         $("schedule-details").value = "";
         $("schedule-negative").value = "";
+        if ($("schedule-tag-name")) $("schedule-tag-name").value = "";
+        if ($("schedule-tag-url")) $("schedule-tag-url").value = "";
         $("schedule-autopublish").checked = true;
         $("schedule-enabled").checked = false;
         saveScheduleButton.textContent = "Simpan jadwal";
@@ -3366,6 +3375,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             quote_theme: isQuote ? ($("schedule-quote-theme")?.value || "") : "",
             quote_visual_style: isQuote ? ($("schedule-quote-visual")?.value || "") : "",
             ...scheduleSongFields,
+            tag_name: $("schedule-tag-name")?.value?.trim() || "",
+            tag_url: $("schedule-tag-url")?.value?.trim() || "",
             scene_location: $("schedule-location").value,
             camera_angle: $("schedule-angle").value,
             scene_situation: $("schedule-situation").value,

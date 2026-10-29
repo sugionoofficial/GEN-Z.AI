@@ -526,3 +526,12 @@ pembatasan Page. Label lama "Page ini sedang dibatasi sementara" menyesatkan dan
 
 Pemicu yang paling mungkin pada kasus ini adalah caption berisi nama situs pengunduh
 (`FDownload.app …`) — sudah dihilangkan — dan teks caption yang terlalu mirip antar-post.
+
+---
+
+## 11. Tautan profil di caption (2026-10-29)
+
+Permintaan: menandai akun orang pada mode manual/autopost. **Tag resmi tidak mungkin** lewat
+Graph API (`message_tags` read-only, `@[id:0:nama]` mati, `tags` foto butuh `publish_actions`
+yang dihapus). Yang dibangun: **tautan profil** opsional (`tag_name`, `tag_url`) pada jadwal dan
+posting manual, dengan validasi host Facebook di server. Detail: `docs/social-publisher/profile-tagging.md`.

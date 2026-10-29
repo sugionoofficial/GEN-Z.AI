@@ -594,6 +594,12 @@
                                         <span class="help">Foto karakter AI &amp; outfit tidak memakai lagu. Musik hanya tersedia untuk Kata-kata Mutiara.</span>
                                     </div>
                                 </div>
+                                <div class="field full">
+                                    <label for="manual-tag-name">Tandai / tautkan profil (opsional)</label>
+                                    <input id="manual-tag-name" maxlength="80" placeholder="Nama tampilan, contoh: Budi Santoso">
+                                    <input id="manual-tag-url" maxlength="300" placeholder="https://www.facebook.com/username">
+                                    <span class="help">Meta <strong>tidak mengizinkan men-tag akun lewat API</strong>, jadi ini berupa <strong>tautan profil</strong> di caption: bisa diklik, tetapi tidak mengirim notifikasi. Hanya URL <code>facebook.com</code> yang diterima.</span>
+                                </div>
                                 <div id="manual-quote-fields" class="field full subgrid-fields" hidden>
                                     <div class="field full">
                                         <div class="quote-mode-note">Default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Facebook Page</strong> (atau pilih Reels / Cerita 24 Jam). Kartu memakai <strong>latar kosong hitam polos (#000000)</strong> agar <strong>0 kuota model gambar terpakai</strong>, kalimat kata-kata mutiara dirangkai oleh <strong>model LLM QwenCloud</strong> (dipilih di SET Studio Medsos) secara 100% tajam di tengah kartu + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, dan musik <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption tambahan, link, atau hashtag.</div>
@@ -735,6 +741,12 @@
                             <select id="schedule-song-choice" hidden aria-label="Pilih lagu tetap"></select>
                             <span class="help" id="schedule-song-help">Daftar lagu diambil dari koleksi <strong>Lagu Facebook</strong> milik akun ini (kartu Lagu). Facebook tidak membuka API katalog musik resminya, jadi yang bisa dipilih hanya lagu yang Anda unggah/seed sendiri. Mode <em>tetap</em> selalu memakai lagu yang sama; mode <em>acak</em> memilih otomatis dan menghindari lagu terakhir bila ada opsi lain.</span>
                             <label class="inline-check" hidden><input id="schedule-random-song" type="checkbox"><span>Gunakan lagu random Facebook di setiap post jadwal ini.</span></label>
+                        </div>
+                        <div class="field full">
+                            <label for="schedule-tag-name">Tandai / tautkan profil (opsional)</label>
+                            <input id="schedule-tag-name" maxlength="80" placeholder="Nama tampilan, contoh: Budi Santoso">
+                            <input id="schedule-tag-url" maxlength="300" placeholder="https://www.facebook.com/username">
+                            <span class="help">Berlaku untuk semua post jadwal ini. Meta <strong>tidak mengizinkan men-tag akun lewat API</strong>, jadi ini berupa <strong>tautan profil</strong> di caption (bisa diklik, tanpa notifikasi). Kosongkan bila tidak dipakai.</span>
                         </div>
                         <div class="field full"><div id="cost-estimate" class="note-cost">Estimasi biaya gambar dihitung setelah interval dipilih.</div></div>
                         <div class="field full"><label class="inline-check"><input id="schedule-autopublish" type="checkbox" checked><span><strong>Autopost untuk jadwal ini.</strong> Saat aktif, jadwal ini ikut diposting otomatis. Mematikan switch ini hanya menghentikan jadwal ini; jadwal lain dan akun lain tidak terpengaruh.</span></label></div>

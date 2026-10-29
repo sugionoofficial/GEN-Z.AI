@@ -5,6 +5,8 @@ import {
     clampIntervalMinutes,
     formatIntervalMinutes,
     composeSocialCaption,
+    formatTagBlockForCaption,
+    sanitizeFacebookProfileUrl,
     createScenePlan,
     DEFAULT_SOCIAL_RUNS_PER_PAGE,
     extensionForMime,
@@ -133,7 +135,9 @@ const SCHEDULE_QUOTE_BASE_COLUMNS = [
     "quote_visual_style",
     "use_random_song",
     "song_mode",
-    "song_id"
+    "song_id",
+    "tag_name",
+    "tag_url"
 ].join(",");
 const SCHEDULE_FULL_COLUMNS = [
     SCHEDULE_QUOTE_BASE_COLUMNS,
@@ -1540,6 +1544,8 @@ const SCHEDULE_QUOTE_COLUMNS = [
     "use_random_song",
     "song_mode",
     "song_id",
+    "tag_name",
+    "tag_url",
     "quote_publish_target"
 ];
 
@@ -2570,6 +2576,17 @@ async function saveSchedule(config, userId, body, profile) {
     };
     const scheduleAutopublish = typeof body?.autopublish_enabled === "boolean" ? body.autopublish_enabled : true;
 
+    /* Tautan profil di caption (opsional). Meta tidak mengizinkan men-tag akun
+       lewat API, jadi yang disimpan adalah nama tampilan + URL profil Facebook. */
+    const tagName = cleanText(body?.tag_name, 80);
+    const rawTagUrl = cleanText(body?.tag_url, 300);
+    const tagUrl = rawTagUrl ? sanitizeFacebookProfileUrl(rawTagUrl) : "";
+    if (rawTagUrl && !tagUrl) {
+        const error = new Error("Tautan profil harus URL https:// dari domain Facebook (contoh: https://www.facebook.com/username).");
+        error.status = 400;
+        throw error;
+    }
+
     /* Interval autopost berbasis role dalam menit: ADMIN/OWNER tercepat 5 menit,
        USER tercepat 60 menit (1 jam). */
     const intervalPolicy = getScheduleIntervalPolicy(profile?.role);
@@ -2649,6 +2666,8 @@ async function saveSchedule(config, userId, body, profile) {
         aspect_ratio: aspectRatio,
         caption_template: captionTemplate,
         ...sceneParams,
+        tag_name: tagName,
+        tag_url: tagUrl,
         ...(hasExplicitQuoteFields ? quoteParams : {}),
         enabled: body?.enabled === true,
         updated_at: new Date().toISOString()
@@ -2872,6 +2891,12 @@ async function generateManualPost(config, userId, env, body = {}) {
     const garmentObjectKey = outfit?.object_key || "";
     const garmentMimeType = outfit?.mime_type || "";
 
+    /* Tautan profil di caption (bukan tag resmi Meta). */
+    const manualTag = {
+        tag_name: cleanText(body.tag_name, 80),
+        tag_url: sanitizeFacebookProfileUrl(body.tag_url)
+    };
+
     const [settingsRows, previousPreviews, song] = await Promise.all([
         supabaseRequest(
             config,
@@ -3011,7 +3036,10 @@ async function generateManualPost(config, userId, env, body = {}) {
                 maxDurationSec: maxQuoteVideoDurationForTarget(quotePublishTarget)
             });
             // Postingan Kata-kata Mutiara + Musik memakai latar hitam polos (#000000) tanpa kuota gambar + teks LLM QwenCloud.
-            const caption = quoteText;
+            /* Caption mutiara = teks mutiara + tautan profil (bila diisi). */
+            const caption = [quoteText, formatTagBlockForCaption(manualTag)]
+                .filter(Boolean)
+                .join("\n\n");
             const sceneRecord = {
                 ...quotePlan,
                 background_mode: "solid_black",
@@ -3220,7 +3248,8 @@ async function generateManualPost(config, userId, env, body = {}) {
             contextualCaption,
             externalLink: postingSettings.external_link,
             outfit: outfitCaptionSource(outfit),
-            song
+            song,
+            tag: manualTag
         });
         const sceneRecord = song
             ? {
