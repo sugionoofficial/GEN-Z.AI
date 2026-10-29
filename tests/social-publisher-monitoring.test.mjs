@@ -48,8 +48,22 @@ test("health check melaporkan penyebab autopost berhenti (bukan hanya jumlah)", 
     assert.match(sql, /FACEBOOK_PAGE_RESTRICTED/);
     assert.match(sql, /CONTENT_POLICY_REJECTED/);
 
-    // token Opus
+    // token Opus (nearest_expiry hanya yang masih berlaku)
     assert.match(sql, /from public\.opus_oauth_tokens/);
+    assert.match(sql, /min\(expires_at\) filter \(where expires_at > now\(\)\)/);
+});
+
+test("status sukses Social Publisher adalah 'posted', bukan 'success'", () => {
+    // Regresi: sempat dihitung hanya 'success' sehingga success_24h selalu 0
+    // padahal ada 50 run 'posted' berhasil.
+    assert.match(
+        sql,
+        /in \('posted', 'success', 'published', 'completed', 'done'\)/,
+    );
+    assert.doesNotMatch(
+        sql,
+        /lower\(coalesce\(status, ''\)\) = 'success'\s+and coalesce\(finished_at, created_at\) > now\(\) - interval '24 hours'/,
+    );
 });
 
 test("health check mengembalikan ringkasan jsonb yang bisa dipantau", () => {

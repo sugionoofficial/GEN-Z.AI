@@ -16,6 +16,10 @@
      3. run menggantung > 30 menit     (AUTO_ABANDONED_TTL_MS)
      4. kuota model/provider habis     (model auto-disabled)
 
+   CATATAN STATUS: run Social Publisher yang sukses berstatus 'posted'
+   (bukan 'success'). Kumpulan status sukses dibuat eksplisit:
+   ('posted','success','published','completed','done').
+
    Fungsi ini merangkum keempat risiko itu dalam satu panggilan
    supaya bisa dipantau manusia maupun cron/dashboard.
 
@@ -108,10 +112,12 @@ begin
                  and coalesce(finished_at, created_at) > now() - interval '24 hours'
            ),
            count(*) filter (
-               where lower(coalesce(status, '')) = 'success'
+               where lower(coalesce(status, '')) in ('posted', 'success', 'published', 'completed', 'done')
                  and coalesce(finished_at, created_at) > now() - interval '24 hours'
            ),
-           max(coalesce(finished_at, created_at)) filter (where lower(coalesce(status, '')) = 'success'),
+           max(coalesce(finished_at, created_at)) filter (
+               where lower(coalesce(status, '')) in ('posted', 'success', 'published', 'completed', 'done')
+           ),
            count(*) filter (
                where lower(coalesce(status, '')) = 'failed'
                  and coalesce(finished_at, created_at) > now() - interval '24 hours'
@@ -146,7 +152,7 @@ begin
     /* ---------- token Opus ---------- */
     select count(*),
            count(*) filter (where expires_at <= now()),
-           min(expires_at)
+           min(expires_at) filter (where expires_at > now())
       into v_opus_tokens, v_opus_expired, v_opus_nearest
       from public.opus_oauth_tokens;
 

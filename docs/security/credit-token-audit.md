@@ -392,3 +392,39 @@ Catatan data: `social_post_schedules` = 0 dan run menggantung = 0, jadi tidak ad
 saat ini — kegagalan di atas berasal dari percobaan manual/riwayat. Langganan aktif 2 (22 hari &
 291 hari). Tindakan yang perlu: login ulang Opus, periksa pembatasan Page, dan longgarkan prompt
 yang kena kebijakan konten.
+
+### Update 29 Okt 2026 05:47 UTC — kredensial Opus sudah dilengkapi
+
+Setelah kredensial Opus dilengkapi (auth token + API key + refresh token), kondisi berbalik:
+
+| Indikator | Sebelum | Sesudah |
+| --- | --- | --- |
+| `opus_oauth_tokens` | 3/3 expired | token berhasil di-refresh (`updated_at` 05:43:18) |
+| Run sukses 24 jam | 0 | **50** (`status = 'posted'`) |
+| Sukses terakhir | `null` | **05:46:33** |
+| `ALL_FAILING` | muncul | **hilang** |
+
+Tes generate manual (`social_post_runs` id `c6b34dae…`) berhasil: `status = posted`,
+`permalink_url` terisi, durasi 3m16s (05:43:17 → 05:46:33), dan refresh token Opus berhasil
+ditukar pada detik yang sama (05:43:18).
+
+**Catatan teknis penting:**
+
+1. **Access token Opus berumur ±5 menit**, bukan 1 jam — `exp` diambil dari JWT provider
+   (`provider/opus/oauth-vault.js:495-500` via `parseJwtExpiryTimestampMs`). Jadi setiap run
+   menukar refresh token; itu normal dan bukan indikasi masalah.
+2. **Status sukses Social Publisher adalah `posted`, bukan `success`.** Versi pertama health check
+   hanya menghitung `success` sehingga melaporkan `success_24h = 0` padahal ada 50 run berhasil.
+   Sudah diperbaiki: kumpulan status sukses `('posted','success','published','completed','done')`,
+   dan `nearest_expiry` token hanya menghitung token yang belum kedaluwarsa.
+
+### Sisa alert yang masih relevan (bukan soal token)
+
+| Alert | Jumlah 24 jam | Tindakan |
+| --- | --- | --- |
+| `FACEBOOK_PAGE_RESTRICTED` (code 368) | 5 | Pembatasan dari Facebook pada Page; tunggu/ajukan banding, bukan bug aplikasi |
+| `CONTENT_POLICY_REJECTED` | 16 | Prompt/scene kena filter kebijakan Opus; longgarkan prompt |
+| `OPUS_RELOGIN_REQUIRED` | 4 | Riwayat lama sebelum kredensial dilengkapi; akan hilang sendiri dari jendela 24 jam |
+
+`jwt_exp` 1 jam tetap tidak berperan di semua ini: autopost dan generate memakai token provider
+dan service role di sisi server.
