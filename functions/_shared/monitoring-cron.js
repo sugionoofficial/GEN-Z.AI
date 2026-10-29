@@ -54,7 +54,11 @@ export async function runMonitoringCron(env, scheduledTime = new Date()) {
         console.warn("[Monitoring] Prune log dilewati:", error?.message || "unknown error");
     });
 
-    const { checks, findings } = await runMonitoringScan(config, { settings, now });
+    const assetsFetch = env?.ASSETS && typeof env.ASSETS.fetch === "function"
+        ? env.ASSETS.fetch.bind(env.ASSETS)
+        : null;
+
+    const { checks, findings } = await runMonitoringScan(config, { settings, now, assetsFetch });
 
     const failed = checks.filter(check => check.status === "fail").length;
     const warned = checks.filter(check => check.status === "warn").length;

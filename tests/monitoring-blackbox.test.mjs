@@ -1015,14 +1015,90 @@ test("404 sesaat (jendela deploy) diulang lalu lolos", async () => {
     assert.equal(api.detail.status_code, 401);
 });
 
-test("404 yang menetap tetap jadi peringatan", async () => {
+test("404 pada probe ke host sendiri dicatat, bukan jadi peringatan", async () => {
     const fetcher = healthFetcher({ api: [404, 404] });
     const { api } = await runChecks(fetcher);
 
     assert.equal(fetcher.calls.api, 2, "dicoba dua kali sebelum menyimpulkan");
-    assert.equal(api.status, "warn");
+    assert.equal(api.status, "ok", "Worker terbukti hidup karena pemeriksaan berjalan di dalamnya");
     assert.equal(api.detail.status_code, 404);
-    assert.match(api.detail.hint, /jendela deploy/);
+    assert.equal(api.detail.self_probe, "loopback_404");
+    assert.match(api.detail.message, /batasan Cloudflare/);
+});
+
+test("5xx pada probe tetap dianggap gangguan", async () => {
+    const fetcher = healthFetcher({ api: [500, 500] });
+    const { api } = await runChecks(fetcher);
+
+    assert.equal(api.status, "fail");
+    assert.equal(api.detail.status_code, 500);
+});
+
+test("gagal jaringan pada probe internal tidak jadi temuan", async () => {
+    const checks = await runHealthChecks(HEALTH_CONFIG, {
+        fetchImpl: async url => {
+            if (String(url).includes("/api/announcements")) throw new Error("loopback ditolak");
+            if (String(url).endsWith("/index.html")) return new Response("ok", { status: 200 });
+            return Response.json([]);
+        },
+        settings: null
+    });
+
+    const api = checks.find(check => check.target === "api");
+    assert.equal(api.status, "ok");
+    assert.equal(api.detail.self_probe, "network_error");
+});
+
+test("variabel server hilang membuat target api gagal jelas", async () => {
+    const checks = await runHealthChecks(
+        { ...HEALTH_CONFIG, serviceKey: "" },
+        { fetchImpl: async () => new Response("{}", { status: 200 }), settings: null }
+    );
+
+    const api = checks.find(check => check.target === "api");
+    assert.equal(api.status, "fail");
+    assert.match(api.detail.message, /SERVICE_ROLE_KEY/);
+    assert.equal(api.detail.checked_via, "runtime");
+});
+
+test("aset diperiksa lewat binding ASSETS, bukan jaringan", async () => {
+    let networkHits = 0;
+    let bindingUrl = "";
+
+    const checks = await runHealthChecks(HEALTH_CONFIG, {
+        fetchImpl: async url => {
+            if (String(url).endsWith("/index.html")) networkHits += 1;
+            if (String(url).includes("/api/announcements")) return new Response("{}", { status: 401 });
+            return Response.json([]);
+        },
+        assetsFetch: async request => {
+            bindingUrl = String(request.url || request);
+            return new Response("<!doctype html><title>uji</title>", { status: 200 });
+        },
+        settings: null
+    });
+
+    const web = checks.find(check => check.target === "web");
+    assert.equal(web.status, "ok");
+    assert.equal(web.detail.checked_via, "assets_binding");
+    assert.match(web.detail.message, /binding ASSETS/);
+    assert.equal(networkHits, 0, "tidak ada request HTTP untuk aset");
+    assert.match(bindingUrl, /\/index\.html$/);
+});
+
+test("binding ASSETS yang mengembalikan 404 tetap jadi peringatan", async () => {
+    const checks = await runHealthChecks(HEALTH_CONFIG, {
+        fetchImpl: async url => {
+            if (String(url).includes("/api/announcements")) return new Response("{}", { status: 401 });
+            return Response.json([]);
+        },
+        assetsFetch: async () => new Response("tidak ada", { status: 404 }),
+        settings: null
+    });
+
+    const web = checks.find(check => check.target === "web");
+    assert.equal(web.status, "warn");
+    assert.equal(web.detail.status_code, 404);
 });
 
 test("halaman utama 404 sesaat juga diulang", async () => {
