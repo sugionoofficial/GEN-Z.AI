@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
 import handler, { normalizeSettingsInput } from "../api/monitoring.js";
-import { buildFindings, normalizeEventInput, parseUserAgent, readNetworkContext } from "../lib/monitoring/health.js";
+import { buildFindings, normalizeEventInput, parseUserAgent, readNetworkContext, runHealthChecks } from "../lib/monitoring/health.js";
 import { runMonitoringCron } from "../functions/_shared/monitoring-cron.js";
 
 /* =========================================================
@@ -944,4 +944,100 @@ test("CSS layar sempit menyembunyikan kolom URL dan memotong IP", () => {
     assert.ok(mobile.includes(".mon-log-msg"), "pesan dibatasi barisnya");
     assert.match(mobile, /-webkit-line-clamp:\s*3/);
     assert.match(css, /\.mon-ip\s*\{[^}]*white-space:\s*nowrap/);
+});
+
+/* ---------------------------------------------------------
+   PEMERIKSAAN WEB & API
+   - 401/403 berarti Worker hidup (endpoint butuh login)
+   - 404/5xx diulang sekali karena jendela deploy
+   --------------------------------------------------------- */
+
+const HEALTH_CONFIG = {
+    supabaseUrl: "https://project.example",
+    serviceKey: "kunci-uji",
+    siteUrl: "https://situs.example"
+};
+
+function healthFetcher({ web = [200], api = [401] } = {}) {
+    const calls = { web: 0, api: 0 };
+    const pick = queue => (queue.length > 1 ? queue.shift() : queue[0]);
+
+    return {
+        calls,
+        fetchImpl: async url => {
+            const target = String(url);
+
+            if (target.includes("/api/announcements")) {
+                calls.api += 1;
+                return new Response("{}", { status: pick(api) });
+            }
+
+            if (target.endsWith("/index.html")) {
+                calls.web += 1;
+                return new Response("ok", { status: pick(web) });
+            }
+
+            return Response.json([]);
+        }
+    };
+}
+
+async function runChecks(fetcher) {
+    const checks = await runHealthChecks(HEALTH_CONFIG, { fetchImpl: fetcher.fetchImpl, settings: null });
+    return {
+        api: checks.find(check => check.target === "api"),
+        web: checks.find(check => check.target === "web"),
+        checks
+    };
+}
+
+test("API yang menjawab 401 dianggap sehat, bukan temuan", async () => {
+    const fetcher = healthFetcher({ api: [401] });
+    const { api } = await runChecks(fetcher);
+
+    assert.equal(api.status, "ok");
+    assert.equal(api.detail.status_code, 401);
+    assert.match(api.detail.message, /butuh login/);
+    assert.equal(fetcher.calls.api, 1, "tidak perlu mengulang saat 401");
+});
+
+test("API 403 juga dianggap sehat", async () => {
+    const { api } = await runChecks(healthFetcher({ api: [403] }));
+    assert.equal(api.status, "ok");
+});
+
+test("404 sesaat (jendela deploy) diulang lalu lolos", async () => {
+    const fetcher = healthFetcher({ api: [404, 401] });
+    const { api } = await runChecks(fetcher);
+
+    assert.equal(fetcher.calls.api, 2);
+    assert.equal(api.status, "ok");
+    assert.equal(api.detail.status_code, 401);
+});
+
+test("404 yang menetap tetap jadi peringatan", async () => {
+    const fetcher = healthFetcher({ api: [404, 404] });
+    const { api } = await runChecks(fetcher);
+
+    assert.equal(fetcher.calls.api, 2, "dicoba dua kali sebelum menyimpulkan");
+    assert.equal(api.status, "warn");
+    assert.equal(api.detail.status_code, 404);
+    assert.match(api.detail.hint, /jendela deploy/);
+});
+
+test("halaman utama 404 sesaat juga diulang", async () => {
+    const fetcher = healthFetcher({ web: [404, 200] });
+    const { web } = await runChecks(fetcher);
+
+    assert.equal(fetcher.calls.web, 2);
+    assert.equal(web.status, "ok");
+    assert.equal(web.detail.status_code, 200);
+});
+
+test("temuan health:api tidak dibuat saat endpoint hanya butuh login", async () => {
+    const { checks } = await runChecks(healthFetcher({ api: [401], web: [200] }));
+    const findings = buildFindings({ checks, events: [], settings: null });
+
+    assert.equal(findings.filter(item => item.fingerprint === "health:api").length, 0);
+    assert.equal(findings.filter(item => item.fingerprint === "health:web").length, 0);
 });
