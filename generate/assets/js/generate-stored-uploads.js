@@ -62,9 +62,13 @@ export const STORED_UPLOAD_LIMIT =
 export const STORED_UPLOAD_SOON_MS =
     5 * 60 * 1000;
 
-/** Batas jumlah folder (satu folder = satu upload). */
+/** Batas jumlah item root yang dipindai (file langsung + subfolder). */
 const STORED_UPLOAD_FOLDER_LIMIT =
-    40;
+    100;
+
+/** Event global saat ada unggahan baru selesai di halaman Generate. */
+export const STORED_UPLOADS_CHANGED_EVENT =
+    "genz:stored-uploads-changed";
 
 /** Toleransi jam perangkat yang sedikit mendahului jam server. */
 const CLOCK_SKEW_TOLERANCE_MS =
@@ -424,6 +428,223 @@ export function getStoredUploadKindLabel(
  *   mimeType: string, size: number, createdAt: number,
  *   expiresAt: number, url: string}>>}
  */
+function parseStorageTimestampMs(
+    rawValue
+) {
+
+    if (
+        typeof rawValue === "number" &&
+        Number.isFinite(
+            rawValue
+        ) &&
+        rawValue > 0
+    ) {
+
+        return rawValue;
+    }
+
+
+    if (
+        typeof rawValue !== "string"
+    ) {
+
+        return 0;
+    }
+
+
+    const trimmed =
+        rawValue.trim();
+
+
+    if (
+        !trimmed
+    ) {
+
+        return 0;
+    }
+
+
+    if (
+        /^\d{10,16}$/.test(
+            trimmed
+        )
+    ) {
+
+        const numeric =
+            Number(
+                trimmed
+            );
+
+        const ms =
+            trimmed.length <= 10
+                ? numeric * 1000
+                : numeric;
+
+        return Number.isFinite(
+            ms
+        ) && ms > 0
+            ? ms
+            : 0;
+    }
+
+
+    /*
+     * Normalisasi format PostgreSQL (`2026-10-30 10:46:03.425391+00`)
+     * menjadi ISO-8601 (`2026-10-30T10:46:03.425391+00:00`) agar
+     * Safari / WebKit di iPhone tidak mengembalikan NaN.
+     */
+    const isoNormalized =
+        trimmed
+            .replace(
+                /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/,
+                "$1T$2"
+            )
+            .replace(
+                /([+-]\d{2})$/,
+                "$1:00"
+            );
+
+    const parsed =
+        Date.parse(
+            isoNormalized
+        );
+
+
+    return Number.isFinite(
+        parsed
+    ) && parsed > 0
+        ? parsed
+        : 0;
+}
+
+
+function resolveStorageEntryCreatedAt(
+    item
+) {
+
+    if (
+        !item ||
+        typeof item !== "object"
+    ) {
+
+        return 0;
+    }
+
+
+    const candidates = [
+        item.created_at,
+        item.createdAt,
+        item.updated_at,
+        item.updatedAt,
+        item?.metadata?.lastModified,
+        item.last_accessed_at
+    ];
+
+
+    for (
+        const candidate
+        of candidates
+    ) {
+
+        const ts =
+            parseStorageTimestampMs(
+                candidate
+            );
+
+        if (
+            ts > 0
+        ) {
+
+            return ts;
+        }
+    }
+
+
+    return 0;
+}
+
+
+function isDirectStorageFileEntry(
+    item
+) {
+
+    if (
+        !item ||
+        typeof item !== "object"
+    ) {
+
+        return false;
+    }
+
+
+    return (
+        Boolean(item.id) ||
+        Boolean(item.metadata) ||
+        Boolean(item.created_at) ||
+        Boolean(item.updated_at)
+    );
+}
+
+
+function resolveSignedStorageUrl(
+    supabase,
+    signedUrl
+) {
+
+    const trimmed =
+        String(
+            signedUrl ||
+            ""
+        ).trim();
+
+
+    if (
+        !trimmed
+    ) {
+
+        return "";
+    }
+
+
+    if (
+        trimmed.startsWith(
+            "http"
+        )
+    ) {
+
+        return trimmed;
+    }
+
+
+    const baseUrl =
+        String(
+            supabase?.supabaseUrl ||
+            ""
+        ).replace(
+            /\/+$/,
+            ""
+        );
+
+
+    if (
+        !baseUrl
+    ) {
+
+        return trimmed;
+    }
+
+
+    return (
+        baseUrl +
+        (
+            trimmed.startsWith("/")
+                ? trimmed
+                : `/${trimmed}`
+        )
+    );
+}
+
+
 export async function listStoredUploads(
     options = {}
 ) {
@@ -492,7 +713,7 @@ export async function listStoredUploads(
         `${STORED_UPLOAD_ROOT}/${userId}`;
 
 
-    const folderResult =
+    const rootResult =
         await bucket.list(
             root,
             {
@@ -501,7 +722,7 @@ export async function listStoredUploads(
 
                 sortBy: {
                     column:
-                        "name",
+                        "created_at",
 
                     order:
                         "desc"
@@ -511,66 +732,187 @@ export async function listStoredUploads(
 
 
     if (
-        folderResult?.error
+        rootResult?.error
     ) {
 
-        throw folderResult.error;
+        throw rootResult.error;
     }
 
 
-    const folders =
+    const rootItems =
         Array.isArray(
-            folderResult?.data
+            rootResult?.data
         )
-            ? folderResult.data
+            ? rootResult.data
             : [];
 
 
-    const freshFolders =
-        folders
-            .map(
-                folder => ({
-                    folder,
-
-                    createdAt:
-                        Number(
-                            folder?.name
-                        )
-                })
-            )
-            .filter(
-                item =>
-                    isStoredUploadFresh(
-                        {
-                            createdAt:
-                                item.createdAt
-                        },
-                        {
-                            now,
-                            maxAgeMs
-                        }
-                    )
-            )
-            .sort(
-                (
-                    left,
-                    right
-                ) =>
-                    right.createdAt -
-                    left.createdAt
-            );
-
-
-    const entries = [];
+    const directEntries = [];
+    const folderCandidates = [];
 
 
     for (
         const item
-        of freshFolders
+        of rootItems
     ) {
 
         if (
-            entries.length >=
+            !item?.name
+        ) {
+
+            continue;
+        }
+
+
+        /*
+         * Jalur 1 (utama di generate-form-upload.js):
+         * File disimpan langsung di `generate-input/<userId>/<nama-file>`
+         * (mis. `<uuid>.png`, `video-<uuid>.mp4`, `audio-<uuid>.wav`).
+         */
+        if (
+            isDirectStorageFileEntry(
+                item
+            )
+        ) {
+
+            const createdAt =
+                resolveStorageEntryCreatedAt(
+                    item
+                );
+
+
+            if (
+                !isStoredUploadFresh(
+                    {
+                        createdAt
+                    },
+                    {
+                        now,
+                        maxAgeMs
+                    }
+                )
+            ) {
+
+                continue;
+            }
+
+
+            const mimeType =
+                String(
+                    item?.metadata?.mimetype ||
+                    item?.metadata?.contentType ||
+                    ""
+                );
+
+
+            const kind =
+                getStoredUploadKind(
+                    {
+                        mimeType,
+
+                        name:
+                            item.name
+                    }
+                );
+
+
+            if (
+                !kind ||
+                (
+                    kinds &&
+                    !kinds.includes(
+                        kind
+                    )
+                )
+            ) {
+
+                continue;
+            }
+
+
+            directEntries.push({
+
+                path:
+                    `${root}/${item.name}`,
+
+                name:
+                    item.name,
+
+                kind,
+
+                mimeType,
+
+                size:
+                    Number(
+                        item?.metadata?.size
+                    ) ||
+                    0,
+
+                createdAt,
+
+                expiresAt:
+                    createdAt +
+                    maxAgeMs
+            });
+
+            continue;
+        }
+
+
+        /*
+         * Jalur 2 (subfolder `<timestamp>` dari generate-media.js):
+         * `generate-input/<userId>/<timestamp>/<nama-file>`.
+         */
+        const folderCreatedAt =
+            Number(
+                item.name
+            );
+
+
+        if (
+            isStoredUploadFresh(
+                {
+                    createdAt:
+                        folderCreatedAt
+                },
+                {
+                    now,
+                    maxAgeMs
+                }
+            )
+        ) {
+
+            folderCandidates.push({
+                folder:
+                    item,
+
+                createdAt:
+                    folderCreatedAt
+            });
+        }
+    }
+
+
+    folderCandidates.sort(
+        (
+            left,
+            right
+        ) =>
+            right.createdAt -
+            left.createdAt
+    );
+
+
+    const folderEntries = [];
+
+
+    for (
+        const item
+        of folderCandidates
+    ) {
+
+        if (
+            folderEntries.length >=
             limit
         ) {
 
@@ -633,7 +975,7 @@ export async function listStoredUploads(
         ) {
 
             if (
-                entries.length >=
+                folderEntries.length >=
                 limit
             ) {
 
@@ -682,7 +1024,7 @@ export async function listStoredUploads(
             }
 
 
-            entries.push({
+            folderEntries.push({
 
                 path:
                     `${folderPath}/${file.name}`,
@@ -711,6 +1053,25 @@ export async function listStoredUploads(
     }
 
 
+    const entries =
+        [
+            ...directEntries,
+            ...folderEntries
+        ]
+            .sort(
+                (
+                    left,
+                    right
+                ) =>
+                    right.createdAt -
+                    left.createdAt
+            )
+            .slice(
+                0,
+                limit
+            );
+
+
     /*
      * Signed URL dibuat paralel supaya panel tidak terasa lambat
      * di HP (jumlahnya sudah dibatasi STORED_UPLOAD_LIMIT).
@@ -731,13 +1092,12 @@ export async function listStoredUploads(
 
 
                         const url =
-                            String(
+                            resolveSignedStorageUrl(
+                                supabase,
                                 signedResult
                                     ?.data
-                                    ?.signedUrl ||
-                                ""
-                            )
-                                .trim();
+                                    ?.signedUrl
+                            );
 
 
                         if (
@@ -1314,12 +1674,7 @@ export function createStoredUploadsPanel(
         );
 
 
-        if (
-            !loaded
-        ) {
-
-            await refresh();
-        }
+        await refresh();
     }
 
 
@@ -1372,6 +1727,53 @@ export function createStoredUploadsPanel(
     );
 
 
+    const handleStoredUploadsChanged =
+        () => {
+
+            loaded =
+                false;
+
+
+            if (
+                panel.isConnected === false
+            ) {
+
+                if (
+                    typeof globalThis?.removeEventListener ===
+                    "function"
+                ) {
+
+                    globalThis.removeEventListener(
+                        STORED_UPLOADS_CHANGED_EVENT,
+                        handleStoredUploadsChanged
+                    );
+                }
+
+                return;
+            }
+
+
+            if (
+                !body.hidden
+            ) {
+
+                refresh();
+            }
+        };
+
+
+    if (
+        typeof globalThis?.addEventListener ===
+        "function"
+    ) {
+
+        globalThis.addEventListener(
+            STORED_UPLOADS_CHANGED_EVENT,
+            handleStoredUploadsChanged
+        );
+    }
+
+
     return {
 
         element:
@@ -1406,6 +1808,7 @@ export default Object.freeze({
     STORED_UPLOAD_ROOT,
     STORED_UPLOAD_LIMIT,
     STORED_UPLOAD_SOON_MS,
+    STORED_UPLOADS_CHANGED_EVENT,
     parseStoredUploadPath,
     getStoredUploadKind,
     getStoredUploadKindLabel,

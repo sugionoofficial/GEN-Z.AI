@@ -70,7 +70,7 @@ const MODEL_MODULE =
     "./generate-model.js?v=20261016-regenerate-history";
 
 const FORM_MODULE =
-    "./generate-form.js?v=20261029-mobile-spinner";
+    "./generate-form.js?v=20261030-stored-uploads";
 
 const SEEDANCE_MODULE =
     "./generate-seedance.js";
@@ -82,7 +82,7 @@ const SUBMIT_MODULE =
     "./generate-submit.js?v=20261029-historygate";
 
 const VALIDATION_MODULE =
-    "./generate-validation.js?v=20261028-urlguard";
+    "./generate-validation.js?v=20261030-audioref";
 
 const REQUEST_MODULE =
     "./generate-request.js?v=20261029-historygate";

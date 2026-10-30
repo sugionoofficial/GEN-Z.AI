@@ -583,7 +583,7 @@ function createPanel(options) {
 test("panel terpasang di ketiga field media", () => {
     assert.match(
         formMediaSource,
-        /from "\.\/generate-stored-uploads\.js\?v=stored-uploads-20261026"/
+        /from "\.\/generate-stored-uploads\.js\?v=stored-uploads-20261026/
     );
 
     assert.equal(
@@ -686,3 +686,180 @@ test("halaman Generate memakai versi aset terbaru", () => {
         /generate-form-media\.js\?v=stored-uploads-20261026/
     );
 });
+
+test("membaca file langsung di generate-input/<userId>/<file> (format uploadImageFile/uploadVideoFile/uploadAudioFile) beserta timestamp PostgreSQL & Safari", async () => {
+    const nowMs = Date.parse("2026-10-30T11:00:00.000Z");
+
+    const flatItems = [
+        {
+            name: "audio-e495a0a0-66ee-43ee-843a-c1c88099767d.wav",
+            id: "8c16d7eb-4939-496a-aba8-89734f9052a1",
+            created_at: "2026-10-30 10:46:03.425391+00",
+            updated_at: "2026-10-30 10:46:03.425391+00",
+            metadata: { size: 1920044, mimetype: "audio/wav" }
+        },
+        {
+            name: "f93340db-402a-4f5a-9228-6032d7c01798.png",
+            id: "cf354ed5-df9f-424f-94b0-a1fdcc520bcf",
+            created_at: "2026-10-30 10:44:24.552465+00",
+            updated_at: "2026-10-30 10:44:24.552465+00",
+            metadata: { size: 5455252, mimetype: "image/png" }
+        },
+        {
+            name: "video-9b12c34d-1111-4222-8333-444455556666.mp4",
+            id: "ab12cd34-1111-4222-8333-444455556666",
+            created_at: "2026-10-30T10:50:00.000Z",
+            updated_at: "2026-10-30T10:50:00.000Z",
+            metadata: { size: 8400123, mimetype: "video/mp4" }
+        },
+        {
+            name: "sudah-lewat-sejam.png",
+            id: "deadbeef-0000-4000-8000-000000000001",
+            created_at: "2026-10-30 09:30:00.000000+00",
+            updated_at: "2026-10-30 09:30:00.000000+00",
+            metadata: { size: 120000, mimetype: "image/png" }
+        }
+    ];
+
+    const supabase = {
+        supabaseUrl: "https://ycovbqmezhrvzobxqnyp.supabase.co",
+        storage: {
+            from: () => ({
+                list: async prefix => {
+                    assert.equal(prefix, ROOT_PATH);
+                    return { data: flatItems, error: null };
+                },
+                createSignedUrl: async objectPath => ({
+                    data: {
+                        signedUrl: `/storage/v1/object/sign/user-uploads/${objectPath}?token=abc`
+                    },
+                    error: null
+                })
+            })
+        }
+    };
+
+    const images = await listStoredUploads({
+        supabase,
+        userId: USER_ID,
+        now: nowMs,
+        kinds: ["image"]
+    });
+    assert.deepEqual(
+        images.map(item => item.name),
+        ["f93340db-402a-4f5a-9228-6032d7c01798.png"],
+        "foto < 1 jam tampil dan foto > 1 jam disaring"
+    );
+    assert.equal(
+        images[0].url,
+        `https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/${ROOT_PATH}/f93340db-402a-4f5a-9228-6032d7c01798.png?token=abc`
+    );
+
+    const videos = await listStoredUploads({
+        supabase,
+        userId: USER_ID,
+        now: nowMs,
+        kinds: ["video"]
+    });
+    assert.deepEqual(
+        videos.map(item => item.name),
+        ["video-9b12c34d-1111-4222-8333-444455556666.mp4"]
+    );
+
+    const audios = await listStoredUploads({
+        supabase,
+        userId: USER_ID,
+        now: nowMs,
+        kinds: ["audio"]
+    });
+    assert.deepEqual(
+        audios.map(item => item.name),
+        ["audio-e495a0a0-66ee-43ee-843a-c1c88099767d.wav"]
+    );
+
+    const allMedia = await listStoredUploads({
+        supabase,
+        userId: USER_ID,
+        now: nowMs
+    });
+    assert.deepEqual(
+        allMedia.map(item => item.name),
+        [
+            "video-9b12c34d-1111-4222-8333-444455556666.mp4",
+            "audio-e495a0a0-66ee-43ee-843a-c1c88099767d.wav",
+            "f93340db-402a-4f5a-9228-6032d7c01798.png"
+        ],
+        "diurutkan dari unggahan paling baru"
+    );
+});
+
+test("panel memuat ulang daftar saat dibuka kembali atau tombol Muat ulang diklik setelah upload baru", async () => {
+    await withFakeDocument(async () => {
+        const currentFiles = [];
+        const supabase = {
+            storage: {
+                from: () => ({
+                    list: async () => ({ data: [...currentFiles], error: null }),
+                    createSignedUrl: async objectPath => ({
+                        data: {
+                            signedUrl: `https://project.supabase.co/storage/v1/object/sign/${objectPath}?token=1`
+                        },
+                        error: null
+                    })
+                })
+            }
+        };
+
+        const panel = createPanel({
+            kinds: ["image"],
+            now: () => NOW,
+            getContext: async () => ({ supabase, userId: USER_ID })
+        });
+
+        /* 1. Dibuka saat belum ada unggahan */
+        await panel.expand();
+        assert.equal(
+            findButtons(panel.element).filter(b => b.dataset.storedPath).length,
+            0
+        );
+
+        /* 2. Ditutup, user mengunggah foto baru (format flat generate-form-upload.js), lalu dibuka lagi */
+        panel.collapse();
+        currentFiles.push({
+            name: "f93340db-402a-4f5a-9228-6032d7c01798.png",
+            id: "img-1",
+            created_at: new Date(NOW - 2 * MINUTE).toISOString(),
+            metadata: { size: 2048, mimetype: "image/png" }
+        });
+
+        await panel.expand();
+        const afterReopen = findButtons(panel.element).filter(
+            b => b.dataset.storedPath
+        );
+        assert.equal(afterReopen.length, 1);
+        assert.equal(
+            afterReopen[0].dataset.storedPath,
+            `${ROOT_PATH}/f93340db-402a-4f5a-9228-6032d7c01798.png`
+        );
+
+        /* 3. Saat panel masih terbuka, user mengunggah foto ke-2 lalu klik Muat ulang */
+        currentFiles.push({
+            name: "8201afea-5a53-47fe-a6f9-f02e62ee4088.jpg",
+            id: "img-2",
+            created_at: new Date(NOW - 1 * MINUTE).toISOString(),
+            metadata: { size: 4096, mimetype: "image/jpeg" }
+        });
+
+        await panel.refresh();
+        const afterRefresh = findButtons(panel.element).filter(
+            b => b.dataset.storedPath
+        );
+        assert.equal(afterRefresh.length, 2);
+        assert.equal(
+            afterRefresh[0].dataset.storedPath,
+            `${ROOT_PATH}/8201afea-5a53-47fe-a6f9-f02e62ee4088.jpg`,
+            "foto terbaru muncul paling atas saat Muat ulang diklik"
+        );
+    });
+});
+
