@@ -26,7 +26,7 @@ begin
               (r.status = 'queued' and r.created_at < p_now - interval '100 seconds')
               or (
                   r.status = 'generating'
-                  and coalesce(r.started_at, r.created_at) < p_now - interval '10 minutes'
+                  and coalesce(r.started_at, r.created_at) < p_now - interval '3 minutes'
               )
           )
         order by r.created_at asc
@@ -35,8 +35,7 @@ begin
     loop
         update public.social_post_runs
         set status = 'generating',
-            started_at = p_now,
-            updated_at = p_now
+            started_at = p_now
         where id = v_run.id;
 
         run_id := v_run.id;

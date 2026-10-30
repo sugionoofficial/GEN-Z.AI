@@ -179,3 +179,70 @@ test("riwayat menyediakan tombol Batalkan dan label pratinjau yang jujur", () =>
     assert.match(source, /noticeOrphanPreview/);
     assert.match(source, /halaman di-refresh sehingga gambarnya hilang/);
 });
+
+test("social-run-resume.sql tidak menulis kolom updated_at yang tidak ada di social_post_runs dan memakai batas 3 menit", () => {
+    const sql = readFileSync(new URL("../supabase/social-run-resume.sql", import.meta.url), "utf8");
+    assert.doesNotMatch(sql, /\bupdated_at\s*=/i, "social_post_runs tidak punya kolom updated_at");
+    assert.match(sql, /interval\s+'3 minutes'/i);
+});
+
+test("scheduled() Worker memprioritaskan Social Publisher dan menunda retensi/monitoring saat autopost aktif agar tidak menabrak batas 50 subrequest", async () => {
+    const { default: worker } = await import("../functions/worker.mjs");
+    const hitUrls = [];
+
+    const restore = mockFetch(async (url, options = {}) => {
+        hitUrls.push(url);
+        if (url.includes("/rpc/claim_due_social_post_schedules")) {
+            return Response.json([
+                {
+                    run_id: "run-busy-1",
+                    schedule_id: "sched-busy-1",
+                    scheduled_for: "2026-10-30T13:50:00.000Z"
+                }
+            ]);
+        }
+        if (url.includes("/rest/v1/social_post_runs?")) {
+            return Response.json([]);
+        }
+        if (url.includes("/rest/v1/social_post_schedules?")) {
+            /* Kembalikan kosong agar processRun berhenti cepat tanpa menembak provider eksternal */
+            return Response.json([]);
+        }
+        if (url.includes("/storage/v1/object/list/") || url.includes("/rest/v1/monitoring_settings")) {
+            throw new Error(`Cron latar tidak boleh ikut jalan pada tick autopost aktif: ${url}`);
+        }
+        return Response.json([]);
+    });
+
+    try {
+        /* Pukul 13:50:00Z adalah kelipatan 5 menit (jadwal normal retensi media). */
+        await worker.scheduled(
+            { scheduledTime: Date.parse("2026-10-30T13:50:00.000Z") },
+            env,
+            null
+        );
+
+        assert.ok(
+            hitUrls.some(u => u.includes("/rpc/claim_due_social_post_schedules")),
+            "claim_due_social_post_schedules wajib dipanggil"
+        );
+        assert.equal(
+            hitUrls.some(u => u.includes("/storage/v1/object/list/")),
+            false,
+            "Storage retention wajib ditunda saat Social Publisher sedang memproses jadwal"
+        );
+        assert.equal(
+            hitUrls.some(u => u.includes("/rest/v1/monitoring_settings")),
+            false,
+            "Monitoring cron wajib ditunda saat Social Publisher sedang memproses jadwal"
+        );
+        assert.equal(
+            hitUrls.some(u => u.includes("/rpc/claim_stuck_social_post_runs")),
+            false,
+            "claim_stuck_social_post_runs ditunda ke tick idle saat ada jadwal aktif"
+        );
+    } finally {
+        restore();
+    }
+});
+
