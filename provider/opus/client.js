@@ -55,6 +55,7 @@ const TOOLS_CACHE_TTL_MS = 3 * 60 * 1000;
 const COMPLETED_INLINE_CACHE_TTL_MS = 30 * 60 * 1000;
 const MAX_REFERENCE_IMAGES = 3;
 const MAX_REFERENCE_VIDEOS = 3;
+const MAX_REFERENCE_AUDIOS = 3;
 
 const CLIENT_ITEM_IDS = new Set([
     "clip-1",
@@ -70,7 +71,10 @@ const CLIENT_ITEM_IDS = new Set([
     "image3",
     "video1",
     "video2",
-    "video3"
+    "video3",
+    "audio1",
+    "audio2",
+    "audio3"
 ]);
 
 const PROJECT_PENDING_JOB_ID = "__project_pending__";
@@ -1803,6 +1807,15 @@ function inferVideoMimeFromUrl(url) {
     return "video/mp4";
 }
 
+function inferAudioMimeFromUrl(url) {
+    const clean = String(url || "").split("?")[0].split("#")[0].toLowerCase();
+    if (clean.endsWith(".wav") || clean.endsWith(".wave")) return "audio/wav";
+    if (clean.endsWith(".m4a")) return "audio/mp4";
+    if (clean.endsWith(".aac")) return "audio/aac";
+    if (clean.endsWith(".ogg") || clean.endsWith(".oga")) return "audio/ogg";
+    return "audio/mpeg";
+}
+
 function extFromMime(mime) {
     if (mime === "image/png") return "png";
     if (mime === "image/webp") return "webp";
@@ -1810,6 +1823,11 @@ function extFromMime(mime) {
     if (mime === "video/webm") return "webm";
     if (mime === "video/x-m4v") return "m4v";
     if (mime === "video/mp4") return "mp4";
+    if (mime === "audio/wav" || mime === "audio/x-wav" || mime === "audio/wave" || mime === "audio/x-pn-wav") return "wav";
+    if (mime === "audio/mp4" || mime === "audio/x-m4a" || mime === "audio/m4a") return "m4a";
+    if (mime === "audio/aac") return "aac";
+    if (mime === "audio/ogg") return "ogg";
+    if (mime === "audio/mpeg" || mime === "audio/mp3") return "mp3";
     return "jpg";
 }
 
@@ -1963,11 +1981,16 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
         return mediaCache.get(cacheKey);
     }
     const isVideo = mediaType === "video";
-    const mediaLabel = isVideo ? "video referensi" : "gambar referensi";
+    const isAudio = mediaType === "audio";
+    const mediaLabel = isVideo
+        ? "video referensi"
+        : isAudio
+            ? "audio referensi"
+            : "gambar referensi";
     const res = await fetchWithTimeout(
         mediaUrl,
         { method: "GET" },
-        isVideo ? 35_000 : 20_000
+        isVideo ? 35_000 : isAudio ? 25_000 : 20_000
     );
     if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
@@ -1987,21 +2010,23 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
     const bytes = new Uint8Array(await res.arrayBuffer());
     if (!bytes.byteLength) {
         throw createProviderError({
-            message: `${isVideo ? "Video referensi" : "Gambar referensi"} kosong (0 byte).`,
+            message: `${isVideo ? "Video referensi" : isAudio ? "Audio referensi" : "Gambar referensi"} kosong (0 byte).`,
             code: "REFERENCE_EMPTY",
             status: 422
         });
     }
     if (isNonMediaHttpPayload(contentType, bytes)) {
         throw createProviderError({
-            message: `URL referensi mengarah ke halaman web (HTML), bukan file ${mediaLabel} langsung. Silakan gunakan direct link file (.jpg/.png/.mp4) atau unduh medianya lalu gunakan menu Upload.`,
+            message: `URL referensi mengarah ke halaman web (HTML), bukan file ${mediaLabel} langsung. Silakan gunakan direct link file (.jpg/.png/.mp4/.mp3) atau unduh medianya lalu gunakan menu Upload.`,
             code: "NON_DIRECT_MEDIA_URL",
             status: 422
         });
     }
     const resolvedMime = isVideo
         ? (contentType.startsWith("video/") ? contentType : inferVideoMimeFromUrl(mediaUrl))
-        : (contentType.startsWith("image/") ? contentType : inferImageMimeFromUrl(mediaUrl));
+        : isAudio
+            ? (contentType.startsWith("audio/") ? contentType : inferAudioMimeFromUrl(mediaUrl))
+            : (contentType.startsWith("image/") ? contentType : inferImageMimeFromUrl(mediaUrl));
     const downloaded = {
         bytes,
         mimeType: resolvedMime
@@ -2013,7 +2038,12 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
 }
 
 async function stageSingleReferenceImage(session, importTool, projectId, refItem, index) {
-    const itemMediaType = refItem.mediaType === "video" ? "video" : "image";
+    const itemMediaType =
+        refItem.mediaType === "video"
+            ? "video"
+            : refItem.mediaType === "audio"
+                ? "audio"
+                : "image";
     const urlCheck = inspectReferenceMediaUrl(refItem.url);
     if (!urlCheck.valid) {
         throw createProviderError({
@@ -2072,7 +2102,9 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
             const allowedKinds = extractAllowedValues(itemProps[kindKey], rootSchema);
             const kindCandidates = itemMediaType === "video"
                 ? ["video", "clip", "footage", "reference_video", "reference"]
-                : ["image", "photo", "reference", "frame"];
+                : itemMediaType === "audio"
+                    ? ["audio", "sound", "music", "voice", "voiceover", "reference_audio", "reference"]
+                    : ["image", "photo", "reference", "frame"];
             const matchedKind = matchEnumCaseInsensitive(kindCandidates, allowedKinds);
             if (matchedKind !== null) entry[kindKey] = matchedKind;
         }
@@ -2081,7 +2113,9 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
 
     const urlCandidates = itemMediaType === "video"
         ? ["url", "sourceUrl", "source_url", "uri", "videoUrl", "video_url", "remoteUrl"]
-        : ["url", "sourceUrl", "source_url", "uri", "imageUrl", "image_url", "remoteUrl"];
+        : itemMediaType === "audio"
+            ? ["url", "sourceUrl", "source_url", "uri", "audioUrl", "audio_url", "remoteUrl"]
+            : ["url", "sourceUrl", "source_url", "uri", "imageUrl", "image_url", "remoteUrl"];
     const urlKey = pickSupportedKey(
         itemProps,
         urlCandidates,
@@ -2221,12 +2255,18 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                 headers: putHeaders,
                 body: cachedDownloaded.bytes
             },
-            itemMediaType === "video" ? 40_000 : 25_000
+            itemMediaType === "video" ? 40_000 : itemMediaType === "audio" ? 30_000 : 25_000
         );
 
         if (!putRes.ok) {
+            const putMediaLabel =
+                itemMediaType === "video"
+                    ? "video referensi"
+                    : itemMediaType === "audio"
+                        ? "audio referensi"
+                        : "gambar referensi";
             throw createProviderError({
-                message: `Gagal mengunggah ${itemMediaType === "video" ? "video referensi" : "gambar referensi"} ke penyimpanan Opus Labs (HTTP ${putRes.status}).`,
+                message: `Gagal mengunggah ${putMediaLabel} ke penyimpanan Opus Labs (HTTP ${putRes.status}).`,
                 code: "ASSET_UPLOAD_FAILED",
                 status: 502
             });
@@ -2331,7 +2371,14 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
     if (props) {
         return stagedRefs.map((ref, idx) => {
             const isVideo = ref.mediaType === "video";
-            const defaultLabel = ref.label || (isVideo ? `video${idx + 1}` : `image${idx + 1}`);
+            const isAudio = ref.mediaType === "audio";
+            const defaultLabel =
+                ref.label ||
+                (isVideo
+                    ? `video${idx + 1}`
+                    : isAudio
+                        ? `audio${idx + 1}`
+                        : `image${idx + 1}`);
             const entry = {};
             const idKey = pickSupportedKey(props, ["assetId", "asset_id", "assetRef", "ref", "id"], "");
             if (idKey && ref.assetId) {
@@ -2341,7 +2388,9 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
                 props,
                 isVideo
                     ? ["url", "uri", "videoUrl", "video_url", "sourceUrl"]
-                    : ["url", "uri", "imageUrl", "image_url", "sourceUrl"],
+                    : isAudio
+                        ? ["url", "uri", "audioUrl", "audio_url", "sourceUrl"]
+                        : ["url", "uri", "imageUrl", "image_url", "sourceUrl"],
                 ""
             );
             if (urlKey && (!idKey || !ref.assetId || itemObj.required.includes(urlKey)) && ref.url) {
@@ -2363,7 +2412,9 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
                 const allowedRoles = extractAllowedValues(props[roleKey], rootSchema);
                 const roleCandidates = isVideo
                     ? [ref.role, "reference", "video", "motion", "style", "clip"]
-                    : [ref.role, "reference", "image", "subject", "character"];
+                    : isAudio
+                        ? [ref.role, "audio", "reference", "sound", "music", "voice", "soundtrack", "voiceover"]
+                        : [ref.role, "reference", "image", "subject", "character"];
                 const matchedRole = matchEnumCaseInsensitive(roleCandidates, allowedRoles);
                 if (matchedRole !== null) {
                     entry[roleKey] = matchedRole;
@@ -2379,11 +2430,18 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
 
     return stagedRefs.map((ref, idx) => {
         const isVideo = ref.mediaType === "video";
-        const defaultLabel = ref.label || (isVideo ? `video${idx + 1}` : `image${idx + 1}`);
+        const isAudio = ref.mediaType === "audio";
+        const defaultLabel =
+            ref.label ||
+            (isVideo
+                ? `video${idx + 1}`
+                : isAudio
+                    ? `audio${idx + 1}`
+                    : `image${idx + 1}`);
         return {
             ...(ref.assetId ? { assetId: ref.assetId } : { url: ref.url }),
             label: defaultLabel,
-            ...(isVideo ? { mediaType: "video" } : {})
+            ...(isVideo ? { mediaType: "video" } : isAudio ? { mediaType: "audio" } : {})
         };
     });
 }
@@ -2688,7 +2746,21 @@ function scoreClipSchemaBranch(branchObj, rootSchema, params) {
                     "referenceVideoUrls",
                     "reference_video_urls",
                     "videoUrls",
-                    "video_urls"
+                    "video_urls",
+                    "referenceAudioAssets",
+                    "reference_audio_assets",
+                    "audioAssets",
+                    "audio_assets",
+                    "referenceAudioUrls",
+                    "reference_audio_urls",
+                    "audioUrls",
+                    "audio_urls",
+                    "audioAsset",
+                    "audio_asset",
+                    "audioAssetId",
+                    "audio_asset_id",
+                    "audioUrl",
+                    "audio_url"
                 ],
                 ""
             )
@@ -3048,8 +3120,9 @@ function populateClipFields(target, objectSchema, rootSchema, {
             }
         }
     } else if (Array.isArray(stagedReferences) && stagedReferences.length > 0) {
-        const imageRefs = stagedReferences.filter(r => r.mediaType !== "video");
+        const imageRefs = stagedReferences.filter(r => r.mediaType === "image" || (!r.mediaType && r.mediaType !== "video" && r.mediaType !== "audio"));
         const videoRefs = stagedReferences.filter(r => r.mediaType === "video");
+        const audioRefs = stagedReferences.filter(r => r.mediaType === "audio");
 
         const refKey = pickSupportedKey(
             props,
@@ -3071,11 +3144,75 @@ function populateClipFields(target, objectSchema, rootSchema, {
             ["referenceVideoUrls", "reference_video_urls", "videoUrls", "video_urls", "referenceVideos", "reference_videos"],
             ""
         );
+        const refAudioArrayKey = pickSupportedKey(
+            props,
+            [
+                "referenceAudioAssets",
+                "reference_audio_assets",
+                "audioAssets",
+                "audio_assets",
+                "referenceAudioUrls",
+                "reference_audio_urls",
+                "audioUrls",
+                "audio_urls",
+                "referenceAudios",
+                "reference_audios"
+            ],
+            ""
+        );
+        const refAudioSingleKey = pickSupportedKey(
+            props,
+            [
+                "audioAsset",
+                "audio_asset",
+                "audioAssetId",
+                "audio_asset_id",
+                "referenceAudioUrl",
+                "reference_audio_url",
+                "audioUrl",
+                "audio_url",
+                "soundtrackAssetId",
+                "voiceoverAssetId"
+            ],
+            ""
+        );
 
-        if (refKey && props?.[refKey]) {
-            target[refKey] = buildReferenceAssetsValue(props[refKey], rootSchema, stagedReferences);
-        } else if (refIdsKey && stagedReferences.some(r => r.assetId)) {
-            target[refIdsKey] = stagedReferences.map(r => r.assetId).filter(Boolean);
+        let audioHandledSeparately = false;
+        if (audioRefs.length > 0) {
+            if (refAudioArrayKey && props?.[refAudioArrayKey]) {
+                target[refAudioArrayKey] = buildReferenceAssetsValue(props[refAudioArrayKey], rootSchema, audioRefs);
+                audioHandledSeparately = true;
+            } else if (refAudioSingleKey && props?.[refAudioSingleKey]) {
+                target[refAudioSingleKey] = buildFrameFieldValue(props[refAudioSingleKey], rootSchema, audioRefs[0]);
+                audioHandledSeparately = true;
+            }
+        }
+
+        const refsForSharedArray = (() => {
+            if (!audioRefs.length) return stagedReferences;
+            if (!refKey || !props?.[refKey]) return stagedReferences;
+            const refItemObj = resolveObjectSchema(resolveArrayItemSchema(props[refKey], rootSchema), rootSchema);
+            const refItemProps = refItemObj.properties;
+            const roleKey = pickSupportedKey(refItemProps, ["role", "kind", "type", "usage", "mediaType", "media_type"], "");
+            if (roleKey && refItemObj.required.includes(roleKey)) {
+                const allowedRoles = extractAllowedValues(refItemProps[roleKey], rootSchema);
+                const audioRoleAllowed = matchEnumCaseInsensitive(
+                    ["audio", "reference", "sound", "music", "voice", "soundtrack", "voiceover", "media", "asset"],
+                    allowedRoles
+                );
+                if (allowedRoles.length > 0 && audioRoleAllowed === null && audioHandledSeparately) {
+                    return stagedReferences.filter(r => r.mediaType !== "audio");
+                }
+            }
+            return audioHandledSeparately
+                ? stagedReferences.filter(r => r.mediaType !== "audio")
+                : stagedReferences;
+        })();
+
+        if (refKey && props?.[refKey] && refsForSharedArray.length > 0) {
+            target[refKey] = buildReferenceAssetsValue(props[refKey], rootSchema, refsForSharedArray);
+        } else if (refIdsKey && refsForSharedArray.some(r => r.assetId)) {
+            target[refIdsKey] = refsForSharedArray.map(r => r.assetId).filter(Boolean);
         } else if (refImageUrlsKey || refVideoUrlsKey) {
             if (refImageUrlsKey && imageRefs.length > 0) {
                 target[refImageUrlsKey] = imageRefs.map(r => r.url).filter(Boolean);
@@ -3086,11 +3223,18 @@ function populateClipFields(target, objectSchema, rootSchema, {
         } else if (!props) {
             target.referenceAssets = stagedReferences.map((r, idx) => {
                 const isVideo = r.mediaType === "video";
-                const defaultLabel = r.label || (isVideo ? `video${idx + 1}` : `image${idx + 1}`);
+                const isAudio = r.mediaType === "audio";
+                const defaultLabel =
+                    r.label ||
+                    (isVideo
+                        ? `video${idx + 1}`
+                        : isAudio
+                            ? `audio${idx + 1}`
+                            : `image${idx + 1}`);
                 return {
                     ...(r.assetId ? { assetId: r.assetId } : { url: r.url }),
                     label: defaultLabel,
-                    ...(isVideo ? { mediaType: "video" } : {})
+                    ...(isVideo ? { mediaType: "video" } : isAudio ? { mediaType: "audio" } : {})
                 };
             });
         }
@@ -4195,7 +4339,14 @@ async function createVideoTaskForSingleKey(payload = {}, apiKey, options = {}) {
         : Array.isArray(payload.video_urls)
             ? payload.video_urls.map(u => String(u || "").trim()).filter(Boolean).slice(0, MAX_REFERENCE_VIDEOS)
             : [];
-    const referenceVideoUrlSet = new Set(referenceVideoUrls);
+    const referenceAudioUrls = Array.isArray(payload.reference_audio_urls)
+        ? payload.reference_audio_urls.map(u => String(u || "").trim()).filter(Boolean).slice(0, MAX_REFERENCE_AUDIOS)
+        : Array.isArray(payload.audio_urls)
+            ? payload.audio_urls.map(u => String(u || "").trim()).filter(Boolean).slice(0, MAX_REFERENCE_AUDIOS)
+            : String(payload.audio_url || payload.reference_audio_url || "").trim()
+                ? [String(payload.audio_url || payload.reference_audio_url || "").trim()]
+                : [];
+    const referenceVideoUrlSet = new Set([...referenceVideoUrls, ...referenceAudioUrls]);
 
     let stagedFirstFrame = null;
     let stagedLastFrame = null;
@@ -4236,7 +4387,7 @@ async function createVideoTaskForSingleKey(payload = {}, apiKey, options = {}) {
                 1
             );
         }
-    } else if (referenceUrls.length > 0 || referenceVideoUrls.length > 0) {
+    } else if (referenceUrls.length > 0 || referenceVideoUrls.length > 0 || referenceAudioUrls.length > 0) {
         let assetOffset = 0;
         for (let i = 0; i < referenceUrls.length; i += 1) {
             const url = referenceUrls[i];
@@ -4273,6 +4424,27 @@ async function createVideoTaskForSingleKey(payload = {}, apiKey, options = {}) {
                     mimeType: mime,
                     mediaType: "video",
                     fileName: `reference-video-${j + 1}.${extFromMime(mime)}`,
+                    mediaCache
+                },
+                assetOffset
+            );
+            stagedReferences.push(staged);
+            assetOffset += 1;
+        }
+        for (let k = 0; k < referenceAudioUrls.length; k += 1) {
+            const url = referenceAudioUrls[k];
+            const mime = inferAudioMimeFromUrl(url);
+            const staged = await stageSingleReferenceImage(
+                session,
+                importTool,
+                projectId,
+                {
+                    url,
+                    role: "reference",
+                    label: `audio${k + 1}`,
+                    mimeType: mime,
+                    mediaType: "audio",
+                    fileName: `reference-audio-${k + 1}.${extFromMime(mime)}`,
                     mediaCache
                 },
                 assetOffset
@@ -5036,6 +5208,7 @@ async function getVideoTask(taskId, apiKey, options = {}) {
 export {
     DEFAULT_MCP_URL,
     DEFAULT_OPUS_WORKOS_CLIENT_ID,
+    MAX_REFERENCE_AUDIOS,
     MAX_REFERENCE_IMAGES,
     MAX_REFERENCE_VIDEOS,
     PROVIDER_ID,

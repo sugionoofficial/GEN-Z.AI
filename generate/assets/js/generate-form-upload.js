@@ -150,7 +150,12 @@ export const ALLOWED_AUDIO_TYPES =
         "audio/wav",
         "audio/x-wav",
         "audio/wave",
-        "audio/x-pn-wav"
+        "audio/x-pn-wav",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/m4a",
+        "audio/aac",
+        "audio/ogg"
     ]);
 
 
@@ -461,6 +466,7 @@ export function validateAudioFile(
             file.type ||
             ""
         )
+            .split(";")[0]
             .trim()
             .toLowerCase();
 
@@ -480,6 +486,15 @@ export function validateAudioFile(
         ) ||
         fileName.endsWith(
             ".wav"
+        ) ||
+        fileName.endsWith(
+            ".m4a"
+        ) ||
+        fileName.endsWith(
+            ".aac"
+        ) ||
+        fileName.endsWith(
+            ".ogg"
         );
 
 
@@ -495,7 +510,7 @@ export function validateAudioFile(
     ) {
 
         throw new Error(
-            "Format audio tidak didukung. Gunakan MP3 atau WAV."
+            "Format audio tidak didukung. Gunakan MP3, WAV, M4A, AAC, atau OGG."
         );
 
     }
@@ -815,17 +830,21 @@ export async function uploadAudioFile(
     );
 
 
+    const lowerAudioName =
+        String(file.name || "").toLowerCase();
+    const rawAudioMime =
+        String(file.type || "").split(";")[0].trim().toLowerCase();
     const contentType =
-        file.type ||
-        (
-            file.name
-                .toLowerCase()
-                .endsWith(
-                    ".wav"
-                )
-                ? "audio/wav"
-                : "audio/mpeg"
-        );
+        (rawAudioMime && ALLOWED_AUDIO_TYPES.has(rawAudioMime) ? rawAudioMime : "") ||
+        (lowerAudioName.endsWith(".wav")
+            ? "audio/wav"
+            : lowerAudioName.endsWith(".m4a")
+                ? "audio/mp4"
+                : lowerAudioName.endsWith(".aac")
+                    ? "audio/aac"
+                    : lowerAudioName.endsWith(".ogg")
+                        ? "audio/ogg"
+                        : "audio/mpeg");
 
 
     const {

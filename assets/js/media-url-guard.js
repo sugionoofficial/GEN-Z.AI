@@ -94,7 +94,9 @@ const MEDIA_PARAMETER_KEYS = new Set([
     "reference_video_url",
     "reference_video_urls",
     "audio_url",
-    "audio_urls"
+    "audio_urls",
+    "reference_audio_url",
+    "reference_audio_urls"
 ]);
 
 export function isMediaUrlParameterName(name) {
