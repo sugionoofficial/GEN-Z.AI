@@ -12,6 +12,7 @@
 
 import {
     DEFAULT_MCP_URL,
+    MAX_REFERENCE_AUDIOS,
     MAX_REFERENCE_IMAGES,
     MAX_REFERENCE_VIDEOS,
     PROVIDER_ID,
@@ -138,7 +139,9 @@ function buildParametersForSpec(spec) {
     const parameters = [];
     const maxRefs = spec.maxReferences || MAX_REFERENCE_IMAGES;
     const maxVideoRefs = spec.maxReferenceVideos || MAX_REFERENCE_VIDEOS;
+    const maxAudioRefs = spec.maxReferenceAudio || MAX_REFERENCE_AUDIOS;
     const hasVideoRefs = Boolean(spec.allowReferenceVideos);
+    const hasAudioRefs = Boolean(spec.allowReferenceAudio);
 
     if (spec.kind === "i2v") {
         parameters.push({
@@ -162,13 +165,13 @@ function buildParametersForSpec(spec) {
         parameters.push({
             name: "image_urls",
             type: "image_urls",
-            required: hasVideoRefs ? false : Boolean(spec.referenceRequired),
+            required: (hasVideoRefs || hasAudioRefs) ? false : Boolean(spec.referenceRequired),
             maxItems: maxRefs,
             accept: "image/jpeg,image/png,image/webp",
             description: spec.referenceRequired
                 ? (
                     hasVideoRefs
-                        ? `Unggah hingga ${maxRefs} gambar referensi (@image1 s/d @image${maxRefs}) dan/atau video referensi di bawah.`
+                        ? `Unggah hingga ${maxRefs} gambar referensi (@image1 s/d @image${maxRefs}) dan/atau video/audio referensi di bawah.`
                         : `Unggah 1–${maxRefs} gambar referensi (@image1 s/d @image${maxRefs}).`
                 )
                 : `Opsional: hingga ${maxRefs} gambar referensi (@image1 s/d @image${maxRefs}).`
@@ -182,8 +185,19 @@ function buildParametersForSpec(spec) {
                 maxItems: maxVideoRefs,
                 accept: "video/mp4,video/quicktime,video/webm",
                 description: spec.referenceRequired
-                    ? `Unggah hingga ${maxVideoRefs} video referensi (@video1 s/d @video${maxVideoRefs}) — wajib minimal 1 gambar atau video referensi.`
+                    ? `Unggah hingga ${maxVideoRefs} video referensi (@video1 s/d @video${maxVideoRefs}) — wajib minimal 1 media referensi.`
                     : `Opsional: hingga ${maxVideoRefs} video referensi (@video1 s/d @video${maxVideoRefs}).`
+            });
+        }
+
+        if (hasAudioRefs) {
+            parameters.push({
+                name: "audio_url",
+                type: "audio_url",
+                required: false,
+                maxItems: maxAudioRefs,
+                accept: ".mp3,.wav,.m4a,.aac,.ogg,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a,audio/aac,audio/ogg",
+                description: `Opsional: unggah audio referensi MP3, WAV, atau M4A (@audio1 untuk suara/musik/lip-sync).`
             });
         }
     }
@@ -195,9 +209,11 @@ function buildParametersForSpec(spec) {
         maxLength: spec.maxPrompt || 7000,
         description: spec.kind === "r2v"
             ? (
-                hasVideoRefs
-                    ? "Deskripsi adegan dan gerakan video (gunakan @image1..@image3 atau @video1..@video3 untuk merujuk media referensi)."
-                    : "Deskripsi adegan dan gerakan video (gunakan @image1, @image2 untuk merujuk gambar referensi)."
+                hasVideoRefs && hasAudioRefs
+                    ? "Deskripsi adegan dan gerakan video (gunakan @image1..@image3, @video1..@video3, atau @audio1 untuk merujuk media referensi)."
+                    : hasVideoRefs
+                        ? "Deskripsi adegan dan gerakan video (gunakan @image1..@image3 atau @video1..@video3 untuk merujuk media referensi)."
+                        : "Deskripsi adegan dan gerakan video (gunakan @image1, @image2 untuk merujuk gambar referensi)."
             )
             : "Deskripsi adegan, subjek, pencahayaan, dan pergerakan kamera."
     });
@@ -340,6 +356,20 @@ export function createOpusVideoModel(spec) {
             );
         }
 
+        if (definitions.has("audio_url")) {
+            const audioList = normalizeUrlList(
+                source.audio_urls ??
+                source.reference_audio_urls ??
+                (source.audio_url || source.reference_audio_url
+                    ? [source.audio_url || source.reference_audio_url]
+                    : [])
+            );
+            if (audioList.length > 0) {
+                result.audio_url = audioList[0];
+                result.audio_urls = audioList;
+            }
+        }
+
         if (definitions.has("aspect_ratio")) {
             result.aspect_ratio =
                 normalizeString(source.aspect_ratio || source.ratio) ||
@@ -422,12 +452,14 @@ export function createOpusVideoModel(spec) {
 
         if (definitions.has("video_urls")) {
             const maxVideoItems = definitions.get("video_urls").maxItems || MAX_REFERENCE_VIDEOS;
+            const hasAudioRef = Array.isArray(params.audio_urls) && params.audio_urls.length > 0;
             if (
                 spec.referenceRequired &&
                 (!params.image_urls || params.image_urls.length === 0) &&
-                (!params.video_urls || params.video_urls.length === 0)
+                (!params.video_urls || params.video_urls.length === 0) &&
+                !hasAudioRef
             ) {
-                errors.push("Minimal 1 gambar referensi atau video referensi wajib diunggah untuk model ini.");
+                errors.push("Minimal 1 gambar referensi atau video referensi (atau audio referensi) wajib diunggah untuk model ini.");
             }
             if (params.video_urls.length > maxVideoItems) {
                 errors.push(`Maksimal ${maxVideoItems} video referensi.`);
@@ -435,6 +467,19 @@ export function createOpusVideoModel(spec) {
             for (const url of params.video_urls) {
                 if (!isPublicHttpUrl(url)) {
                     errors.push("Setiap video referensi harus berupa URL HTTP/HTTPS publik yang valid.");
+                    break;
+                }
+            }
+        }
+
+        if (definitions.has("audio_url") && Array.isArray(params.audio_urls) && params.audio_urls.length > 0) {
+            const maxAudioItems = definitions.get("audio_url").maxItems || MAX_REFERENCE_AUDIOS;
+            if (params.audio_urls.length > maxAudioItems) {
+                errors.push(`Maksimal ${maxAudioItems} audio referensi.`);
+            }
+            for (const url of params.audio_urls) {
+                if (!isPublicHttpUrl(url)) {
+                    errors.push("Audio referensi harus berupa URL HTTP/HTTPS publik yang valid.");
                     break;
                 }
             }
@@ -500,6 +545,10 @@ export function createOpusVideoModel(spec) {
         }
         if (Array.isArray(params.video_urls) && params.video_urls.length > 0) {
             payload.reference_video_urls = params.video_urls;
+        }
+        if (Array.isArray(params.audio_urls) && params.audio_urls.length > 0) {
+            payload.reference_audio_urls = params.audio_urls;
+            payload.audio_url = params.audio_urls[0];
         }
         if (typeof params.generate_audio === "boolean" && spec.generateAudio) {
             payload.generate_audio = params.generate_audio;

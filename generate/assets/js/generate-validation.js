@@ -1531,9 +1531,12 @@ function validateModelCapabilities(
     ) {
         const hasImages = normalizeArray(parameters.image_urls).length > 0;
         const hasVideos = normalizeArray(parameters.video_urls).length > 0;
-        if (!hasImages && !hasVideos) {
+        const hasAudio =
+            Boolean(String(parameters.audio_url || "").trim()) ||
+            normalizeArray(parameters.audio_urls).length > 0;
+        if (!hasImages && !hasVideos && !hasAudio) {
             errors.push(
-                "Minimal 1 gambar referensi atau video referensi wajib diunggah untuk model ini."
+                "Minimal 1 gambar referensi atau video referensi (atau audio referensi) wajib diunggah untuk model ini."
             );
         }
     }

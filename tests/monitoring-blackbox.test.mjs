@@ -1257,17 +1257,19 @@ test("temuan yang sumbernya hilang ditutup otomatis", async () => {
 });
 
 test("temuan berbasis event menyertakan waktu kejadian terbaru", () => {
+    const earlierIso = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const latestIso = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const findings = buildFindings({
         checks: [],
         settings: null,
         events: [
-            { kind: "devtools", severity: "warn", path: "/a", occurred_at: "2026-10-29T08:00:00.000Z", devtools_open: true },
-            { kind: "devtools", severity: "warn", path: "/a", occurred_at: "2026-10-29T09:30:00.000Z", devtools_open: true }
+            { kind: "devtools", severity: "warn", path: "/a", occurred_at: earlierIso, devtools_open: true },
+            { kind: "devtools", severity: "warn", path: "/a", occurred_at: latestIso, devtools_open: true }
         ]
     });
 
     const devtools = findings.find(item => item.fingerprint === "devtools:open");
-    assert.equal(devtools.evidence.latest_at, "2026-10-29T09:30:00.000Z");
+    assert.equal(devtools.evidence.latest_at, latestIso);
 });
 
 test("temuan 'health' yang sempat resolved langsung dibuka lagi saat kembali gagal", async () => {

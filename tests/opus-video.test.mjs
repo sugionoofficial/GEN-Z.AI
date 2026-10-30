@@ -2745,6 +2745,286 @@ test("Cross-isolate race condition: ketika isolate lain baru saja memutar refres
     }
 });
 
+test("Seedance 2.5 R2V dan Seedance 2.0 mendukung upload Audio Referensi (audio_url / @audio1) dan staging import_assets audio ke Opus MCP", async () => {
+    const r2v25 = getOpusVideoModel("opus-seedance-2.5-r2v");
+    const r2v20 = getOpusVideoModel("opus-seedance-2.0-r2v");
+    assert.ok(r2v25);
+    assert.ok(r2v20);
+
+    for (const adapter of [r2v25, r2v20]) {
+        const audioParam = adapter.parameters.find(p => p.name === "audio_url");
+        assert.ok(audioParam, `${adapter.config.id} wajib memiliki parameter audio_url`);
+        assert.equal(audioParam.type, "audio_url");
+        assert.equal(audioParam.required, false);
+        assert.match(audioParam.accept, /\.mp3/);
+        assert.match(audioParam.accept, /\.wav/);
+        assert.match(audioParam.accept, /\.m4a/);
+    }
+
+    /* 1. Validasi menerima audio referensi saja maupun kombinasi gambar + video + audio */
+    const audioOnlyCheck = r2v25.validate({
+        prompt: "Karakter bernyanyi mengikuti irama @audio1 di panggung neon",
+        audio_url: "https://cdn.example.com/ref-song.mp3"
+    });
+    assert.equal(audioOnlyCheck.valid, true, audioOnlyCheck.errors.join("; "));
+
+    const comboPayload = r2v25.buildPayload({
+        prompt: "Karakter @image1 menari seperti @video1 mengikuti ketukan @audio1",
+        image_urls: ["https://cdn.example.com/char-1.png"],
+        video_urls: ["https://cdn.example.com/dance-1.mp4"],
+        audio_url: "https://cdn.example.com/beat-1.m4a"
+    });
+    assert.deepEqual(comboPayload.reference_image_urls, ["https://cdn.example.com/char-1.png"]);
+    assert.deepEqual(comboPayload.reference_video_urls, ["https://cdn.example.com/dance-1.mp4"]);
+    assert.deepEqual(comboPayload.reference_audio_urls, ["https://cdn.example.com/beat-1.m4a"]);
+    assert.equal(comboPayload.audio_url, "https://cdn.example.com/beat-1.m4a");
+
+    /* 2. Validasi menolak URL audio tidak valid atau > 3 audio_urls */
+    const badAudioCheck = r2v25.validate({
+        prompt: "Tes URL salah",
+        image_urls: ["https://cdn.example.com/char-1.png"],
+        audio_url: "ftp://bukan-http.example.com/suara.mp3"
+    });
+    assert.equal(badAudioCheck.valid, false);
+
+    const tooManyAudios = r2v25.validate({
+        prompt: "Terlalu banyak audio",
+        audio_urls: [
+            "https://cdn.example.com/1.mp3",
+            "https://cdn.example.com/2.mp3",
+            "https://cdn.example.com/3.mp3",
+            "https://cdn.example.com/4.mp3"
+        ]
+    });
+    assert.equal(tooManyAudios.valid, false);
+
+    /* 3. End-to-end MCP: staging gambar + audio referensi (awaiting_upload -> PUT -> finalize -> generate_video_clips) */
+    const importedCalls = [];
+    let putAudioReceived = false;
+    let capturedVideoArgs = null;
+    const originalFetch = globalThis.fetch;
+
+    try {
+        resetOpusKeyRotation();
+        globalThis.fetch = async (url, init = {}) => {
+            const target = String(url);
+            if (target === "https://cdn.example.com/voice-1.m4a") {
+                return new Response(new Uint8Array([0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70]), {
+                    status: 200,
+                    headers: { "content-type": "audio/mp4" }
+                });
+            }
+            if (target === "https://upload.opus.mock/put-audio-1") {
+                assert.equal(init.method, "PUT");
+                putAudioReceived = true;
+                return new Response("", { status: 200 });
+            }
+            if (target !== "https://labs.opus.pro/opus-video-tools/mcp") {
+                throw new Error(`Unexpected URL in audio MCP test: ${target}`);
+            }
+
+            const body = JSON.parse(init.body);
+            if (body.method === "initialize") {
+                return new Response(
+                    JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { protocolVersion: "2025-03-26", serverInfo: { name: "opus-mock" } }
+                    }),
+                    { status: 200, headers: { "content-type": "application/json", "mcp-session-id": "sess-audio-1" } }
+                );
+            }
+            if (body.method === "notifications/initialized") {
+                return new Response("", { status: 202 });
+            }
+            if (body.method === "tools/list") {
+                return new Response(
+                    JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: {
+                            tools: [
+                                {
+                                    name: "create_project",
+                                    inputSchema: {
+                                        type: "object",
+                                        properties: { name: { type: "string" }, requestKey: { type: "string" } }
+                                    }
+                                },
+                                {
+                                    name: "import_assets",
+                                    inputSchema: {
+                                        type: "object",
+                                        properties: {
+                                            projectId: { type: "string" },
+                                            assets: {
+                                                type: "array",
+                                                items: {
+                                                    type: "object",
+                                                    properties: {
+                                                        clientId: { type: "string" },
+                                                        assetId: { type: "string" },
+                                                        url: { type: "string" },
+                                                        fileName: { type: "string" },
+                                                        mimeType: { type: "string" },
+                                                        status: { type: "string", enum: ["uploaded", "ready"] },
+                                                        mediaType: { type: "string", enum: ["image", "video", "audio"] }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    name: "generate_video_clips",
+                                    inputSchema: {
+                                        type: "object",
+                                        properties: {
+                                            projectId: { type: "string" },
+                                            clips: {
+                                                type: "array",
+                                                items: {
+                                                    type: "object",
+                                                    properties: {
+                                                        clipId: { type: "string" },
+                                                        model: { type: "string" },
+                                                        workflow: { type: "string" },
+                                                        prompt: { type: "string" },
+                                                        durationSeconds: { type: "integer" },
+                                                        resolution: { type: "string" },
+                                                        aspectRatio: { type: "string" },
+                                                        referenceAssets: {
+                                                            type: "array",
+                                                            items: {
+                                                                type: "object",
+                                                                properties: {
+                                                                    assetId: { type: "string" },
+                                                                    label: { type: "string" },
+                                                                    kind: { type: "string", enum: ["image", "video", "audio"] }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }),
+                    { status: 200, headers: { "content-type": "application/json" } }
+                );
+            }
+            if (body.method === "tools/call") {
+                const { name, arguments: args } = body.params;
+                if (name === "create_project") {
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: { content: [{ type: "text", text: JSON.stringify({ projectId: "proj_audioref_1" }) }] }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+                if (name === "import_assets") {
+                    importedCalls.push(args);
+                    const firstItem = args.assets?.[0] || {};
+                    if (firstItem.assetId === "asset_aud_1") {
+                        return new Response(
+                            JSON.stringify({
+                                jsonrpc: "2.0",
+                                id: body.id,
+                                result: {
+                                    content: [{ type: "text", text: JSON.stringify({ assets: [{ assetId: "asset_aud_1", status: "ready" }] }) }]
+                                }
+                            }),
+                            { status: 200, headers: { "content-type": "application/json" } }
+                        );
+                    }
+                    if (firstItem.mediaType === "audio") {
+                        return new Response(
+                            JSON.stringify({
+                                jsonrpc: "2.0",
+                                id: body.id,
+                                result: {
+                                    content: [
+                                        {
+                                            type: "text",
+                                            text: JSON.stringify({
+                                                assets: [
+                                                    {
+                                                        clientId: firstItem.clientId,
+                                                        assetId: "asset_aud_1",
+                                                        status: "awaiting_upload",
+                                                        uploadUrl: "https://upload.opus.mock/put-audio-1"
+                                                    }
+                                                ]
+                                            })
+                                        }
+                                    ]
+                                }
+                            }),
+                            { status: 200, headers: { "content-type": "application/json" } }
+                        );
+                    }
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                content: [{ type: "text", text: JSON.stringify({ assets: [{ clientId: firstItem.clientId, assetId: "asset_img_1", status: "ready" }] }) }]
+                            }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+                if (name === "generate_video_clips") {
+                    capturedVideoArgs = args;
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: body.id,
+                            result: {
+                                content: [{ type: "text", text: JSON.stringify({ jobId: "job_audioref_1", status: "queued" }) }]
+                            }
+                        }),
+                        { status: 200, headers: { "content-type": "application/json" } }
+                    );
+                }
+            }
+            throw new Error(`Unhandled MCP method: ${body.method}`);
+        };
+
+        const taskRes = await r2v25.createTask(
+            {
+                prompt: "Karakter @image1 berbicara mengikuti dialog @audio1",
+                image_urls: ["https://cdn.example.com/char-1.png"],
+                audio_url: "https://cdn.example.com/voice-1.m4a",
+                duration: "10",
+                resolution: "720p",
+                aspect_ratio: "9:16"
+            },
+            "opus-mock-bearer-token"
+        );
+
+        assert.equal(taskRes.taskId, "opus:proj_audioref_1:job_audioref_1");
+        assert.equal(putAudioReceived, true, "Audio wajib diunggah via presigned PUT saat awaiting_upload");
+        assert.equal(importedCalls[0].assets[0].mediaType, "image");
+        assert.equal(importedCalls[1].assets[0].mediaType, "audio");
+        assert.equal(importedCalls[1].assets[0].mimeType, "audio/mp4");
+        assert.deepEqual(capturedVideoArgs.clips[0].referenceAssets, [
+            { assetId: "asset_img_1", label: "image1", kind: "image" },
+            { assetId: "asset_aud_1", label: "audio1", kind: "audio" }
+        ]);
+    } finally {
+        globalThis.fetch = originalFetch;
+        resetOpusKeyRotation();
+    }
+});
+
+
 
 
 
