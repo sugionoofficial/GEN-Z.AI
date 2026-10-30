@@ -42,7 +42,7 @@ import {
 import {
     createStoredUploadsPanel,
     formatStoredUploadRemaining
-} from "./generate-stored-uploads.js?v=stored-uploads-20261026";
+} from "./generate-stored-uploads.js?v=stored-uploads-20261026-20261030";
 
 
 /* =========================================================
@@ -558,12 +558,59 @@ async function getStoredUploadContext() {
         await getCurrentUser();
 
 
-    const userId =
+    let userId =
         String(
             user?.id ||
+            user?.user?.id ||
             ""
         )
             .trim();
+
+
+    if (
+        !userId &&
+        typeof supabase?.auth?.getSession === "function"
+    ) {
+
+        try {
+
+            const sessionResult =
+                await supabase.auth.getSession();
+
+            userId =
+                String(
+                    sessionResult?.data?.session?.user?.id ||
+                    ""
+                )
+                    .trim();
+
+        } catch {
+            /* Abaikan jika getSession gagal */
+        }
+    }
+
+
+    if (
+        !userId &&
+        typeof supabase?.auth?.getUser === "function"
+    ) {
+
+        try {
+
+            const userResult =
+                await supabase.auth.getUser();
+
+            userId =
+                String(
+                    userResult?.data?.user?.id ||
+                    ""
+                )
+                    .trim();
+
+        } catch {
+            /* Abaikan jika getUser gagal */
+        }
+    }
 
 
     if (

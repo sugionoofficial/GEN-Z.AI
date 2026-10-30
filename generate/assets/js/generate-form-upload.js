@@ -130,6 +130,39 @@ async function createMediaUrl(
 }
 
 
+function notifyStoredUploadsChanged(
+    detail = {}
+) {
+
+    try {
+
+        if (
+            typeof globalThis?.dispatchEvent === "function" &&
+            typeof Event === "function"
+        ) {
+
+            const evt =
+                typeof CustomEvent === "function"
+                    ? new CustomEvent(
+                        "genz:stored-uploads-changed",
+                        { detail }
+                    )
+                    : new Event(
+                        "genz:stored-uploads-changed"
+                    );
+
+            globalThis.dispatchEvent(
+                evt
+            );
+        }
+
+    } catch {
+        /* Abaikan pada runtime non-DOM */
+    }
+
+}
+
+
 
 export const ALLOWED_IMAGE_TYPES =
     new Set([
@@ -744,6 +777,13 @@ export async function uploadImageFile(
     );
 
 
+    notifyStoredUploadsChanged({
+        kind:
+            "image",
+        path
+    });
+
+
     return {
         path,
         url:
@@ -899,6 +939,13 @@ export async function uploadAudioFile(
     );
 
 
+    notifyStoredUploadsChanged({
+        kind:
+            "audio",
+        path
+    });
+
+
     return {
         path,
         url:
@@ -1048,6 +1095,13 @@ export async function uploadVideoFile(
         "[GEN-Z.AI][Generate Form] Upload video berhasil:",
         publicUrl
     );
+
+
+    notifyStoredUploadsChanged({
+        kind:
+            "video",
+        path
+    });
 
 
     return {
