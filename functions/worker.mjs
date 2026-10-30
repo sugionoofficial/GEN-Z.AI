@@ -117,32 +117,55 @@ export default {
             ? new Date(controller.scheduledTime)
             : new Date();
 
-        const tasks = [
-            runSocialPublisherCron(env, scheduledAt)
+        const runAllTasks = async () => {
+            const socialResult = await runSocialPublisherCron(env, scheduledAt)
                 .catch(error => {
                     console.error("[Cloudflare Worker] Social Publisher cron failed:", error?.message || "unknown error");
-                }),
+                    return null;
+                });
 
-            // Retensi media: upload 1 jam, media riwayat 24 jam.
-            runStorageRetentionCron(env, scheduledAt)
-                .catch(error => {
-                    console.error("[Cloudflare Worker] Storage retention cron failed:", error?.message || "unknown error");
-                }),
+            /*
+             * Cloudflare Worker membatasi 50 subrequest per eksekusi scheduled().
+             * Satu siklus autopost Opus + Facebook memakai ~33 subrequest; bila
+             * retensi media (10–14 subrequest), cleanup akun tamu, dan monitoring
+             * berjalan bersamaan pada menit kelipatan 5/10 (:00, :10, :20, :30,
+             * :40, :50), totalnya menembus batas 50 subrequest sehingga proses
+             * autopost terputus di tengah jalan dan gagal menulis status akhir.
+             * Karena itu, tugas pemeliharaan latar hanya dijalankan pada menit
+             * saat Social Publisher sedang tidak memproses postingan aktif.
+             */
+            const socialBusy = Boolean(
+                (socialResult?.claimed || 0) > 0 ||
+                (socialResult?.resumed || 0) > 0
+            );
+            if (socialBusy) {
+                return;
+            }
 
-            // Akun tamu live chat: hapus yang tanpa percakapan / 7 hari idle.
-            runSupportGuestCleanupCron(env, scheduledAt)
-                .catch(error => {
-                    console.error("[Cloudflare Worker] Support guest cleanup cron failed:", error?.message || "unknown error");
-                }),
+            const tasks = [
+                // Retensi media: upload 1 jam, media riwayat 24 jam.
+                runStorageRetentionCron(env, scheduledAt)
+                    .catch(error => {
+                        console.error("[Cloudflare Worker] Storage retention cron failed:", error?.message || "unknown error");
+                    }),
 
-            // Pemeriksaan rutin BLACK BOX (mengikuti interval di monitoring_settings).
-            runMonitoringCron(env, scheduledAt)
-                .catch(error => {
-                    console.error("[Cloudflare Worker] Monitoring cron failed:", error?.message || "unknown error");
-                })
-        ];
+                // Akun tamu live chat: hapus yang tanpa percakapan / 7 hari idle.
+                runSupportGuestCleanupCron(env, scheduledAt)
+                    .catch(error => {
+                        console.error("[Cloudflare Worker] Support guest cleanup cron failed:", error?.message || "unknown error");
+                    }),
 
-        const task = Promise.allSettled(tasks);
+                // Pemeriksaan rutin BLACK BOX (mengikuti interval di monitoring_settings).
+                runMonitoringCron(env, scheduledAt)
+                    .catch(error => {
+                        console.error("[Cloudflare Worker] Monitoring cron failed:", error?.message || "unknown error");
+                    })
+            ];
+
+            await Promise.allSettled(tasks);
+        };
+
+        const task = runAllTasks();
         if (context?.waitUntil) context.waitUntil(task);
         else await task;
     }

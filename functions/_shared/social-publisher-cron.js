@@ -1191,18 +1191,23 @@ export async function runSocialPublisherCron(env, scheduledTime = new Date()) {
         return { claimed: 0, skipped: true };
     }
 
-    /* Bersihkan run yatim lebih dulu supaya riwayat tidak menumpuk status
-       "generating" abadi dan jadwal terkait bisa lanjut. */
-    const swept = await sweepAbandonedRuns(config, scheduledTime);
-
+    /*
+     * Klaim jadwal jatuh tempo lebih dulu (RPC di PostgreSQL sudah otomatis
+     * menutup run yatim >30 menit di dalam transaksi yang sama). Bila ada
+     * jadwal aktif yang harus diposting sekarang, tunda sapuan 4 PATCH dan
+     * resume ke tick idle berikutnya supaya menghemat 5 subrequest Worker.
+     */
     const claims = await dbRequest(config, "/rest/v1/rpc/claim_due_social_post_schedules", {
         method: "POST",
         body: JSON.stringify({ p_now: new Date(scheduledTime).toISOString(), p_limit: 2 })
     });
     const jobs = Array.isArray(claims) ? claims : [];
     const allowInProcessRetry = jobs.length <= 1;
-    for (const job of jobs) {
-        await processRun(env, config, job, { allowInProcessRetry });
+    if (jobs.length > 0) {
+        for (const job of jobs) {
+            await processRun(env, config, job, { allowInProcessRetry });
+        }
+        return { claimed: jobs.length, resumed: 0, swept: { auto: 0, manual: 0 }, skipped: false };
     }
 
     /* Run autopost yang terjebak (invocation worker mati mendadak, mis. saat deploy):
@@ -1218,9 +1223,18 @@ export async function runSocialPublisherCron(env, scheduledTime = new Date()) {
     } catch (error) {
         console.warn("[Social Publisher] Resume run terjebak dilewati:", error?.message || "unknown error");
     }
-    for (const job of resumed) {
-        console.log(`[Social Publisher] Melanjutkan run autopost yang terjebak: ${job.run_id}`);
-        await processRun(env, config, job);
+    if (resumed.length > 0) {
+        for (const job of resumed) {
+            console.log(`[Social Publisher] Melanjutkan run autopost yang terjebak: ${job.run_id}`);
+            await processRun(env, config, {
+                ...job,
+                scheduled_for: job.scheduled_for || new Date(scheduledTime).toISOString()
+            }, { allowInProcessRetry: resumed.length <= 1 });
+        }
+        return { claimed: 0, resumed: resumed.length, swept: { auto: 0, manual: 0 }, skipped: false };
     }
-    return { claimed: jobs.length, resumed: resumed.length, swept, skipped: false };
+
+    /* Pada menit idle (tidak ada jadwal maupun resume aktif), sapu run yatim. */
+    const swept = await sweepAbandonedRuns(config, scheduledTime);
+    return { claimed: 0, resumed: 0, swept, skipped: false };
 }
