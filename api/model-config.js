@@ -107,6 +107,9 @@ import qwenCloudVideoModels
 import opusVideoModels
     from "../models/opus-video/index.js";
 
+import opusImageModels
+    from "../models/opus-image/index.js";
+
 
 /* =========================================================
    MODEL REGISTRY
@@ -126,7 +129,10 @@ const MODEL_REGISTRY = Object.freeze([
    ...qwenCloudVideoModels,
 
    /* Opus Labs (Opus Video Tools MCP) */
-   ...opusVideoModels
+   ...opusVideoModels,
+
+   /* Opus Labs Image Generation (generate_keyframes) */
+   ...opusImageModels
 
 ]);
 
@@ -1857,12 +1863,30 @@ function buildModelConfig(
         description:
             String(
                 databaseModel?.description ||
+                config.description ||
                 ""
             ).trim(),
 
 
         type:
             modelType,
+
+
+        media_type:
+            String(
+                config.mediaType ||
+                config.generationType ||
+                "video"
+            )
+                .trim()
+                .toLowerCase() ||
+            "video",
+
+
+        sub_modes:
+            Array.isArray(config.subModes)
+                ? config.subModes
+                : null,
 
 
         provider: {

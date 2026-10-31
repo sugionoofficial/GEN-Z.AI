@@ -57,6 +57,19 @@
    MODULE PATH
 ========================================================= */
 
+import {
+    IMAGE_SUBMODE_CHARACTER_SHEET,
+    IMAGE_SUBMODE_STANDARD,
+    MAIN_MODE_IMAGE,
+    MAIN_MODE_VIDEO,
+    getActiveImageSubMode,
+    getActiveMainMode,
+    inferSubModeFromRegenerateParameters,
+    isImageModel,
+    setActiveImageSubMode,
+    setActiveMainMode
+} from "./generate-mode-state.js";
+
 const STATE_MODULE =
     "./generate-state.js";
 
@@ -64,13 +77,13 @@ const AUTH_MODULE =
     "./generate-auth.js?v=20261013-auth-refresh";
 
 const UI_MODULE =
-    "./generate-ui.js?v=20261029-mobile-spinner";
+    "./generate-ui.js?v=20261101-image-video-modes";
 
 const MODEL_MODULE =
-    "./generate-model.js?v=20261016-regenerate-history";
+    "./generate-model.js?v=20261101-image-video-modes";
 
 const FORM_MODULE =
-    "./generate-form.js?v=20261031-threads";
+    "./generate-form.js?v=20261101-image-video-modes";
 
 const SEEDANCE_MODULE =
     "./generate-seedance.js";
@@ -79,10 +92,10 @@ const RENDER_MODULE =
     "./generate-render.js";
 
 const SUBMIT_MODULE =
-    "./generate-submit.js?v=20261031-staged30s";
+    "./generate-submit.js?v=20261101-image-video-modes";
 
 const VALIDATION_MODULE =
-    "./generate-validation.js?v=20261031-staged30s";
+    "./generate-validation.js?v=20261101-image-video-modes";
 
 const REQUEST_MODULE =
     "./generate-request.js?v=20261029-historygate";
@@ -3822,6 +3835,16 @@ function applyPendingRegeneration() {
     const parameters =
         regeneration.parameters || {};
 
+    if (isImageModel(model)) {
+        const restoredSubMode = inferSubModeFromRegenerateParameters(parameters);
+        setActiveMainMode(MAIN_MODE_IMAGE);
+        setActiveImageSubMode(restoredSubMode);
+        syncModeSwitcherUI();
+        if (restoredSubMode === IMAGE_SUBMODE_CHARACTER_SHEET) {
+            appState.modules.render?.renderModelForm?.(model);
+        }
+    }
+
     const setIfAvailable =
         (name, value) => {
 
@@ -3842,6 +3865,7 @@ function applyPendingRegeneration() {
 
     [
         "prompt",
+        "character_notes",
         "aspect_ratio",
         "duration",
         "resolution"
@@ -3851,6 +3875,13 @@ function applyPendingRegeneration() {
             parameters[name]
         )
     );
+
+    if (parameters.character_image_url) {
+        setIfAvailable("character_image_url", parameters.character_image_url);
+    }
+    if (parameters.outfit_image_url) {
+        setIfAvailable("outfit_image_url", parameters.outfit_image_url);
+    }
 
     const setReference =
         (url, candidates) => {
@@ -3869,6 +3900,7 @@ function applyPendingRegeneration() {
     setReference(
         parameters.image_reference_url,
         [
+            "character_image_url",
             "image_urls",
             "image_url",
             "first_frame_url",
@@ -4951,6 +4983,26 @@ function renderGenerationResult(
 
         }
 
+        const isImgOutput =
+            isImageModel(getCurrentModel()) ||
+            /^data:image\//i.test(url) ||
+            /\.(?:png|jpe?g|webp|gif|avif)(?:[?#]|$)/i.test(url);
+
+        if (isImgOutput) {
+            const img = document.createElement("img");
+            img.src = url;
+            img.alt = "Hasil generate gambar";
+            img.style.cssText = [
+                "width:100%",
+                "max-width:760px",
+                "border-radius:12px",
+                "display:block",
+                "object-fit:contain"
+            ].join(";");
+            resultBox.appendChild(img);
+            continue;
+        }
+
         const video =
             document.createElement(
                 "video"
@@ -5599,6 +5651,278 @@ function initializeVisualState() {
 
 
 /* =========================================================
+   MODE SWITCHER UI & IMAGE RESULT PREVIEW
+========================================================= */
+
+let latestGeneratedImageUrl = "";
+
+function hideImageResult() {
+    const card = document.getElementById("generateImageResultCard");
+    if (card) {
+        card.hidden = true;
+    }
+}
+
+function extractResultImageUrl(result) {
+    if (!result || typeof result !== "object") return "";
+    const directCandidates = [
+        result.result_url,
+        result.resultUrl,
+        result.image_url,
+        result.imageUrl,
+        result.data?.result_url,
+        result.data?.resultUrl,
+        ...(Array.isArray(result.result_urls) ? result.result_urls : []),
+        ...(Array.isArray(result.resultUrls) ? result.resultUrls : []),
+        ...(Array.isArray(result.data?.result_urls) ? result.data.result_urls : []),
+        ...(Array.isArray(result.data?.resultUrls) ? result.data.resultUrls : [])
+    ];
+    for (const candidate of directCandidates) {
+        const clean = String(candidate || "").trim();
+        if (/^(?:https?:\/\/|data:image\/)/i.test(clean)) {
+            return clean;
+        }
+    }
+    return "";
+}
+
+function renderImageResult(result, model = getCurrentModel()) {
+    const url = extractResultImageUrl(result);
+    if (!url) return;
+
+    const card = document.getElementById("generateImageResultCard");
+    const img = document.getElementById("generateImageResultImg");
+    const modelLabel = document.getElementById("generateImageResultModel");
+    if (!card || !img) return;
+
+    latestGeneratedImageUrl = url;
+    img.src = url;
+    if (modelLabel) {
+        modelLabel.textContent = getModelName(model) || "";
+    }
+    card.hidden = false;
+
+    try {
+        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch {
+        /* ignore */
+    }
+}
+
+function bindImageDownloadButton() {
+    const btn = document.getElementById("generateImageDownloadBtn");
+    if (!btn || btn.dataset.genzImgDownloadBound === "true") return;
+
+    btn.addEventListener("click", async () => {
+        const url = latestGeneratedImageUrl || document.getElementById("generateImageResultImg")?.src || "";
+        if (!url) return;
+
+        const filename = window.GENZGeneratedFileName?.create
+            ? window.GENZGeneratedFileName.create(url, "png")
+            : `GEN-Z.AI-${Date.now()}.png`;
+
+        const originalLabel = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "Menyiapkan...";
+
+        try {
+            window.GenzToast?.info?.({
+                title: "Menyiapkan unduhan foto...",
+                message: filename,
+                duration: 2800
+            });
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = blobUrl;
+            anchor.download = filename;
+            anchor.rel = "noopener";
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+            window.GenzToast?.success?.({
+                title: "Berhasil diunduh",
+                message: filename,
+                duration: 5000
+            });
+        } catch {
+            window.open(url, "_blank", "noopener,noreferrer");
+            window.GenzToast?.info?.({
+                title: "Foto dibuka di tab baru",
+                message: "Simpan gambar langsung dari tab yang terbuka.",
+                duration: 4500
+            });
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalLabel;
+        }
+    });
+
+    btn.dataset.genzImgDownloadBound = "true";
+}
+
+function syncModeSwitcherUI() {
+    const mainMode = getActiveMainMode();
+    const subMode = getActiveImageSubMode();
+    const isImg = mainMode === MAIN_MODE_IMAGE;
+
+    document.querySelectorAll("#generateMainModeTabs [data-main-mode]").forEach(btn => {
+        const active = btn.getAttribute("data-main-mode") === mainMode;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+
+    const subModeWrap = document.getElementById("generateImageSubModeWrap");
+    if (subModeWrap) {
+        subModeWrap.hidden = !isImg;
+    }
+
+    document.querySelectorAll("#generateImageSubModeWrap [data-image-submode]").forEach(btn => {
+        const active = btn.getAttribute("data-image-submode") === subMode;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+
+    const lockedBanner = document.getElementById("characterSheetLockedBanner");
+    if (lockedBanner) {
+        lockedBanner.hidden = !(isImg && subMode === IMAGE_SUBMODE_CHARACTER_SHEET);
+    }
+
+    const sectionEyebrow = document.getElementById("generateSectionEyebrow");
+    if (sectionEyebrow) {
+        sectionEyebrow.textContent = isImg ? "GENERATE GAMBAR AI" : "GENERATE VIDEO AI";
+    }
+
+    const sectionDesc = document.getElementById("generateSectionDescription");
+    if (sectionDesc) {
+        sectionDesc.textContent = isImg
+            ? (
+                subMode === IMAGE_SUBMODE_CHARACTER_SHEET
+                    ? "Unggah foto karakter (dan opsional foto outfit) untuk membuat lembar Character Sheet studio multi-sudut secara otomatis."
+                    : "Pilih model gambar AI, unggah hingga 8 gambar referensi (opsional), lalu tulis prompt gambar Anda."
+            )
+            : "Pilih model dan parameter video yang tersedia pada konfigurasi model aktif.";
+    }
+
+    const topbarEyebrow = document.querySelector(".topbar-eyebrow");
+    if (topbarEyebrow) {
+        topbarEyebrow.textContent = isImg ? "AI IMAGE & CHARACTER STUDIO" : "AI VIDEO GENERATOR";
+    }
+
+    const buttonLabel = document.querySelector("#generateButton .generate-button-label");
+    if (buttonLabel) {
+        buttonLabel.textContent = isImg
+            ? (subMode === IMAGE_SUBMODE_CHARACTER_SHEET ? "Generate Karakter Sheet" : "Generate Gambar")
+            : "Generate Video";
+    }
+}
+
+async function switchMainMode(nextMode) {
+    if (appState.modules.submit?.isGenerationInProgress?.()) {
+        return;
+    }
+
+    const targetMode = setActiveMainMode(nextMode);
+    if (targetMode === MAIN_MODE_VIDEO) {
+        hideImageResult();
+    }
+    syncModeSwitcherUI();
+    hideError();
+
+    const modelModule = appState.modules.model;
+    const stateModule = appState.modules.state;
+    if (!modelModule || !stateModule) return;
+
+    const allModels = stateModule.getAvailableModels?.() || [];
+    const selectedId = modelModule.renderModelSelector?.(allModels) || "";
+
+    if (!selectedId) {
+        disableGenerateButton();
+        const container = getDOM().dynamicFields;
+        if (container) {
+            container.innerHTML = `<div class="generate-empty-parameters">${
+                targetMode === MAIN_MODE_IMAGE
+                    ? "Belum ada model gambar yang aktif."
+                    : "Belum ada model video yang aktif."
+            }</div>`;
+        }
+        return;
+    }
+
+    try {
+        disableGenerateButton();
+        showLoading("Memuat model...");
+        const model = await modelModule.selectModel(selectedId);
+        if (model) {
+            const normalized = setCurrentModel(model);
+            await renderModel(normalized);
+            appState.modelReady = true;
+            syncModelCreditForResolution();
+            enableGenerateButton(normalized);
+        }
+    } catch (err) {
+        showError(err?.message || "Gagal memuat model.");
+    } finally {
+        hideLoading();
+    }
+}
+
+async function switchImageSubMode(nextSubMode) {
+    if (appState.modules.submit?.isGenerationInProgress?.()) {
+        return;
+    }
+
+    const prevSubMode = getActiveImageSubMode();
+    const targetSubMode = setActiveImageSubMode(nextSubMode);
+    syncModeSwitcherUI();
+
+    if (prevSubMode === targetSubMode) {
+        return;
+    }
+
+    const currentModel = getCurrentModel();
+    if (!currentModel || !isImageModel(currentModel)) {
+        return;
+    }
+
+    hideError();
+    await renderModel(currentModel);
+    syncModelCreditForResolution();
+    enableGenerateButton(currentModel);
+}
+
+function bindModeSwitcherEvents() {
+    const mainTabs = document.getElementById("generateMainModeTabs");
+    if (mainTabs && mainTabs.dataset.genzModeBound !== "true") {
+        mainTabs.addEventListener("click", event => {
+            const btn = event.target?.closest?.("[data-main-mode]");
+            if (!btn) return;
+            const mode = btn.getAttribute("data-main-mode");
+            if (mode && mode !== getActiveMainMode()) {
+                switchMainMode(mode);
+            }
+        });
+        mainTabs.dataset.genzModeBound = "true";
+    }
+
+    const subModeWrap = document.getElementById("generateImageSubModeWrap");
+    if (subModeWrap && subModeWrap.dataset.genzSubModeBound !== "true") {
+        subModeWrap.addEventListener("click", event => {
+            const btn = event.target?.closest?.("[data-image-submode]");
+            if (!btn) return;
+            const subMode = btn.getAttribute("data-image-submode");
+            if (subMode) {
+                switchImageSubMode(subMode);
+            }
+        });
+        subModeWrap.dataset.genzSubModeBound = "true";
+    }
+}
+
+/* =========================================================
    BOOTSTRAP
 ========================================================= */
 
@@ -5638,6 +5962,12 @@ async function bootstrap() {
 
         await initializeAuth();
 
+        bindModeSwitcherEvents();
+
+        bindImageDownloadButton();
+
+        syncModeSwitcherUI();
+
         bindModelEvent();
 
         bindResetEvent();
@@ -5647,6 +5977,8 @@ async function bootstrap() {
         bindResolutionEvent();
 
         await initializeModel();
+
+        syncModeSwitcherUI();
 
         applyPendingRegeneration();
 
@@ -5847,6 +6179,14 @@ window.GENZGenerateApp =
         hideLegacyKieDiagnostic,
 
         renderGenerationResult,
+
+        renderImageResult,
+
+        hideImageResult,
+
+        switchMainMode,
+
+        switchImageSubMode,
 
 
         /* =================================================

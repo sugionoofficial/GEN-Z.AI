@@ -54,6 +54,7 @@ const QUERY_TIMEOUT_MS = 25_000;
 const TOOLS_CACHE_TTL_MS = 3 * 60 * 1000;
 const COMPLETED_INLINE_CACHE_TTL_MS = 30 * 60 * 1000;
 const MAX_REFERENCE_IMAGES = 3;
+const MAX_IMAGE_REFERENCE_IMAGES = 8;
 const MAX_REFERENCE_VIDEOS = 3;
 const MAX_REFERENCE_AUDIOS = 3;
 
@@ -66,9 +67,16 @@ const CLIENT_ITEM_IDS = new Set([
     "kf-1",
     "first_frame",
     "last_frame",
+    "character",
+    "outfit",
     "image1",
     "image2",
     "image3",
+    "image4",
+    "image5",
+    "image6",
+    "image7",
+    "image8",
     "video1",
     "video2",
     "video3",
@@ -2433,7 +2441,7 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
                     ? [ref.role, "reference", "video", "motion", "style", "clip"]
                     : isAudio
                         ? [ref.role, "audio", "reference", "sound", "music", "voice", "soundtrack", "voiceover"]
-                        : [ref.role, "reference", "image", "subject", "character"];
+                        : [ref.role, "outfit", "character", "reference", "image", "subject", "style"];
                 const matchedRole = matchEnumCaseInsensitive(roleCandidates, allowedRoles);
                 if (matchedRole !== null) {
                     entry[roleKey] = matchedRole;
@@ -3686,6 +3694,153 @@ function extractVideoUrls(rootData, seen = new WeakSet()) {
             for (const [k, v] of Object.entries(node)) {
                 if (priorityKeys.includes(k) || outputContainers.includes(k)) continue;
                 if (/(?:firstFrame|first_frame|lastFrame|last_frame|reference|input|upload|request)/i.test(k)) {
+                    continue;
+                }
+                visit(v, k, localMime, depth + 1);
+            }
+        }
+    };
+
+    visit(rootData, "", "", 0);
+    return urls;
+}
+
+function isLikelyImageOutputUrl(url, keyHint = "", mimeHint = "") {
+    const clean = String(url || "").trim();
+    if (!clean) return false;
+    const lowerKey = String(keyHint || "").toLowerCase();
+    if (/(?:upload|presign_put|callback|webhook|firstframe|first_frame|lastframe|last_frame|reference|inputimage|input_image|sourceimage|source_image|inputasset|input_asset|characterimage|character_image|outfitimage|outfit_image|avatar)/i.test(lowerKey)) {
+        return false;
+    }
+    if (/^data:image\/(?:png|jpe?g|webp|avif|gif);base64,[A-Za-z0-9+/=\s]+$/i.test(clean)) {
+        return true;
+    }
+    if (!/^https?:\/\//i.test(clean)) return false;
+    const lowerMime = String(mimeHint || "").toLowerCase();
+    if (lowerMime.startsWith("video/") || lowerMime.startsWith("audio/")) {
+        return false;
+    }
+    if (lowerMime.startsWith("image/")) {
+        return true;
+    }
+    const pathPart = clean.split("?")[0].split("#")[0].toLowerCase();
+    if (/\.(?:mp4|webm|mov|m4v|mp3|wav|m4a|aac|ogg|json|xml|txt|html)$/i.test(pathPart)) {
+        return false;
+    }
+    if (/\.(?:png|jpe?g|webp|avif)$/i.test(pathPart)) {
+        return true;
+    }
+    return /(?:image|keyframe|photo|picture|output|download|render|result|media|signed|asset|cdn|public|file|url|uri)/i.test(lowerKey);
+}
+
+function extractImageUrls(rootData, seen = new WeakSet()) {
+    const urls = [];
+    const addUrl = url => {
+        const clean = String(url || "").trim();
+        if (clean && !urls.includes(clean)) {
+            urls.push(clean);
+        }
+    };
+
+    const visit = (node, keyHint = "", mimeHint = "", depth = 0) => {
+        if (!node || depth > 8) return;
+        if (typeof node === "string") {
+            if (isLikelyImageOutputUrl(node, keyHint, mimeHint)) {
+                addUrl(node);
+            }
+            return;
+        }
+        if (Array.isArray(node)) {
+            for (const el of node) {
+                visit(el, keyHint, mimeHint, depth + 1);
+            }
+            return;
+        }
+        if (typeof node === "object") {
+            if (seen.has(node)) return;
+            seen.add(node);
+
+            const localMime = String(
+                node.mimeType ||
+                node.mime_type ||
+                node.contentType ||
+                node.content_type ||
+                mimeHint ||
+                ""
+            ).trim();
+
+            for (const b64Key of ["b64_json", "base64", "imageBase64", "image_base64", "dataBase64"]) {
+                if (typeof node[b64Key] === "string" && node[b64Key].trim().length > 64) {
+                    const rawB64 = node[b64Key].trim();
+                    if (/^data:image\//i.test(rawB64)) {
+                        addUrl(rawB64);
+                    } else if (/^[A-Za-z0-9+/=\s]+$/.test(rawB64)) {
+                        const safeMime = localMime.startsWith("image/") ? localMime : "image/png";
+                        addUrl(`data:${safeMime};base64,${rawB64.replace(/\s+/g, "")}`);
+                    }
+                }
+            }
+
+            const priorityKeys = [
+                "imageUrl",
+                "image_url",
+                "keyframeUrl",
+                "keyframe_url",
+                "downloadUrl",
+                "download_url",
+                "outputUrl",
+                "output_url",
+                "resultUrl",
+                "result_url",
+                "signedUrl",
+                "signed_url",
+                "presignedUrl",
+                "presigned_url",
+                "mediaUrl",
+                "media_url",
+                "fileUrl",
+                "file_url",
+                "cdnUrl",
+                "cdn_url",
+                "publicUrl",
+                "public_url",
+                "dataUrl",
+                "data_url",
+                "url",
+                "uri"
+            ];
+
+            for (const pk of priorityKeys) {
+                if (typeof node[pk] === "string" && isLikelyImageOutputUrl(node[pk], pk, localMime)) {
+                    addUrl(node[pk]);
+                }
+            }
+
+            const outputContainers = [
+                "keyframes",
+                "images",
+                "outputs",
+                "results",
+                "deliverables",
+                "artifacts",
+                "downloads",
+                "files",
+                "items",
+                "jobs",
+                "assets",
+                "data",
+                "result"
+            ];
+
+            for (const ck of outputContainers) {
+                if (node[ck] !== undefined && node[ck] !== null) {
+                    visit(node[ck], ck, localMime, depth + 1);
+                }
+            }
+
+            for (const [k, v] of Object.entries(node)) {
+                if (priorityKeys.includes(k) || outputContainers.includes(k)) continue;
+                if (/(?:firstFrame|first_frame|lastFrame|last_frame|reference|input|upload|request|character_image|outfit_image)/i.test(k)) {
                     continue;
                 }
                 visit(v, k, localMime, depth + 1);
@@ -5409,19 +5564,1457 @@ async function getVideoTask(taskId, apiKey, options = {}) {
     });
 }
 
+/* =========================================================
+   PUBLIC CLIENT API: createImageTask & getImageTask
+========================================================= */
+
+function matchImageModelValue(wantedModel, modelAliases = [], allowedValues = []) {
+    const cleanWanted = String(wantedModel || "").trim();
+    const candidates = [
+        cleanWanted,
+        ...(Array.isArray(modelAliases) ? modelAliases : [])
+    ]
+        .map(v => String(v || "").trim())
+        .filter(Boolean);
+
+    if (!allowedValues.length) {
+        return candidates[0] || "";
+    }
+
+    const exactHit = matchEnumCaseInsensitive(candidates, allowedValues);
+    if (exactHit !== null) {
+        return exactHit;
+    }
+
+    for (const candidate of candidates) {
+        const bare = candidate.includes("/") ? candidate.split("/").pop() : candidate;
+        const compactBare = normalizeCompactToken(bare);
+        if (!compactBare) continue;
+        const suffixHit = allowedValues.find(v => {
+            const str = String(v || "");
+            const vBare = str.includes("/") ? str.split("/").pop() : str;
+            return normalizeCompactToken(vBare) === compactBare;
+        });
+        if (suffixHit !== undefined) {
+            return suffixHit;
+        }
+    }
+
+    /* Pencocokan keluarga model terdekat bila nama varian minor berbeda di live MCP enum */
+    for (const candidate of candidates) {
+        const lower = candidate.toLowerCase();
+        if (lower.includes("flare")) {
+            const flareHit = allowedValues.find(v => /flare/i.test(String(v)));
+            if (flareHit !== undefined) return flareHit;
+        }
+        if (lower.includes("sunburst")) {
+            const sunburstHit = allowedValues.find(v => /sunburst/i.test(String(v)));
+            if (sunburstHit !== undefined) return sunburstHit;
+        }
+        if (lower.includes("gpt-image")) {
+            const gptHit = allowedValues.find(v => /gpt[-_]?image/i.test(String(v)));
+            if (gptHit !== undefined) return gptHit;
+        }
+        if (lower.includes("seedream")) {
+            const seedreamHit = allowedValues.find(v => /seedream/i.test(String(v)));
+            if (seedreamHit !== undefined) return seedreamHit;
+        }
+        if (lower.includes("nano-banana-pro")) {
+            const nbProHit = allowedValues.find(v => /nano[-_]?banana[-_]?pro|gemini[-_]?3[-_]?pro[-_]?image/i.test(String(v)));
+            if (nbProHit !== undefined) return nbProHit;
+        }
+        if (lower.includes("nano-banana")) {
+            const nbHit = allowedValues.find(v => /nano[-_]?banana|gemini.*image/i.test(String(v)));
+            if (nbHit !== undefined) return nbHit;
+        }
+    }
+
+    return null;
+}
+
+function populateKeyframeFields(target, objectSchema, rootSchema, {
+    prompt,
+    opusModel,
+    modelAliases,
+    aspectRatio,
+    stagedReferences,
+    projectId,
+    requestKey,
+    isBatchItem = false,
+    minimal = false
+}) {
+    const props = objectSchema?.properties;
+    const required = Array.isArray(objectSchema?.required) ? objectSchema.required : [];
+
+    if (isBatchItem) {
+        const kfIdKey = pickSupportedKey(
+            props,
+            ["keyframeId", "keyframe_id", "imageId", "image_id", "itemId", "item_id", "id"],
+            !props ? "id" : ""
+        );
+        if (kfIdKey) {
+            target[kfIdKey] = props?.[kfIdKey]?.format === "uuid" ? makeUuid() : "kf-1";
+        }
+    } else {
+        const reqKfId = ["keyframeId", "keyframe_id", "imageId", "image_id", "itemId", "item_id", "id"].find(
+            k => props && Object.prototype.hasOwnProperty.call(props, k) && required.includes(k)
+        );
+        if (reqKfId) {
+            target[reqKfId] = props[reqKfId]?.format === "uuid" ? makeUuid() : "kf-1";
+        }
+    }
+
+    const labelKey = pickSupportedKey(props, ["outputLabel", "output_label", "label", "title", "name"], "");
+    if (
+        labelKey &&
+        target[labelKey] === undefined &&
+        (required.includes(labelKey) ||
+            /outputlabel|output_label/i.test(labelKey) ||
+            (isBatchItem && !minimal))
+    ) {
+        target[labelKey] = "kf-1";
+    }
+
+    const projKey = pickSupportedKey(
+        props,
+        ["projectId", "project_id"],
+        !props && !isBatchItem && projectId ? "projectId" : ""
+    );
+    if (projKey && projectId && target[projKey] === undefined && (!isBatchItem || required.includes(projKey))) {
+        target[projKey] = projectId;
+    }
+
+    const reqKeyName = pickSupportedKey(
+        props,
+        ["requestKey", "idempotencyKey", "request_key", "idempotency_key"],
+        !props && !isBatchItem ? "requestKey" : ""
+    );
+    if (reqKeyName && requestKey && target[reqKeyName] === undefined && (!isBatchItem || required.includes(reqKeyName))) {
+        target[reqKeyName] = requestKey;
+    }
+
+    const promptKey = pickSupportedKey(
+        props,
+        ["prompt", "description", "instruction", "text"],
+        !props ? "prompt" : ""
+    );
+    if (promptKey) {
+        target[promptKey] = prompt;
+    }
+
+    if (opusModel) {
+        const modelKey = pickSupportedKey(
+            props,
+            [
+                "model",
+                "imageModel",
+                "image_model",
+                "keyframeModel",
+                "keyframe_model",
+                "modelId",
+                "model_id",
+                "providerModel",
+                "provider_model",
+                "modelName",
+                "model_name",
+                "engine"
+            ],
+            !props ? "model" : ""
+        );
+        if (modelKey) {
+            const allowedModels = extractAllowedValues(props?.[modelKey], rootSchema);
+            const matchedModel = matchImageModelValue(opusModel, modelAliases, allowedModels);
+            if (matchedModel !== null && matchedModel !== "") {
+                target[modelKey] = matchedModel;
+            } else if (allowedModels.length > 0) {
+                throw createProviderError({
+                    message: `Model gambar "${opusModel}" tidak tersedia di akun Opus Labs saat ini (tersedia: ${allowedModels.join(", ")}).`,
+                    code: "model_unavailable",
+                    providerCode: "model_unavailable",
+                    status: 422
+                });
+            }
+        }
+    }
+
+    if (aspectRatio) {
+        const ratioKey = pickSupportedKey(
+            props,
+            ["aspectRatio", "aspect_ratio", "ratio", "format", "dimensions"],
+            !props ? "aspectRatio" : ""
+        );
+        if (ratioKey && (!minimal || required.includes(ratioKey) || !props)) {
+            const allowedRatios = extractAllowedValues(props?.[ratioKey], rootSchema);
+            const matchedRatio = matchEnumCaseInsensitive([aspectRatio], allowedRatios);
+            if (matchedRatio !== null) {
+                target[ratioKey] = matchedRatio;
+            } else if (!allowedRatios.length) {
+                target[ratioKey] = aspectRatio;
+            }
+        }
+    }
+
+    const wfKey = pickSupportedKey(
+        props,
+        ["workflow", "mode", "generationMode", "generation_mode", "type"],
+        ""
+    );
+    if (wfKey && required.includes(wfKey)) {
+        const allowedWf = extractAllowedValues(props[wfKey], rootSchema);
+        const hasRefs = Array.isArray(stagedReferences) && stagedReferences.length > 0;
+        const wfCandidates = hasRefs
+            ? ["image2image", "image_to_image", "i2i", "reference2image", "reference_to_image", "keyframe", "text2image", "text_to_image", "t2i"]
+            : ["text2image", "text_to_image", "t2i", "keyframe", "image"];
+        const matchedWf = matchEnumCaseInsensitive(wfCandidates, allowedWf);
+        if (matchedWf !== null) {
+            target[wfKey] = matchedWf;
+        }
+    }
+
+    if (Array.isArray(stagedReferences) && stagedReferences.length > 0) {
+        const refKey = pickSupportedKey(
+            props,
+            [
+                "referenceAssets",
+                "reference_assets",
+                "references",
+                "assets",
+                "inputAssets",
+                "input_assets",
+                "referenceImages",
+                "reference_images"
+            ],
+            !props ? "referenceAssets" : ""
+        );
+        const refIdsKey = pickSupportedKey(
+            props,
+            ["referenceAssetIds", "reference_asset_ids", "assetIds", "asset_ids", "inputAssetIds"],
+            ""
+        );
+        const refImageUrlsKey = pickSupportedKey(
+            props,
+            ["referenceImageUrls", "reference_image_urls", "imageUrls", "image_urls", "images"],
+            ""
+        );
+        const singleImageKey = stagedReferences.length === 1
+            ? pickSupportedKey(props, ["imageAsset", "image_asset", "imageAssetId", "image_asset_id", "imageUrl", "image_url"], "")
+            : "";
+
+        if (refKey && props?.[refKey]) {
+            target[refKey] = buildReferenceAssetsValue(props[refKey], rootSchema, stagedReferences);
+        } else if (refIdsKey && stagedReferences.some(r => r.assetId)) {
+            target[refIdsKey] = stagedReferences.map(r => r.assetId).filter(Boolean);
+        } else if (refImageUrlsKey) {
+            target[refImageUrlsKey] = stagedReferences.map(r => r.url).filter(Boolean);
+        } else if (singleImageKey && props?.[singleImageKey]) {
+            target[singleImageKey] = buildFrameFieldValue(props[singleImageKey], rootSchema, stagedReferences[0]);
+        } else if (!props) {
+            target.referenceAssets = stagedReferences.map((r, idx) => ({
+                ...(r.assetId ? { assetId: r.assetId } : { url: r.url }),
+                label: r.label || `image${idx + 1}`,
+                role: r.role || "reference"
+            }));
+        }
+    }
+}
+
+function buildGenerateKeyframeVariants(keyframeTool, params) {
+    const rootSchema = keyframeTool?.inputSchema;
+    const topObj = resolveObjectSchema(
+        rootSchema,
+        rootSchema,
+        (_raw, resolved) => {
+            const p = resolved?.properties || {};
+            if (p.keyframes || p.images || p.items) return 50;
+            if (p.prompt || p.description) return 20;
+            return 0;
+        }
+    );
+    const topProps = topObj.properties;
+    const batchArrayKey = pickSupportedKey(
+        topProps,
+        ["keyframes", "images", "items", "requests", "tasks", "generations"],
+        !topProps ? "keyframes" : ""
+    );
+
+    const variants = [];
+    const seenShapes = new Set();
+
+    const pushUniqueVariant = args => {
+        const fingerprint = JSON.stringify(stripRequestKeysForComparison(args));
+        if (seenShapes.has(fingerprint)) return;
+        seenShapes.add(fingerprint);
+        variants.push(args);
+    };
+
+    if (batchArrayKey) {
+        const itemSchema = topProps?.[batchArrayKey]
+            ? resolveArrayItemSchema(topProps[batchArrayKey], rootSchema)
+            : null;
+        const expandedBranches = itemSchema ? expandObjectBranches(itemSchema, rootSchema) : [];
+        const candidateItemObjs = expandedBranches.length > 0
+            ? expandedBranches
+            : [itemSchema ? resolveObjectSchema(itemSchema, rootSchema) : { properties: null, required: [], raw: null }];
+
+        for (const minimal of [false, true]) {
+            for (const itemObj of candidateItemObjs) {
+                const args = {};
+                const projKey = pickSupportedKey(
+                    topProps,
+                    ["projectId", "project_id"],
+                    !topProps && params.projectId ? "projectId" : ""
+                );
+                if (projKey && params.projectId) {
+                    args[projKey] = params.projectId;
+                }
+                const reqKey = pickSupportedKey(
+                    topProps,
+                    ["requestKey", "idempotencyKey", "request_key", "idempotency_key"],
+                    !topProps ? "requestKey" : ""
+                );
+                if (reqKey) {
+                    args[reqKey] = makeUuid();
+                }
+
+                if (topProps) {
+                    const topModelKey = pickSupportedKey(
+                        topProps,
+                        ["model", "imageModel", "image_model", "keyframeModel", "modelId", "model_id"],
+                        ""
+                    );
+                    if (topModelKey && params.opusModel) {
+                        const allowedTopModels = extractAllowedValues(topProps[topModelKey], rootSchema);
+                        const matchedTop = matchImageModelValue(params.opusModel, params.modelAliases, allowedTopModels);
+                        if (matchedTop) {
+                            args[topModelKey] = matchedTop;
+                        }
+                    }
+                    const topRatioKey = pickSupportedKey(
+                        topProps,
+                        ["aspectRatio", "aspect_ratio", "ratio"],
+                        ""
+                    );
+                    if (topRatioKey && params.aspectRatio && (!minimal || (topObj.required || []).includes(topRatioKey))) {
+                        const allowedTopRatios = extractAllowedValues(topProps[topRatioKey], rootSchema);
+                        const matchedRatio = matchEnumCaseInsensitive([params.aspectRatio], allowedTopRatios);
+                        if (matchedRatio !== null) {
+                            args[topRatioKey] = matchedRatio;
+                        }
+                    }
+                }
+
+                const item = {};
+                populateKeyframeFields(item, itemObj, rootSchema, {
+                    ...params,
+                    requestKey: makeUuid(),
+                    isBatchItem: true,
+                    minimal
+                });
+                args[batchArrayKey] = [item];
+                pushUniqueVariant(args);
+            }
+        }
+    }
+
+    /* Juga sediakan fallback flat object bila tool menerima argumen top-level langsung */
+    if (!batchArrayKey || !topProps || topProps.prompt || topProps.description) {
+        for (const minimal of [false, true]) {
+            const flatArgs = {};
+            populateKeyframeFields(flatArgs, topObj, rootSchema, {
+                ...params,
+                requestKey: makeUuid(),
+                isBatchItem: false,
+                minimal
+            });
+            pushUniqueVariant(flatArgs);
+        }
+    }
+
+    return variants;
+}
+
+function inspectImageJobOutcome(
+    rawData,
+    rawText = "",
+    targetJobId = "",
+    {
+        excludedAssetIds = null,
+        excludedUrls = null
+    } = {}
+) {
+    const parsedSource =
+        rawData && typeof rawData === "object"
+            ? rawData
+            : tryParseJsonFromText(rawText);
+    const unwrapped = unwrapEnvelope(parsedSource);
+    let focus = unwrapped;
+
+    if (unwrapped && typeof unwrapped === "object") {
+        const containerKeys = ["jobs", "keyframes", "images", "items", "results", "tasks", "submissions", "outputs", "operations"];
+        for (const listKey of containerKeys) {
+            const container = unwrapped[listKey];
+            if (Array.isArray(container) && container.length > 0) {
+                const matched = targetJobId
+                    ? container.find(
+                        el =>
+                            el &&
+                            typeof el === "object" &&
+                            [el.jobId, el.job_id, el.taskId, el.submissionId, el.operationId, el.executionId, el.id].includes(targetJobId)
+                    )
+                    : null;
+                const firstObj = matched || container.find(el => el && typeof el === "object");
+                if (firstObj) {
+                    focus = { ...unwrapped, ...firstObj };
+                    break;
+                }
+            } else if (container && typeof container === "object") {
+                const entries = Object.entries(container);
+                if (entries.length > 0) {
+                    const matchedEntry = targetJobId
+                        ? entries.find(([k, v]) => {
+                            if (k === targetJobId || v === targetJobId) return true;
+                            if (v && typeof v === "object") {
+                                return [v.jobId, v.job_id, v.taskId, v.id].includes(targetJobId);
+                            }
+                            return false;
+                        })
+                        : null;
+                    const chosen = matchedEntry || entries[0];
+                    if (chosen) {
+                        const [, val] = chosen;
+                        if (val && typeof val === "object") {
+                            focus = { ...unwrapped, ...val };
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    const rawState = String(
+        focus?.status ||
+        focus?.state ||
+        focus?.jobStatus ||
+        focus?.job_status ||
+        ""
+    ).trim();
+
+    const errorObj = focus?.error && typeof focus.error === "object" ? focus.error : null;
+    const errorCode = String(
+        focus?.errorCode ||
+        focus?.error_code ||
+        errorObj?.code ||
+        (typeof focus?.error === "string" && /^[a-z0-9_.-]+$/i.test(focus.error.trim()) ? focus.error.trim() : "") ||
+        (TERMINAL_FAILED_TOKENS.has(rawState.toLowerCase()) ? focus?.code || rawState : "") ||
+        (focus?.code && /timeout|error|failed|rejected|invalid|unavailable|not_found/i.test(String(focus.code)) ? focus.code : "") ||
+        ""
+    ).trim();
+
+    const rawErrorMessage = String(
+        focus?.errorMessage ||
+        focus?.error_message ||
+        errorObj?.message ||
+        (typeof focus?.error === "string" ? focus.error : "") ||
+        (TERMINAL_FAILED_TOKENS.has(rawState.toLowerCase()) || errorCode ? focus?.message || focus?.reason || rawText : "") ||
+        ""
+    ).trim();
+
+    const nonTerminalDeadline = isOpusNonTerminalWorkerDeadline(
+        errorCode,
+        rawErrorMessage,
+        rawText
+    );
+    const egressJobId = nonTerminalDeadline
+        ? extractOpusEgressJobId(rawErrorMessage, rawText)
+        : "";
+
+    let status = normalizeStatus(rawState);
+    if (nonTerminalDeadline && status !== "COMPLETED") {
+        status = "PROCESSING";
+    } else if (
+        (focus?.ok === false || focus?.success === false || focus?.rejected === true || errorCode) &&
+        status !== "COMPLETED"
+    ) {
+        status = "FAILED";
+    }
+
+    let imageUrls = [];
+    if (status !== "FAILED") {
+        const targetOutputAssetId = String(
+            focus?.outputAssetId ||
+            focus?.output_asset_id ||
+            focus?.resultAssetId ||
+            focus?.result_asset_id ||
+            focus?.keyframeAssetId ||
+            focus?.keyframe_asset_id ||
+            ""
+        ).trim();
+
+        if (targetOutputAssetId && Array.isArray(unwrapped?.assets)) {
+            const matchedAsset = unwrapped.assets.find(
+                a => a && typeof a === "object" && (a.assetId === targetOutputAssetId || a.id === targetOutputAssetId)
+            );
+            if (matchedAsset) {
+                imageUrls = extractImageUrls(matchedAsset);
+            }
+        }
+
+        if (imageUrls.length === 0) {
+            let sanitizedSource = focus || parsedSource;
+            if (sanitizedSource && typeof sanitizedSource === "object" && Array.isArray(sanitizedSource.assets)) {
+                const filteredAssets = sanitizedSource.assets.filter(a => {
+                    if (!a || typeof a !== "object") return true;
+                    const assetId = String(a.assetId || a.asset_id || a.id || "").trim();
+                    if (assetId && excludedAssetIds instanceof Set && excludedAssetIds.has(assetId)) {
+                        return false;
+                    }
+                    const role = String(a.role || a.source || a.origin || "").toLowerCase();
+                    const kind = String(a.kind || a.mediaType || "").toLowerCase();
+                    const label = String(a.label || a.name || "").toLowerCase();
+                    if (/^(?:reference|character|outfit|first_frame|last_frame|input|subject|style|import|imported|upload|uploaded)$/.test(role)) {
+                        return false;
+                    }
+                    if (/^(?:reference|character|outfit|first_frame|last_frame|input|subject|style|video|audio)$/.test(kind)) {
+                        return false;
+                    }
+                    if (/^(?:image\d+|character|outfit|video\d+|audio\d+|first_frame|last_frame|ref_\d+|reference_\d+)$/.test(label)) {
+                        return false;
+                    }
+                    return true;
+                });
+                sanitizedSource = { ...sanitizedSource, assets: filteredAssets };
+            }
+            imageUrls = extractImageUrls(sanitizedSource);
+        }
+
+        if (excludedUrls instanceof Set && excludedUrls.size > 0 && imageUrls.length > 0) {
+            imageUrls = imageUrls.filter(url => !excludedUrls.has(url));
+        }
+    }
+
+    if (imageUrls.length > 0 && status !== "FAILED") {
+        status = "COMPLETED";
+    }
+
+    const activeNonTerminalDeadline = nonTerminalDeadline && status !== "COMPLETED";
+
+    return {
+        status,
+        rawState: activeNonTerminalDeadline ? "processing" : (rawState || status.toLowerCase()),
+        imageUrls,
+        videoUrls: imageUrls,
+        errorCode: status === "FAILED" ? (errorCode || "OPUS_TASK_FAILED") : null,
+        errorMessage: status === "FAILED" ? translateOpusError(errorCode, rawErrorMessage) : null,
+        nonTerminalDeadline: activeNonTerminalDeadline,
+        deadlineErrorCode: activeNonTerminalDeadline ? (errorCode || "OPUS_WORKER_POLLING_DEADLINE") : null,
+        deadlineErrorMessage: activeNonTerminalDeadline
+            ? (rawErrorMessage || translateOpusError(errorCode, rawText))
+            : null,
+        egressJobId: egressJobId || null
+    };
+}
+
+async function discoverProjectImageJob(session, projectId, {
+    targetJobId = "",
+    retries = 1,
+    retryDelayMs = 350,
+    excludedAssetIds = null,
+    excludedUrls = null
+} = {}) {
+    if (!projectId) {
+        return { jobId: "", outcome: null };
+    }
+
+    const listJobsTool =
+        findMcpTool(session.tools, "list_jobs") ||
+        findMcpTool(session.tools, "opusclip_list_jobs") ||
+        findMcpTool(session.tools, "get_project_jobs");
+
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+        if (attempt > 0) {
+            await sleep(retryDelayMs);
+        }
+
+        if (listJobsTool) {
+            const listRes = await session
+                .callTool(listJobsTool.name, buildListJobsArgs(listJobsTool, projectId))
+                .catch(() => null);
+            if (listRes && !listRes.isError) {
+                const foundId = targetJobId || findJobIdFromResponse(listRes.data, listRes.text, projectId);
+                const outcome = inspectImageJobOutcome(listRes.data, listRes.text, foundId, {
+                    excludedAssetIds,
+                    excludedUrls
+                });
+                if (foundId || outcome.imageUrls.length > 0) {
+                    return {
+                        jobId: foundId || targetJobId || "",
+                        outcome
+                    };
+                }
+            }
+        }
+
+        const projectAssetTool =
+            findMcpTool(session.tools, "get_project") ||
+            findMcpTool(session.tools, "list_assets") ||
+            findMcpTool(session.tools, "get_project_state");
+
+        if (projectAssetTool) {
+            const rootSchema = projectAssetTool.inputSchema;
+            const objSchema = resolveObjectSchema(rootSchema, rootSchema);
+            const props = objSchema.properties;
+            const required = Array.isArray(objSchema.required) ? objSchema.required : [];
+            const projKey = pickSupportedKey(props, ["projectId", "project_id", "id"], !props ? "projectId" : "");
+            const hasOtherRequired = required.some(k => k !== projKey);
+            if (projKey && !hasOtherRequired) {
+                const projRes = await session.callTool(projectAssetTool.name, { [projKey]: projectId }).catch(() => null);
+                if (projRes && !projRes.isError) {
+                    const projOutcome = inspectImageJobOutcome(projRes.data, projRes.text, targetJobId, {
+                        excludedAssetIds,
+                        excludedUrls
+                    });
+                    if (projOutcome.imageUrls.length > 0) {
+                        return {
+                            jobId: targetJobId || "",
+                            outcome: projOutcome
+                        };
+                    }
+                }
+            }
+        }
+    }
+
+    return { jobId: "", outcome: null };
+}
+
+function normalizeImageReferenceItems(payload = {}) {
+    const out = [];
+    const seenUrls = new Set();
+
+    if (Array.isArray(payload.reference_image_items)) {
+        for (const item of payload.reference_image_items) {
+            if (!item || typeof item !== "object") continue;
+            const url = String(item.url || "").trim();
+            if (!url || seenUrls.has(url)) continue;
+            seenUrls.add(url);
+            out.push({
+                url,
+                role: String(item.role || "reference").trim() || "reference",
+                label: String(item.label || `image${out.length + 1}`).trim() || `image${out.length + 1}`
+            });
+            if (out.length >= MAX_IMAGE_REFERENCE_IMAGES) {
+                return out;
+            }
+        }
+    }
+
+    const rawUrls = Array.isArray(payload.reference_image_urls)
+        ? payload.reference_image_urls
+        : Array.isArray(payload.image_urls)
+            ? payload.image_urls
+            : payload.image_url
+                ? [payload.image_url]
+                : [];
+
+    for (const rawUrl of rawUrls) {
+        const url = String(rawUrl || "").trim();
+        if (!url || seenUrls.has(url)) continue;
+        seenUrls.add(url);
+        out.push({
+            url,
+            role: "reference",
+            label: `image${out.length + 1}`
+        });
+        if (out.length >= MAX_IMAGE_REFERENCE_IMAGES) {
+            break;
+        }
+    }
+
+    return out;
+}
+
+async function createImageTaskForSingleKey(payload = {}, apiKey, options = {}) {
+    const endpoint = getMcpEndpoint(options);
+    const keySlot = Number.isInteger(options?.keySlot) && options.keySlot > 0 ? options.keySlot : 0;
+    const mediaCache = options?.mediaCache instanceof Map ? options.mediaCache : null;
+    const isolateFromDefaultRefresh = Boolean(options?.isolateFromDefaultRefresh);
+    const session = await openMcpSession({
+        endpoint,
+        apiKey,
+        timeoutMs: CREATE_TIMEOUT_MS,
+        includeTools: true,
+        isolateFromDefaultRefresh,
+        env: options?.env || null
+    });
+
+    const keyframeTool =
+        findMcpTool(session.tools, "generate_keyframes") ||
+        findMcpTool(session.tools, "opusclip_generate_keyframes") ||
+        findMcpTool(session.tools, "generate_images") ||
+        findMcpTool(session.tools, "create_image_job");
+
+    if (!keyframeTool) {
+        throw createProviderError({
+            message: "Tool generate_keyframes tidak tersedia pada endpoint MCP Opus Labs ini.",
+            code: "TOOL_UNAVAILABLE",
+            providerCode: "generation_unavailable",
+            status: 502
+        });
+    }
+
+    const projectId = await ensureProjectId(session);
+    const importTool = findMcpTool(session.tools, "import_assets");
+
+    const refItems = normalizeImageReferenceItems(payload);
+    const excludedUrls = new Set(refItems.map(item => item.url));
+    const excludedAssetIds = new Set();
+    const stagedReferences = [];
+
+    for (let i = 0; i < refItems.length; i += 1) {
+        const refItem = refItems[i];
+        const mime = inferImageMimeFromUrl(refItem.url);
+        const staged = await stageSingleReferenceImage(
+            session,
+            importTool,
+            projectId,
+            {
+                url: refItem.url,
+                role: refItem.role || "reference",
+                label: refItem.label || `image${i + 1}`,
+                mimeType: mime,
+                mediaType: "image",
+                fileName: `${(refItem.label || `reference-${i + 1}`).replace(/[^A-Za-z0-9_-]/g, "-")}.${extFromMime(mime)}`,
+                mediaCache
+            },
+            i
+        );
+        if (staged?.assetId) {
+            excludedAssetIds.add(String(staged.assetId).trim());
+        }
+        if (staged?.url) {
+            excludedUrls.add(String(staged.url).trim());
+        }
+        stagedReferences.push(staged);
+    }
+
+    const prompt = String(payload.prompt || "").trim();
+    const opusModel = String(payload.opus_model || payload.model || "").trim();
+    const modelAliases = Array.isArray(payload.model_aliases) ? payload.model_aliases : [];
+    const aspectRatio = String(payload.aspect_ratio || "1:1").trim();
+
+    const candidateVariants = buildGenerateKeyframeVariants(keyframeTool, {
+        prompt,
+        opusModel,
+        modelAliases,
+        aspectRatio,
+        stagedReferences,
+        projectId
+    });
+
+    let lastCallResult = null;
+    let lastError = null;
+    let discoveredDuringTimeout = null;
+
+    for (let vIdx = 0; vIdx < candidateVariants.length; vIdx += 1) {
+        const variantArgs = candidateVariants[vIdx];
+        try {
+            const res = await session.callTool(keyframeTool.name, variantArgs);
+            lastCallResult = res;
+
+            if (!res.isError) {
+                break;
+            }
+
+            const errCode = String(res.data?.code || res.data?.errorCode || "").trim();
+            const errText = String(res.data?.message || res.text || "").trim();
+            const isSchemaMismatch =
+                vIdx + 1 < candidateVariants.length &&
+                /invalid_arguments|validation_error|schema|unexpected\s+property|unrecognized\s+key|missing\s+required|must\s+be\s+(?:object|array|string)/i.test(
+                    `${errCode} ${errText}`
+                );
+            if (isSchemaMismatch) {
+                continue;
+            }
+            break;
+        } catch (err) {
+            lastError = err;
+            const isTimeout = err?.code === "UPSTREAM_TIMEOUT" || /timeout/i.test(String(err?.message || ""));
+            if (isTimeout && projectId) {
+                const probed = await discoverProjectImageJob(session, projectId, {
+                    retries: 1,
+                    retryDelayMs: 400,
+                    excludedAssetIds,
+                    excludedUrls
+                });
+                if (probed.jobId || probed.outcome?.imageUrls?.length > 0) {
+                    discoveredDuringTimeout = probed;
+                    break;
+                }
+            }
+            throw err;
+        }
+    }
+
+    if (discoveredDuringTimeout) {
+        if (discoveredDuringTimeout.outcome?.imageUrls?.length > 0 && !discoveredDuringTimeout.jobId) {
+            const inlineTaskId = `opus-inline:${makeUuid()}`;
+            inlineCompletedResults.set(inlineTaskId, {
+                videoUrls: discoveredDuringTimeout.outcome.imageUrls,
+                imageUrls: discoveredDuringTimeout.outcome.imageUrls,
+                usageSeconds: null,
+                createdAtMs: Date.now()
+            });
+            return {
+                success: true,
+                provider: PROVIDER_ID,
+                providerName: PROVIDER_NAME,
+                mediaType: "image",
+                taskId: inlineTaskId,
+                task_id: inlineTaskId,
+                jobId: inlineTaskId,
+                projectId,
+                keySlot,
+                status: "COMPLETED",
+                outputUrls: discoveredDuringTimeout.outcome.imageUrls,
+                imageUrls: discoveredDuringTimeout.outcome.imageUrls
+            };
+        }
+        if (discoveredDuringTimeout.jobId) {
+            const compositeTaskId = encodeOpusTaskId(projectId, discoveredDuringTimeout.jobId, keySlot);
+            const urls = discoveredDuringTimeout.outcome?.imageUrls || [];
+            return {
+                success: true,
+                provider: PROVIDER_ID,
+                providerName: PROVIDER_NAME,
+                mediaType: "image",
+                taskId: compositeTaskId,
+                task_id: compositeTaskId,
+                jobId: discoveredDuringTimeout.jobId,
+                projectId,
+                keySlot,
+                status: discoveredDuringTimeout.outcome?.status === "COMPLETED" ? "COMPLETED" : "QUEUED",
+                outputUrls: urls,
+                imageUrls: urls
+            };
+        }
+    }
+
+    if (!lastCallResult) {
+        throw lastError || createProviderError({
+            message: "Gagal mengirim permintaan gambar ke Opus Labs.",
+            code: "CREATE_TASK_FAILED",
+            status: 502
+        });
+    }
+
+    let outcome = inspectImageJobOutcome(lastCallResult.data, lastCallResult.text, "", {
+        excludedAssetIds,
+        excludedUrls
+    });
+    if (lastCallResult.isError || outcome.status === "FAILED") {
+        throw createProviderError({
+            message: outcome.errorMessage || translateOpusError(outcome.errorCode, lastCallResult.text),
+            code: outcome.errorCode || "OPUS_CREATE_REJECTED",
+            providerCode: outcome.errorCode || "create_rejected",
+            status: outcome.errorCode === "credit_admission_rejected" ? 402 : 422,
+            raw: lastCallResult.data
+        });
+    }
+
+    let jobId = findJobIdFromResponse(lastCallResult.data, lastCallResult.text, projectId);
+
+    if (!jobId && outcome.imageUrls.length === 0 && projectId) {
+        const discovered = await discoverProjectImageJob(session, projectId, {
+            retries: 2,
+            retryDelayMs: 350,
+            excludedAssetIds,
+            excludedUrls
+        });
+        if (discovered.outcome?.status === "FAILED") {
+            throw createProviderError({
+                message: discovered.outcome.errorMessage || "Job gambar Opus Labs gagal saat masuk antrian.",
+                code: discovered.outcome.errorCode || "OPUS_CREATE_REJECTED",
+                providerCode: discovered.outcome.errorCode || "create_rejected",
+                status: 422,
+                raw: lastCallResult.data
+            });
+        }
+        if (discovered.jobId) {
+            jobId = discovered.jobId;
+        }
+        if (discovered.outcome?.imageUrls?.length > 0) {
+            outcome = discovered.outcome;
+        }
+    }
+
+    if (jobId) {
+        const compositeTaskId = encodeOpusTaskId(projectId, jobId, keySlot);
+        return {
+            success: true,
+            provider: PROVIDER_ID,
+            providerName: PROVIDER_NAME,
+            mediaType: "image",
+            taskId: compositeTaskId,
+            task_id: compositeTaskId,
+            jobId,
+            projectId,
+            keySlot,
+            status: outcome.status === "COMPLETED" ? "COMPLETED" : "QUEUED",
+            outputUrls: outcome.imageUrls,
+            imageUrls: outcome.imageUrls
+        };
+    }
+
+    if (outcome.imageUrls.length > 0) {
+        const inlineTaskId = `opus-inline:${makeUuid()}`;
+        inlineCompletedResults.set(inlineTaskId, {
+            videoUrls: outcome.imageUrls,
+            imageUrls: outcome.imageUrls,
+            usageSeconds: null,
+            createdAtMs: Date.now()
+        });
+        return {
+            success: true,
+            provider: PROVIDER_ID,
+            providerName: PROVIDER_NAME,
+            mediaType: "image",
+            taskId: inlineTaskId,
+            task_id: inlineTaskId,
+            jobId: inlineTaskId,
+            projectId,
+            keySlot,
+            status: "COMPLETED",
+            outputUrls: outcome.imageUrls,
+            imageUrls: outcome.imageUrls
+        };
+    }
+
+    if (projectId) {
+        const pendingProjectTaskId = encodeOpusTaskId(projectId, PROJECT_PENDING_JOB_ID, keySlot);
+        return {
+            success: true,
+            provider: PROVIDER_ID,
+            providerName: PROVIDER_NAME,
+            mediaType: "image",
+            taskId: pendingProjectTaskId,
+            task_id: pendingProjectTaskId,
+            jobId: PROJECT_PENDING_JOB_ID,
+            projectId,
+            keySlot,
+            status: "QUEUED",
+            outputUrls: [],
+            imageUrls: []
+        };
+    }
+
+    throw createProviderError({
+        message: "Opus Labs tidak mengembalikan jobId gambar yang valid.",
+        code: "MISSING_TASK_ID",
+        status: 502,
+        raw: lastCallResult.data
+    });
+}
+
+async function createImageTask(payload = {}, apiKey, options = {}) {
+    const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
+    if (keyPool.length === 0) {
+        parseApiKeyInput("", options?.env);
+    }
+
+    const totalKeys = keyPool.length;
+    const mediaCache = new Map();
+
+    if (totalKeys <= 1) {
+        activeOpusKeyIndex = 0;
+        try {
+            const singleRes = await createImageTaskForSingleKey(payload, keyPool[0] || apiKey, {
+                ...options,
+                keySlot: 0,
+                mediaCache,
+                isolateFromDefaultRefresh: false
+            });
+            return {
+                ...singleRes,
+                keySlot: 0,
+                keyPoolSize: 1
+            };
+        } catch (err) {
+            if (isOpusCreditExhaustedError(err)) {
+                err.opusFailedKeySlot = 0;
+                err.opusKeyPoolSize = 1;
+                err.exhaustedKeyCount = 1;
+                err.rotatedFullCycle = true;
+            }
+            throw err;
+        }
+    }
+
+    const excludedSet = normalizeExcludedSlotSet(
+        options?.excludeKeySlots ?? payload?.opus_exclude_key_slots,
+        totalKeys
+    );
+    const startIndex = ((activeOpusKeyIndex % totalKeys) + totalKeys) % totalKeys;
+    const candidateSlots = [];
+    for (let step = 0; step < totalKeys; step += 1) {
+        const slotIndex = (startIndex + step) % totalKeys;
+        if (!excludedSet.has(slotIndex)) {
+            candidateSlots.push(slotIndex);
+        }
+    }
+    if (candidateSlots.length === 0) {
+        for (let step = 0; step < totalKeys; step += 1) {
+            candidateSlots.push((startIndex + step) % totalKeys);
+        }
+    }
+
+    let lastExhaustedError = null;
+    let lastAuthError = null;
+
+    for (let idx = 0; idx < candidateSlots.length; idx += 1) {
+        const slotIndex = candidateSlots[idx];
+        const candidateKey = keyPool[slotIndex];
+
+        try {
+            const result = await createImageTaskForSingleKey(payload, candidateKey, {
+                ...options,
+                keySlot: slotIndex,
+                mediaCache,
+                isolateFromDefaultRefresh: slotIndex > 0 || totalKeys > 1
+            });
+            activeOpusKeyIndex = slotIndex;
+            return {
+                ...result,
+                keySlot: slotIndex,
+                keyPoolSize: totalKeys
+            };
+        } catch (err) {
+            if (isOpusCreditExhaustedError(err)) {
+                lastExhaustedError = err;
+                if (idx + 1 < candidateSlots.length) {
+                    continue;
+                }
+                activeOpusKeyIndex = 0;
+                err.opusFailedKeySlot = slotIndex;
+                err.opusKeyPoolSize = totalKeys;
+                err.exhaustedKeyCount = totalKeys;
+                err.rotatedFullCycle = true;
+                throw err;
+            }
+
+            const isAuthFailure =
+                err?.status === 401 ||
+                err?.status === 403 ||
+                err?.code === "OPUS_AUTH_EXPIRED" ||
+                err?.code === "OPUS_AUTH_REJECTED";
+            if (isAuthFailure) {
+                lastAuthError = err;
+                if (idx + 1 < candidateSlots.length) {
+                    continue;
+                }
+                throw lastExhaustedError || lastAuthError;
+            }
+
+            throw err;
+        }
+    }
+
+    if (lastExhaustedError) throw lastExhaustedError;
+    if (lastAuthError) throw lastAuthError;
+    throw createProviderError({
+        message: "Semua API key Opus gagal memproses permintaan gambar.",
+        code: "OPUS_CREATE_REJECTED",
+        status: 503
+    });
+}
+
+async function getImageTaskForSingleKey(parsedId, apiKey, options = {}) {
+    const endpoint = getMcpEndpoint(options);
+    const session = await openMcpSession({
+        endpoint,
+        apiKey,
+        timeoutMs: QUERY_TIMEOUT_MS,
+        includeTools: true,
+        isolateFromDefaultRefresh: Boolean(options?.isolateFromDefaultRefresh),
+        env: options?.env || null
+    });
+
+    let activeJobId = parsedId.jobId;
+
+    if (parsedId.isProjectPending) {
+        const discovered = await discoverProjectImageJob(session, parsedId.projectId, {
+            retries: 0
+        });
+        if (discovered.outcome?.status === "FAILED") {
+            return {
+                status: "FAILED",
+                providerState: discovered.outcome.rawState || "failed",
+                mediaType: "image",
+                imageUrls: [],
+                videoUrls: [],
+                outputUrls: [],
+                errorCode: discovered.outcome.errorCode || "OPUS_STATUS_FAILED",
+                errorMessage: discovered.outcome.errorMessage || "Job gambar Opus Labs gagal.",
+                projectId: parsedId.projectId,
+                jobId: discovered.jobId || parsedId.projectId
+            };
+        }
+        if (discovered.outcome?.imageUrls?.length > 0) {
+            return {
+                status: "COMPLETED",
+                providerState: "completed",
+                mediaType: "image",
+                imageUrls: discovered.outcome.imageUrls,
+                videoUrls: discovered.outcome.imageUrls,
+                outputUrls: discovered.outcome.imageUrls,
+                errorCode: null,
+                errorMessage: null,
+                projectId: parsedId.projectId,
+                jobId: discovered.jobId || parsedId.projectId
+            };
+        }
+        if (!discovered.jobId) {
+            return {
+                status: "QUEUED",
+                providerState: "queued",
+                mediaType: "image",
+                imageUrls: [],
+                videoUrls: [],
+                outputUrls: [],
+                errorCode: null,
+                errorMessage: null,
+                projectId: parsedId.projectId,
+                jobId: parsedId.projectId
+            };
+        }
+        activeJobId = discovered.jobId;
+    }
+
+    const statusTool =
+        findMcpTool(session.tools, "get_status") ||
+        findMcpTool(session.tools, "opusclip_get_job") ||
+        findMcpTool(session.tools, "get_job");
+
+    if (!statusTool) {
+        throw createProviderError({
+            message: "Tool get_status tidak tersedia pada endpoint MCP Opus Labs.",
+            code: "STATUS_TOOL_UNAVAILABLE",
+            status: 502
+        });
+    }
+
+    const rootSchema = statusTool.inputSchema;
+    const objSchema = resolveObjectSchema(rootSchema, rootSchema);
+    const props = objSchema.properties;
+    const args = {};
+
+    const jobSingleKey = pickSupportedKey(
+        props,
+        ["jobId", "job_id", "taskId", "task_id", "submissionId", "id"],
+        ""
+    );
+    const jobArrayKey = pickSupportedKey(
+        props,
+        ["jobIds", "job_ids", "taskIds", "ids"],
+        ""
+    );
+
+    if (jobSingleKey) {
+        args[jobSingleKey] = activeJobId;
+    } else if (jobArrayKey) {
+        args[jobArrayKey] = [activeJobId];
+    } else if (!props) {
+        args.jobId = activeJobId;
+    }
+
+    const projKey = pickSupportedKey(
+        props,
+        ["projectId", "project_id"],
+        parsedId.projectId && !props ? "projectId" : ""
+    );
+    if (projKey && parsedId.projectId) {
+        args[projKey] = parsedId.projectId;
+    }
+
+    const watchKey = pickSupportedKey(props, ["watch", "wait", "block"], "");
+    if (watchKey && schemaTypeIncludes(props?.[watchKey], rootSchema, "boolean")) {
+        args[watchKey] = false;
+    }
+
+    const statusRes = await session.callTool(statusTool.name, args);
+    let outcome = inspectImageJobOutcome(statusRes.data, statusRes.text, activeJobId);
+
+    if (
+        (statusRes.isError || outcome.status === "FAILED") &&
+        isTransientNotFoundError(outcome.errorCode, outcome.errorMessage, statusRes.text)
+    ) {
+        if (parsedId.projectId) {
+            const listed = await discoverProjectImageJob(session, parsedId.projectId, {
+                targetJobId: activeJobId,
+                retries: 0
+            });
+            if (listed.outcome) {
+                outcome = listed.outcome;
+                if (listed.jobId) activeJobId = listed.jobId;
+            } else {
+                return {
+                    status: "QUEUED",
+                    providerState: "queued",
+                    mediaType: "image",
+                    imageUrls: [],
+                    videoUrls: [],
+                    outputUrls: [],
+                    errorCode: null,
+                    errorMessage: null,
+                    projectId: parsedId.projectId,
+                    jobId: activeJobId
+                };
+            }
+        }
+    } else if (statusRes.isError && outcome.status !== "COMPLETED" && !outcome.nonTerminalDeadline) {
+        if (parsedId.projectId) {
+            const listed = await discoverProjectImageJob(session, parsedId.projectId, {
+                targetJobId: activeJobId,
+                retries: 0
+            });
+            if (listed.outcome && listed.outcome.status !== "FAILED") {
+                outcome = listed.outcome;
+                if (listed.jobId) activeJobId = listed.jobId;
+            } else {
+                return {
+                    status: "FAILED",
+                    providerState: outcome.rawState || "failed",
+                    mediaType: "image",
+                    imageUrls: [],
+                    videoUrls: [],
+                    outputUrls: [],
+                    errorCode: outcome.errorCode || "OPUS_STATUS_FAILED",
+                    errorMessage: outcome.errorMessage || translateOpusError(outcome.errorCode, statusRes.text),
+                    projectId: parsedId.projectId,
+                    jobId: activeJobId
+                };
+            }
+        } else {
+            return {
+                status: "FAILED",
+                providerState: outcome.rawState || "failed",
+                mediaType: "image",
+                imageUrls: [],
+                videoUrls: [],
+                outputUrls: [],
+                errorCode: outcome.errorCode || "OPUS_STATUS_FAILED",
+                errorMessage: outcome.errorMessage || translateOpusError(outcome.errorCode, statusRes.text),
+                projectId: parsedId.projectId,
+                jobId: activeJobId
+            };
+        }
+    }
+
+    if ((outcome.nonTerminalDeadline || outcome.status === "COMPLETED") && outcome.imageUrls.length === 0) {
+        const resolveTool = findMcpTool(session.tools, "resolve_job");
+        if (resolveTool) {
+            const candidateJobIds = [activeJobId];
+            if (outcome.egressJobId && outcome.egressJobId !== activeJobId) {
+                candidateJobIds.push(outcome.egressJobId);
+            }
+            for (const candidateJobId of candidateJobIds) {
+                const resolvedRes = await session
+                    .callTool(
+                        resolveTool.name,
+                        buildResolveJobArgs(resolveTool, parsedId.projectId, candidateJobId)
+                    )
+                    .catch(() => null);
+                if (!resolvedRes || resolvedRes.isError) continue;
+                const resolvedOutcome = inspectImageJobOutcome(
+                    resolvedRes.data,
+                    resolvedRes.text,
+                    candidateJobId
+                );
+                if (resolvedOutcome.imageUrls.length > 0) {
+                    outcome = {
+                        ...resolvedOutcome,
+                        status: "COMPLETED",
+                        nonTerminalDeadline: false,
+                        deadlineErrorCode: null,
+                        deadlineErrorMessage: null
+                    };
+                    break;
+                }
+            }
+        }
+
+        if (outcome.imageUrls.length === 0 && parsedId.projectId) {
+            const listed = await discoverProjectImageJob(session, parsedId.projectId, {
+                targetJobId: activeJobId,
+                retries: 0
+            });
+            if (listed.outcome?.imageUrls?.length > 0) {
+                outcome = {
+                    ...listed.outcome,
+                    status: "COMPLETED",
+                    nonTerminalDeadline: false,
+                    deadlineErrorCode: null,
+                    deadlineErrorMessage: null
+                };
+            }
+        }
+
+        if (outcome.status === "COMPLETED" && outcome.imageUrls.length === 0) {
+            return {
+                status: "PROCESSING",
+                providerState: "processing",
+                mediaType: "image",
+                imageUrls: [],
+                videoUrls: [],
+                outputUrls: [],
+                errorCode: null,
+                errorMessage: null,
+                projectId: parsedId.projectId,
+                jobId: activeJobId
+            };
+        }
+    }
+
+    const safeProviderState =
+        outcome.status === "COMPLETED"
+            ? "completed"
+            : outcome.status === "FAILED"
+                ? (outcome.rawState && TERMINAL_FAILED_TOKENS.has(outcome.rawState.toLowerCase()) ? outcome.rawState : "failed")
+                : outcome.status === "QUEUED"
+                    ? "queued"
+                    : "processing";
+
+    return {
+        status: outcome.status,
+        providerState: safeProviderState,
+        mediaType: "image",
+        imageUrls: outcome.imageUrls,
+        videoUrls: outcome.imageUrls,
+        outputUrls: outcome.imageUrls,
+        errorCode: outcome.errorCode,
+        errorMessage: outcome.errorMessage,
+        nonTerminalDeadline: Boolean(outcome.nonTerminalDeadline),
+        projectId: parsedId.projectId,
+        jobId: activeJobId
+    };
+}
+
+async function getImageTask(taskId, apiKey, options = {}) {
+    const parsedId = parseOpusTaskId(taskId);
+    if (!parsedId.jobId) {
+        throw createProviderError({
+            message: "Task ID gambar Opus tidak ditemukan.",
+            code: "TASK_ID_MISSING",
+            status: 400
+        });
+    }
+
+    for (const [key, entry] of inlineCompletedResults.entries()) {
+        if (Date.now() - entry.createdAtMs > COMPLETED_INLINE_CACHE_TTL_MS) {
+            inlineCompletedResults.delete(key);
+        }
+    }
+    if (parsedId.isInlineDone && inlineCompletedResults.has(parsedId.jobId)) {
+        const cached = inlineCompletedResults.get(parsedId.jobId);
+        const urls = cached.imageUrls || cached.videoUrls || [];
+        return {
+            status: "COMPLETED",
+            providerState: "completed",
+            mediaType: "image",
+            imageUrls: urls,
+            videoUrls: urls,
+            outputUrls: urls,
+            errorCode: null,
+            errorMessage: null,
+            projectId: "",
+            jobId: parsedId.jobId
+        };
+    }
+
+    const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
+    if (keyPool.length <= 1) {
+        const singleStatus = await getImageTaskForSingleKey(parsedId, keyPool[0] || apiKey, {
+            ...options,
+            isolateFromDefaultRefresh: false
+        });
+        return {
+            ...singleStatus,
+            keySlot: 0,
+            keyPoolSize: Math.max(1, keyPool.length)
+        };
+    }
+
+    const totalKeys = keyPool.length;
+    const preferredSlot = parsedId.keySlot >= 0 && parsedId.keySlot < totalKeys
+        ? parsedId.keySlot
+        : 0;
+    const candidateSlots = [preferredSlot];
+    for (let idx = 0; idx < totalKeys; idx += 1) {
+        if (idx !== preferredSlot) {
+            candidateSlots.push(idx);
+        }
+    }
+
+    let lastError = null;
+    for (let c = 0; c < candidateSlots.length; c += 1) {
+        const slotIndex = candidateSlots[c];
+        try {
+            const result = await getImageTaskForSingleKey(parsedId, keyPool[slotIndex], {
+                ...options,
+                isolateFromDefaultRefresh: true
+            });
+            if (
+                result.status === "FAILED" &&
+                isOpusCreditExhaustedError({
+                    code: result.errorCode,
+                    message: result.errorMessage
+                })
+            ) {
+                activeOpusKeyIndex = (slotIndex + 1) % totalKeys;
+            }
+            return {
+                ...result,
+                keySlot: slotIndex,
+                keyPoolSize: totalKeys
+            };
+        } catch (err) {
+            lastError = err;
+            const retryableOnOtherSlot =
+                err?.status === 401 ||
+                err?.status === 403 ||
+                err?.code === "OPUS_AUTH_EXPIRED" ||
+                err?.code === "OPUS_AUTH_REJECTED";
+            if (retryableOnOtherSlot && c + 1 < candidateSlots.length) {
+                continue;
+            }
+            throw err;
+        }
+    }
+
+    throw lastError || createProviderError({
+        message: "Gagal memeriksa status job gambar Opus Labs.",
+        code: "OPUS_STATUS_FAILED",
+        status: 502
+    });
+}
+
 export {
     DEFAULT_MCP_URL,
     DEFAULT_OPUS_WORKOS_CLIENT_ID,
+    MAX_IMAGE_REFERENCE_IMAGES,
     MAX_REFERENCE_AUDIOS,
     MAX_REFERENCE_IMAGES,
     MAX_REFERENCE_VIDEOS,
     PROVIDER_ID,
     PROVIDER_NAME,
+    createImageTask,
     createVideoTask,
     encodeOpusTaskId,
+    extractImageUrls,
     extractOpusApiKeyPool,
     extractVideoUrls,
     getActiveOpusKeyIndex,
+    getImageTask,
     getMcpEndpoint,
     getVideoTask,
     isOpusCreditExhaustedError,
@@ -5437,9 +7030,13 @@ export default {
     PROVIDER_ID,
     PROVIDER_NAME,
     DEFAULT_MCP_URL,
+    MAX_IMAGE_REFERENCE_IMAGES,
+    createImageTask,
     createVideoTask,
+    getImageTask,
     getVideoTask,
     encodeOpusTaskId,
+    extractImageUrls,
     extractOpusApiKeyPool,
     extractOpusEgressJobId,
     getActiveOpusKeyIndex,

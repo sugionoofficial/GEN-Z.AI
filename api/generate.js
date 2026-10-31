@@ -78,6 +78,12 @@ import qwenCloudVideoModels
 import opusVideoModels
     from "../models/opus-video/index.js";
 
+import opusImageModels
+    from "../models/opus-image/index.js";
+
+import { persistGeneratedImage }
+    from "../lib/generate/persist-generated-image.js";
+
 import {
     resolveOpusApiKeyPoolPayload,
     resolveOpusBearerToken
@@ -151,7 +157,10 @@ const MODEL_REGISTRY = Object.freeze([
     ...qwenCloudVideoModels,
 
     /* Opus Labs (Opus Video Tools MCP) */
-    ...opusVideoModels
+    ...opusVideoModels,
+
+    /* Opus Labs Image Generation (generate_keyframes) */
+    ...opusImageModels
 ]);
 
 
@@ -1741,6 +1750,7 @@ async function createGenerationHistory({
     generationCredit,
     taskId,
     status = "processing",
+    resultUrl = null,
     errorMessage = null,
     creditRefunded = false,
     completedAt = null
@@ -1784,10 +1794,12 @@ async function createGenerationHistory({
 
     const imageReference =
         normalizeHistoryReference(
+            parameters?.character_image_url ??
             parameters?.image_urls ??
             parameters?.image_url ??
             parameters?.first_frame_url ??
             parameters?.reference_image_urls ??
+            body?.character_image_url ??
             body?.image_urls ??
             body?.image_url ??
             null
@@ -1934,7 +1946,7 @@ async function createGenerationHistory({
             normalizedTaskId,
 
         result_url:
-            null,
+            resultUrl || null,
 
         error_message:
             normalizeHistoryText(errorMessage),
@@ -6516,6 +6528,28 @@ export default async function handler(
         );
     }
 
+    const isImageModel =
+        String(modelConfig?.mediaType || modelConfig?.generationType || "")
+            .trim()
+            .toLowerCase() === "image";
+
+    const inlineOutputUrl =
+        String(task?.status || "").trim().toUpperCase() === "COMPLETED" &&
+        Array.isArray(task?.outputUrls) &&
+        task.outputUrls.length > 0
+            ? String(task.outputUrls[0] || "").trim()
+            : "";
+
+    const persistedInlineImageUrl =
+        isImageModel && inlineOutputUrl
+            ? await persistGeneratedImage({
+                  sourceUrl: inlineOutputUrl,
+                  userId: user.id,
+                  supabaseUrl: SUPABASE_URL,
+                  serviceKey: SUPABASE_SERVICE_ROLE_KEY
+              })
+            : "";
+
     await createGenerationHistory({
 
         user,
@@ -6534,7 +6568,15 @@ export default async function handler(
 
         generationCredit,
 
-        taskId
+        taskId,
+
+        ...(persistedInlineImageUrl
+            ? {
+                  status: "completed",
+                  resultUrl: persistedInlineImageUrl,
+                  completedAt: new Date().toISOString()
+              }
+            : {})
 
     });
 
@@ -6561,6 +6603,9 @@ export default async function handler(
             model_name:
                 modelConfig.name ||
                 modelConfig.id,
+
+            media_type:
+                isImageModel ? "image" : "video",
 
             provider:
                 provider.provider_name ||
@@ -6592,6 +6637,16 @@ export default async function handler(
 
             jobId:
                 taskId,
+
+            ...(persistedInlineImageUrl
+                ? {
+                      completed: true,
+                      state: "completed",
+                      result_url: persistedInlineImageUrl,
+                      result_urls: [persistedInlineImageUrl],
+                      resultUrls: [persistedInlineImageUrl]
+                  }
+                : {}),
 
             provider_response:
                 safeTask,

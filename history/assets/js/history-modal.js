@@ -153,10 +153,19 @@
     ===================================================== */
 
     var IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"];
+    var GENERATED_IMAGE_MODEL_IDS = [
+        "opus-gpt-image-2.5-flare",
+        "opus-gpt-image-2.5-sunburst",
+        "opus-seedream-5.0-pro",
+        "opus-nano-banana-2",
+        "opus-nano-banana-pro"
+    ];
 
     function isImageUrl(url) {
         if (!url) return false;
-        var clean = String(url).split("?")[0].split("#")[0].toLowerCase();
+        var raw = String(url).trim().toLowerCase();
+        if (raw.indexOf("data:image/") === 0) return true;
+        var clean = raw.split("?")[0].split("#")[0];
         var dot = clean.lastIndexOf(".");
         if (dot === -1) return false;
         var ext = clean.slice(dot + 1);
@@ -171,6 +180,13 @@
         return false;
     }
 
+    function isGeneratedImageItem(item) {
+        var mediaType = String(item?.media_type || item?.mediaType || "").trim().toLowerCase();
+        if (mediaType === "image") return true;
+        var modelId = String(item?.model_id || item?.modelId || "").trim().toLowerCase();
+        return GENERATED_IMAGE_MODEL_IDS.indexOf(modelId) !== -1;
+    }
+
     function isUpscaleVideo(item) {
         var modelId = String(item?.model_id || item?.modelId || "").toLowerCase();
         if (modelId === "upscale-video") return true;
@@ -182,7 +198,7 @@
     function getMediaType(item) {
         var url = getResultUrl(item);
         if (url && isImageUrl(url)) return "image";
-        if (isUpscalePhoto(item)) return "image";
+        if (isUpscalePhoto(item) || isGeneratedImageItem(item)) return "image";
         return "video";
     }
 

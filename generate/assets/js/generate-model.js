@@ -79,6 +79,18 @@ import {
     updateModelLogo
 } from "./generate-model-logo.js";
 
+import {
+    MAIN_MODE_IMAGE,
+    MAIN_MODE_VIDEO,
+    filterModelsByMainMode,
+    getActiveMainMode,
+    getSelectedModelStorageKeyForMode,
+    inferSubModeFromRegenerateParameters,
+    isImageModel,
+    setActiveImageSubMode,
+    setActiveMainMode
+} from "./generate-mode-state.js";
+
 /* =========================================================
    CONSTANT
 ========================================================= */
@@ -1141,13 +1153,16 @@ function buildNormalizedCredit(
    STORAGE
 ========================================================= */
 
-function getStoredModelId() {
+function getStoredModelId(mode = getActiveMainMode()) {
 
     try {
 
+        const key =
+            getSelectedModelStorageKeyForMode(mode);
+
         return String(
             localStorage.getItem(
-                SELECTED_MODEL_STORAGE_KEY
+                key
             ) || ""
         ).trim();
 
@@ -1165,7 +1180,8 @@ function getStoredModelId() {
 ========================================================= */
 
 function saveSelectedModelId(
-    modelId
+    modelId,
+    mode = getActiveMainMode()
 ) {
 
     const normalized =
@@ -1185,8 +1201,11 @@ function saveSelectedModelId(
 
     try {
 
+        const key =
+            getSelectedModelStorageKeyForMode(mode);
+
         localStorage.setItem(
-            SELECTED_MODEL_STORAGE_KEY,
+            key,
             normalized
         );
 
@@ -3047,7 +3066,7 @@ export function renderModelSelector(
     );
 
 
-    const normalizedModels =
+    const allVisibleModels =
         Array.isArray(models)
 
             ? models
@@ -3060,6 +3079,17 @@ export function renderModelSelector(
                 )
 
             : [];
+
+    const filteredByMode =
+        filterModelsByMainMode(
+            allVisibleModels,
+            getActiveMainMode()
+        );
+
+    const normalizedModels =
+        filteredByMode.length > 0 || getActiveMainMode() === MAIN_MODE_IMAGE
+            ? filteredByMode
+            : allVisibleModels;
 
 
     normalizedModels.forEach(
@@ -3952,10 +3982,6 @@ export async function resolveInitialModel() {
     const pendingRegeneration =
         window.GENZRegenerate?.read?.();
 
-    const storedModelId =
-        getStoredModelId();
-
-
     const models =
         await loadAvailableModels();
 
@@ -3972,13 +3998,42 @@ export async function resolveInitialModel() {
         );
 
     if (regenerationModel) {
+        if (isImageModel(regenerationModel)) {
+            setActiveMainMode(MAIN_MODE_IMAGE);
+            setActiveImageSubMode(
+                inferSubModeFromRegenerateParameters(
+                    pendingRegeneration?.parameters
+                )
+            );
+        } else {
+            setActiveMainMode(MAIN_MODE_VIDEO);
+        }
         selectedModelId =
             getModelId(regenerationModel);
     }
 
+    let modeFilteredModels =
+        filterModelsByMainMode(
+            models,
+            getActiveMainMode()
+        );
+
+    if (
+        modeFilteredModels.length === 0 &&
+        getActiveMainMode() === MAIN_MODE_IMAGE
+    ) {
+        const videoFallback = filterModelsByMainMode(models, MAIN_MODE_VIDEO);
+        if (videoFallback.length > 0) {
+            setActiveMainMode(MAIN_MODE_VIDEO);
+            modeFilteredModels = videoFallback;
+        }
+    }
+
+    const storedModelId =
+        getStoredModelId(getActiveMainMode());
 
     const storedModel =
-        models.find(
+        modeFilteredModels.find(
             model =>
                 getModelId(model) ===
                 storedModelId &&
@@ -3999,7 +4054,7 @@ export async function resolveInitialModel() {
     if (!selectedModelId) {
 
         const executableModel =
-            models.find(
+            modeFilteredModels.find(
                 model =>
                     isExecutableModel(
                         model

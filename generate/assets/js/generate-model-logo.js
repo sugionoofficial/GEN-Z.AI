@@ -122,7 +122,37 @@ const LOGO_MAP = Object.freeze({
         "wan.svg",
 
     dashscope:
-        "wan.svg"
+        "wan.svg",
+
+    openai:
+        "openai.svg",
+
+    "gpt-image":
+        "openai.svg",
+
+    "opus-gpt-image-2.5-flare":
+        "openai.svg",
+
+    "opus-gpt-image-2.5-sunburst":
+        "openai.svg",
+
+    "opus-seedream-5.0-pro":
+        "seedance.svg",
+
+    seedream:
+        "seedance.svg",
+
+    gemini:
+        "gemini.svg",
+
+    "nano-banana":
+        "gemini.svg",
+
+    "opus-nano-banana-2":
+        "gemini.svg",
+
+    "opus-nano-banana-pro":
+        "gemini.svg"
 
 });
 

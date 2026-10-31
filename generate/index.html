@@ -182,6 +182,11 @@
         href="./assets/css/generate-media-blocks.css?v=stored-uploads-20261026-mobile-spinner-20261031"
     >
 
+    <link
+        rel="stylesheet"
+        href="./assets/css/generate-modes.css?v=20261101"
+    >
+
 
     <!-- =====================================================
          SHARED NAVIGATION
@@ -442,7 +447,7 @@
 
                     <div class="generate-neon-header">
 
-                        <span class="section-eyebrow">
+                        <span class="section-eyebrow" id="generateSectionEyebrow">
                             GENERATE VIDEO AI
                         </span>
 
@@ -455,11 +460,42 @@
                         </h2>
 
 
-                        <p class="generate-neon-description">
+                        <p class="generate-neon-description" id="generateSectionDescription">
                             Pilih model dan parameter video yang
                             tersedia pada konfigurasi model aktif.
                         </p>
 
+                    </div>
+
+
+                    <!-- MAIN MODE SWITCHER (VIDEO vs GAMBAR) -->
+
+                    <div
+                        id="generateMainModeTabs"
+                        class="generate-mode-switcher"
+                        role="tablist"
+                        aria-label="Mode Generate"
+                    >
+                        <button
+                            type="button"
+                            class="generate-mode-tab is-active"
+                            role="tab"
+                            aria-selected="true"
+                            data-main-mode="video"
+                        >
+                            <span class="generate-mode-tab-icon" aria-hidden="true">🎬</span>
+                            <span>Generate Video</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="generate-mode-tab"
+                            role="tab"
+                            aria-selected="false"
+                            data-main-mode="image"
+                        >
+                            <span class="generate-mode-tab-icon" aria-hidden="true">🖼️</span>
+                            <span>Generate Gambar</span>
+                        </button>
                     </div>
 
 
@@ -507,6 +543,62 @@
 
                         </div>
 
+                    </section>
+
+
+                    <!-- IMAGE SUB-MODE SWITCHER (BIASA vs KARAKTER SHEET) -->
+
+                    <section
+                        id="generateImageSubModeWrap"
+                        class="generate-submode-section"
+                        aria-label="Sub-mode Generate Gambar"
+                        hidden
+                    >
+                        <div class="generate-submode-header">
+                            <span class="generate-submode-eyebrow">MODE GENERATE GAMBAR</span>
+                        </div>
+                        <div class="generate-submode-grid" role="tablist">
+                            <button
+                                type="button"
+                                class="generate-submode-btn is-active"
+                                role="tab"
+                                aria-selected="true"
+                                data-image-submode="standard"
+                            >
+                                <span class="generate-submode-title">Generate Biasa</span>
+                                <span class="generate-submode-desc">
+                                    Hingga 8 gambar referensi (opsional) + blok prompt bebas.
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                class="generate-submode-btn"
+                                role="tab"
+                                aria-selected="false"
+                                data-image-submode="character_sheet"
+                            >
+                                <span class="generate-submode-title">Generate Karakter Sheet</span>
+                                <span class="generate-submode-desc">
+                                    Turnaround karakter 4 sudut &amp; close-up + opsi ganti outfit.
+                                </span>
+                            </button>
+                        </div>
+
+                        <div
+                            id="characterSheetLockedBanner"
+                            class="character-sheet-locked-banner"
+                            role="note"
+                            hidden
+                        >
+                            <span class="character-sheet-locked-icon" aria-hidden="true">🔒</span>
+                            <div>
+                                <strong>Master Prompt Character Sheet Terkunci Otomatis:</strong>
+                                Sistem secara otomatis menyusun lembar desain studio berisi tampak full-body
+                                <strong>Depan, 3/4, Samping, dan Belakang</strong> + panel close-up ekspresi wajah
+                                yang konsisten (rasio default <strong>16:9</strong>). Unggah Foto Outfit jika ingin
+                                mengganti pakaian karakter di seluruh sudut pandang.
+                            </div>
+                        </div>
                     </section>
 
 
@@ -623,6 +715,38 @@
 
                 </section>
 
+                <!-- INLINE GENERATED IMAGE RESULT -->
+
+                <section
+                    id="generateImageResultCard"
+                    class="generate-image-result-card"
+                    aria-label="Hasil Generate Gambar"
+                    hidden
+                >
+                    <div class="generate-image-result-head">
+                        <span class="generate-image-result-badge">✓ Hasil Gambar Siap</span>
+                        <span id="generateImageResultModel" style="font-size:12px;color:#94a3b8;font-weight:600;"></span>
+                    </div>
+                    <div class="generate-image-result-frame">
+                        <img id="generateImageResultImg" alt="Hasil generate gambar" loading="lazy">
+                    </div>
+                    <div class="generate-image-result-actions">
+                        <button
+                            type="button"
+                            id="generateImageDownloadBtn"
+                            class="generate-image-download-btn"
+                        >
+                            ⬇ Download Foto
+                        </button>
+                        <a
+                            href="/history/"
+                            class="generate-image-history-link"
+                        >
+                            Buka di History →
+                        </a>
+                    </div>
+                </section>
+
 
                 <!-- =================================================
                      MODEL HEADER COMPATIBILITY
@@ -686,6 +810,7 @@
          untuk rollback bila diperlukan.
     ========================================================== -->
 
+    <script src="/assets/js/generated-file-name.js?v=20261101"></script>
     <script src="./assets/js/generate-progress-card.js?v=mobile-spinner-20261029"></script>
     <script src="../assets/js/generation-regenerate.js?v=20261016-regenerate"></script>
 
@@ -696,7 +821,7 @@
 
     <script
         type="module"
-        src="./assets/js/generate-app.js?v=stored-uploads-20261026-20261031-staged30s"
+        src="./assets/js/generate-app.js?v=stored-uploads-20261026-20261101-image-video-modes"
     ></script>
 
 

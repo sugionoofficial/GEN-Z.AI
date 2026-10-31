@@ -70,6 +70,15 @@ import qwenCloudVideoModels
 import opusVideoModels
     from "../models/opus-video/index.js";
 
+import opusImageModels
+    from "../models/opus-image/index.js";
+
+import { isOpusImageModelId }
+    from "../models/opus-image/specs.js";
+
+import { persistGeneratedImage }
+    from "../lib/generate/persist-generated-image.js";
+
 import {
     resolveOpusApiKeyPoolPayload,
     resolveOpusBearerToken
@@ -109,7 +118,10 @@ const MODEL_REGISTRY = [
     ...qwenCloudVideoModels,
 
     /* Opus Labs (Opus Video Tools MCP) */
-    ...opusVideoModels
+    ...opusVideoModels,
+
+    /* Opus Labs Image Generation (generate_keyframes) */
+    ...opusImageModels
 ];
 
 const STALE_TASK_EXPIRED_ERROR =
@@ -2104,7 +2116,7 @@ function collectUrls(
 
 
         if (
-            /^https?:\/\//i.test(
+            /^(?:https?:\/\/|supabase-private:\/\/|data:image\/(?:png|jpe?g|webp|avif);base64,)/i.test(
                 text
             )
         ) {
@@ -2212,7 +2224,7 @@ function uniqueUrls(
                 )
                 .filter(
                     url =>
-                        /^https?:\/\//i.test(
+                        /^(?:https?:\/\/|supabase-private:\/\/|data:image\/(?:png|jpe?g|webp|avif);base64,)/i.test(
                             url
                         )
                 )
@@ -4926,6 +4938,40 @@ export default async function handler(
                 taskId
             );
 
+        const isImageTask =
+            isOpusImageModelId(modelId) ||
+            lower(adapter?.config?.mediaType || adapter?.mediaType) === "image" ||
+            lower(providerRaw?.mediaType) === "image";
+
+        if (
+            isImageTask &&
+            normalized.completed &&
+            Array.isArray(normalized.result_urls) &&
+            normalized.result_urls.length > 0
+        ) {
+            const persistedImageRef = await persistGeneratedImage({
+                sourceUrl: normalized.result_urls[0],
+                userId: user.id,
+                supabaseUrl: SUPABASE_URL,
+                serviceKey: SUPABASE_SERVICE_ROLE_KEY
+            });
+            if (persistedImageRef) {
+                normalized.result_urls = [
+                    persistedImageRef,
+                    ...normalized.result_urls.slice(1)
+                ];
+                if (
+                    normalized.resultJson &&
+                    typeof normalized.resultJson === "object"
+                ) {
+                    normalized.resultJson = {
+                        ...normalized.resultJson,
+                        resultUrls: normalized.result_urls
+                    };
+                }
+            }
+        }
+
 
         /*
          * Rotasi API key Opus / jeda 5 menit: percobaan ini masih
@@ -5007,6 +5053,9 @@ export default async function handler(
 
                 model_id:
                     modelId,
+
+                media_type:
+                    isImageTask ? "image" : "video",
 
                 model_name:
                     firstDefined(

@@ -71,6 +71,10 @@ import {
     getModelCreditForSelectedResolution
 } from "./generate-model.js";
 
+import {
+    isImageModel
+} from "./generate-mode-state.js";
+
 
 /* =========================================================
    ELEMENTS
@@ -1272,10 +1276,29 @@ export function resolveModelCredit(
     }
 
 
-    const normalizedResolution =
+    let normalizedResolution =
         normalizeResolution(
             resolution
         );
+
+
+    if (
+        !normalizedResolution &&
+        (
+            model.flat_credit === true ||
+            model.has_resolution === false ||
+            isImageModel(model) ||
+            (
+                Array.isArray(model.supported_resolutions) &&
+                model.supported_resolutions.length === 0
+            )
+        )
+    ) {
+
+        normalizedResolution =
+            "480p";
+
+    }
 
 
     if (

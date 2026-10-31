@@ -27,6 +27,10 @@ import {
     getCurrentModel
 } from "./generate-state.js";
 
+import {
+    adaptDefinitionsForImageSubMode
+} from "./generate-mode-state.js";
+
 
 /* =========================================================
    CONSTANTS
@@ -57,6 +61,8 @@ export const SERVER_CONTROLLED_PARAMETERS =
  */
 
 export const PARAMETER_ORDER = [
+    "character_image_url",
+    "outfit_image_url",
     "image_urls",
     "image_url",
     "reference_image_urls",
@@ -69,6 +75,7 @@ export const PARAMETER_ORDER = [
     "audio_urls",
     "reference_audio_url",
     "prompt",
+    "character_notes",
     "negative_prompt",
     "description",
     "mode",
@@ -80,6 +87,8 @@ export const PARAMETER_ORDER = [
 
 export const FULL_WIDTH_PARAMETERS =
     new Set([
+        "character_image_url",
+        "outfit_image_url",
         "image_urls",
         "image_url",
         "reference_image_urls",
@@ -92,6 +101,7 @@ export const FULL_WIDTH_PARAMETERS =
         "audio_urls",
         "reference_audio_url",
         "prompt",
+        "character_notes",
         "negative_prompt",
         "description"
     ]);
@@ -426,7 +436,10 @@ export function getParameterDefinitions(
             );
 
 
-            return normalized;
+            return adaptDefinitionsForImageSubMode(
+                normalized,
+                model
+            );
 
         }
 
@@ -467,7 +480,10 @@ export function getParameterDefinitions(
             ).length > 0
         ) {
 
-            return normalized;
+            return adaptDefinitionsForImageSubMode(
+                normalized,
+                model
+            );
 
         }
 
