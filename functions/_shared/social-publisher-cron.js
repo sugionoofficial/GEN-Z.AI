@@ -102,10 +102,16 @@ const LEGACY_SCHEDULE_COLUMNS = "id,owner_id,character_id,page_connection_id,ena
 const SCENE_SCHEDULE_COLUMNS = `${LEGACY_SCHEDULE_COLUMNS},autopublish_enabled,scene_location,camera_angle,scene_situation,scene_lighting,scene_atmosphere,scene_condition,scene_details,negative_prompt`;
 const QUOTE_BASE_SCHEDULE_COLUMNS = `${SCENE_SCHEDULE_COLUMNS},post_mode,quote_theme,quote_visual_style,use_random_song,song_mode,song_id,tag_name,tag_url`;
 const FULL_SCHEDULE_COLUMNS = `${QUOTE_BASE_SCHEDULE_COLUMNS},quote_publish_target`;
+const MODEL_SCHEDULE_COLUMNS = `${FULL_SCHEDULE_COLUMNS},image_model`;
 
 function isMissingColumnError(error) {
     const message = String(error?.message || "");
     return /does not exist|schema cache|column/i.test(message);
+}
+
+function isMissingScheduleImageModelColumn(error) {
+    const message = String(error?.message || "");
+    return /\bimage_model\b/i.test(message) && isMissingColumnError(error);
 }
 
 function isMissingQuoteTargetColumn(error) {
@@ -127,11 +133,24 @@ async function getScheduleForRun(config, scheduleId) {
     try {
         const rows = await dbRequest(config, table(
             "social_post_schedules",
-            `select=${FULL_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+            `select=${MODEL_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
         ));
         return rows?.[0] || null;
-    } catch (error) {
+    } catch (firstError) {
+        let error = firstError;
         if (!isMissingColumnError(error)) throw error;
+        if (isMissingScheduleImageModelColumn(error)) {
+            try {
+                const rows = await dbRequest(config, table(
+                    "social_post_schedules",
+                    `select=${FULL_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+                ));
+                return rows?.[0] || null;
+            } catch (fullColsError) {
+                if (!isMissingColumnError(fullColsError)) throw fullColsError;
+                error = fullColsError;
+            }
+        }
         if (isMissingQuoteTargetColumn(error)) {
             try {
                 const rows = await dbRequest(config, table(
@@ -651,8 +670,9 @@ async function processRun(env, config, claimedRun, options = {}) {
             : imageProvider === "opus"
                 ? resolveOpusAspectRatio(env, schedule.aspect_ratio)
                 : (["9:16", "16:9"].includes(schedule.aspect_ratio) ? schedule.aspect_ratio : "9:16");
+        const scheduleImageModel = String(schedule.image_model || "").trim();
         imageModel = imageProvider === "opus"
-            ? normalizeOpusImageModel(publisherConfigs?.[0]?.image_model, env)
+            ? normalizeOpusImageModel(scheduleImageModel || publisherConfigs?.[0]?.image_model, env)
             : normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model);
         /* Provider teks terpisah: caption & mutiara boleh dari Tencent (gratis). */
         const textProvider = normalizeTextProvider(publisherConfigs?.[0]?.text_provider);

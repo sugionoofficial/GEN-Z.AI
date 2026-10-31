@@ -379,6 +379,174 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         { cardId: "schedule-card", btnId: "schedule-collapse-btn", bodyId: "schedule-collapse-body", chipId: "schedule-collapse-chip-label" }
     ];
 
+    const OPUS_STUDIO_MODELS = [
+        { id: "gpt-image-2.5-flare", label: "GPT Image 2.5 Flare", note: "Cepat & hemat latensi" },
+        { id: "gpt-image-2.5-sunburst", label: "GPT Image 2.5 Sunburst", note: "Presisi & detail produk tinggi" },
+        { id: "seedream-5.0-pro", label: "Seedream 5.0 Pro", note: "Estetika premium & konsistensi karakter" },
+        { id: "nano-banana-2", label: "Nano Banana 2", note: "Gemini Flash Image cepat & konsisten" },
+        { id: "nano-banana-pro", label: "Nano Banana Pro", note: "Gemini Pro Image detail wajah & outfit" }
+    ];
+
+    function activeOpusModelEntries() {
+        const fromConfig = state.data?.config?.opusModels;
+        return Array.isArray(fromConfig) && fromConfig.length >= 5
+            ? fromConfig
+            : OPUS_STUDIO_MODELS;
+    }
+
+    function normalizeClientOpusModel(value, fallback = "gpt-image-2.5-flare") {
+        const cleaned = String(value || "")
+            .trim()
+            .toLowerCase()
+            .replace(/^[a-z0-9_-]+\//, "")
+            .replace(/^opus-/, "")
+            .replace(/[\s_]+/g, "-");
+        if (!cleaned) return fallback;
+        if (cleaned === "gpt-image-2.5-flare" || cleaned === "gpt-image-2-5-flare" || cleaned === "flare") {
+            return "gpt-image-2.5-flare";
+        }
+        if (cleaned === "gpt-image-2.5-sunburst" || cleaned === "gpt-image-2-5-sunburst" || cleaned === "sunburst") {
+            return "gpt-image-2.5-sunburst";
+        }
+        if (cleaned === "seedream-5.0-pro" || cleaned === "seedream-5-0-pro" || cleaned === "seedream-5-pro" || cleaned === "seedream-5.0" || cleaned === "seedream") {
+            return "seedream-5.0-pro";
+        }
+        if (cleaned === "nano-banana-2" || cleaned === "gemini-3.1-flash-image-preview" || cleaned === "gemini-3.1-flash-image") {
+            return "nano-banana-2";
+        }
+        if (cleaned === "nano-banana-pro" || cleaned === "gemini-3-pro-image-preview" || cleaned === "gemini-3-pro-image") {
+            return "nano-banana-pro";
+        }
+        return fallback;
+    }
+
+    function defaultStudioOpusModel() {
+        const cfg = state.data?.config || {};
+        return normalizeClientOpusModel(cfg.opusDefaultModel || cfg.imageModel || "gpt-image-2.5-flare", "gpt-image-2.5-flare");
+    }
+
+    function opusModelLabel(modelId) {
+        const normalized = normalizeClientOpusModel(modelId, "");
+        const hit = activeOpusModelEntries().find(item => item.id === normalized);
+        return hit?.label || modelId || "GPT Image 2.5 Flare";
+    }
+
+    function setInlineModelDropdownOpen(prefix, open) {
+        const wrap = $(`${prefix}-model-dropdown`);
+        const trigger = $(`${prefix}-model-trigger`);
+        const list = $(`${prefix}-model-list`);
+        const isOpen = Boolean(open);
+        if (wrap) wrap.classList.toggle("is-open", isOpen);
+        if (trigger) trigger.setAttribute("aria-expanded", String(isOpen));
+        if (list) list.hidden = !isOpen;
+    }
+
+    function setInlineModelSelection(prefix, modelId, { userSelected = false } = {}) {
+        const resolved = normalizeClientOpusModel(modelId, defaultStudioOpusModel());
+        const input = $(`${prefix}-image-model`);
+        const label = $(`${prefix}-model-label`);
+        const list = $(`${prefix}-model-list`);
+        if (input) {
+            input.value = resolved;
+            if (input.dataset) {
+                input.dataset.userSelected = userSelected ? "true" : "";
+            }
+        }
+        if (label) {
+            label.textContent = opusModelLabel(resolved);
+        }
+        for (const child of list?.children || []) {
+            const val = child.dataset?.modelValue || child.getAttribute?.("data-model-value") || "";
+            const selected = val === resolved;
+            child.classList?.toggle("is-selected", selected);
+            child.setAttribute?.("aria-selected", String(selected));
+        }
+    }
+
+    function renderInlineModelDropdownOptions(prefix) {
+        const list = $(`${prefix}-model-list`);
+        if (!list) return;
+        const currentVal = normalizeClientOpusModel(
+            $(`${prefix}-image-model`)?.value || defaultStudioOpusModel(),
+            defaultStudioOpusModel()
+        );
+        list.replaceChildren();
+        for (const entry of activeOpusModelEntries()) {
+            const optionBtn = document.createElement("button");
+            optionBtn.type = "button";
+            const isSelected = entry.id === currentVal;
+            optionBtn.className = `inline-model-option${isSelected ? " is-selected" : ""}`;
+            optionBtn.setAttribute("role", "option");
+            optionBtn.setAttribute("aria-selected", String(isSelected));
+            optionBtn.setAttribute("data-model-value", entry.id);
+            if (optionBtn.dataset) optionBtn.dataset.modelValue = entry.id;
+
+            const copy = document.createElement("span");
+            copy.className = "inline-model-option-copy";
+            const name = document.createElement("span");
+            name.className = "inline-model-option-name";
+            name.textContent = entry.label;
+            const note = document.createElement("span");
+            note.className = "inline-model-option-note";
+            note.textContent = entry.note || "";
+            copy.append(name, note);
+
+            const check = document.createElement("span");
+            check.className = "inline-model-check";
+            check.setAttribute("aria-hidden", "true");
+            check.textContent = "✓";
+
+            optionBtn.append(copy, check);
+            optionBtn.addEventListener("click", () => {
+                setInlineModelSelection(prefix, entry.id, { userSelected: true });
+                setInlineModelDropdownOpen(prefix, false);
+                if (prefix === "manual") disarmManualPublish();
+            });
+            list.append(optionBtn);
+        }
+    }
+
+    function initInlineModelDropdown(prefix) {
+        const trigger = $(`${prefix}-model-trigger`);
+        const list = $(`${prefix}-model-list`);
+        if (!trigger || !list) return;
+        renderInlineModelDropdownOptions(prefix);
+        setInlineModelSelection(prefix, $(`${prefix}-image-model`)?.value || defaultStudioOpusModel(), { userSelected: false });
+        setInlineModelDropdownOpen(prefix, false);
+        trigger.addEventListener("click", () => {
+            const nextOpen = Boolean(list.hidden);
+            setInlineModelDropdownOpen(prefix, nextOpen);
+        });
+    }
+
+    function syncStudioOpusModelSelectors() {
+        renderInlineModelDropdownOptions("manual");
+        renderInlineModelDropdownOptions("schedule");
+        const manualInput = $("manual-image-model");
+        if (manualInput && manualInput.dataset?.userSelected !== "true") {
+            setInlineModelSelection("manual", defaultStudioOpusModel(), { userSelected: false });
+        } else if (manualInput) {
+            setInlineModelSelection("manual", manualInput.value, { userSelected: true });
+        }
+        const scheduleInput = $("schedule-image-model");
+        const editingScheduleId = $("schedule-id")?.value || "";
+        if (scheduleInput && !editingScheduleId && scheduleInput.dataset?.userSelected !== "true") {
+            setInlineModelSelection("schedule", defaultStudioOpusModel(), { userSelected: false });
+        } else if (scheduleInput) {
+            setInlineModelSelection("schedule", scheduleInput.value, {
+                userSelected: scheduleInput.dataset?.userSelected === "true"
+            });
+        }
+    }
+
+    function getSelectedManualOpusModel() {
+        return normalizeClientOpusModel($("manual-image-model")?.value || defaultStudioOpusModel(), defaultStudioOpusModel());
+    }
+
+    function getSelectedScheduleOpusModel() {
+        return normalizeClientOpusModel($("schedule-image-model")?.value || defaultStudioOpusModel(), defaultStudioOpusModel());
+    }
+
     function setStudioCardExpanded(cardId, expanded) {
         const entry = STUDIO_COLLAPSIBLE_SECTIONS.find(item => item.cardId === cardId);
         if (!entry) return;
@@ -944,10 +1112,13 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         const charSelect = $("manual-character");
         const aspectWrap = $("manual-aspect-wrap");
         const aspectSelect = $("manual-aspect-ratio");
+        const manualModelWrap = $("manual-model-wrap");
         if (charFields) charFields.hidden = isQuote;
         if (quoteFields) quoteFields.hidden = !isQuote;
         if (charSelect) charSelect.required = !isQuote;
         if (aspectWrap) aspectWrap.hidden = isQuote;
+        if (manualModelWrap) manualModelWrap.hidden = isQuote;
+        if (isQuote) setInlineModelDropdownOpen("manual", false);
         if (isQuote && aspectSelect) aspectSelect.value = "9:16";
         updateManualCharacterPreview();
     }
@@ -966,6 +1137,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         const sceneFields = $("schedule-scene-fields-wrap");
         const aspectWrap = $("schedule-aspect-wrap");
         const aspectSelect = $("schedule-aspect-ratio");
+        const scheduleModelWrap = $("schedule-model-wrap");
         const songCheck = $("schedule-random-song");
         const songModeSelect = $("schedule-song-mode");
         const songFields = $("schedule-song-fields");
@@ -974,6 +1146,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         if (quoteFields) quoteFields.hidden = !isQuote;
         if (sceneFields) sceneFields.hidden = isQuote;
         if (aspectWrap) aspectWrap.hidden = isQuote;
+        if (scheduleModelWrap) scheduleModelWrap.hidden = isQuote;
+        if (isQuote) setInlineModelDropdownOpen("schedule", false);
         if (isQuote && aspectSelect) aspectSelect.value = "9:16";
         if (!preserveSongToggle && songCheck) {
             songCheck.checked = isQuote;
@@ -1614,6 +1788,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
                     character_id: characterId,
                     page_connection_id: pageConnectionId,
                     aspect_ratio: $("manual-aspect-ratio").value,
+                    image_model: getSelectedManualOpusModel(),
                     tag_name: $("manual-tag-name")?.value?.trim() || "",
                     tag_url: $("manual-tag-url")?.value?.trim() || "",
                     /* Foto karakter AI & outfit tidak memakai lagu. */
@@ -2615,9 +2790,12 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             }
             const scheduleAutopublishOn = schedule.autopublish_enabled !== false;
             const effectiveAutopublish = accountAutopublishOn && scheduleAutopublishOn;
+            const scheduleModelNote = !isQuoteSchedule && (state.data?.config?.imageProvider === "opus" || Boolean(schedule.image_model))
+                ? ` · model ${opusModelLabel(schedule.image_model || defaultStudioOpusModel())}`
+                : "";
             const detail = document.createElement("div");
             detail.className = "item-meta";
-            detail.textContent = `Setiap ${formatIntervalLabel(schedule.interval_minutes || schedule.interval_hours * 60)} · rasio ${schedule.aspect_ratio || "9:16"} · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"} · autopost ${scheduleAutopublishOn ? "ON" : "OFF"}`;
+            detail.textContent = `Setiap ${formatIntervalLabel(schedule.interval_minutes || schedule.interval_hours * 60)}${scheduleModelNote} · rasio ${schedule.aspect_ratio || "9:16"} · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"} · autopost ${scheduleAutopublishOn ? "ON" : "OFF"}`;
             const scene = document.createElement("div");
             scene.className = "item-meta";
             scene.textContent = sceneSummary(schedule);
@@ -2990,6 +3168,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         if (Array.isArray(data.defaultFacebookSongs) && data.defaultFacebookSongs.length) {
             state.defaultFacebookSongs = data.defaultFacebookSongs;
         }
+        syncStudioOpusModelSelectors();
         renderConfig(data.config || {});
         renderGlobalState();
         renderPages(data.pages || []);
@@ -3373,6 +3552,10 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         $("interval-minutes").value = schedule.interval_minutes || schedule.interval_hours * 60;
         $("first-run").value = utcToLocalWib(schedule.next_run_at);
         $("schedule-aspect-ratio").value = schedule.aspect_ratio || "9:16";
+        setInlineModelSelection("schedule", schedule.image_model || defaultStudioOpusModel(), {
+            userSelected: Boolean(schedule.image_model)
+        });
+        setInlineModelDropdownOpen("schedule", false);
         if ($("schedule-quote-target")) $("schedule-quote-target").value = normalizeClientQuoteTarget(schedule.quote_publish_target || "feed");
         if ($("schedule-quote-theme")) $("schedule-quote-theme").value = schedule.quote_theme || "";
         if ($("schedule-quote-visual")) $("schedule-quote-visual").value = schedule.quote_visual_style || "";
@@ -3425,6 +3608,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         const { min, max } = schedulePolicy();
         $("interval-minutes").value = String(min <= 1440 && 1440 <= max ? 1440 : min);
         $("schedule-aspect-ratio").value = "9:16";
+        setInlineModelSelection("schedule", defaultStudioOpusModel(), { userSelected: false });
+        setInlineModelDropdownOpen("schedule", false);
         $("schedule-location").value = "";
         $("schedule-angle").value = "";
         $("schedule-situation").value = "";
@@ -3493,6 +3678,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             next_run_at: nextRunAt,
             timezone: "Asia/Jakarta",
             aspect_ratio: $("schedule-aspect-ratio").value,
+            image_model: isQuote ? "" : getSelectedScheduleOpusModel(),
             caption_template: $("default-caption-template").value,
             quote_publish_target: isQuote ? normalizeClientQuoteTarget($("schedule-quote-target")?.value) : "feed",
             quote_theme: isQuote ? ($("schedule-quote-theme")?.value || "") : "",
@@ -3910,6 +4096,8 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             syncSongPicker($(modeId), $(choiceId), $(legacyId));
         });
     }
+    initInlineModelDropdown("manual");
+    initInlineModelDropdown("schedule");
     $("interval-minutes").addEventListener("input", updateCostEstimate);
     if ($("runs-per-page")) {
         $("runs-per-page").value = String(state.runsPerPage);

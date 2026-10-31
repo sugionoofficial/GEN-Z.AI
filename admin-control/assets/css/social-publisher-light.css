@@ -1153,4 +1153,70 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .btn.autopost-off:no
     color: #ffffff !important;
 }
 
+/* =========================================================
+   INLINE COMPACT NON-FLOATING MODEL BLOCK DROPDOWN (LIGHT)
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-trigger {
+    background: #ffffff !important;
+    border: 1px solid #b8c5d9 !important;
+    color: #0b1424 !important;
+    box-shadow: 0 2px 6px rgba(40, 54, 82, .05) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-trigger:hover {
+    background: #f5f7fd !important;
+    border-color: #7c6cff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-dropdown.is-open .inline-model-trigger {
+    background: #f3f1ff !important;
+    border-color: #6b5bf6 !important;
+    box-shadow: 0 0 0 3px rgba(107, 91, 246, .16) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-chevron {
+    color: #46536a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-dropdown.is-open .inline-model-chevron {
+    color: #5750d9 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-list {
+    background: #f6f8fd !important;
+    border: 1px solid #c9d4e5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-option {
+    background: #ffffff !important;
+    border-color: #dde5f2 !important;
+    color: #172033 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-option:hover {
+    background: #eef1ff !important;
+    border-color: #9e93f8 !important;
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-option.is-selected {
+    background: linear-gradient(135deg, #ebe8ff, #e4f6fb) !important;
+    border-color: #6b5bf6 !important;
+    color: #1d1566 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-option-note {
+    color: #536179 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-option.is-selected .inline-model-option-note {
+    color: #3d32b5 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inline-model-check {
+    color: #4f3fc4 !important;
+}
+
+
 

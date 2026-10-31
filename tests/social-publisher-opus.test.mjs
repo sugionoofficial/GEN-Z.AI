@@ -595,7 +595,10 @@ test("generateSocialImage meneruskan provider opus & testOpusImageProvider melap
     assert.equal(OPUS_DEFAULT_IMAGE_QUALITY, "low");
     assert.deepEqual(OPUS_IMAGE_MODELS.map(m => m.id), [
         "gpt-image-2.5-flare",
-        "gpt-image-2.5-sunburst"
+        "gpt-image-2.5-sunburst",
+        "seedream-5.0-pro",
+        "nano-banana-2",
+        "nano-banana-pro"
     ]);
     assert.equal(opusConfigured({}), false);
     assert.equal(opusConfigured({ OPUS_AUTH_TOKEN: "abc" }), true);
@@ -603,6 +606,12 @@ test("generateSocialImage meneruskan provider opus & testOpusImageProvider melap
     assert.equal(opusImageModel({}), "gpt-image-2.5-flare");
     assert.equal(normalizeOpusImageModel("GPT Image 2.5 flare"), "gpt-image-2.5-flare");
     assert.equal(normalizeOpusImageModel("GPT Image 2.5 sunburst"), "gpt-image-2.5-sunburst");
+    assert.equal(normalizeOpusImageModel("Seedream 5.0 Pro"), "seedream-5.0-pro");
+    assert.equal(normalizeOpusImageModel("opus-seedream-5.0-pro"), "seedream-5.0-pro");
+    assert.equal(normalizeOpusImageModel("Nano Banana 2"), "nano-banana-2");
+    assert.equal(normalizeOpusImageModel("opus-nano-banana-2"), "nano-banana-2");
+    assert.equal(normalizeOpusImageModel("Nano Banana Pro"), "nano-banana-pro");
+    assert.equal(normalizeOpusImageModel("opus-nano-banana-pro"), "nano-banana-pro");
     assert.equal(normalizeOpusImageModel("qwen-image-3.0-pro"), "gpt-image-2.5-flare");
     assert.equal(opusImageModel({ OPUS_IMAGE_MODEL: "opus-ad-v2" }), "opus-ad-v2");
     assert.equal(opusImageQuality({}), "low");
@@ -3003,6 +3012,209 @@ test("bila percobaan langsung ke-2 masih ditolak policy Opus, jadwal langsung di
         restore();
     }
 });
+
+test("save-schedule dan cron autopost menghormati pilihan salah satu dari 5 model Opus per jadwal (mis. seedream-5.0-pro / nano-banana-pro)", async () => {
+    resetOpusTokenCache();
+    const encryptionKey = Buffer.alloc(32, 7).toString("base64");
+    const encrypted = await encryptSecret("fb-page-token-live", encryptionKey);
+    const refJpeg = texturedJpeg({ width: 500, height: 800 });
+    const outJpeg = texturedJpeg({ width: 720, height: 1280 });
+    let savedScheduleBody = null;
+    let seenCronOpusModel = "";
+    let seenManualOpusModel = "";
+
+    const makeRes = () => ({
+        statusCode: 200,
+        headers: {},
+        body: null,
+        setHeader(k, v) { this.headers[k] = v; },
+        status(c) { this.statusCode = c; return this; },
+        json(v) { this.body = v; return this; },
+        end(v) { this.body = v; return this; }
+    });
+
+    const restore = mockFetch(async (url, options = {}) => {
+        if (url.endsWith("/auth/v1/user")) {
+            return Response.json({ id: "owner-model-test" });
+        }
+        if (url.includes("/rest/v1/profiles?")) {
+            return Response.json([{ id: "owner-model-test", role: "OWNER", status: "active" }]);
+        }
+        if (url.includes("/rest/v1/studio_medsos_access?")) {
+            return Response.json([{
+                user_id: "owner-model-test",
+                is_active: true,
+                duration_days: 30,
+                started_at: "2026-10-01T00:00:00.000Z",
+                expires_at: "2027-01-01T00:00:00.000Z"
+            }]);
+        }
+        if (url.endsWith("/rest/v1/rpc/claim_due_social_post_schedules")) {
+            return Response.json([{
+                run_id: "run-seedream-1",
+                schedule_id: "sched-seedream-1",
+                scheduled_for: "2026-11-01T03:00:00.000Z"
+            }]);
+        }
+        if (url.includes("/rest/v1/social_post_schedules") && options.method === "POST") {
+            savedScheduleBody = JSON.parse(options.body);
+            return Response.json([{ id: "sched-seedream-1", ...savedScheduleBody }], { status: 201 });
+        }
+        if (url.includes("/rest/v1/social_post_schedules?")) {
+            if (!options.method || options.method === "GET") {
+                if (url.includes("select=id&owner_id=")) return Response.json([]);
+                return Response.json([{
+                    id: "sched-seedream-1",
+                    owner_id: "owner-model-test",
+                    character_id: "char-1",
+                    page_connection_id: "page-conn-1",
+                    enabled: true,
+                    autopublish_enabled: true,
+                    interval_hours: 1,
+                    aspect_ratio: "9:16",
+                    image_model: "seedream-5.0-pro",
+                    caption_template: "Cerita hari ini ✨",
+                    timezone: "Asia/Jakarta"
+                }]);
+            }
+            return new Response(null, { status: 204 });
+        }
+        if (url.includes("/rest/v1/social_characters?")) {
+            return Response.json([{
+                id: "char-1",
+                owner_id: "owner-model-test",
+                display_name: "Alya",
+                reference_object_key: "social-reference/owner-model-test/char-1.jpg",
+                reference_mime_type: "image/jpeg",
+                prompt_notes: "editorial"
+            }]);
+        }
+        if (url.includes("/rest/v1/social_page_connections?")) {
+            return Response.json([{
+                id: "page-conn-1",
+                owner_id: "owner-model-test",
+                page_id: "123456789",
+                page_name: "Page Uji",
+                can_publish: true,
+                page_token_ciphertext: encrypted.ciphertext,
+                page_token_iv: encrypted.iv
+            }]);
+        }
+        if (url.includes("/rest/v1/social_post_runs")) {
+            if (options.method === "POST") {
+                return Response.json([{
+                    id: "manual-run-nbp",
+                    status: "generating",
+                    scheduled_for: new Date().toISOString(),
+                    created_at: new Date().toISOString()
+                }], { status: 201 });
+            }
+            if (options.method === "PATCH") {
+                return new Response(null, { status: 204 });
+            }
+            return Response.json([]);
+        }
+        if (url.includes("/rest/v1/social_outfits?")) {
+            return Response.json([]);
+        }
+        if (url.includes("/rest/v1/social_publisher_user_settings?")) {
+            return Response.json([{ caption_template: "Halo", external_link: "", autopublish_enabled: true }]);
+        }
+        if (url.includes("/rest/v1/social_publisher_config?")) {
+            return Response.json([{
+                global_enabled: true,
+                global_status: "active",
+                image_provider: "opus",
+                image_model: "gpt-image-2.5-flare"
+            }]);
+        }
+        if (url.endsWith("/storage/v1/bucket/social-character-references")) {
+            return Response.json({ id: "social-character-references", public: false });
+        }
+        if (url.includes("/storage/v1/object/authenticated/social-character-references/")) {
+            return new Response(refJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (url.includes("/storage/v1/object/sign/social-character-references/")) {
+            return Response.json({ signedURL: "/object/sign/social-character-references/char.jpg?token=signed" });
+        }
+        if (url === "https://api.opus.example/generate") {
+            const payload = JSON.parse(options.body);
+            if (!seenManualOpusModel) seenManualOpusModel = payload.model;
+            else seenCronOpusModel = payload.model;
+            return new Response(outJpeg, {
+                status: 200,
+                headers: { "content-type": "image/jpeg" }
+            });
+        }
+        if (url.includes("graph.facebook.com/") && url.includes("/photos")) {
+            return Response.json({ id: "fb-photo-99", post_id: "123456789_999" });
+        }
+        if (url.includes("graph.facebook.com/")) {
+            return Response.json({ permalink_url: "https://www.facebook.com/123456789/posts/999" });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const testEnv = {
+        SUPABASE_URL: "https://project.example",
+        SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
+        SUPABASE_ANON_KEY: "anon-key",
+        SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey,
+        OPUS_AUTH_TOKEN: "opus-test-token",
+        OPUS_API_URL: "https://api.opus.example/generate"
+    };
+
+    try {
+        // 1. Save schedule dengan model pilihan Seedream 5.0 Pro
+        const saveRes = makeRes();
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=save-schedule",
+            headers: { authorization: "Bearer valid-token", "content-type": "application/json" },
+            body: {
+                post_mode: "character",
+                character_id: "char-1",
+                page_connection_id: "page-conn-1",
+                interval_minutes: 60,
+                next_run_at: new Date(Date.now() + 3600_000).toISOString(),
+                timezone: "Asia/Jakarta",
+                aspect_ratio: "9:16",
+                image_model: "seedream-5.0-pro",
+                caption_template: "Cerita hari ini ✨",
+                autopublish_enabled: true,
+                enabled: true
+            },
+            env: testEnv
+        }, saveRes);
+        assert.equal(saveRes.statusCode, 200);
+        assert.equal(savedScheduleBody?.image_model, "seedream-5.0-pro");
+        assert.equal(saveRes.body?.schedule?.image_model, "seedream-5.0-pro");
+
+        // 2. Generate manual dengan model pilihan Nano Banana Pro (meski default global = gpt-image-2.5-flare)
+        const manualRes = makeRes();
+        await socialPublisherHandler({
+            method: "POST",
+            url: "/api/social-publisher?action=manual-generate",
+            headers: { authorization: "Bearer valid-token", "content-type": "application/json" },
+            body: {
+                character_id: "char-1",
+                page_connection_id: "page-conn-1",
+                aspect_ratio: "9:16",
+                image_model: "nano-banana-pro"
+            },
+            env: testEnv
+        }, manualRes);
+        assert.equal(manualRes.statusCode, 200);
+        assert.equal(seenManualOpusModel, "nano-banana-pro");
+
+        // 3. Cron autopost menjalankan jadwal tersebut memakai Seedream 5.0 Pro (bukan default global)
+        await runSocialPublisherCron(testEnv);
+        assert.equal(seenCronOpusModel, "seedream-5.0-pro");
+    } finally {
+        restore();
+    }
+});
+
 
 
 
