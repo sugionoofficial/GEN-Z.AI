@@ -306,8 +306,9 @@ test("UI: info 1 jam di Generate & History, 24 jam di Upscale", () => {
     );
     assert.match(
         history,
-        /Setelah itu file dihapus otomatis dan riwayatnya ditandai[\s\S]*?<strong>KEDALUWARSA<\/strong>\./
+        /Setelah itu file dihapus otomatis dan riwayatnya ditandai[\s\S]*?<strong>EXPIRED<\/strong>\./
     );
+    assert.doesNotMatch(history, /<strong>KEDALUWARSA<\/strong>/i);
     assert.doesNotMatch(history, /maksimal 24 jam/);
     assert.match(history, /thumbnail-expired/);
 
@@ -369,7 +370,9 @@ test("history menandai media yang sudah kedaluwarsa", () => {
         created_at: new Date(Date.now() - 25 * HOUR).toISOString()
     });
     assert.match(expired, /thumbnail-expired/);
-    assert.match(expired, /KEDALUWARSA/);
+    assert.match(expired, /EXPIRED/);
+    assert.doesNotMatch(expired, /KEDALUWARSA/i);
+    assert.doesNotMatch(renderSource, /thumbnail-expired-label[^>]*>\s*KEDALUWARSA\s*</i);
     assert.doesNotMatch(expired, /<video/);
 
     const fresh = App.getThumbnailHtml({
