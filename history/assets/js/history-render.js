@@ -798,7 +798,7 @@
        Media hasil yang disimpan di Supabase Storage hanya
        bertahan 24 jam (dihapus oleh cron retensi). Baris
        riwayat tetap ada, tetapi thumbnail ditandai
-       KEDALUWARSA dan video tidak bisa diputar lagi.
+       EXPIRED dan video tidak bisa diputar lagi.
     ===================================================== */
 
     const MEDIA_RETENTION_MS =
@@ -1156,7 +1156,7 @@
             return `
                 <div
                     class="history-thumbnail thumbnail-expired"
-                    aria-label="Media sudah kedaluwarsa"
+                    aria-label="Media expired"
                 >
 
                     <span class="thumbnail-expired-icon">
@@ -1164,7 +1164,7 @@
                     </span>
 
                     <span class="thumbnail-expired-label">
-                        KEDALUWARSA
+                        EXPIRED
                     </span>
 
                 </div>
@@ -2768,10 +2768,10 @@
                     if (!wrap) return;
                     wrap.className = "history-thumbnail thumbnail-expired";
                     wrap.removeAttribute("data-video-url");
-                    wrap.setAttribute("aria-label", "Media sudah kedaluwarsa");
+                    wrap.setAttribute("aria-label", "Media expired");
                     wrap.innerHTML =
                         '<span class="thumbnail-expired-icon">⏳</span>' +
-                        '<span class="thumbnail-expired-label">KEDALUWARSA</span>';
+                        '<span class="thumbnail-expired-label">EXPIRED</span>';
                 },
                 { once: true }
             );
