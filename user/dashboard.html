@@ -2054,6 +2054,30 @@
                 STORY
             </button>
 
+            <button
+                class="category"
+                data-category="motion-control"
+                type="button"
+            >
+                MOTION CONTROL
+            </button>
+
+            <button
+                class="category"
+                data-category="vlog-daily"
+                type="button"
+            >
+                VLOG DAILY
+            </button>
+
+            <button
+                class="category"
+                data-category="drama"
+                type="button"
+            >
+                DRAMA
+            </button>
+
         </div>
 
 
@@ -2229,6 +2253,18 @@
 
                         <option value="story">
                             STORY
+                        </option>
+
+                        <option value="motion-control">
+                            MOTION CONTROL
+                        </option>
+
+                        <option value="vlog-daily">
+                            VLOG DAILY
+                        </option>
+
+                        <option value="drama">
+                            DRAMA
                         </option>
 
                     </select>
@@ -3188,6 +3224,32 @@ function resolveStorageUrl(
    RENDER VIDEOS
 ========================================================= */
 
+function normalizeCategoryKey(
+    category
+) {
+
+    const raw =
+        String(
+            category || ""
+        )
+            .trim()
+            .toLowerCase()
+            .replace(/[\s_]+/g, "-");
+
+
+    const aliases = {
+        "text-to-video": "text",
+        "image-to-video": "image",
+        "social-media": "social",
+        "motion": "motion-control",
+        "vlog": "vlog-daily"
+    };
+
+
+    return aliases[raw] || raw;
+}
+
+
 function renderVideos() {
 
     const filtered =
@@ -3202,11 +3264,12 @@ function renderVideos() {
                 }
 
 
-                return String(
-                    video.category || ""
-                )
-                    .toLowerCase() ===
-                    activeCategory;
+                return normalizeCategoryKey(
+                    video.category
+                ) ===
+                    normalizeCategoryKey(
+                        activeCategory
+                    );
             }
         );
 
@@ -3713,16 +3776,27 @@ function categoryLabel(
             "SOCIAL MEDIA",
 
         story:
-            "STORY"
+            "STORY",
+
+        "motion-control":
+            "MOTION CONTROL",
+
+        "vlog-daily":
+            "VLOG DAILY",
+
+        drama:
+            "DRAMA"
     };
 
 
+    const normalized =
+        normalizeCategoryKey(
+            category
+        );
+
+
     return escapeHtml(
-        labels[
-            String(
-                category || ""
-            ).toLowerCase()
-        ] ||
+        labels[normalized] ||
         String(
             category ||
             "VIDEO"
@@ -3877,7 +3951,9 @@ function openAddModal() {
 
 
     elements.videoCategory.value =
-        "text";
+        activeCategory && activeCategory !== "all"
+            ? activeCategory
+            : "text";
 
 
     elements.videoRatio.value =
@@ -3943,7 +4019,7 @@ function openEditModal(
 
 
     elements.videoCategory.value =
-        video.category ||
+        normalizeCategoryKey(video.category) ||
         "text";
 
 
