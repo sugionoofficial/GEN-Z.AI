@@ -237,6 +237,20 @@ test("SQL schema & keempat halaman Top Up memuat integrasi Cryptocurrency end-to
     assert.match(userTopupHtml, /topup-crypto\.js/);
     assert.match(userTopupHtml, /syncPaymentMethodOptions/);
     assert.match(userTopupHtml, /cryptoTxHashInput/);
+
+    const landingHtml = readRepoFile("index.html");
+    const paymentSectionMatch = landingHtml.match(
+        /<section class="payment-methods"[\s\S]*?<\/section>/
+    );
+    assert.ok(paymentSectionMatch, "Landing page harus memiliki section .payment-methods");
+    assert.match(paymentSectionMatch[0], /payment-brand-bca/);
+    assert.match(paymentSectionMatch[0], /payment-brand-dana/);
+    assert.match(paymentSectionMatch[0], /payment-brand-qris/);
+    assert.match(paymentSectionMatch[0], /payment-brand-seabank/);
+    assert.match(paymentSectionMatch[0], /payment-brand-crypto/);
+    assert.match(paymentSectionMatch[0], /class="crypto-mark"[\s\S]*?<svg/);
+    assert.match(paymentSectionMatch[0], /Crypto Currency/);
+    assert.match(paymentSectionMatch[0], /USDT\s*•\s*TRX\s*•\s*BTC\s*•\s*POL\s*•\s*BNB/);
 });
 
 test("Seluruh inline script pada 4 halaman Top Up bebas dari syntax error", () => {

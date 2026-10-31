@@ -1137,6 +1137,31 @@
             color: #ff8648;
         }
 
+        .payment-brand-crypto {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #fbbf24;
+            font-size: 13px;
+            letter-spacing: -0.02em;
+            white-space: nowrap;
+        }
+
+        .crypto-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .crypto-mark svg {
+            display: block;
+            width: 20px;
+            height: 20px;
+        }
+
         .payment-description {
             color: var(--text-soft);
             font-size: 10px;
@@ -2226,6 +2251,10 @@
             color: #172033;
         }
 
+        html[data-genz-theme="light"] .payment-brand-crypto {
+            color: #b45309;
+        }
+
         html[data-genz-theme="light"] .credit-btn {
             color: #172033;
 
@@ -2575,6 +2604,21 @@
                     <span class="payment-brand payment-brand-seabank">SeaBank</span>
                     <span class="payment-copy">
                         <span class="payment-description">Transfer bank</span>
+                    </span>
+                </span>
+                <span class="payment-method">
+                    <span class="payment-brand payment-brand-crypto">
+                        <span class="crypto-mark" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10.2" fill="rgba(245, 158, 11, 0.16)" stroke="#f59e0b" stroke-width="1.6"/>
+                                <path d="M9.8 7.3h2.85c1.38 0 2.28.66 2.28 1.76 0 .8-.46 1.35-1.2 1.58.96.22 1.58.88 1.58 1.88 0 1.28-1.02 2-2.6 2H9.8V7.3zm1.55 2.86h1.08c.64 0 1.02-.29 1.02-.8 0-.5-.38-.78-1.02-.78h-1.08v1.58zm0 3.1h1.25c.72 0 1.14-.32 1.14-.88 0-.56-.42-.88-1.14-.88h-1.25v1.76z" fill="#fbbf24"/>
+                                <path d="M10.8 5.6v1.7M13.1 5.6v1.7M10.8 14.5v1.8M13.1 14.5v1.8" stroke="#fbbf24" stroke-width="1.45" stroke-linecap="round"/>
+                            </svg>
+                        </span>
+                        Crypto Currency
+                    </span>
+                    <span class="payment-copy">
+                        <span class="payment-description">USDT • TRX • BTC • POL • BNB</span>
                     </span>
                 </span>
             </div>
