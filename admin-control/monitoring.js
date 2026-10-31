@@ -746,13 +746,15 @@ function syncFreeCreditLivePreview() {
 
     const chipVal = $("monFcChipVal");
     const defAmt = $("monFcDefAmount");
+    const prevTitle = $("monFcPrevTitle");
     const prevBadge = $("monFcRtPrevBadge");
     const prevKicker = $("monFcRtPrevKicker");
     const prevSub = $("monFcRtPrevSub");
 
     if (chipVal) chipVal.textContent = `+${lbl} CR`;
     if (defAmt) defAmt.textContent = `+${lbl} CR`;
-    if (prevBadge) prevBadge.textContent = `✦ +${lbl} CR`;
+    if (prevTitle) prevTitle.textContent = `Klaim ${lbl} Credit Gratis`;
+    if (prevBadge) prevBadge.textContent = `✦ Klaim ${lbl} CR`;
 
     const startsIso = startsInput ? datetimeLocalToIso(startsInput.value) : state.freeCredit.runtime_starts_at;
     const endsIso = endsInput ? datetimeLocalToIso(endsInput.value) : state.freeCredit.runtime_ends_at;

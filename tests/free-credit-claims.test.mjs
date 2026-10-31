@@ -687,7 +687,9 @@ test("UI kartu mewah dashboard user merender nominal dinamis & bar runtime horol
     const uiJs = readRepoFile("assets/js/free-credit-claim.js");
     const monHtml = readRepoFile("admin-control/monitoring.html");
 
-    // Pastikan komponen horology countdown & nominal dinamis hadir di script kartu user
+    // Pastikan kartu utama sendiri (.gz-fc-card) berasio penuh 16:9 beserta horology countdown & nominal dinamis
+    assert.match(uiJs, /\.gz-fc-card\{[^}]*aspect-ratio:16 \/ 9;/, "Kartu utama .gz-fc-card wajib berasio murni 16:9");
+    assert.ok(uiJs.includes("gz-fc-stage"), "Wajib memiliki full-bleed 16:9 stage untuk banner/art");
     assert.ok(uiJs.includes("genzFcRuntimeBar"), "Wajib memiliki elemen bar runtime mewah");
     assert.ok(uiJs.includes("gz-fc-rt-seg"), "Wajib memiliki tile chrono HARI/JAM/MNT/DTK");
     assert.ok(uiJs.includes("runtime_starts_at"), "Wajib membaca waktu mulai runtime");
