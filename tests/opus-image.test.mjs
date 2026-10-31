@@ -1191,3 +1191,382 @@ test("JSON-RPC -32602 & unrecognized_keys self-heal to inline MCP image content,
     );
 });
 
+test("Regression HTTP 400: import_assets status ready dengan signedUrl CDN Opus tidak pernah di-PUT untuk ke-5 model gambar Opus", async t => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    const cdnReadRefBase =
+        "https://signed-opus-lab-ext.cdn.opus.pro/opus-video-tools/projects/gen_live_cdn_01/assets/asset_char_ready.jpg";
+    const cdnGeneratedOut =
+        "https://signed-opus-lab-ext.cdn.opus.pro/opus-video-tools/projects/gen_live_cdn_01/generated/job_kf_ready/keyframes/kf-1.png?v=1793478999&hdnts=Expires=1793482999~FullPath~Signature=outSig";
+
+    let putToReadCdnCount = 0;
+
+    globalThis.fetch = async (url, init = {}) => {
+        const target = String(url);
+        if (target.startsWith("https://signed-opus-lab-ext.cdn.opus.pro/")) {
+            putToReadCdnCount += 1;
+            return new Response("<Error><Code>InvalidRequest</Code></Error>", { status: 400 });
+        }
+        const body = init.body ? JSON.parse(init.body) : {};
+        if (body.method === "initialize") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { protocolVersion: "2025-03-26" } });
+        }
+        if (body.method === "notifications/initialized") {
+            return new Response("", { status: 204 });
+        }
+        if (body.method === "tools/list") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    tools: [
+                        { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+                        {
+                            name: "import_assets",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "assets"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    assets: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            properties: {
+                                                url: { type: "string" },
+                                                label: { type: "string" },
+                                                contentType: { type: "string" },
+                                                dataUrl: { type: "string" },
+                                                sizeBytes: { type: "number" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            name: "generate_keyframes",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "items"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    requestKey: { type: "string" },
+                                    items: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            required: ["id", "prompt"],
+                                            properties: {
+                                                id: { type: "string" },
+                                                prompt: { type: "string" },
+                                                aspectRatio: { type: "string" },
+                                                model: { type: "string" },
+                                                referenceAssets: { type: "array", items: { type: "string" } }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            name: "get_status",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "jobIds"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    jobIds: { type: "array", items: { type: "string" } }
+                                }
+                            }
+                        }
+                    ]
+                }
+            });
+        }
+        const toolName = body?.params?.name;
+        const toolArgs = body?.params?.arguments || {};
+        if (toolName === "create_project") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: { structuredContent: { projectId: "gen_live_cdn_01" } }
+            });
+        }
+        if (toolName === "import_assets") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    structuredContent: {
+                        projectId: "gen_live_cdn_01",
+                        assets: [
+                            {
+                                ok: true,
+                                assetId: "asset_char_ready",
+                                status: "ready",
+                                label: toolArgs.assets?.[0]?.label || "character.jpg",
+                                signedUrl: `${cdnReadRefBase}?v=1793478001&hdnts=Expires=1793482001~FullPath~Signature=sig1`
+                            }
+                        ]
+                    }
+                }
+            });
+        }
+        if (toolName === "generate_keyframes") {
+            assert.deepEqual(toolArgs.items[0].referenceAssets, ["asset_char_ready"]);
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    structuredContent: {
+                        projectId: "gen_live_cdn_01",
+                        jobId: "job_kf_ready",
+                        status: "queued"
+                    }
+                }
+            });
+        }
+        if (toolName === "get_status") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    structuredContent: {
+                        projectId: "gen_live_cdn_01",
+                        assets: [
+                            {
+                                assetId: "asset_char_ready",
+                                label: "character.jpg",
+                                /* Token hdnts di-refresh saat get_status namun path tetap aset referensi */
+                                signedUrl: `${cdnReadRefBase}?v=1793478555&hdnts=Expires=1793482555~FullPath~Signature=sigRefreshed`
+                            }
+                        ],
+                        jobs: [
+                            {
+                                jobId: "job_kf_ready",
+                                status: "completed",
+                                signedUrl: cdnGeneratedOut
+                            }
+                        ]
+                    }
+                }
+            });
+        }
+        throw new Error(`Unexpected tool ${toolName}`);
+    };
+
+    for (const adapter of opusImageModels) {
+        const payload = adapter.buildPayload({
+            image_mode: "character_sheet",
+            character_image_url:
+                "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/04adaa6e.jpg?token=jwt123",
+            aspect_ratio: "16:9"
+        });
+        const created = await createImageTask(payload, "tok-ready-cdn", {
+            mcpUrl: "https://mcp-ready-cdn.opus.test/mcp"
+        });
+        assert.equal(created.status, "QUEUED");
+        assert.equal(putToReadCdnCount, 0, `${adapter.id} tidak boleh mengirim HTTP PUT ke signedUrl baca CDN Opus`);
+
+        const polled = await getImageTask(created.taskId, "tok-ready-cdn", {
+            mcpUrl: "https://mcp-ready-cdn.opus.test/mcp"
+        });
+        assert.equal(polled.status, "COMPLETED");
+        assert.deepEqual(polled.outputUrls, [cdnGeneratedOut]);
+    }
+});
+
+test("Presigned PUT awaiting_upload self-heals header Content-Type HTTP 400 dan fallback ke inline dataUrl bila PUT tetap gagal", async t => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    const seenPutHeaders = [];
+    let putUrlMode = "gcs";
+    let forcePutAlways400 = false;
+    let inlineDataUrlUsed = false;
+
+    globalThis.fetch = async (url, init = {}) => {
+        const target = String(url);
+        if (target.startsWith("https://ycovbqmezhrvzobxqnyp.supabase.co/")) {
+            return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+                status: 200,
+                headers: { "content-type": "image/jpeg" }
+            });
+        }
+        if (
+            target.startsWith("https://storage.googleapis.com/opus-upload-bucket/") ||
+            target.startsWith("https://s3.us-east-1.amazonaws.com/opus-upload-bucket/")
+        ) {
+            seenPutHeaders.push({ ...(init.headers || {}) });
+            if (forcePutAlways400) {
+                return new Response("<Error><Code>SignatureDoesNotMatch</Code></Error>", { status: 400 });
+            }
+            /* Simulasikan presigned URL yang menolak header Content-Type tidak tertanda tangan */
+            if (Object.keys(init.headers || {}).some(k => k.toLowerCase() === "content-type")) {
+                return new Response("<Error><Code>SignatureDoesNotMatch</Code></Error>", { status: 400 });
+            }
+            return new Response("", { status: 200 });
+        }
+
+        const body = init.body ? JSON.parse(init.body) : {};
+        if (body.method === "initialize") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { protocolVersion: "2025-03-26" } });
+        }
+        if (body.method === "notifications/initialized") {
+            return new Response("", { status: 204 });
+        }
+        if (body.method === "tools/list") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    tools: [
+                        { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+                        {
+                            name: "import_assets",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "assets"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    assets: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            properties: {
+                                                url: { type: "string" },
+                                                fileName: { type: "string" },
+                                                contentType: { type: "string" },
+                                                sizeBytes: { type: "number" },
+                                                dataUrl: { type: "string" },
+                                                assetId: { type: "string" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            name: "generate_keyframes",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "items"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    items: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            required: ["prompt"],
+                                            properties: {
+                                                prompt: { type: "string" },
+                                                model: { type: "string" },
+                                                referenceAssets: { type: "array", items: { type: "string" } }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            });
+        }
+        const toolName = body?.params?.name;
+        const toolArgs = body?.params?.arguments || {};
+        if (toolName === "create_project") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "proj-put-heal" } } });
+        }
+        if (toolName === "import_assets") {
+            const spec = toolArgs.assets?.[0] || {};
+            if (spec.assetId) {
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: body.id,
+                    result: { structuredContent: { assets: [{ ok: true, assetId: spec.assetId, status: "ready" }] } }
+                });
+            }
+            if (spec.dataUrl && forcePutAlways400) {
+                inlineDataUrlUsed = true;
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: body.id,
+                    result: { structuredContent: { assets: [{ ok: true, assetId: "ast_rescued_inline", status: "ready" }] } }
+                });
+            }
+            const putUrl =
+                putUrlMode === "gcs"
+                    ? "https://storage.googleapis.com/opus-upload-bucket/obj1?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-SignedHeaders=host"
+                    : "https://s3.us-east-1.amazonaws.com/opus-upload-bucket/obj1?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-SignedHeaders=host";
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    structuredContent: {
+                        assets: [
+                            {
+                                ok: true,
+                                assetId: "ast_put_01",
+                                status: "awaiting_upload",
+                                upload: { putUrl }
+                            }
+                        ]
+                    }
+                }
+            });
+        }
+        if (toolName === "generate_keyframes") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: { structuredContent: { jobId: "job-put-healed", status: "queued" } }
+            });
+        }
+        throw new Error(`Unexpected tool ${toolName}`);
+    };
+
+    const seedream = opusImageModelMap["opus-seedream-5.0-pro"];
+    const payload = seedream.buildPayload({
+        image_mode: "standard",
+        prompt: "Rubah warna outfit jadi merah",
+        image_urls: [
+            "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/04adaa6e.jpg?token=jwt123"
+        ],
+        aspect_ratio: "9:16"
+    });
+
+    /* Kasus 1: X-Goog-SignedHeaders=host otomatis mengirim tanpa Content-Type terlebih dahulu */
+    const res1 = await createImageTask(payload, "tok-put-1", {
+        mcpUrl: "https://mcp-put-heal.opus.test/mcp"
+    });
+    assert.equal(res1.status, "QUEUED");
+    assert.equal(seenPutHeaders.length, 1);
+    assert.equal(Object.keys(seenPutHeaders[0]).length, 0);
+
+    /* Kasus 2: S3 presigned URL mencoba Content-Type lalu self-heal ulang tanpa Content-Type saat HTTP 400 */
+    seenPutHeaders.length = 0;
+    putUrlMode = "s3";
+    const res2 = await createImageTask(payload, "tok-put-2", {
+        mcpUrl: "https://mcp-put-heal.opus.test/mcp"
+    });
+    assert.equal(res2.status, "QUEUED");
+    assert.equal(seenPutHeaders.length, 2);
+    assert.equal(seenPutHeaders[0]["Content-Type"], "image/jpeg");
+    assert.equal(Object.keys(seenPutHeaders[1]).length, 0);
+
+    /* Kasus 3: Jika PUT presigned selalu HTTP 400 dan skema punya dataUrl, otomatis terselamatkan via inline dataUrl */
+    forcePutAlways400 = true;
+    const res3 = await createImageTask(payload, "tok-put-3", {
+        mcpUrl: "https://mcp-put-heal.opus.test/mcp"
+    });
+    assert.equal(res3.status, "QUEUED");
+    assert.equal(inlineDataUrlUsed, true);
+});
+
+
