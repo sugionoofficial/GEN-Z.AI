@@ -23,6 +23,7 @@
        ===================================================== -->
 
   <script src="../assets/js/config.js"></script>
+  <script src="../assets/js/free-credit-claim.js?v=20261031-fc5000"></script>
 
 
   <!-- =====================================================
@@ -1306,6 +1307,13 @@
       </div>
 
     </section>
+
+
+    <!-- ===================================================
+         CLAIM FREE CREDIT 5.000 GRATIS
+         =================================================== -->
+
+    <div id="freeCreditClaimMount"></div>
 
 
     <!-- ===================================================
@@ -3423,6 +3431,30 @@
         currentProfile.email ||
         currentUser.email ||
         "-";
+    }
+
+
+    if (
+      window.GENZ_FREE_CREDIT &&
+      typeof window.GENZ_FREE_CREDIT.mountClaimCard === "function"
+    ) {
+      void window.GENZ_FREE_CREDIT.mountClaimCard(
+        "#freeCreditClaimMount",
+        {
+          getAccessToken: async function () {
+            const { data } = await supabaseClient.auth.getSession();
+            return (data && data.session && data.session.access_token) || "";
+          },
+          onClaimed: function (res) {
+            if (currentProfile && res && Number.isFinite(Number(res.balance_after))) {
+              currentProfile.credits = Number(res.balance_after);
+              if (balance) {
+                balance.textContent = formatCredits(currentProfile.credits);
+              }
+            }
+          }
+        }
+      );
     }
 
 
