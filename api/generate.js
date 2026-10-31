@@ -44,6 +44,7 @@ import {
     STAGED_30S_TOTAL_DURATION,
     STAGED_30S_WORKFLOW_FILE,
     buildStaged30sPrompts,
+    cleanContinuationPromptForFirstFrame,
     generateStaged30sTaskId,
     isStaged30sModelId,
     resolveStagedApiBaseUrl
@@ -4510,11 +4511,15 @@ async function createStagedHistoryAndJob({
             .map(item => toPrivateMediaRef(item, { supabaseUrl: SUPABASE_URL }) || item);
 
     const internalToken = crypto.randomBytes(32).toString("hex");
+    const normalizedAudioInputs = Array.isArray(parameters?.audio_urls) && parameters.audio_urls.length > 0
+        ? parameters.audio_urls
+        : (parameters?.audio_url ? [parameters.audio_url] : []);
     const requestPayload = {
         prompt: String(parameters?.prompt || "").trim(),
         clip_prompts: {
             mode: stagedPrompts.mode,
             has_explicit_duration: Boolean(stagedPrompts.hasExplicitDuration),
+            preserve_media_refs: Boolean(stagedPrompts.preserveMediaRefs),
             clip1: stagedPrompts.clip1,
             clip2: stagedPrompts.clip2,
             clip3: stagedPrompts.clip3
@@ -4524,7 +4529,7 @@ async function createStagedHistoryAndJob({
         generate_audio: Boolean(parameters?.generate_audio ?? true),
         image_urls: toStableMediaList(parameters?.image_urls),
         video_urls: toStableMediaList(parameters?.video_urls),
-        audio_urls: toStableMediaList(parameters?.audio_urls)
+        audio_urls: toStableMediaList(normalizedAudioInputs)
     };
 
     const jobRows = await supabaseRequest(
@@ -4611,8 +4616,27 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
 
     const stepAction = String(body?.step_action || "").trim().toLowerCase();
     const clipIndex = Number(body?.clip_index) || 1;
+    const reqPayload = job.request_payload && typeof job.request_payload === "object"
+        ? job.request_payload
+        : {};
+
+    const videoSegmentRefs = Array.isArray(body?.video_segment_refs)
+        ? body.video_segment_refs.map(v => String(v || "").trim()).filter(Boolean)
+        : [];
+    const audioSegmentRefs = Array.isArray(body?.audio_segment_refs)
+        ? body.audio_segment_refs.map(v => String(v || "").trim()).filter(Boolean)
+        : [];
+    const hasStepSegmentRefs = videoSegmentRefs.length > 0 || audioSegmentRefs.length > 0;
+    const hasPayloadReferenceMedia =
+        (Array.isArray(reqPayload.video_urls) && reqPayload.video_urls.length > 0) ||
+        (Array.isArray(reqPayload.audio_urls) && reqPayload.audio_urls.length > 0);
+    const useR2vForContinuation =
+        stepAction === "create_clip"
+            ? hasStepSegmentRefs
+            : hasPayloadReferenceMedia;
+
     const targetAdapterId =
-        clipIndex === 1
+        clipIndex === 1 || useR2vForContinuation
             ? STAGED_30S_BASE_R2V_MODEL_ID
             : STAGED_30S_CONTINUATION_I2V_MODEL_ID;
     const stepAdapter = getModelAdapter(targetAdapterId);
@@ -4680,10 +4704,20 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
                   .filter(v => Number.isInteger(v) && v >= 0 && v < 100)
             : [];
 
-        const reqPayload = job.request_payload && typeof job.request_payload === "object"
-            ? job.request_payload
-            : {};
+        for (const segRef of [...videoSegmentRefs, ...audioSegmentRefs]) {
+            if (!isRefOwnedByUser(segRef, job.user_id)) {
+                return rawJsonResponse(res, 400, {
+                    success: false,
+                    error: "Referensi potongan media klip tidak sah atau bukan milik user."
+                });
+            }
+        }
+
         const clipPrompts = reqPayload.clip_prompts || {};
+        const effectiveGenerateAudio =
+            typeof body?.generate_audio_override === "boolean"
+                ? body.generate_audio_override
+                : Boolean(reqPayload.generate_audio ?? true);
 
         let createInput;
 
@@ -4692,8 +4726,14 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
                 const signedRefs = await signUserMediaRefsInPayload(
                     {
                         image_urls: reqPayload.image_urls || [],
-                        video_urls: reqPayload.video_urls || [],
-                        audio_urls: reqPayload.audio_urls || []
+                        video_urls:
+                            videoSegmentRefs.length > 0
+                                ? videoSegmentRefs
+                                : reqPayload.video_urls || [],
+                        audio_urls:
+                            audioSegmentRefs.length > 0
+                                ? audioSegmentRefs
+                                : reqPayload.audio_urls || []
                     },
                     {
                         userId: job.user_id,
@@ -4708,7 +4748,7 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
                     aspect_ratio: String(reqPayload.aspect_ratio || "9:16"),
                     resolution: String(reqPayload.resolution || "720p"),
                     duration: String(STAGED_30S_CLIP_DURATION),
-                    generate_audio: Boolean(reqPayload.generate_audio ?? true),
+                    generate_audio: effectiveGenerateAudio,
                     image_urls: signedRefs.image_urls || [],
                     video_urls: signedRefs.video_urls || [],
                     audio_urls: signedRefs.audio_urls || []
@@ -4734,13 +4774,48 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
                         ? String(clipPrompts.clip2 || reqPayload.prompt || "").trim()
                         : String(clipPrompts.clip3 || reqPayload.prompt || "").trim();
 
-                createInput = {
-                    image_url: signedFirstFrameUrl,
-                    prompt: targetPrompt,
-                    resolution: String(reqPayload.resolution || "720p"),
-                    duration: String(STAGED_30S_CLIP_DURATION),
-                    generate_audio: Boolean(reqPayload.generate_audio ?? true)
-                };
+                if (hasStepSegmentRefs) {
+                    const extraUserImages = Array.isArray(reqPayload.image_urls)
+                        ? reqPayload.image_urls.slice(1, 3)
+                        : [];
+                    const signedContinuationRefs = await signUserMediaRefsInPayload(
+                        {
+                            image_urls: extraUserImages,
+                            video_urls: videoSegmentRefs,
+                            audio_urls: audioSegmentRefs
+                        },
+                        {
+                            userId: job.user_id,
+                            supabaseUrl: SUPABASE_URL,
+                            serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+                            ttlSeconds: 60 * 60
+                        }
+                    );
+
+                    createInput = {
+                        prompt: targetPrompt,
+                        aspect_ratio: String(reqPayload.aspect_ratio || "9:16"),
+                        resolution: String(reqPayload.resolution || "720p"),
+                        duration: String(STAGED_30S_CLIP_DURATION),
+                        generate_audio: effectiveGenerateAudio,
+                        image_urls: [
+                            signedFirstFrameUrl,
+                            ...(signedContinuationRefs.image_urls || [])
+                        ].slice(0, 3),
+                        video_urls: signedContinuationRefs.video_urls || [],
+                        audio_urls: signedContinuationRefs.audio_urls || []
+                    };
+                } else {
+                    const cleanedFallbackPrompt =
+                        cleanContinuationPromptForFirstFrame(targetPrompt) || targetPrompt;
+                    createInput = {
+                        image_url: signedFirstFrameUrl,
+                        prompt: cleanedFallbackPrompt,
+                        resolution: String(reqPayload.resolution || "720p"),
+                        duration: String(STAGED_30S_CLIP_DURATION),
+                        generate_audio: effectiveGenerateAudio
+                    };
+                }
             } else {
                 return rawJsonResponse(res, 400, {
                     success: false,
@@ -5647,8 +5722,16 @@ export default async function handler(
         );
     }
 
+    const hasStagedReferenceMedia = Boolean(
+        (Array.isArray(parameters?.video_urls) && parameters.video_urls.length > 0) ||
+        (Array.isArray(parameters?.audio_urls) && parameters.audio_urls.length > 0) ||
+        parameters?.audio_url
+    );
+
     const stagedPrompts = isStaged30s
-        ? buildStaged30sPrompts(parameters?.prompt)
+        ? buildStaged30sPrompts(parameters?.prompt, {
+              preserveMediaRefs: hasStagedReferenceMedia
+          })
         : null;
 
 
