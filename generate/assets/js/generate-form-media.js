@@ -687,9 +687,39 @@ export function isTikTokMediaUrl(rawUrl) {
     }
 }
 
+export function isThreadsMediaUrl(rawUrl) {
+    let candidate = String(rawUrl || "").trim();
+    if (!candidate) return false;
+    if (
+        !/^https?:\/\//i.test(candidate) &&
+        /^(?:www\.)?threads\.(?:com|net)\//i.test(candidate)
+    ) {
+        candidate = `https://${candidate}`;
+    }
+    try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            return false;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        const matched = ["threads.com", "threads.net"].some(
+            suffix => host === suffix || host.endsWith(`.${suffix}`)
+        );
+        if (!matched) return false;
+        const pathname = parsed.pathname.replace(/\/+$/, "");
+        return (
+            /^\/@?[A-Za-z0-9._]+\/post\/[A-Za-z0-9_-]{5,}(?:\/(?:media|embed))?$/i.test(pathname) ||
+            /^\/(?:t|share)\/[A-Za-z0-9_-]{5,}(?:\/(?:media|embed))?$/i.test(pathname)
+        );
+    } catch {
+        return false;
+    }
+}
+
 export function detectSocialMediaUrlProvider(rawUrl) {
     if (isFacebookMediaUrl(rawUrl)) return "facebook";
     if (isTikTokMediaUrl(rawUrl)) return "tiktok";
+    if (isThreadsMediaUrl(rawUrl)) return "threads";
     return "";
 }
 
@@ -701,6 +731,14 @@ function getSocialMediaProviderLabels(rawUrl) {
             platformName: "TikTok",
             serviceName: "SSSTik",
             filePrefix: "tiktok"
+        };
+    }
+    if (provider === "threads") {
+        return {
+            provider: "threads",
+            platformName: "Threads",
+            serviceName: "ThreadsDownloader",
+            filePrefix: "threads"
         };
     }
     return {
@@ -730,7 +768,7 @@ async function getSupabaseAccessTokenForMedia() {
             /* ignore */
         }
     }
-    throw new Error("Silakan login terlebih dahulu untuk memproses link Facebook atau TikTok.");
+    throw new Error("Silakan login terlebih dahulu untuk memproses link Facebook, TikTok, atau Threads.");
 }
 
 async function downloadFacebookMediaFromServer(mediaUrl, kind) {
@@ -910,8 +948,8 @@ function attachFacebookUrlControls(urlContainer, urlInput, {
     processButton.type = "button";
     processButton.className = "generate-fb-process-btn";
     processButton.textContent = "Proses";
-    processButton.title = `Proses & unduh ${kindLabel} dari link Facebook (GetMyFB) atau TikTok (SSSTik)`;
-    processButton.setAttribute("aria-label", `Proses link Facebook atau TikTok untuk ${kindLabel}`);
+    processButton.title = `Proses & unduh ${kindLabel} dari link Facebook (GetMyFB), TikTok (SSSTik), atau Threads (ThreadsDownloader)`;
+    processButton.setAttribute("aria-label", `Proses link Facebook, TikTok, atau Threads untuk ${kindLabel}`);
 
     const hintEl = document.createElement("div");
     hintEl.className = "generate-fb-url-hint";
@@ -1839,7 +1877,7 @@ export function createImageField(
 
     urlInput.placeholder =
         definition.placeholder ||
-        "Masukkan URL gambar atau link Facebook / TikTok";
+        "Masukkan URL gambar atau link FB / TikTok / Threads";
 
     urlInput.autocomplete =
         "off";
@@ -1911,13 +1949,13 @@ export function createImageField(
             onProcess: async (trimmedUrl, { setBusy }) => {
                 clearUploadError(wrapper);
                 if (!trimmedUrl) {
-                    showUploadError(wrapper, "Masukkan link Facebook atau TikTok terlebih dahulu.");
+                    showUploadError(wrapper, "Masukkan link Facebook, TikTok, atau Threads terlebih dahulu.");
                     return;
                 }
                 if (!detectSocialMediaUrlProvider(trimmedUrl)) {
                     showUploadError(
                         wrapper,
-                        "URL langsung dapat dipakai tanpa Proses, atau tempelkan link Facebook (GetMyFB) / TikTok (SSSTik)."
+                        "URL langsung dapat dipakai tanpa Proses, atau tempelkan link Facebook (GetMyFB), TikTok (SSSTik), maupun Threads (ThreadsDownloader)."
                     );
                     return;
                 }
@@ -3120,7 +3158,7 @@ export function createAudioField(
         "generate-audio-url";
 
     urlInput.placeholder =
-        "Masukkan URL audio MP3/WAV atau link Facebook / TikTok";
+        "Masukkan URL audio MP3/WAV atau link FB / TikTok / Threads";
 
     urlInput.autocomplete =
         "off";
@@ -3952,13 +3990,13 @@ export function createAudioField(
             onProcess: async (trimmedUrl, { setBusy }) => {
                 clearUploadError(wrapper);
                 if (!trimmedUrl) {
-                    showUploadError(wrapper, "Masukkan link Facebook atau TikTok terlebih dahulu.");
+                    showUploadError(wrapper, "Masukkan link Facebook, TikTok, atau Threads terlebih dahulu.");
                     return;
                 }
                 if (!detectSocialMediaUrlProvider(trimmedUrl)) {
                     showUploadError(
                         wrapper,
-                        "URL langsung dapat dipakai tanpa Proses, atau tempelkan link Facebook (GetMyFB) / TikTok (SSSTik)."
+                        "URL langsung dapat dipakai tanpa Proses, atau tempelkan link Facebook (GetMyFB), TikTok (SSSTik), maupun Threads (ThreadsDownloader)."
                     );
                     return;
                 }
@@ -4516,7 +4554,7 @@ export function createVideoField(
 
     urlInput.placeholder =
         definition.placeholder ||
-        "Masukkan URL video MP4/WebM atau link Facebook / TikTok";
+        "Masukkan URL video MP4/WebM atau link FB / TikTok / Threads";
 
     urlInput.autocomplete =
         "off";
@@ -5381,13 +5419,13 @@ export function createVideoField(
             onProcess: async (trimmedUrl, { setBusy }) => {
                 clearUploadError(wrapper);
                 if (!trimmedUrl) {
-                    showUploadError(wrapper, "Masukkan link Facebook atau TikTok terlebih dahulu.");
+                    showUploadError(wrapper, "Masukkan link Facebook, TikTok, atau Threads terlebih dahulu.");
                     return;
                 }
                 if (!detectSocialMediaUrlProvider(trimmedUrl)) {
                     showUploadError(
                         wrapper,
-                        "URL langsung dapat dipakai tanpa Proses, atau tempelkan link Facebook (GetMyFB) / TikTok (SSSTik)."
+                        "URL langsung dapat dipakai tanpa Proses, atau tempelkan link Facebook (GetMyFB), TikTok (SSSTik), maupun Threads (ThreadsDownloader)."
                     );
                     return;
                 }

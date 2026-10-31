@@ -20,6 +20,15 @@ import {
     unwrapSsstikMediaUrl
 } from "../lib/tiktok-media/ssstik.js";
 
+import {
+    isSafeResolvedThreadsMediaUrl,
+    isThreadsMediaUrl,
+    normalizeThreadsUrl,
+    parseThreadsDownloaderApiJson,
+    parseThreadsPublicHtml,
+    resolveThreadsMediaViaDownloader
+} from "../lib/threads-media/threadsdownloader.js";
+
 import worker from "../functions/worker.mjs";
 
 import {
@@ -546,4 +555,257 @@ test("Worker POST /api/fb-media-download & MediaReader memproses URL TikTok lewa
     assert.deepEqual(await resolveVideoParameterValue(ttVideoInput), [fullTtSaved]);
     ttVideoInput.dataset.uploadedUrl = cutTtSaved;
     assert.deepEqual(await resolveVideoParameterValue(ttVideoInput), [cutTtSaved]);
+});
+
+test("normalizeThreadsUrl, isThreadsMediaUrl & parseThreadsDownloaderApiJson menangani link Threads dan menolak placeholder Turnstile", () => {
+    assert.equal(
+        normalizeThreadsUrl("https://www.threads.net/@zuck/post/C4BT8ilPsxy?xmt=AQGz123"),
+        "https://www.threads.com/@zuck/post/C4BT8ilPsxy"
+    );
+    assert.equal(
+        normalizeThreadsUrl("threads.com/t/C4BT8ilPsxy/"),
+        "https://www.threads.com/t/C4BT8ilPsxy"
+    );
+    assert.equal(
+        normalizeThreadsUrl("https://www.threads.com/@zuck/post/C4BT8ilPsxy/media"),
+        "https://www.threads.com/@zuck/post/C4BT8ilPsxy"
+    );
+
+    /* Tautan profil murni (tanpa /post/, /t/, /share/) & SSRF harus ditolak */
+    assert.equal(normalizeThreadsUrl("https://www.threads.com/@zuck"), "");
+    assert.equal(isThreadsMediaUrl("https://www.threads.com/@zuck"), false);
+    assert.equal(isThreadsMediaUrl("https://www.threads.com/@zuck/post/C4BT8ilPsxy"), true);
+    assert.equal(isThreadsMediaUrl("http://127.0.0.1/threads.com/@a/post/C4BT8ilPsxy"), false);
+
+    /* CDN valid vs placeholder GIF/ibb.co */
+    assert.equal(isSafeResolvedThreadsMediaUrl("https://scontent-sin6-1.cdninstagram.com/v/t50.2886-16/video.mp4"), true);
+    assert.equal(isSafeResolvedThreadsMediaUrl("https://static.cdninstagram.com/rsrc.php/v3/y4/r/placeholder.png"), false);
+    assert.equal(isSafeResolvedThreadsMediaUrl("https://i.ibb.co/99w9yTRw/threadsdownloader-nolongerworks.png"), false);
+
+    /* Deteksi placeholder Turnstile api-tp.threadsdownloader.com */
+    const placeholderParsed = parseThreadsDownloaderApiJson({
+        meta: {
+            username: "contact@threadsdownloader.com_for_access",
+            user_image: "https://i.ibb.co/99w9yTRw/threadsdownloader-nolongerworks.png"
+        },
+        media: {
+            images: [{
+                variants: [{
+                    url: "https://i.ibb.co/99w9yTRw/threadsdownloader-nolongerworks.png",
+                    width: 1080,
+                    height: 1080,
+                    content_type: "image/jpeg"
+                }]
+            }],
+            videos: []
+        }
+    });
+    assert.equal(placeholderParsed.placeholder, true);
+    assert.equal(placeholderParsed.downloads.length, 0);
+});
+
+test("resolveThreadsMediaViaDownloader mendukung respons API threadsdownloader.com serta fallback otomatis JSON halaman publik Threads", async () => {
+    const mp4Hd = "https://scontent-sin6-2.cdninstagram.com/o1/v/t16/f2/m69/threads_hd.mp4?efg=eyJ2ZW5jb2RlX3RhZyI6InZ0c192b2RfdXJsZ2VuIn0";
+    const imgOrig = "https://scontent-sin6-2.cdninstagram.com/v/t51.2885-15/threads_photo_orig.jpg?stp=dst-jpg";
+
+    /* Skenario A: api-tp.threadsdownloader.com mengembalikan varian video valid */
+    const apiSuccessFetch = async url => {
+        const u = String(url);
+        if (u.startsWith("https://api-tp.threadsdownloader.com/threads/post/media")) {
+            return Response.json({
+                meta: { username: "genz_threads" },
+                media: {
+                    videos: [{
+                        id: "1",
+                        thumbnail: imgOrig,
+                        variants: [
+                            { url: mp4Hd, width: 1080, height: 1920, content_type: "video/mp4" }
+                        ]
+                    }],
+                    images: []
+                }
+            });
+        }
+        throw new Error(`Unexpected fetch: ${u}`);
+    };
+
+    const resolvedFromApi = await resolveThreadsMediaViaDownloader(
+        "https://www.threads.net/@genz_threads/post/C4BT8ilPsxy",
+        { kind: "video", fetchImpl: apiSuccessFetch }
+    );
+    assert.equal(resolvedFromApi.candidates[0].url, mp4Hd);
+    assert.equal(resolvedFromApi.candidates[0].source, "threadsdownloader.com");
+
+    /* Skenario B: api-tp mengembalikan placeholder Turnstile -> otomatis lanjut ekstraksi JSON publik Threads */
+    const samplePublicThreadsHtml = `
+      <!doctype html><html><head></head><body>
+      <script type="application/json" data-sjs>${JSON.stringify({
+          require: [[
+              "ScheduledServerJS",
+              "handle",
+              null,
+              [{
+                  __bbox: {
+                      result: {
+                          data: {
+                              data: {
+                                  media: {
+                                      code: "C4BT8ilPsxy",
+                                      original_width: 1080,
+                                      original_height: 1920,
+                                      user: { username: "genz_threads" },
+                                      caption: { text: "Contoh Video Threads Publik" },
+                                      video_versions: [
+                                          { type: 101, width: 1080, height: 1920, url: mp4Hd }
+                                      ],
+                                      image_versions2: {
+                                          candidates: [
+                                              { width: 1080, height: 1920, url: imgOrig }
+                                          ]
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }]
+          ]]
+      })}</script>
+      </body></html>
+    `;
+
+    const directParsed = parseThreadsPublicHtml(samplePublicThreadsHtml, "C4BT8ilPsxy");
+    assert.equal(directParsed.title, "Contoh Video Threads Publik");
+    assert.equal(directParsed.downloads[0].url, mp4Hd);
+
+    const fallbackFetch = async url => {
+        const u = String(url);
+        if (u.startsWith("https://api-tp.threadsdownloader.com/threads/post/media")) {
+            return Response.json({
+                meta: { username: "contact@threadsdownloader.com_for_access" },
+                media: { images: [], videos: [] }
+            });
+        }
+        if (u === "https://www.threads.com/@genz_threads/post/C4BT8ilPsxy") {
+            return new Response(samplePublicThreadsHtml, { status: 200 });
+        }
+        throw new Error(`Unexpected fetch: ${u}`);
+    };
+
+    const videoFallback = await resolveThreadsMediaViaDownloader(
+        "https://www.threads.net/@genz_threads/post/C4BT8ilPsxy?xmt=1",
+        { kind: "video", fetchImpl: fallbackFetch }
+    );
+    assert.equal(videoFallback.candidates[0].url, mp4Hd);
+
+    const audioFallback = await resolveThreadsMediaViaDownloader(
+        "https://www.threads.net/@genz_threads/post/C4BT8ilPsxy",
+        { kind: "audio", fetchImpl: fallbackFetch }
+    );
+    assert.equal(audioFallback.candidates[0].url, mp4Hd);
+    assert.equal(audioFallback.candidates[0].needsClientAudioExtract, true);
+
+    const imageFallback = await resolveThreadsMediaViaDownloader(
+        "https://www.threads.net/@genz_threads/post/C4BT8ilPsxy",
+        { kind: "image", fetchImpl: fallbackFetch }
+    );
+    assert.equal(imageFallback.candidates[0].url, imgOrig);
+});
+
+test("Worker POST /api/fb-media-download & MediaReader memproses URL Threads dan memakai klip hasil cut video untuk Video Referensi", async () => {
+    const env = {
+        SUPABASE_URL: "https://project.supabase.co",
+        SUPABASE_ANON_KEY: "anon-key"
+    };
+    const sampleMp4 = new Uint8Array([0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
+    const mp4Cdn = "https://scontent-sin6-1.cdninstagram.com/o1/v/t16/f2/m69/threads_clip_src.mp4";
+    const origFetch = globalThis.fetch;
+
+    globalThis.fetch = async url => {
+        const u = String(url);
+        if (u === "https://project.supabase.co/auth/v1/user") {
+            return Response.json({ id: "user-owner-1", email: "owner@example.com" });
+        }
+        if (u.startsWith("https://api-tp.threadsdownloader.com/threads/post/media")) {
+            return Response.json({
+                meta: { username: "genz_threads" },
+                media: {
+                    videos: [{
+                        id: "th1",
+                        variants: [{ url: mp4Cdn, width: 720, height: 1280, content_type: "video/mp4" }]
+                    }],
+                    images: []
+                }
+            });
+        }
+        if (u === mp4Cdn) {
+            return new Response(sampleMp4, {
+                status: 200,
+                headers: {
+                    "Content-Type": "video/mp4",
+                    "Content-Length": String(sampleMp4.byteLength)
+                }
+            });
+        }
+        throw new Error(`Unexpected global fetch: ${u}`);
+    };
+
+    try {
+        const res = await worker.fetch(
+            new Request("https://gen-z.ai/api/fb-media-download", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer valid-jwt"
+                },
+                body: JSON.stringify({
+                    url: "https://www.threads.com/@genz_threads/post/C4BT8ilPsxy",
+                    kind: "video"
+                })
+            }),
+            env,
+            null
+        );
+
+        assert.equal(res.status, 200);
+        assert.equal(res.headers.get("content-type"), "video/mp4");
+        assert.equal(res.headers.get("x-fb-media-source"), "threadsdownloader.com");
+        assert.equal(res.headers.get("x-social-media-provider"), "threads");
+        assert.match(res.headers.get("x-fb-media-filename") || "", /^threads-video-\d+\.mp4$/);
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        assert.deepEqual(bytes, sampleMp4);
+    } finally {
+        globalThis.fetch = origFetch;
+    }
+
+    const thLink = "https://www.threads.com/@genz_threads/post/C4BT8ilPsxy";
+
+    /* Belum klik Proses -> ditolak dengan pesan ThreadsDownloader */
+    await assert.rejects(
+        resolveVideoParameterValue({
+            dataset: { videoMode: "url" },
+            getInputMode: () => "url",
+            getUrlInput: () => ({ value: thLink }),
+            getUploadedUrl: () => ""
+        }),
+        /Link Threads.*Klik tombol “Proses” terlebih dahulu.*ThreadsDownloader/
+    );
+
+    /* Sudah klik Proses lalu dipotong di VIDEO EDITOR -> klip hasil akhir dipakai sebagai Video Referensi */
+    const fullThSaved = "https://project.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/threads-full.mp4?token=1";
+    const cutThSaved = "https://project.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/threads-clip.mp4?token=2";
+    const thVideoInput = {
+        dataset: {
+            videoMode: "url",
+            fbProcessedForUrl: thLink,
+            uploadedUrl: fullThSaved
+        },
+        getInputMode: () => "url",
+        getUrlInput: () => ({ value: thLink }),
+        getUploadedUrl: () => thVideoInput.dataset.uploadedUrl
+    };
+
+    assert.deepEqual(await resolveVideoParameterValue(thVideoInput), [fullThSaved]);
+    thVideoInput.dataset.uploadedUrl = cutThSaved;
+    assert.deepEqual(await resolveVideoParameterValue(thVideoInput), [cutThSaved]);
 });

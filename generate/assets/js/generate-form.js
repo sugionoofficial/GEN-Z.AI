@@ -97,7 +97,7 @@ import {
     registerImageMediaHandlers,
     registerAudioMediaHandlers,
     registerVideoMediaHandlers
-} from "./generate-form-media.js?v=stored-uploads-20261026-20261031-tt";
+} from "./generate-form-media.js?v=stored-uploads-20261026-20261031-threads";
 
 
 /* =========================================================
@@ -116,7 +116,7 @@ import {
 import {
     getFormParameters,
     getFormData
-} from "./generate-form-data.js?v=20261031-social-media";
+} from "./generate-form-data.js?v=20261031-threads";
 
 
 /* =========================================================

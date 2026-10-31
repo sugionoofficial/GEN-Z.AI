@@ -118,9 +118,39 @@ export function isTikTokMediaUrl(rawUrl) {
     }
 }
 
+export function isThreadsMediaUrl(rawUrl) {
+    let candidate = String(rawUrl || "").trim();
+    if (!candidate) return false;
+    if (
+        !/^https?:\/\//i.test(candidate) &&
+        /^(?:www\.)?threads\.(?:com|net)\//i.test(candidate)
+    ) {
+        candidate = `https://${candidate}`;
+    }
+    try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            return false;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        const matched = ["threads.com", "threads.net"].some(
+            suffix => host === suffix || host.endsWith(`.${suffix}`)
+        );
+        if (!matched) return false;
+        const pathname = parsed.pathname.replace(/\/+$/, "");
+        return (
+            /^\/@?[A-Za-z0-9._]+\/post\/[A-Za-z0-9_-]{5,}(?:\/(?:media|embed))?$/i.test(pathname) ||
+            /^\/(?:t|share)\/[A-Za-z0-9_-]{5,}(?:\/(?:media|embed))?$/i.test(pathname)
+        );
+    } catch {
+        return false;
+    }
+}
+
 export function detectSocialMediaUrlProvider(rawUrl) {
     if (isFacebookMediaUrl(rawUrl)) return "facebook";
     if (isTikTokMediaUrl(rawUrl)) return "tiktok";
+    if (isThreadsMediaUrl(rawUrl)) return "threads";
     return "";
 }
 
@@ -157,8 +187,16 @@ async function resolveProcessedSocialMediaUrl(mediaInput, rawUrl, uploadPromiseK
     }
 
     const provider = detectSocialMediaUrlProvider(rawUrl);
-    const platformName = provider === "tiktok" ? "TikTok" : "Facebook";
-    const serviceName = provider === "tiktok" ? "SSSTik" : "GetMyFB";
+    const platformName = provider === "tiktok"
+        ? "TikTok"
+        : provider === "threads"
+            ? "Threads"
+            : "Facebook";
+    const serviceName = provider === "tiktok"
+        ? "SSSTik"
+        : provider === "threads"
+            ? "ThreadsDownloader"
+            : "GetMyFB";
 
     throw new Error(
         `Link ${platformName} pada kolom ${label} belum diproses. Klik tombol “Proses” terlebih dahulu untuk mengunduh & menyimpan media lewat ${serviceName} sebelum Generate.`
