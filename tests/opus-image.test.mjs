@@ -583,3 +583,611 @@ test("History modal & render recognize all 5 Opus image models as image media (t
         }
     }
 });
+
+test("Seedream 5.0 Pro self-heals runtime invalid_arguments (Zod issues enum discovery) & isolated import_assets oneOf branches", async t => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    const validPngBytes = new Uint8Array(
+        Buffer.from(
+            "89504e470d0a1a0a0000000d49484452000002000000020008060000001f15c489" +
+            "0000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082",
+            "hex"
+        )
+    );
+
+    const seenImportItems = [];
+    const seenKeyframeCalls = [];
+    let putUploaded = false;
+
+    globalThis.fetch = async (url, init = {}) => {
+        const urlStr = String(url);
+        if (urlStr.includes("supabase.co/storage/v1/object/sign/")) {
+            return new Response(validPngBytes, {
+                status: 200,
+                headers: { "content-type": "image/png" }
+            });
+        }
+        if (urlStr === "https://upload.opus.test/presigned-put-seedream") {
+            putUploaded = true;
+            return new Response("", { status: 200 });
+        }
+
+        const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
+        if (body?.method === "initialize") {
+            return Response.json(
+                { jsonrpc: "2.0", id: body.id, result: { serverInfo: { name: "opus" } } },
+                { headers: { "mcp-session-id": "sess-seedream-1" } }
+            );
+        }
+        if (body?.method === "notifications/initialized") {
+            return new Response("", { status: 204 });
+        }
+        if (body?.method === "tools/list") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    tools: [
+                        { name: "opus_video_tools_whoami", inputSchema: { type: "object", properties: {} } },
+                        {
+                            name: "create_project",
+                            inputSchema: {
+                                type: "object",
+                                required: ["name", "requestKey"],
+                                properties: {
+                                    name: { type: "string" },
+                                    requestKey: { type: "string", format: "uuid" }
+                                }
+                            }
+                        },
+                        {
+                            name: "import_assets",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "requestKey", "items"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    requestKey: { type: "string", format: "uuid" },
+                                    items: {
+                                        type: "array",
+                                        items: {
+                                            oneOf: [
+                                                {
+                                                    type: "object",
+                                                    required: ["id", "url"],
+                                                    properties: {
+                                                        id: { type: "string" },
+                                                        url: { type: "string", format: "uri" }
+                                                    }
+                                                },
+                                                {
+                                                    type: "object",
+                                                    required: ["id", "fileName", "mimeType", "sizeBytes"],
+                                                    properties: {
+                                                        id: { type: "string" },
+                                                        fileName: { type: "string" },
+                                                        mimeType: { type: "string" },
+                                                        sizeBytes: { type: "integer" }
+                                                    }
+                                                },
+                                                {
+                                                    type: "object",
+                                                    required: ["assetId"],
+                                                    properties: {
+                                                        assetId: { type: "string" }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            name: "generate_keyframes",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "items"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    requestKey: { type: "string" },
+                                    items: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            required: ["id", "prompt"],
+                                            properties: {
+                                                id: { type: "string" },
+                                                prompt: { type: "string" },
+                                                aspectRatio: { type: "string" },
+                                                model: { type: "string" },
+                                                quality: { type: "string" },
+                                                referenceAssets: {
+                                                    type: "array",
+                                                    items: { type: "string" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            name: "get_status",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "jobIds"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    jobIds: { type: "array", items: { type: "string" } },
+                                    jobId: { type: "string" }
+                                }
+                            }
+                        }
+                    ]
+                }
+            });
+        }
+
+        const toolName = body?.params?.name;
+        const toolArgs = body?.params?.arguments || {};
+
+        if (toolName === "opus_video_tools_whoami") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { has_api_access: true } } });
+        }
+        if (toolName === "create_project") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "proj-sd5" } } });
+        }
+        if (toolName === "import_assets") {
+            const entry = toolArgs.items?.[0] || {};
+            seenImportItems.push(entry);
+            if (entry.url) {
+                /* Pastikan cabang URL tidak pernah dicemari fileName/mimeType dari cabang oneOf lain */
+                assert.equal(entry.fileName, undefined);
+                assert.equal(entry.mimeType, undefined);
+                /* Simulasikan server Opus menolak signed URL eksternal tanpa isError:true */
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: body.id,
+                    result: {
+                        structuredContent: {
+                            projectId: "proj-sd5",
+                            items: [{ id: entry.id, ok: false, field: "items[0].url" }]
+                        }
+                    }
+                });
+            }
+            if (entry.assetId) {
+                assert.equal(putUploaded, true);
+                assert.equal(entry.assetId, "ast_sd5_char_01");
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: body.id,
+                    result: {
+                        structuredContent: {
+                            projectId: "proj-sd5",
+                            items: [{ ok: true, status: "ready", asset: { id: "ast_sd5_char_01" } }]
+                        }
+                    }
+                });
+            }
+            assert.equal(typeof entry.fileName, "string");
+            assert.equal(entry.mimeType, "image/png");
+            assert.ok(entry.sizeBytes > 0);
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    structuredContent: {
+                        projectId: "proj-sd5",
+                        items: [{
+                            id: entry.id,
+                            ok: true,
+                            status: "awaiting_upload",
+                            asset: { id: "ast_sd5_char_01" },
+                            upload: { putUrl: "https://upload.opus.test/presigned-put-seedream", method: "PUT" }
+                        }]
+                    }
+                }
+            });
+        }
+        if (toolName === "generate_keyframes") {
+            seenKeyframeCalls.push(structuredClone(toolArgs));
+            const kf = toolArgs.items?.[0] || {};
+            assert.deepEqual(kf.referenceAssets, ["ast_sd5_char_01"]);
+            if (kf.model !== "seedream-5-pro") {
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: body.id,
+                    result: {
+                        isError: true,
+                        structuredContent: {
+                            ok: false,
+                            error: "invalid_arguments",
+                            issues: [
+                                {
+                                    path: ["items", 0, "model"],
+                                    message:
+                                        "Invalid enum value. Expected 'gpt-image-2.5-flare' | 'gpt-image-2.5-sunburst' | 'seedream-5-pro' | 'nano-banana-2' | 'nano-banana-pro', received 'seedream-5.0-pro'"
+                                }
+                            ]
+                        }
+                    }
+                });
+            }
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    structuredContent: {
+                        projectId: "proj-sd5",
+                        items: [{ id: kf.id, ok: true, jobId: "job-sd5-ok", status: "queued" }]
+                    }
+                }
+            });
+        }
+        if (toolName === "get_status") {
+            assert.deepEqual(toolArgs.jobIds, ["job-sd5-ok"]);
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    structuredContent: {
+                        projectId: "proj-sd5",
+                        jobs: [
+                            {
+                                jobId: "job-sd5-ok",
+                                status: "completed",
+                                outputs: [{ url: "https://cdn.opus.test/generated/seedream-sheet.png" }]
+                            }
+                        ]
+                    }
+                }
+            });
+        }
+        throw new Error(`Unexpected RPC call: ${toolName}`);
+    };
+
+    const adapter = opusImageModelMap["opus-seedream-5.0-pro"];
+    const payload = adapter.buildPayload({
+        image_mode: "character_sheet",
+        character_image_url:
+            "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/char.png?token=abc",
+        aspect_ratio: "16:9"
+    });
+
+    const created = await createImageTask(payload, "tok-seedream-test");
+    assert.equal(seenKeyframeCalls.length, 2, "Harus otomatis self-heal ke seedream-5-pro dari issues Zod");
+    assert.equal(seenKeyframeCalls[0].items[0].model, "seedream-5.0-pro");
+    assert.equal(seenKeyframeCalls[1].items[0].model, "seedream-5-pro");
+    assert.notEqual(seenKeyframeCalls[0].requestKey, seenKeyframeCalls[1].requestKey);
+    assert.ok(created.taskId.startsWith("opus:"));
+
+    const polled = await getImageTask(created.taskId, "tok-seedream-test");
+    assert.equal(polled.status, "COMPLETED");
+    assert.deepEqual(polled.outputUrls, ["https://cdn.opus.test/generated/seedream-sheet.png"]);
+});
+
+test("All 5 Opus image models handle KeyframeSpec ($defs, aspect, person/product roles, images string[] trap, size & quality)", async t => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    const validPngBytes = new Uint8Array(
+        Buffer.from(
+            "89504e470d0a1a0a0000000d49484452000002000000020008060000001f15c489" +
+            "0000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082",
+            "hex"
+        )
+    );
+
+    const capturedKeyframes = [];
+
+    globalThis.fetch = async (url, init = {}) => {
+        const urlStr = String(url);
+        if (urlStr.startsWith("https://cdn.example.com/")) {
+            return new Response(validPngBytes, { status: 200, headers: { "content-type": "image/png" } });
+        }
+        const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
+        if (body?.method === "initialize") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: {} }, { headers: { "mcp-session-id": "sess-kfspec" } });
+        }
+        if (body?.method === "notifications/initialized") {
+            return new Response("", { status: 204 });
+        }
+        if (body?.method === "tools/list") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    tools: [
+                        { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+                        {
+                            name: "import_assets",
+                            inputSchema: {
+                                type: "object",
+                                properties: {
+                                    projectId: { type: "string" },
+                                    assets: { type: "array", items: { type: "object", properties: { url: { type: "string" } } } }
+                                }
+                            }
+                        },
+                        {
+                            name: "generate_keyframes",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "requestKey", "keyframes"],
+                                $defs: {
+                                    RefAsset: {
+                                        type: "object",
+                                        required: ["assetId", "role"],
+                                        properties: {
+                                            assetId: { type: "string" },
+                                            role: { anyOf: [{ const: "person" }, { const: "product" }] },
+                                            label: { type: "string" }
+                                        }
+                                    },
+                                    KeyframeSpec: {
+                                        type: "object",
+                                        required: ["keyframeId", "outputLabel", "prompt", "aspect", "size", "quality"],
+                                        properties: {
+                                            keyframeId: { type: "string" },
+                                            outputLabel: { type: "string" },
+                                            prompt: { type: "string" },
+                                            aspect: { anyOf: [{ enum: ["9:16", "16:9", "1:1", "4:3", "3:4"] }, { type: "null" }] },
+                                            size: { enum: ["1536x1024", "1024x1536", "1024x1024"] },
+                                            quality: { enum: ["low", "standard", "high"] },
+                                            model: {
+                                                enum: [
+                                                    "gpt-image-2.5-flare",
+                                                    "gpt-image-2.5-sunburst",
+                                                    "seedream-5.0-pro",
+                                                    "nano-banana-2",
+                                                    "nano-banana-pro"
+                                                ]
+                                            },
+                                            referenceAssets: {
+                                                type: "array",
+                                                items: { $ref: "#/$defs/RefAsset" }
+                                            }
+                                        }
+                                    }
+                                },
+                                properties: {
+                                    projectId: { type: "string" },
+                                    requestKey: { type: "string", format: "uuid" },
+                                    /* Jebakan: `images` bertipe array string referensi, BUKAN container batch */
+                                    images: { type: "array", items: { type: "string" } },
+                                    keyframes: { type: "array", items: { $ref: "#/$defs/KeyframeSpec" } }
+                                }
+                            }
+                        }
+                    ]
+                }
+            });
+        }
+
+        const toolName = body?.params?.name;
+        const toolArgs = body?.params?.arguments || {};
+        if (toolName === "create_project") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "proj-kfspec" } } });
+        }
+        if (toolName === "import_assets") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: { structuredContent: { assets: [{ ok: true, assetId: `ast_${Math.random().toString(36).slice(2, 8)}` }] } }
+            });
+        }
+        if (toolName === "generate_keyframes") {
+            assert.equal(toolArgs.images, undefined, "Tidak boleh salah menganggap images: string[] sebagai array batch");
+            assert.ok(Array.isArray(toolArgs.keyframes) && toolArgs.keyframes.length === 1);
+            const kf = toolArgs.keyframes[0];
+            assert.ok(kf.keyframeId);
+            assert.ok(kf.outputLabel);
+            assert.equal(kf.aspect, "16:9");
+            assert.equal(kf.size, "1536x1024");
+            assert.equal(kf.quality, "high");
+            assert.equal(kf.referenceAssets[0].role, "person");
+            assert.equal(kf.referenceAssets[1].role, "product");
+            capturedKeyframes.push(kf);
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: { structuredContent: { jobId: `job_${capturedKeyframes.length}`, status: "queued" } }
+            });
+        }
+        throw new Error(`Unexpected RPC call: ${toolName}`);
+    };
+
+    for (const modelId of OPUS_IMAGE_MODEL_IDS) {
+        const adapter = opusImageModelMap[modelId];
+        const payload = adapter.buildPayload({
+            image_mode: "character_sheet",
+            character_image_url: "https://cdn.example.com/char.png",
+            outfit_image_url: "https://cdn.example.com/outfit.png",
+            aspect_ratio: "16:9"
+        });
+        const created = await createImageTask(payload, "tok-all5");
+        assert.ok(created.taskId.startsWith("opus:"));
+    }
+
+    assert.equal(capturedKeyframes.length, 5);
+});
+
+test("JSON-RPC -32602 & unrecognized_keys self-heal to inline MCP image content, and unrecoverable invalid_arguments exposes full diagnostics", async t => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    const validPngB64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    let attempts = 0;
+
+    globalThis.fetch = async (_url, init = {}) => {
+        const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
+        if (body?.method === "initialize") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: {} }, { headers: { "mcp-session-id": "sess-rpc-heal" } });
+        }
+        if (body?.method === "notifications/initialized") {
+            return new Response("", { status: 204 });
+        }
+        if (body?.method === "tools/list") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    tools: [
+                        { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+                        {
+                            name: "generate_keyframes",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "items"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    requestKey: { type: "string" },
+                                    items: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            required: ["id", "prompt"],
+                                            properties: {
+                                                id: { type: "string" },
+                                                label: { type: "string" },
+                                                prompt: { type: "string" },
+                                                aspectRatio: { type: "string" },
+                                                model: { type: "string" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            });
+        }
+
+        const toolName = body?.params?.name;
+        const toolArgs = body?.params?.arguments || {};
+        if (toolName === "create_project") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "proj-rpc" } } });
+        }
+        if (toolName === "generate_keyframes") {
+            attempts += 1;
+            const kf = toolArgs.items?.[0] || {};
+            if (kf.label !== undefined) {
+                /* Simulasikan JSON-RPC -32602 atas field opsional `label` */
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: body.id,
+                    error: {
+                        code: -32602,
+                        message: "Invalid arguments",
+                        data: {
+                            code: "invalid_arguments",
+                            issues: [{ path: ["items", 0, "label"], keys: ["label"], message: "Unrecognized key(s) in object: 'label'" }]
+                        }
+                    }
+                });
+            }
+            if (kf.model) {
+                /* Simulasikan item-level unsupported_model tanpa ok:false sehingga jatuh ke omitModel */
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: body.id,
+                    result: {
+                        structuredContent: {
+                            projectId: "proj-rpc",
+                            items: [{ id: kf.id, error: "unsupported_model", message: "Model alias not enabled for org" }]
+                        }
+                    }
+                });
+            }
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    content: [{ type: "image", mimeType: "image/png", data: validPngB64 }],
+                    structuredContent: { status: "completed" }
+                }
+            });
+        }
+        throw new Error(`Unexpected RPC call: ${toolName}`);
+    };
+
+    const adapter = opusImageModelMap["opus-seedream-5.0-pro"];
+    const payload = adapter.buildPayload({
+        image_mode: "standard",
+        prompt: "Futuristic mecha portrait in neon rain",
+        aspect_ratio: "1:1"
+    });
+
+    const created = await createImageTask(payload, "tok-rpc-heal");
+    assert.ok(attempts >= 3, "Harus melewati JSON-RPC -32602 dan unsupported_model hingga sukses");
+    assert.equal(created.status, "COMPLETED");
+    assert.equal(created.outputUrls[0], `data:image/png;base64,${validPngB64}`);
+
+    /* Verifikasi bila seluruh varian ditolak upstream, pesan error menampilkan detail issues + ringkasan schema */
+    globalThis.fetch = async (_url, init = {}) => {
+        const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
+        if (body?.method === "initialize") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: {} }, { headers: { "mcp-session-id": "sess-fail-diag" } });
+        }
+        if (body?.method === "notifications/initialized") return new Response("", { status: 204 });
+        if (body?.method === "tools/list") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    tools: [
+                        { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+                        {
+                            name: "generate_keyframes",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "items"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    items: { type: "array", items: { type: "object", required: ["prompt"], properties: { prompt: { type: "string" } } } }
+                                }
+                            }
+                        }
+                    ]
+                }
+            });
+        }
+        if (body?.params?.name === "create_project") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "proj-diag" } } });
+        }
+        return Response.json({
+            jsonrpc: "2.0",
+            id: body.id,
+            result: {
+                isError: true,
+                structuredContent: {
+                    ok: false,
+                    error: "invalid_arguments",
+                    issues: [{ path: ["items", 0, "prompt"], message: "Prompt rejected by custom validator" }]
+                }
+            }
+        });
+    };
+
+    await assert.rejects(
+        () => createImageTask(payload, "tok-diag"),
+        err => {
+            assert.notEqual(err.message, "invalid_arguments", "Tidak boleh menelan pesan menjadi string mentah invalid_arguments");
+            assert.match(err.message, /Prompt rejected by custom validator/);
+            assert.match(err.message, /\[schema:/);
+            return true;
+        }
+    );
+});
+

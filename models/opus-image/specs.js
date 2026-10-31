@@ -32,6 +32,7 @@ export const OPUS_IMAGE_SPECS = Object.freeze([
         modelAliases: [
             "gpt-image-2.5-flare",
             "openai/gpt-image-2.5-flare",
+            "gpt-image-2-5-flare",
             "gpt-image-2.5",
             "openai/gpt-image-2.5",
             "gpt-image-1.5",
@@ -50,7 +51,9 @@ export const OPUS_IMAGE_SPECS = Object.freeze([
         modelAliases: [
             "gpt-image-2.5-sunburst",
             "openai/gpt-image-2.5-sunburst",
+            "gpt-image-2-5-sunburst",
             "gpt-image-2.5-flare",
+            "openai/gpt-image-2.5-flare",
             "gpt-image-2.5",
             "openai/gpt-image-2.5"
         ],
@@ -70,7 +73,14 @@ export const OPUS_IMAGE_SPECS = Object.freeze([
             "seedream-5-pro",
             "bytedance/seedream-5-pro",
             "seedream-5.0",
+            "bytedance/seedream-5.0",
+            "bytedance/seedream-v5.0",
+            "seedream-5.0-lite",
+            "bytedance/seedream-5.0-lite",
+            "seedream-v5.0",
+            "seedream-5",
             "seedream-4.5",
+            "bytedance/seedream-4.5",
             "seedream-4.0"
         ],
         logo: "seedance.svg",
@@ -86,9 +96,12 @@ export const OPUS_IMAGE_SPECS = Object.freeze([
         modelAliases: [
             "nano-banana-2",
             "google/nano-banana-2",
+            "nano_banana_2",
             "gemini-3.1-flash-image-preview",
             "google/gemini-3.1-flash-image-preview",
-            "gemini-2.5-flash-image"
+            "gemini-3.1-flash-image",
+            "gemini-2.5-flash-image",
+            "google/gemini-2.5-flash-image"
         ],
         logo: "gemini.svg",
         description:
@@ -103,9 +116,12 @@ export const OPUS_IMAGE_SPECS = Object.freeze([
         modelAliases: [
             "nano-banana-pro",
             "google/nano-banana-pro",
+            "nano_banana_pro",
             "gemini-3-pro-image-preview",
             "google/gemini-3-pro-image-preview",
-            "nano-banana-2"
+            "gemini-3-pro-image",
+            "nano-banana-2",
+            "google/nano-banana-2"
         ],
         logo: "gemini.svg",
         description:
