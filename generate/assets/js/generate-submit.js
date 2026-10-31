@@ -1746,7 +1746,14 @@ async function handleGenerateSubmit(
                                             message: "Memverifikasi hasil..."
                                         });
                                     } else {
+                                        const liveStageMessage = String(
+                                            update?.stage_message ||
+                                            update?.data?.stage_message ||
+                                            ""
+                                        ).trim();
+
                                         showLoading(
+                                            liveStageMessage ||
                                             `KIE.AI sedang memproses task ${currentTaskId}...`
                                         );
                                         const progressState = String(
@@ -1760,12 +1767,12 @@ async function handleGenerateSubmit(
 
                                         progressUpdate({
                                             status: progressState || "PROCESSING",
-                                            message: "Sedang diproses oleh AI..."
+                                            message: liveStageMessage || "Sedang diproses oleh AI..."
                                         });
 
                                         setGenerateStatus(
                                             "processing",
-                                            "Video sedang diproses. Mohon tunggu..."
+                                            liveStageMessage || "Video sedang diproses. Mohon tunggu..."
                                         );
                                     }
                                 }

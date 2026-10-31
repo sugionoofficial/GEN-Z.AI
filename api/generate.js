@@ -31,9 +31,23 @@ import {
 
 import {
     createPrivateMediaSigner,
+    isRefOwnedByUser,
+    signPrivateMediaRef,
     signUserMediaRefsInPayload,
     toPrivateMediaRef
 } from "../lib/generate/private-media.js";
+
+import {
+    STAGED_30S_BASE_R2V_MODEL_ID,
+    STAGED_30S_CLIP_DURATION,
+    STAGED_30S_CONTINUATION_I2V_MODEL_ID,
+    STAGED_30S_TOTAL_DURATION,
+    STAGED_30S_WORKFLOW_FILE,
+    buildStaged30sPrompts,
+    generateStaged30sTaskId,
+    isStaged30sModelId,
+    resolveStagedApiBaseUrl
+} from "../lib/generate/staged-video-30s.js";
 
 
 import grokImagineImageToVideo
@@ -4340,6 +4354,451 @@ async function handleUpscalePhotoAction(req, res, body, user) {
 
 
 /* =========================================================
+   STAGED 30-SECOND VIDEO (3 x 10s) — HELPERS & INTERNAL STEP
+   ========================================================= */
+
+function rawJsonResponse(res, statusCode, payload) {
+    res.statusCode = statusCode;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify(payload));
+}
+
+function verifyStagedInternalToken(expectedToken, providedToken) {
+    const expected = String(expectedToken || "").trim();
+    const provided = String(providedToken || "").trim();
+    if (expected.length < 32 || provided.length < 32) {
+        return false;
+    }
+    const bufA = Buffer.from(expected, "utf8");
+    const bufB = Buffer.from(provided, "utf8");
+    if (bufA.length !== bufB.length) {
+        return false;
+    }
+    return crypto.timingSafeEqual(bufA, bufB);
+}
+
+async function triggerStagedVideoWorkflow({
+    github,
+    jobId,
+    historyId,
+    userId,
+    apiBaseUrl
+}) {
+    const workflowFile = STAGED_30S_WORKFLOW_FILE;
+    const url = `https://api.github.com/repos/${github.owner}/${github.repo}/actions/workflows/${workflowFile}/dispatches`;
+
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${github.token}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json",
+            "User-Agent": "GENZ-AI-StagedVideo30s"
+        },
+        body: JSON.stringify({
+            ref: github.ref,
+            inputs: {
+                job_id: String(jobId),
+                history_id: String(historyId),
+                user_id: String(userId),
+                api_base_url: String(apiBaseUrl)
+            }
+        })
+    });
+
+    if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(
+            `GitHub Actions staged-video-30s dispatch failed (${response.status}): ${text}`
+        );
+    }
+
+    return true;
+}
+
+async function createStagedHistoryAndJob({
+    user,
+    body,
+    modelConfig,
+    databaseModel,
+    provider,
+    providerCode,
+    parameters,
+    generationCredit,
+    stagedTaskId,
+    clip1TaskId,
+    stagedPrompts
+}) {
+    const imageReference = normalizeHistoryReference(
+        parameters?.image_urls ??
+        parameters?.image_url ??
+        parameters?.first_frame_url ??
+        parameters?.reference_image_urls ??
+        body?.image_urls ??
+        body?.image_url ??
+        null
+    );
+
+    const videoReference = normalizeHistoryReference(
+        parameters?.video_urls ??
+        parameters?.video_url ??
+        parameters?.reference_video_urls ??
+        body?.video_reference_url ??
+        body?.video_url ??
+        body?.video_reference ??
+        null
+    );
+
+    const resolution = normalizeHistoryText(
+        generationCredit?.resolution ??
+        parameters?.resolution ??
+        body?.resolution ??
+        "720p"
+    );
+
+    const creditCost = Number(generationCredit?.credit) || 0;
+
+    const historyPayload = {
+        user_id: user.id,
+        user_email: user.email || null,
+        provider_id: providerCode || provider?.provider_id || "opus",
+        provider_name: provider?.provider_name || provider?.name || providerCode || "Opus",
+        model_id: modelConfig?.id || databaseModel?.model_id,
+        model_name:
+            databaseModel?.model_name ||
+            databaseModel?.name ||
+            modelConfig?.name ||
+            modelConfig?.id,
+        prompt: normalizeHistoryText(parameters?.prompt ?? body?.prompt ?? null),
+        image_reference_url:
+            toPrivateMediaRef(imageReference, { supabaseUrl: SUPABASE_URL }) ||
+            imageReference,
+        video_reference_url:
+            toPrivateMediaRef(videoReference, { supabaseUrl: SUPABASE_URL }) ||
+            videoReference,
+        ratio: normalizeHistoryText(parameters?.aspect_ratio ?? body?.aspect_ratio ?? "9:16"),
+        duration: STAGED_30S_TOTAL_DURATION,
+        resolution,
+        status: "processing",
+        task_id: stagedTaskId,
+        result_url: null,
+        error_message: null,
+        credit_cost: creditCost,
+        credit_refunded: false
+    };
+
+    const historyRows = await supabaseRequest(
+        "/rest/v1/generation_history?select=*",
+        {
+            method: "POST",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify([historyPayload])
+        }
+    );
+
+    const historyRow = Array.isArray(historyRows) ? historyRows[0] : null;
+    if (!historyRow?.id) {
+        throw new Error("Gagal membuat baris generation_history untuk video 30 detik.");
+    }
+
+    const toStableMediaList = list =>
+        (Array.isArray(list) ? list : [])
+            .map(item => String(item || "").trim())
+            .filter(Boolean)
+            .map(item => toPrivateMediaRef(item, { supabaseUrl: SUPABASE_URL }) || item);
+
+    const internalToken = crypto.randomBytes(32).toString("hex");
+    const requestPayload = {
+        prompt: String(parameters?.prompt || "").trim(),
+        clip_prompts: {
+            mode: stagedPrompts.mode,
+            has_explicit_duration: Boolean(stagedPrompts.hasExplicitDuration),
+            clip1: stagedPrompts.clip1,
+            clip2: stagedPrompts.clip2,
+            clip3: stagedPrompts.clip3
+        },
+        aspect_ratio: String(parameters?.aspect_ratio || "9:16").trim(),
+        resolution: String(parameters?.resolution || "720p").trim(),
+        generate_audio: Boolean(parameters?.generate_audio ?? true),
+        image_urls: toStableMediaList(parameters?.image_urls),
+        video_urls: toStableMediaList(parameters?.video_urls),
+        audio_urls: toStableMediaList(parameters?.audio_urls)
+    };
+
+    const jobRows = await supabaseRequest(
+        "/rest/v1/staged_generation_jobs?select=*",
+        {
+            method: "POST",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify([{
+                task_id: stagedTaskId,
+                history_id: historyRow.id,
+                user_id: user.id,
+                model_id: modelConfig?.id || databaseModel?.model_id,
+                status: "processing",
+                current_stage: "clip_1_generating",
+                stage_message: "Membuat Klip 1/3 (durasi 0–10 detik)...",
+                internal_token: internalToken,
+                request_payload: requestPayload,
+                clip_1_task_id: clip1TaskId,
+                completed_clips: 0,
+                credit_total: creditCost,
+                credit_charged: creditCost,
+                credit_refunded_amount: 0
+            }])
+        }
+    );
+
+    const jobRow = Array.isArray(jobRows) ? jobRows[0] : null;
+    if (!jobRow?.id) {
+        throw new Error("Gagal membuat baris staged_generation_jobs.");
+    }
+
+    return { historyRow, jobRow };
+}
+
+async function handleStagedVideoStepAction(req, res, body, providedToken) {
+    const jobId = String(body?.job_id || "").trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jobId)) {
+        return rawJsonResponse(res, 400, {
+            success: false,
+            error: "job_id tidak valid."
+        });
+    }
+
+    let jobRows;
+    try {
+        jobRows = await supabaseRequest(
+            `/rest/v1/staged_generation_jobs?select=*&id=eq.${encodeURIComponent(jobId)}&limit=1`,
+            { method: "GET" }
+        );
+    } catch (err) {
+        console.error("[staged-video-step] Gagal membaca staged_generation_jobs:", err);
+        return rawJsonResponse(res, 500, {
+            success: false,
+            error: "Gagal membaca job bertahap."
+        });
+    }
+
+    const job = Array.isArray(jobRows) ? jobRows[0] : null;
+    if (!job || !verifyStagedInternalToken(job.internal_token, providedToken)) {
+        return rawJsonResponse(res, 401, {
+            success: false,
+            error: "Token job bertahap tidak sah atau sudah kedaluwarsa."
+        });
+    }
+
+    if (String(job.status || "").toLowerCase() !== "processing") {
+        return rawJsonResponse(res, 409, {
+            success: false,
+            error: `Job sudah berada pada status terminal (${job.status}).`,
+            job_status: job.status
+        });
+    }
+
+    let opusApiKey;
+    try {
+        opusApiKey = await loadProviderApiKey("opus", req?.env);
+    } catch (err) {
+        console.error("[staged-video-step] Gagal memuat kredensial Opus:", err?.message);
+        return rawJsonResponse(res, 500, {
+            success: false,
+            error: "Kredensial Opus tidak tersedia di Worker."
+        });
+    }
+
+    const stepAction = String(body?.step_action || "").trim().toLowerCase();
+    const clipIndex = Number(body?.clip_index) || 1;
+    const targetAdapterId =
+        clipIndex === 1
+            ? STAGED_30S_BASE_R2V_MODEL_ID
+            : STAGED_30S_CONTINUATION_I2V_MODEL_ID;
+    const stepAdapter = getModelAdapter(targetAdapterId);
+
+    if (!stepAdapter) {
+        return rawJsonResponse(res, 500, {
+            success: false,
+            error: `Adapter ${targetAdapterId} tidak ditemukan.`
+        });
+    }
+
+    if (stepAction === "query_clip") {
+        const clipTaskId = String(body?.clip_task_id || "").trim();
+        if (!clipTaskId) {
+            return rawJsonResponse(res, 400, {
+                success: false,
+                error: "clip_task_id wajib diisi."
+            });
+        }
+
+        try {
+            const queried = await stepAdapter.queryTask(clipTaskId, opusApiKey, {
+                env: req?.env
+            });
+            const opusBusy = Boolean(
+                queried?.failed &&
+                isOpusUpstreamCreditBusy({
+                    providerCode: "opus",
+                    modelId: targetAdapterId,
+                    code: queried.errorCode ?? queried.error_code,
+                    message: queried.errorMessage ?? queried.error_message,
+                    creditRefunded: true
+                })
+            );
+
+            return rawJsonResponse(res, 200, {
+                success: true,
+                clip_index: clipIndex,
+                clip_task_id: clipTaskId,
+                status: queried.status,
+                completed: Boolean(queried.completed),
+                failed: Boolean(queried.failed),
+                processing: Boolean(queried.processing),
+                output_urls: Array.isArray(queried.outputUrls) ? queried.outputUrls : [],
+                key_slot: Number.isInteger(queried.keySlot) ? queried.keySlot : 0,
+                key_pool_size: Number.isInteger(queried.keyPoolSize) ? queried.keyPoolSize : 1,
+                opus_busy: opusBusy,
+                error_code: queried.errorCode || null,
+                error_message: queried.errorMessage || null
+            });
+        } catch (err) {
+            console.error("[staged-video-step] query_clip gagal:", err?.message || err);
+            return rawJsonResponse(res, 502, {
+                success: false,
+                retryable: true,
+                error: err?.message || "Gagal memeriksa status klip ke Opus."
+            });
+        }
+    }
+
+    if (stepAction === "create_clip") {
+        const excludeKeySlots = Array.isArray(body?.exclude_key_slots)
+            ? body.exclude_key_slots
+                  .map(v => Number(v))
+                  .filter(v => Number.isInteger(v) && v >= 0 && v < 100)
+            : [];
+
+        const reqPayload = job.request_payload && typeof job.request_payload === "object"
+            ? job.request_payload
+            : {};
+        const clipPrompts = reqPayload.clip_prompts || {};
+
+        let createInput;
+
+        try {
+            if (clipIndex === 1) {
+                const signedRefs = await signUserMediaRefsInPayload(
+                    {
+                        image_urls: reqPayload.image_urls || [],
+                        video_urls: reqPayload.video_urls || [],
+                        audio_urls: reqPayload.audio_urls || []
+                    },
+                    {
+                        userId: job.user_id,
+                        supabaseUrl: SUPABASE_URL,
+                        serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+                        ttlSeconds: 60 * 60
+                    }
+                );
+
+                createInput = {
+                    prompt: String(clipPrompts.clip1 || reqPayload.prompt || "").trim(),
+                    aspect_ratio: String(reqPayload.aspect_ratio || "9:16"),
+                    resolution: String(reqPayload.resolution || "720p"),
+                    duration: String(STAGED_30S_CLIP_DURATION),
+                    generate_audio: Boolean(reqPayload.generate_audio ?? true),
+                    image_urls: signedRefs.image_urls || [],
+                    video_urls: signedRefs.video_urls || [],
+                    audio_urls: signedRefs.audio_urls || []
+                };
+            } else if (clipIndex === 2 || clipIndex === 3) {
+                const firstFrameRef = String(body?.first_frame_ref || "").trim();
+                if (!firstFrameRef || !isRefOwnedByUser(firstFrameRef, job.user_id)) {
+                    return rawJsonResponse(res, 400, {
+                        success: false,
+                        error: "first_frame_ref tidak sah atau bukan milik user."
+                    });
+                }
+
+                const signedFirstFrameUrl = await signPrivateMediaRef({
+                    ref: firstFrameRef,
+                    supabaseUrl: SUPABASE_URL,
+                    serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+                    ttlSeconds: 60 * 60
+                });
+
+                const targetPrompt =
+                    clipIndex === 2
+                        ? String(clipPrompts.clip2 || reqPayload.prompt || "").trim()
+                        : String(clipPrompts.clip3 || reqPayload.prompt || "").trim();
+
+                createInput = {
+                    image_url: signedFirstFrameUrl,
+                    prompt: targetPrompt,
+                    resolution: String(reqPayload.resolution || "720p"),
+                    duration: String(STAGED_30S_CLIP_DURATION),
+                    generate_audio: Boolean(reqPayload.generate_audio ?? true)
+                };
+            } else {
+                return rawJsonResponse(res, 400, {
+                    success: false,
+                    error: "clip_index harus 1, 2, atau 3."
+                });
+            }
+        } catch (prepError) {
+            console.error("[staged-video-step] Gagal menyiapkan input create_clip:", prepError);
+            return rawJsonResponse(res, 500, {
+                success: false,
+                error: prepError?.message || "Gagal menandatangani media referensi klip."
+            });
+        }
+
+        try {
+            const created = await stepAdapter.createTask(createInput, opusApiKey, {
+                excludeKeySlots,
+                env: req?.env
+            });
+
+            return rawJsonResponse(res, 200, {
+                success: true,
+                clip_index: clipIndex,
+                task_id: created.taskId,
+                key_slot: Number.isInteger(created.keySlot) ? created.keySlot : 0,
+                key_pool_size: Number.isInteger(created.keyPoolSize) ? created.keyPoolSize : 1
+            });
+        } catch (err) {
+            const opusBusy = isOpusUpstreamCreditBusy({
+                providerCode: "opus",
+                modelId: targetAdapterId,
+                code: err?.code,
+                message: err?.message,
+                creditRefunded: true,
+                status: err?.status
+            });
+
+            return rawJsonResponse(res, 200, {
+                success: false,
+                clip_index: clipIndex,
+                opus_busy: opusBusy,
+                failed_key_slot: Number.isInteger(err?.opusFailedKeySlot) ? err.opusFailedKeySlot : null,
+                key_pool_size: Number.isInteger(err?.opusKeyPoolSize) ? err.opusKeyPoolSize : null,
+                rotated_full_cycle: Boolean(err?.rotatedFullCycle),
+                error_code: err?.code || null,
+                error: err?.message || "Gagal membuat task klip pada Opus."
+            });
+        }
+    }
+
+    return rawJsonResponse(res, 400, {
+        success: false,
+        error: `step_action "${stepAction}" tidak dikenali.`
+    });
+}
+
+
+/* =========================================================
    HANDLER
    ========================================================= */
 
@@ -4395,6 +4854,38 @@ export default async function handler(
             "Server configuration is incomplete"
         );
 
+    }
+
+    /*
+     * =====================================================
+     * INTERNAL STAGED VIDEO STEP (GITHUB ACTIONS -> WORKER)
+     * =====================================================
+     */
+    const stagedJobTokenHeader = String(
+        req?.headers?.["x-staged-job-token"] ||
+        req?.headers?.["X-Staged-Job-Token"] ||
+        ""
+    ).trim();
+
+    if (stagedJobTokenHeader) {
+        let internalBody;
+        try {
+            internalBody = await readBody(req);
+        } catch (error) {
+            return rawJsonResponse(res, error.status || 400, {
+                success: false,
+                error: error.message || "Invalid request body"
+            });
+        }
+
+        if (String(internalBody?.action || "").trim().toLowerCase() === "staged-video-step") {
+            return await handleStagedVideoStepAction(req, res, internalBody, stagedJobTokenHeader);
+        }
+
+        return rawJsonResponse(res, 400, {
+            success: false,
+            error: "Action internal tidak valid."
+        });
     }
 
 
@@ -5132,6 +5623,35 @@ export default async function handler(
     }
 
 
+    const isStaged30s =
+        isStaged30sModelId(
+            modelConfig.id || modelId
+        );
+
+    const stagedGithub = isStaged30s
+        ? getUpscaleGithubConfig(req)
+        : null;
+
+    if (
+        isStaged30s &&
+        !stagedGithub?.token
+    ) {
+        return failure(
+            res,
+            500,
+            "GitHub Actions secret GITHUB_PAT is not configured",
+            {
+                code: "GITHUB_PAT_NOT_CONFIGURED",
+                model_id: modelConfig.id || modelId
+            }
+        );
+    }
+
+    const stagedPrompts = isStaged30s
+        ? buildStaged30sPrompts(parameters?.prompt)
+        : null;
+
+
     /*
      * =====================================================
      * DEDUCT CREDIT
@@ -5300,15 +5820,39 @@ export default async function handler(
 
     try {
 
-        task =
-            await adapter.createTask(
-                parameters,
-                providerApiKey,
-                {
-                    excludeKeySlots: opusExcludeKeySlots,
-                    env: req?.env
-                }
-            );
+        if (isStaged30s) {
+            const clip1Adapter =
+                getModelAdapter(STAGED_30S_BASE_R2V_MODEL_ID);
+            if (!clip1Adapter) {
+                throw new Error(
+                    `Adapter ${STAGED_30S_BASE_R2V_MODEL_ID} tidak ditemukan.`
+                );
+            }
+
+            task =
+                await clip1Adapter.createTask(
+                    {
+                        ...parameters,
+                        prompt: stagedPrompts.clip1,
+                        duration: String(STAGED_30S_CLIP_DURATION)
+                    },
+                    providerApiKey,
+                    {
+                        excludeKeySlots: opusExcludeKeySlots,
+                        env: req?.env
+                    }
+                );
+        } else {
+            task =
+                await adapter.createTask(
+                    parameters,
+                    providerApiKey,
+                    {
+                        excludeKeySlots: opusExcludeKeySlots,
+                        env: req?.env
+                    }
+                );
+        }
 
     } catch (error) {
 
@@ -5760,6 +6304,134 @@ export default async function handler(
      * GENERATION HISTORY
      * =====================================================
      */
+
+    if (isStaged30s) {
+        const stagedTaskId = generateStaged30sTaskId();
+        let stagedRecords = null;
+
+        try {
+            stagedRecords = await createStagedHistoryAndJob({
+                user,
+                body,
+                modelConfig,
+                databaseModel,
+                provider,
+                providerCode,
+                parameters,
+                generationCredit,
+                stagedTaskId,
+                clip1TaskId: taskId,
+                stagedPrompts
+            });
+
+            await triggerStagedVideoWorkflow({
+                github: stagedGithub,
+                jobId: stagedRecords.jobRow.id,
+                historyId: stagedRecords.historyRow.id,
+                userId: user.id,
+                apiBaseUrl: resolveStagedApiBaseUrl(req)
+            });
+        } catch (stagedError) {
+            console.error(
+                "[generate] Gagal menginisialisasi pipeline bertahap 30s:",
+                stagedError
+            );
+
+            let refundedOk = false;
+            if (creditDeducted) {
+                try {
+                    remainingCredits = await refundGenerateCredits(
+                        user.id,
+                        generationCredit.credit
+                    );
+                    creditDeducted = false;
+                    refundedOk = true;
+                } catch (refundErr) {
+                    console.error(
+                        "[generate] CRITICAL: refund gagal saat rollback staged 30s:",
+                        refundErr
+                    );
+                }
+            }
+
+            if (stagedRecords?.historyRow?.id) {
+                await supabaseRequest(
+                    `/rest/v1/generation_history?id=eq.${encodeURIComponent(stagedRecords.historyRow.id)}`,
+                    {
+                        method: "PATCH",
+                        headers: { Prefer: "return=minimal" },
+                        body: JSON.stringify({
+                            status: "failed",
+                            error_message:
+                                "Gagal memulai pemrosesan video bertahap 30 detik di server.",
+                            credit_refunded: refundedOk || Number(generationCredit.credit) === 0,
+                            completed_at: new Date().toISOString()
+                        })
+                    }
+                ).catch(() => null);
+            }
+
+            if (stagedRecords?.jobRow?.id) {
+                await supabaseRequest(
+                    `/rest/v1/staged_generation_jobs?id=eq.${encodeURIComponent(stagedRecords.jobRow.id)}`,
+                    {
+                        method: "PATCH",
+                        headers: { Prefer: "return=minimal" },
+                        body: JSON.stringify({
+                            status: "failed",
+                            current_stage: "failed",
+                            error_message: stagedError?.message || "Dispatch gagal",
+                            internal_token: null,
+                            credit_charged: 0,
+                            credit_refunded_amount: refundedOk ? generationCredit.credit : 0,
+                            completed_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        })
+                    }
+                ).catch(() => null);
+            }
+
+            return failure(
+                res,
+                502,
+                "Gagal memulai pemrosesan video bertahap 30 detik di server.",
+                {
+                    code: "STAGED_WORKFLOW_DISPATCH_FAILED",
+                    provider: providerCode,
+                    credit_refunded: refundedOk,
+                    refunded_credit: refundedOk ? generationCredit.credit : 0
+                }
+            );
+        }
+
+        return success(
+            res,
+            {
+                user_id: user.id,
+                model: modelConfig.id,
+                model_id: modelConfig.id,
+                model_name: modelConfig.name || modelConfig.id,
+                provider: provider.provider_name || provider.name || providerCode,
+                provider_id: providerCode,
+                resolution: generationCredit.resolution,
+                credit_base: generationCredit.credit_base,
+                discount_percent: generationCredit.discount_percent,
+                credit_used: generationCredit.credit,
+                remaining_credits: remainingCredits,
+                taskId: stagedTaskId,
+                task_id: stagedTaskId,
+                jobId: stagedTaskId,
+                staged_30s: true,
+                staged_job_id: stagedRecords.jobRow.id,
+                staged_history_id: stagedRecords.historyRow.id,
+                stage: "clip_1_generating",
+                stage_message: "Membuat Klip 1/3 (durasi 0–10 detik)...",
+                clip_prompts_mode: stagedPrompts.mode,
+                provider_response: safeTask,
+                model_database_id: databaseModel?.id || null
+            }
+        );
+    }
 
     await createGenerationHistory({
 

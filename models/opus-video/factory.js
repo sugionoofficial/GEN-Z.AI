@@ -207,7 +207,7 @@ function buildParametersForSpec(spec) {
         type: "string",
         required: true,
         maxLength: spec.maxPrompt || 7000,
-        description: spec.kind === "r2v"
+        description: spec.promptHint || (spec.kind === "r2v"
             ? (
                 hasVideoRefs && hasAudioRefs
                     ? "Deskripsi adegan dan gerakan video (gunakan @image1..@image3, @video1..@video3, atau @audio1 untuk merujuk media referensi)."
@@ -215,7 +215,7 @@ function buildParametersForSpec(spec) {
                         ? "Deskripsi adegan dan gerakan video (gunakan @image1..@image3 atau @video1..@video3 untuk merujuk media referensi)."
                         : "Deskripsi adegan dan gerakan video (gunakan @image1, @image2 untuk merujuk gambar referensi)."
             )
-            : "Deskripsi adegan, subjek, pencahayaan, dan pergerakan kamera."
+            : "Deskripsi adegan, subjek, pencahayaan, dan pergerakan kamera.")
     });
 
     if (Array.isArray(spec.ratios) && spec.ratios.length > 0) {
@@ -303,6 +303,7 @@ export function createOpusVideoModel(spec) {
         type: spec.type,
         kind: spec.kind,
         workflow: spec.workflow || "reference2video",
+        staged30s: Boolean(spec.staged30s),
         referenceRequired: Boolean(spec.referenceRequired),
         adminEditor: buildAdminEditorConfig(spec),
         api: {

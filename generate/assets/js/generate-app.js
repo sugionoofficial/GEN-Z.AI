@@ -79,10 +79,10 @@ const RENDER_MODULE =
     "./generate-render.js";
 
 const SUBMIT_MODULE =
-    "./generate-submit.js?v=20261029-historygate";
+    "./generate-submit.js?v=20261031-staged30s";
 
 const VALIDATION_MODULE =
-    "./generate-validation.js?v=20261030-audioref";
+    "./generate-validation.js?v=20261031-staged30s";
 
 const REQUEST_MODULE =
     "./generate-request.js?v=20261029-historygate";

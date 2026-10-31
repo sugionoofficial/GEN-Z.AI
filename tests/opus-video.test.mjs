@@ -76,7 +76,7 @@ import { readFileSync } from "node:fs";
 
 test("semua spec Opus menghasilkan adapter lengkap dengan logo valid", () => {
     assert.equal(opusVideoModels.length, OPUS_VIDEO_SPECS.length);
-    assert.equal(opusVideoModels.length, 6);
+    assert.equal(opusVideoModels.length, 7);
 
     for (const adapter of opusVideoModels) {
         assert.equal(adapter.config.providerId, "opus");
@@ -1470,17 +1470,18 @@ test("/api/model-config mengembalikan supported_durations terfilter dan menyesua
     }
 });
 
-test("semua 6 model provider Opus mendukung pilihan durasi sistem checkbox di Edit Model dan halaman Generate", () => {
+test("semua 7 model provider Opus mendukung pilihan durasi sistem checkbox di Edit Model dan halaman Generate", () => {
     const expectedByModel = {
         "opus-seedance-2.5-t2v": ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
         "opus-seedance-2.5-i2v": ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
         "opus-seedance-2.5-r2v": ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
+        "opus-seedance-2.5-r2v-30s": ["30"],
         "opus-seedance-2.0-r2v": ["4", "5", "8", "10", "12", "15"],
         "opus-hailuo-3-t2v": ["5", "6", "8", "10", "12", "15"],
         "opus-hailuo-3-i2v": ["5", "6", "8", "10", "12", "15"]
     };
 
-    assert.equal(opusVideoModels.length, 6);
+    assert.equal(opusVideoModels.length, 7);
 
     for (const adapter of opusVideoModels) {
         const modelId = adapter.config.id;
