@@ -3226,6 +3226,13 @@ test("Opus MCP: Egress video job non-terminal setelah worker polling deadline te
                                     assetId: "ast_ref_input",
                                     role: "reference",
                                     downloadUrl: "https://cdn.example.com/input-ref.mp4"
+                                },
+                                {
+                                    assetId: "ast_ref_video_label",
+                                    kind: "video",
+                                    source: "imported",
+                                    label: "video1",
+                                    downloadUrl: "https://cdn.example.com/imported-video1.mp4"
                                 }
                             ]
                         }
@@ -3290,11 +3297,14 @@ test("history-status-sync memulihkan item failed 'still non-terminal after the w
         "utf8"
     );
 
-    assert.match(generateStatusSource, /OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS/);
+    assert.match(
+        generateStatusSource,
+        /const OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS\s*=\s*24 \* 60 \* 60 \* 1000/
+    );
     assert.match(generateStatusSource, /isRecoverableHistoryFailureMessage/);
 
     const deadlineMsg =
-        "Egress video job 9999ad2b-6aea-4d9f-88fc-581d0bdac518 is still non-terminal after the worker polling deadline";
+        "Egress video job 1bb04f83-276b-49c9-85f9-f5d93aa6ad2a is still non-terminal after the worker polling deadline";
 
     let mockStatusPayload = {
         success: true,
@@ -3316,13 +3326,14 @@ test("history-status-sync memulihkan item failed 'still non-terminal after the w
                 },
                 historyData: [
                     {
-                        id: "bc83a6b8-fffe-4442-a9f9-d411bad1a64e",
+                        id: "cc461534-6223-488e-97c7-4bf1f789ee21",
                         status: "failed",
-                        task_id: "opus-k1:gen_cfed7a92:9bca2f45-a48f-4d5c-aee9-9c50697ccc33",
+                        task_id: "opus:gen_9e25e900:0288bd35-f541-4986-802e-dda7440cf7f9",
                         model_id: "opus-seedance-2.5-r2v",
                         credit_refunded: true,
                         error_message: deadlineMsg,
-                        created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString()
+                        // Lebih dari 1 jam (95 menit) tetap harus pulih karena Opus Web masih Processing (< 24 jam)
+                        created_at: new Date(Date.now() - 95 * 60 * 1000).toISOString()
                     }
                 ],
                 historyStatusSyncInProgress: false
@@ -3354,14 +3365,14 @@ test("history-status-sync memulihkan item failed 'still non-terminal after the w
     vm.runInNewContext(syncSource, sandbox);
 
     const App = windowObj.GENZHistory;
-    // Item usia 15 menit (< 60 menit) terdeteksi untuk pemulihan otomatis
+    // Item usia 95 menit (> 1 jam, < 24 jam) tetap terdeteksi untuk pemulihan otomatis
     assert.equal(App.getActiveHistoryItems().length, 1);
 
     // Jika server mengonfirmasi masih processing -> tetap bisa dipantau
     await App.syncGenerationStatus(App.getActiveHistoryItems()[0], "tok-test");
     assert.equal(App.getActiveHistoryItems().length, 1);
 
-    // Jika server mengonfirmasi sudah failed permanen (mis. melewati 60 menit) -> dihentikan agar tidak polling berulang
+    // Jika server mengonfirmasi sudah failed permanen (mis. melewati 24 jam) -> dihentikan agar tidak polling berulang
     mockStatusPayload = {
         success: true,
         processing: false,

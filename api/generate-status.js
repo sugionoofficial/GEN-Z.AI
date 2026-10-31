@@ -119,11 +119,12 @@ const STALE_TASK_EXPIRED_ERROR =
  * Batas waktu tunggu maksimum ketika worker internal MCP Opus sudah melewati
  * polling deadline (~12 menit) sementara Egress video job di Opus Web masih
  * berstatus non-terminal ("still non-terminal after the worker polling deadline").
- * Selama usia task masih di bawah batas ini, status dipertahankan PROCESSING
- * sambil merekonsiliasi via resolve_job/list_jobs agar tidak gagal prematur.
+ * Di Opus Web, antrean Seedance 2.5 dapat tetap "Processing" lebih dari 1-3 jam
+ * saat antrean padat. Selama usia task masih di bawah 24 jam, status dipertahankan
+ * PROCESSING sambil merekonsiliasi via resolve_job/list_jobs agar sinkron dengan Opus Web.
  */
 const OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS =
-    60 * 60 * 1000;
+    24 * 60 * 60 * 1000;
 
 function isRecoverableHistoryFailureMessage(value) {
     const text = lower(value);
@@ -4866,7 +4867,7 @@ export default async function handler(
             ) {
                 const finalDeadlineMessage =
                     cleanString(providerRaw.deadlineErrorMessage) ||
-                    "Batas waktu pemrosesan video Opus terlampaui (lebih dari 60 menit tanpa hasil).";
+                    "Batas waktu pemrosesan video Opus terlampaui (lebih dari 24 jam tanpa hasil).";
                 const finalDeadlineCode =
                     cleanString(providerRaw.deadlineErrorCode) ||
                     "OPUS_WORKER_POLLING_DEADLINE_EXCEEDED";

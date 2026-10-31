@@ -57,7 +57,7 @@
     const STALE_TASK_ERROR =
         "task expired (provider tidak dapat dihubungi)";
     const NON_TERMINAL_DEADLINE_RECOVERY_WINDOW_MS =
-        60 * 60 * 1000;
+        24 * 60 * 60 * 1000;
 
     function isNonTerminalWorkerDeadlineMessage(value) {
         const text =
