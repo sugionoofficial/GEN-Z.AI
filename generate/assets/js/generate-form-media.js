@@ -903,37 +903,96 @@ async function extractAudioFileFromVideoBlob(videoBlob, baseFilename = "fb-audio
         globalThis.crypto?.randomUUID?.() ||
         `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const inputName = `fb_audio_src_${uniqueId}.mp4`;
-    const outputName = `fb_audio_out_${uniqueId}.m4a`;
+    const mp3OutputName = `fb_audio_out_${uniqueId}.mp3`;
+    const wavOutputName = `fb_audio_out_${uniqueId}.wav`;
 
     try {
         await ffmpeg.writeFile(inputName, new Uint8Array(await videoBlob.arrayBuffer()));
-        const exitCode = await ffmpeg.exec([
+        let exitCode = await ffmpeg.exec([
             "-i",
             inputName,
             "-vn",
             "-c:a",
-            "aac",
+            "libmp3lame",
             "-b:a",
-            "128k",
-            outputName
+            "160k",
+            "-ar",
+            "44100",
+            "-ac",
+            "2",
+            "-f",
+            "mp3",
+            mp3OutputName
+        ]);
+
+        if (exitCode === 0) {
+            const mp3Bytes = await ffmpeg.readFile(mp3OutputName).catch(() => null);
+            if (mp3Bytes?.length) {
+                return new File([mp3Bytes], `${cleanBase}.mp3`, {
+                    type: "audio/mpeg",
+                    lastModified: Date.now()
+                });
+            }
+        }
+
+        // Fallback ke WAV (Opus hanya mendukung mp3 & wav, bukan m4a/mov)
+        exitCode = await ffmpeg.exec([
+            "-i",
+            inputName,
+            "-vn",
+            "-c:a",
+            "pcm_s16le",
+            "-ar",
+            "24000",
+            "-ac",
+            "1",
+            "-f",
+            "wav",
+            wavOutputName
         ]);
         if (exitCode !== 0) {
             throw new Error(`Video tidak memiliki jalur audio yang dapat diekstrak (kode ${exitCode}).`);
         }
-        const outBytes = await ffmpeg.readFile(outputName);
-        if (!outBytes?.length) {
+        const wavBytes = await ffmpeg.readFile(wavOutputName);
+        if (!wavBytes?.length) {
             throw new Error("Hasil ekstraksi audio dari video kosong.");
         }
-        return new File([outBytes], `${cleanBase}.m4a`, {
-            type: "audio/mp4",
+        return new File([wavBytes], `${cleanBase}.wav`, {
+            type: "audio/wav",
             lastModified: Date.now()
         });
     } finally {
         await Promise.all([
             safeDeleteFFmpegFile(ffmpeg, inputName),
-            safeDeleteFFmpegFile(ffmpeg, outputName)
+            safeDeleteFFmpegFile(ffmpeg, mp3OutputName),
+            safeDeleteFFmpegFile(ffmpeg, wavOutputName)
         ]);
     }
+}
+
+async function ensureCompatibleAudioUploadFile(file) {
+    if (!file) return file;
+    const lowerName = String(file.name || "").trim().toLowerCase();
+    const rawMime = String(file.type || "").split(";")[0].trim().toLowerCase();
+    const isMp3OrWav =
+        lowerName.endsWith(".mp3") ||
+        lowerName.endsWith(".wav") ||
+        rawMime === "audio/mpeg" ||
+        rawMime === "audio/mp3" ||
+        rawMime === "audio/wav" ||
+        rawMime === "audio/x-wav" ||
+        rawMime === "audio/wave" ||
+        rawMime === "audio/x-pn-wav";
+
+    if (isMp3OrWav) {
+        return file;
+    }
+
+    // Konversi otomatis kontainer .m4a / .aac / .ogg ke WAV/MP3 agar diterima Opus CreateAsset (mp3, wav)
+    return await extractAudioFileFromVideoBlob(
+        file,
+        String(file.name || "audio").replace(/\.[^.]+$/, "") || "audio"
+    );
 }
 
 function attachFacebookUrlControls(urlContainer, urlInput, {
@@ -3525,7 +3584,10 @@ export function createAudioField(
 
         wrapper._audioUploadPromise = (async () => {
             try {
-                const uploaded = await uploadAudio(file);
+                const compatibleFile = await ensureCompatibleAudioUploadFile(file);
+                if (myToken !== uploadToken) return "";
+                wrapper._audioSelectedFile = compatibleFile;
+                const uploaded = await uploadAudio(compatibleFile);
                 const uploadedUrl = extractUploadUrl(uploaded);
                 if (!uploadedUrl) {
                     throw new Error(

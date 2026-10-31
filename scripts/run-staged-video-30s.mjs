@@ -761,20 +761,46 @@ export async function runStagedVideoOrchestrator({
         const audioSegmentRefs = [];
         if (!muteVideos) {
             for (const item of referenceMedia.audios || []) {
-                const sliceAudioPath = path.join(
+                const sliceMp3Path = path.join(
                     tempRoot,
-                    `ref-audio-${item.index}-clip-${clipIndex}.m4a`
+                    `ref-audio-${item.index}-clip-${clipIndex}.mp3`
                 );
-                const sliceAudioArgs = buildReferenceAudioSliceFfmpegArgs({
+                const sliceMp3Args = buildReferenceAudioSliceFfmpegArgs({
                     inputPath: item.localPath,
-                    outputPath: sliceAudioPath,
+                    outputPath: sliceMp3Path,
                     clipIndex,
                     clipDurationSeconds: 10,
-                    sourceDurationSeconds: Number(item.info?.duration) || 0
+                    sourceDurationSeconds: Number(item.info?.duration) || 0,
+                    format: "mp3"
                 });
 
-                await execFileImpl("ffmpeg", sliceAudioArgs);
-                const sliceStat = await fs.stat(sliceAudioPath).catch(() => null);
+                let finalAudioSlicePath = sliceMp3Path;
+                let finalAudioStorageExt = "mp3";
+                let finalAudioContentType = "audio/mpeg";
+
+                try {
+                    await execFileImpl("ffmpeg", sliceMp3Args);
+                } catch {
+                    // Fallback ke WAV (juga diizinkan Opus: mp3, wav) bila encoder libmp3lame tidak tersedia
+                    const sliceWavPath = path.join(
+                        tempRoot,
+                        `ref-audio-${item.index}-clip-${clipIndex}.wav`
+                    );
+                    const sliceWavArgs = buildReferenceAudioSliceFfmpegArgs({
+                        inputPath: item.localPath,
+                        outputPath: sliceWavPath,
+                        clipIndex,
+                        clipDurationSeconds: 10,
+                        sourceDurationSeconds: Number(item.info?.duration) || 0,
+                        format: "wav"
+                    });
+                    await execFileImpl("ffmpeg", sliceWavArgs);
+                    finalAudioSlicePath = sliceWavPath;
+                    finalAudioStorageExt = "wav";
+                    finalAudioContentType = "audio/wav";
+                }
+
+                const sliceStat = await fs.stat(finalAudioSlicePath).catch(() => null);
                 if (!sliceStat || sliceStat.size < 128) {
                     throw new Error(
                         `Gagal memotong segmen audio referensi #${item.index} untuk Klip ${clipIndex}.`
@@ -782,9 +808,9 @@ export async function runStagedVideoOrchestrator({
                 }
 
                 const uploadedRef = await uploadFileToStorage(
-                    sliceAudioPath,
-                    `${jobFolder}/ref-audio-${item.index}-clip-${clipIndex}.m4a`,
-                    "audio/mp4"
+                    finalAudioSlicePath,
+                    `${jobFolder}/ref-audio-${item.index}-clip-${clipIndex}.${finalAudioStorageExt}`,
+                    finalAudioContentType
                 );
                 audioSegmentRefs.push(uploadedRef);
             }
@@ -861,7 +887,7 @@ export async function runStagedVideoOrchestrator({
                     });
                 } else if (
                     !retriedMutedForCopyright &&
-                    referenceMedia?.videos?.length > 0 &&
+                    Boolean(referenceMedia?.hasAnyMedia) &&
                     isOpusClipAudioCopyrightFailure(
                         `${createRes.data?.error_code || ""} ${createRes.data?.error || ""}`
                     )
@@ -954,7 +980,7 @@ export async function runStagedVideoOrchestrator({
                 if (q.failed) {
                     if (
                         !retriedMutedForCopyright &&
-                        referenceMedia?.videos?.length > 0 &&
+                        Boolean(referenceMedia?.hasAnyMedia) &&
                         isOpusClipAudioCopyrightFailure(
                             `${q.error_code || ""} ${q.error_message || ""}`
                         )
