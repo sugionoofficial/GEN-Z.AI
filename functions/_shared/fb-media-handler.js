@@ -1,16 +1,19 @@
 /* =========================================================
    GEN-Z.AI
-   CLOUDFLARE WORKER — FACEBOOK MEDIA DOWNLOAD HANDLER
+   CLOUDFLARE WORKER — FACEBOOK & TIKTOK MEDIA DOWNLOAD HANDLER
    ---------------------------------------------------------
    File:
    functions/_shared/fb-media-handler.js
 
    Endpoint:
    POST /api/fb-media-download
+   POST /api/social-media-download
 
    Alur:
    1. Verifikasi sesi pengguna Supabase (Bearer token)
-   2. Proses URL Facebook lewat https://getmyfb.com/process
+   2. Deteksi platform tautan:
+      - Facebook -> https://getmyfb.com/process
+      - TikTok   -> https://ssstik.io/abc?url=dl
    3. Unduh dan teruskan stream biner media (video/image/audio)
       langsung ke browser supaya bisa disimpan ke user-uploads
       dan dipotong (cut video/audio) sebelum dipakai sebagai
@@ -22,6 +25,12 @@ import {
     isFacebookMediaUrl,
     resolveFacebookMediaViaGetMyFb
 } from "../../lib/fb-media/getmyfb.js";
+
+import {
+    downloadResolvedTikTokMedia,
+    isTikTokMediaUrl,
+    resolveTikTokMediaViaSsstik
+} from "../../lib/tiktok-media/ssstik.js";
 
 function jsonResponse(payload, status = 200) {
     return Response.json(payload, {
@@ -40,7 +49,7 @@ async function authenticateUser(request, env, fetchImpl = fetch) {
 
     if (!tokenMatch || !tokenMatch[1]?.trim()) {
         return {
-            error: "Silakan login terlebih dahulu untuk memproses link Facebook.",
+            error: "Silakan login terlebih dahulu untuk memproses link Facebook atau TikTok.",
             status: 401
         };
     }
@@ -98,29 +107,46 @@ export default async function handleFbMediaDownload(request, env, { fetchImpl = 
     const kind = String(body?.kind || "video").trim().toLowerCase();
 
     if (!rawUrl) {
-        return jsonResponse({ error: "Masukkan link Facebook terlebih dahulu." }, 400);
+        return jsonResponse({ error: "Masukkan link Facebook atau TikTok terlebih dahulu." }, 400);
     }
 
     if (!["video", "image", "audio"].includes(kind)) {
         return jsonResponse({ error: "Jenis media referensi tidak didukung." }, 400);
     }
 
-    if (!isFacebookMediaUrl(rawUrl)) {
+    const isFacebook = isFacebookMediaUrl(rawUrl);
+    const isTikTok = !isFacebook && isTikTokMediaUrl(rawUrl);
+
+    if (!isFacebook && !isTikTok) {
         return jsonResponse({
-            error: "URL bukan link Facebook. Gunakan link dari facebook.com atau fb.watch."
+            error: "URL tidak didukung untuk tombol Proses. Gunakan link Facebook (facebook.com / fb.watch) atau TikTok (tiktok.com / vt.tiktok.com)."
         }, 400);
     }
 
-    try {
-        const resolved = await resolveFacebookMediaViaGetMyFb(rawUrl, {
-            kind,
-            fetchImpl
-        });
+    const provider = isTikTok ? "tiktok" : "facebook";
 
-        const downloaded = await downloadResolvedFacebookMedia(resolved.candidates, {
-            kind,
-            fetchImpl
-        });
+    try {
+        const downloaded = isTikTok
+            ? await (async () => {
+                const resolved = await resolveTikTokMediaViaSsstik(rawUrl, {
+                    kind,
+                    fetchImpl
+                });
+                return await downloadResolvedTikTokMedia(resolved.candidates, {
+                    kind,
+                    fetchImpl
+                });
+            })()
+            : await (async () => {
+                const resolved = await resolveFacebookMediaViaGetMyFb(rawUrl, {
+                    kind,
+                    fetchImpl
+                });
+                return await downloadResolvedFacebookMedia(resolved.candidates, {
+                    kind,
+                    fetchImpl
+                });
+            })();
 
         const headers = new Headers({
             "Content-Type": downloaded.contentType,
@@ -128,7 +154,8 @@ export default async function handleFbMediaDownload(request, env, { fetchImpl = 
             "X-FB-Media-Filename": downloaded.filename,
             "X-FB-Media-Source": downloaded.source,
             "X-FB-Media-Quality": encodeURIComponent(downloaded.quality || ""),
-            "X-FB-Media-Needs-Audio-Extract": downloaded.needsClientAudioExtract ? "1" : "0"
+            "X-FB-Media-Needs-Audio-Extract": downloaded.needsClientAudioExtract ? "1" : "0",
+            "X-Social-Media-Provider": provider
         });
 
         if (downloaded.contentLength) {
@@ -143,8 +170,11 @@ export default async function handleFbMediaDownload(request, env, { fetchImpl = 
         const status = Number.isInteger(error?.status) && error.status >= 400 && error.status < 600
             ? error.status
             : 502;
+        const defaultMsg = isTikTok
+            ? "Gagal memproses link TikTok lewat SSSTik."
+            : "Gagal memproses link Facebook lewat GetMyFB.";
         return jsonResponse({
-            error: String(error?.message || "Gagal memproses link Facebook lewat GetMyFB.")
+            error: String(error?.message || defaultMsg)
         }, status);
     }
 }

@@ -70,7 +70,7 @@ const MODEL_MODULE =
     "./generate-model.js?v=20261016-regenerate-history";
 
 const FORM_MODULE =
-    "./generate-form.js?v=20261031-fb-media";
+    "./generate-form.js?v=20261031-social-media";
 
 const SEEDANCE_MODULE =
     "./generate-seedance.js";

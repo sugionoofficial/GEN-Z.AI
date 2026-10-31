@@ -11,6 +11,15 @@ import {
     resolveFacebookMediaViaGetMyFb
 } from "../lib/fb-media/getmyfb.js";
 
+import {
+    isSafeResolvedTikTokMediaUrl,
+    isTikTokMediaUrl,
+    normalizeTikTokUrl,
+    parseSsstikHtml,
+    resolveTikTokMediaViaSsstik,
+    unwrapSsstikMediaUrl
+} from "../lib/tiktok-media/ssstik.js";
+
 import worker from "../functions/worker.mjs";
 
 import {
@@ -325,8 +334,216 @@ test("UI generate-form-media.js menyediakan tombol Proses URL FB dan tetap membu
     assert.match(mediaJs, /\/api\/fb-media-download/);
     assert.match(mediaJs, /processButton\.className = "generate-fb-process-btn"/);
     assert.match(mediaJs, /processButton\.textContent = "Proses"/);
+    assert.match(mediaJs, /SSSTik/);
     assert.match(mediaJs, /trimPanel\.hidden = false/);
     assert.match(mediaJs, /potong klip video di bawah/i);
     assert.match(mediaCss, /\.generate-fb-process-btn\s*\{/);
     assert.match(mediaCss, /html\[data-genz-theme="light"\]\[data-genz-theme="light"\] body #dynamicFields \.generate-fb-process-btn/);
+});
+
+test("normalizeTikTokUrl, isTikTokMediaUrl & unwrapSsstikMediaUrl menangani link TikTok dan base64 multi-segmen ssscdn/tikcdn", () => {
+    assert.equal(
+        normalizeTikTokUrl("https://www.tiktok.com/@genz_creator/video/7435208327249939713?is_from_webapp=1&sender_device=pc"),
+        "https://www.tiktok.com/@genz_creator/video/7435208327249939713"
+    );
+    assert.equal(
+        normalizeTikTokUrl("vt.tiktok.com/ZSdGG1Y1k/"),
+        "https://vt.tiktok.com/ZSdGG1Y1k/"
+    );
+    assert.equal(
+        normalizeTikTokUrl("https://www.tiktok.com/@genz_creator/photo/7435208327249939713#section"),
+        "https://www.tiktok.com/@genz_creator/photo/7435208327249939713"
+    );
+
+    /* Tautan profil murni (bukan post video/foto) & SSRF harus ditolak */
+    assert.equal(normalizeTikTokUrl("https://www.tiktok.com/@genz_creator"), "");
+    assert.equal(isTikTokMediaUrl("https://vm.tiktok.com/ZMNkqKUce/"), true);
+    assert.equal(isTikTokMediaUrl("http://127.0.0.1/tiktok.com/video/1"), false);
+    assert.equal(isSafeResolvedTikTokMediaUrl("https://v16-webapp-prime.tiktok.com/video/tos/test.mp4"), true);
+    assert.equal(isSafeResolvedTikTokMediaUrl("https://evil.example.com/video.mp4"), false);
+
+    /* Base64 URL dengan karakter '?' menghasilkan '/' di dalam payload Base64 sehingga terpecah multi-segmen */
+    const signedCdnUrl = "https://v16-webapp-prime.tiktokcdn.com/video/tos/alisg/sample.mp4?expire=1799999999&policy=abc?def=1";
+    const encoded = Buffer.from(signedCdnUrl, "utf8").toString("base64");
+    assert.ok(encoded.includes("/"), "Payload uji harus mengandung '/' di dalam Base64");
+
+    const wrappedUrl = `https://ssscdn.io/id/ssstik/${encoded}`;
+    const unwrapped = unwrapSsstikMediaUrl(wrappedUrl);
+    assert.equal(unwrapped.decoded, true);
+    assert.equal(unwrapped.url, signedCdnUrl);
+
+    /* Path proxy opaque tetap dipertahankan tanpa rusak */
+    const opaqueProxy = "https://tikcdn.io/ssstik/7435208327249939713";
+    const unwrappedOpaque = unwrapSsstikMediaUrl(opaqueProxy);
+    assert.equal(unwrappedOpaque.decoded, false);
+    assert.equal(unwrappedOpaque.url, opaqueProxy);
+});
+
+test("resolveTikTokMediaViaSsstik mengambil token s_tt, mem-POST ke ssstik.io/abc?url=dl, dan mengekstrak MP4 tanpa watermark, MP3, serta slide foto", async () => {
+    const directVideoUrl = "https://v16-webapp-prime.tiktokcdn.com/video/tos/alisg/tt_nowm.mp4?exp=123";
+    const directAudioUrl = "https://sf16-ies-music-va.tiktokcdn.com/obj/musically-maliva-obj/741332315.mp3";
+    const coverImgUrl = "https://p16-sign-sg.tiktokcdn.com/tos-alisg-p-0037/cover_hd.jpeg";
+
+    const wrappedVideoHref = `https://tikcdn.io/ssstik/a/${Buffer.from(directVideoUrl).toString("base64")}`;
+    const wrappedAudioHref = `https://tikcdn.io/ssstik/a/${Buffer.from(directAudioUrl).toString("base64")}`;
+
+    const sampleShellHtml = `
+      <!doctype html><html><body>
+        <script>var s_tt = 'RjlGOHU_';</script>
+      </body></html>
+    `;
+    const sampleFragmentHtml = `
+      <style>#mainpicture .result_overlay { background-image: url('${coverImgUrl}'); }</style>
+      <div id="mainpicture">
+        <p class="maintext">Contoh Video TikTok Tanpa Watermark</p>
+        <a class="pure-button dl-button download_link without_watermark vignette_active" href="${wrappedVideoHref}">Tanpa tanda air</a>
+        <a class="pure-button dl-button download_link music vignette_active" href="${wrappedAudioHref}">Unduh MP3</a>
+      </div>
+    `;
+
+    const parsed = parseSsstikHtml(
+        sampleFragmentHtml,
+        new Headers({ "HX-Trigger": "ssssuccess_videoandmp3" })
+    );
+    assert.equal(parsed.signal, "ssssuccess_videoandmp3");
+    assert.equal(parsed.title, "Contoh Video TikTok Tanpa Watermark");
+    assert.equal(parsed.coverUrl, coverImgUrl);
+
+    const calls = [];
+    const mockFetch = async (url, init = {}) => {
+        const u = String(url);
+        calls.push({ url: u, method: init.method || "GET", headers: init.headers, body: init.body });
+        if (u === "https://ssstik.io/id") {
+            return new Response(sampleShellHtml, {
+                status: 200,
+                headers: { "Set-Cookie": "__cf_bm=testcookie123; Path=/" }
+            });
+        }
+        if (u === "https://ssstik.io/abc?url=dl") {
+            return new Response(sampleFragmentHtml, {
+                status: 200,
+                headers: { "HX-Trigger": "ssssuccess_videoandmp3" }
+            });
+        }
+        throw new Error(`Unexpected fetch: ${u}`);
+    };
+
+    const videoResolved = await resolveTikTokMediaViaSsstik(
+        "https://vt.tiktok.com/ZSdGG1Y1k/",
+        { kind: "video", fetchImpl: mockFetch }
+    );
+    assert.equal(calls[0].url, "https://ssstik.io/id");
+    assert.equal(calls[1].url, "https://ssstik.io/abc?url=dl");
+    assert.equal(calls[1].headers["HX-Request"], "true");
+    assert.equal(calls[1].headers["HX-Trigger"], "_gcaptcha_pt");
+    assert.match(calls[1].body, /tt=RjlGOHU_/);
+    assert.equal(videoResolved.candidates[0].url, directVideoUrl);
+    assert.equal(videoResolved.candidates[0].needsClientAudioExtract, false);
+
+    const audioResolved = await resolveTikTokMediaViaSsstik(
+        "https://vt.tiktok.com/ZSdGG1Y1k/",
+        { kind: "audio", fetchImpl: mockFetch }
+    );
+    assert.equal(audioResolved.candidates[0].url, directAudioUrl);
+    assert.equal(audioResolved.candidates[0].needsClientAudioExtract, false);
+
+    const imageResolved = await resolveTikTokMediaViaSsstik(
+        "https://vt.tiktok.com/ZSdGG1Y1k/",
+        { kind: "image", fetchImpl: mockFetch }
+    );
+    assert.equal(imageResolved.candidates[0].url, coverImgUrl);
+});
+
+test("Worker POST /api/fb-media-download & MediaReader memproses URL TikTok lewat SSSTik dan memakai klip hasil cut video untuk Video Referensi", async () => {
+    const env = {
+        SUPABASE_URL: "https://project.supabase.co",
+        SUPABASE_ANON_KEY: "anon-key"
+    };
+    const sampleMp4 = new Uint8Array([0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
+    const origFetch = globalThis.fetch;
+
+    globalThis.fetch = async url => {
+        const u = String(url);
+        if (u === "https://project.supabase.co/auth/v1/user") {
+            return Response.json({ id: "user-owner-1", email: "owner@example.com" });
+        }
+        if (u === "https://ssstik.io/id") {
+            return new Response("<script>var s_tt = 'tok12345';</script>", { status: 200 });
+        }
+        if (u === "https://ssstik.io/abc?url=dl") {
+            return new Response(
+                `<a class="download_link without_watermark" href="https://tikcdn.io/ssstik/7435208327249939713">Tanpa WM</a>`,
+                { status: 200, headers: { "HX-Trigger": "ssssuccess_video" } }
+            );
+        }
+        if (u === "https://tikcdn.io/ssstik/7435208327249939713") {
+            return new Response(sampleMp4, {
+                status: 200,
+                headers: {
+                    "Content-Type": "video/mp4",
+                    "Content-Length": String(sampleMp4.byteLength)
+                }
+            });
+        }
+        throw new Error(`Unexpected global fetch: ${u}`);
+    };
+
+    try {
+        const res = await worker.fetch(
+            new Request("https://gen-z.ai/api/fb-media-download", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer valid-jwt"
+                },
+                body: JSON.stringify({
+                    url: "https://vt.tiktok.com/ZSdGG1Y1k/",
+                    kind: "video"
+                })
+            }),
+            env,
+            null
+        );
+
+        assert.equal(res.status, 200);
+        assert.equal(res.headers.get("content-type"), "video/mp4");
+        assert.equal(res.headers.get("x-fb-media-source"), "ssstik.io");
+        assert.equal(res.headers.get("x-social-media-provider"), "tiktok");
+        assert.match(res.headers.get("x-fb-media-filename") || "", /^tiktok-video-\d+\.mp4$/);
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        assert.deepEqual(bytes, sampleMp4);
+    } finally {
+        globalThis.fetch = origFetch;
+    }
+
+    const ttLink = "https://vt.tiktok.com/ZSdGG1Y1k/";
+
+    /* Belum klik Proses -> ditolak dengan pesan SSSTik */
+    await assert.rejects(
+        resolveVideoParameterValue({
+            dataset: { videoMode: "url" },
+            getInputMode: () => "url",
+            getUrlInput: () => ({ value: ttLink }),
+            getUploadedUrl: () => ""
+        }),
+        /Link TikTok.*Klik tombol “Proses” terlebih dahulu.*SSSTik/
+    );
+
+    /* Sudah klik Proses lalu dipotong di VIDEO EDITOR -> hasil akhir potongan dipakai sebagai Video Referensi */
+    const fullTtSaved = "https://project.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/tiktok-full.mp4?token=1";
+    const cutTtSaved = "https://project.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/tiktok-clip.mp4?token=2";
+    const ttVideoInput = {
+        dataset: {
+            videoMode: "url",
+            fbProcessedForUrl: ttLink,
+            uploadedUrl: fullTtSaved
+        },
+        getInputMode: () => "url",
+        getUrlInput: () => ({ value: ttLink }),
+        getUploadedUrl: () => ttVideoInput.dataset.uploadedUrl
+    };
+
+    assert.deepEqual(await resolveVideoParameterValue(ttVideoInput), [fullTtSaved]);
+    ttVideoInput.dataset.uploadedUrl = cutTtSaved;
+    assert.deepEqual(await resolveVideoParameterValue(ttVideoInput), [cutTtSaved]);
 });

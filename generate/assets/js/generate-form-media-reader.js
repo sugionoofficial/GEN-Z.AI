@@ -63,7 +63,7 @@ function errorLog(...args) {
 
 
 /* =========================================================
-   FACEBOOK URL HELPER
+   FACEBOOK & TIKTOK URL HELPER
 ========================================================= */
 
 export function isFacebookMediaUrl(rawUrl) {
@@ -89,14 +89,49 @@ export function isFacebookMediaUrl(rawUrl) {
     }
 }
 
-async function resolveProcessedFacebookUrl(mediaInput, rawUrl, uploadPromiseKey, label) {
+export function isTikTokMediaUrl(rawUrl) {
+    let candidate = String(rawUrl || "").trim();
+    if (!candidate) return false;
+    if (
+        !/^https?:\/\//i.test(candidate) &&
+        /^(?:(?:www|m|vt|vm|t|lite)\.)?(?:tiktok\.com|xzcs3zlph\.com)\//i.test(candidate)
+    ) {
+        candidate = `https://${candidate}`;
+    }
+    try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            return false;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        const matched = ["tiktok.com", "xzcs3zlph.com"].some(
+            suffix => host === suffix || host.endsWith(`.${suffix}`)
+        );
+        if (!matched) return false;
+        const pathname = parsed.pathname.replace(/\/+$/, "");
+        const hasQueryId = parsed.searchParams.has("item_id") || parsed.searchParams.has("shareId");
+        if (!pathname && !hasQueryId) return false;
+        if (/^\/@[^/]+$/i.test(pathname) && !hasQueryId) return false;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export function detectSocialMediaUrlProvider(rawUrl) {
+    if (isFacebookMediaUrl(rawUrl)) return "facebook";
+    if (isTikTokMediaUrl(rawUrl)) return "tiktok";
+    return "";
+}
+
+async function resolveProcessedSocialMediaUrl(mediaInput, rawUrl, uploadPromiseKey, label) {
     if (
         mediaInput?._fbProcessPromise &&
         typeof mediaInput._fbProcessPromise.then === "function"
     ) {
         await awaitWithTimeout(
             mediaInput._fbProcessPromise,
-            `${label} fb process`,
+            `${label} social process`,
             UPLOAD_TIMEOUT_MS * 2
         );
     }
@@ -121,8 +156,12 @@ async function resolveProcessedFacebookUrl(mediaInput, rawUrl, uploadPromiseKey,
         return uploadedUrl;
     }
 
+    const provider = detectSocialMediaUrlProvider(rawUrl);
+    const platformName = provider === "tiktok" ? "TikTok" : "Facebook";
+    const serviceName = provider === "tiktok" ? "SSSTik" : "GetMyFB";
+
     throw new Error(
-        `Link Facebook pada kolom ${label} belum diproses. Klik tombol “Proses” terlebih dahulu untuk mengunduh & menyimpan media lewat GetMyFB sebelum Generate.`
+        `Link ${platformName} pada kolom ${label} belum diproses. Klik tombol “Proses” terlebih dahulu untuk mengunduh & menyimpan media lewat ${serviceName} sebelum Generate.`
     );
 }
 
@@ -505,8 +544,8 @@ export async function resolveImageParameterValue(
         if (cleaned.length > 0) {
             const resolvedUrls = [];
             for (const candidateUrl of cleaned) {
-                if (isFacebookMediaUrl(candidateUrl)) {
-                    const processedUrl = await resolveProcessedFacebookUrl(
+                if (detectSocialMediaUrlProvider(candidateUrl)) {
+                    const processedUrl = await resolveProcessedSocialMediaUrl(
                         imageInput,
                         candidateUrl,
                         "_imageUploadPromise",
@@ -764,8 +803,8 @@ export async function resolveAudioParameterValue(audioInput) {
 
 
         if (value) {
-            if (isFacebookMediaUrl(value)) {
-                return await resolveProcessedFacebookUrl(
+            if (detectSocialMediaUrlProvider(value)) {
+                return await resolveProcessedSocialMediaUrl(
                     audioInput,
                     value,
                     "_audioUploadPromise",
@@ -1031,8 +1070,8 @@ export async function resolveVideoParameterValue(
         if (cleaned.length > 0) {
             const resolvedUrls = [];
             for (const candidateUrl of cleaned) {
-                if (isFacebookMediaUrl(candidateUrl)) {
-                    const processedUrl = await resolveProcessedFacebookUrl(
+                if (detectSocialMediaUrlProvider(candidateUrl)) {
+                    const processedUrl = await resolveProcessedSocialMediaUrl(
                         videoInput,
                         candidateUrl,
                         "_videoUploadPromise",

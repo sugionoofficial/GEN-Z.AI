@@ -71,8 +71,8 @@ export default {
             return handleTempmail(request, env);
         }
 
-        // Route unduh & proses URL Facebook lewat GetMyFB (video/foto/audio referensi)
-        if (pathname === "/api/fb-media-download") {
+        // Route unduh & proses URL Facebook (GetMyFB) dan TikTok (SSSTik) untuk referensi media
+        if (pathname === "/api/fb-media-download" || pathname === "/api/social-media-download") {
             return handleFbMediaDownload(request, env);
         }
 
