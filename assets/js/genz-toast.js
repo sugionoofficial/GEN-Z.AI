@@ -780,4 +780,43 @@
         downloadFallback,
         downloadFailure
     });
+
+    /*
+     * Pastikan security-beacon.js ikut aktif di seluruh halaman situs
+     * (termasuk halaman publik/login/admin yang tidak memuat navigation.js),
+     * tanpa mengganggu pengujian VM minimal.
+     */
+    try {
+        const monitoringOff =
+            document &&
+            document.documentElement &&
+            document.documentElement.dataset &&
+            document.documentElement.dataset.genzMonitoring === "off";
+
+        if (
+            !monitoringOff &&
+            !window.__GENZ_MONITOR_SCRIPT_LOADING &&
+            !window.__GENZ_BEACON_ACTIVE &&
+            window.GENZ_MONITOR_CONFIG?.enabled !== false &&
+            window.location &&
+            /^https?:$/i.test(String(window.location.protocol || "")) &&
+            document &&
+            document.head &&
+            typeof document.head.appendChild === "function" &&
+            typeof document.createElement === "function" &&
+            (!document.querySelector ||
+                !document.querySelector('script[src*="security-beacon.js"]'))
+        ) {
+            window.__GENZ_MONITOR_SCRIPT_LOADING = true;
+            const monitorScript = document.createElement("script");
+            monitorScript.src = "/assets/js/security-beacon.js?v=beacon-20261101-lockdown";
+            monitorScript.defer = true;
+            monitorScript.onerror = () => {
+                window.__GENZ_MONITOR_SCRIPT_LOADING = false;
+            };
+            document.head.appendChild(monitorScript);
+        }
+    } catch {
+        /* abaikan di lingkungan pengujian VM minimal */
+    }
 })();

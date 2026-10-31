@@ -638,6 +638,10 @@ function renderSettings(settings) {
 
     $("monDevtoolsAlerts").checked = settings.devtools_alerts !== false;
     $("monErrorAlerts").checked = settings.error_alerts !== false;
+    const lockdownToggle = $("monDevtoolsLockdown");
+    if (lockdownToggle) {
+        lockdownToggle.checked = settings.devtools_lockdown !== false;
+    }
 
     const interval = Number(settings.scan_interval_minutes) || 15;
     const last = settings.last_scan_at ? new Date(settings.last_scan_at).getTime() : 0;
@@ -1463,6 +1467,7 @@ async function saveSettings() {
     button.disabled = true;
 
     try {
+        const lockdownToggle = $("monDevtoolsLockdown");
         await api("update-settings", {
             method: "POST",
             body: {
@@ -1470,7 +1475,8 @@ async function saveSettings() {
                 retention_days: Number($("monRetention").value),
                 max_events: Number($("monMaxEvents").value),
                 devtools_alerts: $("monDevtoolsAlerts").checked,
-                error_alerts: $("monErrorAlerts").checked
+                error_alerts: $("monErrorAlerts").checked,
+                devtools_lockdown: lockdownToggle ? lockdownToggle.checked : true
             }
         });
 

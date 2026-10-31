@@ -206,6 +206,8 @@ async function handleIngest(req, res, config, fetchImpl) {
      * user_id dari browser tetap disimpan tetapi ditandai belum terverifikasi.
      */
     let verifiedUserId = null;
+    let verifiedEmail = null;
+    let verifiedRole = "";
     const token = bearer(req);
 
     if (token) {
@@ -216,10 +218,18 @@ async function handleIngest(req, res, config, fetchImpl) {
             if (verify.ok) {
                 const account = await verify.json();
                 verifiedUserId = normalizeUserId(account?.id);
+                verifiedEmail = typeof account?.email === "string" && account.email.trim()
+                    ? account.email.trim()
+                    : null;
             }
         } catch {
             /* token tidak bisa diverifikasi — lanjut sebagai klaim browser */
         }
+    }
+
+    if (verifiedUserId) {
+        const profile = await loadProfile(config, verifiedUserId, fetchImpl).catch(() => null);
+        verifiedRole = String(profile?.role || "").trim().toLowerCase();
     }
 
     const agent = parseUserAgent(network.user_agent);
@@ -238,18 +248,40 @@ async function handleIngest(req, res, config, fetchImpl) {
         os: agent.os
     };
 
-    await dbRequest(
-        config,
-        "/monitoring_events",
-        {
-            method: "POST",
-            headers: { Prefer: "return=minimal" },
-            body: JSON.stringify(row)
-        },
-        fetchImpl
-    );
+    const [, settings] = await Promise.all([
+        dbRequest(
+            config,
+            "/monitoring_events",
+            {
+                method: "POST",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify(row)
+            },
+            fetchImpl
+        ),
+        fetchSettings(config, fetchImpl).catch(() => null)
+    ]);
 
-    return send(res, 202, { success: true });
+    const devtoolsLockdown = settings ? settings.devtools_lockdown !== false : true;
+
+    return send(res, 202, {
+        success: true,
+        devtools_lockdown: devtoolsLockdown,
+        viewer: {
+            is_owner: verifiedRole === "owner",
+            role: verifiedRole || (verifiedUserId ? "user" : "guest"),
+            email: verifiedEmail,
+            ip: network.ip || "",
+            city: network.city || "",
+            region: network.region || "",
+            country: network.country || "",
+            asn: network.asn || "",
+            colo: network.colo || "",
+            browser: agent.browser || "",
+            os: agent.os || "",
+            device: agent.device || ""
+        }
+    });
 }
 
 /* ---------------------------------------------------------
@@ -581,6 +613,7 @@ export function normalizeSettingsInput(body = {}) {
             max_events: Math.round(maxEvents),
             devtools_alerts: body.devtools_alerts !== false,
             error_alerts: body.error_alerts !== false,
+            devtools_lockdown: body.devtools_lockdown !== false,
             updated_at: new Date().toISOString()
         }
     };

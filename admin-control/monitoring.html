@@ -543,6 +543,11 @@
 
             <div class="mon-form-foot">
 
+                <label class="mon-switch" title="Putus koneksi halaman & tampilkan layar putih peringatan hacker + detail IP bila pengunjung selain OWNER membuka DevTools">
+                    <input type="checkbox" id="monDevtoolsLockdown" checked>
+                    PROTEKSI ANTI-DEVTOOLS (NON-OWNER)
+                </label>
+
                 <label class="mon-switch">
                     <input type="checkbox" id="monDevtoolsAlerts" checked>
                     ALERT DEVTOOLS
@@ -1013,10 +1018,10 @@
      MONITORING
 ====================================================== -->
 
-<script type="module" src="./monitoring.js?v=monitoring-20261031-fc16x9"></script>
+<script type="module" src="./monitoring.js?v=monitoring-20261101-lockdown"></script>
 
 <!-- Penangkap aktivitas halaman ini sendiri (error + DevTools). -->
-<script src="/assets/js/security-beacon.js?v=beacon-20261029-7" defer></script>
+<script src="/assets/js/security-beacon.js?v=beacon-20261101-lockdown" defer></script>
 
 <script src="/assets/js/support-chat.js?v=touch-close-20261029" defer></script>
 

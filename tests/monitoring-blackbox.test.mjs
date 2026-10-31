@@ -1450,3 +1450,91 @@ test("kendali Claim 5.000 Credit Gratis & kalkulasi crop 16:9 di halaman Monitor
     assert.equal(Date.parse(roundtripIso), Date.parse(sampleIso));
 });
 
+test("ingest mengembalikan devtools_lockdown serta viewer IP/jaringan & verifikasi is_owner hanya untuk OWNER", async () => {
+    const original = globalThis.fetch;
+    let currentRole = "owner";
+    let currentLockdown = true;
+
+    globalThis.fetch = async input => {
+        const url = String(input);
+        if (url.includes("/auth/v1/user")) {
+            return Response.json({
+                id: "c237fcef-6456-451e-ae98-691f2dabb60d",
+                email: `${currentRole}@genz.ai`
+            });
+        }
+        if (url.includes("/rest/v1/profiles")) {
+            return Response.json([
+                {
+                    id: "c237fcef-6456-451e-ae98-691f2dabb60d",
+                    role: currentRole,
+                    name: "Tester"
+                }
+            ]);
+        }
+        if (url.includes("/rest/v1/monitoring_settings")) {
+            return Response.json([baseSettings({ devtools_lockdown: currentLockdown })]);
+        }
+        if (url.includes("/rest/v1/monitoring_events")) {
+            return new Response(null, { status: 201 });
+        }
+        return Response.json({});
+    };
+
+    try {
+        const ownerRes = await call(
+            makeReq({
+                method: "POST",
+                action: "ingest",
+                cf: { city: "Depok", region: "West Java", country: "ID", asn: 7713, colo: "CGK" },
+                body: { kind: "page_view", path: "/generate/index.html", message: "Halaman dibuka." }
+            })
+        );
+        assert.equal(ownerRes.status, 202);
+        assert.equal(ownerRes.json.devtools_lockdown, true);
+        assert.equal(ownerRes.json.viewer.is_owner, true);
+        assert.equal(ownerRes.json.viewer.role, "owner");
+        assert.equal(ownerRes.json.viewer.email, "owner@genz.ai");
+        assert.equal(ownerRes.json.viewer.ip, "203.0.113.9");
+        assert.equal(ownerRes.json.viewer.city, "Depok");
+        assert.equal(ownerRes.json.viewer.asn, "AS7713");
+
+        currentRole = "admin";
+        currentLockdown = false;
+        const adminRes = await call(
+            makeReq({
+                method: "POST",
+                action: "ingest",
+                body: { kind: "devtools", path: "/generate/index.html", message: "DevTools dibuka." }
+            })
+        );
+        assert.equal(adminRes.status, 202);
+        assert.equal(adminRes.json.devtools_lockdown, false);
+        assert.equal(adminRes.json.viewer.is_owner, false, "ADMIN bukan OWNER untuk pengecualian DevTools");
+        assert.equal(adminRes.json.viewer.role, "admin");
+    } finally {
+        globalThis.fetch = original;
+    }
+});
+
+test("pengaturan BLACK BOX mendukung saklar PROTEKSI ANTI-DEVTOOLS (devtools_lockdown)", () => {
+    const enabled = normalizeSettingsInput({ scan_interval_minutes: 15, retention_days: 30 });
+    assert.equal(enabled.value.devtools_lockdown, true);
+
+    const disabled = normalizeSettingsInput({
+        scan_interval_minutes: 15,
+        retention_days: 30,
+        devtools_lockdown: false
+    });
+    assert.equal(disabled.value.devtools_lockdown, false);
+
+    const sql = read("supabase/monitoring-blackbox.sql");
+    const page = read("admin-control/monitoring.html");
+    const script = read("admin-control/monitoring.js");
+
+    assert.match(sql, /devtools_lockdown boolean not null default true/);
+    assert.match(page, /id="monDevtoolsLockdown"/);
+    assert.match(script, /devtools_lockdown/);
+});
+
+
