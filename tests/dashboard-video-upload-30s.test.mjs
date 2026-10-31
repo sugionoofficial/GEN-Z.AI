@@ -258,4 +258,53 @@ test("dashboard-config.js modular juga menormalisasi MIME video mobile dengan be
     assert.equal(api.isVideoFile({ name: "clip30s.m4v", type: "video/x-m4v" }), true);
     assert.equal(api.resolveVideoMimeType({ name: "clip30s.mp4", type: "video/mp4; codecs=avc1" }), "video/mp4");
     assert.equal(api.isVideoFile({ name: "malware.exe", type: "" }), false);
+
+    const catLabels = api.config.categories.map(item => item.label);
+    assert.ok(catLabels.includes("MOTION CONTROL"));
+    assert.ok(catLabels.includes("VLOG DAILY"));
+    assert.ok(catLabels.includes("DRAMA"));
 });
+
+test("Video Examples di user/dashboard.html mendukung kategori Motion Control, Vlog Daily, dan Drama pada filter & modal upload/edit", () => {
+    for (const [slug, label] of [
+        ["motion-control", "MOTION CONTROL"],
+        ["vlog-daily", "VLOG DAILY"],
+        ["drama", "DRAMA"]
+    ]) {
+        assert.match(
+            dashboardHtml,
+            new RegExp(`<button[\\s\\S]*?data-category="${slug}"[\\s\\S]*?>\\s*${label}\\s*<\\/button>`),
+            `Tombol filter kategori ${label} wajib tersedia`
+        );
+        assert.match(
+            dashboardHtml,
+            new RegExp(`<option value="${slug}">\\s*${label}\\s*<\\/option>`),
+            `Pilihan select modal kategori ${label} wajib tersedia`
+        );
+    }
+
+    const scriptBody = extractMainDashboardScript(dashboardHtml);
+    const normMatch = scriptBody.match(/function normalizeCategoryKey\([\s\S]*?\n\}/);
+    const labelMatch = scriptBody.match(/function categoryLabel\([\s\S]*?\n\}/);
+    assert.ok(normMatch && labelMatch, "normalizeCategoryKey & categoryLabel harus tersedia");
+
+    const ctx = vm.createContext({
+        escapeHtml: val => String(val)
+    });
+    vm.runInContext(
+        `${normMatch[0]}\n${labelMatch[0]}\nthis.__cat = { normalizeCategoryKey, categoryLabel };`,
+        ctx
+    );
+
+    const { normalizeCategoryKey, categoryLabel } = ctx.__cat;
+    assert.equal(normalizeCategoryKey("motion-control"), "motion-control");
+    assert.equal(normalizeCategoryKey("Motion Control"), "motion-control");
+    assert.equal(normalizeCategoryKey("vlog_daily"), "vlog-daily");
+    assert.equal(normalizeCategoryKey("Vlog Daily"), "vlog-daily");
+    assert.equal(normalizeCategoryKey("drama"), "drama");
+
+    assert.equal(categoryLabel("motion-control"), "MOTION CONTROL");
+    assert.equal(categoryLabel("vlog-daily"), "VLOG DAILY");
+    assert.equal(categoryLabel("drama"), "DRAMA");
+});
+

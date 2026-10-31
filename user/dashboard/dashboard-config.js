@@ -113,6 +113,18 @@
             {
                 value: "STORY",
                 label: "STORY"
+            },
+            {
+                value: "MOTION CONTROL",
+                label: "MOTION CONTROL"
+            },
+            {
+                value: "VLOG DAILY",
+                label: "VLOG DAILY"
+            },
+            {
+                value: "DRAMA",
+                label: "DRAMA"
             }
         ],
 
