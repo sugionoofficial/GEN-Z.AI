@@ -68,6 +68,42 @@ values (1, encode(extensions.gen_random_bytes(32), 'hex'))
 on conflict (id) do nothing;
 
 /* ---------------------------------------------------------
+   2B. KONFIGURASI ON/OFF & BANNER 16:9 CLAIM FREE CREDIT 5.000
+       (Dikelola dari halaman Monitoring oleh ADMIN / OWNER)
+--------------------------------------------------------- */
+
+create table if not exists public.free_credit_settings (
+    id smallint primary key default 1 check (id = 1),
+    claim_enabled boolean not null default true,
+    banner_image_url text,
+    updated_at timestamptz not null default now(),
+    updated_by uuid references auth.users(id) on delete set null
+);
+
+alter table public.free_credit_settings
+    add column if not exists claim_enabled boolean not null default true,
+    add column if not exists banner_image_url text,
+    add column if not exists updated_at timestamptz not null default now(),
+    add column if not exists updated_by uuid references auth.users(id) on delete set null;
+
+alter table public.free_credit_settings enable row level security;
+
+revoke all on table public.free_credit_settings from public, anon, authenticated;
+grant select on table public.free_credit_settings to authenticated;
+grant all on table public.free_credit_settings to service_role;
+
+drop policy if exists "Admins can read free credit settings" on public.free_credit_settings;
+create policy "Admins can read free credit settings"
+    on public.free_credit_settings
+    for select
+    to authenticated
+    using (public.is_admin_or_owner());
+
+insert into public.free_credit_settings (id, claim_enabled)
+values (1, true)
+on conflict (id) do nothing;
+
+/* ---------------------------------------------------------
    3. HELPER NORMALISASI EMAIL & HMAC PASSWORD
 --------------------------------------------------------- */
 
@@ -483,10 +519,24 @@ set search_path to 'public'
 as $$
 declare
     v_claim record;
+    v_settings record;
     v_has_pw boolean := false;
+    v_enabled boolean := true;
+    v_banner_url text := null;
 begin
     if p_user_id is null then
         return jsonb_build_object('ok', false, 'code', 'unauthorized');
+    end if;
+
+    select s.claim_enabled, s.banner_image_url
+      into v_settings
+      from public.free_credit_settings s
+     where s.id = 1
+     limit 1;
+
+    if found then
+        v_enabled := coalesce(v_settings.claim_enabled, true);
+        v_banner_url := nullif(btrim(coalesce(v_settings.banner_image_url, '')), '');
     end if;
 
     select c.id, c.credit_amount, c.claimed_at
@@ -504,6 +554,8 @@ begin
 
     return jsonb_build_object(
         'ok', true,
+        'claim_enabled', v_enabled,
+        'banner_image_url', v_banner_url,
         'credit_amount', 5000,
         'claimed', (v_claim.id is not null),
         'claimed_at', v_claim.claimed_at,
@@ -562,12 +614,48 @@ declare
     v_tmp_claim_id uuid := null;
     v_claim_id uuid;
     v_new_balance integer;
+    v_claim_enabled boolean := true;
 begin
     -- Kunci serialisasi atomik agar klaim paralel serentak tidak pernah lolos ganda
     perform pg_advisory_xact_lock(75005000);
 
     if p_user_id is null then
         return jsonb_build_object('ok', false, 'code', 'unauthorized');
+    end if;
+
+    -- Cek sakelar On/Off global dari halaman Monitoring
+    select coalesce(s.claim_enabled, true)
+      into v_claim_enabled
+      from public.free_credit_settings s
+     where s.id = 1
+     limit 1;
+
+    if not coalesce(v_claim_enabled, true) then
+        select u.id, u.email
+          into v_user
+          from auth.users u
+         where u.id = p_user_id
+         limit 1;
+
+        insert into public.free_credit_claim_attempts (
+            user_id, attempted_user_id, email_exact, email_canonical,
+            ip_address, ip_subnet, browser_fingerprint, browser_install_id,
+            user_agent, browser_summary, country, city,
+            status, rejection_reason, matched_reasons
+        ) values (
+            case when v_user.id is not null then p_user_id else null end,
+            p_user_id,
+            nullif(lower(btrim(coalesce(v_user.email, ''))), ''),
+            nullif(public.normalize_free_credit_email(v_user.email), ''),
+            v_ip, v_subnet, v_bfp, v_bid, v_ua, v_bsum, v_country, v_city,
+            'rejected', 'feature_disabled', array['feature_disabled']
+        );
+
+        return jsonb_build_object(
+            'ok', false,
+            'code', 'feature_disabled',
+            'matched_reasons', array['feature_disabled']
+        );
     end if;
 
     select u.id,

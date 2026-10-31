@@ -12,6 +12,7 @@
  */
 
 const ENDPOINT = "/api/monitoring";
+const FREE_CREDIT_ENDPOINT = "/api/free-credit";
 const REFRESH_MS = 10000;
 
 const LOG_LIMIT_OPTIONS = [50, 100, 500];
@@ -34,6 +35,16 @@ const state = {
     events: [],
     accessRows: [],
     settings: null,
+    freeCredit: {
+        claim_enabled: true,
+        banner_image_url: null,
+        updated_at: null,
+        claims_count: 0,
+        rejected_count: 0
+    },
+    fcSaving: false,
+    fcPendingImage: null,
+    fcPendingObjectUrl: "",
     serverTime: null,
     lastLogSignature: "",
     lastLogError: "",
@@ -108,6 +119,51 @@ async function api(action, options = {}) {
 
     if (!response.ok || data.success !== true) {
         throw new Error(data.error || `Permintaan gagal (HTTP ${response.status}).`);
+    }
+
+    return data;
+}
+
+async function freeCreditApi(action, options = {}) {
+    const token = await accessToken();
+    const params = new URLSearchParams({ action });
+
+    for (const [key, value] of Object.entries(options.query || {})) {
+        if (value === undefined || value === null || value === "") continue;
+        params.set(key, String(value));
+    }
+
+    const headers = {
+        Authorization: `Bearer ${token}`
+    };
+
+    let requestBody;
+    if (options.rawBody !== undefined) {
+        if (options.contentType) {
+            headers["Content-Type"] = options.contentType;
+        }
+        requestBody = options.rawBody;
+    } else if (options.body !== undefined) {
+        headers["Content-Type"] = "application/json";
+        requestBody = JSON.stringify(options.body);
+    }
+
+    const response = await fetch(`${FREE_CREDIT_ENDPOINT}?${params.toString()}`, {
+        method: options.method || "GET",
+        headers,
+        ...(requestBody !== undefined ? { body: requestBody } : {})
+    });
+
+    const text = await response.text();
+    let data = {};
+    try {
+        data = text ? JSON.parse(text) : {};
+    } catch {
+        data = {};
+    }
+
+    if (!response.ok || data.ok !== true) {
+        throw new Error(data.error || `Permintaan klaim kredit gagal (HTTP ${response.status}).`);
     }
 
     return data;
@@ -594,6 +650,366 @@ function renderSettings(settings) {
 }
 
 /* ---------------------------------------------------------
+   KENDALI CLAIM 5.000 CREDIT GRATIS & BANNER 16:9
+   --------------------------------------------------------- */
+
+function compute16x9CropRect(srcWidth, srcHeight, offsetPercent = 50) {
+    const w = Math.max(1, Number(srcWidth) || 1);
+    const h = Math.max(1, Number(srcHeight) || 1);
+    const pct = Math.min(100, Math.max(0, Number.isFinite(Number(offsetPercent)) ? Number(offsetPercent) : 50));
+    const targetRatio = 16 / 9;
+    const srcRatio = w / h;
+
+    if (Math.abs(srcRatio - targetRatio) < 0.005) {
+        return { sx: 0, sy: 0, sw: w, sh: h, axis: "exact" };
+    }
+
+    if (srcRatio > targetRatio) {
+        const sh = h;
+        const sw = Math.max(1, Math.round(h * targetRatio));
+        const maxX = Math.max(0, w - sw);
+        const sx = Math.round((maxX * pct) / 100);
+        return { sx, sy: 0, sw, sh, axis: "horizontal" };
+    }
+
+    const sw = w;
+    const sh = Math.max(1, Math.round(w / targetRatio));
+    const maxY = Math.max(0, h - sh);
+    const sy = Math.round((maxY * pct) / 100);
+    return { sx: 0, sy, sw, sh, axis: "vertical" };
+}
+
+function renderFreeCreditBannerPreview(bannerUrl) {
+    const img = $("monFcPreviewImg");
+    const def = $("monFcPreviewDefault");
+    const canvas = $("monFcCropCanvas");
+    const meta = $("monFcBannerMeta");
+    const removeBtn = $("monFcRemoveBannerBtn");
+
+    if (!img || !def) return;
+    if (canvas) canvas.hidden = true;
+
+    const clean = typeof bannerUrl === "string" ? bannerUrl.trim() : "";
+    if (clean && /^https:\/\//i.test(clean)) {
+        def.hidden = true;
+        img.hidden = false;
+        if (img.getAttribute("src") !== clean) {
+            img.src = clean;
+        }
+        if (meta) meta.textContent = "GAMBAR 16:9 AKTIF";
+        if (removeBtn) removeBtn.hidden = false;
+    } else {
+        img.hidden = true;
+        img.removeAttribute("src");
+        def.hidden = false;
+        if (meta) meta.textContent = "DEFAULT LUXURY ART";
+        if (removeBtn) removeBtn.hidden = true;
+    }
+}
+
+function renderFreeCredit(fcData) {
+    if (!fcData || typeof fcData !== "object") return;
+
+    state.freeCredit = {
+        ...state.freeCredit,
+        ...fcData,
+        claim_enabled: fcData.claim_enabled !== false,
+        banner_image_url: fcData.banner_image_url || null
+    };
+
+    const claimsEl = $("monFcClaimsCount");
+    const rejectedEl = $("monFcRejectedCount");
+    const updatedEl = $("monFcUpdatedAt");
+
+    if (claimsEl && fcData.claims_count !== undefined) {
+        claimsEl.textContent = String(Number(fcData.claims_count) || 0);
+    }
+    if (rejectedEl && fcData.rejected_count !== undefined) {
+        rejectedEl.textContent = String(Number(fcData.rejected_count) || 0);
+    }
+    if (updatedEl) {
+        updatedEl.textContent = state.freeCredit.updated_at
+            ? formatDateTime(state.freeCredit.updated_at)
+            : "Bawaan aktif";
+    }
+
+    if (!state.fcSaving) {
+        const enabled = state.freeCredit.claim_enabled !== false;
+        const toggle = $("monFcEnabledToggle");
+        const switchLabel = $("monFcSwitchLabel");
+        const badge = $("monFcStatusBadge");
+        const desc = $("monFcStateDesc");
+
+        if (toggle) toggle.checked = enabled;
+        if (switchLabel) {
+            switchLabel.textContent = enabled
+                ? "CLAIM 5.000 CREDIT GRATIS: ON"
+                : "CLAIM 5.000 CREDIT GRATIS: OFF";
+        }
+        if (badge) {
+            badge.className = `mon-tag ${enabled ? "mon-tag--on" : "mon-tag--off"}`;
+            badge.textContent = enabled
+                ? "AKTIF · TAMPIL DI AKUN USER"
+                : "NONAKTIF · DISEMBUNYIKAN";
+        }
+        if (desc) {
+            desc.textContent = enabled
+                ? "Kartu mewah Claim 5.000 Credit Gratis sedang AKTIF dan tampil di Dashboard, Top Up, serta Credit Usage akun user."
+                : "Kartu Claim 5.000 Credit Gratis sedang NONAKTIF (disembunyikan dari seluruh akun user & klaim baru ditolak server).";
+        }
+    }
+
+    if (!state.fcSaving && !state.fcPendingImage) {
+        renderFreeCreditBannerPreview(state.freeCredit.banner_image_url);
+    }
+}
+
+function clearPendingBannerCrop() {
+    if (state.fcPendingObjectUrl && typeof URL !== "undefined" && URL.revokeObjectURL) {
+        try {
+            URL.revokeObjectURL(state.fcPendingObjectUrl);
+        } catch {
+            /* abaikan */
+        }
+    }
+    state.fcPendingImage = null;
+    state.fcPendingObjectUrl = "";
+
+    const cropBox = $("monFcCropBox");
+    const input = $("monFcBannerInput");
+    if (cropBox) cropBox.hidden = true;
+    if (input) input.value = "";
+
+    renderFreeCreditBannerPreview(state.freeCredit.banner_image_url);
+}
+
+function drawPendingCropToCanvas() {
+    const img = state.fcPendingImage;
+    const canvas = $("monFcCropCanvas");
+    const previewImg = $("monFcPreviewImg");
+    const previewDef = $("monFcPreviewDefault");
+    const slider = $("monFcCropOffset");
+
+    if (!img || !canvas) return null;
+
+    const offset = slider ? Number(slider.value) : 50;
+    const rect = compute16x9CropRect(img.naturalWidth || img.width, img.naturalHeight || img.height, offset);
+
+    canvas.width = 1600;
+    canvas.height = 900;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, canvas.width, canvas.height);
+
+    if (previewImg) previewImg.hidden = true;
+    if (previewDef) previewDef.hidden = true;
+    canvas.hidden = false;
+
+    return canvas;
+}
+
+function canvasToBannerBlob(canvas) {
+    return new Promise((resolve, reject) => {
+        if (!canvas || typeof canvas.toBlob !== "function") {
+            reject(new Error("Browser tidak mendukung konversi gambar 16:9."));
+            return;
+        }
+        canvas.toBlob(
+            webpBlob => {
+                if (webpBlob && webpBlob.size > 0) {
+                    resolve({ blob: webpBlob, mime: "image/webp" });
+                    return;
+                }
+                canvas.toBlob(
+                    jpegBlob => {
+                        if (jpegBlob && jpegBlob.size > 0) {
+                            resolve({ blob: jpegBlob, mime: "image/jpeg" });
+                        } else {
+                            reject(new Error("Gagal menyiapkan file gambar 16:9."));
+                        }
+                    },
+                    "image/jpeg",
+                    0.9
+                );
+            },
+            "image/webp",
+            0.9
+        );
+    });
+}
+
+async function setFreeCreditUiBusy(isBusy) {
+    state.fcSaving = isBusy;
+    for (const id of [
+        "monFcEnabledToggle",
+        "monFcUploadBtn",
+        "monFcRemoveBannerBtn",
+        "monFcCropApply",
+        "monFcCropCancel"
+    ]) {
+        const node = $(id);
+        if (node) node.disabled = isBusy;
+    }
+}
+
+async function handleToggleFreeCredit() {
+    const toggle = $("monFcEnabledToggle");
+    if (!toggle || state.fcSaving) return;
+
+    const desired = Boolean(toggle.checked);
+    await setFreeCreditUiBusy(true);
+
+    try {
+        const res = await freeCreditApi("update-settings", {
+            method: "POST",
+            body: { claim_enabled: desired }
+        });
+        await setFreeCreditUiBusy(false);
+        renderFreeCredit(res.settings || { claim_enabled: desired });
+        toast(
+            desired
+                ? "Claim 5.000 Credit Gratis DIAKTIFKAN di akun user."
+                : "Claim 5.000 Credit Gratis DINONAKTIFKAN.",
+            "ok"
+        );
+    } catch (error) {
+        await setFreeCreditUiBusy(false);
+        renderFreeCredit(state.freeCredit);
+        toast(error.message, "error");
+    }
+}
+
+async function uploadFreeCreditCanvas16x9() {
+    if (state.fcSaving) return;
+    const canvas = drawPendingCropToCanvas();
+    if (!canvas) return;
+
+    await setFreeCreditUiBusy(true);
+    const uploadBtn = $("monFcUploadBtn");
+    const applyBtn = $("monFcCropApply");
+    if (uploadBtn) uploadBtn.textContent = "Mengunggah 16:9…";
+    if (applyBtn) applyBtn.textContent = "Mengunggah 16:9…";
+
+    try {
+        const { blob, mime } = await canvasToBannerBlob(canvas);
+        const bytes = await blob.arrayBuffer();
+        const res = await freeCreditApi("upload-banner", {
+            method: "POST",
+            rawBody: bytes,
+            contentType: mime
+        });
+
+        clearPendingBannerCrop();
+        await setFreeCreditUiBusy(false);
+        renderFreeCredit(
+            res.settings || {
+                ...state.freeCredit,
+                banner_image_url: res.banner_image_url
+            }
+        );
+        toast("Gambar banner 16:9 berhasil disimpan dan tampil di kartu user.", "ok");
+    } catch (error) {
+        await setFreeCreditUiBusy(false);
+        toast(error.message, "error");
+    } finally {
+        if (uploadBtn) uploadBtn.textContent = "Upload Gambar 16:9";
+        if (applyBtn) applyBtn.textContent = "Simpan Gambar 16:9";
+    }
+}
+
+function loadImageElementFromFile(file) {
+    return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => resolve({ img, objectUrl });
+        img.onerror = () => {
+            try { URL.revokeObjectURL(objectUrl); } catch { /* abaikan */ }
+            reject(new Error("File gambar tidak dapat dibaca. Pilih foto JPG, PNG, WebP, atau AVIF lain."));
+        };
+        img.src = objectUrl;
+    });
+}
+
+async function handleSelectBannerFile(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+    if (!allowed.includes(String(file.type || "").toLowerCase())) {
+        toast("Format belum didukung. Pilih gambar JPG, PNG, WebP, atau AVIF.", "error");
+        event.target.value = "";
+        return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+        toast("Ukuran foto terlalu besar (maksimal 15 MB sebelum kompresi 16:9).", "error");
+        event.target.value = "";
+        return;
+    }
+
+    try {
+        clearPendingBannerCrop();
+        const { img, objectUrl } = await loadImageElementFromFile(file);
+        state.fcPendingImage = img;
+        state.fcPendingObjectUrl = objectUrl;
+
+        const slider = $("monFcCropOffset");
+        if (slider) slider.value = "50";
+
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const ratioDiff = Math.abs(w / h - 16 / 9);
+
+        drawPendingCropToCanvas();
+
+        /* Jika gambar sudah ~16:9, langsung unggah otomatis 1 klik!
+           Jika belum 16:9 (mis. foto galeri HP 4:3 atau 9:16), tampilkan
+           penggeser posisi 16:9 agar admin bisa menyesuaikan fokus. */
+        if (ratioDiff <= 0.035) {
+            await uploadFreeCreditCanvas16x9();
+            return;
+        }
+
+        const cropBox = $("monFcCropBox");
+        const cropLabel = $("monFcCropLabel");
+        const meta = $("monFcBannerMeta");
+        if (meta) meta.textContent = "PRATINJAU CROP 16:9";
+        if (cropLabel) {
+            const axisLabel = w / h > 16 / 9 ? "kiri ↔ kanan" : "atas ↔ bawah";
+            cropLabel.textContent =
+                `Ukuran asli ${w}×${h} dipaskan ke 16:9 HD (1600×900). Geser fokus (${axisLabel}) lalu simpan:`;
+        }
+        if (cropBox) cropBox.hidden = false;
+    } catch (error) {
+        clearPendingBannerCrop();
+        toast(error.message, "error");
+    }
+}
+
+async function handleRemoveBanner() {
+    if (state.fcSaving || !state.freeCredit.banner_image_url) return;
+
+    await setFreeCreditUiBusy(true);
+    try {
+        const res = await freeCreditApi("update-settings", {
+            method: "POST",
+            body: { banner_image_url: null }
+        });
+        clearPendingBannerCrop();
+        await setFreeCreditUiBusy(false);
+        renderFreeCredit(res.settings || { ...state.freeCredit, banner_image_url: null });
+        toast("Gambar kustom dihapus. Kartu user kembali ke desain mewah bawaan.", "ok");
+    } catch (error) {
+        await setFreeCreditUiBusy(false);
+        toast(error.message, "error");
+    }
+}
+
+/* ---------------------------------------------------------
    MUAT DATA
    --------------------------------------------------------- */
 
@@ -629,6 +1045,9 @@ async function refresh(options = {}) {
         renderHealth(data.health);
         renderFindings(data.findings);
         renderSettings(data.settings);
+        if (data.free_credit) {
+            renderFreeCredit(data.free_credit);
+        }
 
         /* Kegagalan di sini tidak boleh ditelan diam-diam: dulu
            `.catch(() => ({ rows: [] }))` membuat panel log kosong
@@ -910,6 +1329,38 @@ function bindEvents() {
     $("monScan").addEventListener("click", runScan);
     $("monSaveSettings").addEventListener("click", saveSettings);
     $("monPurge").addEventListener("click", purgeOldLogs);
+
+    if ($("monFcEnabledToggle")) {
+        $("monFcEnabledToggle").addEventListener("change", () => {
+            void handleToggleFreeCredit();
+        });
+    }
+    if ($("monFcUploadBtn") && $("monFcBannerInput")) {
+        $("monFcUploadBtn").addEventListener("click", () => {
+            $("monFcBannerInput").click();
+        });
+        $("monFcBannerInput").addEventListener("change", event => {
+            void handleSelectBannerFile(event);
+        });
+    }
+    if ($("monFcCropOffset")) {
+        $("monFcCropOffset").addEventListener("input", () => {
+            drawPendingCropToCanvas();
+        });
+    }
+    if ($("monFcCropApply")) {
+        $("monFcCropApply").addEventListener("click", () => {
+            void uploadFreeCreditCanvas16x9();
+        });
+    }
+    if ($("monFcCropCancel")) {
+        $("monFcCropCancel").addEventListener("click", clearPendingBannerCrop);
+    }
+    if ($("monFcRemoveBannerBtn")) {
+        $("monFcRemoveBannerBtn").addEventListener("click", () => {
+            void handleRemoveBanner();
+        });
+    }
 
     $("monAuto").addEventListener("change", startPolling);
 

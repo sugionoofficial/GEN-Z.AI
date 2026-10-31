@@ -1,13 +1,24 @@
 import {
     extractClientNetwork,
     FREE_CREDIT_AMOUNT,
+    FREE_CREDIT_BANNER_BUCKET,
+    FREE_CREDIT_BANNER_PREFIX,
     mapClaimErrorResponse,
+    validateBannerImageUrl,
     validateBrowserSignals
 } from "../lib/free-credit/service.js";
 
 const RATE_WINDOW_MS = 60_000;
 const CLAIM_LIMIT_PER_WINDOW = 12;
 const SIGNAL_LIMIT_PER_WINDOW = 25;
+const MAX_BANNER_BYTES = 8 * 1024 * 1024;
+const BANNER_MIME_TYPES = new Map([
+    ["image/jpeg", "jpg"],
+    ["image/png", "png"],
+    ["image/webp", "webp"],
+    ["image/avif", "avif"]
+]);
+
 const ipBuckets = new Map();
 
 function checkRateLimit(bucketKey, maxHits) {
@@ -47,7 +58,13 @@ function getBearerToken(req) {
 }
 
 function getBody(req) {
-    if (req?.body && typeof req.body === "object" && !Buffer.isBuffer(req.body)) {
+    if (
+        req?.body &&
+        typeof req.body === "object" &&
+        !Buffer.isBuffer(req.body) &&
+        !ArrayBuffer.isView(req.body) &&
+        !(req.body instanceof ArrayBuffer)
+    ) {
         return req.body;
     }
     if (typeof req?.body === "string" && req.body.trim()) {
@@ -125,12 +142,161 @@ async function verifyAuthenticatedUser(fetchImpl, req, config) {
     return { ok: true, user: data };
 }
 
-function serviceHeaders(config) {
+function serviceHeaders(config, extra = {}) {
     return {
         apikey: config.serviceRoleKey,
         Authorization: `Bearer ${config.serviceRoleKey}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...extra
     };
+}
+
+async function requireAdminOrOwner(fetchImpl, req, config) {
+    const auth = await verifyAuthenticatedUser(fetchImpl, req, config);
+    if (!auth.ok) {
+        return auth;
+    }
+
+    const profileRes = await supabaseJson(
+        fetchImpl,
+        config,
+        `/rest/v1/profiles?id=eq.${encodeURIComponent(auth.user.id)}&select=id,role`,
+        {
+            method: "GET",
+            headers: serviceHeaders(config)
+        }
+    );
+
+    const role = String(profileRes.data?.[0]?.role || "").toUpperCase();
+    if (role !== "ADMIN" && role !== "OWNER") {
+        return {
+            ok: false,
+            status: 403,
+            error: "Akses khusus Admin/Owner."
+        };
+    }
+
+    return { ok: true, user: auth.user, role };
+}
+
+function normalizeSettingsRow(row) {
+    if (!row || typeof row !== "object") {
+        return {
+            claim_enabled: true,
+            banner_image_url: null,
+            updated_at: null
+        };
+    }
+    return {
+        claim_enabled: row.claim_enabled !== false,
+        banner_image_url:
+            typeof row.banner_image_url === "string" && row.banner_image_url.trim()
+                ? row.banner_image_url.trim()
+                : null,
+        updated_at: row.updated_at || null
+    };
+}
+
+async function loadFreeCreditSettings(fetchImpl, config) {
+    try {
+        const res = await supabaseJson(
+            fetchImpl,
+            config,
+            "/rest/v1/free_credit_settings?id=eq.1&select=id,claim_enabled,banner_image_url,updated_at&limit=1",
+            { method: "GET", headers: serviceHeaders(config) }
+        );
+        const row = Array.isArray(res.data) ? res.data[0] : null;
+        return normalizeSettingsRow(row);
+    } catch {
+        return normalizeSettingsRow(null);
+    }
+}
+
+async function saveFreeCreditSettings(fetchImpl, config, payload) {
+    const res = await supabaseJson(
+        fetchImpl,
+        config,
+        "/rest/v1/free_credit_settings?on_conflict=id",
+        {
+            method: "POST",
+            headers: serviceHeaders(config, {
+                Prefer: "resolution=merge-duplicates,return=representation"
+            }),
+            body: JSON.stringify({
+                id: 1,
+                claim_enabled: payload.claim_enabled !== false,
+                banner_image_url: payload.banner_image_url || null,
+                updated_at: new Date().toISOString(),
+                updated_by: payload.updated_by || null
+            })
+        }
+    );
+
+    if (!res.response.ok) {
+        return {
+            ok: false,
+            error: String(
+                res.data?.message ||
+                res.data?.error ||
+                "Gagal menyimpan pengaturan klaim kredit gratis."
+            )
+        };
+    }
+
+    const savedRow = Array.isArray(res.data) ? res.data[0] : payload;
+    return {
+        ok: true,
+        settings: normalizeSettingsRow(savedRow)
+    };
+}
+
+async function ensureBannerBucket(fetchImpl, config) {
+    const response = await fetchImpl(`${config.url}/storage/v1/bucket`, {
+        method: "POST",
+        headers: serviceHeaders(config),
+        body: JSON.stringify({
+            id: FREE_CREDIT_BANNER_BUCKET,
+            name: FREE_CREDIT_BANNER_BUCKET,
+            public: true,
+            file_size_limit: 50 * 1024 * 1024,
+            allowed_mime_types: [
+                "image/jpeg",
+                "image/png",
+                "image/webp",
+                "image/gif",
+                "image/avif",
+                "video/mp4",
+                "video/webm",
+                "video/quicktime"
+            ]
+        })
+    });
+
+    if (response.ok || response.status === 409) return;
+    const data = await response.json().catch(() => null);
+    const message = String(data?.message || data?.error || "");
+    if (/already exists|duplicate/i.test(message)) return;
+}
+
+async function deleteReplacedBannerBestEffort(fetchImpl, config, oldUrl, newUrl) {
+    if (!oldUrl || oldUrl === newUrl) return;
+    const check = validateBannerImageUrl(oldUrl, config.url);
+    if (!check.ok || !check.objectPath) return;
+
+    try {
+        await fetchImpl(
+            `${config.url}/storage/v1/object/${FREE_CREDIT_BANNER_BUCKET}/${check.objectPath}`,
+            {
+                method: "DELETE",
+                headers: {
+                    apikey: config.serviceRoleKey,
+                    Authorization: `Bearer ${config.serviceRoleKey}`
+                }
+            }
+        );
+    } catch {
+        /* best effort cleanup */
+    }
 }
 
 export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
@@ -145,6 +311,120 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
 
         const method = String(req?.method || "GET").toUpperCase();
         const queryAction = String(req?.query?.action || "").trim().toLowerCase();
+
+        /* -----------------------------------------------------
+           0. UPLOAD GAMBAR BANNER 16:9 (POST ?action=upload-banner)
+              Body berupa binary gambar (JPG / PNG / WebP / AVIF)
+        ----------------------------------------------------- */
+        if (method === "POST" && queryAction === "upload-banner") {
+            const admin = await requireAdminOrOwner(fetchImpl, req, config);
+            if (!admin.ok) {
+                return sendJson(res, admin.status, { ok: false, error: admin.error });
+            }
+
+            const contentType = getHeader(req, "content-type")
+                .split(";")[0]
+                .trim()
+                .toLowerCase();
+            const ext = BANNER_MIME_TYPES.get(contentType);
+            if (!ext) {
+                return sendJson(res, 400, {
+                    ok: false,
+                    error: "Format gambar tidak didukung. Pilih gambar JPG, PNG, WebP, atau AVIF."
+                });
+            }
+
+            const declaredLength = Number(getHeader(req, "content-length") || 0);
+            if (declaredLength > MAX_BANNER_BYTES) {
+                return sendJson(res, 413, {
+                    ok: false,
+                    error: "Ukuran gambar banner 16:9 maksimal 8 MB."
+                });
+            }
+
+            if (
+                !req.body ||
+                !(ArrayBuffer.isView(req.body) || req.body instanceof ArrayBuffer)
+            ) {
+                return sendJson(res, 400, {
+                    ok: false,
+                    error: "File gambar tidak terbaca atau kosong."
+                });
+            }
+
+            const bytes = req.body instanceof ArrayBuffer
+                ? new Uint8Array(req.body)
+                : new Uint8Array(req.body.buffer, req.body.byteOffset, req.body.byteLength);
+
+            if (bytes.byteLength === 0 || bytes.byteLength > MAX_BANNER_BYTES) {
+                return sendJson(res, bytes.byteLength === 0 ? 400 : 413, {
+                    ok: false,
+                    error: bytes.byteLength === 0
+                        ? "File gambar kosong."
+                        : "Ukuran gambar banner 16:9 maksimal 8 MB."
+                });
+            }
+
+            await ensureBannerBucket(fetchImpl, config);
+
+            const objectPath = `${FREE_CREDIT_BANNER_PREFIX}${crypto.randomUUID()}.${ext}`;
+            const uploadRes = await fetchImpl(
+                `${config.url}/storage/v1/object/${FREE_CREDIT_BANNER_BUCKET}/${objectPath}`,
+                {
+                    method: "POST",
+                    headers: {
+                        apikey: config.serviceRoleKey,
+                        Authorization: `Bearer ${config.serviceRoleKey}`,
+                        "Content-Type": contentType,
+                        "x-upsert": "false"
+                    },
+                    body: bytes
+                }
+            );
+
+            if (!uploadRes.ok) {
+                const errPayload = await uploadRes.json().catch(() => null);
+                return sendJson(res, 502, {
+                    ok: false,
+                    error: String(
+                        errPayload?.message ||
+                        errPayload?.error ||
+                        "Gagal mengunggah gambar banner 16:9 ke Supabase Storage."
+                    )
+                });
+            }
+
+            const publicUrl = `${config.url}/storage/v1/object/public/${FREE_CREDIT_BANNER_BUCKET}/${objectPath}`;
+            const currentSettings = await loadFreeCreditSettings(fetchImpl, config);
+
+            if (String(req?.query?.save || "1") !== "0") {
+                const saved = await saveFreeCreditSettings(fetchImpl, config, {
+                    claim_enabled: currentSettings.claim_enabled,
+                    banner_image_url: publicUrl,
+                    updated_by: admin.user.id
+                });
+                if (!saved.ok) {
+                    return sendJson(res, 502, { ok: false, error: saved.error });
+                }
+                await deleteReplacedBannerBestEffort(
+                    fetchImpl,
+                    config,
+                    currentSettings.banner_image_url,
+                    publicUrl
+                );
+                return sendJson(res, 200, {
+                    ok: true,
+                    banner_image_url: publicUrl,
+                    settings: saved.settings
+                });
+            }
+
+            return sendJson(res, 200, {
+                ok: true,
+                banner_image_url: publicUrl
+            });
+        }
+
         const body = method === "POST" ? getBody(req) : {};
         const action = String(body?.action || queryAction || (method === "GET" ? "status" : "claim"))
             .trim()
@@ -183,6 +463,11 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
 
             return sendJson(res, 200, {
                 ok: true,
+                claim_enabled: rpc.data.claim_enabled !== false,
+                banner_image_url:
+                    typeof rpc.data.banner_image_url === "string" && rpc.data.banner_image_url.trim()
+                        ? rpc.data.banner_image_url.trim()
+                        : null,
                 credit_amount: FREE_CREDIT_AMOUNT,
                 claimed: Boolean(rpc.data.claimed),
                 claimed_at: rpc.data.claimed_at || null,
@@ -194,26 +479,13 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
            2. RINGKASAN ADMIN / OWNER (GET ?action=admin-summary)
         ----------------------------------------------------- */
         if (method === "GET" && action === "admin-summary") {
-            const auth = await verifyAuthenticatedUser(fetchImpl, req, config);
-            if (!auth.ok) {
-                return sendJson(res, auth.status, { ok: false, error: auth.error });
+            const admin = await requireAdminOrOwner(fetchImpl, req, config);
+            if (!admin.ok) {
+                return sendJson(res, admin.status, { ok: false, error: admin.error });
             }
 
-            const profileRes = await supabaseJson(
-                fetchImpl,
-                config,
-                `/rest/v1/profiles?id=eq.${encodeURIComponent(auth.user.id)}&select=id,role`,
-                {
-                    method: "GET",
-                    headers: serviceHeaders(config)
-                }
-            );
-            const role = String(profileRes.data?.[0]?.role || "").toUpperCase();
-            if (role !== "ADMIN" && role !== "OWNER") {
-                return sendJson(res, 403, { ok: false, error: "Akses khusus Admin/Owner." });
-            }
-
-            const [claimsRes, attemptsRes] = await Promise.all([
+            const [settings, claimsRes, attemptsRes] = await Promise.all([
+                loadFreeCreditSettings(fetchImpl, config),
                 supabaseJson(
                     fetchImpl,
                     config,
@@ -230,6 +502,7 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
 
             return sendJson(res, 200, {
                 ok: true,
+                settings,
                 claims: Array.isArray(claimsRes.data) ? claimsRes.data : [],
                 attempts: Array.isArray(attemptsRes.data) ? attemptsRes.data : []
             });
@@ -238,6 +511,67 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
         if (method !== "POST") {
             res.setHeader("Allow", "GET, POST");
             return sendJson(res, 405, { ok: false, error: "Method tidak diizinkan." });
+        }
+
+        /* -----------------------------------------------------
+           2B. SIMPAN PENGATURAN ON/OFF & BANNER 16:9 (ADMIN / OWNER)
+               (POST action=update-settings)
+        ----------------------------------------------------- */
+        if (action === "update-settings") {
+            const admin = await requireAdminOrOwner(fetchImpl, req, config);
+            if (!admin.ok) {
+                return sendJson(res, admin.status, { ok: false, error: admin.error });
+            }
+
+            const current = await loadFreeCreditSettings(fetchImpl, config);
+
+            let nextEnabled = current.claim_enabled;
+            if (body.claim_enabled !== undefined) {
+                if (typeof body.claim_enabled !== "boolean") {
+                    return sendJson(res, 400, {
+                        ok: false,
+                        error: "Nilai status On/Off klaim kredit gratis harus berupa boolean."
+                    });
+                }
+                nextEnabled = body.claim_enabled;
+            }
+
+            let nextBannerUrl = current.banner_image_url;
+            if (Object.prototype.hasOwnProperty.call(body, "banner_image_url")) {
+                const validated = validateBannerImageUrl(body.banner_image_url, config.url);
+                if (!validated.ok) {
+                    return sendJson(res, 400, {
+                        ok: false,
+                        error: validated.error
+                    });
+                }
+                nextBannerUrl = validated.url;
+            }
+
+            const saved = await saveFreeCreditSettings(fetchImpl, config, {
+                claim_enabled: nextEnabled,
+                banner_image_url: nextBannerUrl,
+                updated_by: admin.user.id
+            });
+
+            if (!saved.ok) {
+                return sendJson(res, 502, {
+                    ok: false,
+                    error: saved.error
+                });
+            }
+
+            await deleteReplacedBannerBestEffort(
+                fetchImpl,
+                config,
+                current.banner_image_url,
+                nextBannerUrl
+            );
+
+            return sendJson(res, 200, {
+                ok: true,
+                settings: saved.settings
+            });
         }
 
         /* -----------------------------------------------------
@@ -336,6 +670,20 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
             const auth = await verifyAuthenticatedUser(fetchImpl, req, config);
             if (!auth.ok) {
                 return sendJson(res, auth.status, { ok: false, error: auth.error });
+            }
+
+            const currentSettings = await loadFreeCreditSettings(fetchImpl, config);
+            if (!currentSettings.claim_enabled) {
+                const mappedDisabled = mapClaimErrorResponse("feature_disabled", [
+                    "feature_disabled"
+                ]);
+                return sendJson(res, mappedDisabled.status, {
+                    ok: false,
+                    code: "feature_disabled",
+                    matched_reasons: ["feature_disabled"],
+                    requires_password: false,
+                    error: mappedDisabled.message
+                });
             }
 
             if (!net.ip) {

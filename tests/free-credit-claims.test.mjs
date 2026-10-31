@@ -12,6 +12,7 @@ import {
     FREE_CREDIT_AMOUNT,
     mapClaimErrorResponse,
     normalizeIpAndSubnet,
+    validateBannerImageUrl,
     validateBrowserSignals
 } from "../lib/free-credit/service.js";
 
@@ -181,6 +182,18 @@ test("API /api/free-credit mengizinkan klaim unik 5.000 kredit memakai service_r
                     { status: 200 }
                 );
             }
+            if (url.includes("/rest/v1/free_credit_settings")) {
+                return new Response(
+                    JSON.stringify([
+                        {
+                            id: 1,
+                            claim_enabled: true,
+                            banner_image_url: null
+                        }
+                    ]),
+                    { status: 200 }
+                );
+            }
             if (url.endsWith("/rest/v1/rpc/claim_free_credit_5000")) {
                 const parsedBody = JSON.parse(options.body);
                 rpcCalls.push({ headers: options.headers, body: parsedBody });
@@ -299,3 +312,203 @@ test("Worker, halaman auth, dashboard, topup, dan credit usage memuat integrasi 
     assert.match(adminPanelHtml, /href="\.\/free-credit-claims\.html"/);
     assert.match(adminClaimsHtml, /\/api\/free-credit\?action=admin-summary/);
 });
+
+test("On/Off Monitoring & upload gambar banner 16:9 bekerja penuh dari Admin hingga kartu mewah User", async () => {
+    resetFreeCreditRateLimitsForTests();
+
+    const sql = readRepoFile("supabase/free-credit-claims.sql");
+    const claimClientJs = readRepoFile("assets/js/free-credit-claim.js");
+    const monitoringHtml = readRepoFile("admin-control/monitoring.html");
+
+    assert.match(sql, /create table if not exists public\.free_credit_settings/i);
+    assert.match(sql, /alter table public\.free_credit_settings enable row level security/i);
+    assert.match(sql, /'feature_disabled'/);
+    assert.match(claimClientJs, /aspect-ratio:16 \/ 9/);
+    assert.match(claimClientJs, /data\.claim_enabled === false/);
+    assert.match(claimClientJs, /genzFcBannerImg/);
+    assert.match(monitoringHtml, /id="monFreeCreditPanel"/);
+    assert.match(monitoringHtml, /id="monFcEnabledToggle"/);
+    assert.match(monitoringHtml, /id="monFcBannerInput"/);
+
+    // Validasi URL banner 16:9
+    const validBanner = validateBannerImageUrl(
+        "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/public/site-announcements/free-credit-banner/banner_16x9_abcd1234.webp",
+        TEST_ENV.SUPABASE_URL
+    );
+    assert.equal(validBanner.ok, true);
+    assert.equal(validBanner.objectPath, "free-credit-banner/banner_16x9_abcd1234.webp");
+
+    const invalidBanner = validateBannerImageUrl(
+        "https://evil.example.com/banner.webp",
+        TEST_ENV.SUPABASE_URL
+    );
+    assert.equal(invalidBanner.ok, false);
+
+    const disabledMapped = mapClaimErrorResponse("feature_disabled", ["feature_disabled"]);
+    assert.equal(disabledMapped.status, 403);
+
+    // Simulasi state server untuk uji upload-banner, update-settings, status, dan penolakan saat OFF
+    let currentRole = "OWNER";
+    let settingsState = {
+        id: 1,
+        claim_enabled: true,
+        banner_image_url: null,
+        updated_at: "2026-10-31T14:00:00Z"
+    };
+    const deletedObjects = [];
+
+    const handler = createFreeCreditHandler({
+        env: TEST_ENV,
+        fetchImpl: async (url, options = {}) => {
+            const method = String(options.method || "GET").toUpperCase();
+
+            if (url.endsWith("/auth/v1/user")) {
+                return Response.json({
+                    id: "owner-0001-0002-0003-000000000001",
+                    email: "owner@genz.ai"
+                });
+            }
+            if (url.includes("/rest/v1/profiles")) {
+                return Response.json([{ id: "owner-0001-0002-0003-000000000001", role: currentRole }]);
+            }
+            if (url.endsWith("/storage/v1/bucket")) {
+                return Response.json({ id: "site-announcements" });
+            }
+            if (url.includes("/storage/v1/object/site-announcements/free-credit-banner/")) {
+                if (method === "DELETE") {
+                    deletedObjects.push(url);
+                    return Response.json({ message: "Deleted" });
+                }
+                return Response.json({ Key: "site-announcements/free-credit-banner/uploaded.webp" });
+            }
+            if (url.includes("/rest/v1/free_credit_settings")) {
+                if (method === "POST") {
+                    const parsed = JSON.parse(options.body);
+                    settingsState = {
+                        id: 1,
+                        claim_enabled: parsed.claim_enabled,
+                        banner_image_url: parsed.banner_image_url,
+                        updated_at: parsed.updated_at
+                    };
+                    return Response.json([settingsState]);
+                }
+                return Response.json([settingsState]);
+            }
+            if (url.endsWith("/rest/v1/rpc/get_free_credit_claim_status")) {
+                return Response.json({
+                    ok: true,
+                    claim_enabled: settingsState.claim_enabled,
+                    banner_image_url: settingsState.banner_image_url,
+                    credit_amount: 5000,
+                    claimed: false,
+                    claimed_at: null,
+                    has_password_signal: true
+                });
+            }
+            throw new Error(`Unexpected URL in test: ${url}`);
+        }
+    });
+
+    // 1. Upload gambar 16:9 oleh OWNER berhasil & tersimpan
+    const fakeWebp = new Uint8Array([82, 73, 70, 70, 1, 2, 3, 4, 87, 69, 66, 80]);
+    const uploadRes = createMockRes();
+    await handler(
+        {
+            method: "POST",
+            query: { action: "upload-banner" },
+            headers: {
+                authorization: "Bearer owner_jwt",
+                "content-type": "image/webp",
+                "content-length": String(fakeWebp.byteLength)
+            },
+            body: fakeWebp
+        },
+        uploadRes
+    );
+    assert.equal(uploadRes.statusCode, 200);
+    assert.equal(uploadRes.body.ok, true);
+    assert.match(
+        uploadRes.body.banner_image_url,
+        /^https:\/\/ycovbqmezhrvzobxqnyp\.supabase\.co\/storage\/v1\/object\/public\/site-announcements\/free-credit-banner\/.+\.webp$/
+    );
+    const firstBannerUrl = uploadRes.body.banner_image_url;
+
+    // 2. Role USER biasa ditolak mengubah pengaturan On/Off
+    currentRole = "USER";
+    const forbiddenRes = createMockRes();
+    await handler(
+        {
+            method: "POST",
+            headers: { authorization: "Bearer user_jwt" },
+            body: { action: "update-settings", claim_enabled: false }
+        },
+        forbiddenRes
+    );
+    assert.equal(forbiddenRes.statusCode, 403);
+
+    // 3. OWNER mematikan fitur (OFF) dari Monitoring
+    currentRole = "OWNER";
+    const toggleOffRes = createMockRes();
+    await handler(
+        {
+            method: "POST",
+            headers: { authorization: "Bearer owner_jwt" },
+            body: { action: "update-settings", claim_enabled: false }
+        },
+        toggleOffRes
+    );
+    assert.equal(toggleOffRes.statusCode, 200);
+    assert.equal(toggleOffRes.body.settings.claim_enabled, false);
+    assert.equal(toggleOffRes.body.settings.banner_image_url, firstBannerUrl);
+
+    // 4. Endpoint status mengembalikan claim_enabled=false & banner_image_url
+    const statusRes = createMockRes();
+    await handler(
+        {
+            method: "GET",
+            query: { action: "status" },
+            headers: { authorization: "Bearer user_jwt" }
+        },
+        statusRes
+    );
+    assert.equal(statusRes.statusCode, 200);
+    assert.equal(statusRes.body.claim_enabled, false);
+    assert.equal(statusRes.body.banner_image_url, firstBannerUrl);
+
+    // 5. Saat OFF, percobaan klaim langsung ditolak 403 feature_disabled
+    const claimWhenOffRes = createMockRes();
+    await handler(
+        {
+            method: "POST",
+            headers: {
+                authorization: "Bearer user_jwt",
+                "cf-connecting-ip": "103.10.20.77",
+                "user-agent": VALID_UA
+            },
+            body: {
+                action: "claim",
+                browser_fingerprint: VALID_BFP,
+                browser_install_id: VALID_BID
+            }
+        },
+        claimWhenOffRes
+    );
+    assert.equal(claimWhenOffRes.statusCode, 403);
+    assert.equal(claimWhenOffRes.body.code, "feature_disabled");
+
+    // 6. Hapus gambar kustom membersihkan objek lama di storage
+    const clearBannerRes = createMockRes();
+    await handler(
+        {
+            method: "POST",
+            headers: { authorization: "Bearer owner_jwt" },
+            body: { action: "update-settings", claim_enabled: true, banner_image_url: null }
+        },
+        clearBannerRes
+    );
+    assert.equal(clearBannerRes.statusCode, 200);
+    assert.equal(clearBannerRes.body.settings.claim_enabled, true);
+    assert.equal(clearBannerRes.body.settings.banner_image_url, null);
+    assert.equal(deletedObjects.length, 1);
+});
+
