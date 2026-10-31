@@ -2138,8 +2138,6 @@ input[type="checkbox"]:checked {
    ========================================================= */
 
 .table-wrap tbody tr {
-    position: relative;
-
     transition:
         background 0.18s ease;
 }
@@ -3307,29 +3305,12 @@ textarea:disabled {
 
 
 /* =========================================================
-   TABLE HOVER ORANGE LINE
+   TABLE HOVER ORANGE LINE (ON FIRST CELL — NEVER tr::before)
    ========================================================= */
 
-.table-wrap tbody tr {
-    position: relative;
-}
-
-.table-wrap tbody tr:hover::before {
-    content: "";
-
-    position: absolute;
-
-    left: 0;
-    top: 0;
-    bottom: 0;
-
-    width: 2px;
-
-    background:
-        #ff6a00;
-
+.table-wrap tbody tr:hover td:first-child {
     box-shadow:
-        0 0 8px rgba(255, 106, 0, 0.75);
+        inset 2px 0 0 #ff6a00;
 }
 
 
@@ -5057,9 +5038,6 @@ button {
    ========================================================= */
 
 .table-wrap tbody tr {
-    position:
-        relative;
-
     background:
         rgba(10, 10, 11, 0.72);
 
@@ -5088,34 +5066,10 @@ button {
 }
 
 
-/* Orange active line */
-.table-wrap tbody tr:hover::before {
-    content:
-        "";
-
-    position:
-        absolute;
-
-    left:
-        0;
-
-    top:
-        0;
-
-    bottom:
-        0;
-
-    width:
-        2px;
-
-    background:
-        #ff6a00;
-
+/* Orange active line on first cell so <td> columns never shift right */
+.table-wrap tbody tr:hover td:first-child {
     box-shadow:
-        0 0 9px rgba(255, 106, 0, 0.85);
-
-    pointer-events:
-        none;
+        inset 2px 0 0 #ff6a00;
 }
 
 

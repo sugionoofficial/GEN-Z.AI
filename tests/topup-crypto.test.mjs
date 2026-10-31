@@ -278,3 +278,18 @@ test("Seluruh inline script pada 4 halaman Top Up bebas dari syntax error", () =
     }
 });
 
+test("Tabel riwayat Top Up tidak memakai pseudo-element tr::before yang menggeser kolom email ke kanan", () => {
+    const rawCss = readRepoFile("admin-control/topup/assets/topup.css");
+    const cssWithoutComments = rawCss.replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.doesNotMatch(
+        cssWithoutComments,
+        /\btr(?::hover|:active|:focus-within)?::(?:before|after)\b/,
+        "tr::before / tr:hover::before pada tabel HTML membuat anonymous table-cell yang menggeser kolom ke kanan"
+    );
+    assert.match(
+        cssWithoutComments,
+        /\.table-wrap\s+tbody\s+tr:hover\s+td:first-child\s*\{[\s\S]*?inset\s+2px\s+0\s+0\s+#ff6a00/
+    );
+});
+
+
