@@ -217,13 +217,13 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
                 supabaseJson(
                     fetchImpl,
                     config,
-                    "/rest/v1/free_credit_claims?select=id,claimed_user_id,email_exact,ip_address,browser_summary,country,city,credit_amount,balance_before,balance_after,claimed_at&order=claimed_at.desc&limit=50",
+                    "/rest/v1/free_credit_claims?select=id,claimed_user_id,email_exact,ip_address,browser_summary,country,city,credit_amount,balance_before,balance_after,claimed_at&order=claimed_at.desc&limit=100",
                     { method: "GET", headers: serviceHeaders(config) }
                 ),
                 supabaseJson(
                     fetchImpl,
                     config,
-                    "/rest/v1/free_credit_claim_attempts?select=id,attempted_user_id,email_exact,ip_address,browser_summary,status,rejection_reason,matched_reasons,attempted_at&order=attempted_at.desc&limit=50",
+                    "/rest/v1/free_credit_claim_attempts?select=id,attempted_user_id,email_exact,ip_address,browser_summary,status,rejection_reason,matched_reasons,attempted_at&order=attempted_at.desc&limit=100",
                     { method: "GET", headers: serviceHeaders(config) }
                 )
             ]);

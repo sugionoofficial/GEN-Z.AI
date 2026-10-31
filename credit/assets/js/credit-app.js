@@ -1639,7 +1639,7 @@ import {
             renderAll();
 
             if (
-                String(state.profile?.role || "").toUpperCase() === "USER" &&
+                CONFIG.allowedRoles.includes(String(state.profile?.role || "").toUpperCase()) &&
                 window.GENZ_FREE_CREDIT &&
                 typeof window.GENZ_FREE_CREDIT.mountClaimCard === "function"
             ) {

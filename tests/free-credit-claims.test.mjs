@@ -281,6 +281,8 @@ test("Worker, halaman auth, dashboard, topup, dan credit usage memuat integrasi 
     const dashboardHtml = readRepoFile("user/dashboard.html");
     const topupHtml = readRepoFile("user/topup.html");
     const creditHtml = readRepoFile("credit/index.html");
+    const adminPanelHtml = readRepoFile("admin-control/admin-panel.html");
+    const adminClaimsHtml = readRepoFile("admin-control/free-credit-claims.html");
 
     assert.match(worker, /\["\/api\/free-credit",\s*freeCredit\]/);
     assert.match(authJs, /GENZ_FREE_CREDIT\.recordAuthSignal/);
@@ -294,4 +296,6 @@ test("Worker, halaman auth, dashboard, topup, dan credit usage memuat integrasi 
     assert.match(topupHtml, /id="freeCreditClaimMount"/);
     assert.match(topupHtml, /mountClaimCard/);
     assert.match(creditHtml, /id="freeCreditClaimMount"/);
+    assert.match(adminPanelHtml, /href="\.\/free-credit-claims\.html"/);
+    assert.match(adminClaimsHtml, /\/api\/free-credit\?action=admin-summary/);
 });

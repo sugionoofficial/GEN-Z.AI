@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <title>Log Claim Free Credit 5.000 - GEN-Z.AI</title>
+    <script src="../assets/js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+    <script src="/navigation/navigation.js?v=navlockup-20261029"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #f7f8fc;
+            background: #000000;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            min-width: 320px;
+            min-height: 100vh;
+            margin: 0;
+            background: #000000;
+        }
+        .page-shell {
+            width: min(1160px, 100%);
+            margin: 0 auto;
+            padding: 96px 24px 72px;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #aeb8d1;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 650;
+        }
+        .back-link:hover { color: #ffffff; }
+        .hero {
+            margin-top: 18px;
+            padding: 28px;
+            border: 1px solid rgba(255, 48, 72, .28);
+            border-radius: 22px;
+            background: linear-gradient(135deg, rgba(255, 48, 72, .12), rgba(16, 20, 32, .95) 62%);
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+        .eyebrow {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .15em;
+            text-transform: uppercase;
+            color: #ff6b81;
+        }
+        h1 {
+            margin: 10px 0 8px;
+            font-size: clamp(24px, 3.6vw, 36px);
+            letter-spacing: -.03em;
+        }
+        .hero p {
+            margin: 0;
+            max-width: 660px;
+            color: #cbd5e1;
+            font-size: 13.5px;
+            line-height: 1.6;
+        }
+        .btn-refresh {
+            appearance: none;
+            border: 1px solid rgba(255, 48, 72, .5);
+            border-radius: 12px;
+            padding: 11px 18px;
+            background: linear-gradient(135deg, #ff3048, #e11d48);
+            color: #ffffff;
+            font-size: 12.5px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            padding: 18px 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, .1);
+            background: #101420;
+        }
+        .stat-card small {
+            display: block;
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+        .stat-card strong {
+            display: block;
+            margin-top: 8px;
+            font-size: 26px;
+            font-weight: 900;
+            color: #f8fafc;
+        }
+        .panel {
+            margin-top: 24px;
+            padding: 20px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, .1);
+            background: #0d111b;
+        }
+        .panel h2 {
+            margin: 0 0 6px;
+            font-size: 17px;
+        }
+        .panel p.sub {
+            margin: 0 0 14px;
+            font-size: 12.5px;
+            color: #94a3b8;
+        }
+        .table-wrap {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+        }
+        th, td {
+            text-align: left;
+            padding: 11px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, .07);
+            vertical-align: top;
+        }
+        th {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #94a3b8;
+            font-weight: 800;
+        }
+        .pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .pill-ok {
+            background: rgba(16, 185, 129, .16);
+            color: #6ee7b7;
+            border: 1px solid rgba(16, 185, 129, .38);
+        }
+        .pill-reject {
+            background: rgba(239, 68, 68, .15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, .38);
+        }
+        .empty-note {
+            padding: 18px 8px;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+        html[data-genz-theme="light"] .hero {
+            background: linear-gradient(135deg, #fff1f2, #ffffff 65%);
+            color: #0f172a;
+            border-color: rgba(225, 29, 72, .25);
+        }
+        html[data-genz-theme="light"] .hero p,
+        html[data-genz-theme="light"] .panel p.sub,
+        html[data-genz-theme="light"] .stat-card small,
+        html[data-genz-theme="light"] th,
+        html[data-genz-theme="light"] .empty-note { color: #475467; }
+        html[data-genz-theme="light"] .stat-card,
+        html[data-genz-theme="light"] .panel {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: #e2e8f0;
+        }
+        html[data-genz-theme="light"] .stat-card strong,
+        html[data-genz-theme="light"] td { color: #0f172a; }
+        html[data-genz-theme="light"] th,
+        html[data-genz-theme="light"] td { border-bottom-color: #e2e8f0; }
+        @media (max-width: 720px) {
+            .page-shell { padding: 88px 16px 56px; }
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+    <link rel="stylesheet" href="./assets/css/admin-light.css?v=light-theme-20261022">
+</head>
+<body>
+<main class="page-shell" id="adminFcShell" hidden>
+    <a class="back-link" href="./admin-panel.html">← Kembali ke Admin Control</a>
+
+    <header class="hero">
+        <div>
+            <div class="eyebrow">Anti-Abuse Ledger · Supabase</div>
+            <h1>Claim Free Credit 5.000 Gratis</h1>
+            <p>Memantau seluruh klaim 5.000 kredit gratis yang berhasil maupun percobaan klaim yang ditolak karena kesamaan email, alamat IP, password, atau browser.</p>
+        </div>
+        <button type="button" class="btn-refresh" id="refreshBtn">Muat Ulang Data</button>
+    </header>
+
+    <section class="stats-grid">
+        <div class="stat-card">
+            <small>Klaim Berhasil</small>
+            <strong id="statGrantedCount">0</strong>
+        </div>
+        <div class="stat-card">
+            <small>Total Free Credit Keluar</small>
+            <strong id="statGrantedCredits">0</strong>
+        </div>
+        <div class="stat-card">
+            <small>Percobaan Ditolak (Duplikat)</small>
+            <strong id="statRejectedCount">0</strong>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2>Riwayat Klaim Berhasil (free_credit_claims)</h2>
+        <p class="sub">Setiap baris memiliki email, alamat IP, password hash, dan identitas browser unik di Supabase.</p>
+        <div class="table-wrap" id="claimsTableWrap">
+            <div class="empty-note">Memuat data...</div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2>Log Percobaan Klaim &amp; Penolakan (free_credit_claim_attempts)</h2>
+        <p class="sub">Mencatat seluruh percobaan klaim termasuk yang ditolak karena kesamaan IP, password, browser, atau email.</p>
+        <div class="table-wrap" id="attemptsTableWrap">
+            <div class="empty-note">Memuat data...</div>
+        </div>
+    </section>
+</main>
+
+<script>
+(function () {
+    "use strict";
+
+    var shell = document.getElementById("adminFcShell");
+    var refreshBtn = document.getElementById("refreshBtn");
+    var statGrantedCount = document.getElementById("statGrantedCount");
+    var statGrantedCredits = document.getElementById("statGrantedCredits");
+    var statRejectedCount = document.getElementById("statRejectedCount");
+    var claimsTableWrap = document.getElementById("claimsTableWrap");
+    var attemptsTableWrap = document.getElementById("attemptsTableWrap");
+
+    var REASON_LABEL = {
+        already_claimed_user: "Akun Sudah Klaim",
+        duplicate_email: "Email Sama",
+        duplicate_ip: "IP Sama",
+        duplicate_password: "Password Sama",
+        duplicate_browser: "Browser Sama",
+        invalid_password: "Password Salah",
+        unverified_email: "Email Belum Verifikasi",
+        account_inactive: "Akun Nonaktif",
+        missing_security_signals: "Sinyal Browser/IP Kurang"
+    };
+
+    function esc(v) {
+        return String(v == null ? "" : v)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function fmtTime(iso) {
+        if (!iso) return "-";
+        try {
+            return new Date(iso).toLocaleString("id-ID");
+        } catch (_e) {
+            return String(iso);
+        }
+    }
+
+    var client = window.supabase.createClient(
+        window.GENZ_CONFIG.SUPABASE_URL,
+        window.GENZ_CONFIG.SUPABASE_KEY,
+        { auth: { persistSession: true, autoRefreshToken: false } }
+    );
+
+    async function loadSummary() {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = "Memuat...";
+        try {
+            var sess = await client.auth.getSession();
+            var token = sess && sess.data && sess.data.session && sess.data.session.access_token;
+            if (!token) {
+                window.location.replace("/login.html");
+                return;
+            }
+
+            var res = await fetch("/api/free-credit?action=admin-summary", {
+                headers: { Authorization: "Bearer " + token }
+            });
+            if (res.status === 401 || res.status === 403) {
+                window.location.replace("/user/dashboard.html");
+                return;
+            }
+            var data = await res.json();
+            if (!res.ok || !data || !data.ok) {
+                throw new Error((data && data.error) || "Gagal memuat data.");
+            }
+
+            shell.hidden = false;
+
+            var claims = Array.isArray(data.claims) ? data.claims : [];
+            var attempts = Array.isArray(data.attempts) ? data.attempts : [];
+            var rejected = attempts.filter(function (a) { return a.status === "rejected"; });
+            var totalCredits = claims.reduce(function (acc, c) {
+                return acc + Number(c.credit_amount || 0);
+            }, 0);
+
+            statGrantedCount.textContent = claims.length.toLocaleString("id-ID");
+            statGrantedCredits.textContent = totalCredits.toLocaleString("id-ID");
+            statRejectedCount.textContent = rejected.length.toLocaleString("id-ID");
+
+            if (!claims.length) {
+                claimsTableWrap.innerHTML = '<div class="empty-note">Belum ada klaim Free Credit 5.000 yang tercatat.</div>';
+            } else {
+                claimsTableWrap.innerHTML =
+                    "<table><thead><tr><th>Waktu</th><th>Email</th><th>IP &amp; Lokasi</th><th>Browser</th><th>Kredit</th><th>Saldo Akhir</th></tr></thead><tbody>" +
+                    claims.map(function (c) {
+                        var loc = [c.city, c.country].filter(Boolean).join(", ");
+                        return "<tr>" +
+                            "<td>" + esc(fmtTime(c.claimed_at)) + "</td>" +
+                            "<td>" + esc(c.email_exact) + "</td>" +
+                            "<td>" + esc(c.ip_address) + (loc ? "<br><small>" + esc(loc) + "</small>" : "") + "</td>" +
+                            "<td>" + esc(c.browser_summary || "-") + "</td>" +
+                            '<td><span class="pill pill-ok">+' + Number(c.credit_amount || 5000).toLocaleString("id-ID") + "</span></td>" +
+                            "<td>" + Number(c.balance_after || 0).toLocaleString("id-ID") + "</td>" +
+                            "</tr>";
+                    }).join("") +
+                    "</tbody></table>";
+            }
+
+            if (!attempts.length) {
+                attemptsTableWrap.innerHTML = '<div class="empty-note">Belum ada log percobaan klaim.</div>';
+            } else {
+                attemptsTableWrap.innerHTML =
+                    "<table><thead><tr><th>Waktu</th><th>Email</th><th>IP</th><th>Browser</th><th>Status</th><th>Detail Deteksi</th></tr></thead><tbody>" +
+                    attempts.map(function (a) {
+                        var reasons = Array.isArray(a.matched_reasons) && a.matched_reasons.length
+                            ? a.matched_reasons.map(function (r) { return REASON_LABEL[r] || r; }).join(", ")
+                            : (REASON_LABEL[a.rejection_reason] || a.rejection_reason || "-");
+                        var pill = a.status === "granted"
+                            ? '<span class="pill pill-ok">Berhasil</span>'
+                            : '<span class="pill pill-reject">Ditolak</span>';
+                        return "<tr>" +
+                            "<td>" + esc(fmtTime(a.attempted_at)) + "</td>" +
+                            "<td>" + esc(a.email_exact || "-") + "</td>" +
+                            "<td>" + esc(a.ip_address || "-") + "</td>" +
+                            "<td>" + esc(a.browser_summary || "-") + "</td>" +
+                            "<td>" + pill + "</td>" +
+                            "<td>" + esc(a.status === "granted" ? "Unik (5.000 diberikan)" : reasons) + "</td>" +
+                            "</tr>";
+                    }).join("") +
+                    "</tbody></table>";
+            }
+        } catch (err) {
+            shell.hidden = false;
+            claimsTableWrap.innerHTML = '<div class="empty-note">' + esc(err && err.message ? err.message : "Gagal memuat data") + "</div>";
+        } finally {
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = "Muat Ulang Data";
+        }
+    }
+
+    refreshBtn.addEventListener("click", function () {
+        void loadSummary();
+    });
+
+    void loadSummary();
+})();
+</script>
+<script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
+</body>
+</html>
