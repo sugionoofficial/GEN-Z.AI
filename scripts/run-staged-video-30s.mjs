@@ -28,11 +28,14 @@ import { pathToFileURL } from "node:url";
 
 import {
     buildPrivateMediaRef,
+    isPrivateMediaRef,
     parsePrivateMediaRef
 } from "../lib/generate/private-media.js";
 
 import {
     buildLastFrameFfmpegArgs,
+    buildReferenceAudioSliceFfmpegArgs,
+    buildReferenceVideoSliceFfmpegArgs,
     buildSeamlessMergeFfmpegArgs,
     computeStagedCreditSettlement
 } from "../lib/generate/staged-video-30s.js";
@@ -70,6 +73,29 @@ function parseFrameRate(rawRate) {
     }
     const direct = Number(clean);
     return Number.isFinite(direct) && direct >= 10 && direct <= 120 ? direct : 24;
+}
+
+function inferSafeMediaExtension(refOrUrl, fallbackExt = ".mp4") {
+    const raw = String(refOrUrl || "").trim();
+    const candidatePath = isPrivateMediaRef(raw)
+        ? (parsePrivateMediaRef(raw)?.objectPath || "")
+        : raw.split("?")[0].split("#")[0];
+    const ext = path.extname(candidatePath).toLowerCase();
+    if ([".mp4", ".mov", ".webm", ".m4v", ".mp3", ".wav", ".m4a", ".aac", ".ogg"].includes(ext)) {
+        return ext;
+    }
+    return fallbackExt;
+}
+
+function isOpusClipAudioCopyrightFailure(text) {
+    const combined = String(text || "");
+    if (!combined.trim()) return false;
+    return (
+        /terkena copyright/i.test(combined) ||
+        /\b(?:Output|Input)?AudioSensitiveContentDetected\b/i.test(combined) ||
+        /\baudio[\s_-]*copyright\b/i.test(combined) ||
+        (/\baudio\b/i.test(combined) && /\bcopyright\b/i.test(combined))
+    );
 }
 
 export async function runStagedVideoOrchestrator({
@@ -211,6 +237,17 @@ export async function runStagedVideoOrchestrator({
         throw new Error(`Gagal mengunduh video output klip: ${lastErr?.message || "unknown error"}`);
     }
 
+    async function downloadMediaSourceToFile(refOrUrl, destPath) {
+        const clean = String(refOrUrl || "").trim();
+        if (!clean) {
+            throw new Error("Sumber media referensi kosong.");
+        }
+        if (isPrivateMediaRef(clean)) {
+            return await downloadFromStorageRef(clean, destPath);
+        }
+        return await downloadHttpUrlToFile(clean, destPath);
+    }
+
     async function loadJob() {
         const rows = await sbRest(
             `/rest/v1/staged_generation_jobs?select=*&id=eq.${encodeURIComponent(jobId)}&limit=1`,
@@ -261,12 +298,14 @@ export async function runStagedVideoOrchestrator({
             const parsed = JSON.parse(String(stdout || "{}"));
             const streams = Array.isArray(parsed.streams) ? parsed.streams : [];
             const vStream = streams.find(s => s.codec_type === "video") || {};
+            const aStream = streams.find(s => s.codec_type === "audio") || {};
             const hasAudio = streams.some(s => s.codec_type === "audio");
             const width = Number(vStream.width) || 720;
             const height = Number(vStream.height) || 1280;
             const fps = parseFrameRate(vStream.avg_frame_rate || vStream.r_frame_rate);
             const duration =
                 Number(vStream.duration) ||
+                Number(aStream.duration) ||
                 Number(parsed.format?.duration) ||
                 10;
 
@@ -325,24 +364,114 @@ export async function runStagedVideoOrchestrator({
         return outputPngPath;
     }
 
-    async function mergeSavedClipsToOutput(clipLocalPaths, outputMp4Path) {
+    async function mergeSavedClipsToOutput(clipLocalPaths, outputMp4Path, directRefAudio = null) {
         const infos = [];
         for (const p of clipLocalPaths) {
             infos.push(await probeVideoFile(p));
         }
 
-        const mergeArgs = buildSeamlessMergeFfmpegArgs({
+        const useDirectAudio = Boolean(directRefAudio?.path && directRefAudio?.hasAudio);
+        const primaryMergeArgs = buildSeamlessMergeFfmpegArgs({
             clipPaths: clipLocalPaths,
             clipInfos: infos,
-            outputPath: outputMp4Path
+            outputPath: outputMp4Path,
+            referenceAudioPath: useDirectAudio ? directRefAudio.path : "",
+            referenceAudioDuration: useDirectAudio ? directRefAudio.duration : 0,
+            referenceAudioHasAudio: useDirectAudio
         });
 
-        await execFileImpl("ffmpeg", mergeArgs);
+        try {
+            await execFileImpl("ffmpeg", primaryMergeArgs);
+        } catch (mergeErr) {
+            if (!useDirectAudio) {
+                throw mergeErr;
+            }
+            console.warn(
+                "[staged-video-30s] Merge dengan audio referensi langsung gagal, fallback ke audio klip:",
+                mergeErr?.message || mergeErr
+            );
+            const fallbackMergeArgs = buildSeamlessMergeFfmpegArgs({
+                clipPaths: clipLocalPaths,
+                clipInfos: infos,
+                outputPath: outputMp4Path
+            });
+            await execFileImpl("ffmpeg", fallbackMergeArgs);
+        }
+
         const stat = await fs.stat(outputMp4Path).catch(() => null);
         if (!stat || stat.size < 512) {
             throw new Error("FFmpeg gagal menghasilkan video gabungan akhir.");
         }
         return outputMp4Path;
+    }
+
+    async function prepareJobReferenceMedia(job) {
+        const reqPayload = job?.request_payload && typeof job.request_payload === "object"
+            ? job.request_payload
+            : {};
+        const rawVideos = Array.isArray(reqPayload.video_urls)
+            ? reqPayload.video_urls.map(v => String(v || "").trim()).filter(Boolean).slice(0, 3)
+            : [];
+        const rawAudios = Array.isArray(reqPayload.audio_urls)
+            ? reqPayload.audio_urls.map(a => String(a || "").trim()).filter(Boolean).slice(0, 3)
+            : [];
+
+        const videos = [];
+        for (let i = 0; i < rawVideos.length; i += 1) {
+            const ext = inferSafeMediaExtension(rawVideos[i], ".mp4");
+            const localPath = path.join(tempRoot, `source-ref-video-${i + 1}${ext}`);
+            try {
+                await downloadMediaSourceToFile(rawVideos[i], localPath);
+                const info = await probeVideoFile(localPath);
+                videos.push({ index: i + 1, sourceRef: rawVideos[i], localPath, info });
+            } catch (err) {
+                console.warn(
+                    `[staged-video-30s] Gagal mengunduh video referensi #${i + 1}:`,
+                    err?.message || err
+                );
+            }
+        }
+
+        const audios = [];
+        for (let i = 0; i < rawAudios.length; i += 1) {
+            const ext = inferSafeMediaExtension(rawAudios[i], ".mp3");
+            const localPath = path.join(tempRoot, `source-ref-audio-${i + 1}${ext}`);
+            try {
+                await downloadMediaSourceToFile(rawAudios[i], localPath);
+                const info = await probeVideoFile(localPath);
+                audios.push({ index: i + 1, sourceRef: rawAudios[i], localPath, info });
+            } catch (err) {
+                console.warn(
+                    `[staged-video-30s] Gagal mengunduh audio referensi #${i + 1}:`,
+                    err?.message || err
+                );
+            }
+        }
+
+        const wantAudio = Boolean(reqPayload.generate_audio ?? true) || audios.length > 0;
+        let directRefAudio = null;
+        if (wantAudio) {
+            if (audios[0]?.info?.hasAudio) {
+                directRefAudio = {
+                    path: audios[0].localPath,
+                    duration: Number(audios[0].info.duration) || 0,
+                    hasAudio: true
+                };
+            } else if (videos[0]?.info?.hasAudio) {
+                directRefAudio = {
+                    path: videos[0].localPath,
+                    duration: Number(videos[0].info.duration) || 0,
+                    hasAudio: true
+                };
+            }
+        }
+
+        return {
+            videos,
+            audios,
+            directRefAudio,
+            hasAnyMedia: videos.length > 0 || audios.length > 0
+        };
     }
 
     async function callWorkerStep(internalToken, payload) {
@@ -427,12 +556,17 @@ export async function runStagedVideoOrchestrator({
         };
     }
 
-    async function finalizeCompletedOrPartialClips(job, localClipPaths, failureNote = "") {
+    async function finalizeCompletedOrPartialClips(
+        job,
+        localClipPaths,
+        failureNote = "",
+        directRefAudio = null
+    ) {
         const clipCount = localClipPaths.length;
         const settlement = computeStagedCreditSettlement(job.credit_total, clipCount);
         const mergedLocalPath = path.join(tempRoot, `merged-final-${clipCount}clips.mp4`);
 
-        await mergeSavedClipsToOutput(localClipPaths, mergedLocalPath);
+        await mergeSavedClipsToOutput(localClipPaths, mergedLocalPath, directRefAudio);
 
         const finalObjectKey = `upscale-videos/outputs/${job.user_id}/staged30-${job.history_id}-${Date.now()}.mp4`;
         const finalStorageRef = await uploadFileToStorage(
@@ -558,10 +692,12 @@ export async function runStagedVideoOrchestrator({
         }
 
         if (recoveredClips.length > 0) {
+            const emergencyRefMedia = await prepareJobReferenceMedia(job).catch(() => null);
             return await finalizeCompletedOrPartialClips(
                 job,
                 recoveredClips,
-                "Pemrosesan tahap berikutnya terhenti di server"
+                "Pemrosesan tahap berikutnya terhenti di server",
+                emergencyRefMedia?.directRefAudio || null
             );
         }
 
@@ -581,14 +717,94 @@ export async function runStagedVideoOrchestrator({
 
     const jobFolder = `upscale-videos/outputs/${job.user_id}/staged30-${job.history_id}`;
 
+    async function sliceAndUploadClipReferenceSegments(
+        clipIndex,
+        referenceMedia,
+        { muteVideos = false } = {}
+    ) {
+        if (!referenceMedia?.hasAnyMedia) {
+            return { videoSegmentRefs: [], audioSegmentRefs: [] };
+        }
+
+        const videoSegmentRefs = [];
+        for (const item of referenceMedia.videos || []) {
+            const suffix = muteVideos ? "-muted" : "";
+            const sliceLocalPath = path.join(
+                tempRoot,
+                `ref-video-${item.index}-clip-${clipIndex}${suffix}.mp4`
+            );
+            const sliceArgs = buildReferenceVideoSliceFfmpegArgs({
+                inputPath: item.localPath,
+                outputPath: sliceLocalPath,
+                clipIndex,
+                clipDurationSeconds: 10,
+                sourceDurationSeconds: Number(item.info?.duration) || 0,
+                includeAudio: !muteVideos && Boolean(item.info?.hasAudio)
+            });
+
+            await execFileImpl("ffmpeg", sliceArgs);
+            const sliceStat = await fs.stat(sliceLocalPath).catch(() => null);
+            if (!sliceStat || sliceStat.size < 256) {
+                throw new Error(
+                    `Gagal memotong segmen video referensi #${item.index} untuk Klip ${clipIndex}.`
+                );
+            }
+
+            const uploadedRef = await uploadFileToStorage(
+                sliceLocalPath,
+                `${jobFolder}/ref-video-${item.index}-clip-${clipIndex}${suffix}.mp4`,
+                "video/mp4"
+            );
+            videoSegmentRefs.push(uploadedRef);
+        }
+
+        const audioSegmentRefs = [];
+        if (!muteVideos) {
+            for (const item of referenceMedia.audios || []) {
+                const sliceAudioPath = path.join(
+                    tempRoot,
+                    `ref-audio-${item.index}-clip-${clipIndex}.m4a`
+                );
+                const sliceAudioArgs = buildReferenceAudioSliceFfmpegArgs({
+                    inputPath: item.localPath,
+                    outputPath: sliceAudioPath,
+                    clipIndex,
+                    clipDurationSeconds: 10,
+                    sourceDurationSeconds: Number(item.info?.duration) || 0
+                });
+
+                await execFileImpl("ffmpeg", sliceAudioArgs);
+                const sliceStat = await fs.stat(sliceAudioPath).catch(() => null);
+                if (!sliceStat || sliceStat.size < 128) {
+                    throw new Error(
+                        `Gagal memotong segmen audio referensi #${item.index} untuk Klip ${clipIndex}.`
+                    );
+                }
+
+                const uploadedRef = await uploadFileToStorage(
+                    sliceAudioPath,
+                    `${jobFolder}/ref-audio-${item.index}-clip-${clipIndex}.m4a`,
+                    "audio/mp4"
+                );
+                audioSegmentRefs.push(uploadedRef);
+            }
+        }
+
+        return { videoSegmentRefs, audioSegmentRefs };
+    }
+
     async function executeAndPersistClip({
         clipIndex,
         initialTaskId = "",
-        firstFrameRef = ""
+        firstFrameRef = "",
+        referenceMedia = null
     }) {
         const excludedSlots = new Set();
         let busyWaitCycles = 0;
         let activeTaskId = String(initialTaskId || "").trim();
+        let preparedSegmentRefs = null;
+        let retriedMutedForCopyright = false;
+        let muteVideosForClip = false;
 
         while (true) {
             if (await isHistoryCancelled(job.history_id)) {
@@ -598,10 +814,35 @@ export async function runStagedVideoOrchestrator({
             }
 
             if (!activeTaskId) {
+                if (!preparedSegmentRefs && referenceMedia?.hasAnyMedia) {
+                    try {
+                        preparedSegmentRefs = await sliceAndUploadClipReferenceSegments(
+                            clipIndex,
+                            referenceMedia,
+                            { muteVideos: muteVideosForClip }
+                        );
+                    } catch (sliceErr) {
+                        console.warn(
+                            `[staged-video-30s] Gagal menyiapkan potongan referensi Klip ${clipIndex}, lanjut fallback frame akhir:`,
+                            sliceErr?.message || sliceErr
+                        );
+                        preparedSegmentRefs = { videoSegmentRefs: [], audioSegmentRefs: [] };
+                    }
+                }
+
                 const createRes = await callWorkerStep(internalToken, {
                     step_action: "create_clip",
                     clip_index: clipIndex,
                     first_frame_ref: firstFrameRef || undefined,
+                    video_segment_refs:
+                        preparedSegmentRefs?.videoSegmentRefs?.length > 0
+                            ? preparedSegmentRefs.videoSegmentRefs
+                            : undefined,
+                    audio_segment_refs:
+                        preparedSegmentRefs?.audioSegmentRefs?.length > 0
+                            ? preparedSegmentRefs.audioSegmentRefs
+                            : undefined,
+                    generate_audio_override: muteVideosForClip ? false : undefined,
                     exclude_key_slots: [...excludedSlots]
                 });
 
@@ -618,6 +859,17 @@ export async function runStagedVideoOrchestrator({
                         current_stage: `clip_${clipIndex}_generating`,
                         stage_message: `Membuat Klip ${clipIndex}/3 (durasi ${(clipIndex - 1) * 10 + (clipIndex === 1 ? 0 : 1)}–${clipIndex * 10} detik)...`
                     });
+                } else if (
+                    !retriedMutedForCopyright &&
+                    referenceMedia?.videos?.length > 0 &&
+                    isOpusClipAudioCopyrightFailure(
+                        `${createRes.data?.error_code || ""} ${createRes.data?.error || ""}`
+                    )
+                ) {
+                    retriedMutedForCopyright = true;
+                    muteVideosForClip = true;
+                    preparedSegmentRefs = null;
+                    continue;
                 } else if (createRes.data?.opus_busy) {
                     const failedSlot = createRes.data.failed_key_slot;
                     const poolSize = Number(createRes.data.key_pool_size) || 1;
@@ -700,6 +952,21 @@ export async function runStagedVideoOrchestrator({
                 }
 
                 if (q.failed) {
+                    if (
+                        !retriedMutedForCopyright &&
+                        referenceMedia?.videos?.length > 0 &&
+                        isOpusClipAudioCopyrightFailure(
+                            `${q.error_code || ""} ${q.error_message || ""}`
+                        )
+                    ) {
+                        retriedMutedForCopyright = true;
+                        muteVideosForClip = true;
+                        preparedSegmentRefs = null;
+                        activeTaskId = "";
+                        switchToAnotherKey = true;
+                        break;
+                    }
+
                     if (q.opus_busy) {
                         const failedSlot = q.key_slot;
                         const poolSize = Number(q.key_pool_size) || 1;
@@ -745,6 +1012,9 @@ export async function runStagedVideoOrchestrator({
     const completedClipLocalPaths = [];
 
     try {
+        const referenceMedia = await prepareJobReferenceMedia(job);
+        const directRefAudio = referenceMedia?.directRefAudio || null;
+
         // =================================================
         // KLIP 1 (0 - 10 DETIK)
         // =================================================
@@ -752,7 +1022,8 @@ export async function runStagedVideoOrchestrator({
         try {
             clip1Result = await executeAndPersistClip({
                 clipIndex: 1,
-                initialTaskId: job.clip_1_task_id || ""
+                initialTaskId: job.clip_1_task_id || "",
+                referenceMedia
             });
         } catch (clip1Err) {
             if (clip1Err?.cancelled) {
@@ -785,7 +1056,8 @@ export async function runStagedVideoOrchestrator({
             return await finalizeCompletedOrPartialClips(
                 job,
                 completedClipLocalPaths,
-                frame1Err?.message || "Gagal menyiapkan frame akhir Klip 1"
+                frame1Err?.message || "Gagal menyiapkan frame akhir Klip 1",
+                directRefAudio
             );
         }
 
@@ -805,7 +1077,8 @@ export async function runStagedVideoOrchestrator({
             clip2Result = await executeAndPersistClip({
                 clipIndex: 2,
                 initialTaskId: job.clip_2_task_id || "",
-                firstFrameRef: frame1Ref
+                firstFrameRef: frame1Ref,
+                referenceMedia
             });
         } catch (clip2Err) {
             if (clip2Err?.cancelled) {
@@ -820,7 +1093,8 @@ export async function runStagedVideoOrchestrator({
             return await finalizeCompletedOrPartialClips(
                 job,
                 completedClipLocalPaths,
-                clip2Err?.message || "Klip 2 gagal diproses"
+                clip2Err?.message || "Klip 2 gagal diproses",
+                directRefAudio
             );
         }
 
@@ -839,7 +1113,8 @@ export async function runStagedVideoOrchestrator({
             return await finalizeCompletedOrPartialClips(
                 job,
                 completedClipLocalPaths,
-                frame2Err?.message || "Gagal menyiapkan frame akhir Klip 2"
+                frame2Err?.message || "Gagal menyiapkan frame akhir Klip 2",
+                directRefAudio
             );
         }
 
@@ -859,7 +1134,8 @@ export async function runStagedVideoOrchestrator({
             clip3Result = await executeAndPersistClip({
                 clipIndex: 3,
                 initialTaskId: job.clip_3_task_id || "",
-                firstFrameRef: frame2Ref
+                firstFrameRef: frame2Ref,
+                referenceMedia
             });
         } catch (clip3Err) {
             if (clip3Err?.cancelled) {
@@ -874,7 +1150,8 @@ export async function runStagedVideoOrchestrator({
             return await finalizeCompletedOrPartialClips(
                 job,
                 completedClipLocalPaths,
-                clip3Err?.message || "Klip 3 gagal diproses"
+                clip3Err?.message || "Klip 3 gagal diproses",
+                directRefAudio
             );
         }
 
@@ -890,7 +1167,12 @@ export async function runStagedVideoOrchestrator({
         // =================================================
         // GABUNGKAN 3 KLIP SECARA MULUS -> HISTORY
         // =================================================
-        return await finalizeCompletedOrPartialClips(job, completedClipLocalPaths);
+        return await finalizeCompletedOrPartialClips(
+            job,
+            completedClipLocalPaths,
+            "",
+            directRefAudio
+        );
     } finally {
         if (!workDir) {
             await fs.rm(tempRoot, { recursive: true, force: true }).catch(() => null);

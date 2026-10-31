@@ -10,9 +10,12 @@ import { isRefOwnedByUser } from "../lib/generate/private-media.js";
 import {
     STAGED_30S_MODEL_ID,
     buildLastFrameFfmpegArgs,
+    buildReferenceAudioSliceFfmpegArgs,
+    buildReferenceVideoSliceFfmpegArgs,
     buildSeamlessMergeFfmpegArgs,
     buildStaged30sPrompts,
     cleanContinuationPromptForFirstFrame,
+    computeLoopedSegmentTiming,
     computeStagedCreditSettlement,
     generateStaged30sTaskId,
     isStaged30sModelId,
@@ -523,3 +526,319 @@ test("runStagedVideoOrchestrator menyimpan gabungan 20 detik ke History & refund
         await fs.rm(tempDir, { recursive: true, force: true });
     }
 });
+
+test("preserveMediaRefs mempertahankan @image1/@video1/@audio1 pada Klip 2 & 3 serta memotong/loop segmen 10-20s & 20-30s", () => {
+    const autoR2v = buildStaged30sPrompts(
+        "Karakter @image1 menirukan gerakan dari karakter @video1, gerakan realistis",
+        { preserveMediaRefs: true }
+    );
+    assert.equal(autoR2v.preserveMediaRefs, true);
+    assert.match(autoR2v.clip1, /@image1/);
+    assert.match(autoR2v.clip1, /@video1/);
+    assert.match(autoR2v.clip2, /Durasi 11-20 detik/);
+    assert.match(autoR2v.clip2, /@image1/);
+    assert.match(autoR2v.clip2, /@video1/);
+    assert.match(autoR2v.clip3, /Durasi 21-30 detik/);
+    assert.match(autoR2v.clip3, /@image1/);
+    assert.match(autoR2v.clip3, /@video1/);
+
+    const explicitR2v = buildStaged30sPrompts(
+        [
+            "0-10 detik: @image1 menari pembuka mengikuti @video1 dengan lagu @audio1.",
+            "11-20 detik: @image1 berputar mengikuti koreografi @video1 dan irama @audio1.",
+            "21-30 detik: @image1 melakukan pose penutup mengikuti @video1 dan akhir lagu @audio1."
+        ].join("\n"),
+        { preserveMediaRefs: true }
+    );
+    assert.equal(explicitR2v.mode, "explicit_duration");
+    assert.match(explicitR2v.clip2, /@image1/);
+    assert.match(explicitR2v.clip2, /@video1/);
+    assert.match(explicitR2v.clip2, /@audio1/);
+    assert.match(explicitR2v.clip3, /@image1/);
+    assert.match(explicitR2v.clip3, /@video1/);
+    assert.match(explicitR2v.clip3, /@audio1/);
+
+    // Referensi penuh >= 30s -> potong langsung 10-20s & 20-30s tanpa loop
+    const timingFull2 = computeLoopedSegmentTiming({ clipIndex: 2, sourceDurationSeconds: 30.5 });
+    const timingFull3 = computeLoopedSegmentTiming({ clipIndex: 3, sourceDurationSeconds: 30.5 });
+    assert.equal(timingFull2.needsLoop, false);
+    assert.equal(timingFull2.effectiveStartSeconds, 10);
+    assert.equal(timingFull3.needsLoop, false);
+    assert.equal(timingFull3.effectiveStartSeconds, 20);
+
+    const sliceFull2Args = buildReferenceVideoSliceFfmpegArgs({
+        inputPath: "/tmp/ref30.mp4",
+        outputPath: "/tmp/ref-c2.mp4",
+        clipIndex: 2,
+        sourceDurationSeconds: 30.5
+    });
+    assert.equal(sliceFull2Args.includes("-stream_loop"), false);
+    assert.equal(sliceFull2Args[sliceFull2Args.indexOf("-ss") + 1], "10");
+
+    // Referensi pendek 15s -> loop otomatis berkesinambungan (Klip 2 mulai detik 10, Klip 3 mulai 20 % 15 = detik 5)
+    const timingShort2 = computeLoopedSegmentTiming({ clipIndex: 2, sourceDurationSeconds: 15 });
+    const timingShort3 = computeLoopedSegmentTiming({ clipIndex: 3, sourceDurationSeconds: 15 });
+    assert.equal(timingShort2.needsLoop, true);
+    assert.equal(timingShort2.effectiveStartSeconds, 10);
+    assert.equal(timingShort3.needsLoop, true);
+    assert.equal(timingShort3.effectiveStartSeconds, 5);
+
+    const sliceLoop3Args = buildReferenceVideoSliceFfmpegArgs({
+        inputPath: "/tmp/ref15.mp4",
+        outputPath: "/tmp/ref-c3.mp4",
+        clipIndex: 3,
+        sourceDurationSeconds: 15
+    });
+    assert.equal(sliceLoop3Args.includes("-stream_loop"), true);
+    assert.equal(sliceLoop3Args[sliceLoop3Args.indexOf("-ss") + 1], "5");
+
+    const audioLoop3Args = buildReferenceAudioSliceFfmpegArgs({
+        inputPath: "/tmp/ref12.mp3",
+        outputPath: "/tmp/ref-a3.m4a",
+        clipIndex: 3,
+        sourceDurationSeconds: 12
+    });
+    assert.equal(audioLoop3Args.includes("-stream_loop"), true);
+    assert.equal(audioLoop3Args[audioLoop3Args.indexOf("-ss") + 1], "8");
+
+    // Merge dengan audio referensi asli utuh (loop otomatis bila < 30s)
+    const mergeDirectLoopArgs = buildSeamlessMergeFfmpegArgs({
+        clipPaths: ["/tmp/c1.mp4", "/tmp/c2.mp4", "/tmp/c3.mp4"],
+        clipInfos: [
+            { width: 720, height: 1280, fps: 24, duration: 10, hasAudio: true },
+            { width: 720, height: 1280, fps: 24, duration: 10, hasAudio: false },
+            { width: 720, height: 1280, fps: 24, duration: 10, hasAudio: false }
+        ],
+        outputPath: "/tmp/merged-ref-audio.mp4",
+        referenceAudioPath: "/tmp/ref15.mp4",
+        referenceAudioDuration: 15,
+        referenceAudioHasAudio: true
+    });
+    assert.equal(mergeDirectLoopArgs.includes("-stream_loop"), true);
+    assert.equal(mergeDirectLoopArgs.includes("-shortest"), true);
+    const directFilter = mergeDirectLoopArgs[mergeDirectLoopArgs.indexOf("-filter_complex") + 1];
+    assert.match(directFilter, /\[3:a:0\]aformat=.*atrim=0:29\.917,asetpts=PTS-STARTPTS\[aout\]/);
+    assert.doesNotMatch(directFilter, /acrossfade/);
+});
+
+test("runStagedVideoOrchestrator memotong & me-loop @video1 ke Klip 2 (10-20s) & Klip 3 (20-30s) serta menempelkan audio asli utuh saat merge", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "staged30-e2e-refvideo-"));
+    try {
+        const storageUploads = [];
+        const createClipCalls = [];
+        const ffmpegCalls = [];
+        const refVideoPrivateRef = `supabase-private://user-uploads/generate-input/${USER_ID}/video-dance-15s.mp4`;
+        const refImagePrivateRef = `supabase-private://user-uploads/generate-input/${USER_ID}/char.jpg`;
+
+        let historyRow = {
+            id: HISTORY_ID,
+            user_id: USER_ID,
+            status: "processing",
+            task_id: "staged30_test_ref_video",
+            credit_cost: 7500,
+            credit_refunded: false
+        };
+        let jobRow = {
+            id: JOB_ID,
+            task_id: "staged30_test_ref_video",
+            history_id: HISTORY_ID,
+            user_id: USER_ID,
+            status: "processing",
+            current_stage: "clip_1_generating",
+            internal_token: "c".repeat(64),
+            clip_1_task_id: "opus:proj1:job1",
+            credit_total: 7500,
+            request_payload: {
+                prompt: "Karakter @image1 menirukan gerakan dari karakter @video1, gerakan realistis",
+                aspect_ratio: "9:16",
+                resolution: "720p",
+                generate_audio: true,
+                image_urls: [refImagePrivateRef],
+                video_urls: [refVideoPrivateRef],
+                audio_urls: []
+            }
+        };
+
+        let clip3CopyrightTriggered = false;
+
+        const mockFetch = async (urlStr, options = {}) => {
+            const u = String(urlStr);
+
+            if (u.includes("/rest/v1/staged_generation_jobs") && options.method === "GET") {
+                return new Response(JSON.stringify([jobRow]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/staged_generation_jobs") && options.method === "PATCH") {
+                const body = JSON.parse(options.body);
+                jobRow = { ...jobRow, ...body };
+                return new Response(JSON.stringify([jobRow]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/generation_history") && options.method === "GET") {
+                return new Response(JSON.stringify([historyRow]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/generation_history") && options.method === "PATCH") {
+                const body = JSON.parse(options.body);
+                historyRow = { ...historyRow, ...body };
+                return new Response(JSON.stringify([historyRow]), { status: 200 });
+            }
+            if (u.includes("/storage/v1/object/user-uploads/") && options.method === "GET") {
+                return new Response(Buffer.alloc(4096, 0x55), { status: 200 });
+            }
+            if (u.includes("/storage/v1/object/user-uploads/") && options.method === "POST") {
+                storageUploads.push(decodeURIComponent(u.split("/storage/v1/object/user-uploads/")[1]));
+                return new Response(JSON.stringify({ Key: u }), { status: 200 });
+            }
+            if (u.endsWith("/api/generate")) {
+                const body = JSON.parse(options.body);
+                if (body.step_action === "create_clip") {
+                    createClipCalls.push(body);
+                    // Simulasikan Klip 3 gagal copyright pada percobaan pertama -> otomatis retry muted & tetap dapat audio referensi di merge akhir
+                    if (body.clip_index === 3 && !clip3CopyrightTriggered) {
+                        clip3CopyrightTriggered = true;
+                        return new Response(JSON.stringify({
+                            success: false,
+                            error: "audio pada video/lagu yang anda upload terkena copyright, silahkan gunakan video/lagu yang lain, atau generate tanpa audio"
+                        }), { status: 200 });
+                    }
+                    return new Response(JSON.stringify({
+                        success: true,
+                        task_id: `opus:proj${body.clip_index}:job${body.clip_index}`
+                    }), { status: 200 });
+                }
+                if (body.step_action === "query_clip") {
+                    return new Response(JSON.stringify({
+                        success: true,
+                        completed: true,
+                        failed: false,
+                        processing: false,
+                        output_urls: [`https://cdn.opus.example/clip-${body.clip_index}.mp4`]
+                    }), { status: 200 });
+                }
+            }
+            if (u.startsWith("https://cdn.opus.example/")) {
+                return new Response(Buffer.alloc(2048, 0x42), { status: 200 });
+            }
+            throw new Error(`Unexpected fetch URL in refvideo test: ${u}`);
+        };
+
+        const mockExecFile = async (cmd, args) => {
+            if (cmd === "ffprobe") {
+                if (args.includes("-count_frames")) {
+                    return { stdout: "240\n", stderr: "" };
+                }
+                const targetFile = String(args[args.length - 1] || "");
+                const isRefSource = targetFile.includes("source-ref-video-1");
+                return {
+                    stdout: JSON.stringify({
+                        streams: [
+                            {
+                                codec_type: "video",
+                                width: 720,
+                                height: 1280,
+                                avg_frame_rate: "24/1",
+                                duration: isRefSource ? "15.0" : "10.0"
+                            },
+                            {
+                                codec_type: "audio",
+                                duration: isRefSource ? "15.0" : "10.0"
+                            }
+                        ],
+                        format: { duration: isRefSource ? "15.0" : "10.0" }
+                    }),
+                    stderr: ""
+                };
+            }
+            if (cmd === "ffmpeg") {
+                ffmpegCalls.push(args);
+                const outFile = args[args.length - 1];
+                await fs.writeFile(outFile, Buffer.alloc(4096, 0x33));
+                return { stdout: "", stderr: "" };
+            }
+            throw new Error(`Unexpected exec: ${cmd}`);
+        };
+
+        const outcome = await runStagedVideoOrchestrator({
+            env: {
+                SUPABASE_URL: "https://proj.supabase.co",
+                SUPABASE_SERVICE_KEY: "srv_key",
+                JOB_ID
+            },
+            fetchImpl: mockFetch,
+            execFileImpl: mockExecFile,
+            sleepImpl: async () => {},
+            workDir: tempDir,
+            pollIntervalMs: 1,
+            busyWaitMs: 1
+        });
+
+        assert.equal(outcome.outcome, "completed");
+        assert.equal(outcome.completedClips, 3);
+        assert.equal(outcome.finalDuration, 30);
+
+        // Pastikan segmen referensi Klip 2 (10-20s) & Klip 3 (20-30s + fallback muted) diunggah ke namespace user
+        assert.ok(storageUploads.some(p => p.endsWith("/ref-video-1-clip-2.mp4")));
+        assert.ok(storageUploads.some(p => p.endsWith("/ref-video-1-clip-3.mp4")));
+        assert.ok(storageUploads.some(p => p.endsWith("/ref-video-1-clip-3-muted.mp4")));
+
+        const clip2Call = createClipCalls.find(c => c.clip_index === 2);
+        assert.ok(clip2Call.first_frame_ref.endsWith("/frame-1-end.png"));
+        assert.equal(clip2Call.video_segment_refs.length, 1);
+        assert.ok(clip2Call.video_segment_refs[0].endsWith("/ref-video-1-clip-2.mp4"));
+        assert.equal(isRefOwnedByUser(clip2Call.video_segment_refs[0], USER_ID), true);
+
+        const clip3Calls = createClipCalls.filter(c => c.clip_index === 3);
+        assert.equal(clip3Calls.length, 2, "Klip 3 mencoba dengan audio dulu lalu fallback muted saat copyright");
+        assert.ok(clip3Calls[0].video_segment_refs[0].endsWith("/ref-video-1-clip-3.mp4"));
+        assert.ok(clip3Calls[1].video_segment_refs[0].endsWith("/ref-video-1-clip-3-muted.mp4"));
+        assert.equal(clip3Calls[1].generate_audio_override, false);
+
+        // Pastikan perintah merge akhir memakai audio referensi asli utuh dengan loop (-stream_loop -1)
+        const finalMergeCall = ffmpegCalls[ffmpegCalls.length - 1];
+        assert.equal(finalMergeCall.includes("-stream_loop"), true);
+        assert.equal(finalMergeCall.includes("-shortest"), true);
+        assert.ok(
+            finalMergeCall.some(arg => String(arg).includes("source-ref-video-1.mp4")),
+            "Merge akhir harus mengambil audio asli langsung dari video referensi"
+        );
+    } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    }
+});
+
+test("adapter opus-seedance-2.5-r2v menerima payload lanjutan Klip 2/3 (frame akhir @image1 + segmen @video1/@audio1) & api/generate.js menjaga kepemilikan RLS", async () => {
+    const r2vAdapter = getOpusVideoModel("opus-seedance-2.5-r2v");
+    assert.ok(r2vAdapter, "adapter opus-seedance-2.5-r2v wajib tersedia");
+
+    const stagedPrompts = buildStaged30sPrompts(
+        "Karakter @image1 menirukan gerakan dari karakter @video1, gerakan realistis",
+        { preserveMediaRefs: true }
+    );
+
+    const continuationInput = {
+        prompt: stagedPrompts.clip2,
+        aspect_ratio: "9:16",
+        resolution: "720p",
+        duration: "10",
+        generate_audio: true,
+        image_urls: ["https://proj.supabase.co/storage/v1/object/sign/user-uploads/frame-1-end.png?token=sig1"],
+        video_urls: ["https://proj.supabase.co/storage/v1/object/sign/user-uploads/ref-video-1-clip-2.mp4?token=sig2"],
+        audio_urls: []
+    };
+
+    const validation = r2vAdapter.validate(continuationInput);
+    assert.equal(validation.valid, true, validation.errors.join("; "));
+
+    const builtPayload = r2vAdapter.buildPayload(continuationInput);
+    assert.equal(builtPayload.workflow, "reference2video");
+    assert.equal(builtPayload.duration, 10);
+    assert.equal(builtPayload.first_frame_url, undefined, "tidak boleh mencampur first_frame_url dengan reference2video");
+    assert.equal(builtPayload.reference_image_urls.length, 1);
+    assert.equal(builtPayload.reference_video_urls.length, 1);
+
+    const generateSrc = await fs.readFile(new URL("../api/generate.js", import.meta.url), "utf8");
+    assert.match(generateSrc, /const useR2vForContinuation =/);
+    assert.match(generateSrc, /video_segment_refs/);
+    assert.match(generateSrc, /audio_segment_refs/);
+    assert.match(generateSrc, /preserveMediaRefs:\s*hasStagedReferenceMedia/);
+});
+
+
