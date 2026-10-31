@@ -7,11 +7,13 @@ import opusVideoModels, {
 } from "../models/opus-video/index.js";
 
 import {
+    OPUS_AUDIO_COPYRIGHT_ERROR_MESSAGE,
     encodeOpusTaskId,
     extractOpusApiKeyPool,
     extractOpusEgressJobId,
     extractVideoUrls,
     getActiveOpusKeyIndex,
+    isOpusAudioCopyrightError,
     isOpusCreditExhaustedError,
     isOpusNonTerminalWorkerDeadline,
     parseOpusTaskId,
@@ -3382,6 +3384,54 @@ test("history-status-sync memulihkan item failed 'still non-terminal after the w
     await App.syncGenerationStatus(App.getActiveHistoryItems()[0], "tok-test");
     assert.equal(App.getActiveHistoryItems().length, 0);
 });
+
+test("error copyright audio Ark/Seedance diterjemahkan tepat menjadi pesan ramah di Opus client, generate-status, dan History UI", async () => {
+    const fs = await import("node:fs");
+    const vm = await import("node:vm");
+
+    const expectedMsg =
+        "audio pada video/lagu yang anda upload terkena copyright, silahkan gunakan video/lagu yang lain, atau generate tanpa audio";
+    const rawArkError =
+        'Ark task failed: {"id":"cgt-20261031172448-niqj3","model":"dreamina-seedance-2-5-260628","status":"failed","error":{"code":"OutputAudioSensitiveContentDetected.PolicyViolation","message":"The request failed because the output audio may be related to copyright restrictions. Request id: 02179343868835800000000000000000000ffffc0a8bb6aae2843"},"created_at":1793438688,"updated_at":1793438870,"service_tier":"default","execution_expires_after":172800,"generate_audio":true,"draft":false,"priority":0,"output_format":"mp4"}';
+
+    assert.equal(OPUS_AUDIO_COPYRIGHT_ERROR_MESSAGE, expectedMsg);
+    assert.equal(isOpusAudioCopyrightError("failed", rawArkError), true);
+    assert.equal(translateOpusError("failed", rawArkError), expectedMsg);
+    assert.equal(
+        translateOpusError("InputAudioSensitiveContentDetected.PolicyViolation", ""),
+        expectedMsg
+    );
+
+    const historyDataSource = fs.readFileSync(
+        new URL("../history/assets/js/history-data.js", import.meta.url),
+        "utf8"
+    );
+    const windowObj = { GENZHistory: { state: {} } };
+    vm.runInNewContext(historyDataSource, {
+        window: windowObj,
+        console,
+        Date,
+        Map,
+        Set,
+        Promise,
+        Number,
+        String,
+        Boolean,
+        Array,
+        Object,
+        URL
+    });
+
+    assert.equal(
+        windowObj.GENZHistory.getErrorMessage({ error_message: rawArkError }),
+        expectedMsg
+    );
+    assert.equal(
+        windowObj.GENZHistory.getErrorMessage({ error_message: "Error lain biasa" }),
+        "Error lain biasa"
+    );
+});
+
 
 
 

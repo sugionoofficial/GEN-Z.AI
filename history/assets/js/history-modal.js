@@ -112,7 +112,15 @@
 
     function getErrorMessage(item) {
         if (typeof App.getErrorMessage === "function") return App.getErrorMessage(item);
-        return String(item?.error_message || item?.error || item?.message || "").trim();
+        const raw = String(item?.error_message || item?.error || item?.message || "").trim();
+        if (
+            /\b(?:Output|Input)?AudioSensitiveContentDetected\b/i.test(raw) ||
+            /\b(?:output|input)?\s*audio\s+may\s+be\s+related\s+to\s+copyright\b/i.test(raw) ||
+            (/\baudio\b/i.test(raw) && /\bcopyright\s+restrictions?\b/i.test(raw))
+        ) {
+            return "audio pada video/lagu yang anda upload terkena copyright, silahkan gunakan video/lagu yang lain, atau generate tanpa audio";
+        }
+        return raw;
     }
 
     function getResultUrl(item) {

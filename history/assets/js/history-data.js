@@ -999,19 +999,41 @@
             : 0;
     }
 
+    const AUDIO_COPYRIGHT_HISTORY_MESSAGE =
+        "audio pada video/lagu yang anda upload terkena copyright, silahkan gunakan video/lagu yang lain, atau generate tanpa audio";
+
+    function formatHistoryErrorMessage(rawText) {
+        const text = String(rawText || "").trim();
+        if (!text) {
+            return "";
+        }
+        if (
+            /\b(?:Output|Input)?AudioSensitiveContentDetected\b/i.test(text) ||
+            /\baudio[\s_-]*copyright\b/i.test(text) ||
+            /\b(?:output|input)?\s*audio\s+may\s+be\s+related\s+to\s+copyright\b/i.test(text) ||
+            (/\baudio\b/i.test(text) && /\bcopyright\s+restrictions?\b/i.test(text))
+        ) {
+            return AUDIO_COPYRIGHT_HISTORY_MESSAGE;
+        }
+        return text;
+    }
+
     function getErrorMessage(item) {
 
         if (!item) {
             return "";
         }
 
-        return String(
+        return formatHistoryErrorMessage(
             item.error_message ||
             item.error ||
             item.message ||
             ""
-        ).trim();
+        );
     }
+
+    App.formatHistoryErrorMessage =
+        formatHistoryErrorMessage;
 
     App.getTaskId =
         getTaskId;
