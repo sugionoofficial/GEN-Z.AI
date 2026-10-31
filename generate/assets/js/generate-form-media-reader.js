@@ -63,6 +63,148 @@ function errorLog(...args) {
 
 
 /* =========================================================
+   FACEBOOK & TIKTOK URL HELPER
+========================================================= */
+
+export function isFacebookMediaUrl(rawUrl) {
+    let candidate = String(rawUrl || "").trim();
+    if (!candidate) return false;
+    if (
+        !/^https?:\/\//i.test(candidate) &&
+        /^(?:www\.|m\.|web\.|mbasic\.)?(?:facebook\.com|fb\.watch|fb\.com)\//i.test(candidate)
+    ) {
+        candidate = `https://${candidate}`;
+    }
+    try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            return false;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        return ["facebook.com", "fb.watch", "fb.com"].some(
+            suffix => host === suffix || host.endsWith(`.${suffix}`)
+        );
+    } catch {
+        return false;
+    }
+}
+
+export function isTikTokMediaUrl(rawUrl) {
+    let candidate = String(rawUrl || "").trim();
+    if (!candidate) return false;
+    if (
+        !/^https?:\/\//i.test(candidate) &&
+        /^(?:(?:www|m|vt|vm|t|lite)\.)?(?:tiktok\.com|xzcs3zlph\.com)\//i.test(candidate)
+    ) {
+        candidate = `https://${candidate}`;
+    }
+    try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            return false;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        const matched = ["tiktok.com", "xzcs3zlph.com"].some(
+            suffix => host === suffix || host.endsWith(`.${suffix}`)
+        );
+        if (!matched) return false;
+        const pathname = parsed.pathname.replace(/\/+$/, "");
+        const hasQueryId = parsed.searchParams.has("item_id") || parsed.searchParams.has("shareId");
+        if (!pathname && !hasQueryId) return false;
+        if (/^\/@[^/]+$/i.test(pathname) && !hasQueryId) return false;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export function isThreadsMediaUrl(rawUrl) {
+    let candidate = String(rawUrl || "").trim();
+    if (!candidate) return false;
+    if (
+        !/^https?:\/\//i.test(candidate) &&
+        /^(?:www\.)?threads\.(?:com|net)\//i.test(candidate)
+    ) {
+        candidate = `https://${candidate}`;
+    }
+    try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            return false;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        const matched = ["threads.com", "threads.net"].some(
+            suffix => host === suffix || host.endsWith(`.${suffix}`)
+        );
+        if (!matched) return false;
+        const pathname = parsed.pathname.replace(/\/+$/, "");
+        return (
+            /^\/@?[A-Za-z0-9._]+\/post\/[A-Za-z0-9_-]{5,}(?:\/(?:media|embed))?$/i.test(pathname) ||
+            /^\/(?:t|share)\/[A-Za-z0-9_-]{5,}(?:\/(?:media|embed))?$/i.test(pathname)
+        );
+    } catch {
+        return false;
+    }
+}
+
+export function detectSocialMediaUrlProvider(rawUrl) {
+    if (isFacebookMediaUrl(rawUrl)) return "facebook";
+    if (isTikTokMediaUrl(rawUrl)) return "tiktok";
+    if (isThreadsMediaUrl(rawUrl)) return "threads";
+    return "";
+}
+
+async function resolveProcessedSocialMediaUrl(mediaInput, rawUrl, uploadPromiseKey, label) {
+    if (
+        mediaInput?._fbProcessPromise &&
+        typeof mediaInput._fbProcessPromise.then === "function"
+    ) {
+        await awaitWithTimeout(
+            mediaInput._fbProcessPromise,
+            `${label} social process`,
+            UPLOAD_TIMEOUT_MS * 2
+        );
+    }
+
+    const activeUpload = uploadPromiseKey ? mediaInput?.[uploadPromiseKey] : null;
+    if (activeUpload && typeof activeUpload.then === "function") {
+        await awaitWithTimeout(
+            activeUpload,
+            `${label} upload`,
+            UPLOAD_TIMEOUT_MS
+        );
+    }
+
+    const processedFor = String(mediaInput?.dataset?.fbProcessedForUrl || "").trim();
+    const uploadedUrl = extractUploadUrl(
+        typeof mediaInput?.getUploadedUrl === "function"
+            ? mediaInput.getUploadedUrl()
+            : mediaInput?.dataset?.uploadedUrl
+    );
+
+    if (processedFor && processedFor === String(rawUrl || "").trim() && uploadedUrl) {
+        return uploadedUrl;
+    }
+
+    const provider = detectSocialMediaUrlProvider(rawUrl);
+    const platformName = provider === "tiktok"
+        ? "TikTok"
+        : provider === "threads"
+            ? "Threads"
+            : "Facebook";
+    const serviceName = provider === "tiktok"
+        ? "SSSTik"
+        : provider === "threads"
+            ? "ThreadsDownloader"
+            : "GetMyFB";
+
+    throw new Error(
+        `Link ${platformName} pada kolom ${label} belum diproses. Klik tombol “Proses” terlebih dahulu untuk mengunduh & menyimpan media lewat ${serviceName} sebelum Generate.`
+    );
+}
+
+
+/* =========================================================
    TIMEOUT SENTINEL
 ========================================================= */
 
@@ -438,7 +580,21 @@ export async function resolveImageParameterValue(
 
 
         if (cleaned.length > 0) {
-            return cleaned;
+            const resolvedUrls = [];
+            for (const candidateUrl of cleaned) {
+                if (detectSocialMediaUrlProvider(candidateUrl)) {
+                    const processedUrl = await resolveProcessedSocialMediaUrl(
+                        imageInput,
+                        candidateUrl,
+                        "_imageUploadPromise",
+                        "gambar referensi"
+                    );
+                    resolvedUrls.push(processedUrl);
+                } else {
+                    resolvedUrls.push(candidateUrl);
+                }
+            }
+            return dedupe(resolvedUrls);
         }
 
 
@@ -685,6 +841,14 @@ export async function resolveAudioParameterValue(audioInput) {
 
 
         if (value) {
+            if (detectSocialMediaUrlProvider(value)) {
+                return await resolveProcessedSocialMediaUrl(
+                    audioInput,
+                    value,
+                    "_audioUploadPromise",
+                    "audio referensi"
+                );
+            }
             return value;
         }
 
@@ -942,7 +1106,21 @@ export async function resolveVideoParameterValue(
 
 
         if (cleaned.length > 0) {
-            return cleaned;
+            const resolvedUrls = [];
+            for (const candidateUrl of cleaned) {
+                if (detectSocialMediaUrlProvider(candidateUrl)) {
+                    const processedUrl = await resolveProcessedSocialMediaUrl(
+                        videoInput,
+                        candidateUrl,
+                        "_videoUploadPromise",
+                        "video referensi"
+                    );
+                    resolvedUrls.push(processedUrl);
+                } else {
+                    resolvedUrls.push(candidateUrl);
+                }
+            }
+            return dedupe(resolvedUrls);
         }
 
 

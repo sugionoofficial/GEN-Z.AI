@@ -26,6 +26,7 @@ import { runMonitoringCron } from "./_shared/monitoring-cron.js";
 import viddraAccount from "../api/viddra/account.js";
 import viddraGenerate from "../api/viddra/generate.js";
 import handleTempmail from "./_shared/tempmail-handler.js";
+import handleFbMediaDownload from "./_shared/fb-media-handler.js";
 
 const handlers = new Map([
     ["/api/admin-credit", adminCredit],
@@ -68,6 +69,11 @@ export default {
         // Route khusus Tempmail
         if (pathname === "/api/tempmail") {
             return handleTempmail(request, env);
+        }
+
+        // Route unduh & proses URL Facebook (GetMyFB) dan TikTok (SSSTik) untuk referensi media
+        if (pathname === "/api/fb-media-download" || pathname === "/api/social-media-download") {
+            return handleFbMediaDownload(request, env);
         }
 
         if (

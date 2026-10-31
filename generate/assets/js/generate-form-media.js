@@ -632,6 +632,384 @@ async function getStoredUploadContext() {
 
 
 /* =========================================================
+   PROSES URL FACEBOOK (GETMYFB) & TIKTOK (SSSTIK)
+========================================================= */
+
+export function isFacebookMediaUrl(rawUrl) {
+    let candidate = String(rawUrl || "").trim();
+    if (!candidate) return false;
+    if (
+        !/^https?:\/\//i.test(candidate) &&
+        /^(?:www\.|m\.|web\.|mbasic\.)?(?:facebook\.com|fb\.watch|fb\.com)\//i.test(candidate)
+    ) {
+        candidate = `https://${candidate}`;
+    }
+    try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            return false;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        return ["facebook.com", "fb.watch", "fb.com"].some(
+            suffix => host === suffix || host.endsWith(`.${suffix}`)
+        );
+    } catch {
+        return false;
+    }
+}
+
+export function isTikTokMediaUrl(rawUrl) {
+    let candidate = String(rawUrl || "").trim();
+    if (!candidate) return false;
+    if (
+        !/^https?:\/\//i.test(candidate) &&
+        /^(?:(?:www|m|vt|vm|t|lite)\.)?(?:tiktok\.com|xzcs3zlph\.com)\//i.test(candidate)
+    ) {
+        candidate = `https://${candidate}`;
+    }
+    try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            return false;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        const matched = ["tiktok.com", "xzcs3zlph.com"].some(
+            suffix => host === suffix || host.endsWith(`.${suffix}`)
+        );
+        if (!matched) return false;
+        const pathname = parsed.pathname.replace(/\/+$/, "");
+        const hasQueryId = parsed.searchParams.has("item_id") || parsed.searchParams.has("shareId");
+        if (!pathname && !hasQueryId) return false;
+        if (/^\/@[^/]+$/i.test(pathname) && !hasQueryId) return false;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export function isThreadsMediaUrl(rawUrl) {
+    let candidate = String(rawUrl || "").trim();
+    if (!candidate) return false;
+    if (
+        !/^https?:\/\//i.test(candidate) &&
+        /^(?:www\.)?threads\.(?:com|net)\//i.test(candidate)
+    ) {
+        candidate = `https://${candidate}`;
+    }
+    try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            return false;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+        const matched = ["threads.com", "threads.net"].some(
+            suffix => host === suffix || host.endsWith(`.${suffix}`)
+        );
+        if (!matched) return false;
+        const pathname = parsed.pathname.replace(/\/+$/, "");
+        return (
+            /^\/@?[A-Za-z0-9._]+\/post\/[A-Za-z0-9_-]{5,}(?:\/(?:media|embed))?$/i.test(pathname) ||
+            /^\/(?:t|share)\/[A-Za-z0-9_-]{5,}(?:\/(?:media|embed))?$/i.test(pathname)
+        );
+    } catch {
+        return false;
+    }
+}
+
+export function detectSocialMediaUrlProvider(rawUrl) {
+    if (isFacebookMediaUrl(rawUrl)) return "facebook";
+    if (isTikTokMediaUrl(rawUrl)) return "tiktok";
+    if (isThreadsMediaUrl(rawUrl)) return "threads";
+    return "";
+}
+
+function getSocialMediaProviderLabels(rawUrl) {
+    const provider = detectSocialMediaUrlProvider(rawUrl);
+    if (provider === "tiktok") {
+        return {
+            provider: "tiktok",
+            platformName: "TikTok",
+            serviceName: "SSSTik",
+            filePrefix: "tiktok"
+        };
+    }
+    if (provider === "threads") {
+        return {
+            provider: "threads",
+            platformName: "Threads",
+            serviceName: "ThreadsDownloader",
+            filePrefix: "threads"
+        };
+    }
+    return {
+        provider: provider || "facebook",
+        platformName: "Facebook",
+        serviceName: "GetMyFB",
+        filePrefix: "fb"
+    };
+}
+
+async function getSupabaseAccessTokenForMedia() {
+    const supabase = getSupabaseClient();
+    if (typeof supabase?.auth?.getSession === "function") {
+        try {
+            const sessionResult = await supabase.auth.getSession();
+            const token = String(sessionResult?.data?.session?.access_token || "").trim();
+            if (token) return token;
+        } catch {
+            /* Lanjut ke fallback sesi global */
+        }
+    }
+    if (typeof window?.GENZSession?.getAccessToken === "function") {
+        try {
+            const token = String((await window.GENZSession.getAccessToken()) || "").trim();
+            if (token) return token;
+        } catch {
+            /* ignore */
+        }
+    }
+    throw new Error("Silakan login terlebih dahulu untuk memproses link Facebook, TikTok, atau Threads.");
+}
+
+async function downloadFacebookMediaFromServer(mediaUrl, kind) {
+    const labels = getSocialMediaProviderLabels(mediaUrl);
+    const token = await getSupabaseAccessTokenForMedia();
+    const response = await fetch("/api/fb-media-download", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            url: mediaUrl,
+            kind
+        })
+    });
+
+    if (!response.ok) {
+        let message = `Gagal memproses link ${labels.platformName} lewat ${labels.serviceName}.`;
+        try {
+            const payload = await response.json();
+            if (payload?.error) {
+                message = String(payload.error);
+            }
+        } catch {
+            /* ignore JSON parse failure */
+        }
+        throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    if (!blob || blob.size === 0) {
+        throw new Error(`File hasil unduhan ${labels.platformName} kosong.`);
+    }
+
+    const headerType = String(response.headers.get("content-type") || "")
+        .split(";")[0]
+        .trim()
+        .toLowerCase();
+    const contentType = headerType || String(blob.type || "").toLowerCase();
+    const filename =
+        String(response.headers.get("x-fb-media-filename") || "").trim() ||
+        `${labels.filePrefix}-${kind}-${Date.now()}`;
+    const needsAudioExtract =
+        response.headers.get("x-fb-media-needs-audio-extract") === "1" ||
+        (kind === "audio" && contentType.startsWith("video/"));
+
+    return {
+        blob,
+        contentType,
+        filename,
+        needsAudioExtract,
+        provider: labels.provider
+    };
+}
+
+async function normalizeDownloadedImageFile(blob, filename) {
+    const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
+    const mime = String(blob.type || "").toLowerCase();
+    if (allowed.has(mime)) {
+        const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+        const safeName = /\.(jpe?g|png|webp)$/i.test(filename)
+            ? filename
+            : `${filename.replace(/\.[^.]+$/, "")}.${ext}`;
+        return new File([blob], safeName, {
+            type: mime,
+            lastModified: Date.now()
+        });
+    }
+
+    /* Konversi ke JPEG bila format gambar dari sumber di luar JPEG/PNG/WebP */
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+        const img = await new Promise((resolve, reject) => {
+            const el = new Image();
+            el.onload = () => resolve(el);
+            el.onerror = () => reject(new Error("Format gambar dari link media tidak dapat dibaca."));
+            el.src = objectUrl;
+        });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width || 1;
+        canvas.height = img.naturalHeight || img.height || 1;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        const convertedBlob = await new Promise((resolve, reject) => {
+            canvas.toBlob(
+                out => (out ? resolve(out) : reject(new Error("Gagal mengonversi foto hasil unduhan."))),
+                "image/jpeg",
+                0.92
+            );
+        });
+        const base = filename.replace(/\.[^.]+$/, "") || `fb-photo-${Date.now()}`;
+        return new File([convertedBlob], `${base}.jpg`, {
+            type: "image/jpeg",
+            lastModified: Date.now()
+        });
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
+async function extractAudioFileFromVideoBlob(videoBlob, baseFilename = "fb-audio") {
+    const cleanBase = String(baseFilename || "fb-audio").replace(/\.[^.]+$/, "") || "fb-audio";
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+
+    if (typeof AudioContextConstructor === "function") {
+        const context = new AudioContextConstructor();
+        try {
+            const buffer = await context.decodeAudioData(await videoBlob.arrayBuffer());
+            const estimatedWavBytes =
+                buffer.length * buffer.numberOfChannels * 2 + 44;
+            if (buffer.duration > 0 && estimatedWavBytes <= 48 * 1024 * 1024) {
+                const wavBlob = encodeAudioBufferRangeToWav(buffer, 0, buffer.duration);
+                return new File([wavBlob], `${cleanBase}.wav`, {
+                    type: "audio/wav",
+                    lastModified: Date.now()
+                });
+            }
+        } catch {
+            /* Lanjut ke ekstraksi FFmpeg bila dekoder WebAudio tidak mendukung kontainer */
+        } finally {
+            try {
+                await context.close();
+            } catch {
+                /* ignore */
+            }
+        }
+    }
+
+    const ffmpeg = await ensureFFmpeg();
+    const uniqueId =
+        globalThis.crypto?.randomUUID?.() ||
+        `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const inputName = `fb_audio_src_${uniqueId}.mp4`;
+    const outputName = `fb_audio_out_${uniqueId}.m4a`;
+
+    try {
+        await ffmpeg.writeFile(inputName, new Uint8Array(await videoBlob.arrayBuffer()));
+        const exitCode = await ffmpeg.exec([
+            "-i",
+            inputName,
+            "-vn",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            outputName
+        ]);
+        if (exitCode !== 0) {
+            throw new Error(`Video tidak memiliki jalur audio yang dapat diekstrak (kode ${exitCode}).`);
+        }
+        const outBytes = await ffmpeg.readFile(outputName);
+        if (!outBytes?.length) {
+            throw new Error("Hasil ekstraksi audio dari video kosong.");
+        }
+        return new File([outBytes], `${cleanBase}.m4a`, {
+            type: "audio/mp4",
+            lastModified: Date.now()
+        });
+    } finally {
+        await Promise.all([
+            safeDeleteFFmpegFile(ffmpeg, inputName),
+            safeDeleteFFmpegFile(ffmpeg, outputName)
+        ]);
+    }
+}
+
+function attachFacebookUrlControls(urlContainer, urlInput, {
+    kindLabel,
+    onProcess,
+    onUrlChanged
+}) {
+    const inputRow = document.createElement("div");
+    inputRow.className = "generate-url-input-row";
+
+    const processButton = document.createElement("button");
+    processButton.type = "button";
+    processButton.className = "generate-fb-process-btn";
+    processButton.textContent = "Proses";
+    processButton.title = `Proses & unduh ${kindLabel} dari link Facebook (GetMyFB), TikTok (SSSTik), atau Threads (ThreadsDownloader)`;
+    processButton.setAttribute("aria-label", `Proses link Facebook, TikTok, atau Threads untuk ${kindLabel}`);
+
+    const hintEl = document.createElement("div");
+    hintEl.className = "generate-fb-url-hint";
+    hintEl.hidden = true;
+    hintEl.textContent =
+        `Link Facebook terdeteksi — klik Proses untuk mengunduh lewat GetMyFB & menyimpan ke ${kindLabel}.`;
+
+    inputRow.append(urlInput, processButton);
+    urlContainer.append(inputRow, hintEl);
+
+    let busy = false;
+    const setBusy = nextBusy => {
+        busy = Boolean(nextBusy);
+        processButton.disabled = busy;
+        processButton.textContent = busy ? "Memproses…" : "Proses";
+    };
+
+    const syncHint = () => {
+        const val = String(urlInput.value || "").trim();
+        const provider = detectSocialMediaUrlProvider(val);
+        if (!provider) {
+            hintEl.hidden = true;
+            return;
+        }
+        const labels = getSocialMediaProviderLabels(val);
+        hintEl.textContent =
+            `Link ${labels.platformName} terdeteksi — klik Proses untuk mengunduh lewat ${labels.serviceName} & menyimpan ke ${kindLabel}.`;
+        hintEl.hidden = false;
+    };
+
+    urlInput.addEventListener("input", () => {
+        syncHint();
+        onUrlChanged?.(String(urlInput.value || "").trim());
+    });
+
+    const triggerProcess = async () => {
+        if (busy) return;
+        const val = String(urlInput.value || "").trim();
+        await onProcess(val, { setBusy, syncHint });
+    };
+
+    processButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        triggerProcess();
+    });
+
+    syncHint();
+
+    return {
+        processButton,
+        hintEl,
+        syncHint,
+        triggerProcess,
+        isBusy: () => busy
+    };
+}
+
+
+/* =========================================================
    UPLOAD IMAGE
 ========================================================= */
 
@@ -1499,7 +1877,7 @@ export function createImageField(
 
     urlInput.placeholder =
         definition.placeholder ||
-        "Masukkan URL gambar";
+        "Masukkan URL gambar atau link FB / TikTok / Threads";
 
     urlInput.autocomplete =
         "off";
@@ -1547,9 +1925,151 @@ export function createImageField(
     }
 
 
-    urlContainer.appendChild(
-        urlInput
+    const fbImageControls = attachFacebookUrlControls(
+        urlContainer,
+        urlInput,
+        {
+            kindLabel: "foto referensi",
+            onUrlChanged: nextVal => {
+                if (
+                    wrapper.dataset.fbProcessedForUrl &&
+                    wrapper.dataset.fbProcessedForUrl !== nextVal
+                ) {
+                    uploadToken += 1;
+                    delete wrapper.dataset.fbProcessedForUrl;
+                    delete wrapper.dataset.uploadedUrl;
+                    delete wrapper.dataset.uploadedUrls;
+                    delete wrapper._genzaiUploadedUrls;
+                    preview.innerHTML = "";
+                    preview.style.display = "none";
+                    clearUploadError(wrapper);
+                    setUploadState(wrapper, "");
+                }
+            },
+            onProcess: async (trimmedUrl, { setBusy }) => {
+                clearUploadError(wrapper);
+                if (!trimmedUrl) {
+                    showUploadError(wrapper, "Masukkan link Facebook, TikTok, atau Threads terlebih dahulu.");
+                    return;
+                }
+                if (!detectSocialMediaUrlProvider(trimmedUrl)) {
+                    showUploadError(
+                        wrapper,
+                        "URL langsung dapat dipakai tanpa Proses, atau tempelkan link Facebook (GetMyFB), TikTok (SSSTik), maupun Threads (ThreadsDownloader)."
+                    );
+                    return;
+                }
+
+                const labels = getSocialMediaProviderLabels(trimmedUrl);
+                const myToken = ++uploadToken;
+                setBusy(true);
+                delete wrapper.dataset.fbProcessedForUrl;
+                delete wrapper.dataset.uploadedUrl;
+                delete wrapper.dataset.uploadedUrls;
+                delete wrapper._genzaiUploadedUrls;
+                setUploadState(
+                    wrapper,
+                    "uploading",
+                    `Memproses link ${labels.platformName} lewat ${labels.serviceName} & mengunduh foto...`
+                );
+
+                const processTask = (async () => {
+                    try {
+                        const downloaded = await downloadFacebookMediaFromServer(
+                            trimmedUrl,
+                            "image"
+                        );
+                        if (myToken !== uploadToken) return "";
+
+                        const imageFile = await normalizeDownloadedImageFile(
+                            downloaded.blob,
+                            downloaded.filename
+                        );
+                        validateImage(imageFile);
+                        if (myToken !== uploadToken) return "";
+
+                        renderImagePreview(preview, [imageFile]);
+                        setUploadState(
+                            wrapper,
+                            "uploading",
+                            `Menyimpan foto ${labels.platformName} ke referensi...`
+                        );
+
+                        wrapper._imageUploadPromise = (async () => {
+                            const uploaded = await uploadImage(imageFile);
+                            const uploadedUrl = extractUploadUrl(uploaded);
+                            if (!uploadedUrl) {
+                                throw new Error(
+                                    "Foto berhasil diunduh tetapi URL penyimpanan tidak tersedia."
+                                );
+                            }
+                            return [uploadedUrl];
+                        })();
+
+                        const uploadedUrls = await wrapper._imageUploadPromise;
+                        if (myToken !== uploadToken) return "";
+
+                        wrapper.dataset.uploadedUrl = uploadedUrls[0];
+                        wrapper.dataset.uploadedUrls = JSON.stringify(uploadedUrls);
+                        wrapper.dataset.fbProcessedForUrl = trimmedUrl;
+                        wrapper.dataset.uploadSource = labels.provider;
+                        preview.style.display = "flex";
+                        setUploadState(
+                            wrapper,
+                            "done",
+                            `✓ Foto ${labels.platformName} berhasil diunduh lewat ${labels.serviceName} & disimpan ke referensi`
+                        );
+                        return uploadedUrls[0];
+                    } catch (error) {
+                        if (myToken === uploadToken) {
+                            delete wrapper.dataset.fbProcessedForUrl;
+                            delete wrapper.dataset.uploadedUrl;
+                            delete wrapper.dataset.uploadedUrls;
+                            preview.innerHTML = "";
+                            preview.style.display = "none";
+                            const errorMessage = String(
+                                error?.message ||
+                                `Gagal memproses foto dari link ${labels.platformName}.`
+                            );
+                            wrapper.dataset.uploadError = errorMessage;
+                            showUploadError(wrapper, errorMessage);
+                            setUploadState(
+                                wrapper,
+                                "failed",
+                                `✗ Gagal memproses link ${labels.platformName}`
+                            );
+                        }
+                        return "";
+                    } finally {
+                        wrapper._imageUploadPromise = null;
+                        if (myToken === uploadToken) {
+                            setBusy(false);
+                        } else {
+                            setBusy(false);
+                        }
+                    }
+                })();
+
+                wrapper._fbProcessPromise = processTask;
+                try {
+                    await processTask;
+                } finally {
+                    if (wrapper._fbProcessPromise === processTask) {
+                        wrapper._fbProcessPromise = null;
+                    }
+                }
+            }
+        }
     );
+
+    urlInput.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            if (detectSocialMediaUrlProvider(urlInput.value)) {
+                fbImageControls.triggerProcess();
+            }
+        }
+    });
 
 
     /* =====================================================
@@ -1696,8 +2216,15 @@ export function createImageField(
                 "none";
 
 
+            const hasFbImagePreview =
+                Boolean(wrapper.dataset.fbProcessedForUrl) &&
+                wrapper.dataset.fbProcessedForUrl === String(urlInput.value || "").trim() &&
+                preview.children.length > 0;
+
             preview.style.display =
-                "none";
+                hasFbImagePreview
+                    ? "flex"
+                    : "none";
 
 
             uploadButton.classList.remove(
@@ -2403,11 +2930,14 @@ export function createImageField(
 
             delete wrapper.dataset.uploadedUrl;
             delete wrapper.dataset.uploadedUrls;
+            delete wrapper.dataset.fbProcessedForUrl;
 
             delete wrapper.dataset.uploadState;
 
             delete wrapper.dataset.uploadSource;
             delete wrapper.dataset.storedUploadPath;
+
+            fbImageControls.syncHint();
 
 
             clearUploadError(
@@ -2628,7 +3158,7 @@ export function createAudioField(
         "generate-audio-url";
 
     urlInput.placeholder =
-        "Masukkan URL audio MP3/WAV";
+        "Masukkan URL audio MP3/WAV atau link FB / TikTok / Threads";
 
     urlInput.autocomplete =
         "off";
@@ -2665,11 +3195,6 @@ export function createAudioField(
             );
 
     }
-
-
-    urlContainer.appendChild(
-        urlInput
-    );
 
 
     /* =====================================================
@@ -3117,7 +3642,20 @@ export function createAudioField(
                 "none";
 
 
-            clearPreview(true);
+            const hasFbAudioPreview =
+                Boolean(wrapper.dataset.fbProcessedForUrl) &&
+                wrapper.dataset.fbProcessedForUrl === String(urlInput.value || "").trim() &&
+                Boolean(sourceAudioFile);
+
+            if (hasFbAudioPreview) {
+                renderPreview(
+                    wrapper._audioSelectedFile ||
+                    sourceAudioFile
+                );
+                trimPanel.hidden = false;
+            } else {
+                clearPreview(true);
+            }
 
 
             uploadButton.classList.remove(
@@ -3428,6 +3966,143 @@ export function createAudioField(
     });
 
 
+    const fbAudioControls = attachFacebookUrlControls(
+        urlContainer,
+        urlInput,
+        {
+            kindLabel: "audio referensi",
+            onUrlChanged: nextVal => {
+                if (
+                    wrapper.dataset.fbProcessedForUrl &&
+                    wrapper.dataset.fbProcessedForUrl !== nextVal
+                ) {
+                    uploadToken += 1;
+                    delete wrapper.dataset.fbProcessedForUrl;
+                    delete wrapper.dataset.uploadedUrl;
+                    delete wrapper._genzaiUploadedUrls;
+                    wrapper._audioSelectionPending = false;
+                    wrapper._audioSelectedFile = null;
+                    clearPreview();
+                    clearUploadError(wrapper);
+                    setUploadState(wrapper, "");
+                }
+            },
+            onProcess: async (trimmedUrl, { setBusy }) => {
+                clearUploadError(wrapper);
+                if (!trimmedUrl) {
+                    showUploadError(wrapper, "Masukkan link Facebook, TikTok, atau Threads terlebih dahulu.");
+                    return;
+                }
+                if (!detectSocialMediaUrlProvider(trimmedUrl)) {
+                    showUploadError(
+                        wrapper,
+                        "URL langsung dapat dipakai tanpa Proses, atau tempelkan link Facebook (GetMyFB), TikTok (SSSTik), maupun Threads (ThreadsDownloader)."
+                    );
+                    return;
+                }
+
+                const labels = getSocialMediaProviderLabels(trimmedUrl);
+                const myToken = ++uploadToken;
+                setBusy(true);
+                delete wrapper.dataset.fbProcessedForUrl;
+                delete wrapper.dataset.uploadedUrl;
+                delete wrapper._genzaiUploadedUrls;
+                setUploadState(
+                    wrapper,
+                    "uploading",
+                    `Memproses link ${labels.platformName} lewat ${labels.serviceName} & mengunduh audio...`
+                );
+
+                const processTask = (async () => {
+                    try {
+                        const downloaded = await downloadFacebookMediaFromServer(
+                            trimmedUrl,
+                            "audio"
+                        );
+                        if (myToken !== uploadToken) return "";
+
+                        let audioFile;
+                        if (downloaded.needsAudioExtract) {
+                            setUploadState(
+                                wrapper,
+                                "uploading",
+                                `Mengekstrak jalur audio dari video ${labels.platformName}...`
+                            );
+                            audioFile = await extractAudioFileFromVideoBlob(
+                                downloaded.blob,
+                                downloaded.filename
+                            );
+                        } else {
+                            const mime = downloaded.contentType.startsWith("audio/")
+                                ? downloaded.contentType
+                                : "audio/mpeg";
+                            audioFile = new File(
+                                [downloaded.blob],
+                                downloaded.filename.includes(".")
+                                    ? downloaded.filename
+                                    : `${downloaded.filename}.mp3`,
+                                {
+                                    type: mime,
+                                    lastModified: Date.now()
+                                }
+                            );
+                        }
+
+                        validateAudio(audioFile);
+                        if (myToken !== uploadToken) return "";
+
+                        sourceAudioFile = audioFile;
+                        sourceAudioDuration = 0;
+                        wrapper.dataset.fbProcessedForUrl = trimmedUrl;
+                        wrapper.dataset.uploadSource = labels.provider;
+
+                        const uploadedUrl = await uploadSelectedAudio(audioFile);
+                        if (!uploadedUrl) {
+                            delete wrapper.dataset.fbProcessedForUrl;
+                            return "";
+                        }
+
+                        setUploadState(
+                            wrapper,
+                            "done",
+                            `✓ Audio ${labels.platformName} berhasil diunduh lewat ${labels.serviceName} & disimpan. Anda bisa langsung pakai atau potong klip audio di bawah.`
+                        );
+                        return uploadedUrl;
+                    } catch (error) {
+                        if (myToken === uploadToken) {
+                            delete wrapper.dataset.fbProcessedForUrl;
+                            delete wrapper.dataset.uploadedUrl;
+                            clearPreview();
+                            const errorMessage = String(
+                                error?.message ||
+                                `Gagal memproses audio dari link ${labels.platformName}.`
+                            );
+                            wrapper.dataset.uploadError = errorMessage;
+                            showUploadError(wrapper, errorMessage);
+                            setUploadState(
+                                wrapper,
+                                "failed",
+                                `✗ Gagal memproses link ${labels.platformName}`
+                            );
+                        }
+                        return "";
+                    } finally {
+                        setBusy(false);
+                    }
+                })();
+
+                wrapper._fbProcessPromise = processTask;
+                try {
+                    await processTask;
+                } finally {
+                    if (wrapper._fbProcessPromise === processTask) {
+                        wrapper._fbProcessPromise = null;
+                    }
+                }
+            }
+        }
+    );
+
     urlInput.addEventListener(
         "keydown",
         event => {
@@ -3438,6 +4113,9 @@ export function createAudioField(
             ) {
 
                 event.preventDefault();
+                if (detectSocialMediaUrlProvider(urlInput.value)) {
+                    fbAudioControls.triggerProcess();
+                }
 
             }
 
@@ -3642,10 +4320,13 @@ export function createAudioField(
 
 
             delete wrapper.dataset.uploadedUrl;
+            delete wrapper.dataset.fbProcessedForUrl;
             delete wrapper.dataset.uploadState;
 
             delete wrapper.dataset.uploadSource;
             delete wrapper.dataset.storedUploadPath;
+
+            fbAudioControls.syncHint();
 
 
             clearUploadError(
@@ -3873,7 +4554,7 @@ export function createVideoField(
 
     urlInput.placeholder =
         definition.placeholder ||
-        "Masukkan URL video MP4/WebM";
+        "Masukkan URL video MP4/WebM atau link FB / TikTok / Threads";
 
     urlInput.autocomplete =
         "off";
@@ -3910,11 +4591,6 @@ export function createVideoField(
             );
 
     }
-
-
-    urlContainer.appendChild(
-        urlInput
-    );
 
 
     /* =====================================================
@@ -4495,7 +5171,20 @@ export function createVideoField(
                 "none";
 
 
-            clearPreview(true);
+            const hasFbVideoPreview =
+                Boolean(wrapper.dataset.fbProcessedForUrl) &&
+                wrapper.dataset.fbProcessedForUrl === String(urlInput.value || "").trim() &&
+                Boolean(sourceVideoFile);
+
+            if (hasFbVideoPreview) {
+                renderPreview(
+                    wrapper._videoSelectedFile ||
+                    sourceVideoFile
+                );
+                trimPanel.hidden = false;
+            } else {
+                clearPreview(true);
+            }
 
 
             uploadButton.classList.remove(
@@ -4706,6 +5395,137 @@ export function createVideoField(
     );
 
 
+    const fbVideoControls = attachFacebookUrlControls(
+        urlContainer,
+        urlInput,
+        {
+            kindLabel: "video referensi",
+            onUrlChanged: nextVal => {
+                if (
+                    wrapper.dataset.fbProcessedForUrl &&
+                    wrapper.dataset.fbProcessedForUrl !== nextVal
+                ) {
+                    uploadToken += 1;
+                    delete wrapper.dataset.fbProcessedForUrl;
+                    delete wrapper.dataset.uploadedUrl;
+                    delete wrapper._genzaiUploadedUrls;
+                    wrapper._videoSelectionPending = false;
+                    wrapper._videoSelectedFile = null;
+                    clearPreview();
+                    clearUploadError(wrapper);
+                    setUploadState(wrapper, "");
+                }
+            },
+            onProcess: async (trimmedUrl, { setBusy }) => {
+                clearUploadError(wrapper);
+                if (!trimmedUrl) {
+                    showUploadError(wrapper, "Masukkan link Facebook, TikTok, atau Threads terlebih dahulu.");
+                    return;
+                }
+                if (!detectSocialMediaUrlProvider(trimmedUrl)) {
+                    showUploadError(
+                        wrapper,
+                        "URL langsung dapat dipakai tanpa Proses, atau tempelkan link Facebook (GetMyFB), TikTok (SSSTik), maupun Threads (ThreadsDownloader)."
+                    );
+                    return;
+                }
+
+                const labels = getSocialMediaProviderLabels(trimmedUrl);
+                const myToken = ++uploadToken;
+                setBusy(true);
+                delete wrapper.dataset.fbProcessedForUrl;
+                delete wrapper.dataset.uploadedUrl;
+                delete wrapper._genzaiUploadedUrls;
+                setUploadState(
+                    wrapper,
+                    "uploading",
+                    `Memproses link ${labels.platformName} lewat ${labels.serviceName} & mengunduh video...`
+                );
+
+                const processTask = (async () => {
+                    try {
+                        const downloaded = await downloadFacebookMediaFromServer(
+                            trimmedUrl,
+                            "video"
+                        );
+                        if (myToken !== uploadToken) return "";
+
+                        const mime = downloaded.contentType === "video/webm"
+                            ? "video/webm"
+                            : "video/mp4";
+                        const ext = mime === "video/webm" ? "webm" : "mp4";
+                        const safeName = /\.(mp4|webm)$/i.test(downloaded.filename)
+                            ? downloaded.filename
+                            : `${downloaded.filename.replace(/\.[^.]+$/, "")}.${ext}`;
+
+                        const videoFile = new File(
+                            [downloaded.blob],
+                            safeName,
+                            {
+                                type: mime,
+                                lastModified: Date.now()
+                            }
+                        );
+
+                        validateVideo(videoFile);
+                        if (myToken !== uploadToken) return "";
+
+                        sourceVideoFile = videoFile;
+                        sourceVideoDuration = 0;
+                        wrapper.dataset.fbProcessedForUrl = trimmedUrl;
+                        wrapper.dataset.uploadSource = labels.provider;
+
+                        /* Simpan hasil unduhan ke storage sehingga langsung siap dipakai,
+                           sekaligus tampilkan panel VIDEO EDITOR (cut video) agar pengguna
+                           tetap bisa memotong klip dan memakai hasil akhirnya sebagai Video Referensi. */
+                        const uploadedUrl = await uploadSelectedVideo(videoFile);
+                        if (!uploadedUrl) {
+                            delete wrapper.dataset.fbProcessedForUrl;
+                            return "";
+                        }
+
+                        trimPanel.hidden = false;
+                        setUploadState(
+                            wrapper,
+                            "done",
+                            `✓ Video ${labels.platformName} berhasil diunduh lewat ${labels.serviceName} & disimpan. Anda bisa langsung pakai atau potong klip video di bawah.`
+                        );
+                        return uploadedUrl;
+                    } catch (error) {
+                        if (myToken === uploadToken) {
+                            delete wrapper.dataset.fbProcessedForUrl;
+                            delete wrapper.dataset.uploadedUrl;
+                            clearPreview();
+                            const errorMessage = String(
+                                error?.message ||
+                                `Gagal memproses video dari link ${labels.platformName}.`
+                            );
+                            wrapper.dataset.uploadError = errorMessage;
+                            showUploadError(wrapper, errorMessage);
+                            setUploadState(
+                                wrapper,
+                                "failed",
+                                `✗ Gagal memproses link ${labels.platformName}`
+                            );
+                        }
+                        return "";
+                    } finally {
+                        setBusy(false);
+                    }
+                })();
+
+                wrapper._fbProcessPromise = processTask;
+                try {
+                    await processTask;
+                } finally {
+                    if (wrapper._fbProcessPromise === processTask) {
+                        wrapper._fbProcessPromise = null;
+                    }
+                }
+            }
+        }
+    );
+
     urlInput.addEventListener(
         "keydown",
         event => {
@@ -4716,6 +5536,9 @@ export function createVideoField(
             ) {
 
                 event.preventDefault();
+                if (detectSocialMediaUrlProvider(urlInput.value)) {
+                    fbVideoControls.triggerProcess();
+                }
 
             }
 
@@ -4958,10 +5781,13 @@ export function createVideoField(
 
 
             delete wrapper.dataset.uploadedUrl;
+            delete wrapper.dataset.fbProcessedForUrl;
             delete wrapper.dataset.uploadState;
 
             delete wrapper.dataset.uploadSource;
             delete wrapper.dataset.storedUploadPath;
+
+            fbVideoControls.syncHint();
 
 
             clearUploadError(
