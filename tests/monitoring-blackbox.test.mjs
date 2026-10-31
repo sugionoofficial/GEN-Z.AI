@@ -1439,5 +1439,14 @@ test("kendali Claim 5.000 Credit Gratis & kalkulasi crop 16:9 di halaman Monitor
     assert.equal(wide.sw, 1920);
     assert.equal(wide.sh, 1080);
     assert.equal(wide.sx, 640);
+
+    /* 4. Format nominal kredit titik ribuan & konversi waktu ISO <-> datetime-local akurat */
+    assert.equal(vm.runInContext("formatFcNominal(5000)", context), "5.000");
+    assert.equal(vm.runInContext("formatFcNominal(25000)", context), "25.000");
+    const sampleIso = "2026-11-01T12:30:00.000Z";
+    const localStr = vm.runInContext(`isoToDatetimeLocalValue(${JSON.stringify(sampleIso)})`, context);
+    assert.match(localStr, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    const roundtripIso = vm.runInContext(`datetimeLocalToIso(${JSON.stringify(localStr)})`, context);
+    assert.equal(Date.parse(roundtripIso), Date.parse(sampleIso));
 });
 

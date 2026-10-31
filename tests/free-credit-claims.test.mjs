@@ -9,11 +9,15 @@ import {
 } from "../api/free-credit.js";
 import {
     extractClientNetwork,
+    formatCreditNominalId,
     FREE_CREDIT_AMOUNT,
     mapClaimErrorResponse,
     normalizeIpAndSubnet,
+    resolveRuntimeStatus,
     validateBannerImageUrl,
-    validateBrowserSignals
+    validateBrowserSignals,
+    validateCreditNominal,
+    validateRuntimeWindow
 } from "../lib/free-credit/service.js";
 
 const ROOT = process.cwd();
@@ -56,12 +60,16 @@ const TEST_ENV = {
     SUPABASE_ANON_KEY: "anon_public_test_key"
 };
 
-test("SQL free-credit-claims.sql mengunci nominal 5.000, indeks unik email/IP/password/browser, RLS, dan ACL service_role", () => {
+test("SQL free-credit-claims.sql mendukung nominal dinamis, runtime event, indeks unik email/IP/password/browser, RLS, dan ACL service_role", () => {
     const sql = readRepoFile("supabase/free-credit-claims.sql");
     const hardeningSql = readRepoFile("supabase/credit-rpc-hardening.sql");
 
     assert.equal(FREE_CREDIT_AMOUNT, 5000);
-    assert.match(sql, /credit_amount integer not null default 5000 check \(credit_amount = 5000\)/i);
+    assert.match(sql, /credit_amount integer not null default 5000\s+check \(credit_amount >= 100 and credit_amount <= 10000000\)/i);
+    assert.match(sql, /runtime_starts_at timestamptz/i);
+    assert.match(sql, /runtime_ends_at timestamptz/i);
+    assert.ok(sql.includes("event_not_started"));
+    assert.ok(sql.includes("event_expired"));
 
     for (const uniqueIdx of [
         "uq_free_credit_claims_claimed_user",
@@ -347,11 +355,14 @@ test("On/Off Monitoring & upload gambar banner 16:9 bekerja penuh dari Admin hin
     const disabledMapped = mapClaimErrorResponse("feature_disabled", ["feature_disabled"]);
     assert.equal(disabledMapped.status, 403);
 
-    // Simulasi state server untuk uji upload-banner, update-settings, status, dan penolakan saat OFF
+    // Simulasi state server untuk uji upload-banner, update-settings, nominal dinamis, runtime, status, dan klaim
     let currentRole = "OWNER";
     let settingsState = {
         id: 1,
         claim_enabled: true,
+        credit_amount: 5000,
+        runtime_starts_at: null,
+        runtime_ends_at: null,
         banner_image_url: null,
         updated_at: "2026-10-31T14:00:00Z"
     };
@@ -387,6 +398,9 @@ test("On/Off Monitoring & upload gambar banner 16:9 bekerja penuh dari Admin hin
                     settingsState = {
                         id: 1,
                         claim_enabled: parsed.claim_enabled,
+                        credit_amount: parsed.credit_amount ?? settingsState.credit_amount ?? 5000,
+                        runtime_starts_at: parsed.runtime_starts_at ?? null,
+                        runtime_ends_at: parsed.runtime_ends_at ?? null,
                         banner_image_url: parsed.banner_image_url,
                         updated_at: parsed.updated_at
                     };
@@ -399,10 +413,24 @@ test("On/Off Monitoring & upload gambar banner 16:9 bekerja penuh dari Admin hin
                     ok: true,
                     claim_enabled: settingsState.claim_enabled,
                     banner_image_url: settingsState.banner_image_url,
-                    credit_amount: 5000,
+                    credit_amount: settingsState.credit_amount,
+                    runtime_starts_at: settingsState.runtime_starts_at,
+                    runtime_ends_at: settingsState.runtime_ends_at,
+                    runtime_status: resolveRuntimeStatus(settingsState),
+                    server_time: new Date().toISOString(),
                     claimed: false,
                     claimed_at: null,
                     has_password_signal: true
+                });
+            }
+            if (url.endsWith("/rest/v1/rpc/claim_free_credit_5000")) {
+                return Response.json({
+                    ok: true,
+                    credit_amount: settingsState.credit_amount,
+                    balance_before: 5000,
+                    balance_after: 20000,
+                    claim_id: "claim-dynamic-001",
+                    claimed_at: new Date().toISOString()
                 });
             }
             throw new Error(`Unexpected URL in test: ${url}`);
@@ -510,5 +538,173 @@ test("On/Off Monitoring & upload gambar banner 16:9 bekerja penuh dari Admin hin
     assert.equal(clearBannerRes.body.settings.claim_enabled, true);
     assert.equal(clearBannerRes.body.settings.banner_image_url, null);
     assert.equal(deletedObjects.length, 1);
+
+    // 7. Validasi nominal & rentang waktu runtime di luar batas ditolak 400
+    assert.equal(validateCreditNominal(50).ok, false);
+    assert.equal(validateCreditNominal(25000).value, 25000);
+    assert.equal(formatCreditNominalId(25000), "25.000");
+    assert.equal(
+        validateRuntimeWindow("2026-11-05T10:00:00Z", "2026-11-05T09:00:00Z").ok,
+        false
+    );
+
+    const badWindowRes = createMockRes();
+    await handler(
+        {
+            method: "POST",
+            headers: { authorization: "Bearer owner_jwt" },
+            body: {
+                action: "update-settings",
+                credit_amount: 15000,
+                runtime_starts_at: "2026-11-05T10:00:00Z",
+                runtime_ends_at: "2026-11-05T09:00:00Z"
+            }
+        },
+        badWindowRes
+    );
+    assert.equal(badWindowRes.statusCode, 400);
+
+    // 8. Jadwal masa depan (scheduled) menolak klaim 403 event_not_started
+    const futureStart = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+    const futureEnd = new Date(Date.now() + 26 * 3600 * 1000).toISOString();
+    const scheduleRes = createMockRes();
+    await handler(
+        {
+            method: "POST",
+            headers: { authorization: "Bearer owner_jwt" },
+            body: {
+                action: "update-settings",
+                claim_enabled: true,
+                credit_amount: 15000,
+                runtime_starts_at: futureStart,
+                runtime_ends_at: futureEnd
+            }
+        },
+        scheduleRes
+    );
+    assert.equal(scheduleRes.statusCode, 200);
+    assert.equal(scheduleRes.body.settings.credit_amount, 15000);
+    assert.equal(scheduleRes.body.settings.runtime_status, "scheduled");
+
+    const claimScheduledRes = createMockRes();
+    await handler(
+        {
+            method: "POST",
+            headers: {
+                authorization: "Bearer user_jwt",
+                "cf-connecting-ip": "103.10.20.78",
+                "user-agent": VALID_UA
+            },
+            body: {
+                action: "claim",
+                browser_fingerprint: VALID_BFP,
+                browser_install_id: VALID_BID
+            }
+        },
+        claimScheduledRes
+    );
+    assert.equal(claimScheduledRes.statusCode, 403);
+    assert.equal(claimScheduledRes.body.code, "event_not_started");
+    assert.match(claimScheduledRes.body.error, /15\.000/);
+
+    // 9. Jadwal kadaluarsa (expired) menolak klaim 403 event_expired
+    const pastStart = new Date(Date.now() - 10 * 3600 * 1000).toISOString();
+    const pastEnd = new Date(Date.now() - 1 * 3600 * 1000).toISOString();
+    await handler(
+        {
+            method: "POST",
+            headers: { authorization: "Bearer owner_jwt" },
+            body: {
+                action: "update-settings",
+                claim_enabled: true,
+                credit_amount: 15000,
+                runtime_starts_at: pastStart,
+                runtime_ends_at: pastEnd
+            }
+        },
+        createMockRes()
+    );
+    const claimExpiredRes = createMockRes();
+    await handler(
+        {
+            method: "POST",
+            headers: {
+                authorization: "Bearer user_jwt",
+                "cf-connecting-ip": "103.10.20.79",
+                "user-agent": VALID_UA
+            },
+            body: {
+                action: "claim",
+                browser_fingerprint: VALID_BFP,
+                browser_install_id: VALID_BID
+            }
+        },
+        claimExpiredRes
+    );
+    assert.equal(claimExpiredRes.statusCode, 403);
+    assert.equal(claimExpiredRes.body.code, "event_expired");
+
+    // 10. Saat runtime aktif dengan nominal kustom 15.000, klaim berhasil memberikan 15.000 CR
+    const activeStart = new Date(Date.now() - 1800 * 1000).toISOString();
+    const activeEnd = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    await handler(
+        {
+            method: "POST",
+            headers: { authorization: "Bearer owner_jwt" },
+            body: {
+                action: "update-settings",
+                claim_enabled: true,
+                credit_amount: 15000,
+                runtime_starts_at: activeStart,
+                runtime_ends_at: activeEnd
+            }
+        },
+        createMockRes()
+    );
+    const claimActiveRes = createMockRes();
+    await handler(
+        {
+            method: "POST",
+            headers: {
+                authorization: "Bearer user_jwt",
+                "cf-connecting-ip": "103.10.20.80",
+                "user-agent": VALID_UA
+            },
+            body: {
+                action: "claim",
+                browser_fingerprint: VALID_BFP,
+                browser_install_id: VALID_BID
+            }
+        },
+        claimActiveRes
+    );
+    assert.equal(claimActiveRes.statusCode, 200);
+    assert.equal(claimActiveRes.body.credit_amount, 15000);
+    assert.match(claimActiveRes.body.message, /15\.000/);
+});
+
+test("UI kartu mewah dashboard user merender nominal dinamis & bar runtime horology mewah", () => {
+    const uiJs = readRepoFile("assets/js/free-credit-claim.js");
+    const monHtml = readRepoFile("admin-control/monitoring.html");
+
+    // Pastikan komponen horology countdown & nominal dinamis hadir di script kartu user
+    assert.ok(uiJs.includes("genzFcRuntimeBar"), "Wajib memiliki elemen bar runtime mewah");
+    assert.ok(uiJs.includes("gz-fc-rt-seg"), "Wajib memiliki tile chrono HARI/JAM/MNT/DTK");
+    assert.ok(uiJs.includes("runtime_starts_at"), "Wajib membaca waktu mulai runtime");
+    assert.ok(uiJs.includes("runtime_ends_at"), "Wajib membaca waktu berakhir runtime");
+    assert.ok(uiJs.includes("server_time"), "Wajib menyinkronkan selisih jam dengan server_time");
+
+    // Pastikan Monitoring memiliki kendali nominal & runtime lengkap
+    for (const controlId of [
+        "monFcAmountInput",
+        "monFcNominalPresets",
+        "monFcStartsAt",
+        "monFcEndsAt",
+        "monFcDurationPresets",
+        "monFcSaveEventBtn",
+        "monFcRtPreviewBox"
+    ]) {
+        assert.ok(monHtml.includes(controlId), `Monitoring wajib memuat kontrol #${controlId}`);
+    }
 });
 

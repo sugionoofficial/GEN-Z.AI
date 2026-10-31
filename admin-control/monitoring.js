@@ -37,11 +37,16 @@ const state = {
     settings: null,
     freeCredit: {
         claim_enabled: true,
+        credit_amount: 5000,
+        runtime_starts_at: null,
+        runtime_ends_at: null,
+        runtime_status: "active",
         banner_image_url: null,
         updated_at: null,
         claims_count: 0,
         rejected_count: 0
     },
+    fcDirty: false,
     fcSaving: false,
     fcPendingImage: null,
     fcPendingObjectUrl: "",
@@ -707,14 +712,88 @@ function renderFreeCreditBannerPreview(bannerUrl) {
     }
 }
 
+function formatFcNominal(amount) {
+    const safe = Math.max(100, Math.round(Number(amount) || 5000));
+    return String(safe).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+function isoToDatetimeLocalValue(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return "";
+    const pad = n => (n < 10 ? `0${n}` : String(n));
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function datetimeLocalToIso(localVal) {
+    const raw = String(localVal || "").trim();
+    if (!raw) return null;
+    const ms = Date.parse(raw);
+    return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+}
+
+function syncFreeCreditLivePreview() {
+    const amtInput = $("monFcAmountInput");
+    const startsInput = $("monFcStartsAt");
+    const endsInput = $("monFcEndsAt");
+    const toggle = $("monFcEnabledToggle");
+
+    const rawNominal = amtInput ? Number(amtInput.value) : state.freeCredit.credit_amount;
+    const nominal = Number.isFinite(rawNominal) && rawNominal >= 100
+        ? Math.round(rawNominal)
+        : (state.freeCredit.credit_amount || 5000);
+    const lbl = formatFcNominal(nominal);
+
+    const chipVal = $("monFcChipVal");
+    const defAmt = $("monFcDefAmount");
+    const prevBadge = $("monFcRtPrevBadge");
+    const prevKicker = $("monFcRtPrevKicker");
+    const prevSub = $("monFcRtPrevSub");
+
+    if (chipVal) chipVal.textContent = `+${lbl} CR`;
+    if (defAmt) defAmt.textContent = `+${lbl} CR`;
+    if (prevBadge) prevBadge.textContent = `✦ +${lbl} CR`;
+
+    const startsIso = startsInput ? datetimeLocalToIso(startsInput.value) : state.freeCredit.runtime_starts_at;
+    const endsIso = endsInput ? datetimeLocalToIso(endsInput.value) : state.freeCredit.runtime_ends_at;
+    const enabled = toggle ? Boolean(toggle.checked) : state.freeCredit.claim_enabled !== false;
+    const nowMs = Date.now();
+
+    if (prevKicker && prevSub) {
+        if (!enabled) {
+            prevKicker.textContent = "○ EVENT DINONAKTIFKAN";
+            prevSub.textContent = "Kartu disembunyikan dari dashboard user.";
+        } else if (startsIso && nowMs < Date.parse(startsIso)) {
+            prevKicker.textContent = "⏳ TERJADWAL · MENUNGGU MULAI";
+            prevSub.textContent = `Mulai: ${formatDateTime(startsIso)}` + (endsIso ? ` · Selesai: ${formatDateTime(endsIso)}` : "");
+        } else if (endsIso && nowMs >= Date.parse(endsIso)) {
+            prevKicker.textContent = "✕ WAKTU RUNTIME HABIS";
+            prevSub.textContent = `Berakhir pada ${formatDateTime(endsIso)}`;
+        } else if (endsIso) {
+            prevKicker.textContent = "● LIVE COUNTDOWN RUNTIME";
+            prevSub.textContent = (startsIso ? `${formatDateTime(startsIso)} — ` : "Berakhir: ") + formatDateTime(endsIso);
+        } else {
+            prevKicker.textContent = "● LIVE EVENT RUNTIME";
+            prevSub.textContent = `Aktif tanpa batas waktu · Klaim +${lbl} CR`;
+        }
+    }
+}
+
 function renderFreeCredit(fcData) {
     if (!fcData || typeof fcData !== "object") return;
+
+    const nominal = Number(fcData.credit_amount) >= 100
+        ? Math.round(Number(fcData.credit_amount))
+        : (state.freeCredit.credit_amount || 5000);
 
     state.freeCredit = {
         ...state.freeCredit,
         ...fcData,
         claim_enabled: fcData.claim_enabled !== false,
-        banner_image_url: fcData.banner_image_url || null
+        credit_amount: nominal,
+        runtime_starts_at: fcData.runtime_starts_at ?? state.freeCredit.runtime_starts_at ?? null,
+        runtime_ends_at: fcData.runtime_ends_at ?? state.freeCredit.runtime_ends_at ?? null,
+        banner_image_url: fcData.banner_image_url !== undefined ? fcData.banner_image_url : state.freeCredit.banner_image_url
     };
 
     const claimsEl = $("monFcClaimsCount");
@@ -735,28 +814,66 @@ function renderFreeCredit(fcData) {
 
     if (!state.fcSaving) {
         const enabled = state.freeCredit.claim_enabled !== false;
+        const startsAt = state.freeCredit.runtime_starts_at;
+        const endsAt = state.freeCredit.runtime_ends_at;
+        const nowMs = Date.now();
+        const rtStatus = !enabled
+            ? "disabled"
+            : startsAt && nowMs < Date.parse(startsAt)
+                ? "scheduled"
+                : endsAt && nowMs >= Date.parse(endsAt)
+                    ? "expired"
+                    : "active";
+
         const toggle = $("monFcEnabledToggle");
         const switchLabel = $("monFcSwitchLabel");
         const badge = $("monFcStatusBadge");
         const desc = $("monFcStateDesc");
+        const amtInput = $("monFcAmountInput");
+        const startsInput = $("monFcStartsAt");
+        const endsInput = $("monFcEndsAt");
+        const lbl = formatFcNominal(state.freeCredit.credit_amount);
 
         if (toggle) toggle.checked = enabled;
         if (switchLabel) {
             switchLabel.textContent = enabled
-                ? "CLAIM 5.000 CREDIT GRATIS: ON"
-                : "CLAIM 5.000 CREDIT GRATIS: OFF";
+                ? `EVENT CLAIM ${lbl} CR: ON`
+                : `EVENT CLAIM ${lbl} CR: OFF`;
         }
         if (badge) {
-            badge.className = `mon-tag ${enabled ? "mon-tag--on" : "mon-tag--off"}`;
-            badge.textContent = enabled
-                ? "AKTIF · TAMPIL DI AKUN USER"
-                : "NONAKTIF · DISEMBUNYIKAN";
+            if (rtStatus === "active") {
+                badge.className = "mon-tag mon-tag--on";
+                badge.textContent = `AKTIF · +${lbl} CR LIVE`;
+            } else if (rtStatus === "scheduled") {
+                badge.className = "mon-tag mon-tag--on";
+                badge.textContent = `TERJADWAL · +${lbl} CR`;
+            } else if (rtStatus === "expired") {
+                badge.className = "mon-tag mon-tag--off";
+                badge.textContent = "RUNTIME HABIS · BERAKHIR";
+            } else {
+                badge.className = "mon-tag mon-tag--off";
+                badge.textContent = "NONAKTIF · DISEMBUNYIKAN";
+            }
         }
         if (desc) {
             desc.textContent = enabled
-                ? "Kartu mewah Claim 5.000 Credit Gratis sedang AKTIF dan tampil di Dashboard, Top Up, serta Credit Usage akun user."
-                : "Kartu Claim 5.000 Credit Gratis sedang NONAKTIF (disembunyikan dari seluruh akun user & klaim baru ditolak server).";
+                ? `Event Claim ${lbl} Credit Gratis sedang ON dan tersinkronisasi dengan waktu runtime di dashboard user.`
+                : "Event Claim Free Credit sedang OFF (kartu disembunyikan dari seluruh akun user & klaim baru ditolak server).";
         }
+
+        if (!state.fcDirty) {
+            if (amtInput && document.activeElement !== amtInput) {
+                amtInput.value = String(state.freeCredit.credit_amount);
+            }
+            if (startsInput && document.activeElement !== startsInput) {
+                startsInput.value = isoToDatetimeLocalValue(startsAt);
+            }
+            if (endsInput && document.activeElement !== endsInput) {
+                endsInput.value = isoToDatetimeLocalValue(endsAt);
+            }
+        }
+
+        syncFreeCreditLivePreview();
     }
 
     if (!state.fcSaving && !state.fcPendingImage) {
@@ -846,6 +963,10 @@ async function setFreeCreditUiBusy(isBusy) {
     state.fcSaving = isBusy;
     for (const id of [
         "monFcEnabledToggle",
+        "monFcAmountInput",
+        "monFcStartsAt",
+        "monFcEndsAt",
+        "monFcSaveEventBtn",
         "monFcUploadBtn",
         "monFcRemoveBannerBtn",
         "monFcCropApply",
@@ -872,8 +993,8 @@ async function handleToggleFreeCredit() {
         renderFreeCredit(res.settings || { claim_enabled: desired });
         toast(
             desired
-                ? "Claim 5.000 Credit Gratis DIAKTIFKAN di akun user."
-                : "Claim 5.000 Credit Gratis DINONAKTIFKAN.",
+                ? `Event Claim ${formatFcNominal(state.freeCredit.credit_amount)} Credit Gratis DIAKTIFKAN.`
+                : "Event Claim Free Credit DINONAKTIFKAN.",
             "ok"
         );
     } catch (error) {
@@ -881,6 +1002,82 @@ async function handleToggleFreeCredit() {
         renderFreeCredit(state.freeCredit);
         toast(error.message, "error");
     }
+}
+
+async function handleSaveFreeCreditEventConfig() {
+    if (state.fcSaving) return;
+
+    const toggle = $("monFcEnabledToggle");
+    const amtInput = $("monFcAmountInput");
+    const startsInput = $("monFcStartsAt");
+    const endsInput = $("monFcEndsAt");
+    const saveBtn = $("monFcSaveEventBtn");
+
+    const nominal = Math.round(Number(amtInput ? amtInput.value : state.freeCredit.credit_amount));
+    if (!Number.isFinite(nominal) || nominal < 100 || nominal > 10000000) {
+        toast("Nominal kredit harus antara 100 hingga 10.000.000 CR.", "error");
+        return;
+    }
+
+    const startsIso = startsInput ? datetimeLocalToIso(startsInput.value) : null;
+    const endsIso = endsInput ? datetimeLocalToIso(endsInput.value) : null;
+    if (startsIso && endsIso && Date.parse(endsIso) <= Date.parse(startsIso)) {
+        toast("Waktu berakhir runtime harus lebih besar dari waktu mulai.", "error");
+        return;
+    }
+
+    await setFreeCreditUiBusy(true);
+    if (saveBtn) saveBtn.textContent = "Menyimpan…";
+
+    try {
+        const res = await freeCreditApi("update-settings", {
+            method: "POST",
+            body: {
+                claim_enabled: toggle ? Boolean(toggle.checked) : state.freeCredit.claim_enabled,
+                credit_amount: nominal,
+                runtime_starts_at: startsIso,
+                runtime_ends_at: endsIso
+            }
+        });
+        state.fcDirty = false;
+        await setFreeCreditUiBusy(false);
+        renderFreeCredit(res.settings);
+        toast(
+            `Konfigurasi Event (+${formatFcNominal(nominal)} CR & jadwal runtime) berhasil disimpan!`,
+            "ok"
+        );
+    } catch (error) {
+        await setFreeCreditUiBusy(false);
+        toast(error.message, "error");
+    } finally {
+        if (saveBtn) saveBtn.textContent = "Simpan Nominal & Runtime Event";
+    }
+}
+
+function applyFreeCreditDurationPreset(hours) {
+    const startsInput = $("monFcStartsAt");
+    const endsInput = $("monFcEndsAt");
+    if (!startsInput || !endsInput) return;
+
+    state.fcDirty = true;
+    const hrs = Number(hours) || 0;
+    if (hrs <= 0) {
+        startsInput.value = "";
+        endsInput.value = "";
+        syncFreeCreditLivePreview();
+        return;
+    }
+
+    const now = new Date();
+    const baseMs = startsInput.value && Number.isFinite(Date.parse(startsInput.value)) && Date.parse(startsInput.value) > now.getTime()
+        ? Date.parse(startsInput.value)
+        : now.getTime();
+    if (!startsInput.value || Date.parse(startsInput.value) <= now.getTime()) {
+        startsInput.value = isoToDatetimeLocalValue(now.toISOString());
+    }
+    const endDate = new Date(baseMs + hrs * 3600 * 1000);
+    endsInput.value = isoToDatetimeLocalValue(endDate.toISOString());
+    syncFreeCreditLivePreview();
 }
 
 async function uploadFreeCreditCanvas16x9() {
@@ -1333,6 +1530,40 @@ function bindEvents() {
     if ($("monFcEnabledToggle")) {
         $("monFcEnabledToggle").addEventListener("change", () => {
             void handleToggleFreeCredit();
+        });
+    }
+    for (const inputId of ["monFcAmountInput", "monFcStartsAt", "monFcEndsAt"]) {
+        const node = $(inputId);
+        if (node) {
+            node.addEventListener("input", () => {
+                state.fcDirty = true;
+                syncFreeCreditLivePreview();
+            });
+            node.addEventListener("change", () => {
+                state.fcDirty = true;
+                syncFreeCreditLivePreview();
+            });
+        }
+    }
+    if ($("monFcNominalPresets")) {
+        $("monFcNominalPresets").addEventListener("click", event => {
+            const btn = event.target.closest("[data-fc-nominal]");
+            if (!btn || !$("monFcAmountInput")) return;
+            state.fcDirty = true;
+            $("monFcAmountInput").value = String(btn.dataset.fcNominal || "5000");
+            syncFreeCreditLivePreview();
+        });
+    }
+    if ($("monFcDurationPresets")) {
+        $("monFcDurationPresets").addEventListener("click", event => {
+            const btn = event.target.closest("[data-fc-hours]");
+            if (!btn) return;
+            applyFreeCreditDurationPreset(Number(btn.dataset.fcHours || 0));
+        });
+    }
+    if ($("monFcSaveEventBtn")) {
+        $("monFcSaveEventBtn").addEventListener("click", () => {
+            void handleSaveFreeCreditEventConfig();
         });
     }
     if ($("monFcUploadBtn") && $("monFcBannerInput")) {

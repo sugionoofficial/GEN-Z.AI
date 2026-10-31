@@ -47,7 +47,7 @@
 
     <link
         rel="stylesheet"
-        href="./assets/css/monitoring.css?v=monitoring-20261031-fc"
+        href="./assets/css/monitoring.css?v=monitoring-20261031-fc2"
     >
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -195,39 +195,96 @@
 
     <div class="mon-grid">
 
-        <!-- KENDALI CLAIM 5.000 CREDIT GRATIS & UPLOAD BANNER 16:9 -->
+        <!-- KENDALI EVENT CLAIM FREE CREDIT, NOMINAL, RUNTIME, & UPLOAD BANNER 16:9 -->
 
         <section class="mon-panel mon-panel--wide mon-fc-panel" id="monFreeCreditPanel" aria-labelledby="monFcTitle">
 
             <div class="mon-panel-head">
 
                 <h2 class="mon-panel-title" id="monFcTitle">
-                    Claim 5.000 Credit Gratis
+                    Event Claim Free Credit Gratis
                 </h2>
 
                 <span class="mon-tag mon-tag--on" id="monFcStatusBadge">
-                    AKTIF · TAMPIL DI AKUN USER
+                    AKTIF · LIVE DI AKUN USER
                 </span>
 
             </div>
 
             <div class="mon-fc-grid">
 
-                <!-- Kolom Kiri: Sakelar On/Off + Ringkasan Klaim -->
+                <!-- Kolom Kiri: Sakelar On/Off + Nominal + Waktu Runtime + Ringkasan -->
                 <div class="mon-fc-col">
 
                     <div class="mon-fc-switch-box">
 
                         <label class="mon-switch mon-fc-switch" for="monFcEnabledToggle">
                             <input type="checkbox" id="monFcEnabledToggle" checked>
-                            <span id="monFcSwitchLabel">CLAIM 5.000 CREDIT GRATIS: ON</span>
+                            <span id="monFcSwitchLabel">EVENT CLAIM CREDIT GRATIS: ON</span>
                         </label>
 
                         <p class="mon-note" id="monFcStateDesc">
-                            Saat <b>ON</b>, kartu mewah Claim 5.000 Credit Gratis tampil di akun user
-                            (Dashboard, Top Up, dan Credit Usage). Saat <b>OFF</b>, kartu otomatis
-                            disembunyikan dan klaim baru ditolak server.
+                            Saat <b>ON</b> dan berada dalam rentang waktu runtime, kartu mewah beserta
+                            hitung mundur tampil di akun user (Dashboard, Top Up, dan Credit Usage).
                         </p>
+
+                    </div>
+
+                    <!-- Pengaturan Nominal & Jadwal Runtime Event -->
+                    <div class="mon-fc-config-box">
+
+                        <div class="mon-field">
+
+                            <label for="monFcAmountInput">Nominal Free Credit (CR)</label>
+
+                            <input
+                                type="number"
+                                id="monFcAmountInput"
+                                min="100"
+                                max="10000000"
+                                step="100"
+                                value="5000"
+                            >
+
+                            <div class="mon-fc-presets" id="monFcNominalPresets" role="group" aria-label="Pilihan cepat nominal">
+                                <button type="button" class="mon-fc-preset" data-fc-nominal="1000">1.000</button>
+                                <button type="button" class="mon-fc-preset" data-fc-nominal="2500">2.500</button>
+                                <button type="button" class="mon-fc-preset" data-fc-nominal="5000">5.000</button>
+                                <button type="button" class="mon-fc-preset" data-fc-nominal="10000">10.000</button>
+                                <button type="button" class="mon-fc-preset" data-fc-nominal="25000">25.000</button>
+                                <button type="button" class="mon-fc-preset" data-fc-nominal="50000">50.000</button>
+                            </div>
+
+                        </div>
+
+                        <div class="mon-fc-runtime-fields">
+
+                            <div class="mon-field">
+                                <label for="monFcStartsAt">Waktu Mulai Runtime (opsional)</label>
+                                <input type="datetime-local" id="monFcStartsAt">
+                            </div>
+
+                            <div class="mon-field">
+                                <label for="monFcEndsAt">Waktu Berakhir Runtime (opsional)</label>
+                                <input type="datetime-local" id="monFcEndsAt">
+                            </div>
+
+                        </div>
+
+                        <div class="mon-fc-presets" id="monFcDurationPresets" role="group" aria-label="Durasi cepat runtime">
+                            <button type="button" class="mon-fc-preset" data-fc-hours="1">+1 Jam</button>
+                            <button type="button" class="mon-fc-preset" data-fc-hours="6">+6 Jam</button>
+                            <button type="button" class="mon-fc-preset" data-fc-hours="24">+24 Jam</button>
+                            <button type="button" class="mon-fc-preset" data-fc-hours="72">+3 Hari</button>
+                            <button type="button" class="mon-fc-preset" data-fc-hours="168">+7 Hari</button>
+                            <button type="button" class="mon-fc-preset" data-fc-hours="0">∞ Tanpa Batas</button>
+                        </div>
+
+                        <div class="mon-fc-save-row">
+                            <button type="button" class="mon-btn" id="monFcSaveEventBtn">
+                                Simpan Nominal &amp; Runtime Event
+                            </button>
+                        </div>
 
                     </div>
 
@@ -264,7 +321,7 @@
                 <div class="mon-fc-col">
 
                     <div class="mon-fc-preview-head">
-                        <span class="mon-fc-preview-label">Preview Kartu Mewah Akun User · Rasio 16:9</span>
+                        <span class="mon-fc-preview-label">Preview Kartu Mewah Dashboard User · 16:9</span>
                         <span class="mon-panel-meta" id="monFcBannerMeta">DEFAULT LUXURY ART</span>
                     </div>
 
@@ -272,13 +329,13 @@
 
                         <div class="mon-fc-preview-chips">
                             <span class="mon-fc-chip-vip">✦ EXCLUSIVE REWARD</span>
-                            <span class="mon-fc-chip-val">+5.000 CR</span>
+                            <span class="mon-fc-chip-val" id="monFcChipVal">+5.000 CR</span>
                         </div>
 
                         <img
                             id="monFcPreviewImg"
                             class="mon-fc-preview-img"
-                            alt="Preview Banner 16:9 Claim 5.000 Credit Gratis"
+                            alt="Preview Banner 16:9 Event Free Credit"
                             decoding="async"
                             hidden
                         >
@@ -293,10 +350,19 @@
 
                         <div class="mon-fc-preview-default" id="monFcPreviewDefault">
                             <span class="mon-fc-def-kicker">GEN-Z.AI PRIVILEGE PASS</span>
-                            <span class="mon-fc-def-amount">+5.000 CR</span>
+                            <span class="mon-fc-def-amount" id="monFcDefAmount">+5.000 CR</span>
                             <span class="mon-fc-def-sub">FREE STUDIO CREDIT · 16:9</span>
                         </div>
 
+                    </div>
+
+                    <!-- Preview Bar Runtime Mewah yang tampil di Dashboard User -->
+                    <div class="mon-fc-rt-preview" id="monFcRtPreviewBox">
+                        <div class="mon-fc-rt-prev-left">
+                            <span class="mon-fc-rt-prev-kicker" id="monFcRtPrevKicker">● LIVE EVENT RUNTIME</span>
+                            <span class="mon-fc-rt-prev-sub" id="monFcRtPrevSub">Aktif tanpa batas waktu · +5.000 CR</span>
+                        </div>
+                        <span class="mon-fc-rt-prev-badge" id="monFcRtPrevBadge">✦ +5.000 CR</span>
                     </div>
 
                     <!-- Muncul otomatis bila gambar yang dipilih belum 16:9 agar bisa digeser sebelum simpan -->
@@ -348,8 +414,8 @@
 
                     <p class="mon-note">
                         Mendukung JPG, PNG, WebP, dan AVIF (maks. 8 MB). Gambar dipaskan presisi ke
-                        <b>16:9 HD (1600×900)</b> agar kartu di akun user selalu tampil tajam dan mewah
-                        di layar HP maupun PC.
+                        <b>16:9 HD (1600×900)</b> agar kartu beserta waktu runtime di dashboard user
+                        selalu tampil tajam dan mewah di HP maupun PC.
                     </p>
 
                 </div>
@@ -944,7 +1010,7 @@
      MONITORING
 ====================================================== -->
 
-<script type="module" src="./monitoring.js?v=monitoring-20261031-fc"></script>
+<script type="module" src="./monitoring.js?v=monitoring-20261031-fc2"></script>
 
 <!-- Penangkap aktivitas halaman ini sendiri (error + DevTools). -->
 <script src="/assets/js/security-beacon.js?v=beacon-20261029-7" defer></script>

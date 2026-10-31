@@ -290,7 +290,7 @@ async function handleOverview(req, res, config, fetchImpl) {
             ),
             dbRequest(
                 config,
-                "/free_credit_settings?id=eq.1&select=id,claim_enabled,banner_image_url,updated_at&limit=1",
+                "/free_credit_settings?id=eq.1&select=id,claim_enabled,credit_amount,runtime_starts_at,runtime_ends_at,banner_image_url,updated_at&limit=1",
                 { method: "GET" },
                 fetchImpl
             ).catch(() => []),
@@ -309,8 +309,32 @@ async function handleOverview(req, res, config, fetchImpl) {
         ]);
 
         const fcRow = Array.isArray(fcSettingsRows) ? fcSettingsRows[0] : null;
+        const fcEnabled = fcRow ? fcRow.claim_enabled !== false : true;
+        const fcStartsAt =
+            typeof fcRow?.runtime_starts_at === "string" && fcRow.runtime_starts_at.trim()
+                ? fcRow.runtime_starts_at.trim()
+                : null;
+        const fcEndsAt =
+            typeof fcRow?.runtime_ends_at === "string" && fcRow.runtime_ends_at.trim()
+                ? fcRow.runtime_ends_at.trim()
+                : null;
+        const nowMs = Date.now();
+        const fcRuntimeStatus = !fcEnabled
+            ? "disabled"
+            : fcStartsAt && nowMs < Date.parse(fcStartsAt)
+                ? "scheduled"
+                : fcEndsAt && nowMs >= Date.parse(fcEndsAt)
+                    ? "expired"
+                    : "active";
         const freeCreditOverview = {
-            claim_enabled: fcRow ? fcRow.claim_enabled !== false : true,
+            claim_enabled: fcEnabled,
+            credit_amount:
+                Number.isFinite(Number(fcRow?.credit_amount)) && Number(fcRow?.credit_amount) >= 100
+                    ? Math.round(Number(fcRow.credit_amount))
+                    : 5000,
+            runtime_starts_at: fcStartsAt,
+            runtime_ends_at: fcEndsAt,
+            runtime_status: fcRuntimeStatus,
             banner_image_url:
                 typeof fcRow?.banner_image_url === "string" && fcRow.banner_image_url.trim()
                     ? fcRow.banner_image_url.trim()

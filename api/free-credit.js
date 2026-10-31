@@ -1,11 +1,15 @@
 import {
     extractClientNetwork,
+    formatCreditNominalId,
     FREE_CREDIT_AMOUNT,
     FREE_CREDIT_BANNER_BUCKET,
     FREE_CREDIT_BANNER_PREFIX,
     mapClaimErrorResponse,
+    resolveRuntimeStatus,
     validateBannerImageUrl,
-    validateBrowserSignals
+    validateBrowserSignals,
+    validateCreditNominal,
+    validateRuntimeWindow
 } from "../lib/free-credit/service.js";
 
 const RATE_WINDOW_MS = 60_000;
@@ -180,20 +184,40 @@ async function requireAdminOrOwner(fetchImpl, req, config) {
 }
 
 function normalizeSettingsRow(row) {
-    if (!row || typeof row !== "object") {
-        return {
-            claim_enabled: true,
-            banner_image_url: null,
-            updated_at: null
-        };
-    }
+    const nowMs = Date.now();
+    const claimEnabled = row && typeof row === "object" ? row.claim_enabled !== false : true;
+    const rawAmount = Number(row?.credit_amount);
+    const creditAmount =
+        Number.isFinite(rawAmount) && rawAmount >= 100
+            ? Math.round(rawAmount)
+            : FREE_CREDIT_AMOUNT;
+    const startsAt =
+        typeof row?.runtime_starts_at === "string" && row.runtime_starts_at.trim()
+            ? row.runtime_starts_at.trim()
+            : null;
+    const endsAt =
+        typeof row?.runtime_ends_at === "string" && row.runtime_ends_at.trim()
+            ? row.runtime_ends_at.trim()
+            : null;
+    const bannerUrl =
+        typeof row?.banner_image_url === "string" && row.banner_image_url.trim()
+            ? row.banner_image_url.trim()
+            : null;
+
     return {
-        claim_enabled: row.claim_enabled !== false,
-        banner_image_url:
-            typeof row.banner_image_url === "string" && row.banner_image_url.trim()
-                ? row.banner_image_url.trim()
-                : null,
-        updated_at: row.updated_at || null
+        claim_enabled: claimEnabled,
+        credit_amount: creditAmount,
+        runtime_starts_at: startsAt,
+        runtime_ends_at: endsAt,
+        runtime_status: resolveRuntimeStatus({
+            claimEnabled,
+            startsAt,
+            endsAt,
+            nowMs
+        }),
+        banner_image_url: bannerUrl,
+        updated_at: row?.updated_at || null,
+        server_time: new Date(nowMs).toISOString()
     };
 }
 
@@ -202,7 +226,7 @@ async function loadFreeCreditSettings(fetchImpl, config) {
         const res = await supabaseJson(
             fetchImpl,
             config,
-            "/rest/v1/free_credit_settings?id=eq.1&select=id,claim_enabled,banner_image_url,updated_at&limit=1",
+            "/rest/v1/free_credit_settings?id=eq.1&select=id,claim_enabled,credit_amount,runtime_starts_at,runtime_ends_at,banner_image_url,updated_at&limit=1",
             { method: "GET", headers: serviceHeaders(config) }
         );
         const row = Array.isArray(res.data) ? res.data[0] : null;
@@ -225,6 +249,9 @@ async function saveFreeCreditSettings(fetchImpl, config, payload) {
             body: JSON.stringify({
                 id: 1,
                 claim_enabled: payload.claim_enabled !== false,
+                credit_amount: Number(payload.credit_amount || FREE_CREDIT_AMOUNT),
+                runtime_starts_at: payload.runtime_starts_at || null,
+                runtime_ends_at: payload.runtime_ends_at || null,
                 banner_image_url: payload.banner_image_url || null,
                 updated_at: new Date().toISOString(),
                 updated_by: payload.updated_by || null
@@ -400,6 +427,9 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
             if (String(req?.query?.save || "1") !== "0") {
                 const saved = await saveFreeCreditSettings(fetchImpl, config, {
                     claim_enabled: currentSettings.claim_enabled,
+                    credit_amount: currentSettings.credit_amount,
+                    runtime_starts_at: currentSettings.runtime_starts_at,
+                    runtime_ends_at: currentSettings.runtime_ends_at,
                     banner_image_url: publicUrl,
                     updated_by: admin.user.id
                 });
@@ -461,14 +491,48 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
                 });
             }
 
+            const claimEnabled = rpc.data.claim_enabled !== false;
+            const startsAt =
+                typeof rpc.data.runtime_starts_at === "string" && rpc.data.runtime_starts_at.trim()
+                    ? rpc.data.runtime_starts_at.trim()
+                    : null;
+            const endsAt =
+                typeof rpc.data.runtime_ends_at === "string" && rpc.data.runtime_ends_at.trim()
+                    ? rpc.data.runtime_ends_at.trim()
+                    : null;
+            const serverIso =
+                typeof rpc.data.server_time === "string" && rpc.data.server_time.trim()
+                    ? rpc.data.server_time.trim()
+                    : new Date().toISOString();
+            const runtimeStatus =
+                typeof rpc.data.runtime_status === "string" && rpc.data.runtime_status
+                    ? rpc.data.runtime_status
+                    : resolveRuntimeStatus({
+                        claimEnabled,
+                        startsAt,
+                        endsAt,
+                        nowMs: Date.parse(serverIso) || Date.now()
+                    });
+            const creditAmount = Number(rpc.data.credit_amount) >= 100
+                ? Math.round(Number(rpc.data.credit_amount))
+                : FREE_CREDIT_AMOUNT;
+            const configuredAmount = Number(rpc.data.configured_credit_amount) >= 100
+                ? Math.round(Number(rpc.data.configured_credit_amount))
+                : creditAmount;
+
             return sendJson(res, 200, {
                 ok: true,
-                claim_enabled: rpc.data.claim_enabled !== false,
+                claim_enabled: claimEnabled,
+                runtime_status: runtimeStatus,
+                runtime_starts_at: startsAt,
+                runtime_ends_at: endsAt,
+                server_time: serverIso,
                 banner_image_url:
                     typeof rpc.data.banner_image_url === "string" && rpc.data.banner_image_url.trim()
                         ? rpc.data.banner_image_url.trim()
                         : null,
-                credit_amount: FREE_CREDIT_AMOUNT,
+                credit_amount: creditAmount,
+                configured_credit_amount: configuredAmount,
                 claimed: Boolean(rpc.data.claimed),
                 claimed_at: rpc.data.claimed_at || null,
                 has_password_signal: Boolean(rpc.data.has_password_signal)
@@ -514,8 +578,8 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
         }
 
         /* -----------------------------------------------------
-           2B. SIMPAN PENGATURAN ON/OFF & BANNER 16:9 (ADMIN / OWNER)
-               (POST action=update-settings)
+           2B. SIMPAN PENGATURAN ON/OFF, NOMINAL, RUNTIME, & BANNER
+               (POST action=update-settings — ADMIN / OWNER)
         ----------------------------------------------------- */
         if (action === "update-settings") {
             const admin = await requireAdminOrOwner(fetchImpl, req, config);
@@ -536,6 +600,31 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
                 nextEnabled = body.claim_enabled;
             }
 
+            let nextAmount = current.credit_amount;
+            if (body.credit_amount !== undefined) {
+                const amountCheck = validateCreditNominal(body.credit_amount);
+                if (!amountCheck.ok) {
+                    return sendJson(res, 400, {
+                        ok: false,
+                        error: amountCheck.error
+                    });
+                }
+                nextAmount = amountCheck.value;
+            }
+
+            const hasStarts = Object.prototype.hasOwnProperty.call(body, "runtime_starts_at");
+            const hasEnds = Object.prototype.hasOwnProperty.call(body, "runtime_ends_at");
+            const runtimeCheck = validateRuntimeWindow({
+                startsAt: hasStarts ? body.runtime_starts_at : current.runtime_starts_at,
+                endsAt: hasEnds ? body.runtime_ends_at : current.runtime_ends_at
+            });
+            if (!runtimeCheck.ok) {
+                return sendJson(res, 400, {
+                    ok: false,
+                    error: runtimeCheck.error
+                });
+            }
+
             let nextBannerUrl = current.banner_image_url;
             if (Object.prototype.hasOwnProperty.call(body, "banner_image_url")) {
                 const validated = validateBannerImageUrl(body.banner_image_url, config.url);
@@ -550,6 +639,9 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
 
             const saved = await saveFreeCreditSettings(fetchImpl, config, {
                 claim_enabled: nextEnabled,
+                credit_amount: nextAmount,
+                runtime_starts_at: runtimeCheck.startsAt,
+                runtime_ends_at: runtimeCheck.endsAt,
                 banner_image_url: nextBannerUrl,
                 updated_by: admin.user.id
             });
@@ -656,7 +748,7 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
         }
 
         /* -----------------------------------------------------
-           4. EKSEKUSI KLAIM 5.000 CREDIT GRATIS (action=claim)
+           4. EKSEKUSI KLAIM FREE CREDIT GRATIS (action=claim)
         ----------------------------------------------------- */
         if (action === "claim") {
             const rateKey = `claim:${net.ip || "unknown"}`;
@@ -673,16 +765,24 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
             }
 
             const currentSettings = await loadFreeCreditSettings(fetchImpl, config);
-            if (!currentSettings.claim_enabled) {
-                const mappedDisabled = mapClaimErrorResponse("feature_disabled", [
-                    "feature_disabled"
-                ]);
-                return sendJson(res, mappedDisabled.status, {
+            if (currentSettings.runtime_status !== "active") {
+                const rejectCode =
+                    currentSettings.runtime_status === "scheduled"
+                        ? "event_not_started"
+                        : currentSettings.runtime_status === "expired"
+                            ? "event_expired"
+                            : "feature_disabled";
+                const mappedGate = mapClaimErrorResponse(
+                    rejectCode,
+                    [rejectCode],
+                    currentSettings.credit_amount
+                );
+                return sendJson(res, mappedGate.status, {
                     ok: false,
-                    code: "feature_disabled",
-                    matched_reasons: ["feature_disabled"],
+                    code: rejectCode,
+                    matched_reasons: [rejectCode],
                     requires_password: false,
-                    error: mappedDisabled.message
+                    error: mappedGate.message
                 });
             }
 
@@ -744,7 +844,8 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
             if (!rpc.data.ok) {
                 const mapped = mapClaimErrorResponse(
                     rpc.data.code,
-                    rpc.data.matched_reasons
+                    rpc.data.matched_reasons,
+                    currentSettings.credit_amount
                 );
                 return sendJson(res, mapped.status, {
                     ok: false,
@@ -757,14 +858,18 @@ export function createFreeCreditHandler({ fetchImpl = fetch, env } = {}) {
                 });
             }
 
+            const grantedAmount = Number(
+                rpc.data.credit_amount || currentSettings.credit_amount || FREE_CREDIT_AMOUNT
+            );
+
             return sendJson(res, 200, {
                 ok: true,
                 claim_id: rpc.data.claim_id,
-                credit_amount: Number(rpc.data.credit_amount || FREE_CREDIT_AMOUNT),
+                credit_amount: grantedAmount,
                 balance_before: Number(rpc.data.balance_before || 0),
                 balance_after: Number(rpc.data.balance_after || 0),
                 claimed_at: rpc.data.claimed_at || new Date().toISOString(),
-                message: "Selamat! Free Credit 5.000 Gratis berhasil diklaim dan langsung masuk ke saldo Anda."
+                message: `Selamat! Free Credit ${formatCreditNominalId(grantedAmount)} Gratis berhasil diklaim dan langsung masuk ke saldo Anda.`
             });
         }
 
