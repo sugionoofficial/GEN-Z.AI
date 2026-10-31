@@ -795,9 +795,9 @@ function isOpusCreditExhaustedError(error) {
 
 const ERROR_MESSAGE_BY_CODE = Object.freeze({
     credit_admission_rejected:
-        "Saldo kredit akun Opus Labs (upstream OpusClip) tidak mencukupi untuk durasi/resolusi video ini.",
+        "Saldo kredit akun Opus Labs (upstream OpusClip) tidak mencukupi untuk durasi/resolusi ini.",
     insufficient_credits:
-        "Saldo kredit akun Opus Labs (upstream OpusClip) tidak mencukupi untuk durasi/resolusi video ini.",
+        "Saldo kredit akun Opus Labs (upstream OpusClip) tidak mencukupi untuk durasi/resolusi ini.",
     quota_exceeded:
         "Kuota generasi Opus Labs sedang penuh atau telah habis.",
     rate_limited:
@@ -809,11 +809,21 @@ const ERROR_MESSAGE_BY_CODE = Object.freeze({
     moderation_blocked:
         "Konten diblokir oleh moderasi keamanan Opus Labs.",
     model_unavailable:
-        "Model video ini sedang tidak tersedia di server Opus Labs. Coba model Opus lain atau ubah resolusi.",
+        "Model ini sedang tidak tersedia di server Opus Labs. Coba model Opus lain atau ubah pengaturan.",
+    unsupported_model:
+        "Model ini belum diaktifkan pada akun Opus Labs saat ini. Coba pilih model Opus lainnya.",
+    invalid_model:
+        "Nama model ditolak oleh server Opus Labs.",
     generation_unavailable:
-        "Layanan generasi video Opus Labs sedang gangguan sementara. Silakan coba lagi.",
+        "Layanan generasi Opus Labs sedang gangguan sementara. Silakan coba lagi.",
+    invalid_frame_dimensions:
+        "Ukuran dimensi gambar referensi di luar batas Opus Labs (kedua sisi gambar wajib antara 300px hingga 6000px).",
+    invalid_reference_assets:
+        "Aset gambar referensi ditolak oleh server Opus Labs. Pastikan gambar valid (PNG/JPG/WebP, 300px–6000px).",
+    invalid_arguments:
+        "Parameter permintaan ditolak oleh validasi skema Opus Labs.",
     invalid_request:
-        "Parameter video ditolak oleh server Opus Labs. Periksa durasi, resolusi, rasio, atau gambar referensi.",
+        "Parameter ditolak oleh server Opus Labs. Periksa rasio, model, atau gambar referensi.",
     submission_unknown:
         "Status pengiriman job ke Opus Labs belum dapat dipastikan (submission_unknown). Job tidak dikirim ulang otomatis demi mencegah pemotongan kredit ganda."
 });
@@ -825,9 +835,64 @@ function normalizeErrorToken(value) {
         .replace(/[\s.-]+/g, "_");
 }
 
+function formatValidationDetails(details) {
+    if (!details) return "";
+    if (typeof details === "string") {
+        const clean = details.trim();
+        return clean.length <= 360 ? clean : `${clean.slice(0, 357)}...`;
+    }
+    if (Array.isArray(details)) {
+        const formatted = details
+            .slice(0, 5)
+            .map(entry => {
+                if (!entry) return "";
+                if (typeof entry === "string") return entry.trim();
+                if (typeof entry !== "object") return String(entry);
+                const pathText = Array.isArray(entry.path)
+                    ? entry.path.join(".")
+                    : String(entry.field || entry.param || entry.property || "").trim();
+                const msg = String(
+                    entry.message ||
+                    entry.reason ||
+                    entry.error ||
+                    entry.code ||
+                    ""
+                ).trim();
+                const opts = Array.isArray(entry.options)
+                    ? ` [options=${entry.options.slice(0, 10).join("|")}]`
+                    : Array.isArray(entry.values)
+                      ? ` [options=${entry.values.slice(0, 10).join("|")}]`
+                      : Array.isArray(entry.keys)
+                        ? ` [keys=${entry.keys.slice(0, 10).join(",")}]`
+                        : "";
+                if (pathText && msg) return `${pathText}: ${msg}${opts}`;
+                return `${pathText || msg}${opts}`.trim();
+            })
+            .filter(Boolean);
+        return formatted.join("; ");
+    }
+    if (typeof details === "object") {
+        if (Array.isArray(details.issues)) return formatValidationDetails(details.issues);
+        if (Array.isArray(details.errors)) return formatValidationDetails(details.errors);
+        if (Array.isArray(details.details)) return formatValidationDetails(details.details);
+        const pairs = [];
+        for (const [k, v] of Object.entries(details).slice(0, 5)) {
+            if (v === null || v === undefined || v === "") continue;
+            if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+                pairs.push(`${k}=${v}`);
+            } else if (Array.isArray(v)) {
+                const sub = formatValidationDetails(v);
+                if (sub) pairs.push(`${k}: ${sub}`);
+            }
+        }
+        return pairs.join(", ");
+    }
+    return "";
+}
+
 function appendSafeProviderDetail(baseMessage, code, fallbackMessage) {
     const cleanFallback = redactSecrets(String(fallbackMessage || "").trim());
-    if (!cleanFallback || cleanFallback.length > 220) {
+    if (!cleanFallback || cleanFallback.length > 520) {
         return baseMessage;
     }
     const normFallback = normalizeErrorToken(cleanFallback);
@@ -1130,14 +1195,33 @@ async function callMcpJsonRpc({
     }
 
     if (message?.error) {
-        const rpcCode = message.error.data?.code || message.error.code || "mcp_rpc_error";
-        const rpcMsg = message.error.message || JSON.stringify(message.error);
+        const rpcErr = message.error;
+        const isJsonRpcInvalidParams = Number(rpcErr.code) === -32602;
+        const rpcCode =
+            rpcErr.data?.errorCode ||
+            rpcErr.data?.code ||
+            (isJsonRpcInvalidParams ? "invalid_arguments" : rpcErr.code) ||
+            "mcp_rpc_error";
+        const rpcDetail = formatValidationDetails(
+            rpcErr.data?.issues ||
+            rpcErr.data?.details ||
+            rpcErr.data?.errors ||
+            rpcErr.data
+        );
+        const rpcMsg =
+            [rpcErr.message, rpcDetail]
+                .filter(Boolean)
+                .join(" — ") ||
+            JSON.stringify(rpcErr);
+        const isSchemaValidationErr =
+            isJsonRpcInvalidParams ||
+            /^(?:invalid_arguments|invalid_params|validation_error|schema_error)$/i.test(String(rpcCode));
         throw createProviderError({
             message: translateOpusError(rpcCode, rpcMsg),
             code: String(rpcCode),
             providerCode: String(rpcCode),
-            status: Number(rpcCode) === -32602 ? 422 : 502,
-            raw: message.error
+            status: isSchemaValidationErr ? 422 : 502,
+            raw: rpcErr
         });
     }
 
@@ -1602,7 +1686,7 @@ function extractModelVersionTag(value) {
     if (decimalMatch) {
         return `${decimalMatch[1]}.${decimalMatch[2]}`;
     }
-    const majorMatch = /(?:seedance|hailuo|h)[._-\s]*(\d+)(?:[^0-9]|$)/i.exec(s);
+    const majorMatch = /(?:seedance|seedream|nano[-_]?banana|gpt[-_]?image|imagen|flux|hailuo|h)[._-\s]*v?(\d+)(?:[^0-9]|$)/i.exec(s);
     if (majorMatch) {
         return `${majorMatch[1]}`;
     }
@@ -1878,6 +1962,8 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
         data.results,
         data.uploads,
         data.imported,
+        data.importedAssets,
+        data.finalized,
         data.records
     ].filter(Array.isArray);
 
@@ -1927,20 +2013,6 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
               ? data.asset_ids[0]
               : "";
 
-    const assetId = String(
-        source.assetId ||
-        source.asset_id ||
-        source.durableAssetId ||
-        source.durableRef ||
-        source.assetRef ||
-        nestedAsset?.assetId ||
-        nestedAsset?.id ||
-        arrayAssetId ||
-        source.id ||
-        ""
-    ).trim();
-
-    const validAssetId = assetId && assetId !== clientItemId ? assetId : "";
     const status = String(source.status || source.state || "").trim().toLowerCase();
     const itemFailed = Boolean(
         source.ok === false ||
@@ -1951,15 +2023,56 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
         status === "rejected"
     );
 
+    const durableRef = String(
+        source.durableRef ||
+        source.durable_ref ||
+        source.assetRef ||
+        source.asset_ref ||
+        nestedAsset?.durableRef ||
+        nestedAsset?.assetRef ||
+        nestedAsset?.ref ||
+        ""
+    ).trim();
+
+    const assetId = String(
+        source.assetId ||
+        source.asset_id ||
+        source.durableAssetId ||
+        durableRef ||
+        nestedAsset?.assetId ||
+        nestedAsset?.id ||
+        arrayAssetId ||
+        source.id ||
+        ""
+    ).trim();
+
+    const projectIdGuard = String(data.projectId || data.project_id || "").trim();
+    const validAssetId =
+        !itemFailed &&
+        assetId &&
+        assetId !== clientItemId &&
+        (!projectIdGuard || assetId !== projectIdGuard)
+            ? assetId
+            : "";
+
     const uploadUrl = String(
         source.uploadUrl ||
         source.upload_url ||
         source.presignedUrl ||
         source.presigned_url ||
         source.putUrl ||
+        source.put_url ||
+        source.signedUrl ||
+        source.signed_url ||
         source.signedUploadUrl ||
+        (typeof source.upload === "string" ? source.upload : "") ||
         uploadObj?.url ||
         uploadObj?.uploadUrl ||
+        uploadObj?.putUrl ||
+        uploadObj?.signedUrl ||
+        uploadObj?.presignedUrl ||
+        uploadObj?.href ||
+        uploadObj?.targetUrl ||
         ""
     ).trim();
 
@@ -1977,20 +2090,26 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
     const uri = String(
         source.uri ||
         source.url ||
+        source.cdnUrl ||
+        source.cdn_url ||
         source.assetUri ||
         source.assetUrl ||
         source.storageUri ||
+        nestedAsset?.uri ||
+        nestedAsset?.url ||
         ""
     ).trim();
+    const cleanUri = /^https?:\/\//i.test(uri) && uri !== uploadUrl ? uri : "";
 
     return {
         assetId: validAssetId,
+        altRef: !itemFailed && durableRef && durableRef !== validAssetId ? durableRef : "",
         status,
         itemFailed,
         uploadUrl,
         uploadMethod: uploadMethod || "PUT",
         uploadHeaders,
-        uri: /^https?:\/\//i.test(uri) && uri !== uploadUrl ? uri : ""
+        uri: cleanUri
     };
 }
 
@@ -2100,33 +2219,59 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
     );
     const itemSchema = arrayKey ? resolveArrayItemSchema(topProps[arrayKey], rootSchema) : rootSchema;
     const itemBranches = expandObjectBranches(itemSchema, rootSchema);
-    const itemObj = arrayKey
+
+    const urlCandidates = itemMediaType === "video"
+        ? ["url", "sourceUrl", "source_url", "uri", "videoUrl", "video_url", "remoteUrl"]
+        : itemMediaType === "audio"
+            ? ["url", "sourceUrl", "source_url", "uri", "audioUrl", "audio_url", "remoteUrl"]
+            : ["url", "sourceUrl", "source_url", "uri", "imageUrl", "image_url", "remoteUrl"];
+
+    const urlItemObj = arrayKey
         ? resolveObjectSchema(itemSchema, rootSchema, branch => {
               const p = branch?.properties || {};
-              return Boolean(p.url || p.sourceUrl || p.dataUrl || p.data || p.fileName || p.filename);
+              const req = Array.isArray(branch?.required) ? branch.required : [];
+              if (req.includes("assetId") || req.includes("asset_id")) return -50;
+              return pickSupportedKey(p, urlCandidates, "") ? 30 : 0;
           })
         : topObj;
 
-    const mergedItemProps = itemBranches.length > 1
-        ? Object.assign({}, ...itemBranches.map(b => b.properties || {}))
-        : itemObj.properties;
-    const itemProps = mergedItemProps || itemObj.properties;
+    const uploadItemObj = arrayKey
+        ? resolveObjectSchema(itemSchema, rootSchema, branch => {
+              const p = branch?.properties || {};
+              const req = Array.isArray(branch?.required) ? branch.required : [];
+              if (req.includes("assetId") || req.includes("asset_id")) return -50;
+              let score = 0;
+              if (pickSupportedKey(p, ["dataUrl", "data_url", "mediaBase64", "media_base64", "data", "base64"], "")) {
+                  score += 40;
+              }
+              if (pickSupportedKey(p, ["fileName", "filename", "file_name", "sizeBytes", "size_bytes", "mimeType", "contentType"], "")) {
+                  score += 30;
+              }
+              if (req.some(k => /^(?:url|sourceUrl|source_url|uri|remoteUrl)$/i.test(k))) {
+                  score -= 40;
+              }
+              return score;
+          })
+        : topObj;
+
+    const urlItemProps = urlItemObj.properties;
+    const uploadItemProps = uploadItemObj.properties || urlItemProps;
 
     const clientItemId = `asset-${index + 1}`;
-    const buildBaseEntry = () => {
+    const buildBaseEntry = targetProps => {
         const entry = {};
-        const idKey = pickSupportedKey(itemProps, ["clientId", "client_id", "itemId", "item_id", "id"], "");
+        const idKey = pickSupportedKey(targetProps, ["clientId", "client_id", "itemId", "item_id", "id"], "");
         if (idKey && idKey !== "assetId") entry[idKey] = clientItemId;
 
-        const nameKey = pickSupportedKey(itemProps, ["fileName", "filename", "file_name", "name", "label"], "");
+        const nameKey = pickSupportedKey(targetProps, ["fileName", "filename", "file_name", "name", "label"], "");
         if (nameKey) entry[nameKey] = refItem.fileName;
 
-        const mimeKey = pickSupportedKey(itemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
+        const mimeKey = pickSupportedKey(targetProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
         if (mimeKey) entry[mimeKey] = refItem.mimeType;
 
-        const kindKey = pickSupportedKey(itemProps, ["mediaType", "media_type", "assetType", "asset_type", "type", "kind"], "");
+        const kindKey = pickSupportedKey(targetProps, ["mediaType", "media_type", "assetType", "asset_type", "type", "kind"], "");
         if (kindKey) {
-            const allowedKinds = extractAllowedValues(itemProps[kindKey], rootSchema);
+            const allowedKinds = extractAllowedValues(targetProps[kindKey], rootSchema);
             const kindCandidates = itemMediaType === "video"
                 ? ["video", "clip", "footage", "reference_video", "reference"]
                 : itemMediaType === "audio"
@@ -2138,24 +2283,24 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         return entry;
     };
 
-    const urlCandidates = itemMediaType === "video"
-        ? ["url", "sourceUrl", "source_url", "uri", "videoUrl", "video_url", "remoteUrl"]
-        : itemMediaType === "audio"
-            ? ["url", "sourceUrl", "source_url", "uri", "audioUrl", "audio_url", "remoteUrl"]
-            : ["url", "sourceUrl", "source_url", "uri", "imageUrl", "image_url", "remoteUrl"];
     const urlKey = pickSupportedKey(
-        itemProps,
+        urlItemProps,
         urlCandidates,
-        !itemProps ? "url" : ""
+        !urlItemProps ? "url" : ""
     );
     const dataKey = pickSupportedKey(
-        itemProps,
+        uploadItemProps,
         ["dataUrl", "data_url", "mediaBase64", "media_base64", "data", "base64", "contentBase64", "content_base64", "bytesBase64"],
         ""
     );
     const sizeKey = pickSupportedKey(
-        itemProps,
+        uploadItemProps,
         ["sizeBytes", "size_bytes", "fileSize", "file_size", "contentLength", "size"],
+        ""
+    );
+    const pathKey = pickSupportedKey(
+        uploadItemProps,
+        ["localPath", "local_path", "filePath", "file_path", "path"],
         ""
     );
 
@@ -2169,15 +2314,28 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
     });
 
     let cachedDownloaded = null;
-    const entry = buildBaseEntry();
+    const entry = urlKey ? buildBaseEntry(urlItemProps) : buildBaseEntry(uploadItemProps);
     if (urlKey) {
         entry[urlKey] = refItem.url;
     } else if (dataKey) {
-        cachedDownloaded = await downloadSourceImageBytes(refItem.url, itemMediaType);
+        cachedDownloaded = await downloadSourceImageBytes(
+            refItem.url,
+            itemMediaType,
+            refItem.mediaCache || null
+        );
         const b64 = bytesToBase64(cachedDownloaded.bytes);
         entry[dataKey] = /url|uri/i.test(dataKey)
             ? `data:${cachedDownloaded.mimeType};base64,${b64}`
             : b64;
+        if (sizeKey) entry[sizeKey] = cachedDownloaded.bytes.byteLength;
+    } else if (sizeKey || pickSupportedKey(uploadItemProps, ["fileName", "filename", "file_name"], "")) {
+        cachedDownloaded = await downloadSourceImageBytes(
+            refItem.url,
+            itemMediaType,
+            refItem.mediaCache || null
+        );
+        const mimeKey = pickSupportedKey(uploadItemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
+        if (mimeKey) entry[mimeKey] = cachedDownloaded.mimeType;
         if (sizeKey) entry[sizeKey] = cachedDownloaded.bytes.byteLength;
     }
 
@@ -2190,6 +2348,7 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         stepRes = { isError: true, error: rpcError };
         record = {
             assetId: "",
+            altRef: "",
             status: "failed",
             itemFailed: true,
             uploadUrl: "",
@@ -2205,8 +2364,7 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
      */
     if (
         (stepRes.isError || record.itemFailed || (!record.assetId && !record.uploadUrl)) &&
-        urlKey &&
-        (dataKey || sizeKey || pickSupportedKey(itemProps, ["fileName", "filename", "file_name"], ""))
+        (dataKey || sizeKey || pathKey || pickSupportedKey(uploadItemProps, ["fileName", "filename", "file_name"], ""))
     ) {
         try {
             if (!cachedDownloaded) {
@@ -2216,22 +2374,35 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                     refItem.mediaCache || null
                 );
             }
-            const fallbackEntry = buildBaseEntry();
-            const mimeKey = pickSupportedKey(itemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
-            if (mimeKey) fallbackEntry[mimeKey] = cachedDownloaded.mimeType;
-            if (sizeKey) fallbackEntry[sizeKey] = cachedDownloaded.bytes.byteLength;
+            const fallbackEntries = [];
+            const inlineOrPresignedEntry = buildBaseEntry(uploadItemProps);
+            const mimeKey = pickSupportedKey(uploadItemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
+            if (mimeKey) inlineOrPresignedEntry[mimeKey] = cachedDownloaded.mimeType;
+            if (sizeKey) inlineOrPresignedEntry[sizeKey] = cachedDownloaded.bytes.byteLength;
             if (dataKey) {
                 const b64 = bytesToBase64(cachedDownloaded.bytes);
-                fallbackEntry[dataKey] = /url|uri/i.test(dataKey)
+                inlineOrPresignedEntry[dataKey] = /url|uri/i.test(dataKey)
                     ? `data:${cachedDownloaded.mimeType};base64,${b64}`
                     : b64;
             }
-            const retryRes = await session.callTool(importTool.name, wrapCallArgs(fallbackEntry));
-            if (!retryRes.isError) {
+            fallbackEntries.push(inlineOrPresignedEntry);
+
+            if (pathKey && dataKey) {
+                const presignedPathEntry = buildBaseEntry(uploadItemProps);
+                if (mimeKey) presignedPathEntry[mimeKey] = cachedDownloaded.mimeType;
+                if (sizeKey) presignedPathEntry[sizeKey] = cachedDownloaded.bytes.byteLength;
+                presignedPathEntry[pathKey] = `/tmp/${refItem.fileName || `${clientItemId}.${extFromMime(cachedDownloaded.mimeType)}`}`;
+                fallbackEntries.push(presignedPathEntry);
+            }
+
+            for (const fbEntry of fallbackEntries) {
+                const retryRes = await session.callTool(importTool.name, wrapCallArgs(fbEntry)).catch(() => null);
+                if (!retryRes || retryRes.isError) continue;
                 const retryRecord = extractImportedAssetRecord(retryRes.data, clientItemId);
-                if (retryRecord.assetId || retryRecord.uploadUrl) {
+                if (!retryRecord.itemFailed && (retryRecord.assetId || retryRecord.uploadUrl)) {
                     stepRes = retryRes;
                     record = retryRecord;
+                    break;
                 }
             }
         } catch (fallbackErr) {
@@ -2248,9 +2419,10 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         }
     }
 
-    if (stepRes.isError && !record.assetId && !record.uploadUrl) {
+    if ((stepRes.isError || record.itemFailed) && !record.assetId && !record.uploadUrl) {
         return {
             assetId: "",
+            altRef: "",
             url: refItem.url,
             role: refItem.role,
             label: refItem.label,
@@ -2300,29 +2472,64 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         }
 
         if (record.assetId) {
+            const finalizePayloads = [];
+            const topFinalizeArrayKey = pickSupportedKey(
+                topProps,
+                ["finalizeAssetIds", "finalize_asset_ids", "completedAssetIds"],
+                ""
+            );
+            const topFinalizeSingleKey = pickSupportedKey(
+                topProps,
+                ["finalizeAssetId", "finalize_asset_id", "assetId", "asset_id"],
+                ""
+            );
+            if (topFinalizeArrayKey) {
+                finalizePayloads.push({
+                    ...(projKey && projectId ? { [projKey]: projectId } : {}),
+                    ...(reqKey ? { [reqKey]: makeUuid() } : {}),
+                    [topFinalizeArrayKey]: [record.assetId]
+                });
+            }
+            if (topFinalizeSingleKey) {
+                finalizePayloads.push({
+                    ...(projKey && projectId ? { [projKey]: projectId } : {}),
+                    ...(reqKey ? { [reqKey]: makeUuid() } : {}),
+                    [topFinalizeSingleKey]: record.assetId
+                });
+            }
+
+            const finalizeBranchObj =
+                itemBranches.find(b => Boolean(b?.properties?.assetId || b?.properties?.asset_id)) ||
+                uploadItemObj;
+            const finItemProps = finalizeBranchObj?.properties || uploadItemProps;
             const finalizeEntry = {};
-            const assetIdKey = pickSupportedKey(itemProps, ["assetId", "asset_id", "id"], "assetId");
+            const assetIdKey = pickSupportedKey(finItemProps, ["assetId", "asset_id", "id"], "assetId");
             finalizeEntry[assetIdKey] = record.assetId;
-            const finalizeStatusKey = pickSupportedKey(itemProps, ["status", "action", "phase"], "");
+            const finalizeStatusKey = pickSupportedKey(finItemProps, ["status", "action", "phase"], "");
             if (finalizeStatusKey) {
-                const allowedStatuses = extractAllowedValues(itemProps[finalizeStatusKey], rootSchema);
+                const allowedStatuses = extractAllowedValues(finItemProps[finalizeStatusKey], rootSchema);
                 const matched = matchEnumCaseInsensitive(["uploaded", "complete", "finalize", "ready"], allowedStatuses);
                 if (matched !== null) finalizeEntry[finalizeStatusKey] = matched;
             }
-            const finalizeArgs = {
+            finalizePayloads.push({
                 ...(projKey && projectId ? { [projKey]: projectId } : {}),
                 ...(reqKey ? { [reqKey]: makeUuid() } : {}),
                 ...(arrayKey ? { [arrayKey]: [finalizeEntry] } : finalizeEntry)
-            };
-            const finRes = await session.callTool(importTool.name, finalizeArgs).catch(() => null);
-            if (finRes && !finRes.isError) {
+            });
+
+            for (const finalizeArgs of finalizePayloads) {
+                const finRes = await session.callTool(importTool.name, finalizeArgs).catch(() => null);
+                if (!finRes || finRes.isError) continue;
                 const finRecord = extractImportedAssetRecord(finRes.data, clientItemId);
-                if (finRecord.assetId) {
-                    record = {
-                        ...record,
-                        ...finRecord,
-                        assetId: finRecord.assetId || record.assetId
-                    };
+                if (!finRecord.itemFailed) {
+                    if (finRecord.assetId) {
+                        record = {
+                            ...record,
+                            ...finRecord,
+                            assetId: finRecord.assetId || record.assetId
+                        };
+                    }
+                    break;
                 }
             }
         }
@@ -2330,6 +2537,7 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
 
     return {
         assetId: record.assetId || "",
+        altRef: record.altRef || "",
         url: record.uri || refItem.url,
         role: refItem.role,
         label: refItem.label,
@@ -2383,22 +2591,44 @@ function buildFrameFieldValue(propSchema, rootSchema, stagedAsset) {
     return stagedAsset.assetId || stagedAsset.url;
 }
 
-function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
+function matchImageRoleValue(role, allowedValues = []) {
+    const cleanRole = String(role || "reference").trim();
+    const lowerRole = cleanRole.toLowerCase();
+    const isPersonRole = /^(?:character|person|subject|human|talent|avatar|identity|anchor|model)$/.test(lowerRole);
+    const isOutfitRole = /^(?:outfit|product|garment|apparel|clothing|item|object|brand)$/.test(lowerRole);
+
+    const candidates = isPersonRole
+        ? [cleanRole, "person", "character", "subject", "human", "talent", "avatar", "identity", "anchor", "model", "reference", "image", "input", "style"]
+        : isOutfitRole
+            ? [cleanRole, "product", "garment", "outfit", "apparel", "item", "object", "brand", "subject", "reference", "image", "input", "style"]
+            : [cleanRole, "reference", "subject", "image", "person", "product", "character", "outfit", "style", "input"];
+
+    return matchEnumCaseInsensitive(candidates, allowedValues);
+}
+
+function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs, { minimal = false, useAltRef = false } = {}) {
+    const pickRefId = ref => {
+        if (useAltRef && ref.altRef) return ref.altRef;
+        return ref.assetId || ref.altRef || ref.url;
+    };
+
     const itemSchema = resolveArrayItemSchema(propSchema, rootSchema);
     if (
         itemSchema &&
         schemaTypeIncludes(itemSchema, rootSchema, "string") &&
         !schemaTypeIncludes(itemSchema, rootSchema, "object")
     ) {
-        return stagedRefs.map(r => r.assetId || r.url).filter(Boolean);
+        return stagedRefs.map(pickRefId).filter(Boolean);
     }
 
     const itemObj = resolveObjectSchema(itemSchema, rootSchema);
     const props = itemObj.properties;
+    const itemRequired = Array.isArray(itemObj.required) ? itemObj.required : [];
     if (props) {
         return stagedRefs.map((ref, idx) => {
             const isVideo = ref.mediaType === "video";
             const isAudio = ref.mediaType === "audio";
+            const chosenId = pickRefId(ref);
             const defaultLabel =
                 ref.label ||
                 (isVideo
@@ -2408,8 +2638,8 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
                         : `image${idx + 1}`);
             const entry = {};
             const idKey = pickSupportedKey(props, ["assetId", "asset_id", "assetRef", "ref", "id"], "");
-            if (idKey && ref.assetId) {
-                entry[idKey] = ref.assetId;
+            if (idKey && chosenId) {
+                entry[idKey] = chosenId;
             }
             const urlKey = pickSupportedKey(
                 props,
@@ -2420,14 +2650,14 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
                         : ["url", "uri", "imageUrl", "image_url", "sourceUrl"],
                 ""
             );
-            if (urlKey && (!idKey || !ref.assetId || itemObj.required.includes(urlKey)) && ref.url) {
+            if (urlKey && (!idKey || !chosenId || itemRequired.includes(urlKey)) && ref.url) {
                 entry[urlKey] = ref.url;
             }
             const labelKey = pickSupportedKey(props, ["label", "tag", "slot", "name", "referenceId"], "");
-            if (labelKey && labelKey !== idKey) {
+            if (labelKey && labelKey !== idKey && (!minimal || itemRequired.includes(labelKey))) {
                 const allowedLabels = extractAllowedValues(props[labelKey], rootSchema);
                 const matched = matchEnumCaseInsensitive(
-                    [defaultLabel, `@${defaultLabel}`],
+                    [defaultLabel, `@${defaultLabel}`, `image${idx + 1}`, `@image${idx + 1}`],
                     allowedLabels
                 );
                 if (matched !== null) {
@@ -2435,20 +2665,21 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
                 }
             }
             const roleKey = pickSupportedKey(props, ["role", "kind", "type", "usage", "mediaType", "media_type"], "");
-            if (roleKey) {
+            if (roleKey && (!minimal || itemRequired.includes(roleKey))) {
                 const allowedRoles = extractAllowedValues(props[roleKey], rootSchema);
-                const roleCandidates = isVideo
-                    ? [ref.role, "reference", "video", "motion", "style", "clip"]
+                const matchedRole = isVideo
+                    ? matchEnumCaseInsensitive([ref.role, "reference", "video", "motion", "style", "clip"], allowedRoles)
                     : isAudio
-                        ? [ref.role, "audio", "reference", "sound", "music", "voice", "soundtrack", "voiceover"]
-                        : [ref.role, "outfit", "character", "reference", "image", "subject", "style"];
-                const matchedRole = matchEnumCaseInsensitive(roleCandidates, allowedRoles);
+                        ? matchEnumCaseInsensitive([ref.role, "audio", "reference", "sound", "music", "voice", "soundtrack", "voiceover"], allowedRoles)
+                        : matchImageRoleValue(ref.role, allowedRoles);
                 if (matchedRole !== null) {
                     entry[roleKey] = matchedRole;
+                } else if (itemRequired.includes(roleKey) && allowedRoles.length > 0) {
+                    entry[roleKey] = allowedRoles[0];
                 }
             }
             const mimeKey = pickSupportedKey(props, ["mimeType", "mime_type", "contentType", "content_type"], "");
-            if (mimeKey && itemObj.required.includes(mimeKey) && ref.mimeType) {
+            if (mimeKey && itemRequired.includes(mimeKey) && ref.mimeType) {
                 entry[mimeKey] = ref.mimeType;
             }
             return entry;
@@ -2458,6 +2689,7 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
     return stagedRefs.map((ref, idx) => {
         const isVideo = ref.mediaType === "video";
         const isAudio = ref.mediaType === "audio";
+        const chosenId = pickRefId(ref);
         const defaultLabel =
             ref.label ||
             (isVideo
@@ -2466,9 +2698,9 @@ function buildReferenceAssetsValue(propSchema, rootSchema, stagedRefs) {
                     ? `audio${idx + 1}`
                     : `image${idx + 1}`);
         return {
-            ...(ref.assetId ? { assetId: ref.assetId } : { url: ref.url }),
-            label: defaultLabel,
-            ...(isVideo ? { mediaType: "video" } : isAudio ? { mediaType: "audio" } : {})
+            ...(chosenId ? { assetId: chosenId } : { url: ref.url }),
+            ...(!minimal ? { label: defaultLabel } : {}),
+            ...(isVideo ? { mediaType: "video" } : isAudio ? { mediaType: "audio" } : !minimal && ref.role ? { role: ref.role } : {})
         };
     });
 }
@@ -5587,16 +5819,32 @@ function matchImageModelValue(wantedModel, modelAliases = [], allowedValues = []
     }
 
     for (const candidate of candidates) {
-        const bare = candidate.includes("/") ? candidate.split("/").pop() : candidate;
+        const bare = stripModelVendorPrefix(candidate);
         const compactBare = normalizeCompactToken(bare);
         if (!compactBare) continue;
         const suffixHit = allowedValues.find(v => {
-            const str = String(v || "");
-            const vBare = str.includes("/") ? str.split("/").pop() : str;
+            const vBare = stripModelVendorPrefix(String(v || ""));
             return normalizeCompactToken(vBare) === compactBare;
         });
         if (suffixHit !== undefined) {
             return suffixHit;
+        }
+    }
+
+    /* Pencocokan versi setara (mis. seedream-5.0-pro vs seedream-5-pro) */
+    for (const candidate of candidates) {
+        const desiredVer = extractModelVersionTag(candidate);
+        const lowerBare = stripModelVendorPrefix(candidate).toLowerCase();
+        const familyMatch = /^(gpt[-_]?image|seedream|nano[-_]?banana|gemini|flux|imagen)/.exec(lowerBare);
+        if (!familyMatch) continue;
+        const famRegex = new RegExp(familyMatch[1].replace(/[-_]/g, "[-_]?"), "i");
+        const verHit = allowedValues.find(v => {
+            const sv = String(v || "");
+            if (!famRegex.test(sv)) return false;
+            return !hasConflictingVersionTag(desiredVer, sv);
+        });
+        if (verHit !== undefined) {
+            return verHit;
         }
     }
 
@@ -5632,31 +5880,338 @@ function matchImageModelValue(wantedModel, modelAliases = [], allowedValues = []
     return null;
 }
 
+function matchKeyframeAspectRatioValue(aspectRatio, allowedValues = []) {
+    const clean = String(aspectRatio || "1:1").trim();
+    if (!allowedValues.length) {
+        return clean;
+    }
+    const candidatesByRatio = {
+        "16:9": ["16:9", "16x9", "16_9", "landscape_16_9", "landscape16:9", "landscape", "horizontal", "wide", "widescreen", "1536x1024", "1920x1080", "1280x720"],
+        "9:16": ["9:16", "9x16", "9_16", "portrait_9_16", "portrait9:16", "portrait", "vertical", "tall", "1024x1536", "1080x1920", "720x1280"],
+        "1:1": ["1:1", "1x1", "1_1", "square", "1024x1024", "2048x2048", "1080x1080"],
+        "4:3": ["4:3", "4x3", "4_3", "landscape_4_3", "landscape4:3", "1536x1152", "1024x768", "landscape", "16:9"],
+        "3:4": ["3:4", "3x4", "3_4", "portrait_3_4", "portrait3:4", "1152x1536", "768x1024", "portrait", "9:16"],
+        "21:9": ["21:9", "21x9", "21_9", "ultrawide", "cinematic", "2560x1080", "1536x1024", "16:9", "landscape"]
+    };
+    const candidates = candidatesByRatio[clean] || [clean, "16:9", "9:16", "1:1"];
+    return matchEnumCaseInsensitive(candidates, allowedValues);
+}
+
+function matchKeyframeSizeValue(aspectRatio, allowedValues = []) {
+    const clean = String(aspectRatio || "1:1").trim();
+    const candidatesByRatio = {
+        "16:9": ["1536x1024", "1920x1080", "2560x1440", "1280x720", "2K", "2k", "1K", "1k", "landscape", "16:9", "auto"],
+        "9:16": ["1024x1536", "1080x1920", "1440x2560", "720x1280", "2K", "2k", "1K", "1k", "portrait", "9:16", "auto"],
+        "1:1": ["1024x1024", "2048x2048", "1080x1080", "2K", "2k", "1K", "1k", "square", "1:1", "auto"],
+        "4:3": ["1536x1152", "2048x1536", "1024x768", "1536x1024", "2K", "2k", "1K", "1k", "landscape", "4:3", "auto"],
+        "3:4": ["1152x1536", "1536x2048", "768x1024", "1024x1536", "2K", "2k", "1K", "1k", "portrait", "3:4", "auto"],
+        "21:9": ["2560x1080", "1536x1024", "1920x1080", "2K", "2k", "landscape", "21:9", "auto"]
+    };
+    const candidates = candidatesByRatio[clean] || ["1024x1024", "1536x1024", "1024x1536", "2K", "auto"];
+    if (!allowedValues.length) {
+        return candidates[0];
+    }
+    return matchEnumCaseInsensitive(candidates, allowedValues);
+}
+
+function resolveKeyframePixelDimensions(aspectRatio) {
+    switch (String(aspectRatio || "1:1").trim()) {
+        case "16:9":
+            return { width: 1920, height: 1080, compactWidth: 1024, compactHeight: 576 };
+        case "9:16":
+            return { width: 1080, height: 1920, compactWidth: 576, compactHeight: 1024 };
+        case "4:3":
+            return { width: 1536, height: 1152, compactWidth: 1024, compactHeight: 768 };
+        case "3:4":
+            return { width: 1152, height: 1536, compactWidth: 768, compactHeight: 1024 };
+        case "21:9":
+            return { width: 2560, height: 1080, compactWidth: 1280, compactHeight: 548 };
+        default:
+            return { width: 1024, height: 1024, compactWidth: 1024, compactHeight: 1024 };
+    }
+}
+
+function matchKeyframeQualityValue(quality, allowedValues = []) {
+    const q = String(quality || "auto").trim().toLowerCase();
+    const candidates = q === "low"
+        ? ["low", "standard", "fast", "draft", "1k", "auto", "medium"]
+        : [q, "auto", "high", "standard", "medium", "hd", "2k", "1k", "low"];
+    if (!allowedValues.length) {
+        return candidates[0];
+    }
+    return matchEnumCaseInsensitive(candidates, allowedValues);
+}
+
+function fillMissingKeyframeRequiredFields(targetObj, objectSchema, rootSchema, context = {}, depth = 0) {
+    if (!targetObj || typeof targetObj !== "object" || depth > 4) return targetObj;
+    const props = objectSchema?.properties;
+    const required = Array.isArray(objectSchema?.required) ? objectSchema.required : [];
+    if (!props || !required.length) return targetObj;
+
+    for (const key of required) {
+        if (targetObj[key] !== undefined) continue;
+        const propSchema = derefSchema(props[key], rootSchema) || {};
+        if (propSchema.const !== undefined) {
+            targetObj[key] = propSchema.const;
+            continue;
+        }
+        if (propSchema.default !== undefined) {
+            targetObj[key] = propSchema.default;
+            continue;
+        }
+        const allowed = extractAllowedValues(propSchema, rootSchema);
+        if (allowed.length > 0) {
+            const lowerKey = key.toLowerCase();
+            if (lowerKey.includes("aspect") || lowerKey.includes("ratio")) {
+                targetObj[key] = matchKeyframeAspectRatioValue(context.aspectRatio || "1:1", allowed) ?? allowed[0];
+            } else if (lowerKey.includes("size") || lowerKey.includes("resolution")) {
+                targetObj[key] = matchKeyframeSizeValue(context.aspectRatio || "1:1", allowed) ?? allowed[0];
+            } else if (lowerKey.includes("model")) {
+                targetObj[key] = matchImageModelValue(context.opusModel || "", context.modelAliases || [], allowed) ?? allowed[0];
+            } else if (lowerKey.includes("quality")) {
+                targetObj[key] = matchKeyframeQualityValue(context.quality || "auto", allowed) ?? allowed[0];
+            } else if (lowerKey.includes("role") || lowerKey.includes("usage")) {
+                targetObj[key] = matchImageRoleValue(context.role || "reference", allowed) ?? allowed[0];
+            } else if (lowerKey.includes("workflow") || lowerKey.includes("mode")) {
+                const wfCandidates = context.hasReferences
+                    ? ["reference2image", "image2image", "image_to_image", "i2i", "reference", "keyframe", "image", "default", "text2image"]
+                    : ["text2image", "text_to_image", "t2i", "keyframe", "image", "default", "reference2image"];
+                targetObj[key] = matchEnumCaseInsensitive(wfCandidates, allowed) ?? allowed[0];
+            } else {
+                targetObj[key] = allowed[0];
+            }
+            continue;
+        }
+        if (schemaTypeIncludes(propSchema, rootSchema, "string")) {
+            const lowerKey = key.toLowerCase();
+            if (propSchema.format === "uri" || propSchema.format === "url" || /(?:^|_)url$|(?:^|_)uri$/i.test(key)) {
+                if (context.remoteUrl) {
+                    targetObj[key] = context.remoteUrl;
+                }
+                continue;
+            }
+            if (propSchema.format === "uuid" || lowerKey.endsWith("requestkey") || lowerKey.endsWith("idempotencykey")) {
+                targetObj[key] = makeUuid();
+            } else if (lowerKey.includes("prompt") || lowerKey.includes("description") || lowerKey.includes("brief") || lowerKey.includes("instruction")) {
+                targetObj[key] = String(context.prompt || "Studio keyframe image").trim();
+            } else if (lowerKey.includes("project") && context.projectId) {
+                targetObj[key] = context.projectId;
+            } else if (lowerKey.includes("aspect") || lowerKey.includes("ratio")) {
+                targetObj[key] = String(context.aspectRatio || "1:1");
+            } else if (lowerKey.includes("size")) {
+                targetObj[key] = matchKeyframeSizeValue(context.aspectRatio || "1:1", []);
+            } else if (lowerKey.includes("quality")) {
+                targetObj[key] = String(context.quality || "auto");
+            } else if (lowerKey.includes("model") && context.opusModel) {
+                targetObj[key] = context.opusModel;
+            } else {
+                targetObj[key] = context.defaultLabel || "kf-1";
+            }
+            continue;
+        }
+        if (schemaTypeIncludes(propSchema, rootSchema, "integer") || schemaTypeIncludes(propSchema, rootSchema, "number")) {
+            const lowerKey = key.toLowerCase();
+            const dims = resolveKeyframePixelDimensions(context.aspectRatio || "1:1");
+            if (lowerKey === "width") {
+                const maxW = typeof propSchema.maximum === "number" ? propSchema.maximum : Infinity;
+                targetObj[key] = dims.width <= maxW ? dims.width : Math.min(dims.compactWidth, maxW);
+            } else if (lowerKey === "height") {
+                const maxH = typeof propSchema.maximum === "number" ? propSchema.maximum : Infinity;
+                targetObj[key] = dims.height <= maxH ? dims.height : Math.min(dims.compactHeight, maxH);
+            } else {
+                const min = typeof propSchema.minimum === "number" ? propSchema.minimum : 1;
+                targetObj[key] = min > 0 ? min : 1;
+            }
+            continue;
+        }
+        if (schemaTypeIncludes(propSchema, rootSchema, "boolean")) {
+            targetObj[key] = !/duplicate|acknowledge|force/i.test(key) ? false : false;
+            continue;
+        }
+        if (schemaTypeIncludes(propSchema, rootSchema, "array")) {
+            targetObj[key] = [];
+            continue;
+        }
+        if (schemaTypeIncludes(propSchema, rootSchema, "object")) {
+            const subObj = resolveObjectSchema(propSchema, rootSchema);
+            const nested = {};
+            fillMissingKeyframeRequiredFields(nested, subObj, rootSchema, context, depth + 1);
+            targetObj[key] = nested;
+        }
+    }
+    return targetObj;
+}
+
+function detectKeyframeBatchArrayKey(topObj, rootSchema) {
+    const props = topObj?.properties;
+    if (!props) return "keyframes";
+    const candidates = ["keyframes", "items", "shots", "frames", "requests", "images", "generations", "tasks"];
+    for (const key of candidates) {
+        if (!Object.prototype.hasOwnProperty.call(props, key)) continue;
+        const itemSchema = resolveArrayItemSchema(props[key], rootSchema);
+        if (!itemSchema) continue;
+        if (schemaTypeIncludes(itemSchema, rootSchema, "string") && !schemaTypeIncludes(itemSchema, rootSchema, "object")) {
+            continue;
+        }
+        const itemObj = resolveObjectSchema(itemSchema, rootSchema);
+        if (
+            !itemObj.properties ||
+            pickSupportedKey(
+                itemObj.properties,
+                ["prompt", "description", "instruction", "text", "brief", "keyframeId", "keyframe_id", "shotId", "id"],
+                ""
+            )
+        ) {
+            return key;
+        }
+    }
+    for (const reqKey of topObj.required || []) {
+        if (!Object.prototype.hasOwnProperty.call(props, reqKey)) continue;
+        const itemSchema = resolveArrayItemSchema(props[reqKey], rootSchema);
+        if (!itemSchema) continue;
+        const itemObj = resolveObjectSchema(itemSchema, rootSchema);
+        if (itemObj.properties && pickSupportedKey(itemObj.properties, ["prompt", "description", "instruction", "text", "brief"], "")) {
+            return reqKey;
+        }
+    }
+    return "";
+}
+
+function scoreKeyframeSchemaBranch(branchObj, rootSchema, params = {}) {
+    const props = branchObj?.properties;
+    const req = Array.isArray(branchObj?.required) ? branchObj.required : [];
+    if (!props) return 0;
+
+    let score = 0;
+    const hasRefs = Array.isArray(params.stagedReferences) && params.stagedReferences.length > 0;
+
+    if (pickSupportedKey(props, ["prompt", "description", "instruction", "text", "brief"], "")) {
+        score += 15;
+    }
+
+    const modelKey = pickSupportedKey(
+        props,
+        ["model", "imageModel", "image_model", "keyframeModel", "keyframe_model", "modelId", "model_id", "providerModel"],
+        ""
+    );
+    if (modelKey && params.opusModel) {
+        const allowedModels = extractAllowedValues(props[modelKey], rootSchema);
+        if (allowedModels.length > 0) {
+            const matched = matchImageModelValue(params.opusModel, params.modelAliases, allowedModels);
+            score += matched ? 40 : -60;
+        } else {
+            score += 5;
+        }
+    }
+
+    const hasRefProp = Boolean(
+        pickSupportedKey(
+            props,
+            [
+                "referenceAssets",
+                "reference_assets",
+                "references",
+                "assets",
+                "inputAssets",
+                "input_assets",
+                "referenceImages",
+                "reference_images",
+                "referenceAssetIds",
+                "reference_asset_ids",
+                "assetIds",
+                "imageAsset",
+                "imageUrl"
+            ],
+            ""
+        )
+    );
+    if (hasRefs) {
+        score += hasRefProp ? 25 : -25;
+    } else if (req.some(k => /reference|asset|input_image/i.test(k))) {
+        score -= 40;
+    }
+
+    const wfKey = pickSupportedKey(props, ["workflow", "mode", "generationMode", "generation_mode", "type"], "");
+    if (wfKey) {
+        const allowedWf = extractAllowedValues(props[wfKey], rootSchema);
+        if (allowedWf.length > 0) {
+            const wfCandidates = hasRefs
+                ? ["reference2image", "image2image", "image_to_image", "i2i", "reference_to_image", "reference", "keyframe", "image"]
+                : ["text2image", "text_to_image", "t2i", "keyframe", "image"];
+            score += matchEnumCaseInsensitive(wfCandidates, allowedWf) !== null ? 20 : -20;
+        }
+    }
+
+    return score;
+}
+
+function summarizeMcpToolSchema(tool) {
+    const rootSchema = tool?.inputSchema;
+    if (!rootSchema || typeof rootSchema !== "object") return "";
+    const obj = resolveObjectSchema(rootSchema, rootSchema);
+    if (!obj.properties) return "";
+    const keys = Object.keys(obj.properties);
+    const parts = [`keys=[${keys.join(",")}]`];
+    if (obj.required.length) {
+        parts.push(`required=[${obj.required.join(",")}]`);
+    }
+    const describeEnums = (propsMap, prefix = "") => {
+        for (const [k, propSchema] of Object.entries(propsMap)) {
+            if (/model|aspect|ratio|quality|size|workflow|mode|role/i.test(k)) {
+                const allowed = extractAllowedValues(propSchema, rootSchema);
+                if (allowed.length > 0 && allowed.length <= 15) {
+                    parts.push(`${prefix}${k}.enum=[${allowed.join("|")}]`);
+                }
+            }
+        }
+    };
+    describeEnums(obj.properties);
+    for (const k of keys) {
+        const itemSchema = resolveArrayItemSchema(obj.properties[k], rootSchema);
+        if (itemSchema) {
+            const itemObj = resolveObjectSchema(itemSchema, rootSchema);
+            if (itemObj.properties) {
+                parts.push(`${k}[].keys=[${Object.keys(itemObj.properties).join(",")}]`);
+                if (itemObj.required.length) {
+                    parts.push(`${k}[].required=[${itemObj.required.join(",")}]`);
+                }
+                describeEnums(itemObj.properties, `${k}[].`);
+            }
+        }
+    }
+    return parts.join(" ");
+}
+
 function populateKeyframeFields(target, objectSchema, rootSchema, {
     prompt,
     opusModel,
     modelAliases,
     aspectRatio,
+    quality,
     stagedReferences,
     projectId,
     requestKey,
     isBatchItem = false,
-    minimal = false
+    minimal = false,
+    omitModel = false,
+    useAltRef = false,
+    discoveredAllowedModels = null
 }) {
     const props = objectSchema?.properties;
     const required = Array.isArray(objectSchema?.required) ? objectSchema.required : [];
+    const hasRefs = Array.isArray(stagedReferences) && stagedReferences.length > 0;
 
     if (isBatchItem) {
         const kfIdKey = pickSupportedKey(
             props,
-            ["keyframeId", "keyframe_id", "imageId", "image_id", "itemId", "item_id", "id"],
+            ["keyframeId", "keyframe_id", "shotId", "shot_id", "frameId", "frame_id", "imageId", "image_id", "itemId", "item_id", "id"],
             !props ? "id" : ""
         );
         if (kfIdKey) {
             target[kfIdKey] = props?.[kfIdKey]?.format === "uuid" ? makeUuid() : "kf-1";
         }
     } else {
-        const reqKfId = ["keyframeId", "keyframe_id", "imageId", "image_id", "itemId", "item_id", "id"].find(
+        const reqKfId = ["keyframeId", "keyframe_id", "shotId", "shot_id", "frameId", "frame_id", "imageId", "image_id", "itemId", "item_id", "id"].find(
             k => props && Object.prototype.hasOwnProperty.call(props, k) && required.includes(k)
         );
         if (reqKfId) {
@@ -5672,7 +6227,7 @@ function populateKeyframeFields(target, objectSchema, rootSchema, {
             /outputlabel|output_label/i.test(labelKey) ||
             (isBatchItem && !minimal))
     ) {
-        target[labelKey] = "kf-1";
+        target[labelKey] = /outputlabel|output_label/i.test(labelKey) ? "keyframe-1" : "kf-1";
     }
 
     const projKey = pickSupportedKey(
@@ -5695,61 +6250,125 @@ function populateKeyframeFields(target, objectSchema, rootSchema, {
 
     const promptKey = pickSupportedKey(
         props,
-        ["prompt", "description", "instruction", "text"],
+        ["prompt", "description", "instruction", "text", "brief"],
         !props ? "prompt" : ""
     );
     if (promptKey) {
         target[promptKey] = prompt;
     }
 
-    if (opusModel) {
-        const modelKey = pickSupportedKey(
+    const modelKey = pickSupportedKey(
+        props,
+        [
+            "model",
+            "imageModel",
+            "image_model",
+            "keyframeModel",
+            "keyframe_model",
+            "modelId",
+            "model_id",
+            "providerModel",
+            "provider_model",
+            "modelName",
+            "model_name",
+            "engine"
+        ],
+        !props ? "model" : ""
+    );
+    if (modelKey && opusModel && (!omitModel || required.includes(modelKey))) {
+        const schemaAllowedModels = extractAllowedValues(props?.[modelKey], rootSchema);
+        const allowedModels =
+            Array.isArray(discoveredAllowedModels) && discoveredAllowedModels.length > 0
+                ? discoveredAllowedModels
+                : schemaAllowedModels;
+        const matchedModel = matchImageModelValue(opusModel, modelAliases, allowedModels);
+        if (matchedModel !== null && matchedModel !== "") {
+            target[modelKey] = matchedModel;
+        } else if (required.includes(modelKey) && allowedModels.length > 0) {
+            target[modelKey] = allowedModels[0];
+        } else if (schemaAllowedModels.length > 0 && !omitModel) {
+            throw createProviderError({
+                message: `Model gambar "${opusModel}" tidak tersedia di akun Opus Labs saat ini (tersedia: ${schemaAllowedModels.join(", ")}).`,
+                code: "model_unavailable",
+                providerCode: "model_unavailable",
+                status: 422
+            });
+        }
+    }
+
+    let wroteAspectRatio = false;
+    if (aspectRatio) {
+        const ratioKey = pickSupportedKey(
             props,
-            [
-                "model",
-                "imageModel",
-                "image_model",
-                "keyframeModel",
-                "keyframe_model",
-                "modelId",
-                "model_id",
-                "providerModel",
-                "provider_model",
-                "modelName",
-                "model_name",
-                "engine"
-            ],
-            !props ? "model" : ""
+            ["aspectRatio", "aspect_ratio", "aspect", "ratio", "format", "dimensions"],
+            !props ? "aspectRatio" : ""
         );
-        if (modelKey) {
-            const allowedModels = extractAllowedValues(props?.[modelKey], rootSchema);
-            const matchedModel = matchImageModelValue(opusModel, modelAliases, allowedModels);
-            if (matchedModel !== null && matchedModel !== "") {
-                target[modelKey] = matchedModel;
-            } else if (allowedModels.length > 0) {
-                throw createProviderError({
-                    message: `Model gambar "${opusModel}" tidak tersedia di akun Opus Labs saat ini (tersedia: ${allowedModels.join(", ")}).`,
-                    code: "model_unavailable",
-                    providerCode: "model_unavailable",
-                    status: 422
-                });
+        if (ratioKey && (!minimal || required.includes(ratioKey) || !props || /^(?:aspectRatio|aspect_ratio|aspect|ratio)$/i.test(ratioKey))) {
+            const allowedRatios = extractAllowedValues(props?.[ratioKey], rootSchema);
+            const matchedRatio = matchKeyframeAspectRatioValue(aspectRatio, allowedRatios);
+            if (matchedRatio !== null && matchedRatio !== "") {
+                target[ratioKey] = matchedRatio;
+                wroteAspectRatio = true;
+            } else if (required.includes(ratioKey) && allowedRatios.length > 0) {
+                target[ratioKey] = allowedRatios[0];
+                wroteAspectRatio = true;
             }
         }
     }
 
-    if (aspectRatio) {
-        const ratioKey = pickSupportedKey(
+    if (props) {
+        const sizeKey = pickSupportedKey(props, ["size", "imageSize", "image_size", "resolution", "outputSize"], "");
+        if (sizeKey) {
+            const allowedSizes = extractAllowedValues(props[sizeKey], rootSchema);
+            const shouldWriteSize =
+                required.includes(sizeKey) ||
+                (!minimal && (allowedSizes.length > 0 || !wroteAspectRatio));
+            if (shouldWriteSize) {
+                const matchedSize = matchKeyframeSizeValue(aspectRatio, allowedSizes);
+                if (matchedSize !== null && matchedSize !== "") {
+                    target[sizeKey] = matchedSize;
+                } else if (required.includes(sizeKey) && allowedSizes.length > 0) {
+                    target[sizeKey] = allowedSizes[0];
+                }
+            }
+        }
+
+        if (
+            Object.prototype.hasOwnProperty.call(props, "width") &&
+            Object.prototype.hasOwnProperty.call(props, "height") &&
+            (required.includes("width") || required.includes("height") || (!minimal && !wroteAspectRatio))
+        ) {
+            const dims = resolveKeyframePixelDimensions(aspectRatio);
+            const maxW = typeof props.width?.maximum === "number" ? props.width.maximum : Infinity;
+            const maxH = typeof props.height?.maximum === "number" ? props.height.maximum : Infinity;
+            target.width = dims.width <= maxW ? dims.width : Math.min(dims.compactWidth, maxW);
+            target.height = dims.height <= maxH ? dims.height : Math.min(dims.compactHeight, maxH);
+        }
+
+        const countKey = pickSupportedKey(
             props,
-            ["aspectRatio", "aspect_ratio", "ratio", "format", "dimensions"],
-            !props ? "aspectRatio" : ""
+            ["count", "imageCount", "image_count", "numImages", "num_images", "n", "candidateCount"],
+            ""
         );
-        if (ratioKey && (!minimal || required.includes(ratioKey) || !props)) {
-            const allowedRatios = extractAllowedValues(props?.[ratioKey], rootSchema);
-            const matchedRatio = matchEnumCaseInsensitive([aspectRatio], allowedRatios);
-            if (matchedRatio !== null) {
-                target[ratioKey] = matchedRatio;
-            } else if (!allowedRatios.length) {
-                target[ratioKey] = aspectRatio;
+        if (countKey && (required.includes(countKey) || (!minimal && extractAllowedValues(props[countKey], rootSchema).length > 0))) {
+            const minCount = typeof props[countKey]?.minimum === "number" ? props[countKey].minimum : 1;
+            target[countKey] = Math.max(1, minCount);
+        }
+
+        const qualityKey = pickSupportedKey(props, ["quality", "imageQuality", "image_quality"], "");
+        if (qualityKey) {
+            const allowedQuality = extractAllowedValues(props[qualityKey], rootSchema);
+            const shouldWriteQuality =
+                required.includes(qualityKey) ||
+                Boolean(quality) ||
+                (!minimal && allowedQuality.length > 0);
+            if (shouldWriteQuality) {
+                const matchedQuality = matchKeyframeQualityValue(quality || "auto", allowedQuality);
+                if (matchedQuality !== null && matchedQuality !== "") {
+                    target[qualityKey] = matchedQuality;
+                } else if (required.includes(qualityKey) && allowedQuality.length > 0) {
+                    target[qualityKey] = allowedQuality[0];
+                }
             }
         }
     }
@@ -5759,19 +6378,20 @@ function populateKeyframeFields(target, objectSchema, rootSchema, {
         ["workflow", "mode", "generationMode", "generation_mode", "type"],
         ""
     );
-    if (wfKey && required.includes(wfKey)) {
+    if (wfKey && (required.includes(wfKey) || (!minimal && extractAllowedValues(props?.[wfKey], rootSchema).length > 0))) {
         const allowedWf = extractAllowedValues(props[wfKey], rootSchema);
-        const hasRefs = Array.isArray(stagedReferences) && stagedReferences.length > 0;
         const wfCandidates = hasRefs
-            ? ["image2image", "image_to_image", "i2i", "reference2image", "reference_to_image", "keyframe", "text2image", "text_to_image", "t2i"]
-            : ["text2image", "text_to_image", "t2i", "keyframe", "image"];
+            ? ["reference2image", "image2image", "image_to_image", "i2i", "reference_to_image", "reference", "keyframe", "image", "text2image", "text_to_image", "t2i"]
+            : ["text2image", "text_to_image", "t2i", "keyframe", "image", "reference2image"];
         const matchedWf = matchEnumCaseInsensitive(wfCandidates, allowedWf);
         if (matchedWf !== null) {
             target[wfKey] = matchedWf;
+        } else if (required.includes(wfKey) && allowedWf.length > 0) {
+            target[wfKey] = allowedWf[0];
         }
     }
 
-    if (Array.isArray(stagedReferences) && stagedReferences.length > 0) {
+    if (hasRefs) {
         const refKey = pickSupportedKey(
             props,
             [
@@ -5793,7 +6413,7 @@ function populateKeyframeFields(target, objectSchema, rootSchema, {
         );
         const refImageUrlsKey = pickSupportedKey(
             props,
-            ["referenceImageUrls", "reference_image_urls", "imageUrls", "image_urls", "images"],
+            ["referenceImageUrls", "reference_image_urls", "imageUrls", "image_urls", "images", "inputImages", "input_images"],
             ""
         );
         const singleImageKey = stagedReferences.length === 1
@@ -5801,136 +6421,519 @@ function populateKeyframeFields(target, objectSchema, rootSchema, {
             : "";
 
         if (refKey && props?.[refKey]) {
-            target[refKey] = buildReferenceAssetsValue(props[refKey], rootSchema, stagedReferences);
-        } else if (refIdsKey && stagedReferences.some(r => r.assetId)) {
-            target[refIdsKey] = stagedReferences.map(r => r.assetId).filter(Boolean);
+            target[refKey] = buildReferenceAssetsValue(props[refKey], rootSchema, stagedReferences, {
+                minimal,
+                useAltRef
+            });
+        } else if (refIdsKey && stagedReferences.some(r => r.assetId || r.altRef)) {
+            target[refIdsKey] = stagedReferences
+                .map(r => (useAltRef && r.altRef ? r.altRef : (r.assetId || r.altRef)))
+                .filter(Boolean);
         } else if (refImageUrlsKey) {
-            target[refImageUrlsKey] = stagedReferences.map(r => r.url).filter(Boolean);
+            target[refImageUrlsKey] = stagedReferences.map(r => r.url || r.altRef || r.assetId).filter(Boolean);
         } else if (singleImageKey && props?.[singleImageKey]) {
             target[singleImageKey] = buildFrameFieldValue(props[singleImageKey], rootSchema, stagedReferences[0]);
         } else if (!props) {
             target.referenceAssets = stagedReferences.map((r, idx) => ({
                 ...(r.assetId ? { assetId: r.assetId } : { url: r.url }),
-                label: r.label || `image${idx + 1}`,
-                role: r.role || "reference"
+                ...(!minimal ? { label: r.label || `image${idx + 1}`, role: r.role || "reference" } : {})
             }));
         }
     }
+
+    /* Dukungan nested config/options/settings bila skema live membungkus parameter keyframe */
+    if (props) {
+        for (const subKey of ["config", "options", "settings", "parameters", "generationConfig"]) {
+            if (!Object.prototype.hasOwnProperty.call(props, subKey)) continue;
+            if (target[subKey] !== undefined) continue;
+            if (minimal && !required.includes(subKey)) continue;
+            const subObj = resolveObjectSchema(props[subKey], rootSchema);
+            if (!subObj.properties) continue;
+            const nested = {};
+            populateKeyframeFields(nested, subObj, rootSchema, {
+                prompt: "",
+                opusModel,
+                modelAliases,
+                aspectRatio,
+                quality,
+                stagedReferences: [],
+                projectId: "",
+                requestKey: "",
+                isBatchItem: false,
+                minimal,
+                omitModel,
+                useAltRef,
+                discoveredAllowedModels
+            });
+            delete nested.prompt;
+            if (Object.keys(nested).length > 0 || required.includes(subKey)) {
+                target[subKey] = nested;
+            }
+        }
+    }
+
+    fillMissingKeyframeRequiredFields(target, objectSchema, rootSchema, {
+        prompt,
+        opusModel,
+        modelAliases,
+        aspectRatio,
+        quality,
+        hasReferences: hasRefs,
+        projectId,
+        defaultLabel: "kf-1"
+    });
 }
 
-function buildGenerateKeyframeVariants(keyframeTool, params) {
+function buildSingleKeyframeArgs(keyframeTool, params, profile = {}) {
     const rootSchema = keyframeTool?.inputSchema;
     const topObj = resolveObjectSchema(
         rootSchema,
         rootSchema,
         (_raw, resolved) => {
             const p = resolved?.properties || {};
-            if (p.keyframes || p.images || p.items) return 50;
-            if (p.prompt || p.description) return 20;
-            return 0;
+            if (p.keyframes || p.items || p.shots || p.frames) {
+                return 50 + scoreKeyframeSchemaBranch(resolved, rootSchema, params);
+            }
+            if (p.prompt || p.description) {
+                return 20 + scoreKeyframeSchemaBranch(resolved, rootSchema, params);
+            }
+            return scoreKeyframeSchemaBranch(resolved, rootSchema, params);
         }
     );
     const topProps = topObj.properties;
-    const batchArrayKey = pickSupportedKey(
-        topProps,
-        ["keyframes", "images", "items", "requests", "tasks", "generations"],
-        !topProps ? "keyframes" : ""
-    );
+    const topRequired = Array.isArray(topObj.required) ? topObj.required : [];
+    const batchArrayKey = detectKeyframeBatchArrayKey(topObj, rootSchema);
 
-    const variants = [];
-    const seenShapes = new Set();
-
-    const pushUniqueVariant = args => {
-        const fingerprint = JSON.stringify(stripRequestKeysForComparison(args));
-        if (seenShapes.has(fingerprint)) return;
-        seenShapes.add(fingerprint);
-        variants.push(args);
-    };
+    const minimal = Boolean(profile.minimal);
+    const omitModel = Boolean(profile.omitModel);
+    const useAltRef = Boolean(profile.useAltRef);
+    const overrideModel = profile.overrideModel ? String(profile.overrideModel).trim() : params.opusModel;
+    const discoveredAllowedModels = profile.discoveredAllowedModels || null;
 
     if (batchArrayKey) {
         const itemSchema = topProps?.[batchArrayKey]
             ? resolveArrayItemSchema(topProps[batchArrayKey], rootSchema)
             : null;
         const expandedBranches = itemSchema ? expandObjectBranches(itemSchema, rootSchema) : [];
-        const candidateItemObjs = expandedBranches.length > 0
+        const rankedBranches = expandedBranches.length > 1
             ? expandedBranches
-            : [itemSchema ? resolveObjectSchema(itemSchema, rootSchema) : { properties: null, required: [], raw: null }];
+                  .map((branch, idx) => ({
+                      branch,
+                      score: scoreKeyframeSchemaBranch(branch, rootSchema, { ...params, opusModel: overrideModel }),
+                      idx
+                  }))
+                  .sort((a, b) => (b.score !== a.score ? b.score - a.score : a.idx - b.idx))
+                  .map(entry => entry.branch)
+            : [
+                  itemSchema
+                      ? resolveObjectSchema(itemSchema, rootSchema, (_raw, resolved) =>
+                            scoreKeyframeSchemaBranch(resolved, rootSchema, { ...params, opusModel: overrideModel })
+                        )
+                      : { properties: null, required: [], raw: null }
+              ];
 
-        for (const minimal of [false, true]) {
-            for (const itemObj of candidateItemObjs) {
-                const args = {};
-                const projKey = pickSupportedKey(
-                    topProps,
-                    ["projectId", "project_id"],
-                    !topProps && params.projectId ? "projectId" : ""
-                );
-                if (projKey && params.projectId) {
-                    args[projKey] = params.projectId;
-                }
-                const reqKey = pickSupportedKey(
-                    topProps,
-                    ["requestKey", "idempotencyKey", "request_key", "idempotency_key"],
-                    !topProps ? "requestKey" : ""
-                );
-                if (reqKey) {
-                    args[reqKey] = makeUuid();
-                }
+        const chosenItemObj =
+            profile.branchIndex && rankedBranches[profile.branchIndex]
+                ? rankedBranches[profile.branchIndex]
+                : rankedBranches[0];
 
-                if (topProps) {
-                    const topModelKey = pickSupportedKey(
-                        topProps,
-                        ["model", "imageModel", "image_model", "keyframeModel", "modelId", "model_id"],
-                        ""
-                    );
-                    if (topModelKey && params.opusModel) {
-                        const allowedTopModels = extractAllowedValues(topProps[topModelKey], rootSchema);
-                        const matchedTop = matchImageModelValue(params.opusModel, params.modelAliases, allowedTopModels);
-                        if (matchedTop) {
-                            args[topModelKey] = matchedTop;
-                        }
+        const args = {};
+        const projKey = pickSupportedKey(
+            topProps,
+            ["projectId", "project_id"],
+            !topProps && params.projectId ? "projectId" : ""
+        );
+        if (projKey && params.projectId) {
+            args[projKey] = params.projectId;
+        }
+        const reqKey = pickSupportedKey(
+            topProps,
+            ["requestKey", "idempotencyKey", "request_key", "idempotency_key"],
+            !topProps ? "requestKey" : ""
+        );
+        if (reqKey) {
+            args[reqKey] = makeUuid();
+        }
+
+        if (topProps) {
+            const topModelKey = pickSupportedKey(
+                topProps,
+                ["model", "imageModel", "image_model", "keyframeModel", "modelId", "model_id"],
+                ""
+            );
+            if (topModelKey && overrideModel && (!omitModel || topRequired.includes(topModelKey))) {
+                const schemaAllowedTop = extractAllowedValues(topProps[topModelKey], rootSchema);
+                const allowedTop =
+                    Array.isArray(discoveredAllowedModels) && discoveredAllowedModels.length > 0
+                        ? discoveredAllowedModels
+                        : schemaAllowedTop;
+                const matchedTop = matchImageModelValue(overrideModel, params.modelAliases, allowedTop);
+                if (matchedTop) {
+                    args[topModelKey] = matchedTop;
+                } else if (topRequired.includes(topModelKey) && allowedTop.length > 0) {
+                    args[topModelKey] = allowedTop[0];
+                }
+            }
+
+            const topRatioKey = pickSupportedKey(
+                topProps,
+                ["aspectRatio", "aspect_ratio", "aspect", "ratio"],
+                ""
+            );
+            if (topRatioKey && params.aspectRatio && (!minimal || topRequired.includes(topRatioKey))) {
+                const allowedTopRatios = extractAllowedValues(topProps[topRatioKey], rootSchema);
+                const matchedRatio = matchKeyframeAspectRatioValue(params.aspectRatio, allowedTopRatios);
+                if (matchedRatio !== null) {
+                    args[topRatioKey] = matchedRatio;
+                } else if (topRequired.includes(topRatioKey) && allowedTopRatios.length > 0) {
+                    args[topRatioKey] = allowedTopRatios[0];
+                }
+            }
+
+            if (params.quality || topRequired.some(k => /quality/i.test(k))) {
+                const topQualityKey = pickSupportedKey(topProps, ["quality", "imageQuality", "image_quality"], "");
+                if (topQualityKey && (!minimal || topRequired.includes(topQualityKey))) {
+                    const allowedTopQuality = extractAllowedValues(topProps[topQualityKey], rootSchema);
+                    const matchedQ = matchKeyframeQualityValue(params.quality || "auto", allowedTopQuality);
+                    if (matchedQ !== null) {
+                        args[topQualityKey] = matchedQ;
                     }
-                    const topRatioKey = pickSupportedKey(
-                        topProps,
-                        ["aspectRatio", "aspect_ratio", "ratio"],
-                        ""
-                    );
-                    if (topRatioKey && params.aspectRatio && (!minimal || (topObj.required || []).includes(topRatioKey))) {
-                        const allowedTopRatios = extractAllowedValues(topProps[topRatioKey], rootSchema);
-                        const matchedRatio = matchEnumCaseInsensitive([params.aspectRatio], allowedTopRatios);
-                        if (matchedRatio !== null) {
-                            args[topRatioKey] = matchedRatio;
-                        }
-                    }
                 }
+            }
+        }
 
-                const item = {};
-                populateKeyframeFields(item, itemObj, rootSchema, {
-                    ...params,
-                    requestKey: makeUuid(),
-                    isBatchItem: true,
-                    minimal
+        const item = {};
+        populateKeyframeFields(item, chosenItemObj, rootSchema, {
+            ...params,
+            opusModel: overrideModel,
+            requestKey: makeUuid(),
+            isBatchItem: true,
+            minimal,
+            omitModel,
+            useAltRef,
+            discoveredAllowedModels
+        });
+        args[batchArrayKey] = [item];
+
+        if (
+            topProps &&
+            Array.isArray(params.stagedReferences) &&
+            params.stagedReferences.length > 0 &&
+            item.referenceAssets === undefined &&
+            item.reference_assets === undefined &&
+            item.references === undefined &&
+            item.assetIds === undefined &&
+            item.referenceAssetIds === undefined
+        ) {
+            const topRefKey = pickSupportedKey(
+                topProps,
+                ["referenceAssets", "reference_assets", "references", "assetIds", "referenceAssetIds"],
+                ""
+            );
+            if (topRefKey) {
+                args[topRefKey] = buildReferenceAssetsValue(topProps[topRefKey], rootSchema, params.stagedReferences, {
+                    minimal,
+                    useAltRef
                 });
-                args[batchArrayKey] = [item];
-                pushUniqueVariant(args);
+            }
+        }
+
+        fillMissingKeyframeRequiredFields(args, topObj, rootSchema, {
+            prompt: params.prompt,
+            opusModel: overrideModel,
+            modelAliases: params.modelAliases,
+            aspectRatio: params.aspectRatio,
+            quality: params.quality,
+            hasReferences: Array.isArray(params.stagedReferences) && params.stagedReferences.length > 0,
+            projectId: params.projectId,
+            defaultLabel: "kf-1"
+        });
+        return args;
+    }
+
+    const flatArgs = {};
+    populateKeyframeFields(flatArgs, topObj, rootSchema, {
+        ...params,
+        opusModel: overrideModel,
+        requestKey: makeUuid(),
+        isBatchItem: false,
+        minimal,
+        omitModel,
+        useAltRef,
+        discoveredAllowedModels
+    });
+    return flatArgs;
+}
+
+function hasExplicitModelEnumInKeyframeTool(keyframeTool) {
+    const rootSchema = keyframeTool?.inputSchema;
+    if (!rootSchema || typeof rootSchema !== "object") return false;
+    const topObj = resolveObjectSchema(rootSchema, rootSchema);
+    const topProps = topObj.properties;
+    if (!topProps) return false;
+    const topModelKey = pickSupportedKey(
+        topProps,
+        ["model", "imageModel", "image_model", "keyframeModel", "modelId", "model_id"],
+        ""
+    );
+    if (topModelKey && extractAllowedValues(topProps[topModelKey], rootSchema).length > 0) {
+        return true;
+    }
+    const batchArrayKey = detectKeyframeBatchArrayKey(topObj, rootSchema);
+    if (batchArrayKey && topProps[batchArrayKey]) {
+        const itemSchema = resolveArrayItemSchema(topProps[batchArrayKey], rootSchema);
+        const branches = expandObjectBranches(itemSchema, rootSchema);
+        const targets = branches.length > 0 ? branches : [resolveObjectSchema(itemSchema, rootSchema)];
+        for (const b of targets) {
+            const mKey = pickSupportedKey(
+                b.properties,
+                ["model", "imageModel", "image_model", "keyframeModel", "modelId", "model_id"],
+                ""
+            );
+            if (mKey && extractAllowedValues(b.properties[mKey], rootSchema).length > 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function buildGenerateKeyframeVariants(keyframeTool, params) {
+    const variants = [];
+    const seenShapes = new Set();
+
+    const pushUniqueVariant = args => {
+        if (!args || typeof args !== "object") return;
+        const fingerprint = JSON.stringify(stripRequestKeysForComparison(args));
+        if (seenShapes.has(fingerprint)) return;
+        seenShapes.add(fingerprint);
+        variants.push(args);
+    };
+
+    const hasAltRefs =
+        Array.isArray(params.stagedReferences) &&
+        params.stagedReferences.some(r => Boolean(r?.altRef));
+
+    const profiles = [
+        { minimal: false, omitModel: false, useAltRef: false, branchIndex: 0 },
+        ...(hasAltRefs ? [{ minimal: false, omitModel: false, useAltRef: true, branchIndex: 0 }] : []),
+        { minimal: false, omitModel: false, useAltRef: false, branchIndex: 1 },
+        { minimal: true, omitModel: false, useAltRef: false, branchIndex: 0 }
+    ];
+
+    /*
+     * Bila skema MCP hanya mendeklarasikan `model: { type: "string" }` tanpa enum eksplisit
+     * (validasi enum terjadi di sisi server Opus), siapkan kandidat alias model populer
+     * serta kandidat fallback tanpa field `model` (bila opsional) agar self-healing jalan otomatis.
+     */
+    if (!hasExplicitModelEnumInKeyframeTool(keyframeTool)) {
+        const distinctAliases = Array.from(
+            new Set(
+                (Array.isArray(params.modelAliases) ? params.modelAliases : [])
+                    .map(v => String(v || "").trim())
+                    .filter(v => v && v.toLowerCase() !== String(params.opusModel || "").trim().toLowerCase())
+            )
+        ).slice(0, 4);
+
+        for (const aliasModel of distinctAliases) {
+            profiles.push({
+                minimal: true,
+                omitModel: false,
+                useAltRef: false,
+                branchIndex: 0,
+                overrideModel: aliasModel
+            });
+        }
+    }
+
+    profiles.push({ minimal: true, omitModel: true, useAltRef: false, branchIndex: 0 });
+
+    let firstSchemaErr = null;
+    for (const profile of profiles) {
+        try {
+            const candidate = buildSingleKeyframeArgs(keyframeTool, params, profile);
+            pushUniqueVariant(candidate);
+        } catch (err) {
+            if (!firstSchemaErr) {
+                firstSchemaErr = err;
             }
         }
     }
 
-    /* Juga sediakan fallback flat object bila tool menerima argumen top-level langsung */
-    if (!batchArrayKey || !topProps || topProps.prompt || topProps.description) {
+    /* Fallback flat object bila skema mendukung argumen datar selain batch array */
+    const rootSchema = keyframeTool?.inputSchema;
+    const topObj = resolveObjectSchema(rootSchema, rootSchema);
+    const topProps = topObj.properties;
+    const batchArrayKey = detectKeyframeBatchArrayKey(topObj, rootSchema);
+    if (batchArrayKey && (!topProps || topProps.prompt || topProps.description)) {
         for (const minimal of [false, true]) {
-            const flatArgs = {};
-            populateKeyframeFields(flatArgs, topObj, rootSchema, {
-                ...params,
-                requestKey: makeUuid(),
-                isBatchItem: false,
-                minimal
-            });
-            pushUniqueVariant(flatArgs);
+            try {
+                const flatArgs = {};
+                populateKeyframeFields(flatArgs, topObj, rootSchema, {
+                    ...params,
+                    requestKey: makeUuid(),
+                    isBatchItem: false,
+                    minimal
+                });
+                pushUniqueVariant(flatArgs);
+            } catch {
+                /* Abaikan bila cabang flat menolak model */
+            }
         }
     }
 
+    if (variants.length === 0 && firstSchemaErr) {
+        throw firstSchemaErr;
+    }
+
     return variants;
+}
+
+function extractImageContentDataUrls(content) {
+    if (!Array.isArray(content) || content.length === 0) return [];
+    const urls = [];
+    for (const block of content) {
+        if (!block || typeof block !== "object") continue;
+        if (block.type === "image" && typeof block.data === "string" && block.data.trim()) {
+            const mime = String(block.mimeType || block.mediaType || "image/png").trim() || "image/png";
+            const cleanData = block.data.trim();
+            urls.push(cleanData.startsWith("data:image/") ? cleanData : `data:${mime};base64,${cleanData}`);
+        }
+    }
+    return urls;
+}
+
+function isKeyframeEntryFailed(entry) {
+    if (!entry || typeof entry !== "object") return false;
+    if (entry.ok === false || entry.success === false || entry.rejected === true || entry.isError === true) {
+        return true;
+    }
+    const st = String(entry.status || entry.state || "").trim().toLowerCase();
+    if (st && TERMINAL_FAILED_TOKENS.has(st)) return true;
+    return Boolean(entry.error || entry.errorCode || entry.error_code || entry.issues || entry.errors);
+}
+
+function extractAllowedEnumValuesFromError(rawData, rawText = "", fieldPattern = /model/i) {
+    const out = [];
+    const pushVal = val => {
+        const clean = String(val ?? "").trim().replace(/^['"`]+|['"`]+$/g, "");
+        if (clean && clean !== "undefined" && clean !== "null" && !out.includes(clean)) {
+            out.push(clean);
+        }
+    };
+
+    const unwrapped = unwrapEnvelope(rawData && typeof rawData === "object" ? rawData : tryParseJsonFromText(rawText));
+    const issueLists = [
+        unwrapped?.issues,
+        unwrapped?.errors,
+        unwrapped?.details,
+        unwrapped?.error?.issues,
+        unwrapped?.error?.details,
+        unwrapped?.error?.errors
+    ].filter(Array.isArray);
+
+    for (const list of issueLists) {
+        for (const issue of list) {
+            if (!issue || typeof issue !== "object") continue;
+            const pathStr = Array.isArray(issue.path)
+                ? issue.path.join(".")
+                : String(issue.field || issue.param || "");
+            if (fieldPattern && pathStr && !fieldPattern.test(pathStr)) continue;
+            if (Array.isArray(issue.options)) issue.options.forEach(pushVal);
+            if (Array.isArray(issue.values)) issue.values.forEach(pushVal);
+            const msg = String(issue.message || "");
+            const expectedPipeMatch = /expected\s+(?:one\s+of\s+)?((?:['"`][^'"`]+['"`]\s*(?:\||,\s*(?:or\s+)?)\s*)*['"`][^'"`]+['"`])/i.exec(msg);
+            if (expectedPipeMatch) {
+                const tokenRegex = /['"`]([^'"`]+)['"`]/g;
+                let m;
+                while ((m = tokenRegex.exec(expectedPipeMatch[1])) !== null) {
+                    pushVal(m[1]);
+                }
+            }
+        }
+    }
+
+    if (out.length === 0) {
+        const combinedText = `${rawText || ""} ${typeof unwrapped?.message === "string" ? unwrapped.message : ""}`;
+        if (!fieldPattern || fieldPattern.test(combinedText)) {
+            const expectedPipeMatch = /expected\s+(?:one\s+of\s+)?((?:['"`][^'"`]+['"`]\s*(?:\||,\s*(?:or\s+)?)\s*)+['"`][^'"`]+['"`])/i.exec(combinedText);
+            if (expectedPipeMatch) {
+                const tokenRegex = /['"`]([^'"`]+)['"`]/g;
+                let m;
+                while ((m = tokenRegex.exec(expectedPipeMatch[1])) !== null) {
+                    pushVal(m[1]);
+                }
+            }
+        }
+    }
+
+    return out;
+}
+
+function extractUnrecognizedKeysFromError(rawData, rawText = "") {
+    const keys = new Set();
+    const unwrapped = unwrapEnvelope(rawData && typeof rawData === "object" ? rawData : tryParseJsonFromText(rawText));
+    const issueLists = [
+        unwrapped?.issues,
+        unwrapped?.errors,
+        unwrapped?.details,
+        unwrapped?.error?.issues,
+        unwrapped?.error?.details
+    ].filter(Array.isArray);
+
+    for (const list of issueLists) {
+        for (const issue of list) {
+            if (!issue || typeof issue !== "object") continue;
+            if (Array.isArray(issue.keys)) {
+                for (const k of issue.keys) {
+                    if (typeof k === "string" && k.trim()) keys.add(k.trim());
+                }
+            }
+            const msg = String(issue.message || "");
+            if (/unrecognized\s+key|unexpected\s+property|additional\s+properties/i.test(msg)) {
+                const qRegex = /['"`]([A-Za-z0-9_]+)['"`]/g;
+                let m;
+                while ((m = qRegex.exec(msg)) !== null) {
+                    keys.add(m[1]);
+                }
+            }
+        }
+    }
+
+    const combinedText = `${rawText || ""} ${typeof unwrapped?.message === "string" ? unwrapped.message : ""}`;
+    if (/unrecognized\s+key|unexpected\s+property/i.test(combinedText)) {
+        const qRegex = /['"`]([A-Za-z0-9_]+)['"`]/g;
+        let m;
+        while ((m = qRegex.exec(combinedText)) !== null) {
+            keys.add(m[1]);
+        }
+    }
+
+    return Array.from(keys);
+}
+
+function stripKeysDeep(value, disallowedKeysSet) {
+    if (!value || typeof value !== "object") return value;
+    if (Array.isArray(value)) {
+        return value.map(el => stripKeysDeep(el, disallowedKeysSet));
+    }
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+        if (disallowedKeysSet.has(k)) continue;
+        if (/^(?:requestKey|idempotencyKey|request_key|idempotency_key)$/i.test(k)) {
+            out[k] = makeUuid();
+            continue;
+        }
+        out[k] = stripKeysDeep(v, disallowedKeysSet);
+    }
+    return out;
+}
+
+function isRetryableKeyframeValidationFailure(code, message = "", rawText = "") {
+    const combined = `${code || ""} ${message || ""} ${rawText || ""}`;
+    return /\binvalid_arguments\b|\binvalid_params\b|\bvalidation_error\b|\bunrecognized_keys?\b|\binvalid_input\b|\binvalid_request\b|\bbad_request\b|\bschema_error\b|\binvalid_model\b|\bunsupported_model\b|\bunknown_model\b|\bmodel_not_found\b|\binvalid_field\b|\binvalid_reference_assets\b|\bunexpected\s+property\b|\bmissing\s+required\b/i.test(
+        combined
+    );
 }
 
 function inspectImageJobOutcome(
@@ -5939,7 +6942,8 @@ function inspectImageJobOutcome(
     targetJobId = "",
     {
         excludedAssetIds = null,
-        excludedUrls = null
+        excludedUrls = null,
+        content = null
     } = {}
 ) {
     const parsedSource =
@@ -5962,7 +6966,8 @@ function inspectImageJobOutcome(
                             [el.jobId, el.job_id, el.taskId, el.submissionId, el.operationId, el.executionId, el.id].includes(targetJobId)
                     )
                     : null;
-                const firstObj = matched || container.find(el => el && typeof el === "object");
+                const failedObj = !matched ? container.find(isKeyframeEntryFailed) : null;
+                const firstObj = matched || failedObj || container.find(el => el && typeof el === "object");
                 if (firstObj) {
                     focus = { ...unwrapped, ...firstObj };
                     break;
@@ -5979,7 +6984,8 @@ function inspectImageJobOutcome(
                             return false;
                         })
                         : null;
-                    const chosen = matchedEntry || entries[0];
+                    const failedEntry = !matchedEntry ? entries.find(([, v]) => isKeyframeEntryFailed(v)) : null;
+                    const chosen = matchedEntry || failedEntry || entries[0];
                     if (chosen) {
                         const [, val] = chosen;
                         if (val && typeof val === "object") {
@@ -6000,25 +7006,69 @@ function inspectImageJobOutcome(
         ""
     ).trim();
 
-    const errorObj = focus?.error && typeof focus.error === "object" ? focus.error : null;
+    const errorObj =
+        focus?.error && typeof focus.error === "object" && !Array.isArray(focus.error)
+            ? focus.error
+            : unwrapped?.error && typeof unwrapped.error === "object" && !Array.isArray(unwrapped.error)
+              ? unwrapped.error
+              : null;
+
+    const rawErrorString =
+        typeof focus?.error === "string"
+            ? focus.error.trim()
+            : typeof unwrapped?.error === "string"
+              ? unwrapped.error.trim()
+              : "";
+
     const errorCode = String(
         focus?.errorCode ||
         focus?.error_code ||
+        errorObj?.errorCode ||
         errorObj?.code ||
-        (typeof focus?.error === "string" && /^[a-z0-9_.-]+$/i.test(focus.error.trim()) ? focus.error.trim() : "") ||
+        unwrapped?.errorCode ||
+        unwrapped?.error_code ||
+        (/^[a-z0-9_.-]+$/i.test(rawErrorString) ? rawErrorString : "") ||
         (TERMINAL_FAILED_TOKENS.has(rawState.toLowerCase()) ? focus?.code || rawState : "") ||
-        (focus?.code && /timeout|error|failed|rejected|invalid|unavailable|not_found/i.test(String(focus.code)) ? focus.code : "") ||
+        (focus?.code && /timeout|error|failed|rejected|invalid|unavailable|unsupported|not_found/i.test(String(focus.code)) ? focus.code : "") ||
+        ((focus?.ok === false || unwrapped?.ok === false) && focus?.field ? "invalid_arguments" : "") ||
         ""
     ).trim();
 
-    const rawErrorMessage = String(
+    const validationDetail = formatValidationDetails(
+        errorObj?.issues ||
+        errorObj?.details ||
+        errorObj?.errors ||
+        focus?.issues ||
+        focus?.details ||
+        focus?.detail ||
+        focus?.errors ||
+        unwrapped?.issues ||
+        unwrapped?.details ||
+        unwrapped?.errors ||
+        unwrapped?.validationErrors ||
+        (focus?.field ? `${focus.field}${focus.reason ? `: ${focus.reason}` : ""}` : "")
+    );
+
+    const humanMessage = String(
         focus?.errorMessage ||
         focus?.error_message ||
         errorObj?.message ||
-        (typeof focus?.error === "string" ? focus.error : "") ||
-        (TERMINAL_FAILED_TOKENS.has(rawState.toLowerCase()) || errorCode ? focus?.message || focus?.reason || rawText : "") ||
+        unwrapped?.errorMessage ||
+        unwrapped?.error_message ||
+        ((TERMINAL_FAILED_TOKENS.has(rawState.toLowerCase()) || errorCode || focus?.ok === false || unwrapped?.ok === false)
+            ? focus?.message || focus?.reason || unwrapped?.message || unwrapped?.reason || ""
+            : "") ||
+        (!/^[a-z0-9_.-]+$/i.test(rawErrorString) ? rawErrorString : "") ||
         ""
     ).trim();
+
+    const rawErrorMessage =
+        [humanMessage, validationDetail]
+            .filter(Boolean)
+            .filter((part, idx, arr) => idx === 0 || !arr[0].includes(part))
+            .join(" — ") ||
+        rawErrorString ||
+        (TERMINAL_FAILED_TOKENS.has(rawState.toLowerCase()) || errorCode ? String(rawText || "").trim() : "");
 
     const nonTerminalDeadline = isOpusNonTerminalWorkerDeadline(
         errorCode,
@@ -6033,7 +7083,12 @@ function inspectImageJobOutcome(
     if (nonTerminalDeadline && status !== "COMPLETED") {
         status = "PROCESSING";
     } else if (
-        (focus?.ok === false || focus?.success === false || focus?.rejected === true || errorCode) &&
+        (focus?.ok === false ||
+            focus?.success === false ||
+            focus?.rejected === true ||
+            unwrapped?.ok === false ||
+            unwrapped?.success === false ||
+            errorCode) &&
         status !== "COMPLETED"
     ) {
         status = "FAILED";
@@ -6041,6 +7096,11 @@ function inspectImageJobOutcome(
 
     let imageUrls = [];
     if (status !== "FAILED") {
+        const inlineContentUrls = extractImageContentDataUrls(content);
+        if (inlineContentUrls.length > 0) {
+            imageUrls = inlineContentUrls;
+        }
+
         const targetOutputAssetId = String(
             focus?.outputAssetId ||
             focus?.output_asset_id ||
@@ -6051,7 +7111,7 @@ function inspectImageJobOutcome(
             ""
         ).trim();
 
-        if (targetOutputAssetId && Array.isArray(unwrapped?.assets)) {
+        if (imageUrls.length === 0 && targetOutputAssetId && Array.isArray(unwrapped?.assets)) {
             const matchedAsset = unwrapped.assets.find(
                 a => a && typeof a === "object" && (a.assetId === targetOutputAssetId || a.id === targetOutputAssetId)
             );
@@ -6072,13 +7132,13 @@ function inspectImageJobOutcome(
                     const role = String(a.role || a.source || a.origin || "").toLowerCase();
                     const kind = String(a.kind || a.mediaType || "").toLowerCase();
                     const label = String(a.label || a.name || "").toLowerCase();
-                    if (/^(?:reference|character|outfit|first_frame|last_frame|input|subject|style|import|imported|upload|uploaded)$/.test(role)) {
+                    if (/^(?:reference|character|outfit|person|product|garment|first_frame|last_frame|input|subject|style|import|imported|upload|uploaded)$/.test(role)) {
                         return false;
                     }
-                    if (/^(?:reference|character|outfit|first_frame|last_frame|input|subject|style|video|audio)$/.test(kind)) {
+                    if (/^(?:reference|character|outfit|person|product|garment|first_frame|last_frame|input|subject|style|video|audio)$/.test(kind)) {
                         return false;
                     }
-                    if (/^(?:image\d+|character|outfit|video\d+|audio\d+|first_frame|last_frame|ref_\d+|reference_\d+)$/.test(label)) {
+                    if (/^(?:image\d+|character|outfit|video\d+|audio\d+|first_frame|last_frame|ref[-_]\d+|reference[-_]\d+)$/.test(label)) {
                         return false;
                     }
                     return true;
@@ -6106,6 +7166,7 @@ function inspectImageJobOutcome(
         videoUrls: imageUrls,
         errorCode: status === "FAILED" ? (errorCode || "OPUS_TASK_FAILED") : null,
         errorMessage: status === "FAILED" ? translateOpusError(errorCode, rawErrorMessage) : null,
+        rawErrorMessage,
         nonTerminalDeadline: activeNonTerminalDeadline,
         deadlineErrorCode: activeNonTerminalDeadline ? (errorCode || "OPUS_WORKER_POLLING_DEADLINE") : null,
         deadlineErrorMessage: activeNonTerminalDeadline
@@ -6302,44 +7363,168 @@ async function createImageTaskForSingleKey(payload = {}, apiKey, options = {}) {
     const opusModel = String(payload.opus_model || payload.model || "").trim();
     const modelAliases = Array.isArray(payload.model_aliases) ? payload.model_aliases : [];
     const aspectRatio = String(payload.aspect_ratio || "1:1").trim();
+    const quality = payload.quality ? String(payload.quality).trim() : "";
 
-    const candidateVariants = buildGenerateKeyframeVariants(keyframeTool, {
+    const baseBuildParams = {
         prompt,
         opusModel,
         modelAliases,
         aspectRatio,
+        quality,
         stagedReferences,
         projectId
-    });
+    };
+
+    const candidateVariants = buildGenerateKeyframeVariants(keyframeTool, baseBuildParams);
+    const triedRuntimeFingerprints = new Set();
+    const enqueueTargetedVariantAt = (insertAtIndex, candidateObj) => {
+        if (!candidateObj || typeof candidateObj !== "object") return false;
+        const fp = JSON.stringify(stripRequestKeysForComparison(candidateObj));
+        if (triedRuntimeFingerprints.has(fp)) return false;
+        /* Jika kandidat identik sudah ada di antrean belakang, promosikan ke posisi berikutnya */
+        for (let k = candidateVariants.length - 1; k >= insertAtIndex; k -= 1) {
+            if (JSON.stringify(stripRequestKeysForComparison(candidateVariants[k])) === fp) {
+                candidateVariants.splice(k, 1);
+            }
+        }
+        candidateVariants.splice(insertAtIndex, 0, candidateObj);
+        return true;
+    };
 
     let lastCallResult = null;
     let lastError = null;
     let discoveredDuringTimeout = null;
+    let learnedAllowedModels = false;
 
-    for (let vIdx = 0; vIdx < candidateVariants.length; vIdx += 1) {
+    for (let vIdx = 0; vIdx < candidateVariants.length && vIdx < 14; vIdx += 1) {
         const variantArgs = candidateVariants[vIdx];
+        triedRuntimeFingerprints.add(JSON.stringify(stripRequestKeysForComparison(variantArgs)));
         try {
-            const res = await session.callTool(keyframeTool.name, variantArgs);
-            lastCallResult = res;
+            let res = null;
+            let callOutcome = null;
+            let callJobId = "";
 
-            if (!res.isError) {
+            for (let sameKeyTry = 0; sameKeyTry < 3; sameKeyTry += 1) {
+                res = await session.callTool(keyframeTool.name, variantArgs);
+                lastCallResult = res;
+                callOutcome = inspectImageJobOutcome(res.data, res.text, "", {
+                    excludedAssetIds,
+                    excludedUrls,
+                    content: res.content
+                });
+                callJobId = findJobIdFromResponse(res.data, res.text, projectId);
+
+                if (
+                    /^(?:submission_unknown|credit_reservation_pending|admission_incomplete)$/i.test(
+                        `${callOutcome.errorCode || ""}`
+                    ) ||
+                    /^(?:submission_unknown|credit_reservation_pending|admission_incomplete)$/i.test(
+                        `${callOutcome.rawState || ""}`
+                    )
+                ) {
+                    throw createProviderError({
+                        message:
+                            callOutcome.errorMessage ||
+                            translateOpusError("submission_unknown", res.text),
+                        code: "submission_unknown",
+                        providerCode: "submission_unknown",
+                        status: 502,
+                        raw: res.data
+                    });
+                }
+
+                const isQueueTimeout =
+                    !callJobId &&
+                    callOutcome.imageUrls.length === 0 &&
+                    /\b(?:job_queue_timeout|queue_timeout)\b/i.test(
+                        `${callOutcome.errorCode || ""} ${callOutcome.rawErrorMessage || ""} ${res.text || ""}`
+                    );
+                if (!isQueueTimeout) break;
+
+                if (projectId) {
+                    const probed = await discoverProjectImageJob(session, projectId, {
+                        retries: 0,
+                        excludedAssetIds,
+                        excludedUrls
+                    });
+                    if (probed.jobId || probed.outcome?.imageUrls?.length > 0) {
+                        discoveredDuringTimeout = probed;
+                        break;
+                    }
+                }
+                if (sameKeyTry < 2) {
+                    await sleep(250 * (sameKeyTry + 1));
+                }
+            }
+
+            if (discoveredDuringTimeout) {
                 break;
             }
 
-            const errCode = String(res.data?.code || res.data?.errorCode || "").trim();
-            const errText = String(res.data?.message || res.text || "").trim();
-            const isSchemaMismatch =
-                vIdx + 1 < candidateVariants.length &&
-                /invalid_arguments|validation_error|schema|unexpected\s+property|unrecognized\s+key|missing\s+required|must\s+be\s+(?:object|array|string)/i.test(
-                    `${errCode} ${errText}`
-                );
-            if (isSchemaMismatch) {
-                continue;
+            if (!res.isError && callOutcome.status !== "FAILED") {
+                break;
             }
+
+            if (callJobId || callOutcome.imageUrls.length > 0) {
+                break;
+            }
+
+            const retryableValidation = isRetryableKeyframeValidationFailure(
+                callOutcome.errorCode,
+                callOutcome.rawErrorMessage,
+                res.text
+            );
+
+            if (retryableValidation) {
+                let insertOffset = vIdx + 1;
+
+                if (!learnedAllowedModels) {
+                    const discoveredModels = extractAllowedEnumValuesFromError(
+                        res.data,
+                        `${callOutcome.rawErrorMessage || ""} ${res.text || ""}`,
+                        /model/i
+                    );
+                    if (discoveredModels.length > 0) {
+                        learnedAllowedModels = true;
+                        for (const minFlag of [false, true]) {
+                            try {
+                                const adapted = buildSingleKeyframeArgs(keyframeTool, baseBuildParams, {
+                                    minimal: minFlag,
+                                    omitModel: false,
+                                    useAltRef: false,
+                                    discoveredAllowedModels: discoveredModels
+                                });
+                                if (enqueueTargetedVariantAt(insertOffset, adapted)) {
+                                    insertOffset += 1;
+                                }
+                            } catch {
+                                /* Abaikan bila tetap tidak cocok */
+                            }
+                        }
+                    }
+                }
+
+                const badKeys = extractUnrecognizedKeysFromError(
+                    res.data,
+                    `${callOutcome.rawErrorMessage || ""} ${res.text || ""}`
+                );
+                if (badKeys.length > 0) {
+                    const stripped = stripKeysDeep(variantArgs, new Set(badKeys));
+                    enqueueTargetedVariantAt(insertOffset, stripped);
+                }
+
+                if (vIdx + 1 < candidateVariants.length) {
+                    continue;
+                }
+            }
+
             break;
         } catch (err) {
             lastError = err;
-            const isTimeout = err?.code === "UPSTREAM_TIMEOUT" || /timeout/i.test(String(err?.message || ""));
+            if (err?.code === "submission_unknown") {
+                throw err;
+            }
+            const isTimeout = err?.code === "UPSTREAM_TIMEOUT" || err?.code === "TIMEOUT" || /timeout/i.test(String(err?.message || ""));
             if (isTimeout && projectId) {
                 const probed = await discoverProjectImageJob(session, projectId, {
                     retries: 1,
@@ -6352,6 +7537,49 @@ async function createImageTaskForSingleKey(payload = {}, apiKey, options = {}) {
                     break;
                 }
             }
+
+            const isRetryableRpcErr =
+                !err?.jobId &&
+                (err?.status === 400 ||
+                    err?.status === 422 ||
+                    isRetryableKeyframeValidationFailure(err?.code, err?.message));
+            if (isRetryableRpcErr) {
+                let insertOffset = vIdx + 1;
+                if (!learnedAllowedModels) {
+                    const discoveredModels = extractAllowedEnumValuesFromError(
+                        err?.providerResponse,
+                        err?.message || "",
+                        /model/i
+                    );
+                    if (discoveredModels.length > 0) {
+                        learnedAllowedModels = true;
+                        for (const minFlag of [false, true]) {
+                            try {
+                                const adapted = buildSingleKeyframeArgs(keyframeTool, baseBuildParams, {
+                                    minimal: minFlag,
+                                    omitModel: false,
+                                    useAltRef: false,
+                                    discoveredAllowedModels: discoveredModels
+                                });
+                                if (enqueueTargetedVariantAt(insertOffset, adapted)) {
+                                    insertOffset += 1;
+                                }
+                            } catch {
+                                /* Abaikan */
+                            }
+                        }
+                    }
+                }
+                const badKeys = extractUnrecognizedKeysFromError(err?.providerResponse, err?.message || "");
+                if (badKeys.length > 0) {
+                    const stripped = stripKeysDeep(variantArgs, new Set(badKeys));
+                    enqueueTargetedVariantAt(insertOffset, stripped);
+                }
+                if (vIdx + 1 < candidateVariants.length) {
+                    continue;
+                }
+            }
+
             throw err;
         }
     }
@@ -6401,7 +7629,18 @@ async function createImageTaskForSingleKey(payload = {}, apiKey, options = {}) {
     }
 
     if (!lastCallResult) {
-        throw lastError || createProviderError({
+        if (lastError) {
+            const schemaHint = summarizeMcpToolSchema(keyframeTool);
+            if (
+                schemaHint &&
+                isRetryableKeyframeValidationFailure(lastError.code, lastError.message) &&
+                !String(lastError.message || "").includes("[schema:")
+            ) {
+                lastError.message = `${lastError.message} [schema: ${schemaHint}]`;
+            }
+            throw lastError;
+        }
+        throw createProviderError({
             message: "Gagal mengirim permintaan gambar ke Opus Labs.",
             code: "CREATE_TASK_FAILED",
             status: 502
@@ -6410,11 +7649,21 @@ async function createImageTaskForSingleKey(payload = {}, apiKey, options = {}) {
 
     let outcome = inspectImageJobOutcome(lastCallResult.data, lastCallResult.text, "", {
         excludedAssetIds,
-        excludedUrls
+        excludedUrls,
+        content: lastCallResult.content
     });
     if (lastCallResult.isError || outcome.status === "FAILED") {
+        const schemaHint =
+            isRetryableKeyframeValidationFailure(outcome.errorCode, outcome.rawErrorMessage, lastCallResult.text)
+                ? summarizeMcpToolSchema(keyframeTool)
+                : "";
+        const baseErrMsg = outcome.errorMessage || translateOpusError(outcome.errorCode, lastCallResult.text);
+        const fullErrMsg =
+            schemaHint && !baseErrMsg.includes("[schema:")
+                ? `${baseErrMsg} [schema: ${schemaHint}]`
+                : baseErrMsg;
         throw createProviderError({
-            message: outcome.errorMessage || translateOpusError(outcome.errorCode, lastCallResult.text),
+            message: fullErrMsg,
             code: outcome.errorCode || "OPUS_CREATE_REJECTED",
             providerCode: outcome.errorCode || "create_rejected",
             status: outcome.errorCode === "credit_admission_rejected" ? 402 : 422,
@@ -6706,6 +7955,7 @@ async function getImageTaskForSingleKey(parsedId, apiKey, options = {}) {
     const rootSchema = statusTool.inputSchema;
     const objSchema = resolveObjectSchema(rootSchema, rootSchema);
     const props = objSchema.properties;
+    const statusReq = Array.isArray(objSchema.required) ? objSchema.required : [];
     const args = {};
 
     const jobSingleKey = pickSupportedKey(
@@ -6719,7 +7969,9 @@ async function getImageTaskForSingleKey(parsedId, apiKey, options = {}) {
         ""
     );
 
-    if (jobSingleKey) {
+    if (jobArrayKey && statusReq.includes(jobArrayKey)) {
+        args[jobArrayKey] = [activeJobId];
+    } else if (jobSingleKey) {
         args[jobSingleKey] = activeJobId;
     } else if (jobArrayKey) {
         args[jobArrayKey] = [activeJobId];
@@ -6741,8 +7993,15 @@ async function getImageTaskForSingleKey(parsedId, apiKey, options = {}) {
         args[watchKey] = false;
     }
 
+    fillMissingKeyframeRequiredFields(args, objSchema, rootSchema, {
+        projectId: parsedId.projectId,
+        defaultLabel: activeJobId
+    });
+
     const statusRes = await session.callTool(statusTool.name, args);
-    let outcome = inspectImageJobOutcome(statusRes.data, statusRes.text, activeJobId);
+    let outcome = inspectImageJobOutcome(statusRes.data, statusRes.text, activeJobId, {
+        content: statusRes.content
+    });
 
     if (
         (statusRes.isError || outcome.status === "FAILED") &&
