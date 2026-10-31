@@ -86,7 +86,8 @@ import { persistGeneratedImage }
 
 import {
     resolveOpusApiKeyPoolPayload,
-    resolveOpusBearerToken
+    resolveOpusBearerToken,
+    stageOpusReferenceImageForGenerate
 } from "../lib/social-publisher/opus.js";
 
 import {
@@ -5944,7 +5945,8 @@ export default async function handler(
                     providerApiKey,
                     {
                         excludeKeySlots: opusExcludeKeySlots,
-                        env: req?.env
+                        env: req?.env,
+                        stageReferenceImage: stageOpusReferenceImageForGenerate
                     }
                 );
         }
