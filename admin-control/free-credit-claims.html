@@ -68,6 +68,29 @@
             font-size: 13.5px;
             line-height: 1.6;
         }
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-monitoring {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid rgba(251, 226, 157, .42);
+            border-radius: 12px;
+            padding: 11px 16px;
+            background: rgba(251, 226, 157, .12);
+            color: #fde68a;
+            font-size: 12.5px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+        html[data-genz-theme="light"] .btn-monitoring {
+            background: #fffbeb;
+            border-color: rgba(180, 126, 28, .35);
+            color: #92400e;
+        }
         .btn-refresh {
             appearance: none;
             border: 1px solid rgba(255, 48, 72, .5);
@@ -198,11 +221,14 @@
 
     <header class="hero">
         <div>
-            <div class="eyebrow">Anti-Abuse Ledger · Supabase</div>
-            <h1>Claim Free Credit 5.000 Gratis</h1>
-            <p>Memantau seluruh klaim 5.000 kredit gratis yang berhasil maupun percobaan klaim yang ditolak karena kesamaan email, alamat IP, password, atau browser.</p>
+            <div class="eyebrow">Anti-Abuse Ledger · Supabase · <span id="fcLiveStatusPill">MEMUAT STATUS…</span></div>
+            <h1 id="fcAdminTitle">Event Claim Free Credit Gratis</h1>
+            <p>Memantau seluruh klaim kredit gratis yang berhasil maupun percobaan klaim yang ditolak karena kesamaan email, alamat IP, password, browser, atau di luar waktu runtime.</p>
         </div>
-        <button type="button" class="btn-refresh" id="refreshBtn">Muat Ulang Data</button>
+        <div class="hero-actions">
+            <a class="btn-monitoring" href="./monitoring.html#monFreeCreditPanel">Atur Nominal, Runtime &amp; Gambar 16:9 →</a>
+            <button type="button" class="btn-refresh" id="refreshBtn">Muat Ulang Data</button>
+        </div>
     </header>
 
     <section class="stats-grid">
@@ -250,6 +276,9 @@
     var attemptsTableWrap = document.getElementById("attemptsTableWrap");
 
     var REASON_LABEL = {
+        feature_disabled: "Fitur Sedang OFF",
+        event_not_started: "Belum Mulai Runtime",
+        event_expired: "Waktu Runtime Habis",
         already_claimed_user: "Akun Sudah Klaim",
         duplicate_email: "Email Sama",
         duplicate_ip: "IP Sama",
@@ -308,6 +337,20 @@
             }
 
             shell.hidden = false;
+
+            var statusPill = document.getElementById("fcLiveStatusPill");
+            var titleEl = document.getElementById("fcAdminTitle");
+            if (data.settings) {
+                var isOn = data.settings.claim_enabled !== false;
+                var nom = Number(data.settings.credit_amount || 5000).toLocaleString("id-ID");
+                var rtSt = String(data.settings.runtime_status || (isOn ? "active" : "disabled")).toUpperCase();
+                if (statusPill) {
+                    statusPill.textContent = (isOn ? "ON · " + rtSt : "OFF") + " · +" + nom + " CR";
+                }
+                if (titleEl) {
+                    titleEl.textContent = "Event Claim Free Credit " + nom + " Gratis";
+                }
+            }
 
             var claims = Array.isArray(data.claims) ? data.claims : [];
             var attempts = Array.isArray(data.attempts) ? data.attempts : [];

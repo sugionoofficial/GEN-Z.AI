@@ -68,6 +68,67 @@ values (1, encode(extensions.gen_random_bytes(32), 'hex'))
 on conflict (id) do nothing;
 
 /* ---------------------------------------------------------
+   2B. KONFIGURASI EVENT CLAIM FREE CREDIT (ON/OFF, NOMINAL,
+       RUNTIME MULAI/BERAKHIR, & BANNER 16:9)
+       (Dikelola dari halaman Monitoring oleh ADMIN / OWNER)
+--------------------------------------------------------- */
+
+create table if not exists public.free_credit_settings (
+    id smallint primary key default 1 check (id = 1),
+    claim_enabled boolean not null default true,
+    credit_amount integer not null default 5000 check (credit_amount >= 100 and credit_amount <= 10000000),
+    runtime_starts_at timestamptz,
+    runtime_ends_at timestamptz,
+    banner_image_url text,
+    updated_at timestamptz not null default now(),
+    updated_by uuid references auth.users(id) on delete set null
+);
+
+alter table public.free_credit_settings
+    add column if not exists claim_enabled boolean not null default true,
+    add column if not exists credit_amount integer not null default 5000,
+    add column if not exists runtime_starts_at timestamptz,
+    add column if not exists runtime_ends_at timestamptz,
+    add column if not exists banner_image_url text,
+    add column if not exists updated_at timestamptz not null default now(),
+    add column if not exists updated_by uuid references auth.users(id) on delete set null;
+
+alter table public.free_credit_settings
+    drop constraint if exists free_credit_settings_credit_amount_check;
+
+alter table public.free_credit_settings
+    add constraint free_credit_settings_credit_amount_check
+    check (credit_amount >= 100 and credit_amount <= 10000000);
+
+alter table public.free_credit_settings
+    drop constraint if exists free_credit_settings_runtime_order_check;
+
+alter table public.free_credit_settings
+    add constraint free_credit_settings_runtime_order_check
+    check (
+        runtime_starts_at is null
+        or runtime_ends_at is null
+        or runtime_ends_at > runtime_starts_at
+    );
+
+alter table public.free_credit_settings enable row level security;
+
+revoke all on table public.free_credit_settings from public, anon, authenticated;
+grant select on table public.free_credit_settings to authenticated;
+grant all on table public.free_credit_settings to service_role;
+
+drop policy if exists "Admins can read free credit settings" on public.free_credit_settings;
+create policy "Admins can read free credit settings"
+    on public.free_credit_settings
+    for select
+    to authenticated
+    using (public.is_admin_or_owner());
+
+insert into public.free_credit_settings (id, claim_enabled, credit_amount)
+values (1, true, 5000)
+on conflict (id) do nothing;
+
+/* ---------------------------------------------------------
    3. HELPER NORMALISASI EMAIL & HMAC PASSWORD
 --------------------------------------------------------- */
 
@@ -235,11 +296,18 @@ create table if not exists public.free_credit_claims (
     browser_summary text,
     country text,
     city text,
-    credit_amount integer not null default 5000 check (credit_amount = 5000),
+    credit_amount integer not null default 5000 check (credit_amount >= 100 and credit_amount <= 10000000),
     balance_before integer not null,
     balance_after integer not null,
     claimed_at timestamptz not null default now()
 );
+
+alter table public.free_credit_claims
+    drop constraint if exists free_credit_claims_credit_amount_check;
+
+alter table public.free_credit_claims
+    add constraint free_credit_claims_credit_amount_check
+    check (credit_amount >= 100 and credit_amount <= 10000000);
 
 create unique index if not exists uq_free_credit_claims_claimed_user
     on public.free_credit_claims (claimed_user_id);
@@ -483,10 +551,46 @@ set search_path to 'public'
 as $$
 declare
     v_claim record;
+    v_settings record;
     v_has_pw boolean := false;
+    v_enabled boolean := true;
+    v_configured_amount integer := 5000;
+    v_starts_at timestamptz := null;
+    v_ends_at timestamptz := null;
+    v_banner_url text := null;
+    v_runtime_status text := 'active';
+    v_now timestamptz := now();
 begin
     if p_user_id is null then
         return jsonb_build_object('ok', false, 'code', 'unauthorized');
+    end if;
+
+    select s.claim_enabled,
+           s.credit_amount,
+           s.runtime_starts_at,
+           s.runtime_ends_at,
+           s.banner_image_url
+      into v_settings
+      from public.free_credit_settings s
+     where s.id = 1
+     limit 1;
+
+    if found then
+        v_enabled := coalesce(v_settings.claim_enabled, true);
+        v_configured_amount := greatest(100, coalesce(v_settings.credit_amount, 5000));
+        v_starts_at := v_settings.runtime_starts_at;
+        v_ends_at := v_settings.runtime_ends_at;
+        v_banner_url := nullif(btrim(coalesce(v_settings.banner_image_url, '')), '');
+    end if;
+
+    if not v_enabled then
+        v_runtime_status := 'disabled';
+    elsif v_starts_at is not null and v_now < v_starts_at then
+        v_runtime_status := 'scheduled';
+    elsif v_ends_at is not null and v_now >= v_ends_at then
+        v_runtime_status := 'expired';
+    else
+        v_runtime_status := 'active';
     end if;
 
     select c.id, c.credit_amount, c.claimed_at
@@ -504,7 +608,17 @@ begin
 
     return jsonb_build_object(
         'ok', true,
-        'credit_amount', 5000,
+        'claim_enabled', v_enabled,
+        'runtime_status', v_runtime_status,
+        'runtime_starts_at', v_starts_at,
+        'runtime_ends_at', v_ends_at,
+        'server_time', v_now,
+        'banner_image_url', v_banner_url,
+        'credit_amount', case
+            when v_claim.id is not null then coalesce(v_claim.credit_amount, v_configured_amount)
+            else v_configured_amount
+        end,
+        'configured_credit_amount', v_configured_amount,
         'claimed', (v_claim.id is not null),
         'claimed_at', v_claim.claimed_at,
         'has_password_signal', v_has_pw
@@ -537,7 +651,8 @@ security definer
 set search_path to 'public'
 as $$
 declare
-    v_reward constant integer := 5000;
+    v_reward integer := 5000;
+    v_settings record;
     v_user record;
     v_profile record;
     v_email_exact text;
@@ -562,12 +677,69 @@ declare
     v_tmp_claim_id uuid := null;
     v_claim_id uuid;
     v_new_balance integer;
+    v_claim_enabled boolean := true;
+    v_starts_at timestamptz := null;
+    v_ends_at timestamptz := null;
+    v_reject_code text := null;
 begin
     -- Kunci serialisasi atomik agar klaim paralel serentak tidak pernah lolos ganda
     perform pg_advisory_xact_lock(75005000);
 
     if p_user_id is null then
         return jsonb_build_object('ok', false, 'code', 'unauthorized');
+    end if;
+
+    -- Cek sakelar On/Off, nominal kredit, serta jadwal runtime dari halaman Monitoring
+    select s.claim_enabled,
+           s.credit_amount,
+           s.runtime_starts_at,
+           s.runtime_ends_at
+      into v_settings
+      from public.free_credit_settings s
+     where s.id = 1
+     limit 1;
+
+    if found then
+        v_claim_enabled := coalesce(v_settings.claim_enabled, true);
+        v_reward := greatest(100, least(10000000, coalesce(v_settings.credit_amount, 5000)));
+        v_starts_at := v_settings.runtime_starts_at;
+        v_ends_at := v_settings.runtime_ends_at;
+    end if;
+
+    if not coalesce(v_claim_enabled, true) then
+        v_reject_code := 'feature_disabled';
+    elsif v_starts_at is not null and now() < v_starts_at then
+        v_reject_code := 'event_not_started';
+    elsif v_ends_at is not null and now() >= v_ends_at then
+        v_reject_code := 'event_expired';
+    end if;
+
+    if v_reject_code is not null then
+        select u.id, u.email
+          into v_user
+          from auth.users u
+         where u.id = p_user_id
+         limit 1;
+
+        insert into public.free_credit_claim_attempts (
+            user_id, attempted_user_id, email_exact, email_canonical,
+            ip_address, ip_subnet, browser_fingerprint, browser_install_id,
+            user_agent, browser_summary, country, city,
+            status, rejection_reason, matched_reasons
+        ) values (
+            case when v_user.id is not null then p_user_id else null end,
+            p_user_id,
+            nullif(lower(btrim(coalesce(v_user.email, ''))), ''),
+            nullif(public.normalize_free_credit_email(v_user.email), ''),
+            v_ip, v_subnet, v_bfp, v_bid, v_ua, v_bsum, v_country, v_city,
+            'rejected', v_reject_code, array[v_reject_code]
+        );
+
+        return jsonb_build_object(
+            'ok', false,
+            'code', v_reject_code,
+            'matched_reasons', array[v_reject_code]
+        );
     end if;
 
     select u.id,
@@ -928,7 +1100,7 @@ begin
         coalesce(v_profile.credits, 0),
         v_new_balance,
         v_claim_id,
-        'Claim Free Credit 5.000 Gratis',
+        'Claim Free Credit ' || replace(to_char(v_reward, 'FM999,999,999'), ',', '.') || ' Gratis',
         p_user_id
     );
 

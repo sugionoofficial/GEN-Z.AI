@@ -268,7 +268,7 @@ async function handleOverview(req, res, config, fetchImpl) {
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
 
     try {
-        const [settings, checks, events, findings] = await Promise.all([
+        const [settings, checks, events, findings, fcSettingsRows, fcClaimsRows, fcRejectedRows] = await Promise.all([
             fetchSettings(config, fetchImpl),
             dbRequest(
                 config,
@@ -287,8 +287,62 @@ async function handleOverview(req, res, config, fetchImpl) {
                 "/monitoring_findings?select=*&order=last_seen_at.desc&limit=50",
                 { method: "GET" },
                 fetchImpl
-            )
+            ),
+            dbRequest(
+                config,
+                "/free_credit_settings?id=eq.1&select=id,claim_enabled,credit_amount,runtime_starts_at,runtime_ends_at,banner_image_url,updated_at&limit=1",
+                { method: "GET" },
+                fetchImpl
+            ).catch(() => []),
+            dbRequest(
+                config,
+                "/free_credit_claims?select=id&limit=1000",
+                { method: "GET" },
+                fetchImpl
+            ).catch(() => []),
+            dbRequest(
+                config,
+                "/free_credit_claim_attempts?status=eq.rejected&select=id&limit=1000",
+                { method: "GET" },
+                fetchImpl
+            ).catch(() => [])
         ]);
+
+        const fcRow = Array.isArray(fcSettingsRows) ? fcSettingsRows[0] : null;
+        const fcEnabled = fcRow ? fcRow.claim_enabled !== false : true;
+        const fcStartsAt =
+            typeof fcRow?.runtime_starts_at === "string" && fcRow.runtime_starts_at.trim()
+                ? fcRow.runtime_starts_at.trim()
+                : null;
+        const fcEndsAt =
+            typeof fcRow?.runtime_ends_at === "string" && fcRow.runtime_ends_at.trim()
+                ? fcRow.runtime_ends_at.trim()
+                : null;
+        const nowMs = Date.now();
+        const fcRuntimeStatus = !fcEnabled
+            ? "disabled"
+            : fcStartsAt && nowMs < Date.parse(fcStartsAt)
+                ? "scheduled"
+                : fcEndsAt && nowMs >= Date.parse(fcEndsAt)
+                    ? "expired"
+                    : "active";
+        const freeCreditOverview = {
+            claim_enabled: fcEnabled,
+            credit_amount:
+                Number.isFinite(Number(fcRow?.credit_amount)) && Number(fcRow?.credit_amount) >= 100
+                    ? Math.round(Number(fcRow.credit_amount))
+                    : 5000,
+            runtime_starts_at: fcStartsAt,
+            runtime_ends_at: fcEndsAt,
+            runtime_status: fcRuntimeStatus,
+            banner_image_url:
+                typeof fcRow?.banner_image_url === "string" && fcRow.banner_image_url.trim()
+                    ? fcRow.banner_image_url.trim()
+                    : null,
+            updated_at: fcRow?.updated_at || null,
+            claims_count: Array.isArray(fcClaimsRows) ? fcClaimsRows.length : 0,
+            rejected_count: Array.isArray(fcRejectedRows) ? fcRejectedRows.length : 0
+        };
 
         const health = latestPerTarget(Array.isArray(checks) ? checks : []);
         const eventRows = Array.isArray(events) ? events : [];
@@ -320,6 +374,7 @@ async function handleOverview(req, res, config, fetchImpl) {
             events: eventRows,
             findings: Array.isArray(findings) ? findings : [],
             settings,
+            free_credit: freeCreditOverview,
             site_url: config.siteUrl,
             server_time: new Date().toISOString()
         });

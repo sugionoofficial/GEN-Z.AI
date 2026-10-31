@@ -1096,3 +1096,398 @@ html[data-genz-theme="light"] .mon-limit select option {
     color: var(--bb-muted);
     text-transform: lowercase;
 }
+
+/* ---------------------------------------------------------
+   KENDALI CLAIM 5.000 CREDIT GRATIS & UPLOAD BANNER 16:9
+   --------------------------------------------------------- */
+
+.mon-fc-panel {
+    border-color: rgba(236, 193, 108, .3);
+    background:
+        radial-gradient(120% 130% at 0% 0%, rgba(245, 196, 105, .07) 0%, transparent 48%),
+        radial-gradient(100% 120% at 100% 100%, rgba(57, 255, 113, .05) 0%, transparent 50%),
+        rgba(255, 255, 255, .024);
+}
+
+.mon-fc-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 46%);
+    gap: 20px;
+    align-items: start;
+}
+
+.mon-fc-col {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    min-width: 0;
+}
+
+.mon-fc-switch-box {
+    border: 1px solid var(--bb-shell-border);
+    border-radius: 14px;
+    padding: 14px 15px;
+    background: rgba(255, 255, 255, .022);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mon-fc-config-box {
+    border: 1px solid rgba(251, 226, 157, .24);
+    border-radius: 14px;
+    padding: 14px 15px;
+    background: rgba(251, 226, 157, .035);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mon-fc-runtime-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.mon-fc-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.mon-fc-preset {
+    appearance: none;
+    border: 1px solid rgba(251, 226, 157, .3);
+    border-radius: 999px;
+    padding: 5px 11px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: #fde68a;
+    background: rgba(8, 11, 18, .65);
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+
+.mon-fc-preset:hover {
+    background: rgba(251, 226, 157, .16);
+    border-color: rgba(251, 226, 157, .58);
+    transform: translateY(-1px);
+}
+
+.mon-fc-save-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 2px;
+}
+
+.mon-fc-rt-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 11px 14px;
+    border-radius: 13px;
+    border: 1px solid rgba(251, 226, 157, .3);
+    background: linear-gradient(135deg, rgba(251, 226, 157, .09), rgba(8, 11, 18, .85) 68%);
+}
+
+.mon-fc-rt-prev-left {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.mon-fc-rt-prev-kicker {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #fbe29d;
+}
+
+.mon-fc-rt-prev-sub {
+    font-size: 11.5px;
+    color: var(--bb-muted);
+}
+
+.mon-fc-rt-prev-badge {
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    color: #161003;
+    background: linear-gradient(135deg, #fff0c2, #e7b54c);
+}
+
+.mon-fc-switch {
+    font-size: 12.5px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    color: var(--bb-text);
+}
+
+.mon-fc-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.mon-fc-metric {
+    border: 1px solid var(--bb-shell-border);
+    border-radius: 12px;
+    padding: 11px 12px;
+    background: rgba(255, 255, 255, .018);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.mon-fc-metric-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--bb-muted);
+}
+
+.mon-fc-metric-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--bb-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.mon-fc-metric-value--sm {
+    font-size: 12.5px;
+    line-height: 1.35;
+}
+
+.mon-fc-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.mon-fc-links .mon-btn {
+    text-decoration: none;
+}
+
+.mon-fc-preview-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.mon-fc-preview-label {
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #f5d487;
+}
+
+.mon-fc-preview-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(251, 226, 157, .35);
+    background:
+        radial-gradient(circle at 22% 22%, rgba(251, 226, 157, .24), transparent 52%),
+        radial-gradient(circle at 82% 80%, rgba(255, 48, 72, .25), transparent 56%),
+        linear-gradient(145deg, #0f1422 0%, #06080e 100%);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, .5);
+}
+
+.mon-fc-preview-frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(5, 7, 12, .2) 0%, transparent 45%, rgba(5, 7, 12, .55) 100%);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.mon-fc-preview-img,
+.mon-fc-crop-canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.mon-fc-preview-img[hidden],
+.mon-fc-crop-canvas[hidden],
+.mon-fc-preview-default[hidden],
+.mon-fc-crop-box[hidden],
+.mon-fc-upload-row [hidden] {
+    display: none !important;
+}
+
+.mon-fc-preview-default {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 16px;
+    background-image:
+        linear-gradient(rgba(251, 226, 157, .05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(251, 226, 157, .05) 1px, transparent 1px);
+    background-size: 22px 22px;
+}
+
+.mon-fc-def-kicker {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: .24em;
+    color: #f5d487;
+    margin-bottom: 5px;
+}
+
+.mon-fc-def-amount {
+    font-size: clamp(24px, 3vw, 34px);
+    font-weight: 900;
+    letter-spacing: -.03em;
+    background: linear-gradient(135deg, #fff6d6 0%, #f5cb6c 52%, #ff6b81 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.mon-fc-def-sub {
+    margin-top: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .16em;
+    color: #cbd5e1;
+}
+
+.mon-fc-preview-chips {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.mon-fc-chip-vip {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: .13em;
+    color: #fbe29d;
+    background: rgba(8, 10, 16, .76);
+    border: 1px solid rgba(251, 226, 157, .38);
+    backdrop-filter: blur(8px);
+}
+
+.mon-fc-chip-val {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .07em;
+    color: #161003;
+    background: linear-gradient(135deg, #fff0c2, #e7b54c);
+}
+
+.mon-fc-crop-box {
+    border: 1px solid rgba(251, 226, 157, .3);
+    border-radius: 13px;
+    padding: 12px 13px;
+    background: rgba(251, 226, 157, .06);
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.mon-fc-crop-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--bb-text);
+}
+
+.mon-fc-crop-slider {
+    width: 100%;
+    accent-color: #f5cb6c;
+    cursor: pointer;
+}
+
+.mon-fc-crop-actions,
+.mon-fc-upload-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+html[data-genz-theme="light"] .mon-fc-panel {
+    background: linear-gradient(135deg, #fffdf8 0%, #ffffff 65%);
+    border-color: rgba(180, 126, 28, .28);
+}
+
+html[data-genz-theme="light"] .mon-fc-switch-box,
+html[data-genz-theme="light"] .mon-fc-metric {
+    background: #f8faf9;
+    border-color: rgba(10, 20, 14, .12);
+}
+
+html[data-genz-theme="light"] .mon-fc-config-box {
+    background: #fffbeb;
+    border-color: rgba(180, 126, 28, .25);
+}
+
+html[data-genz-theme="light"] .mon-fc-preset {
+    background: #ffffff;
+    border-color: rgba(180, 126, 28, .35);
+    color: #92400e;
+}
+
+html[data-genz-theme="light"] .mon-fc-rt-preview {
+    background: linear-gradient(135deg, #fffbeb, #ffffff 75%);
+    border-color: rgba(180, 126, 28, .3);
+}
+
+html[data-genz-theme="light"] .mon-fc-rt-prev-kicker {
+    color: #92400e;
+}
+
+html[data-genz-theme="light"] .mon-fc-preview-label {
+    color: #92400e;
+}
+
+@media (max-width: 860px) {
+    .mon-fc-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .mon-fc-runtime-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .mon-fc-metrics {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+

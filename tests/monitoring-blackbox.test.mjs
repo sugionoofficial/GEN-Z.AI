@@ -1413,3 +1413,40 @@ test("buildAccessRows menampilkan status DevTools dari kunjungan terakhir per IP
     const rowsOpen = vm.runInContext(`buildAccessRows(${JSON.stringify(stillOpen)})`, context);
     assert.equal(rowsOpen[0].devtools, true);
 });
+
+test("kendali Claim 5.000 Credit Gratis & kalkulasi crop 16:9 di halaman Monitoring akurat", async () => {
+    const { context } = loadMonitoringUi();
+
+    /* 1. Rasio 16:9 utuh -> exact */
+    const exact = vm.runInContext("compute16x9CropRect(1920, 1080, 50)", context);
+    assert.equal(exact.axis, "exact");
+    assert.equal(exact.sw, 1920);
+    assert.equal(exact.sh, 1080);
+
+    /* 2. Foto vertikal HP (1080x1920) -> dipotong vertikal ke 1080x608 */
+    const portraitMid = vm.runInContext("compute16x9CropRect(1080, 1920, 50)", context);
+    assert.equal(portraitMid.axis, "vertical");
+    assert.equal(portraitMid.sw, 1080);
+    assert.equal(portraitMid.sh, 608);
+    assert.equal(portraitMid.sy, Math.round((1920 - 608) * 0.5));
+
+    const portraitTop = vm.runInContext("compute16x9CropRect(1080, 1920, 0)", context);
+    assert.equal(portraitTop.sy, 0);
+
+    /* 3. Foto ultrawide (2560x1080) -> dipotong horizontal ke 1920x1080 */
+    const wide = vm.runInContext("compute16x9CropRect(2560, 1080, 100)", context);
+    assert.equal(wide.axis, "horizontal");
+    assert.equal(wide.sw, 1920);
+    assert.equal(wide.sh, 1080);
+    assert.equal(wide.sx, 640);
+
+    /* 4. Format nominal kredit titik ribuan & konversi waktu ISO <-> datetime-local akurat */
+    assert.equal(vm.runInContext("formatFcNominal(5000)", context), "5.000");
+    assert.equal(vm.runInContext("formatFcNominal(25000)", context), "25.000");
+    const sampleIso = "2026-11-01T12:30:00.000Z";
+    const localStr = vm.runInContext(`isoToDatetimeLocalValue(${JSON.stringify(sampleIso)})`, context);
+    assert.match(localStr, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    const roundtripIso = vm.runInContext(`datetimeLocalToIso(${JSON.stringify(localStr)})`, context);
+    assert.equal(Date.parse(roundtripIso), Date.parse(sampleIso));
+});
+
