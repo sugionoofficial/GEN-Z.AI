@@ -593,13 +593,27 @@ test("preserveMediaRefs mempertahankan @image1/@video1/@audio1 pada Klip 2 & 3 s
     assert.equal(sliceLoop3Args[sliceLoop3Args.indexOf("-ss") + 1], "5");
 
     const audioLoop3Args = buildReferenceAudioSliceFfmpegArgs({
-        inputPath: "/tmp/ref12.mp3",
-        outputPath: "/tmp/ref-a3.m4a",
+        inputPath: "/tmp/ref12.wav",
+        outputPath: "/tmp/ref-a3.mp3",
         clipIndex: 3,
         sourceDurationSeconds: 12
     });
     assert.equal(audioLoop3Args.includes("-stream_loop"), true);
     assert.equal(audioLoop3Args[audioLoop3Args.indexOf("-ss") + 1], "8");
+    assert.equal(audioLoop3Args[audioLoop3Args.indexOf("-c:a") + 1], "libmp3lame");
+    assert.equal(audioLoop3Args[audioLoop3Args.indexOf("-f") + 1], "mp3");
+    assert.equal(audioLoop3Args.includes("aac"), false, "tidak boleh memakai kontainer AAC/M4A yang ditolak Opus sebagai mov");
+    assert.equal(audioLoop3Args.includes("-movflags"), false);
+
+    const audioWavFallbackArgs = buildReferenceAudioSliceFfmpegArgs({
+        inputPath: "/tmp/ref12.wav",
+        outputPath: "/tmp/ref-a2.wav",
+        clipIndex: 2,
+        sourceDurationSeconds: 30,
+        format: "wav"
+    });
+    assert.equal(audioWavFallbackArgs[audioWavFallbackArgs.indexOf("-c:a") + 1], "pcm_s16le");
+    assert.equal(audioWavFallbackArgs[audioWavFallbackArgs.indexOf("-f") + 1], "wav");
 
     // Merge dengan audio referensi asli utuh (loop otomatis bila < 30s)
     const mergeDirectLoopArgs = buildSeamlessMergeFfmpegArgs({
@@ -839,6 +853,199 @@ test("adapter opus-seedance-2.5-r2v menerima payload lanjutan Klip 2/3 (frame ak
     assert.match(generateSrc, /video_segment_refs/);
     assert.match(generateSrc, /audio_segment_refs/);
     assert.match(generateSrc, /preserveMediaRefs:\s*hasStagedReferenceMedia/);
+});
+
+test("runStagedVideoOrchestrator memotong @audio1 (.wav/.mp3) pada Klip 2 (10-20s) & Klip 3 (20-30s) menjadi MP3 (audio/mpeg), bukan M4A/MOV", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "staged30-e2e-refaudio-mp3-"));
+    try {
+        const storageUploads = [];
+        const createClipCalls = [];
+        const ffmpegCalls = [];
+        const refAudioPrivateRef = `supabase-private://user-uploads/generate-input/${USER_ID}/audio-song-30s.wav`;
+        const refImagePrivateRef = `supabase-private://user-uploads/generate-input/${USER_ID}/char.jpg`;
+
+        let historyRow = {
+            id: HISTORY_ID,
+            user_id: USER_ID,
+            status: "processing",
+            task_id: "staged30_test_ref_audio_mp3",
+            credit_cost: 7500,
+            credit_refunded: false
+        };
+        let jobRow = {
+            id: JOB_ID,
+            task_id: "staged30_test_ref_audio_mp3",
+            history_id: HISTORY_ID,
+            user_id: USER_ID,
+            status: "processing",
+            current_stage: "clip_1_generating",
+            internal_token: "d".repeat(64),
+            clip_1_task_id: "opus:proj1:job1",
+            credit_total: 7500,
+            request_payload: {
+                prompt: "Karakter @image1 melakukan Lipsync dengan lagu @audio1, bergoyang lincah, gerakan realistis",
+                aspect_ratio: "9:16",
+                resolution: "720p",
+                generate_audio: true,
+                image_urls: [refImagePrivateRef],
+                video_urls: [],
+                audio_urls: [refAudioPrivateRef],
+                clip_prompts: buildStaged30sPrompts(
+                    "Karakter @image1 melakukan Lipsync dengan lagu @audio1, bergoyang lincah, gerakan realistis",
+                    { preserveMediaRefs: true }
+                )
+            }
+        };
+
+        const mockFetch = async (url, options = {}) => {
+            const u = String(url);
+            const method = String(options.method || "GET").toUpperCase();
+
+            if (u.includes("/rest/v1/staged_generation_jobs") && method === "GET") {
+                return new Response(JSON.stringify([jobRow]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/staged_generation_jobs") && method === "PATCH") {
+                const patch = JSON.parse(options.body);
+                jobRow = { ...jobRow, ...patch };
+                return new Response(JSON.stringify([jobRow]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/generation_history") && method === "GET") {
+                return new Response(JSON.stringify([historyRow]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/generation_history") && method === "PATCH") {
+                const patch = JSON.parse(options.body);
+                historyRow = { ...historyRow, ...patch };
+                return new Response(JSON.stringify([historyRow]), { status: 200 });
+            }
+            if (u.includes("/storage/v1/object/user-uploads/") && method === "GET") {
+                return new Response(Buffer.alloc(4096, 0x22), { status: 200 });
+            }
+            if (u.includes("/storage/v1/object/user-uploads/") && method === "POST") {
+                const contentType = options.headers?.["Content-Type"] || options.headers?.["content-type"] || "";
+                storageUploads.push({
+                    path: decodeURIComponent(u.split("/storage/v1/object/user-uploads/")[1]),
+                    contentType
+                });
+                return new Response(JSON.stringify({ Key: "ok" }), { status: 200 });
+            }
+            if (u.endsWith("/api/generate") && method === "POST") {
+                const body = JSON.parse(options.body);
+                if (body.step_action === "create_clip") {
+                    createClipCalls.push(body);
+                    // Simulasikan penolakan nyata Opus bila masih dikirim .m4a
+                    if ((body.audio_segment_refs || []).some(ref => ref.endsWith(".m4a"))) {
+                        return new Response(
+                            JSON.stringify({
+                                success: false,
+                                error: "Egress Gateway 502: CreateAsset failed (400 InvalidParameter.FormatUnsupported): Unsupported audio format: mov. Allowed formats: mp3, wav."
+                            }),
+                            { status: 200 }
+                        );
+                    }
+                    return new Response(
+                        JSON.stringify({
+                            success: true,
+                            task_id: `opus:proj${body.clip_index}:job${body.clip_index}`
+                        }),
+                        { status: 200 }
+                    );
+                }
+                if (body.step_action === "query_clip") {
+                    return new Response(
+                        JSON.stringify({
+                            success: true,
+                            completed: true,
+                            output_urls: [`https://cdn.opus.pro/clip-${body.clip_index}.mp4`]
+                        }),
+                        { status: 200 }
+                    );
+                }
+            }
+            if (u.startsWith("https://cdn.opus.pro/clip-")) {
+                return new Response(Buffer.alloc(4096, 0x55), { status: 200 });
+            }
+            throw new Error(`Unexpected fetch URL: ${u} (${method})`);
+        };
+
+        const mockExecFile = async (cmd, args) => {
+            if (cmd === "ffprobe") {
+                if (args.includes("-count_frames")) {
+                    return { stdout: "240\n", stderr: "" };
+                }
+                const targetFile = String(args[args.length - 1] || "");
+                const isRefAudio = targetFile.includes("source-ref-audio-");
+                return {
+                    stdout: JSON.stringify({
+                        streams: isRefAudio
+                            ? [{ codec_type: "audio", duration: "30.0" }]
+                            : [
+                                  {
+                                      codec_type: "video",
+                                      width: 720,
+                                      height: 1280,
+                                      avg_frame_rate: "24/1",
+                                      duration: "10.0"
+                                  },
+                                  { codec_type: "audio", duration: "10.0" }
+                              ],
+                        format: { duration: isRefAudio ? "30.0" : "10.0" }
+                    }),
+                    stderr: ""
+                };
+            }
+            if (cmd === "ffmpeg") {
+                ffmpegCalls.push(args);
+                const outFile = args[args.length - 1];
+                await fs.writeFile(outFile, Buffer.alloc(4096, 0x44));
+                return { stdout: "", stderr: "" };
+            }
+            throw new Error(`Unexpected exec: ${cmd}`);
+        };
+
+        const outcome = await runStagedVideoOrchestrator({
+            env: {
+                SUPABASE_URL: "https://proj.supabase.co",
+                SUPABASE_SERVICE_KEY: "srv_key",
+                JOB_ID
+            },
+            fetchImpl: mockFetch,
+            execFileImpl: mockExecFile,
+            sleepImpl: async () => {},
+            workDir: tempDir,
+            pollIntervalMs: 1,
+            busyWaitMs: 1
+        });
+
+        assert.equal(outcome.outcome, "completed");
+        assert.equal(outcome.completedClips, 3);
+        assert.equal(outcome.finalDuration, 30);
+
+        const audioUploads = storageUploads.filter(item => item.path.includes("/ref-audio-"));
+        assert.equal(audioUploads.length, 2, "harus mengunggah potongan MP3 untuk Klip 2 dan Klip 3");
+        assert.ok(audioUploads.every(item => item.path.endsWith(".mp3")));
+        assert.ok(audioUploads.every(item => item.contentType === "audio/mpeg"));
+        assert.equal(
+            storageUploads.some(item => item.path.endsWith(".m4a")),
+            false,
+            "tidak boleh ada potongan audio .m4a yang memicu error format mov di Opus"
+        );
+
+        const clip2Call = createClipCalls.find(c => c.clip_index === 2);
+        const clip3Call = createClipCalls.find(c => c.clip_index === 3);
+        assert.ok(clip2Call.audio_segment_refs[0].endsWith("/ref-audio-1-clip-2.mp3"));
+        assert.ok(clip3Call.audio_segment_refs[0].endsWith("/ref-audio-1-clip-3.mp3"));
+        assert.equal(isRefOwnedByUser(clip2Call.audio_segment_refs[0], USER_ID), true);
+        assert.equal(isRefOwnedByUser(clip3Call.audio_segment_refs[0], USER_ID), true);
+
+        const formMediaJs = await fs.readFile(
+            new URL("../generate/assets/js/generate-form-media.js", import.meta.url),
+            "utf8"
+        );
+        assert.doesNotMatch(formMediaJs, /fb_audio_out_\$\{uniqueId\}\.m4a/);
+        assert.match(formMediaJs, /ensureCompatibleAudioUploadFile/);
+    } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    }
 });
 
 
