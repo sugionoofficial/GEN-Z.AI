@@ -4122,13 +4122,21 @@ function inspectJobOutcome(rawData, rawText = "", targetJobId = "") {
         }
 
         if (videoUrls.length === 0) {
-            /* Filter sibling assets agar aset input/reference tidak ikut diekstrak */
+            /* Filter sibling assets agar aset input/reference (@image1, @video1, @audio1, dll.) tidak ikut diekstrak */
             let sanitizedSource = focus || parsedSource;
             if (sanitizedSource && typeof sanitizedSource === "object" && Array.isArray(sanitizedSource.assets)) {
                 const filteredAssets = sanitizedSource.assets.filter(a => {
                     if (!a || typeof a !== "object") return true;
-                    const role = String(a.role || a.kind || "").toLowerCase();
-                    if (/^(?:reference|first_frame|last_frame|input|subject|style)$/.test(role)) {
+                    const role = String(a.role || a.source || a.origin || "").toLowerCase();
+                    const kind = String(a.kind || a.mediaType || "").toLowerCase();
+                    const label = String(a.label || a.name || "").toLowerCase();
+                    if (/^(?:reference|first_frame|last_frame|input|subject|style|import|imported|upload|uploaded)$/.test(role)) {
+                        return false;
+                    }
+                    if (/^(?:reference|first_frame|last_frame|input|subject|style|audio)$/.test(kind)) {
+                        return false;
+                    }
+                    if (/^(?:image\d+|video\d+|audio\d+|first_frame|last_frame|ref_\d+|reference_\d+)$/.test(label)) {
                         return false;
                     }
                     return true;
@@ -4334,6 +4342,35 @@ async function discoverProjectVideoJob(
                     return {
                         jobId: probedJobId || targetJobId || "",
                         outcome,
+                        projectConfirmedEmpty: false
+                    };
+                }
+            }
+        }
+    }
+
+    /* Probe get_project / list_assets bila tersedia di MCP untuk membaca aset hasil yang baru terbit */
+    const projectAssetTool =
+        findMcpTool(session.tools, "get_project") ||
+        findMcpTool(session.tools, "list_assets") ||
+        findMcpTool(session.tools, "get_project_state");
+
+    if (projectAssetTool) {
+        const rootSchema = projectAssetTool.inputSchema;
+        const objSchema = resolveObjectSchema(rootSchema, rootSchema);
+        const props = objSchema.properties;
+        const required = Array.isArray(objSchema.required) ? objSchema.required : [];
+        const projKey = pickSupportedKey(props, ["projectId", "project_id", "id"], !props ? "projectId" : "");
+        const hasOtherRequired = required.some(k => k !== projKey);
+
+        if (projKey && !hasOtherRequired) {
+            const projRes = await session.callTool(projectAssetTool.name, { [projKey]: projectId }).catch(() => null);
+            if (projRes && !projRes.isError) {
+                const projOutcome = inspectJobOutcome(projRes.data, projRes.text, targetJobId);
+                if (projOutcome.videoUrls.length > 0) {
+                    return {
+                        jobId: targetJobId || "",
+                        outcome: projOutcome,
                         projectConfirmedEmpty: false
                     };
                 }
