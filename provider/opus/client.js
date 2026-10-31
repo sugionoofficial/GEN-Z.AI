@@ -838,7 +838,26 @@ function appendSafeProviderDetail(baseMessage, code, fallbackMessage) {
     return `${baseMessage} (Detail Opus: ${cleanFallback})`;
 }
 
+export const OPUS_AUDIO_COPYRIGHT_ERROR_MESSAGE =
+    "audio pada video/lagu yang anda upload terkena copyright, silahkan gunakan video/lagu yang lain, atau generate tanpa audio";
+
+export function isOpusAudioCopyrightError(code, message = "") {
+    const combined = `${code || ""} ${message || ""}`;
+    if (!combined.trim()) {
+        return false;
+    }
+    return (
+        /\b(?:Output|Input)?AudioSensitiveContentDetected\b/i.test(combined) ||
+        /\baudio[\s_-]*copyright\b/i.test(combined) ||
+        /\b(?:output|input)?\s*audio\s+may\s+be\s+related\s+to\s+copyright\b/i.test(combined) ||
+        (/\baudio\b/i.test(combined) && /\bcopyright\s+restrictions?\b/i.test(combined))
+    );
+}
+
 function translateOpusError(code, fallbackMessage = "") {
+    if (isOpusAudioCopyrightError(code, fallbackMessage)) {
+        return OPUS_AUDIO_COPYRIGHT_ERROR_MESSAGE;
+    }
     const key = normalizeErrorToken(code);
     if (key && ERROR_MESSAGE_BY_CODE[key]) {
         return appendSafeProviderDetail(ERROR_MESSAGE_BY_CODE[key], key, fallbackMessage);

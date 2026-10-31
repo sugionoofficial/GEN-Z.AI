@@ -2011,7 +2011,26 @@ function findDeepValue(
 }
 
 
+const AUDIO_COPYRIGHT_USER_ERROR_MESSAGE =
+    "audio pada video/lagu yang anda upload terkena copyright, silahkan gunakan video/lagu yang lain, atau generate tanpa audio";
+
+function formatFriendlyProviderFailureMessage(message = "", code = "") {
+    const combined = `${code || ""} ${message || ""}`;
+    if (
+        /\b(?:Output|Input)?AudioSensitiveContentDetected\b/i.test(combined) ||
+        /\baudio[\s_-]*copyright\b/i.test(combined) ||
+        /\b(?:output|input)?\s*audio\s+may\s+be\s+related\s+to\s+copyright\b/i.test(combined) ||
+        (/\baudio\b/i.test(combined) && /\bcopyright\s+restrictions?\b/i.test(combined))
+    ) {
+        return AUDIO_COPYRIGHT_USER_ERROR_MESSAGE;
+    }
+    return message;
+}
+
 function getProviderFailureMessage(value) {
+    const errorCode = findDeepValue(value, ["error_code", "errorCode", "code"]);
+    const cleanCode = typeof errorCode === "string" ? cleanString(errorCode) : "";
+
     const message = findDeepValue(value, [
         "error_message",
         "errorMessage",
@@ -2026,7 +2045,7 @@ function getProviderFailureMessage(value) {
     ]);
 
     if (typeof message === "string" && message.trim()) {
-        return cleanString(message);
+        return formatFriendlyProviderFailureMessage(cleanString(message), cleanCode);
     }
 
     if (message && typeof message === "object") {
@@ -2037,18 +2056,21 @@ function getProviderFailureMessage(value) {
             message.reason
         );
         if (typeof nestedMessage === "string" && nestedMessage.trim()) {
-            return cleanString(nestedMessage);
+            return formatFriendlyProviderFailureMessage(cleanString(nestedMessage), cleanCode);
         }
     }
 
     const error = findDeepValue(value, ["error"]);
     if (typeof error === "string" && error.trim()) {
-        return cleanString(error);
+        return formatFriendlyProviderFailureMessage(cleanString(error), cleanCode);
     }
 
-    const errorCode = findDeepValue(value, ["error_code", "errorCode", "code"]);
-    if (typeof errorCode === "string" && errorCode.trim()) {
-        return `Provider gagal memproses task (kode: ${cleanString(errorCode)}).`;
+    if (cleanCode) {
+        const mappedByCode = formatFriendlyProviderFailureMessage("", cleanCode);
+        if (mappedByCode) {
+            return mappedByCode;
+        }
+        return `Provider gagal memproses task (kode: ${cleanCode}).`;
     }
 
     return "Provider gagal memproses task tanpa memberikan detail penyebab.";
