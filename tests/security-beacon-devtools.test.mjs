@@ -332,3 +332,373 @@ test("media milik domain situs sendiri tetap dilaporkan tanpa membocorkan query 
     assert.equal(beacon.errors().length, 1);
     assert.equal(beacon.errors()[0].message, "Gagal memuat aset: https://contoh.test/assets/banner.png");
 });
+
+/* =========================================================
+   ANTI-DEVTOOLS LOCKDOWN (NON-OWNER CONNECTION KILL +
+   BLANK WHITE HACKER & INTRUDER IP/WEB DETAIL SCREEN)
+   ========================================================= */
+
+function loadLockdownBeacon(options = {}) {
+    const {
+        role = "",
+        navRole = "",
+        serverIsOwner = false,
+        serverRole = "guest",
+        serverEmail = null,
+        devtoolsLockdown = true,
+        localSpoofRole = "",
+        hasAccessToken = false
+    } = options;
+
+    const source = read("assets/js/security-beacon.js");
+    const sent = [];
+    const winListeners = new Map();
+    const docListeners = new Map();
+    const store = new Map();
+
+    if (localSpoofRole) {
+        store.set("genz-auth-profile-cache-v1", JSON.stringify({ role: localSpoofRole }));
+    }
+    if (hasAccessToken) {
+        store.set(
+            "sb-ycovbqmezhrvzobxqnyp-auth-token",
+            JSON.stringify({
+                access_token: "jwt-token-uji",
+                user: {
+                    id: "c237fcef-6456-451e-ae98-691f2dabb60d",
+                    email: serverEmail || "uji@genz.ai"
+                }
+            })
+        );
+    }
+
+    const storage = {
+        get length() {
+            return store.size;
+        },
+        key: index => [...store.keys()][index] ?? null,
+        getItem: key => (store.has(key) ? store.get(key) : null),
+        setItem: (key, value) => store.set(key, String(value)),
+        removeItem: key => store.delete(key)
+    };
+
+    const elementIds = new Map();
+    const body = {
+        className: "dark-app",
+        style: { cssText: "" },
+        _html: "<main>Konten Rahasia Aplikasi</main>",
+        get innerHTML() {
+            return this._html;
+        },
+        set innerHTML(val) {
+            this._html = String(val);
+            elementIds.clear();
+            const regex = /<([a-z0-9]+)\b[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/\1>/gi;
+            let match;
+            while ((match = regex.exec(this._html)) !== null) {
+                const id = match[2];
+                const text = match[3].replace(/<[^>]+>/g, "");
+                elementIds.set(id, {
+                    id,
+                    style: {},
+                    _text: text,
+                    get textContent() {
+                        return this._text;
+                    },
+                    set textContent(next) {
+                        this._text = String(next);
+                    }
+                });
+            }
+        }
+    };
+
+    let stopped = false;
+    class FakeXHR {
+        open() {}
+        send() {}
+    }
+    class FakeWebSocket {
+        constructor() {}
+    }
+
+    const initialFetch = async (_url, reqOpts = {}) => {
+        sent.push({
+            headers: reqOpts.headers || {},
+            body: JSON.parse(reqOpts.body || "{}")
+        });
+        const responseJson = {
+            success: true,
+            devtools_lockdown: devtoolsLockdown,
+            viewer: {
+                is_owner: serverIsOwner,
+                role: serverRole || role || "guest",
+                email: serverEmail,
+                ip: "114.122.88.19",
+                city: "Depok",
+                region: "West Java",
+                country: "ID",
+                asn: "AS7713",
+                colo: "CGK",
+                browser: "Chrome",
+                os: "Windows",
+                device: "Desktop"
+            }
+        };
+        return {
+            ok: true,
+            status: 202,
+            text: async () => JSON.stringify(responseJson)
+        };
+    };
+
+    const window = {
+        innerWidth: 1440,
+        innerHeight: 780,
+        outerWidth: 1440,
+        outerHeight: 900,
+        GENZ_NAVIGATION_ROLE: navRole || role || "",
+        GENZ_NAVIGATION_USER: hasAccessToken
+            ? { id: "c237fcef-6456-451e-ae98-691f2dabb60d", email: serverEmail || "uji@genz.ai" }
+            : null,
+        location: {
+            pathname: "/generate/index.html",
+            href: "https://genzai.example/generate/index.html?secret=abc",
+            hostname: "genzai.example",
+            reload: () => {}
+        },
+        screen: { width: 1920, height: 1080 },
+        sessionStorage: storage,
+        localStorage: storage,
+        fetch: initialFetch,
+        XMLHttpRequest: FakeXHR,
+        WebSocket: FakeWebSocket,
+        stop: () => {
+            stopped = true;
+        },
+        addEventListener: (type, handler) => {
+            if (!winListeners.has(type)) winListeners.set(type, []);
+            winListeners.get(type).push(handler);
+        },
+        removeEventListener: () => {},
+        matchMedia: () => ({ matches: false })
+    };
+
+    const document = {
+        title: "GEN-Z.AI Studio",
+        referrer: "",
+        visibilityState: "visible",
+        documentElement: { style: { cssText: "" }, dataset: {} },
+        body,
+        querySelectorAll: () => [],
+        getElementById: id => elementIds.get(id) || null,
+        addEventListener: (type, handler) => {
+            if (!docListeners.has(type)) docListeners.set(type, []);
+            docListeners.get(type).push(handler);
+        },
+        removeEventListener: () => {}
+    };
+
+    const navigator = {
+        doNotTrack: null,
+        maxTouchPoints: 0,
+        onLine: true,
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0.0.0 Safari/537.36",
+        language: "id-ID"
+    };
+
+    const context = vm.createContext({
+        window,
+        document,
+        navigator,
+        Intl,
+        console: { log: () => {}, warn: () => {}, error: () => {}, clear: () => {} },
+        fetch: initialFetch,
+        setInterval: () => ({ unref: () => {} }),
+        clearInterval: () => {},
+        setTimeout,
+        clearTimeout
+    });
+
+    vm.runInContext(source, context);
+
+    return {
+        window,
+        document,
+        sent,
+        wasStopped: () => stopped,
+        getElement: id => elementIds.get(id) || null,
+        dispatchWindow: (type, event) => {
+            for (const handler of winListeners.get(type) || []) handler(event);
+        },
+        dispatchDocument: (type, event) => {
+            for (const handler of docListeners.get(type) || []) handler(event);
+        }
+    };
+}
+
+test("aset ilustrasi hacker tersedia untuk layar penguncian putih", () => {
+    const imgBuf = readFileSync(path.join(root, "assets/images/devtools-hacker-guard.jpg"));
+    assert.ok(imgBuf.byteLength > 5000, "gambar hacker harus tersedia dan valid");
+});
+
+test("pengunjung non-OWNER yang menekan F12 langsung putus koneksi dan melihat layar putih hacker + detail IP/web", async () => {
+    const env = loadLockdownBeacon({ serverIsOwner: false, serverRole: "guest" });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    let prevented = false;
+    env.dispatchWindow("keydown", {
+        key: "F12",
+        keyCode: 123,
+        preventDefault: () => { prevented = true; },
+        stopPropagation: () => {},
+        stopImmediatePropagation: () => {}
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    assert.equal(prevented, true, "pintasan F12 wajib diblokir");
+    assert.equal(env.window.GENZMonitor.isLockedDown(), true, "lockdown harus aktif");
+    assert.equal(env.wasStopped(), true, "window.stop() harus dipanggil");
+
+    /* Koneksi fetch halaman harus error tidak ada koneksi */
+    await assert.rejects(
+        () => env.window.fetch("/api/generate"),
+        /ERR_INTERNET_DISCONNECTED|Tidak ada koneksi/
+    );
+
+    /* WebSocket halaman juga harus terputus */
+    assert.throws(
+        () => new env.window.WebSocket("wss://genzai.example/realtime"),
+        /ERR_INTERNET_DISCONNECTED/
+    );
+
+    /* XHR halaman harus memicu onerror */
+    const xhrFailed = await new Promise(resolve => {
+        const xhr = new env.window.XMLHttpRequest();
+        xhr.onerror = () => resolve(true);
+        xhr.open("GET", "/api/models");
+        xhr.send();
+    });
+    assert.equal(xhrFailed, true, "XMLHttpRequest harus gagal tanpa koneksi");
+
+    /* Tampilan harus layar putih bersih dengan gambar hacker & detail IP/web tanpa bocor query rahasia */
+    assert.match(env.document.documentElement.style.cssText, /background:#ffffff !important/);
+    assert.match(env.document.body.style.cssText, /background:#ffffff !important/);
+    assert.doesNotMatch(env.document.body.innerHTML, /Konten Rahasia Aplikasi/);
+    assert.match(env.document.body.innerHTML, /devtools-hacker-guard\.jpg/);
+    assert.match(env.document.body.innerHTML, /TIDAK ADA KONEKSI/);
+    assert.doesNotMatch(env.document.body.innerHTML, /secret=abc/, "query token tidak boleh bocor di layar");
+
+    assert.equal(env.getElement("genz-lockdown-ip")?.textContent, "114.122.88.19");
+    assert.match(env.getElement("genz-lockdown-location")?.textContent || "", /Depok, West Java, ID/);
+    assert.match(env.getElement("genz-lockdown-network")?.textContent || "", /AS7713/);
+    assert.match(env.getElement("genz-lockdown-url")?.textContent || "", /https:\/\/genzai\.example\/generate\/index\.html/);
+    assert.match(env.getElement("genz-lockdown-system")?.textContent || "", /Chrome • Windows • Desktop/);
+});
+
+test("role ADMIN dan USER tetap kena penguncian DevTools — hanya role OWNER yang bebas", async () => {
+    const adminEnv = loadLockdownBeacon({
+        navRole: "admin",
+        serverIsOwner: false,
+        serverRole: "admin",
+        serverEmail: "admin@genz.ai",
+        hasAccessToken: true
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    adminEnv.dispatchWindow("keydown", {
+        key: "I",
+        keyCode: 73,
+        ctrlKey: true,
+        shiftKey: true,
+        preventDefault: () => {}
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(adminEnv.window.GENZMonitor.isLockedDown(), true, "ADMIN tetap harus dikunci saat membuka DevTools");
+    assert.match(adminEnv.getElement("genz-lockdown-account")?.textContent || "", /admin@genz\.ai \(Role: ADMIN\)/);
+
+    const ownerEnv = loadLockdownBeacon({
+        navRole: "owner",
+        serverIsOwner: true,
+        serverRole: "owner",
+        serverEmail: "owner@genz.ai",
+        hasAccessToken: true
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    let ownerBlocked = false;
+    ownerEnv.dispatchWindow("keydown", {
+        key: "F12",
+        keyCode: 123,
+        preventDefault: () => { ownerBlocked = true; }
+    });
+    ownerEnv.dispatchDocument("contextmenu", {
+        target: { tagName: "DIV" },
+        preventDefault: () => { ownerBlocked = true; }
+    });
+
+    assert.equal(ownerBlocked, false, "OWNER bebas memakai F12 & klik kanan Inspect");
+    assert.equal(ownerEnv.window.GENZMonitor.isLockedDown(), false, "OWNER tidak boleh kena lockdown");
+    assert.match(ownerEnv.document.body.innerHTML, /Konten Rahasia Aplikasi/);
+});
+
+test("manipulasi localStorage role=owner tidak bisa menembus verifikasi server", async () => {
+    const spoofEnv = loadLockdownBeacon({
+        localSpoofRole: "owner",
+        serverIsOwner: false,
+        serverRole: "user",
+        serverEmail: "intruder@genz.ai",
+        hasAccessToken: true
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    assert.equal(spoofEnv.window.GENZMonitor.isOwnerViewer(), false, "server harus menggugurkan klaim palsu localStorage");
+
+    spoofEnv.dispatchWindow("keydown", {
+        key: "U",
+        keyCode: 85,
+        ctrlKey: true,
+        preventDefault: () => {}
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(spoofEnv.window.GENZMonitor.isLockedDown(), true);
+});
+
+test("klik kanan diblokir pada area halaman tetapi tetap diizinkan di kolom input/textarea", async () => {
+    const env = loadLockdownBeacon({ serverIsOwner: false, serverRole: "user" });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    let divPrevented = false;
+    env.dispatchDocument("contextmenu", {
+        target: { tagName: "DIV" },
+        preventDefault: () => { divPrevented = true; }
+    });
+    assert.equal(divPrevented, true, "klik kanan Inspect pada elemen biasa diblokir");
+
+    let inputPrevented = false;
+    env.dispatchDocument("contextmenu", {
+        target: { tagName: "TEXTAREA" },
+        preventDefault: () => { inputPrevented = true; }
+    });
+    assert.equal(inputPrevented, false, "klik kanan paste pada TEXTAREA tetap diizinkan");
+});
+
+test("saklar devtools_lockdown=false dari BLACK BOX menonaktifkan penguncian tanpa mematikan log", async () => {
+    const env = loadLockdownBeacon({
+        serverIsOwner: false,
+        serverRole: "guest",
+        devtoolsLockdown: false
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    let prevented = false;
+    env.dispatchWindow("keydown", {
+        key: "F12",
+        keyCode: 123,
+        preventDefault: () => { prevented = true; }
+    });
+
+    assert.equal(prevented, false);
+    assert.equal(env.window.GENZMonitor.isLockedDown(), false);
+});
+

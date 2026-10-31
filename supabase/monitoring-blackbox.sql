@@ -126,10 +126,14 @@ create table if not exists public.monitoring_settings (
     retention_days integer not null default 30,
     devtools_alerts boolean not null default true,
     error_alerts boolean not null default true,
+    devtools_lockdown boolean not null default true,
     last_scan_at timestamp with time zone,
     last_scan_status text,
     updated_at timestamp with time zone not null default now()
 );
+
+alter table public.monitoring_settings
+    add column if not exists devtools_lockdown boolean not null default true;
 
 alter table public.monitoring_settings
     drop constraint if exists monitoring_settings_interval_chk;
