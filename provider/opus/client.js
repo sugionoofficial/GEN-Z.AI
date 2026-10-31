@@ -4072,8 +4072,26 @@ function inspectJobOutcome(rawData, rawText = "", targetJobId = "") {
         ""
     ).trim();
 
+    const nonTerminalDeadline = isOpusNonTerminalWorkerDeadline(
+        errorCode,
+        rawErrorMessage,
+        rawText
+    );
+    const egressJobId = nonTerminalDeadline
+        ? extractOpusEgressJobId(rawErrorMessage, rawText)
+        : "";
+
     let status = normalizeStatus(rawState);
-    if (
+    if (nonTerminalDeadline && status !== "COMPLETED") {
+        /*
+         * Worker internal MCP Opus menghentikan polling setelah ~12 menit
+         * ("Egress video job <uuid> is still non-terminal after the worker polling deadline"),
+         * sementara job Egress di Opus Web masih berjalan dan tetap menghasilkan klip
+         * saat render selesai. Jangan tandai FAILED; tetap ekstrak videoUrls bila
+         * aset sudah muncul, atau laporkan PROCESSING untuk rekonsiliasi resolve_job/list_jobs.
+         */
+        status = "PROCESSING";
+    } else if (
         (focus?.ok === false || focus?.success === false || focus?.rejected === true || errorCode) &&
         status !== "COMPLETED"
     ) {
@@ -4126,15 +4144,47 @@ function inspectJobOutcome(rawData, rawText = "", targetJobId = "") {
     }
 
     const usageSeconds = extractUsageSeconds(focus || parsedSource);
+    const activeNonTerminalDeadline = nonTerminalDeadline && status !== "COMPLETED";
 
     return {
         status,
-        rawState: rawState || status.toLowerCase(),
+        rawState: activeNonTerminalDeadline ? "processing" : (rawState || status.toLowerCase()),
         videoUrls,
         usageSeconds,
         errorCode: status === "FAILED" ? (errorCode || "OPUS_TASK_FAILED") : null,
-        errorMessage: status === "FAILED" ? translateOpusError(errorCode, rawErrorMessage) : null
+        errorMessage: status === "FAILED" ? translateOpusError(errorCode, rawErrorMessage) : null,
+        nonTerminalDeadline: activeNonTerminalDeadline,
+        deadlineErrorCode: activeNonTerminalDeadline ? (errorCode || "OPUS_WORKER_POLLING_DEADLINE") : null,
+        deadlineErrorMessage: activeNonTerminalDeadline
+            ? (rawErrorMessage || translateOpusError(errorCode, rawText))
+            : null,
+        egressJobId: egressJobId || null
     };
+}
+
+export function isOpusNonTerminalWorkerDeadline(code, message = "", rawText = "") {
+    const normalizedCode = String(code || "").trim().toLowerCase();
+    if (
+        normalizedCode === "worker_polling_deadline" ||
+        normalizedCode === "egress_still_running" ||
+        normalizedCode === "egress_non_terminal"
+    ) {
+        return true;
+    }
+    const combined = `${code || ""} ${message || ""} ${rawText || ""}`;
+    return (
+        /\bstill\s+non-?terminal\b/i.test(combined) ||
+        /\bnon-?terminal\s+after\b.*\bpolling\s+deadline\b/i.test(combined) ||
+        /\bafter\s+the\s+worker\s+polling\s+deadline\b/i.test(combined)
+    );
+}
+
+export function extractOpusEgressJobId(message = "", rawText = "") {
+    const combined = `${message || ""} ${rawText || ""}`;
+    const match = combined.match(
+        /\begress\s+(?:[a-z0-9_-]+\s+)?job\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z0-9_-]{8,})\b/i
+    );
+    return match ? String(match[1]).trim() : "";
 }
 
 function isTransientNotFoundError(code, message = "", rawText = "") {
@@ -4993,7 +5043,7 @@ async function getVideoTaskForSingleKey(parsedId, apiKey, options = {}) {
                 };
             }
         }
-    } else if (statusRes.isError && outcome.status !== "COMPLETED") {
+    } else if (statusRes.isError && outcome.status !== "COMPLETED" && !outcome.nonTerminalDeadline) {
         if (parsedId.projectId) {
             const listed = await discoverProjectVideoJob(session, parsedId.projectId, {
                 targetJobId: activeJobId,
@@ -5025,6 +5075,96 @@ async function getVideoTaskForSingleKey(parsedId, apiKey, options = {}) {
                 projectId: parsedId.projectId,
                 jobId: activeJobId
             };
+        }
+    }
+
+    /*
+     * Rekonsiliasi khusus saat worker internal MCP Opus melewati polling deadline (~12 menit):
+     * "Egress video job <egressId> is still non-terminal after the worker polling deadline"
+     * Job Egress di Opus Web masih berjalan atau sudah menyelesaikan aset di proyek.
+     * Panggil resolve_job + list_jobs untuk mengambil hasil begitu selesai tanpa memutus ke FAILED.
+     */
+    if (outcome.nonTerminalDeadline && outcome.videoUrls.length === 0) {
+        const resolveTool = findMcpTool(session.tools, "resolve_job");
+        if (resolveTool) {
+            const candidateJobIds = [activeJobId];
+            if (outcome.egressJobId && outcome.egressJobId !== activeJobId) {
+                candidateJobIds.push(outcome.egressJobId);
+            }
+            for (const candidateJobId of candidateJobIds) {
+                const resolvedRes = await session
+                    .callTool(
+                        resolveTool.name,
+                        buildResolveJobArgs(resolveTool, parsedId.projectId, candidateJobId)
+                    )
+                    .catch(() => null);
+                if (!resolvedRes || resolvedRes.isError) {
+                    continue;
+                }
+                const resolvedOutcome = inspectJobOutcome(
+                    resolvedRes.data,
+                    resolvedRes.text,
+                    candidateJobId
+                );
+                if (resolvedOutcome.videoUrls.length > 0) {
+                    outcome = {
+                        ...resolvedOutcome,
+                        status: "COMPLETED",
+                        nonTerminalDeadline: false,
+                        deadlineErrorCode: null,
+                        deadlineErrorMessage: null
+                    };
+                    break;
+                }
+                if (resolvedOutcome.status === "COMPLETED") {
+                    outcome = {
+                        ...resolvedOutcome,
+                        nonTerminalDeadline: false,
+                        deadlineErrorCode: null,
+                        deadlineErrorMessage: null
+                    };
+                    break;
+                }
+                if (
+                    candidateJobId === activeJobId &&
+                    resolvedOutcome.status === "FAILED" &&
+                    !resolvedOutcome.nonTerminalDeadline &&
+                    !isTransientNotFoundError(
+                        resolvedOutcome.errorCode,
+                        resolvedOutcome.errorMessage,
+                        resolvedRes.text
+                    )
+                ) {
+                    outcome = resolvedOutcome;
+                    break;
+                }
+            }
+        }
+
+        if (outcome.videoUrls.length === 0 && outcome.status !== "FAILED" && parsedId.projectId) {
+            const listed = await discoverProjectVideoJob(session, parsedId.projectId, {
+                targetJobId: activeJobId,
+                retries: 0
+            });
+            if (listed.outcome?.videoUrls?.length > 0) {
+                outcome = {
+                    ...listed.outcome,
+                    status: "COMPLETED",
+                    nonTerminalDeadline: false,
+                    deadlineErrorCode: null,
+                    deadlineErrorMessage: null
+                };
+            } else if (
+                listed.outcome?.status === "FAILED" &&
+                !listed.outcome.nonTerminalDeadline &&
+                !isTransientNotFoundError(
+                    listed.outcome.errorCode,
+                    listed.outcome.errorMessage,
+                    ""
+                )
+            ) {
+                outcome = listed.outcome;
+            }
         }
     }
 
@@ -5081,6 +5221,10 @@ async function getVideoTaskForSingleKey(parsedId, apiKey, options = {}) {
                 usageSeconds: outcome.usageSeconds,
                 errorCode: null,
                 errorMessage: null,
+                nonTerminalDeadline: false,
+                deadlineErrorCode: null,
+                deadlineErrorMessage: null,
+                egressJobId: outcome.egressJobId || null,
                 projectId: parsedId.projectId,
                 jobId: activeJobId
             };
@@ -5103,6 +5247,10 @@ async function getVideoTaskForSingleKey(parsedId, apiKey, options = {}) {
         usageSeconds: outcome.usageSeconds,
         errorCode: outcome.errorCode,
         errorMessage: outcome.errorMessage,
+        nonTerminalDeadline: Boolean(outcome.nonTerminalDeadline),
+        deadlineErrorCode: outcome.deadlineErrorCode || null,
+        deadlineErrorMessage: outcome.deadlineErrorMessage || null,
+        egressJobId: outcome.egressJobId || null,
         projectId: parsedId.projectId,
         jobId: activeJobId
     };
@@ -5237,8 +5385,10 @@ export default {
     getVideoTask,
     encodeOpusTaskId,
     extractOpusApiKeyPool,
+    extractOpusEgressJobId,
     getActiveOpusKeyIndex,
     isOpusCreditExhaustedError,
+    isOpusNonTerminalWorkerDeadline,
     parseOpusTaskId,
     resetOpusKeyRotation,
     normalizeStatus,

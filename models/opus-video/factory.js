@@ -651,6 +651,10 @@ export function createOpusVideoModel(spec) {
             error_code: result.errorCode || null,
             errorMessage: result.errorMessage || null,
             error_message: result.errorMessage || null,
+            nonTerminalDeadline: Boolean(result.nonTerminalDeadline),
+            deadlineErrorCode: result.deadlineErrorCode || null,
+            deadlineErrorMessage: result.deadlineErrorMessage || null,
+            egressJobId: result.egressJobId || null,
             raw: {
                 status,
                 provider_state: result.providerState || status.toLowerCase(),

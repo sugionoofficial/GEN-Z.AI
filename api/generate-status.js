@@ -115,6 +115,31 @@ const MODEL_REGISTRY = [
 const STALE_TASK_EXPIRED_ERROR =
     "task expired (provider tidak dapat dihubungi)";
 
+/*
+ * Batas waktu tunggu maksimum ketika worker internal MCP Opus sudah melewati
+ * polling deadline (~12 menit) sementara Egress video job di Opus Web masih
+ * berstatus non-terminal ("still non-terminal after the worker polling deadline").
+ * Selama usia task masih di bawah batas ini, status dipertahankan PROCESSING
+ * sambil merekonsiliasi via resolve_job/list_jobs agar tidak gagal prematur.
+ */
+const OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS =
+    60 * 60 * 1000;
+
+function isRecoverableHistoryFailureMessage(value) {
+    const text = lower(value);
+    if (!text) {
+        return false;
+    }
+    if (text === STALE_TASK_EXPIRED_ERROR) {
+        return true;
+    }
+    return (
+        /\bstill\s+non-?terminal\b/.test(text) ||
+        /\bnon-?terminal\s+after\b.*\bpolling\s+deadline\b/.test(text) ||
+        /\bafter\s+the\s+worker\s+polling\s+deadline\b/.test(text)
+    );
+}
+
 
 const COMPLETED_STATES = new Set([
     "completed",
@@ -2710,7 +2735,7 @@ async function updateGenerationHistory(
 
         if (
             lower(history.status) === "failed" &&
-            lower(history.error_message) === STALE_TASK_EXPIRED_ERROR
+            isRecoverableHistoryFailureMessage(history.error_message)
         ) {
             payload.error_message = null;
             payload.completed_at = null;
@@ -3409,7 +3434,7 @@ async function syncGenerationHistory(
 
     const canRecoverStaleFailure =
         lower(history.status) === "failed" &&
-        lower(history.error_message) === STALE_TASK_EXPIRED_ERROR;
+        isRecoverableHistoryFailureMessage(history.error_message);
 
 
     if (
@@ -4811,6 +4836,65 @@ export default async function handler(
                 errorMessage: opusBusyMessage,
                 error_message: opusBusyMessage
             };
+        }
+
+        if (
+            providerRaw &&
+            typeof providerRaw === "object" &&
+            providerRaw.nonTerminalDeadline === true &&
+            providerRaw.completed !== true
+        ) {
+            let existingHistoryForDeadline = null;
+            try {
+                existingHistoryForDeadline = await findGenerationHistory(
+                    user.id,
+                    taskId
+                );
+            } catch (deadlineLookupErr) {
+                console.warn(
+                    "[generate-status] Lookup usia task non-terminal Opus gagal:",
+                    serializeError(deadlineLookupErr)
+                );
+            }
+
+            const createdAtMs = Date.parse(
+                String(existingHistoryForDeadline?.created_at || "")
+            );
+            if (
+                Number.isFinite(createdAtMs) &&
+                Date.now() - createdAtMs >= OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS
+            ) {
+                const finalDeadlineMessage =
+                    cleanString(providerRaw.deadlineErrorMessage) ||
+                    "Batas waktu pemrosesan video Opus terlampaui (lebih dari 60 menit tanpa hasil).";
+                const finalDeadlineCode =
+                    cleanString(providerRaw.deadlineErrorCode) ||
+                    "OPUS_WORKER_POLLING_DEADLINE_EXCEEDED";
+
+                providerRaw = {
+                    ...providerRaw,
+                    status: "FAILED",
+                    provider_state: "failed",
+                    processing: false,
+                    completed: false,
+                    failed: true,
+                    errorCode: finalDeadlineCode,
+                    error_code: finalDeadlineCode,
+                    errorMessage: finalDeadlineMessage,
+                    error_message: finalDeadlineMessage,
+                    raw: {
+                        ...(
+                            providerRaw.raw && typeof providerRaw.raw === "object"
+                                ? providerRaw.raw
+                                : {}
+                        ),
+                        status: "FAILED",
+                        provider_state: "failed",
+                        error_code: finalDeadlineCode,
+                        error_message: finalDeadlineMessage
+                    }
+                };
+            }
         }
 
         const normalized =

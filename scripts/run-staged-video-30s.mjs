@@ -41,7 +41,7 @@ const execFileAsync = promisify(execFileCb);
 
 const STORAGE_BUCKET = "user-uploads";
 const POLL_INTERVAL_MS = 8_000;
-const MAX_CLIP_POLL_DURATION_MS = 18 * 60 * 1000;
+const MAX_CLIP_POLL_DURATION_MS = 35 * 60 * 1000;
 const BUSY_WAIT_INTERVAL_MS = 120_000;
 const MAX_BUSY_WAIT_CYCLES = 3;
 
