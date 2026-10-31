@@ -1388,3 +1388,16 @@ test("Jadwal autopost aktif tampil pada blok mandiri baru tepat di atas blok riw
     assert.match(lightCssSource, /\.btn\.autopost-on:not\(\.is-confirming\)[\s\S]*?#39f076/);
     assert.match(lightCssSource, /\.btn\.autopost-off:not\(\.is-confirming\)[\s\S]*?#e11d2f/);
 });
+
+test("tutorial langkah 1 menyertakan panduan mode desktop untuk HP dan klik Periksa izin setelah sukses", () => {
+    const step1Match = htmlSource.match(
+        /<div class="tutorial-step">\s*<span class="tutorial-num">1<\/span>[\s\S]*?<\/div>\s*<\/div>/
+    );
+    assert.ok(step1Match, "Langkah tutorial 1 wajib ada");
+    assert.match(step1Match[0], /Hubungkan Facebook Page/);
+    assert.match(step1Match[0], /Jika melalui HP/i);
+    assert.match(step1Match[0], /mode desktop/i);
+    assert.match(step1Match[0], /setelah sukses/i);
+    assert.match(step1Match[0], /Periksa izin/);
+});
+
