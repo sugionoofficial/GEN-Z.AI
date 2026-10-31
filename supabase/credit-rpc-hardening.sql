@@ -67,7 +67,12 @@ declare
         'qwencloud_quota_reconcile(uuid)',
         'qwencloud_quota_recheck(uuid)',
         'charge_feature_credits(uuid,text,uuid,text,text,text)',
-        'settle_feature_credits(uuid,uuid,text,text,text)'
+        'settle_feature_credits(uuid,uuid,text,text,text)',
+        'normalize_free_credit_email(text)',
+        'compute_free_credit_password_hash(text)',
+        'record_free_credit_auth_signal(uuid,text,text,text,text,text,text,text,text,text)',
+        'get_free_credit_claim_status(uuid)',
+        'claim_free_credit_5000(uuid,text,text,text,text,text,text,text,text,text)'
     ];
 begin
     foreach v_sig in array v_fns loop

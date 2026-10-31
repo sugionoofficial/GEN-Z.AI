@@ -1873,6 +1873,13 @@
 
 
     <!-- =====================================================
+         CLAIM FREE CREDIT 5.000 GRATIS
+    ====================================================== -->
+
+    <div id="freeCreditClaimMount"></div>
+
+
+    <!-- =====================================================
          HERO
     ====================================================== -->
 
@@ -2495,6 +2502,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
 
 <script src="../assets/js/config.js"></script>
+<script src="../assets/js/free-credit-claim.js?v=20261031-fc5000"></script>
 
 <!-- SHARED NAVIGATION -->
 <script src="../navigation/navigation.js?v=navlockup-20261029"></script>
@@ -2949,6 +2957,27 @@ async function initAuth() {
             elements.adminBackButton.classList.add(
                 "hidden"
             );
+
+            if (
+                !isAdmin &&
+                window.GENZ_FREE_CREDIT &&
+                typeof window.GENZ_FREE_CREDIT.mountClaimCard === "function"
+            ) {
+                void window.GENZ_FREE_CREDIT.mountClaimCard(
+                    "#freeCreditClaimMount",
+                    {
+                        getAccessToken: async function () {
+                            const { data } = await supabaseClient.auth.getSession();
+                            return (data && data.session && data.session.access_token) || "";
+                        },
+                        onClaimed: function (res) {
+                            if (currentProfile && res && Number.isFinite(Number(res.balance_after))) {
+                                currentProfile.credits = Number(res.balance_after);
+                            }
+                        }
+                    }
+                );
+            }
 
         }
 

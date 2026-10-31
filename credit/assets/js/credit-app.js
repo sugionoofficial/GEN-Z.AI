@@ -1638,6 +1638,28 @@ import {
 
             renderAll();
 
+            if (
+                String(state.profile?.role || "").toUpperCase() === "USER" &&
+                window.GENZ_FREE_CREDIT &&
+                typeof window.GENZ_FREE_CREDIT.mountClaimCard === "function"
+            ) {
+                void window.GENZ_FREE_CREDIT.mountClaimCard(
+                    "#freeCreditClaimMount",
+                    {
+                        getAccessToken: async function () {
+                            const { data } = await state.client.auth.getSession();
+                            return (data && data.session && data.session.access_token) || "";
+                        },
+                        onClaimed: function (res) {
+                            if (state.profile && res && Number.isFinite(Number(res.balance_after))) {
+                                state.profile.credits = Number(res.balance_after);
+                                renderAll();
+                            }
+                        }
+                    }
+                );
+            }
+
             bindEvents();
 
             setAutoRefresh(true);

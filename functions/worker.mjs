@@ -1,6 +1,7 @@
 import { runHandlerAdapter } from "./_shared/handler-adapter.js";
 import adminCredit from "../api/admin-credit.js";
 import featureCredits from "../api/feature-credits.js";
+import freeCredit from "../api/free-credit.js";
 import announcements from "../api/announcements.js";
 import adminModels from "../api/admin-models.js";
 import adminProviderCredentials from "../api/admin-provider-credentials.js";
@@ -31,6 +32,7 @@ import handleFbMediaDownload from "./_shared/fb-media-handler.js";
 const handlers = new Map([
     ["/api/admin-credit", adminCredit],
     ["/api/feature-credits", featureCredits],
+    ["/api/free-credit", freeCredit],
     ["/api/announcements", announcements],
     ["/api/admin-models", adminModels],
     ["/api/admin-provider-credentials", adminProviderCredentials],
