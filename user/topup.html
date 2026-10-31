@@ -23,6 +23,7 @@
        ===================================================== -->
 
   <script src="../assets/js/config.js"></script>
+  <script src="../assets/js/topup-crypto.js?v=crypto-20261031"></script>
   <script src="../assets/js/free-credit-claim.js?v=20261031-fc-card16x9"></script>
 
 
@@ -1212,12 +1213,137 @@
     }
 
   
+        /* ====== CRYPTO HYBRID TOP UP STYLES ====== */
+        .package-crypto-box {
+            margin-top: 10px;
+            padding-top: 9px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+        .package-crypto-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #fbbf24;
+            margin-bottom: 6px;
+        }
+        .package-crypto-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .package-crypto-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fde68a;
+            background: rgba(245, 158, 11, 0.14);
+            border: 1px solid rgba(245, 158, 11, 0.34);
+        }
+        .crypto-pay-box {
+            display: grid;
+            gap: 12px;
+        }
+        .crypto-network-alert {
+            padding: 10px 12px;
+            border-radius: 9px;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.38);
+            color: #fde68a;
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+        .crypto-network-alert strong {
+            color: #fbbf24;
+        }
+        .crypto-copy-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .crypto-copy-value {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            word-break: break-all;
+        }
+        .crypto-copy-value.highlight {
+            font-size: 18px;
+            color: #fde68a;
+        }
+        .crypto-copy-btn {
+            flex-shrink: 0;
+            border: 1px solid rgba(245, 158, 11, 0.5);
+            border-radius: 8px;
+            padding: 7px 11px;
+            background: rgba(245, 158, 11, 0.16);
+            color: #fde68a;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .crypto-copy-btn:hover {
+            background: rgba(245, 158, 11, 0.28);
+        }
+        .crypto-txhash-field {
+            display: grid;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .crypto-txhash-field label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #cbd5e1;
+        }
+        .crypto-txhash-field input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 9px;
+            border: 1px solid rgba(245, 158, 11, 0.32);
+            background: #050505;
+            color: #f5f5f7;
+            font-size: 13px;
+        }
+
         /* ====== LIGHT MODE PASS ====== */
         html[data-genz-theme="light"] body :is(.balance, .package-credit, .package-price, .package-no-discount, .package-name, .section-title, .payment-detail-value, .payment-card h3) {
             color: #172033;
         }
         html[data-genz-theme="light"] body .balance {
             color: #16a34a;
+        }
+        html[data-genz-theme="light"] body .package-crypto-label {
+            color: #b45309;
+        }
+        html[data-genz-theme="light"] body .package-crypto-pill {
+            color: #92400e;
+            background: rgba(245, 158, 11, 0.14);
+            border-color: rgba(217, 119, 6, 0.35);
+        }
+        html[data-genz-theme="light"] body .crypto-network-alert {
+            color: #92400e;
+            background: rgba(245, 158, 11, 0.12);
+        }
+        html[data-genz-theme="light"] body .crypto-network-alert strong,
+        html[data-genz-theme="light"] body .crypto-copy-value.highlight,
+        html[data-genz-theme="light"] body .crypto-copy-btn {
+            color: #92400e;
+        }
+        html[data-genz-theme="light"] body .crypto-copy-value {
+            color: #0f172a;
+        }
+        html[data-genz-theme="light"] body .crypto-txhash-field input {
+            background: #ffffff;
+            color: #0f172a;
         }
 
     </style>
@@ -1497,10 +1623,15 @@
   let pendingTopupCheckComplete = false;
   let pendingTopupRefreshInProgress = false;
   let isSubmittingTopup = false;
+  let rawPaymentMethods = [];
   let paymentMethods = [];
   let paymentMethodsLoaded = false;
   let selectedPaymentMethod = "";
+  let selectedPackageObj = null;
+  let cryptoTxHash = "";
   let paymentMethodImageFailed = false;
+
+  const TopupCrypto = window.GENZ_TOPUP_CRYPTO;
 
   const STORAGE_BUCKET = "topup-proofs";
 
@@ -2413,7 +2544,15 @@
         discount.finalPrice,
 
       discountPercent:
-        discount.percent
+        discount.percent,
+
+      crypto_enabled:
+        pkg && pkg.crypto_enabled === true,
+
+      crypto_prices:
+        TopupCrypto
+          ? TopupCrypto.normalizeCryptoPrices(pkg && pkg.crypto_prices)
+          : {}
 
     };
   }
@@ -2500,6 +2639,149 @@
   }
 
 
+  function copyTextToClipboard(text, successMsg) {
+    const val = String(text || "").trim();
+    if (!val) return;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      navigator.clipboard.writeText(val).then(function () {
+        showMessage(successMsg || "Berhasil disalin ke clipboard.", "info");
+      }).catch(function () {
+        fallbackCopyText(val, successMsg);
+      });
+      return;
+    }
+    fallbackCopyText(val, successMsg);
+  }
+
+  function fallbackCopyText(val, successMsg) {
+    const ta = document.createElement("textarea");
+    ta.value = val;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand("copy");
+      showMessage(successMsg || "Berhasil disalin ke clipboard.", "info");
+    } catch (_err) {
+      // ignore
+    }
+    document.body.removeChild(ta);
+  }
+
+  function syncPaymentMethodOptions() {
+    const select = document.getElementById("paymentMethod");
+    const notice = document.getElementById("paymentSettingsNotice");
+
+    if (!select) {
+      return;
+    }
+
+    if (TopupCrypto) {
+      paymentMethods = TopupCrypto.resolveAvailableMethodsForPackage(
+        rawPaymentMethods,
+        selectedPackageObj
+      ).filter(function (method) {
+        if (method.method === "qris") {
+          try {
+            return new URL(method.qr_image_url).protocol === "https:";
+          } catch (_err) {
+            return false;
+          }
+        }
+        if (method.is_crypto) {
+          return Boolean(method.account_number && method.crypto_amount > 0);
+        }
+        return Boolean(
+          method.display_name &&
+          method.account_number &&
+          method.account_name
+        );
+      });
+    } else {
+      paymentMethods = rawPaymentMethods.filter(function (method) {
+        if (method.method === "qris") {
+          try {
+            return new URL(method.qr_image_url).protocol === "https:";
+          } catch (_err) {
+            return false;
+          }
+        }
+        return Boolean(
+          method.display_name &&
+          method.account_number &&
+          method.account_name
+        );
+      });
+    }
+
+    const fiatList = paymentMethods.filter(function (m) {
+      return !m.is_crypto;
+    });
+    const cryptoList = paymentMethods.filter(function (m) {
+      return m.is_crypto;
+    });
+
+    select.replaceChildren(new Option("Pilih metode pembayaran", ""));
+
+    if (fiatList.length > 0 && cryptoList.length > 0) {
+      const fiatGroup = document.createElement("optgroup");
+      fiatGroup.label = "Transfer Bank, E-Wallet & QRIS (Rupiah)";
+      fiatList.forEach(function (m) {
+        fiatGroup.appendChild(new Option(m.display_name, m.method));
+      });
+      select.appendChild(fiatGroup);
+
+      const cryptoGroup = document.createElement("optgroup");
+      cryptoGroup.label = "Cryptocurrency (USDT / TRX / BTC / POL / BNB)";
+      cryptoList.forEach(function (m) {
+        const optionLabel = m.crypto_formatted
+          ? m.display_name + " — " + m.crypto_formatted
+          : m.display_name;
+        cryptoGroup.appendChild(new Option(optionLabel, m.method));
+      });
+      select.appendChild(cryptoGroup);
+    } else {
+      paymentMethods.forEach(function (m) {
+        const optionLabel = m.is_crypto && m.crypto_formatted
+          ? m.display_name + " — " + m.crypto_formatted
+          : m.display_name;
+        select.add(new Option(optionLabel, m.method));
+      });
+    }
+
+    const stillAvailable = paymentMethods.some(function (m) {
+      return m.method === selectedPaymentMethod;
+    });
+
+    if (stillAvailable) {
+      select.value = selectedPaymentMethod;
+    } else {
+      selectedPaymentMethod = "";
+      cryptoTxHash = "";
+      select.value = "";
+    }
+
+    select.disabled = paymentMethods.length === 0;
+
+    if (notice && paymentMethodsLoaded) {
+      if (paymentMethods.length > 0) {
+        notice.hidden = true;
+      } else {
+        notice.textContent = selectedPackageObj
+          ? "Metode pembayaran belum tersedia untuk paket ini. Hubungi ADMIN."
+          : "Pilih paket credit terlebih dahulu atau tunggu ADMIN mengaktifkan metode pembayaran.";
+        notice.hidden = false;
+      }
+    }
+
+    renderPaymentMethodDetails();
+    updateSelectedInfo();
+    updateSubmitState();
+  }
+
+
   function renderPaymentMethodDetails() {
 
     const method = paymentMethods.find(function (item) {
@@ -2520,6 +2802,129 @@
     }
 
     details.classList.add("show");
+
+    if (method.is_crypto) {
+      const box = document.createElement("div");
+      box.className = "crypto-pay-box";
+
+      const alertBox = document.createElement("div");
+      alertBox.className = "crypto-network-alert";
+      alertBox.innerHTML =
+        "Jaringan Wajib: <strong>" +
+        escapeHtml(method.network) +
+        "</strong><br>Pastikan mengirim tepat pada jaringan ini agar aset tidak hilang.";
+      box.appendChild(alertBox);
+
+      const amountWrap = document.createElement("div");
+      const amountLabel = document.createElement("div");
+      amountLabel.className = "payment-detail-label";
+      amountLabel.textContent = "Nominal Koin yang Harus Dikirim";
+      amountWrap.appendChild(amountLabel);
+
+      const amountRow = document.createElement("div");
+      amountRow.className = "crypto-copy-row";
+      const amountVal = document.createElement("div");
+      amountVal.className = "crypto-copy-value highlight";
+      amountVal.textContent = method.crypto_formatted;
+      const copyAmountBtn = document.createElement("button");
+      copyAmountBtn.type = "button";
+      copyAmountBtn.className = "crypto-copy-btn";
+      copyAmountBtn.textContent = "Salin Nominal";
+      copyAmountBtn.addEventListener("click", function () {
+        const plainNum = TopupCrypto
+          ? TopupCrypto.formatCryptoAmount(method.crypto_amount, 8)
+          : String(method.crypto_amount);
+        copyTextToClipboard(
+          plainNum,
+          "Nominal " + method.crypto_formatted + " berhasil disalin."
+        );
+      });
+      amountRow.appendChild(amountVal);
+      amountRow.appendChild(copyAmountBtn);
+      amountWrap.appendChild(amountRow);
+      box.appendChild(amountWrap);
+
+      const addrWrap = document.createElement("div");
+      const addrLabel = document.createElement("div");
+      addrLabel.className = "payment-detail-label";
+      addrLabel.textContent = "Alamat Wallet Tujuan (" + method.network + ")";
+      addrWrap.appendChild(addrLabel);
+
+      const addrRow = document.createElement("div");
+      addrRow.className = "crypto-copy-row";
+      const addrVal = document.createElement("div");
+      addrVal.className = "crypto-copy-value";
+      addrVal.textContent = method.account_number;
+      const copyAddrBtn = document.createElement("button");
+      copyAddrBtn.type = "button";
+      copyAddrBtn.className = "crypto-copy-btn";
+      copyAddrBtn.textContent = "Salin Wallet";
+      copyAddrBtn.addEventListener("click", function () {
+        copyTextToClipboard(
+          method.account_number,
+          "Alamat wallet " + method.asset_symbol + " berhasil disalin."
+        );
+      });
+      addrRow.appendChild(addrVal);
+      addrRow.appendChild(copyAddrBtn);
+      addrWrap.appendChild(addrRow);
+      box.appendChild(addrWrap);
+
+      if (method.account_name) {
+        const noteWrap = document.createElement("div");
+        const noteLabel = document.createElement("div");
+        noteLabel.className = "payment-detail-label";
+        noteLabel.textContent = "Label / Catatan Wallet";
+        const noteVal = document.createElement("div");
+        noteVal.className = "payment-detail-value";
+        noteVal.style.fontSize = "14px";
+        noteVal.textContent = method.account_name;
+        noteWrap.appendChild(noteLabel);
+        noteWrap.appendChild(noteVal);
+        box.appendChild(noteWrap);
+      }
+
+      if (method.qr_image_url) {
+        try {
+          if (new URL(method.qr_image_url).protocol === "https:") {
+            const qrImg = document.createElement("img");
+            qrImg.src = method.qr_image_url;
+            qrImg.alt = "QR Wallet " + method.display_name;
+            qrImg.loading = "lazy";
+            qrImg.referrerPolicy = "no-referrer";
+            qrImg.addEventListener("error", function () {
+              qrImg.remove();
+            }, { once: true });
+            box.appendChild(qrImg);
+          }
+        } catch (_err) {
+          // ignore invalid optional QR URL
+        }
+      }
+
+      const txWrap = document.createElement("div");
+      txWrap.className = "crypto-txhash-field";
+      const txLabel = document.createElement("label");
+      txLabel.htmlFor = "cryptoTxHashInput";
+      txLabel.textContent = "TXID / Transaction Hash (Opsional — mempercepat verifikasi)";
+      const txInput = document.createElement("input");
+      txInput.id = "cryptoTxHashInput";
+      txInput.type = "text";
+      txInput.maxLength = 160;
+      txInput.autocomplete = "off";
+      txInput.spellcheck = false;
+      txInput.placeholder = "Tempel TXID / Hash transaksi jika tersedia...";
+      txInput.value = cryptoTxHash;
+      txInput.addEventListener("input", function () {
+        cryptoTxHash = txInput.value.trim();
+      });
+      txWrap.appendChild(txLabel);
+      txWrap.appendChild(txInput);
+      box.appendChild(txWrap);
+
+      details.appendChild(box);
+      return;
+    }
 
     const label = document.createElement("div");
     label.className = "payment-detail-label";
@@ -2546,10 +2951,24 @@
       }, { once: true });
       details.appendChild(image);
     } else {
+      const numRow = document.createElement("div");
+      numRow.className = "crypto-copy-row";
       const number = document.createElement("div");
       number.className = "payment-detail-value";
       number.textContent = method.account_number;
-      details.appendChild(number);
+      const copyNumBtn = document.createElement("button");
+      copyNumBtn.type = "button";
+      copyNumBtn.className = "crypto-copy-btn";
+      copyNumBtn.textContent = "Salin";
+      copyNumBtn.addEventListener("click", function () {
+        copyTextToClipboard(
+          method.account_number,
+          "Nomor tujuan " + method.display_name + " berhasil disalin."
+        );
+      });
+      numRow.appendChild(number);
+      numRow.appendChild(copyNumBtn);
+      details.appendChild(numRow);
     }
 
     if (method.account_name) {
@@ -2574,47 +2993,16 @@
 
     const result = await supabaseClient
       .from("topup_payment_methods")
-      .select("method,display_name,account_number,account_name,qr_image_url")
+      .select("method,display_name,account_number,account_name,qr_image_url,asset_symbol,network,is_active")
       .eq("is_active", true);
 
     if (result.error) {
       throw result.error;
     }
 
-    paymentMethods = (result.data || []).filter(function (method) {
-      if (method.method === "qris") {
-        try {
-          return new URL(method.qr_image_url).protocol === "https:";
-        } catch (error) {
-          return false;
-        }
-      }
-
-      return Boolean(
-        method.display_name &&
-        method.account_number &&
-        method.account_name
-      );
-    });
-
-    const select = document.getElementById("paymentMethod");
-    const notice = document.getElementById("paymentSettingsNotice");
-
-    select.replaceChildren(new Option("Pilih metode pembayaran", ""));
-    paymentMethods.forEach(function (method) {
-      select.add(new Option(method.display_name, method.method));
-    });
-    select.disabled = paymentMethods.length === 0;
+    rawPaymentMethods = Array.isArray(result.data) ? result.data : [];
     paymentMethodsLoaded = true;
-
-    if (paymentMethods.length) {
-      notice.hidden = true;
-    } else {
-      notice.textContent = "Metode pembayaran belum dikonfigurasi oleh ADMIN. Pengajuan top up belum dapat dilakukan.";
-      notice.hidden = false;
-    }
-
-    updateSubmitState();
+    syncPaymentMethodOptions();
   }
 
 
@@ -2665,6 +3053,21 @@
     }
 
 
+    const activeMethod = paymentMethods.find(function (m) {
+      return m.method === selectedPaymentMethod;
+    });
+
+    if (activeMethod && activeMethod.is_crypto && activeMethod.crypto_formatted) {
+      priceText =
+        activeMethod.crypto_formatted +
+        " (" +
+        activeMethod.network +
+        " • setara " +
+        formatRupiah(selectedPrice) +
+        ")";
+    }
+
+
     element.textContent =
       "Paket " +
       selectedPackageName +
@@ -2685,6 +3088,9 @@
         pkg
       );
 
+
+    selectedPackageObj =
+      normalized;
 
     selectedPackageId =
       normalized.id;
@@ -2771,6 +3177,8 @@
         }
       );
 
+
+    syncPaymentMethodOptions();
 
     updateSelectedInfo();
 
@@ -2914,6 +3322,46 @@
               pkg.discountPercent > 0 &&
               pkg.originalPrice > pkg.finalPrice;
 
+            const cryptoBadges =
+              TopupCrypto
+                ? TopupCrypto.getPackageCryptoBadges(pkg).filter(function (badge) {
+                    if (!paymentMethodsLoaded) {
+                      return true;
+                    }
+                    return rawPaymentMethods.some(function (row) {
+                      const meta = TopupCrypto.getCryptoMethodMeta(row.method);
+                      return Boolean(
+                        meta &&
+                        meta.coinKey === badge.coinKey &&
+                        row.is_active === true &&
+                        String(row.account_number || "").trim()
+                      );
+                    });
+                  })
+                : [];
+
+            const cryptoBadgesHtml =
+              cryptoBadges.length > 0
+                ? `
+                  <div class="package-crypto-box">
+                    <div class="package-crypto-label">
+                      Bisa Bayar via Crypto
+                    </div>
+                    <div class="package-crypto-pills">
+                      ${cryptoBadges
+                        .map(function (b) {
+                          return (
+                            '<span class="package-crypto-pill">' +
+                            escapeHtml(b.formatted) +
+                            "</span>"
+                          );
+                        })
+                        .join("")}
+                    </div>
+                  </div>
+                `
+                : "";
+
 
             let priceHtml;
 
@@ -3029,6 +3477,8 @@
 
 
                 ${priceHtml}
+
+                ${cryptoBadgesHtml}
 
 
                 ${
@@ -3549,8 +3999,26 @@
     const paymentMethod =
       selectedPaymentMethod;
 
-    if (!["bca", "dana", "seabank", "qris"].includes(paymentMethod)) {
+    const chosenMethod =
+      paymentMethods.find(function (m) {
+        return m.method === paymentMethod;
+      }) || null;
+
+    const validMethodKeys =
+      TopupCrypto
+        ? TopupCrypto.ALL_METHOD_KEYS
+        : ["bca", "dana", "seabank", "qris"];
+
+    if (!chosenMethod || !validMethodKeys.includes(paymentMethod)) {
       showMessage("Pilih metode pembayaran yang valid.", "error");
+      return;
+    }
+
+    if (
+      chosenMethod.is_crypto &&
+      (!Number.isFinite(chosenMethod.crypto_amount) || chosenMethod.crypto_amount <= 0)
+    ) {
+      showMessage("Nominal cryptocurrency untuk paket ini tidak valid.", "error");
       return;
     }
 
@@ -3653,15 +4121,26 @@
         throw new Error("ID pengajuan top up tidak berhasil dibuat.");
       }
 
+      const paymentPayload = {
+        topup_request_id: requestId,
+        user_id: currentUser.id,
+        payment_method: paymentMethod,
+        payment_proof_url: proofPath
+      };
+
+      if (chosenMethod.is_crypto) {
+        paymentPayload.crypto_symbol = chosenMethod.asset_symbol;
+        paymentPayload.crypto_network = chosenMethod.network;
+        paymentPayload.crypto_amount = chosenMethod.crypto_amount;
+        if (cryptoTxHash) {
+          paymentPayload.tx_hash = cryptoTxHash;
+        }
+      }
+
       const paymentResult =
         await supabaseClient
           .from("topup_payments")
-          .insert({
-            topup_request_id: requestId,
-            user_id: currentUser.id,
-            payment_method: paymentMethod,
-            payment_proof_url: proofPath
-          });
+          .insert(paymentPayload);
 
       if (paymentResult.error) {
         throw paymentResult.error;
@@ -3702,8 +4181,10 @@
       }
 
       selectedPaymentMethod = "";
+      cryptoTxHash = "";
+      selectedPackageObj = null;
       document.getElementById("paymentMethod").value = "";
-      renderPaymentMethodDetails();
+      syncPaymentMethodOptions();
 
       /*
        * Reset pilihan.
@@ -3916,7 +4397,9 @@
       if (paymentMethodSelect) {
         paymentMethodSelect.addEventListener("change", function () {
           selectedPaymentMethod = paymentMethodSelect.value;
+          cryptoTxHash = "";
           renderPaymentMethodDetails();
+          updateSelectedInfo();
           updateSubmitState();
         });
       }

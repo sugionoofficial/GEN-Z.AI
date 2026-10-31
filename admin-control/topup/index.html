@@ -11,11 +11,12 @@
 
     <link
         rel="stylesheet"
-        href="./assets/topup.css?v=navlockup-20261029"
+        href="./assets/topup.css?v=crypto-20261031"
     >
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/topup-crypto.js?v=crypto-20261031"></script>
 
     
     <link
@@ -459,6 +460,26 @@
             </div>
 
 
+            <div
+                class="form-group"
+                id="editPaymentSummaryGroup"
+                style="display:none;"
+            >
+
+                <label>
+                    Metode & Detail Crypto
+                </label>
+
+                <input
+                    type="text"
+                    class="form-control readonly"
+                    id="editPaymentSummary"
+                    readonly
+                >
+
+            </div>
+
+
             <div class="form-group">
 
                 <label>
@@ -701,6 +722,130 @@
             </div>
 
 
+            <!-- =============================================
+                 HYBRID CRYPTO PAYMENT OPTION
+            ============================================== -->
+
+            <div
+                id="packageCryptoSection"
+                class="crypto-section-box"
+            >
+
+                <label
+                    class="crypto-toggle-row"
+                    for="packageCryptoEnabled"
+                >
+
+                    <div class="crypto-toggle-info">
+                        <strong>
+                            Opsi Pembayaran Cryptocurrency (Hybrid)
+                        </strong>
+                        <span>
+                            Gabungkan pembayaran Rupiah (Bank/QRIS) dengan opsi
+                            USDT, TRX, BTC, POL (Polygon), dan BNB Smart Chain
+                            pada paket ini.
+                        </span>
+                    </div>
+
+                    <input
+                        type="checkbox"
+                        id="packageCryptoEnabled"
+                    >
+
+                </label>
+
+
+                <div
+                    id="packageCryptoPanel"
+                    class="crypto-panel"
+                    style="display:none;"
+                >
+
+                    <div class="crypto-subtitle">
+                        1. Nominal Koin Crypto untuk Paket Ini
+                    </div>
+
+                    <p class="crypto-subdesc">
+                        Isi nominal koin yang ingin diaktifkan pada paket ini
+                        (boleh memakai titik atau koma, hingga 8 angka desimal).
+                        Koin yang dikosongkan tidak akan ditampilkan.
+                    </p>
+
+                    <div
+                        id="packageCryptoCoinsGrid"
+                        class="crypto-coins-grid"
+                    ></div>
+
+
+                    <div class="crypto-wallets-box">
+
+                        <div class="crypto-wallets-top">
+
+                            <div>
+                                <div class="crypto-subtitle" style="margin-bottom:2px;">
+                                    2. Alamat Wallet Crypto Default (Semua Paket)
+                                </div>
+                                <div
+                                    id="cryptoWalletsSummaryText"
+                                    class="crypto-wallets-summary"
+                                >
+                                    Memuat konfigurasi wallet default...
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                id="toggleCryptoWalletsEditorBtn"
+                                class="crypto-wallets-toggle-btn"
+                            >
+                                Atur Wallet Default
+                            </button>
+
+                        </div>
+
+
+                        <div
+                            id="cryptoWalletsEditor"
+                            class="crypto-wallets-editor"
+                            style="display:none;"
+                        >
+
+                            <div class="crypto-quick-fill-bar">
+
+                                <button
+                                    type="button"
+                                    id="copyEvmWalletBtn"
+                                    class="crypto-quick-btn"
+                                >
+                                    Samakan Alamat 0x ke Semua EVM (BEP-20 & Polygon)
+                                </button>
+
+                                <button
+                                    type="button"
+                                    id="copyTronWalletBtn"
+                                    class="crypto-quick-btn"
+                                >
+                                    Samakan Alamat T... ke Semua TRON (USDT TRC-20 & TRX)
+                                </button>
+
+                            </div>
+
+                            <div id="cryptoWalletsList"></div>
+
+                            <div class="helper-text">
+                                Disimpan satu kali ke Pengaturan Pembayaran dan
+                                otomatis terisi saat menambah atau mengedit paket lain.
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
             <div class="form-group">
 
                 <label for="packageBadge">
@@ -836,6 +981,11 @@
     let creditPackages = [];
 
     let currentPackageEditId = null;
+
+    let sharedPaymentMethods = {};
+
+    const TopupCrypto =
+        window.GENZ_TOPUP_CRYPTO;
 
 
     const DEFAULT_CONFIG_ERROR =
@@ -1199,6 +1349,44 @@
                     ? data
                     : [];
 
+            if (topups.length > 0) {
+
+                const {
+                    data: paymentRows,
+                    error: paymentError
+                } =
+                    await supabaseClient
+                    .from(
+                        "topup_payments"
+                    )
+                    .select(`
+                        topup_request_id,
+                        payment_method,
+                        crypto_symbol,
+                        crypto_network,
+                        crypto_amount,
+                        tx_hash
+                    `)
+                    .in(
+                        "topup_request_id",
+                        topups.map(function (item) {
+                            return item.id;
+                        })
+                    );
+
+                if (!paymentError && Array.isArray(paymentRows)) {
+                    const paymentMap = {};
+                    paymentRows.forEach(function (p) {
+                        if (p && p.topup_request_id) {
+                            paymentMap[String(p.topup_request_id)] = p;
+                        }
+                    });
+                    topups.forEach(function (item) {
+                        item.payment = paymentMap[String(item.id)] || null;
+                    });
+                }
+            }
+
             updateStats();
 
             applyFilters();
@@ -1335,13 +1523,20 @@
                             item
                         );
 
+                    const payment =
+                        item.payment || {};
+
                     const searchable = [
                         user.name,
                         user.email,
                         item.package_name,
                         item.status,
                         item.credits,
-                        item.amount
+                        item.amount,
+                        payment.payment_method,
+                        payment.crypto_symbol,
+                        payment.crypto_network,
+                        payment.tx_hash
                     ]
                     .join(" ")
                     .toLowerCase();
@@ -1435,6 +1630,39 @@
                     status ===
                     "pending";
 
+                const payment =
+                    item.payment || null;
+
+                let paymentBadgeHtml = "";
+
+                if (payment && TopupCrypto) {
+                    if (TopupCrypto.isCryptoMethod(payment.payment_method) || payment.crypto_symbol) {
+                        const cryptoText =
+                            TopupCrypto.formatPaymentCryptoSummary(payment) ||
+                            TopupCrypto.formatPaymentMethodLabel(payment.payment_method, payment);
+                        paymentBadgeHtml = `
+                            <div>
+                                <span class="topup-crypto-badge">
+                                    ${escapeHtml(cryptoText)}
+                                </span>
+                            </div>
+                        `;
+                    } else if (payment.payment_method) {
+                        paymentBadgeHtml = `
+                            <div>
+                                <span class="topup-fiat-badge">
+                                    ${escapeHtml(
+                                        TopupCrypto.formatPaymentMethodLabel(
+                                            payment.payment_method,
+                                            payment
+                                        )
+                                    )}
+                                </span>
+                            </div>
+                        `;
+                    }
+                }
+
                 const row =
                     document.createElement(
                         "tr"
@@ -1472,6 +1700,7 @@
                                 item.amount
                             )}
                         </span>
+                        ${paymentBadgeHtml}
                     </td>
 
                     <td>
@@ -1644,6 +1873,49 @@
                 item.amount ||
                 0
             );
+
+        const paymentSummaryGroup =
+            document.getElementById(
+                "editPaymentSummaryGroup"
+            );
+
+        const paymentSummaryInput =
+            document.getElementById(
+                "editPaymentSummary"
+            );
+
+        if (
+            paymentSummaryGroup &&
+            paymentSummaryInput &&
+            item.payment &&
+            TopupCrypto
+        ) {
+            const p = item.payment;
+            const summaryParts = [];
+            if (TopupCrypto.isCryptoMethod(p.payment_method) || p.crypto_symbol) {
+                summaryParts.push(
+                    TopupCrypto.formatPaymentCryptoSummary(p) ||
+                    TopupCrypto.formatPaymentMethodLabel(p.payment_method, p)
+                );
+                if (p.tx_hash) {
+                    summaryParts.push("TXID: " + p.tx_hash);
+                }
+            } else if (p.payment_method) {
+                summaryParts.push(
+                    TopupCrypto.formatPaymentMethodLabel(p.payment_method, p)
+                );
+            }
+
+            if (summaryParts.length > 0) {
+                paymentSummaryInput.value = summaryParts.join(" | ");
+                paymentSummaryGroup.style.display = "block";
+            } else {
+                paymentSummaryInput.value = "";
+                paymentSummaryGroup.style.display = "none";
+            }
+        } else if (paymentSummaryGroup) {
+            paymentSummaryGroup.style.display = "none";
+        }
 
         document.getElementById(
             "editStatus"
@@ -2154,6 +2426,304 @@
     }
 
 
+    /* =====================================================
+       SHARED CRYPTO WALLETS & HYBRID PACKAGE PRICING
+    ====================================================== */
+
+    function renderPackageCryptoCoinInputs() {
+        const container = document.getElementById("packageCryptoCoinsGrid");
+        if (!container || !TopupCrypto) {
+            return;
+        }
+
+        container.innerHTML = "";
+
+        TopupCrypto.CRYPTO_COINS.forEach(function (coin) {
+            const card = document.createElement("div");
+            card.className = "crypto-coin-card";
+            card.innerHTML = `
+                <div class="crypto-coin-head">
+                    <span class="crypto-coin-name">${escapeHtml(coin.label)}</span>
+                    <span class="crypto-coin-net">${escapeHtml(coin.networksHint)}</span>
+                </div>
+                <div class="crypto-coin-input-wrap">
+                    <input
+                        type="text"
+                        inputmode="decimal"
+                        autocomplete="off"
+                        id="pkgCrypto_${escapeHtml(coin.key)}"
+                        data-coin-key="${escapeHtml(coin.key)}"
+                        class="form-control"
+                        placeholder="${escapeHtml(coin.placeholder)}"
+                    >
+                    <span class="crypto-coin-unit">${escapeHtml(coin.symbol)}</span>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function updateCryptoWalletsSummary() {
+        const summaryEl = document.getElementById("cryptoWalletsSummaryText");
+        if (!summaryEl || !TopupCrypto) {
+            return;
+        }
+
+        let activeCount = 0;
+        const activeLabels = [];
+
+        TopupCrypto.CRYPTO_METHODS.forEach(function (meta) {
+            const row = sharedPaymentMethods[meta.key];
+            if (row && row.is_active === true && String(row.account_number || "").trim()) {
+                activeCount += 1;
+                activeLabels.push(meta.shortLabel);
+            }
+        });
+
+        if (activeCount > 0) {
+            summaryEl.innerHTML =
+                "<strong>" +
+                activeCount +
+                " wallet aktif</strong> (" +
+                escapeHtml(activeLabels.join(", ")) +
+                ") — otomatis berlaku untuk semua paket.";
+        } else {
+            summaryEl.textContent =
+                "Belum ada wallet Crypto aktif. Isi alamat wallet di bawah sekali saja untuk semua paket.";
+        }
+    }
+
+    function renderCryptoWalletsEditor() {
+        const listEl = document.getElementById("cryptoWalletsList");
+        if (!listEl || !TopupCrypto) {
+            return;
+        }
+
+        listEl.innerHTML = "";
+
+        TopupCrypto.CRYPTO_METHODS.forEach(function (meta) {
+            const saved = sharedPaymentMethods[meta.key] || {};
+            const isActive = saved.is_active === true;
+            const address = String(saved.account_number || "");
+            const note = String(saved.account_name || "");
+
+            const wrap = document.createElement("div");
+            wrap.className = "crypto-wallet-item";
+            wrap.dataset.methodKey = meta.key;
+            wrap.dataset.addressFamily = meta.addressFamily;
+
+            wrap.innerHTML = `
+                <div class="crypto-wallet-item-head">
+                    <div>
+                        <div class="crypto-wallet-item-title">${escapeHtml(meta.title)}</div>
+                        <span class="crypto-wallet-item-net">Jaringan: ${escapeHtml(meta.network)}</span>
+                    </div>
+                    <label class="crypto-wallet-active-label">
+                        <input
+                            type="checkbox"
+                            id="cryptoWalletActive_${escapeHtml(meta.key)}"
+                            data-wallet-active="${escapeHtml(meta.key)}"
+                            ${isActive ? "checked" : ""}
+                        >
+                        <span>Aktif</span>
+                    </label>
+                </div>
+                <div class="crypto-wallet-fields">
+                    <input
+                        type="text"
+                        autocomplete="off"
+                        spellcheck="false"
+                        class="form-control"
+                        id="cryptoWalletAddr_${escapeHtml(meta.key)}"
+                        data-wallet-addr="${escapeHtml(meta.key)}"
+                        data-had-initial="${address.trim() ? "true" : "false"}"
+                        placeholder="${escapeHtml(meta.addressPlaceholder)}"
+                        value="${escapeHtml(address)}"
+                    >
+                    <input
+                        type="text"
+                        autocomplete="off"
+                        class="form-control"
+                        id="cryptoWalletNote_${escapeHtml(meta.key)}"
+                        data-wallet-note="${escapeHtml(meta.key)}"
+                        placeholder="Label / catatan (opsional)"
+                        value="${escapeHtml(note)}"
+                    >
+                </div>
+            `;
+
+            const addrInput = wrap.querySelector("[data-wallet-addr]");
+            const activeCheckbox = wrap.querySelector("[data-wallet-active]");
+
+            if (addrInput && activeCheckbox) {
+                addrInput.addEventListener("input", function () {
+                    const currentVal = addrInput.value.trim();
+                    if (currentVal && addrInput.dataset.hadInitial !== "true") {
+                        activeCheckbox.checked = true;
+                        addrInput.dataset.hadInitial = "true";
+                    }
+                });
+            }
+
+            listEl.appendChild(wrap);
+        });
+    }
+
+    function copySharedFamilyAddress(family) {
+        if (!TopupCrypto) {
+            return;
+        }
+
+        let sourceAddr = "";
+
+        TopupCrypto.CRYPTO_METHODS.forEach(function (meta) {
+            if (sourceAddr || meta.addressFamily !== family) {
+                return;
+            }
+            const input = document.getElementById("cryptoWalletAddr_" + meta.key);
+            if (input && input.value.trim()) {
+                sourceAddr = input.value.trim();
+            }
+        });
+
+        if (!sourceAddr) {
+            showToast(
+                family === "evm"
+                    ? "Isi dulu salah satu alamat wallet 0x... (BEP-20 atau Polygon)."
+                    : "Isi dulu salah satu alamat wallet T... (USDT TRC-20 atau TRX).",
+                "error"
+            );
+            return;
+        }
+
+        let appliedCount = 0;
+
+        TopupCrypto.CRYPTO_METHODS.forEach(function (meta) {
+            if (meta.addressFamily !== family) {
+                return;
+            }
+            const input = document.getElementById("cryptoWalletAddr_" + meta.key);
+            const check = document.getElementById("cryptoWalletActive_" + meta.key);
+            if (input) {
+                input.value = sourceAddr;
+                input.dataset.hadInitial = "true";
+                appliedCount += 1;
+            }
+            if (check) {
+                check.checked = true;
+            }
+        });
+
+        showToast(
+            "Alamat wallet berhasil disalin ke " + appliedCount + " jaringan.",
+            "success"
+        );
+    }
+
+    async function loadSharedPaymentMethods() {
+        try {
+            const { data, error } = await supabaseClient
+                .from("topup_payment_methods")
+                .select(
+                    "method, display_name, account_number, account_name, qr_image_url, asset_symbol, network, is_active"
+                );
+
+            if (error) {
+                throw error;
+            }
+
+            const map = {};
+            (Array.isArray(data) ? data : []).forEach(function (row) {
+                if (row && row.method) {
+                    map[String(row.method).toLowerCase()] = row;
+                }
+            });
+
+            sharedPaymentMethods = map;
+            updateCryptoWalletsSummary();
+            renderCryptoWalletsEditor();
+        } catch (err) {
+            console.warn("Gagal memuat konfigurasi wallet default:", err);
+        }
+    }
+
+    async function saveSharedCryptoWalletsFromModal() {
+        if (!TopupCrypto) {
+            return { activeCount: 0 };
+        }
+
+        const nowIso = new Date().toISOString();
+        const upsertRows = [];
+        let activeCount = 0;
+
+        for (let i = 0; i < TopupCrypto.CRYPTO_METHODS.length; i += 1) {
+            const meta = TopupCrypto.CRYPTO_METHODS[i];
+            const activeEl = document.getElementById("cryptoWalletActive_" + meta.key);
+            const addrEl = document.getElementById("cryptoWalletAddr_" + meta.key);
+            const noteEl = document.getElementById("cryptoWalletNote_" + meta.key);
+
+            if (!activeEl || !addrEl) {
+                continue;
+            }
+
+            const isActive = Boolean(activeEl.checked);
+            const address = addrEl.value.trim();
+            const note = noteEl ? noteEl.value.trim() : "";
+
+            if (isActive || address) {
+                if (isActive) {
+                    const check = TopupCrypto.validateWalletAddress(meta.key, address);
+                    if (!check.valid) {
+                        throw new Error(check.error);
+                    }
+                    activeCount += 1;
+                } else if (address) {
+                    const check = TopupCrypto.validateWalletAddress(meta.key, address);
+                    if (!check.valid) {
+                        throw new Error(check.error);
+                    }
+                }
+            }
+
+            const prev = sharedPaymentMethods[meta.key] || {};
+            const prevActive = prev.is_active === true;
+            const prevAddr = String(prev.account_number || "").trim();
+            const prevNote = String(prev.account_name || "").trim();
+
+            if (
+                prevActive !== isActive ||
+                prevAddr !== address ||
+                prevNote !== note
+            ) {
+                upsertRows.push({
+                    method: meta.key,
+                    display_name: prev.display_name || meta.title,
+                    account_number: address,
+                    account_name: note,
+                    qr_image_url: String(prev.qr_image_url || ""),
+                    asset_symbol: meta.symbol,
+                    network: meta.network,
+                    is_active: isActive,
+                    updated_at: nowIso
+                });
+            }
+        }
+
+        if (upsertRows.length > 0) {
+            const { error } = await supabaseClient
+                .from("topup_payment_methods")
+                .upsert(upsertRows, { onConflict: "method" });
+
+            if (error) {
+                throw error;
+            }
+
+            await loadSharedPaymentMethods();
+        }
+
+        return { activeCount: activeCount };
+    }
+
     async function loadCreditPackages() {
 
         const loading =
@@ -2201,6 +2771,8 @@
                     badge,
                     is_active,
                     sort_order,
+                    crypto_enabled,
+                    crypto_prices,
                     created_at,
                     updated_at
                 `)
@@ -2344,6 +2916,33 @@
                     originalPrice >
                     finalPrice;
 
+                const cryptoBadges =
+                    TopupCrypto
+                        ? TopupCrypto.getPackageCryptoBadges(item)
+                        : [];
+
+                const cryptoSectionHtml =
+                    cryptoBadges.length > 0
+                        ? `
+                        <div class="package-crypto-wrap">
+                            <div class="package-crypto-title">
+                                Opsi Crypto Aktif
+                            </div>
+                            <div class="package-crypto-list">
+                                ${cryptoBadges
+                                    .map(function (b) {
+                                        return (
+                                            '<span class="package-crypto-pill">' +
+                                            escapeHtml(b.formatted) +
+                                            "</span>"
+                                        );
+                                    })
+                                    .join("")}
+                            </div>
+                        </div>
+                    `
+                        : "";
+
                 card.className =
                     "package-card" +
                     (
@@ -2435,6 +3034,8 @@
                         }
 
                     </div>
+
+                    ${cryptoSectionHtml}
 
 
                     <div class="package-description">
@@ -2650,6 +3251,68 @@
                 )
                 : "true";
 
+        const cryptoEnabledCheck =
+            document.getElementById(
+                "packageCryptoEnabled"
+            );
+
+        const cryptoPanel =
+            document.getElementById(
+                "packageCryptoPanel"
+            );
+
+        const walletsEditor =
+            document.getElementById(
+                "cryptoWalletsEditor"
+            );
+
+        const normalizedCryptoPrices =
+            item && TopupCrypto
+                ? TopupCrypto.normalizeCryptoPrices(
+                    item.crypto_prices
+                )
+                : {};
+
+        const isCryptoEnabled =
+            Boolean(
+                item && item.crypto_enabled === true
+            );
+
+        if (cryptoEnabledCheck) {
+            cryptoEnabledCheck.checked =
+                isCryptoEnabled;
+        }
+
+        if (cryptoPanel) {
+            cryptoPanel.style.display =
+                isCryptoEnabled
+                    ? "block"
+                    : "none";
+        }
+
+        if (TopupCrypto) {
+            TopupCrypto.CRYPTO_COINS.forEach(function (coin) {
+                const input = document.getElementById(
+                    "pkgCrypto_" + coin.key
+                );
+                if (!input) {
+                    return;
+                }
+                const val = normalizedCryptoPrices[coin.key];
+                input.value =
+                    Number.isFinite(val) && val > 0
+                        ? TopupCrypto.formatCryptoAmount(val, 8)
+                        : "";
+            });
+
+            renderCryptoWalletsEditor();
+            updateCryptoWalletsSummary();
+        }
+
+        if (walletsEditor) {
+            walletsEditor.style.display = "none";
+        }
+
         updatePackagePricePreview();
 
         document.getElementById(
@@ -2806,6 +3469,69 @@
         }
 
 
+        const cryptoEnabledCheck =
+            document.getElementById(
+                "packageCryptoEnabled"
+            );
+
+        const cryptoEnabled =
+            Boolean(
+                cryptoEnabledCheck &&
+                cryptoEnabledCheck.checked
+            );
+
+        const cryptoPrices = {};
+
+        if (TopupCrypto) {
+            for (
+                let i = 0;
+                i < TopupCrypto.CRYPTO_COINS.length;
+                i += 1
+            ) {
+                const coin =
+                    TopupCrypto.CRYPTO_COINS[i];
+                const input =
+                    document.getElementById(
+                        "pkgCrypto_" + coin.key
+                    );
+                if (!input) {
+                    continue;
+                }
+                const rawVal = input.value.trim();
+                if (!rawVal) {
+                    continue;
+                }
+                const parsed =
+                    TopupCrypto.parseCryptoAmount(rawVal);
+                if (
+                    parsed === null ||
+                    Number.isNaN(parsed) ||
+                    parsed <= 0
+                ) {
+                    showToast(
+                        "Nominal " +
+                            coin.symbol +
+                            " tidak valid. Gunakan angka lebih dari 0 (maks 8 desimal).",
+                        "error"
+                    );
+                    return;
+                }
+                cryptoPrices[coin.key] = parsed;
+            }
+        }
+
+        if (
+            cryptoEnabled &&
+            Object.keys(cryptoPrices).length === 0
+        ) {
+            showToast(
+                "Isi minimal 1 nominal koin Crypto (mis. USDT / TRX / BTC / POL / BNB) atau matikan opsi Crypto.",
+                "error"
+            );
+            return;
+        }
+
+
         const saveButton =
             document.getElementById(
                 "savePackageButton"
@@ -2841,6 +3567,12 @@
                     finalPrice
                 ),
 
+            crypto_enabled:
+                cryptoEnabled,
+
+            crypto_prices:
+                cryptoPrices,
+
             badge:
                 badge,
 
@@ -2863,6 +3595,25 @@
 
 
         try {
+
+            const walletSaveResult =
+                await saveSharedCryptoWalletsFromModal();
+
+            if (
+                cryptoEnabled &&
+                walletSaveResult.activeCount === 0
+            ) {
+                const walletsEditor =
+                    document.getElementById(
+                        "cryptoWalletsEditor"
+                    );
+                if (walletsEditor) {
+                    walletsEditor.style.display = "grid";
+                }
+                throw new Error(
+                    "Aktifkan dan isi minimal 1 alamat Wallet Crypto Default agar user bisa mengirim pembayaran Crypto."
+                );
+            }
 
             let response;
 
@@ -3319,6 +4070,106 @@
         );
 
 
+        const cryptoEnabledCheck =
+            document.getElementById(
+                "packageCryptoEnabled"
+            );
+
+        if (cryptoEnabledCheck) {
+            cryptoEnabledCheck.addEventListener(
+                "change",
+                function () {
+                    const cryptoPanel =
+                        document.getElementById(
+                            "packageCryptoPanel"
+                        );
+                    const walletsEditor =
+                        document.getElementById(
+                            "cryptoWalletsEditor"
+                        );
+
+                    if (cryptoPanel) {
+                        cryptoPanel.style.display =
+                            this.checked ? "block" : "none";
+                    }
+
+                    if (this.checked && walletsEditor && TopupCrypto) {
+                        const anySavedActive =
+                            TopupCrypto.CRYPTO_METHODS.some(function (m) {
+                                const row = sharedPaymentMethods[m.key];
+                                return Boolean(
+                                    row &&
+                                    row.is_active === true &&
+                                    String(row.account_number || "").trim()
+                                );
+                            });
+
+                        if (!anySavedActive) {
+                            walletsEditor.style.display = "grid";
+                        }
+                    }
+                }
+            );
+        }
+
+
+        const toggleWalletsBtn =
+            document.getElementById(
+                "toggleCryptoWalletsEditorBtn"
+            );
+
+        if (toggleWalletsBtn) {
+            toggleWalletsBtn.addEventListener(
+                "click",
+                function () {
+                    const walletsEditor =
+                        document.getElementById(
+                            "cryptoWalletsEditor"
+                        );
+                    if (!walletsEditor) {
+                        return;
+                    }
+                    const isHidden =
+                        walletsEditor.style.display === "none" ||
+                        !walletsEditor.style.display;
+                    walletsEditor.style.display = isHidden
+                        ? "grid"
+                        : "none";
+                }
+            );
+        }
+
+
+        const copyEvmBtn =
+            document.getElementById(
+                "copyEvmWalletBtn"
+            );
+
+        if (copyEvmBtn) {
+            copyEvmBtn.addEventListener(
+                "click",
+                function () {
+                    copySharedFamilyAddress("evm");
+                }
+            );
+        }
+
+
+        const copyTronBtn =
+            document.getElementById(
+                "copyTronWalletBtn"
+            );
+
+        if (copyTronBtn) {
+            copyTronBtn.addEventListener(
+                "click",
+                function () {
+                    copySharedFamilyAddress("tron");
+                }
+            );
+        }
+
+
         document.getElementById(
             "packagesGrid"
         ).addEventListener(
@@ -3607,12 +4458,15 @@
             };
 
 
+            renderPackageCryptoCoinInputs();
+
             bindEvents();
 
 
             await Promise.all([
                 loadTopups(),
-                loadCreditPackages()
+                loadCreditPackages(),
+                loadSharedPaymentMethods()
             ]);
 
 
