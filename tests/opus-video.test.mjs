@@ -9,9 +9,11 @@ import opusVideoModels, {
 import {
     encodeOpusTaskId,
     extractOpusApiKeyPool,
+    extractOpusEgressJobId,
     extractVideoUrls,
     getActiveOpusKeyIndex,
     isOpusCreditExhaustedError,
+    isOpusNonTerminalWorkerDeadline,
     parseOpusTaskId,
     redactSecrets,
     resetOpusKeyRotation,
@@ -3024,6 +3026,353 @@ test("Seedance 2.5 R2V dan Seedance 2.0 mendukung upload Audio Referensi (audio_
         resetOpusKeyRotation();
     }
 });
+
+test("isOpusNonTerminalWorkerDeadline & extractOpusEgressJobId mengenali pesan worker polling deadline tanpa salah menangkap error terminal asli", () => {
+    const prodMessage =
+        "Egress video job 9999ad2b-6aea-4d9f-88fc-581d0bdac518 is still non-terminal after the worker polling deadline";
+
+    assert.equal(isOpusNonTerminalWorkerDeadline("failed", prodMessage), true);
+    assert.equal(
+        extractOpusEgressJobId(prodMessage),
+        "9999ad2b-6aea-4d9f-88fc-581d0bdac518"
+    );
+
+    assert.equal(
+        isOpusNonTerminalWorkerDeadline(
+            "safety_violation",
+            "Egress Gateway 400: safety_violations=[sexual]"
+        ),
+        false
+    );
+    assert.equal(
+        isOpusNonTerminalWorkerDeadline("submission_unknown", "submission_unknown"),
+        false
+    );
+});
+
+test("Opus MCP: Egress video job non-terminal setelah worker polling deadline tetap PROCESSING lalu pulih COMPLETED via resolve_job maupun list_jobs", async () => {
+    const originalFetch = globalThis.fetch;
+    resetOpusKeyRotation();
+
+    const outerJobId = "9bca2f45-a48f-4d5c-aee9-9c50697ccc33";
+    const egressJobId = "9999ad2b-6aea-4d9f-88fc-581d0bdac518";
+    const projectId = "gen_cfed7a92b7234b0e3247b2afc1c6014cf8175a5f80eb8ef4ee9c43212feb3702";
+    const finalMp4Url = `https://signed-opus-lab-ext.cdn.opus.pro/opus-video-tools/projects/${projectId}/generated/${outerJobId}/clips/clip-1_9bca2f45.mp4`;
+    const deadlineMsg = `Egress video job ${egressJobId} is still non-terminal after the worker polling deadline`;
+
+    let phase = "still_processing";
+    const resolveSeenJobIds = [];
+
+    const mcpTools = [
+        {
+            name: "get_status",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "jobIds"],
+                properties: {
+                    projectId: { type: "string" },
+                    jobIds: { type: "array", items: { type: "string" } },
+                    watch: { type: "boolean" }
+                }
+            }
+        },
+        {
+            name: "resolve_job",
+            inputSchema: {
+                type: "object",
+                required: ["projectId", "jobId"],
+                properties: {
+                    projectId: { type: "string" },
+                    jobId: { type: "string" }
+                }
+            }
+        },
+        {
+            name: "list_jobs",
+            inputSchema: {
+                type: "object",
+                required: ["projectId"],
+                properties: {
+                    projectId: { type: "string" }
+                }
+            }
+        }
+    ];
+
+    globalThis.fetch = async (url, init = {}) => {
+        if (String(url) !== "https://labs.opus.pro/opus-video-tools/mcp") {
+            throw new Error(`Unexpected fetch URL: ${url}`);
+        }
+        const rpc = JSON.parse(String(init.body || "{}"));
+        if (rpc.method === "initialize") {
+            return Response.json(
+                { jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: "2025-03-26" } },
+                { headers: { "Mcp-Session-Id": "sess_deadline_test" } }
+            );
+        }
+        if (rpc.method === "notifications/initialized") {
+            return new Response("", { status: 202 });
+        }
+        if (rpc.method === "tools/list") {
+            return Response.json({ jsonrpc: "2.0", id: rpc.id, result: { tools: mcpTools } });
+        }
+        if (rpc.method === "tools/call") {
+            const { name, arguments: args } = rpc.params;
+
+            if (name === "get_status") {
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            projectId,
+                            jobs: [
+                                {
+                                    id: outerJobId,
+                                    status: "failed",
+                                    error: deadlineMsg
+                                }
+                            ]
+                        }
+                    }
+                });
+            }
+
+            if (name === "resolve_job") {
+                resolveSeenJobIds.push(args.jobId);
+                if (phase === "resolved_via_resolve_job" && args.jobId === outerJobId) {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: rpc.id,
+                        result: {
+                            structuredContent: {
+                                projectId,
+                                jobId: outerJobId,
+                                status: "completed",
+                                assets: [{ assetId: "ast_out_1", downloadUrl: finalMp4Url }]
+                            }
+                        }
+                    });
+                }
+                if (phase === "upstream_failed" && args.jobId === outerJobId) {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: rpc.id,
+                        result: {
+                            structuredContent: {
+                                projectId,
+                                jobId: outerJobId,
+                                status: "failed",
+                                error: "Egress Gateway 400: safety_violations=[sexual]"
+                            }
+                        }
+                    });
+                }
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            projectId,
+                            jobId: args.jobId,
+                            status: "processing",
+                            message: deadlineMsg
+                        }
+                    }
+                });
+            }
+
+            if (name === "list_jobs") {
+                if (phase === "resolved_via_list_jobs") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: rpc.id,
+                        result: {
+                            structuredContent: {
+                                projectId,
+                                jobs: [
+                                    {
+                                        id: outerJobId,
+                                        status: "failed",
+                                        error: deadlineMsg,
+                                        outputAssetId: "ast_out_sibling"
+                                    }
+                                ],
+                                assets: [
+                                    {
+                                        assetId: "ast_ref_input",
+                                        role: "reference",
+                                        downloadUrl: "https://cdn.example.com/input-ref.mp4"
+                                    },
+                                    {
+                                        assetId: "ast_out_sibling",
+                                        role: "generated",
+                                        downloadUrl: finalMp4Url
+                                    }
+                                ]
+                            }
+                        }
+                    });
+                }
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: rpc.id,
+                    result: {
+                        structuredContent: {
+                            projectId,
+                            jobs: [{ id: outerJobId, status: "failed", error: deadlineMsg }],
+                            assets: [
+                                {
+                                    assetId: "ast_ref_input",
+                                    role: "reference",
+                                    downloadUrl: "https://cdn.example.com/input-ref.mp4"
+                                }
+                            ]
+                        }
+                    }
+                });
+            }
+        }
+        throw new Error(`Unhandled MCP method: ${rpc.method}`);
+    };
+
+    try {
+        const r2v25 = getOpusVideoModel("opus-seedance-2.5-r2v");
+        const taskId = `opus-k1:${projectId}:${outerJobId}`;
+        const apiPool = JSON.stringify(["opus-key-0", "opus-key-1"]);
+
+        // 1. Saat Opus Web masih memproses: jangan tandai FAILED!
+        const pollProcessing = await r2v25.queryTask(taskId, apiPool);
+        assert.equal(pollProcessing.processing, true);
+        assert.equal(pollProcessing.failed, false);
+        assert.equal(pollProcessing.completed, false);
+        assert.equal(pollProcessing.nonTerminalDeadline, true);
+        assert.equal(pollProcessing.egressJobId, egressJobId);
+        assert.equal(pollProcessing.outputUrls.length, 0);
+        assert.ok(resolveSeenJobIds.includes(outerJobId));
+
+        // 2. Saat Opus Web selesai dan diekspos melalui resolve_job:
+        phase = "resolved_via_resolve_job";
+        const pollResolved = await r2v25.queryTask(taskId, apiPool);
+        assert.equal(pollResolved.completed, true);
+        assert.equal(pollResolved.failed, false);
+        assert.equal(pollResolved.nonTerminalDeadline, false);
+        assert.equal(pollResolved.outputUrl, finalMp4Url);
+
+        // 3. Saat Opus Web selesai dan aset final muncul di sibling assets list_jobs:
+        phase = "resolved_via_list_jobs";
+        const pollListed = await r2v25.queryTask(taskId, apiPool);
+        assert.equal(pollListed.completed, true);
+        assert.equal(pollListed.failed, false);
+        assert.equal(pollListed.outputUrl, finalMp4Url);
+
+        // 4. Jika job Egress benar-benar gagal terminal di upstream:
+        phase = "upstream_failed";
+        const pollFailed = await r2v25.queryTask(taskId, apiPool);
+        assert.equal(pollFailed.failed, true);
+        assert.equal(pollFailed.completed, false);
+        assert.match(String(pollFailed.errorMessage || ""), /safety_violations|kebijakan|konten|sexual/i);
+    } finally {
+        globalThis.fetch = originalFetch;
+        resetOpusKeyRotation();
+    }
+});
+
+test("history-status-sync memulihkan item failed 'still non-terminal after the worker polling deadline' tanpa loop tak terbatas", async () => {
+    const fs = await import("node:fs");
+    const vm = await import("node:vm");
+    const syncSource = fs.readFileSync(
+        new URL("../history/assets/js/history-status-sync.js", import.meta.url),
+        "utf8"
+    );
+    const generateStatusSource = fs.readFileSync(
+        new URL("../api/generate-status.js", import.meta.url),
+        "utf8"
+    );
+
+    assert.match(generateStatusSource, /OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS/);
+    assert.match(generateStatusSource, /isRecoverableHistoryFailureMessage/);
+
+    const deadlineMsg =
+        "Egress video job 9999ad2b-6aea-4d9f-88fc-581d0bdac518 is still non-terminal after the worker polling deadline";
+
+    let mockStatusPayload = {
+        success: true,
+        processing: true,
+        completed: false,
+        failed: false
+    };
+
+    const windowObj = {
+        GENZHistory: {
+            state: {
+                supabaseClient: {
+                    auth: {
+                        getSession: async () => ({
+                            data: { session: { access_token: "tok-test" } },
+                            error: null
+                        })
+                    }
+                },
+                historyData: [
+                    {
+                        id: "bc83a6b8-fffe-4442-a9f9-d411bad1a64e",
+                        status: "failed",
+                        task_id: "opus-k1:gen_cfed7a92:9bca2f45-a48f-4d5c-aee9-9c50697ccc33",
+                        model_id: "opus-seedance-2.5-r2v",
+                        credit_refunded: true,
+                        error_message: deadlineMsg,
+                        created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString()
+                    }
+                ],
+                historyStatusSyncInProgress: false
+            }
+        }
+    };
+
+    const sandbox = {
+        window: windowObj,
+        console,
+        Date,
+        Map,
+        Set,
+        Promise,
+        Number,
+        String,
+        Boolean,
+        Array,
+        Object,
+        setTimeout,
+        clearTimeout,
+        fetch: async () => ({
+            ok: true,
+            status: 200,
+            json: async () => mockStatusPayload
+        })
+    };
+
+    vm.runInNewContext(syncSource, sandbox);
+
+    const App = windowObj.GENZHistory;
+    // Item usia 15 menit (< 60 menit) terdeteksi untuk pemulihan otomatis
+    assert.equal(App.getActiveHistoryItems().length, 1);
+
+    // Jika server mengonfirmasi masih processing -> tetap bisa dipantau
+    await App.syncGenerationStatus(App.getActiveHistoryItems()[0], "tok-test");
+    assert.equal(App.getActiveHistoryItems().length, 1);
+
+    // Jika server mengonfirmasi sudah failed permanen (mis. melewati 60 menit) -> dihentikan agar tidak polling berulang
+    mockStatusPayload = {
+        success: true,
+        processing: false,
+        completed: false,
+        failed: true
+    };
+    await App.syncGenerationStatus(App.getActiveHistoryItems()[0], "tok-test");
+    assert.equal(App.getActiveHistoryItems().length, 0);
+});
+
+
 
 
 

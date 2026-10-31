@@ -52,9 +52,27 @@
     ===================================================== */
 
     const failedSyncTracker = new Map();
+    const probedNonTerminalTasks = new Set();
     const MAX_SYNC_FAILURES = 3;
     const STALE_TASK_ERROR =
         "task expired (provider tidak dapat dihubungi)";
+    const NON_TERMINAL_DEADLINE_RECOVERY_WINDOW_MS =
+        60 * 60 * 1000;
+
+    function isNonTerminalWorkerDeadlineMessage(value) {
+        const text =
+            String(value || "")
+                .trim()
+                .toLowerCase();
+        if (!text) {
+            return false;
+        }
+        return (
+            /\bstill\s+non-?terminal\b/.test(text) ||
+            /\bnon-?terminal\s+after\b.*\bpolling\s+deadline\b/.test(text) ||
+            /\bafter\s+the\s+worker\s+polling\s+deadline\b/.test(text)
+        );
+    }
 
     /* =====================================================
        HELPERS
@@ -276,7 +294,23 @@
                     Boolean(taskId) &&
                     Boolean(getModelId(item));
 
-                if (!isActiveStatus(status) && !needsFailedTaskRefund) {
+                const createdAtMs = Date.parse(
+                    String(item?.created_at || item?.createdAt || "")
+                );
+                const needsNonTerminalDeadlineRecovery =
+                    status === "failed" &&
+                    isNonTerminalWorkerDeadlineMessage(item?.error_message) &&
+                    Boolean(taskId) &&
+                    Boolean(getModelId(item)) &&
+                    !probedNonTerminalTasks.has(taskId) &&
+                    Number.isFinite(createdAtMs) &&
+                    Date.now() - createdAtMs < NON_TERMINAL_DEADLINE_RECOVERY_WINDOW_MS;
+
+                if (
+                    !isActiveStatus(status) &&
+                    !needsFailedTaskRefund &&
+                    !needsNonTerminalDeadlineRecovery
+                ) {
                     return false;
                 }
 
@@ -310,7 +344,10 @@
 
                 return (
                     normalizeStatus(item?.status) === "failed" &&
-                    errorMessage === STALE_TASK_ERROR &&
+                    (
+                        errorMessage === STALE_TASK_ERROR ||
+                        isNonTerminalWorkerDeadlineMessage(errorMessage)
+                    ) &&
                     Boolean(getTaskId(item)) &&
                     Boolean(getModelId(item))
                 );
@@ -472,6 +509,11 @@
 
         if (taskId) {
             failedSyncTracker.delete(taskId);
+            if (payload?.failed === true) {
+                probedNonTerminalTasks.add(taskId);
+            } else if (payload?.processing === true || payload?.completed === true) {
+                probedNonTerminalTasks.delete(taskId);
+            }
         }
 
         return {
