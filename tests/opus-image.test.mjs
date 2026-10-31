@@ -25,6 +25,14 @@ import {
 } from "../lib/generate/persist-generated-image.js";
 
 import {
+    stageOpusReferenceImageForGenerate,
+    readImageSize
+} from "../lib/social-publisher/opus.js";
+
+import jpeg from "jpeg-js";
+import { PNG } from "pngjs";
+
+import {
     MAIN_MODE_VIDEO,
     MAIN_MODE_IMAGE,
     IMAGE_SUBMODE_STANDARD,
@@ -1568,5 +1576,420 @@ test("Presigned PUT awaiting_upload self-heals header Content-Type HTTP 400 dan 
     assert.equal(res3.status, "QUEUED");
     assert.equal(inlineDataUrlUsed, true);
 });
+
+test("Regression MalformedSecurityHeader: GCS V4 Signed PUT meneruskan entry.headers, memfilter header tak-tertanda-tangan, dan tidak pernah menghapus Content-Type bertanda-tangan pada ke-5 model gambar Opus", async t => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    const gcsSignedPutUrl =
+        "https://storage.googleapis.com/opus-prod-uploads/proj-gcs/ref.jpg?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-SignedHeaders=content-type%3Bhost%3Bx-goog-content-length-range&X-Goog-Signature=deadbeef";
+    const jpegBytes = new Uint8Array([
+        0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0xff, 0xd9
+    ]);
+
+    const capturedPuts = [];
+
+    globalThis.fetch = async (url, init = {}) => {
+        const target = String(url);
+        if (target.startsWith("https://ycovbqmezhrvzobxqnyp.supabase.co/")) {
+            return new Response(jpegBytes, {
+                status: 200,
+                headers: { "content-type": "application/octet-stream" }
+            });
+        }
+        if (target === gcsSignedPutUrl) {
+            const hdrs = init.headers || {};
+            capturedPuts.push({ ...hdrs });
+            const lowerMap = new Map(
+                Object.entries(hdrs).map(([k, v]) => [k.toLowerCase(), String(v)])
+            );
+            /* Aturan ketat GCS V4 XML API:
+               1) Header di X-Goog-SignedHeaders (content-type, x-goog-content-length-range) wajib ada.
+               2) Header x-goog-* tak-tertanda-tangan atau Host manual atau nilai 'null'/'undefined' langsung ditolak 400 MalformedSecurityHeader. */
+            if (
+                !lowerMap.get("content-type") ||
+                !lowerMap.get("x-goog-content-length-range") ||
+                lowerMap.has("host") ||
+                lowerMap.has("x-goog-unsigned-debug") ||
+                Array.from(lowerMap.values()).some(v => v === "null" || v === "undefined")
+            ) {
+                return new Response(
+                    "<?xml version='1.0' encoding='UTF-8'?><Error><Code>MalformedSecurityHeader</Code><Message>Invalid argument.</Message><HeaderName>x-goog-content-length-range</HeaderName></Error>",
+                    { status: 400, headers: { "content-type": "application/xml" } }
+                );
+            }
+            assert.equal(lowerMap.get("content-type"), "image/jpeg");
+            assert.equal(lowerMap.get("x-goog-content-length-range"), "0,52428800");
+            return new Response("", { status: 200 });
+        }
+
+        const body = init.body ? JSON.parse(init.body) : {};
+        if (body.method === "initialize") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { protocolVersion: "2025-03-26" } });
+        }
+        if (body.method === "notifications/initialized") {
+            return new Response("", { status: 204 });
+        }
+        if (body.method === "tools/list") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    tools: [
+                        { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+                        {
+                            name: "import_assets",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "items"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    items: {
+                                        type: "array",
+                                        items: {
+                                            oneOf: [
+                                                {
+                                                    type: "object",
+                                                    required: ["id", "fileName", "mimeType", "sizeBytes"],
+                                                    properties: {
+                                                        id: { type: "string" },
+                                                        fileName: { type: "string" },
+                                                        mimeType: { type: "string" },
+                                                        sizeBytes: { type: "integer" }
+                                                    }
+                                                },
+                                                {
+                                                    type: "object",
+                                                    required: ["assetId"],
+                                                    properties: { assetId: { type: "string" } }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            name: "generate_keyframes",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "items"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    items: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            required: ["prompt"],
+                                            properties: {
+                                                prompt: { type: "string" },
+                                                model: { type: "string" },
+                                                referenceAssets: { type: "array", items: { type: "string" } }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            });
+        }
+        const toolName = body?.params?.name;
+        const toolArgs = body?.params?.arguments || {};
+        if (toolName === "create_project") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "proj-gcs-v4" } } });
+        }
+        if (toolName === "import_assets") {
+            const item = toolArgs.items?.[0] || {};
+            if (item.assetId) {
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: body.id,
+                    result: { structuredContent: { items: [{ ok: true, status: "ready", assetId: item.assetId }] } }
+                });
+            }
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    structuredContent: {
+                        items: [
+                            {
+                                id: item.id,
+                                ok: true,
+                                status: "awaiting_upload",
+                                assetId: "ast_gcs_signed_01",
+                                uploadUrl: gcsSignedPutUrl,
+                                headers: {
+                                    "Content-Type": "image/jpeg",
+                                    "x-goog-content-length-range": "0,52428800",
+                                    Host: "storage.googleapis.com",
+                                    "x-goog-unsigned-debug": "should-be-filtered",
+                                    "x-empty-null": null
+                                }
+                            }
+                        ]
+                    }
+                }
+            });
+        }
+        if (toolName === "generate_keyframes") {
+            assert.deepEqual(toolArgs.items?.[0]?.referenceAssets, ["ast_gcs_signed_01"]);
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: { structuredContent: { jobId: "job-gcs-ok", status: "queued" } }
+            });
+        }
+        throw new Error(`Unexpected tool: ${toolName}`);
+    };
+
+    for (const model of opusImageModels) {
+        capturedPuts.length = 0;
+        const created = await model.createTask(
+            {
+                image_mode: "standard",
+                prompt: "Potret studio sinematik @image1",
+                image_urls: [
+                    "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/94d3fe23.jpg?token=signed"
+                ],
+                aspect_ratio: "9:16"
+            },
+            "tok-gcs-v4",
+            {
+                mcpUrl: `https://mcp-gcs-v4-${model.id}.opus.test/mcp`,
+                stageReferenceImage: stageOpusReferenceImageForGenerate
+            }
+        );
+        assert.equal(created.status, "QUEUED", `${model.id} wajib sukses melewati GCS V4 PUT`);
+        assert.equal(capturedPuts.length, 1, `${model.id} wajib sukses pada PUT pertama tanpa MalformedSecurityHeader`);
+    }
+
+    /* Verifikasi juga jalur standalone provider/opus/client.js tanpa hook server */
+    capturedPuts.length = 0;
+    const standaloneCreated = await opusImageModelMap["opus-gpt-image-2.5-flare"].createTask(
+        {
+            image_mode: "character_sheet",
+            character_image_url:
+                "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/94d3fe23.jpg?token=signed",
+            aspect_ratio: "16:9"
+        },
+        "tok-gcs-standalone",
+        { mcpUrl: "https://mcp-gcs-standalone.opus.test/mcp" }
+    );
+    assert.equal(standaloneCreated.status, "QUEUED");
+    assert.equal(capturedPuts.length, 1);
+});
+
+test("Parity Studio Medsos pada /generate/: stageOpusReferenceImageForGenerate meng-upscale outfit <300px & fallback ke compact_data_url", async t => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    /* Foto karakter realistis >90 KB (resolusi 1400x1800, sehingga compact_data_url <=640px mengecilkannya drastis ke ~25 KB) */
+    const width = 1400;
+    const height = 1800;
+    const charRgba = new Uint8Array(width * height * 4);
+    for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+            const idx = (y * width + x) * 4;
+            charRgba[idx] = (x * 3 + y * 2 + ((x ^ y) & 31)) & 255;
+            charRgba[idx + 1] = (x * 2 + y * 5 + ((x + y) & 15)) & 255;
+            charRgba[idx + 2] = (x * 5 + y + ((x * y) & 31)) & 255;
+            charRgba[idx + 3] = 255;
+        }
+    }
+    const largeCharJpeg = new Uint8Array(jpeg.encode({ data: charRgba, width, height }, 95).data);
+    assert.ok(largeCharJpeg.byteLength > 95_000, "Fixture karakter harus >90 KB");
+    const fullB64Threshold = Math.floor((largeCharJpeg.byteLength * 4) / 3) - 4000;
+
+    /* Foto outfit kecil 220x220 PNG (<300px minimum Opus Labs) */
+    const smallPng = new PNG({ width: 220, height: 220 });
+    for (let i = 0; i < 220 * 220; i += 1) {
+        smallPng.data[i * 4] = 200;
+        smallPng.data[i * 4 + 1] = 40;
+        smallPng.data[i * 4 + 2] = 60;
+        smallPng.data[i * 4 + 3] = 255;
+    }
+    const smallOutfitBytes = new Uint8Array(PNG.sync.write(smallPng));
+
+    const uploadedInlineDims = [];
+    let compactDataUrlAccepted = false;
+
+    globalThis.fetch = async (url, init = {}) => {
+        const target = String(url);
+        if (target.includes("/char-large.jpg")) {
+            return new Response(largeCharJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
+        }
+        if (target.includes("/outfit-220.png")) {
+            return new Response(smallOutfitBytes, { status: 200, headers: { "content-type": "image/png" } });
+        }
+
+        const body = init.body ? JSON.parse(init.body) : {};
+        if (body.method === "initialize") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { protocolVersion: "2025-03-26" } });
+        }
+        if (body.method === "notifications/initialized") {
+            return new Response("", { status: 204 });
+        }
+        if (body.method === "tools/list") {
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: {
+                    tools: [
+                        { name: "create_project", inputSchema: { type: "object", properties: { name: { type: "string" } } } },
+                        {
+                            name: "import_assets",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "assets"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    assets: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            properties: {
+                                                path: { type: "string" },
+                                                assetId: { type: "string" },
+                                                sizeBytes: { type: "number" },
+                                                role: { type: "string" },
+                                                label: { type: "string" },
+                                                contentType: { type: "string" },
+                                                dataUrl: { type: "string" },
+                                                mediaBase64: { type: "string" },
+                                                mediaMimeType: { type: "string" },
+                                                url: { type: "string" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            name: "generate_keyframes",
+                            inputSchema: {
+                                type: "object",
+                                required: ["projectId", "items"],
+                                properties: {
+                                    projectId: { type: "string" },
+                                    items: {
+                                        type: "array",
+                                        items: {
+                                            type: "object",
+                                            required: ["id", "prompt"],
+                                            properties: {
+                                                id: { type: "string" },
+                                                prompt: { type: "string" },
+                                                aspectRatio: { type: "string" },
+                                                model: { type: "string" },
+                                                referenceAssets: { type: "array", items: { type: "string" } }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            });
+        }
+
+        const toolName = body?.params?.name;
+        const toolArgs = body?.params?.arguments || {};
+        if (toolName === "create_project") {
+            return Response.json({ jsonrpc: "2.0", id: body.id, result: { structuredContent: { projectId: "proj-studio-parity" } } });
+        }
+        if (toolName === "import_assets") {
+            const spec = toolArgs.assets?.[0] || {};
+            /* Outfit 220x220 tidak boleh pernah dikirim lewat remote url mentah karena melanggar batas minimum 300px Opus */
+            if (spec.url && spec.url.includes("outfit-220.png")) {
+                throw new Error("URL outfit <300px seharusnya otomatis di-drop dan diganti hasil upscale inline!");
+            }
+            if (spec.url) {
+                /* Simulasikan server Opus menolak signed URL eksternal */
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: body.id,
+                    result: { structuredContent: { assets: [{ ok: false, error: "fetch_denied" }] } }
+                });
+            }
+            if (spec.dataUrl) {
+                /* Simulasikan batas payload inline MCP sehingga foto karakter penuh ditolak dan harus masuk lewat compact_data_url */
+                if (spec.dataUrl.length > fullB64Threshold) {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: body.id,
+                        result: { structuredContent: { assets: [{ ok: false, error: "payload_too_large" }] } }
+                    });
+                }
+                const b64 = spec.dataUrl.split(",")[1];
+                const decoded = new Uint8Array(Buffer.from(b64, "base64"));
+                const dims = readImageSize(decoded);
+                uploadedInlineDims.push(dims);
+                if (dims.width <= 640 && dims.height <= 640 && uploadedInlineDims.length === 1) {
+                    compactDataUrlAccepted = true;
+                }
+                return Response.json({
+                    jsonrpc: "2.0",
+                    id: body.id,
+                    result: {
+                        structuredContent: {
+                            assets: [
+                                {
+                                    ok: true,
+                                    status: "ready",
+                                    assetId: `ast_studio_${uploadedInlineDims.length}`
+                                }
+                            ]
+                        }
+                    }
+                });
+            }
+            throw new Error(`Unexpected import spec: ${JSON.stringify(spec)}`);
+        }
+        if (toolName === "generate_keyframes") {
+            assert.deepEqual(toolArgs.items?.[0]?.referenceAssets, ["ast_studio_1", "ast_studio_2"]);
+            return Response.json({
+                jsonrpc: "2.0",
+                id: body.id,
+                result: { structuredContent: { jobId: "job-studio-parity-ok", status: "queued" } }
+            });
+        }
+        throw new Error(`Unexpected tool: ${toolName}`);
+    };
+
+    const nanoBananaPro = opusImageModelMap["opus-nano-banana-pro"];
+    const created = await nanoBananaPro.createTask(
+        {
+            image_mode: "character_sheet",
+            character_image_url:
+                "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/char-large.jpg?token=1",
+            outfit_image_url:
+                "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/outfit-220.png?token=2",
+            character_notes: "Sepatu sneakers putih bersih",
+            aspect_ratio: "16:9"
+        },
+        "tok-studio-parity",
+        {
+            mcpUrl: "https://mcp-studio-parity.opus.test/mcp",
+            stageReferenceImage: stageOpusReferenceImageForGenerate
+        }
+    );
+
+    assert.equal(created.status, "QUEUED");
+    assert.equal(compactDataUrlAccepted, true, "Karakter >90KB wajib otomatis berhasil lewat compact_data_url (<=640px)");
+    assert.equal(uploadedInlineDims.length, 2);
+    assert.ok(
+        uploadedInlineDims[1].width >= 512 && uploadedInlineDims[1].height >= 512,
+        `Outfit 220x220 wajib di-upscale >=512px sebelum import_assets, dapat ${JSON.stringify(uploadedInlineDims[1])}`
+    );
+});
+
 
 

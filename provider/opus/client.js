@@ -2113,9 +2113,13 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
         ""
     ).trim();
 
-    const fallbackPresignedUploadUrl = !isAlreadyReadyStatus
-        ? String(source.presignedUrl || source.presigned_url || "").trim()
-        : "";
+    const isAwaitingUploadStatus = /^(?:awaiting_upload|pending_upload|upload_required|uploading)$/i.test(
+        status
+    );
+    const fallbackPresignedUploadUrl =
+        !isAlreadyReadyStatus && (isAwaitingUploadStatus || !validAssetId)
+            ? String(source.presignedUrl || source.presigned_url || "").trim()
+            : "";
     const candidateUploadUrl = explicitUploadUrl || fallbackPresignedUploadUrl;
     const uploadUrl =
         candidateUploadUrl &&
@@ -2132,10 +2136,30 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
     ).trim().toUpperCase();
 
     const uploadHeaders =
-        (source.uploadHeaders && typeof source.uploadHeaders === "object" ? source.uploadHeaders : null) ||
-        (uploadObj?.headers && typeof uploadObj.headers === "object" ? uploadObj.headers : null) ||
-        (uploadObj?.requiredHeaders && typeof uploadObj.requiredHeaders === "object" ? uploadObj.requiredHeaders : null) ||
-        (uploadObj?.putHeaders && typeof uploadObj.putHeaders === "object" ? uploadObj.putHeaders : null);
+        (source.uploadHeaders && typeof source.uploadHeaders === "object" && !Array.isArray(source.uploadHeaders)
+            ? source.uploadHeaders
+            : null) ||
+        (source.headers && typeof source.headers === "object" && !Array.isArray(source.headers)
+            ? source.headers
+            : null) ||
+        (uploadObj?.headers && typeof uploadObj.headers === "object" && !Array.isArray(uploadObj.headers)
+            ? uploadObj.headers
+            : null) ||
+        (uploadObj?.uploadHeaders && typeof uploadObj.uploadHeaders === "object" && !Array.isArray(uploadObj.uploadHeaders)
+            ? uploadObj.uploadHeaders
+            : null) ||
+        (uploadObj?.requiredHeaders && typeof uploadObj.requiredHeaders === "object" && !Array.isArray(uploadObj.requiredHeaders)
+            ? uploadObj.requiredHeaders
+            : null) ||
+        (uploadObj?.putHeaders && typeof uploadObj.putHeaders === "object" && !Array.isArray(uploadObj.putHeaders)
+            ? uploadObj.putHeaders
+            : null) ||
+        (nestedAsset?.uploadHeaders && typeof nestedAsset.uploadHeaders === "object" && !Array.isArray(nestedAsset.uploadHeaders)
+            ? nestedAsset.uploadHeaders
+            : null) ||
+        (nestedAsset?.headers && typeof nestedAsset.headers === "object" && !Array.isArray(nestedAsset.headers)
+            ? nestedAsset.headers
+            : null);
 
     const uri = String(
         source.uri ||
@@ -2167,7 +2191,197 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
     };
 }
 
+function base64ToBytesSafe(base64Str) {
+    const cleaned = String(base64Str || "").replace(/\s+/g, "");
+    if (!cleaned) return new Uint8Array(0);
+    if (typeof Buffer !== "undefined") {
+        return new Uint8Array(Buffer.from(cleaned, "base64"));
+    }
+    if (typeof atob === "function") {
+        const bin = atob(cleaned);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i += 1) {
+            out[i] = bin.charCodeAt(i);
+        }
+        return out;
+    }
+    return new Uint8Array(0);
+}
+
+function detectImageMimeFromBytes(bytes) {
+    if (!bytes || bytes.length < 12) return "";
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+        return "image/jpeg";
+    }
+    if (
+        bytes[0] === 0x89 &&
+        bytes[1] === 0x50 &&
+        bytes[2] === 0x4e &&
+        bytes[3] === 0x47 &&
+        bytes[4] === 0x0d &&
+        bytes[5] === 0x0a &&
+        bytes[6] === 0x1a &&
+        bytes[7] === 0x0a
+    ) {
+        return "image/png";
+    }
+    if (
+        bytes[0] === 0x52 &&
+        bytes[1] === 0x49 &&
+        bytes[2] === 0x46 &&
+        bytes[3] === 0x46 &&
+        bytes[8] === 0x57 &&
+        bytes[9] === 0x45 &&
+        bytes[10] === 0x42 &&
+        bytes[11] === 0x50
+    ) {
+        return "image/webp";
+    }
+    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) {
+        return "image/gif";
+    }
+    if (
+        bytes[4] === 0x66 &&
+        bytes[5] === 0x74 &&
+        bytes[6] === 0x79 &&
+        bytes[7] === 0x70 &&
+        bytes[8] === 0x61 &&
+        bytes[9] === 0x76 &&
+        bytes[10] === 0x69 &&
+        (bytes[11] === 0x66 || bytes[11] === 0x73)
+    ) {
+        return "image/avif";
+    }
+    return "";
+}
+
+function sanitizePresignedPutHeaders(uploadUrl, rawHeaders) {
+    const clean = {};
+    if (rawHeaders && typeof rawHeaders === "object" && !Array.isArray(rawHeaders)) {
+        for (const [rawKey, rawVal] of Object.entries(rawHeaders)) {
+            const key = String(rawKey || "").trim();
+            if (!key || rawVal === null || rawVal === undefined) continue;
+            const lk = key.toLowerCase();
+            if (
+                lk === "host" ||
+                lk === "content-length" ||
+                lk === "transfer-encoding" ||
+                lk === "connection" ||
+                lk === "authorization"
+            ) {
+                continue;
+            }
+            let strVal = "";
+            if (Array.isArray(rawVal)) {
+                strVal = rawVal
+                    .filter(v => v !== null && v !== undefined && String(v).trim() !== "")
+                    .map(v => String(v).trim())
+                    .join(", ");
+            } else if (typeof rawVal === "string") {
+                strVal = rawVal.trim();
+            } else if (typeof rawVal === "number" || typeof rawVal === "boolean") {
+                strVal = String(rawVal);
+            }
+            if (strVal) {
+                clean[key] = strVal;
+            }
+        }
+    }
+
+    const isGcsSigned = /[?&]X-Goog-SignedHeaders=/i.test(uploadUrl);
+    const isAmzSigned = /[?&]X-Amz-SignedHeaders=/i.test(uploadUrl);
+    const signedMatch = /[?&]X-(?:Goog|Amz)-SignedHeaders=([^&#]+)/i.exec(uploadUrl);
+    const signedSet = new Set(
+        signedMatch
+            ? decodeURIComponent(signedMatch[1])
+                  .toLowerCase()
+                  .split(";")
+                  .map(s => s.trim())
+                  .filter(Boolean)
+            : []
+    );
+
+    if (signedSet.size > 0) {
+        for (const key of Object.keys(clean)) {
+            const lk = key.toLowerCase();
+            if (isGcsSigned && lk.startsWith("x-goog-") && !signedSet.has(lk)) {
+                delete clean[key];
+            } else if (isAmzSigned && lk.startsWith("x-amz-") && !signedSet.has(lk)) {
+                delete clean[key];
+            }
+        }
+    }
+
+    return { clean, signedSet, isGcsSigned, isAmzSigned };
+}
+
+function buildPresignedPutHeaderCandidates(uploadUrl, rawHeaders, primaryMimeType, secondaryMimeType = "") {
+    const { clean, signedSet, isGcsSigned } = sanitizePresignedPutHeaders(uploadUrl, rawHeaders);
+    const hasExplicitContentType = Object.keys(clean).some(k => k.toLowerCase() === "content-type");
+    const contentTypeIsSigned = signedSet.has("content-type");
+    const isGcsUnsignedContentType = isGcsSigned && signedSet.size > 0 && !contentTypeIsSigned;
+    const primaryMime = String(primaryMimeType || "image/jpeg").trim() || "image/jpeg";
+    const secondaryMime = String(secondaryMimeType || "").trim();
+
+    if (hasExplicitContentType) {
+        return [clean];
+    }
+
+    if (contentTypeIsSigned) {
+        const candidates = [{ ...clean, "Content-Type": primaryMime }];
+        if (secondaryMime && secondaryMime !== primaryMime) {
+            candidates.push({ ...clean, "Content-Type": secondaryMime });
+        }
+        return candidates;
+    }
+
+    if (isGcsUnsignedContentType) {
+        const candidates = [clean, { ...clean, "Content-Type": primaryMime }];
+        if (secondaryMime && secondaryMime !== primaryMime) {
+            candidates.push({ ...clean, "Content-Type": secondaryMime });
+        }
+        return candidates;
+    }
+
+    const candidates = [{ ...clean, "Content-Type": primaryMime }];
+    if (secondaryMime && secondaryMime !== primaryMime) {
+        candidates.push({ ...clean, "Content-Type": secondaryMime });
+    }
+    candidates.push(clean);
+    return candidates;
+}
+
+function extractStorageXmlErrorDetail(rawBody) {
+    const body = String(rawBody || "");
+    if (!body) return "";
+    const xmlCode = /<Code>([^<]{1,64})<\/Code>/i.exec(body)?.[1]?.trim() || "";
+    const xmlMsg = /<Message>([^<]{1,140})<\/Message>/i.exec(body)?.[1]?.trim().replace(/\.+$/, "") || "";
+    const xmlHeader = /<HeaderName>([^<]{1,64})<\/HeaderName>/i.exec(body)?.[1]?.trim() || "";
+    const rawHint = xmlCode && xmlMsg ? `${xmlCode}: ${xmlMsg}` : xmlCode || xmlMsg;
+    if (!rawHint) return "";
+    return ` — ${redactSecrets(`${rawHint}${xmlHeader ? ` [${xmlHeader}]` : ""}`).slice(0, 140)}`;
+}
+
 async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCache = null) {
+    const trimmedUrl = String(mediaUrl || "").trim();
+    const inlineDataMatch = /^data:([a-z0-9.+-]+\/[a-z0-9.+-]+);base64,([\s\S]+)$/i.exec(trimmedUrl);
+    if (inlineDataMatch) {
+        const rawMime = inlineDataMatch[1].toLowerCase();
+        const bytes = base64ToBytesSafe(inlineDataMatch[2]);
+        if (!bytes.byteLength) {
+            throw createProviderError({
+                message: "Data media referensi kosong (0 byte).",
+                code: "REFERENCE_EMPTY",
+                status: 422
+            });
+        }
+        const detected = mediaType === "image" ? detectImageMimeFromBytes(bytes) : "";
+        return {
+            bytes,
+            mimeType: detected || rawMime
+        };
+    }
+
     const urlCheck = inspectReferenceMediaUrl(mediaUrl);
     if (!urlCheck.valid) {
         throw createProviderError({
@@ -2215,7 +2429,8 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
             status: 422
         });
     }
-    if (isNonMediaHttpPayload(contentType, bytes)) {
+    const detectedImageMime = !isVideo && !isAudio ? detectImageMimeFromBytes(bytes) : "";
+    if (!detectedImageMime && isNonMediaHttpPayload(contentType, bytes)) {
         throw createProviderError({
             message: `URL referensi mengarah ke halaman web (HTML), bukan file ${mediaLabel} langsung. Silakan gunakan direct link file (.jpg/.png/.mp4/.mp3) atau unduh medianya lalu gunakan menu Upload.`,
             code: "NON_DIRECT_MEDIA_URL",
@@ -2226,7 +2441,7 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
         ? (contentType.startsWith("video/") ? contentType : inferVideoMimeFromUrl(mediaUrl))
         : isAudio
             ? (contentType.startsWith("audio/") ? contentType : inferAudioMimeFromUrl(mediaUrl))
-            : (contentType.startsWith("image/") ? contentType : inferImageMimeFromUrl(mediaUrl));
+            : (detectedImageMime || (contentType.startsWith("image/") ? contentType : inferImageMimeFromUrl(mediaUrl)));
     const downloaded = {
         bytes,
         mimeType: resolvedMime
@@ -2312,19 +2527,40 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
     const uploadItemProps = uploadItemObj.properties || urlItemProps;
 
     const clientItemId = `asset-${index + 1}`;
-    const buildBaseEntry = targetProps => {
+    const cleanLabelValue = String(refItem.label || clientItemId)
+        .replace(/\.[a-z0-9]+$/i, "")
+        .replace(/[^A-Za-z0-9_-]/g, "_");
+
+    const buildBaseEntry = (targetProps, { minimal = false, overrideMime = "", overrideFileName = "" } = {}) => {
         const entry = {};
+        const req = Array.isArray(
+            (targetProps === urlItemProps ? urlItemObj?.required : uploadItemObj?.required)
+        )
+            ? (targetProps === urlItemProps ? urlItemObj.required : uploadItemObj.required)
+            : [];
         const idKey = pickSupportedKey(targetProps, ["clientId", "client_id", "itemId", "item_id", "id"], "");
-        if (idKey && idKey !== "assetId") entry[idKey] = clientItemId;
+        if (idKey && idKey !== "assetId" && (!minimal || req.includes(idKey))) {
+            entry[idKey] = clientItemId;
+        }
 
-        const nameKey = pickSupportedKey(targetProps, ["fileName", "filename", "file_name", "name", "label"], "");
-        if (nameKey) entry[nameKey] = refItem.fileName;
+        const fileNameKey = pickSupportedKey(targetProps, ["fileName", "filename", "file_name", "name"], "");
+        if (fileNameKey && (!minimal || req.includes(fileNameKey))) {
+            entry[fileNameKey] = overrideFileName || refItem.fileName;
+        }
 
+        const labelKey = pickSupportedKey(targetProps, ["label", "title"], "");
+        if (labelKey && labelKey !== fileNameKey && (!minimal || req.includes(labelKey))) {
+            entry[labelKey] = cleanLabelValue || overrideFileName || refItem.fileName;
+        }
+
+        const effectiveMime = overrideMime || refItem.mimeType;
         const mimeKey = pickSupportedKey(targetProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
-        if (mimeKey) entry[mimeKey] = refItem.mimeType;
+        if (mimeKey && effectiveMime && (!minimal || req.includes(mimeKey))) {
+            entry[mimeKey] = effectiveMime;
+        }
 
         const kindKey = pickSupportedKey(targetProps, ["mediaType", "media_type", "assetType", "asset_type", "type", "kind"], "");
-        if (kindKey) {
+        if (kindKey && (!minimal || req.includes(kindKey))) {
             const allowedKinds = extractAllowedValues(targetProps[kindKey], rootSchema);
             const kindCandidates = itemMediaType === "video"
                 ? ["video", "clip", "footage", "reference_video", "reference"]
@@ -2334,19 +2570,45 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
             const matchedKind = matchEnumCaseInsensitive(kindCandidates, allowedKinds);
             if (matchedKind !== null) entry[kindKey] = matchedKind;
         }
+
+        const roleKey = pickSupportedKey(targetProps, ["role", "usage"], "");
+        if (roleKey && refItem.role && (!minimal || req.includes(roleKey))) {
+            const allowedRoles = extractAllowedValues(targetProps[roleKey], rootSchema);
+            const roleCandidates =
+                refItem.role === "person" || refItem.role === "character"
+                    ? ["person", "character", "subject", "talent", "model", "reference", "image"]
+                    : refItem.role === "garment" || refItem.role === "outfit" || refItem.role === "product"
+                      ? ["garment", "outfit", "product", "apparel", "clothing", "object", "reference", "image"]
+                      : [refItem.role, "reference", "image"];
+            const matchedRole = allowedRoles.length
+                ? matchEnumCaseInsensitive(roleCandidates, allowedRoles)
+                : refItem.role;
+            if (matchedRole !== null) entry[roleKey] = matchedRole;
+        }
+
         return entry;
     };
 
-    const urlKey = pickSupportedKey(
-        urlItemProps,
-        urlCandidates,
-        !urlItemProps ? "url" : ""
-    );
-    const dataKey = pickSupportedKey(
+    const isInlineDataInput = /^data:[a-z0-9.+-]+\/[a-z0-9.+-]+;base64,/i.test(String(refItem.url || "").trim());
+    const urlKey = !isInlineDataInput
+        ? pickSupportedKey(urlItemProps, urlCandidates, !urlItemProps ? "url" : "")
+        : "";
+    const dataUrlKey = pickSupportedKey(
         uploadItemProps,
-        ["dataUrl", "data_url", "mediaBase64", "media_base64", "data", "base64", "contentBase64", "content_base64", "bytesBase64"],
+        ["dataUrl", "data_url", "dataUri", "data_uri"],
         ""
     );
+    const base64Key = pickSupportedKey(
+        uploadItemProps,
+        ["mediaBase64", "media_base64", "base64", "data", "contentBase64", "content_base64", "bytesBase64"],
+        ""
+    );
+    const mediaMimeKey = pickSupportedKey(
+        uploadItemProps,
+        ["mediaMimeType", "media_mime_type"],
+        ""
+    );
+    const dataKey = dataUrlKey || base64Key;
     const sizeKey = pickSupportedKey(
         uploadItemProps,
         ["sizeBytes", "size_bytes", "fileSize", "file_size", "contentLength", "size"],
@@ -2357,6 +2619,7 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         ["localPath", "local_path", "filePath", "file_path", "path"],
         ""
     );
+    const uploadFileNameKey = pickSupportedKey(uploadItemProps, ["fileName", "filename", "file_name"], "");
 
     const projKey = pickSupportedKey(topProps, ["projectId", "project_id"], projectId && !topProps ? "projectId" : "");
     const reqKey = pickSupportedKey(topProps, ["requestKey", "idempotencyKey", "request_key"], "");
@@ -2368,26 +2631,34 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
     });
 
     let cachedDownloaded = null;
+    let registeredMimeType = refItem.mimeType || "";
     const entry = urlKey ? buildBaseEntry(urlItemProps) : buildBaseEntry(uploadItemProps);
     if (urlKey) {
         entry[urlKey] = refItem.url;
-    } else if (dataKey) {
+    } else if (dataUrlKey || base64Key) {
         cachedDownloaded = await downloadSourceImageBytes(
             refItem.url,
             itemMediaType,
             refItem.mediaCache || null
         );
+        registeredMimeType = cachedDownloaded.mimeType;
+        const mimeKey = pickSupportedKey(uploadItemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
+        if (mimeKey) entry[mimeKey] = cachedDownloaded.mimeType;
         const b64 = bytesToBase64(cachedDownloaded.bytes);
-        entry[dataKey] = /url|uri/i.test(dataKey)
-            ? `data:${cachedDownloaded.mimeType};base64,${b64}`
-            : b64;
+        if (dataUrlKey) {
+            entry[dataUrlKey] = `data:${cachedDownloaded.mimeType};base64,${b64}`;
+        } else if (base64Key) {
+            entry[base64Key] = b64;
+            if (mediaMimeKey) entry[mediaMimeKey] = cachedDownloaded.mimeType;
+        }
         if (sizeKey) entry[sizeKey] = cachedDownloaded.bytes.byteLength;
-    } else if (sizeKey || pickSupportedKey(uploadItemProps, ["fileName", "filename", "file_name"], "")) {
+    } else if (sizeKey || uploadFileNameKey) {
         cachedDownloaded = await downloadSourceImageBytes(
             refItem.url,
             itemMediaType,
             refItem.mediaCache || null
         );
+        registeredMimeType = cachedDownloaded.mimeType;
         const mimeKey = pickSupportedKey(uploadItemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
         if (mimeKey) entry[mimeKey] = cachedDownloaded.mimeType;
         if (sizeKey) entry[sizeKey] = cachedDownloaded.bytes.byteLength;
@@ -2412,13 +2683,30 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         };
     }
 
+    /* Jika panggilan URL penuh ditolak skema (mis. field opsional tidak dikenal), coba varian URL minimal sebelum download */
+    if (urlKey && stepRes.isError && Object.keys(entry).length > 1) {
+        const minUrlEntry = buildBaseEntry(urlItemProps, { minimal: true });
+        minUrlEntry[urlKey] = refItem.url;
+        if (JSON.stringify(minUrlEntry) !== JSON.stringify(entry)) {
+            const minUrlRes = await session.callTool(importTool.name, wrapCallArgs(minUrlEntry)).catch(() => null);
+            if (minUrlRes && !minUrlRes.isError) {
+                const minUrlRec = extractImportedAssetRecord(minUrlRes.data, clientItemId);
+                if (!minUrlRec.itemFailed && (minUrlRec.assetId || minUrlRec.uploadUrl)) {
+                    stepRes = minUrlRes;
+                    record = minUrlRec;
+                }
+            }
+        }
+    }
+
     /*
      * Jika import_assets via remote URL gagal (mis. signed URL storage privat atau CDN pihak ketiga ditolak oleh fetcher Opus)
-     * atau tidak mengembalikan assetId maupun uploadUrl, fallback ke upload langsung via dataUrl/base64/presigned upload.
+     * atau tidak mengembalikan assetId maupun uploadUrl, jalankan rantai kandidat ala Studio Medsos:
+     * data_url (penuh + minimal) -> media_base64 (penuh + minimal) -> presigned (fileName) -> local_path_upload (/tmp/...).
      */
     if (
         (stepRes.isError || record.itemFailed || (!record.assetId && !record.uploadUrl)) &&
-        (dataKey || sizeKey || pathKey || pickSupportedKey(uploadItemProps, ["fileName", "filename", "file_name"], ""))
+        (dataUrlKey || base64Key || sizeKey || pathKey || uploadFileNameKey)
     ) {
         try {
             if (!cachedDownloaded) {
@@ -2428,34 +2716,96 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                     refItem.mediaCache || null
                 );
             }
+            const syncedExt = extFromMime(cachedDownloaded.mimeType);
+            const syncedFileName = String(refItem.fileName || `${clientItemId}.${syncedExt}`).replace(
+                /\.[a-z0-9]+$/i,
+                `.${syncedExt}`
+            );
             const fallbackEntries = [];
-            const inlineOrPresignedEntry = buildBaseEntry(uploadItemProps);
-            const mimeKey = pickSupportedKey(uploadItemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
-            if (mimeKey) inlineOrPresignedEntry[mimeKey] = cachedDownloaded.mimeType;
-            if (sizeKey) inlineOrPresignedEntry[sizeKey] = cachedDownloaded.bytes.byteLength;
-            if (dataKey) {
-                const b64 = bytesToBase64(cachedDownloaded.bytes);
-                inlineOrPresignedEntry[dataKey] = /url|uri/i.test(dataKey)
-                    ? `data:${cachedDownloaded.mimeType};base64,${b64}`
-                    : b64;
-            }
-            fallbackEntries.push(inlineOrPresignedEntry);
+            const seenFallbackSigs = new Set();
+            const pushFallback = (candidateObj, candidateMime) => {
+                const sig = JSON.stringify(candidateObj);
+                if (!seenFallbackSigs.has(sig)) {
+                    seenFallbackSigs.add(sig);
+                    fallbackEntries.push({ entry: candidateObj, mime: candidateMime });
+                }
+            };
 
-            if (pathKey && dataKey) {
-                const presignedPathEntry = buildBaseEntry(uploadItemProps);
-                if (mimeKey) presignedPathEntry[mimeKey] = cachedDownloaded.mimeType;
+            const b64Lazy = () => bytesToBase64(cachedDownloaded.bytes);
+
+            if (dataUrlKey) {
+                const b64 = b64Lazy();
+                const dataUri = `data:${cachedDownloaded.mimeType};base64,${b64}`;
+                const fullDataEntry = buildBaseEntry(uploadItemProps, {
+                    minimal: false,
+                    overrideMime: cachedDownloaded.mimeType,
+                    overrideFileName: syncedFileName
+                });
+                if (sizeKey) fullDataEntry[sizeKey] = cachedDownloaded.bytes.byteLength;
+                fullDataEntry[dataUrlKey] = dataUri;
+                pushFallback(fullDataEntry, cachedDownloaded.mimeType);
+
+                const minDataEntry = buildBaseEntry(uploadItemProps, {
+                    minimal: true,
+                    overrideMime: cachedDownloaded.mimeType,
+                    overrideFileName: syncedFileName
+                });
+                minDataEntry[dataUrlKey] = dataUri;
+                pushFallback(minDataEntry, cachedDownloaded.mimeType);
+            }
+
+            if (base64Key && base64Key !== dataUrlKey) {
+                const b64 = b64Lazy();
+                const fullB64Entry = buildBaseEntry(uploadItemProps, {
+                    minimal: false,
+                    overrideMime: cachedDownloaded.mimeType,
+                    overrideFileName: syncedFileName
+                });
+                fullB64Entry[base64Key] = b64;
+                if (mediaMimeKey) fullB64Entry[mediaMimeKey] = cachedDownloaded.mimeType;
+                if (sizeKey) fullB64Entry[sizeKey] = cachedDownloaded.bytes.byteLength;
+                pushFallback(fullB64Entry, cachedDownloaded.mimeType);
+
+                const minB64Entry = buildBaseEntry(uploadItemProps, {
+                    minimal: true,
+                    overrideMime: cachedDownloaded.mimeType,
+                    overrideFileName: syncedFileName
+                });
+                minB64Entry[base64Key] = b64;
+                if (mediaMimeKey) minB64Entry[mediaMimeKey] = cachedDownloaded.mimeType;
+                pushFallback(minB64Entry, cachedDownloaded.mimeType);
+            }
+
+            if (uploadFileNameKey || (sizeKey && !dataUrlKey && !base64Key)) {
+                const presignedEntry = buildBaseEntry(uploadItemProps, {
+                    minimal: false,
+                    overrideMime: cachedDownloaded.mimeType,
+                    overrideFileName: syncedFileName
+                });
+                if (uploadFileNameKey) presignedEntry[uploadFileNameKey] = syncedFileName;
+                if (sizeKey) presignedEntry[sizeKey] = cachedDownloaded.bytes.byteLength;
+                pushFallback(presignedEntry, cachedDownloaded.mimeType);
+            }
+
+            if (pathKey) {
+                const presignedPathEntry = buildBaseEntry(uploadItemProps, {
+                    minimal: false,
+                    overrideMime: cachedDownloaded.mimeType,
+                    overrideFileName: syncedFileName
+                });
                 if (sizeKey) presignedPathEntry[sizeKey] = cachedDownloaded.bytes.byteLength;
-                presignedPathEntry[pathKey] = `/tmp/${refItem.fileName || `${clientItemId}.${extFromMime(cachedDownloaded.mimeType)}`}`;
-                fallbackEntries.push(presignedPathEntry);
+                presignedPathEntry[pathKey] = `/tmp/${syncedFileName}`;
+                pushFallback(presignedPathEntry, cachedDownloaded.mimeType);
             }
 
-            for (const fbEntry of fallbackEntries) {
-                const retryRes = await session.callTool(importTool.name, wrapCallArgs(fbEntry)).catch(() => null);
+            for (const fb of fallbackEntries) {
+                const retryRes = await session.callTool(importTool.name, wrapCallArgs(fb.entry)).catch(() => null);
                 if (!retryRes || retryRes.isError) continue;
                 const retryRecord = extractImportedAssetRecord(retryRes.data, clientItemId);
                 if (!retryRecord.itemFailed && (retryRecord.assetId || retryRecord.uploadUrl)) {
                     stepRes = retryRes;
                     record = retryRecord;
+                    registeredMimeType = fb.mime || cachedDownloaded.mimeType;
                     break;
                 }
             }
@@ -2498,47 +2848,26 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                 refItem.mediaCache || null
             );
         }
-        const basePutHeaders = {
-            ...(record.uploadHeaders || {})
-        };
-        const hasExplicitContentType = Object.keys(basePutHeaders).some(
-            k => k.toLowerCase() === "content-type"
+        const primaryPutMime = cachedDownloaded.mimeType || registeredMimeType || refItem.mimeType;
+        const secondaryPutMime =
+            registeredMimeType && registeredMimeType !== primaryPutMime
+                ? registeredMimeType
+                : refItem.mimeType && refItem.mimeType !== primaryPutMime
+                  ? refItem.mimeType
+                  : "";
+        const putHeaderCandidates = buildPresignedPutHeaderCandidates(
+            record.uploadUrl,
+            record.uploadHeaders,
+            primaryPutMime,
+            secondaryPutMime
         );
-        const signedHeadersMatch = /[?&]X-(?:Amz|Goog)-SignedHeaders=([^&#]+)/i.exec(record.uploadUrl);
-        const signedHeadersRaw = signedHeadersMatch
-            ? decodeURIComponent(signedHeadersMatch[1]).toLowerCase()
-            : "";
-        const isGcsUnsignedContentType =
-            /[?&]X-Goog-SignedHeaders=/i.test(record.uploadUrl) &&
-            signedHeadersRaw &&
-            !signedHeadersRaw.includes("content-type");
-
-        const putHeaderCandidates = [];
-        if (hasExplicitContentType) {
-            putHeaderCandidates.push(basePutHeaders);
-        } else if (isGcsUnsignedContentType) {
-            putHeaderCandidates.push(basePutHeaders);
-            putHeaderCandidates.push({
-                ...basePutHeaders,
-                "Content-Type": cachedDownloaded.mimeType
-            });
-        } else {
-            putHeaderCandidates.push({
-                ...basePutHeaders,
-                "Content-Type": cachedDownloaded.mimeType
-            });
-            if (refItem.mimeType && refItem.mimeType !== cachedDownloaded.mimeType) {
-                putHeaderCandidates.push({
-                    ...basePutHeaders,
-                    "Content-Type": refItem.mimeType
-                });
-            }
-            putHeaderCandidates.push(basePutHeaders);
-        }
 
         const putTimeoutMs =
             itemMediaType === "video" ? 40_000 : itemMediaType === "audio" ? 30_000 : 25_000;
         let putRes = null;
+        let firstFailedPutStatus = 0;
+        let firstFailedPutBody = "";
+
         for (let hIdx = 0; hIdx < putHeaderCandidates.length; hIdx += 1) {
             putRes = await fetchWithTimeout(
                 record.uploadUrl,
@@ -2550,32 +2879,59 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                 putTimeoutMs
             );
             if (putRes.ok) break;
+            const errBodyText = await putRes.text().catch(() => "");
+            if (!firstFailedPutStatus) {
+                firstFailedPutStatus = putRes.status;
+                firstFailedPutBody = errBodyText;
+            } else if (!/MalformedSecurityHeader/i.test(errBodyText)) {
+                firstFailedPutStatus = putRes.status;
+                firstFailedPutBody = errBodyText;
+            }
             if (putRes.status !== 400 && putRes.status !== 403) break;
         }
 
         let recoveredViaInlineDataUrl = false;
-        if (!putRes.ok && dataKey) {
+        if (!putRes.ok && (dataUrlKey || base64Key)) {
             try {
-                const inlineRescueEntry = buildBaseEntry(uploadItemProps);
-                const mimeKey = pickSupportedKey(
-                    uploadItemProps,
-                    ["mimeType", "mime_type", "contentType", "content_type"],
-                    ""
-                );
-                if (mimeKey) inlineRescueEntry[mimeKey] = cachedDownloaded.mimeType;
-                if (sizeKey) inlineRescueEntry[sizeKey] = cachedDownloaded.bytes.byteLength;
                 const b64 = bytesToBase64(cachedDownloaded.bytes);
-                inlineRescueEntry[dataKey] = /url|uri/i.test(dataKey)
-                    ? `data:${cachedDownloaded.mimeType};base64,${b64}`
-                    : b64;
-                const rescueRes = await session
-                    .callTool(importTool.name, wrapCallArgs(inlineRescueEntry))
-                    .catch(() => null);
-                if (rescueRes && !rescueRes.isError) {
-                    const rescueRecord = extractImportedAssetRecord(rescueRes.data, clientItemId);
-                    if (!rescueRecord.itemFailed && rescueRecord.assetId && !rescueRecord.uploadUrl) {
-                        record = rescueRecord;
-                        recoveredViaInlineDataUrl = true;
+                const rescueEntries = [];
+                if (dataUrlKey) {
+                    const minRescue = buildBaseEntry(uploadItemProps, {
+                        minimal: true,
+                        overrideMime: cachedDownloaded.mimeType
+                    });
+                    minRescue[dataUrlKey] = `data:${cachedDownloaded.mimeType};base64,${b64}`;
+                    rescueEntries.push(minRescue);
+
+                    const fullRescue = buildBaseEntry(uploadItemProps, {
+                        minimal: false,
+                        overrideMime: cachedDownloaded.mimeType
+                    });
+                    if (sizeKey) fullRescue[sizeKey] = cachedDownloaded.bytes.byteLength;
+                    fullRescue[dataUrlKey] = `data:${cachedDownloaded.mimeType};base64,${b64}`;
+                    rescueEntries.push(fullRescue);
+                }
+                if (base64Key && base64Key !== dataUrlKey) {
+                    const b64Rescue = buildBaseEntry(uploadItemProps, {
+                        minimal: true,
+                        overrideMime: cachedDownloaded.mimeType
+                    });
+                    b64Rescue[base64Key] = b64;
+                    if (mediaMimeKey) b64Rescue[mediaMimeKey] = cachedDownloaded.mimeType;
+                    rescueEntries.push(b64Rescue);
+                }
+
+                for (const inlineRescueEntry of rescueEntries) {
+                    const rescueRes = await session
+                        .callTool(importTool.name, wrapCallArgs(inlineRescueEntry))
+                        .catch(() => null);
+                    if (rescueRes && !rescueRes.isError) {
+                        const rescueRecord = extractImportedAssetRecord(rescueRes.data, clientItemId);
+                        if (!rescueRecord.itemFailed && rescueRecord.assetId && !rescueRecord.uploadUrl) {
+                            record = rescueRecord;
+                            recoveredViaInlineDataUrl = true;
+                            break;
+                        }
                     }
                 }
             } catch {
@@ -2584,18 +2940,8 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         }
 
         if (!putRes.ok && !recoveredViaInlineDataUrl) {
-            let storageErrDetail = "";
-            try {
-                const errBody = await putRes.text();
-                const xmlCode = /<Code>([^<]{1,64})<\/Code>/i.exec(errBody)?.[1]?.trim() || "";
-                const xmlMsg = /<Message>([^<]{1,120})<\/Message>/i.exec(errBody)?.[1]?.trim() || "";
-                const rawHint = xmlCode && xmlMsg ? `${xmlCode}: ${xmlMsg}` : xmlCode || xmlMsg;
-                if (rawHint) {
-                    storageErrDetail = ` — ${redactSecrets(rawHint).slice(0, 120)}`;
-                }
-            } catch {
-                /* Abaikan gagal baca body error PUT */
-            }
+            const reportStatus = firstFailedPutStatus || putRes.status;
+            const storageErrDetail = extractStorageXmlErrorDetail(firstFailedPutBody);
             const putMediaLabel =
                 itemMediaType === "video"
                     ? "video referensi"
@@ -2603,7 +2949,7 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                         ? "audio referensi"
                         : "gambar referensi";
             throw createProviderError({
-                message: `Gagal mengunggah ${putMediaLabel} ke penyimpanan Opus Labs (HTTP ${putRes.status})${storageErrDetail}.`,
+                message: `Gagal mengunggah ${putMediaLabel} ke penyimpanan Opus Labs (HTTP ${reportStatus})${storageErrDetail}.`,
                 code: "ASSET_UPLOAD_FAILED",
                 status: 502
             });
@@ -7486,21 +7832,41 @@ async function createImageTaskForSingleKey(payload = {}, apiKey, options = {}) {
     for (let i = 0; i < refItems.length; i += 1) {
         const refItem = refItems[i];
         const mime = inferImageMimeFromUrl(refItem.url);
-        const staged = await stageSingleReferenceImage(
-            session,
-            importTool,
-            projectId,
-            {
-                url: refItem.url,
-                role: refItem.role || "reference",
-                label: refItem.label || `image${i + 1}`,
-                mimeType: mime,
-                mediaType: "image",
-                fileName: `${(refItem.label || `reference-${i + 1}`).replace(/[^A-Za-z0-9_-]/g, "-")}.${extFromMime(mime)}`,
-                mediaCache
-            },
-            i
-        );
+        const normalizedRefInput = {
+            url: refItem.url,
+            role: refItem.role || "reference",
+            label: refItem.label || `image${i + 1}`,
+            mimeType: mime,
+            mediaType: "image",
+            fileName: `${(refItem.label || `reference-${i + 1}`).replace(/[^A-Za-z0-9_-]/g, "-")}.${extFromMime(mime)}`,
+            mediaCache
+        };
+        if (!/^data:image\//i.test(String(refItem.url || "").trim())) {
+            const urlCheck = inspectReferenceMediaUrl(refItem.url);
+            if (!urlCheck.valid) {
+                throw createProviderError({
+                    message: urlCheck.message,
+                    code: urlCheck.code || "NON_DIRECT_MEDIA_URL",
+                    status: 422
+                });
+            }
+        }
+        const staged =
+            typeof options?.stageReferenceImage === "function"
+                ? await options.stageReferenceImage({
+                      session,
+                      importTool,
+                      projectId,
+                      refItem: normalizedRefInput,
+                      index: i
+                  })
+                : await stageSingleReferenceImage(
+                      session,
+                      importTool,
+                      projectId,
+                      normalizedRefInput,
+                      i
+                  );
         if (staged?.assetId) {
             excludedAssetIds.add(String(staged.assetId).trim());
         }
