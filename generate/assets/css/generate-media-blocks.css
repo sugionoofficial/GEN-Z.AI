@@ -517,3 +517,94 @@ html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .gene
     border-top-color: #1d4ed8;
     border-right-color: rgba(29, 78, 216, 0.78);
 }
+
+
+/* =========================================================
+   09. PROSES URL FACEBOOK (GETMYFB) DI MODE URL
+========================================================= */
+
+#dynamicFields .generate-image-url-container,
+#dynamicFields .generate-video-url-container,
+#dynamicFields .generate-audio-url-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#dynamicFields .generate-url-input-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+}
+
+#dynamicFields .generate-url-input-row > input[type="url"] {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+#dynamicFields .generate-fb-process-btn {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid rgba(183, 255, 0, 0.45);
+    border-radius: 10px;
+    background: rgba(183, 255, 0, 0.12);
+    color: #d9ff55;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+}
+
+#dynamicFields .generate-fb-process-btn:hover:not(:disabled) {
+    border-color: rgba(183, 255, 0, 0.75);
+    background: rgba(183, 255, 0, 0.22);
+}
+
+#dynamicFields .generate-fb-process-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+#dynamicFields .generate-fb-url-hint {
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: #d9ff55;
+    opacity: 0.92;
+}
+
+#dynamicFields .generate-fb-url-hint[hidden] {
+    display: none !important;
+}
+
+@media (max-width: 520px) {
+    #dynamicFields .generate-url-input-row {
+        flex-direction: column;
+    }
+
+    #dynamicFields .generate-fb-process-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-fb-process-btn {
+    border-color: #7c9a16;
+    background: #eef9c8;
+    color: #2f3e07;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-fb-process-btn:hover:not(:disabled) {
+    border-color: #5f780d;
+    background: #e1f4a4;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body #dynamicFields .generate-fb-url-hint {
+    color: #364908;
+}
+

@@ -42,7 +42,7 @@ import {
     resolveImageParameterValue,
     resolveAudioParameterValue,
     resolveVideoParameterValue
-} from "./generate-form-media-reader.js?v=video-clip-editor-20261018";
+} from "./generate-form-media-reader.js?v=video-clip-editor-20261031";
 
 
 /* =========================================================
