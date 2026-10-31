@@ -130,6 +130,38 @@ seed (
             'MiniMax Hailuo 3 First & Last Frame (Opus)',
             'Image to video MiniMax Hailuo 3 dari frame awal + frame akhir opsional via Opus Labs — 5–15 detik, 768p & 2K.',
             5, 15, '{}', '{768p,2k}', '{5,6,8,10,12,15}', 0, 25, 45
+        ),
+
+        -- OPUS IMAGE GENERATION (`generate_keyframes` — flat credit_480p = 500) --
+        (
+            'opus-gpt-image-2.5-flare',
+            'GPT Image 2.5 Flare',
+            'OpenAI GPT Image 2.5 Flare untuk generate gambar photorealistic detail tinggi, komposisi presisi, serta konsistensi karakter & outfit.',
+            null, null, '{1:1,16:9,9:16,4:3,3:4}', '{}', '{}', 500, 0, 0
+        ),
+        (
+            'opus-gpt-image-2.5-sunburst',
+            'GPT Image 2.5 Sunburst',
+            'OpenAI GPT Image 2.5 Sunburst dengan pencahayaan sinematik dramatis, warna kaya, dan ketajaman tekstur studio.',
+            null, null, '{1:1,16:9,9:16,4:3,3:4}', '{}', '{}', 500, 0, 0
+        ),
+        (
+            'opus-seedream-5.0-pro',
+            'Seedream 5.0 Pro',
+            'ByteDance Seedream 5.0 Pro untuk estetika visual premium, multi-reference hingga 8 gambar, dan turnaround karakter ultra-konsisten.',
+            null, null, '{1:1,16:9,9:16,4:3,3:4,21:9}', '{}', '{}', 500, 0, 0
+        ),
+        (
+            'opus-nano-banana-2',
+            'Nano Banana 2',
+            'Google Nano Banana 2 (Gemini Flash Image) cepat dan responsif dengan konsistensi subjek kuat hingga 8 gambar referensi.',
+            null, null, '{1:1,16:9,9:16,4:3,3:4}', '{}', '{}', 500, 0, 0
+        ),
+        (
+            'opus-nano-banana-pro',
+            'Nano Banana Pro',
+            'Google Nano Banana Pro (Gemini Pro Image) kelas studio untuk Character Sheet multi-angle, detail wajah presisi, dan penggabungan outfit.',
+            null, null, '{1:1,16:9,9:16,4:3,3:4,21:9}', '{}', '{}', 500, 0, 0
         )
 )
 insert into public.models (

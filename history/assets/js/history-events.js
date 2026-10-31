@@ -835,8 +835,23 @@
         const normalizeReference =
             window.GENZRegenerate?.normalizeReference ||
             (value => value);
+        const rawPrompt = String(item.prompt || item.input_prompt || "").trim();
+        const isCharSheetHistory = /^\[Karakter Sheet/i.test(rawPrompt);
+        const extractedNotes = isCharSheetHistory
+            ? rawPrompt
+                .replace(/^\[Karakter Sheet[^\]]*\]\s*/i, "")
+                .replace(/^Turnaround Full-Body \(Depan, 3\/4, Samping, Belakang\) & Close-up Wajah\.?$/i, "")
+                .replace(/^Turnaround studio multi-sudut otomatis\.?$/i, "")
+                .trim()
+            : "";
+
         const savedValues = {
-            prompt: item.prompt || item.input_prompt,
+            prompt: isCharSheetHistory ? "" : rawPrompt,
+            character_notes: extractedNotes,
+            image_mode: isCharSheetHistory ? "character_sheet" : undefined,
+            character_image_url: isCharSheetHistory
+                ? normalizeReference(item.image_reference_url)
+                : undefined,
             aspect_ratio: item.ratio,
             duration: item.duration,
             resolution: item.resolution,

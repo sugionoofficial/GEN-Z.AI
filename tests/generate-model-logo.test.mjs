@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getModelLogoFile } from "../generate/assets/js/generate-model-logo.js";
+import opusVideoModels from "../models/opus-video/index.js";
+import opusImageModels from "../models/opus-image/index.js";
 
 const root = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -30,6 +32,10 @@ async function loadModels() {
         const file = path.join(modelsDir, dir, "config.js");
         const module = await import(pathToFileURL(file).href);
         models.push(module.default);
+    }
+
+    for (const item of [...opusVideoModels, ...opusImageModels]) {
+        models.push(item.config || item);
     }
 
     return models;

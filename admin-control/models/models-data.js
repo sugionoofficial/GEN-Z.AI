@@ -108,6 +108,9 @@ import qwenCloudVideoModels
 import opusVideoModels
     from "../../models/opus-video/index.js?v=models-registry-opus-all-durations-20261028";
 
+import opusImageModels
+    from "../../models/opus-image/index.js?v=models-registry-opus-image-20261101";
+
 
 /* =========================================================
    CONSTANT
@@ -230,6 +233,26 @@ const MODEL_REGISTRY = [
         model => ({
             folder:
                 "models/opus-video",
+
+            config:
+                model.config,
+
+            parameters:
+                model.parameters
+        })
+    ),
+
+    /*
+     * Opus Labs Image Generation (generate_keyframes)
+     *
+     * Semua model gambar Opus dibuat dari factory di
+     * models/opus-image.
+     */
+
+    ...opusImageModels.map(
+        model => ({
+            folder:
+                "models/opus-image",
 
             config:
                 model.config,

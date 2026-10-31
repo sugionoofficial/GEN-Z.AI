@@ -84,6 +84,8 @@ const WEB_PLATFORM_RULES = Object.freeze([
 const MEDIA_PARAMETER_KEYS = new Set([
     "image_url",
     "image_urls",
+    "character_image_url",
+    "outfit_image_url",
     "first_frame_url",
     "last_frame_url",
     "end_image_url",

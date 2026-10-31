@@ -42,6 +42,10 @@ import {
 } from "./generate-state.js";
 
 import {
+    adaptDefinitionsForImageSubMode
+} from "./generate-mode-state.js";
+
+import {
     inspectReferenceMediaUrl,
     isMediaUrlParameterName,
     validateParametersMediaUrls
@@ -371,7 +375,13 @@ function getModelParameters(
         )
     ) {
 
-        return parameters.filter(
+        const adaptedArray =
+            adaptDefinitionsForImageSubMode(
+                parameters,
+                model
+            );
+
+        return adaptedArray.filter(
             definition =>
                 !INTERNAL_PARAMETERS.has(
                     getParameterName(
@@ -421,8 +431,13 @@ function getModelParameters(
         }
 
 
+        const adaptedParameters = adaptDefinitionsForImageSubMode(
+            parameters,
+            model
+        );
+
         return Object.entries(
-            parameters
+            adaptedParameters
         )
             .map(
                 ([key, definition]) => {

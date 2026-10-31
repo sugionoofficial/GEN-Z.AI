@@ -39,6 +39,10 @@ import {
     runOpusQueueRetryLoop
 } from "./opus-queue-retry.js?v=20261029-historygate";
 
+import {
+    isImageModel
+} from "./generate-mode-state.js";
+
 
 /* =========================================================
    STATE
@@ -1443,13 +1447,16 @@ async function handleGenerateSubmit(
                     ? parameters.image_urls
                     : [];
 
-            if (
-                imageUrls.length &&
-                imageUrls[0]
-            ) {
+            const firstThumb =
+                (typeof parameters?.character_image_url === "string" && parameters.character_image_url.trim())
+                    ? parameters.character_image_url.trim()
+                    : imageUrls[0] ||
+                      (typeof parameters?.image_url === "string" ? parameters.image_url.trim() : "");
+
+            if (firstThumb) {
 
                 progressSetThumbnail(
-                    imageUrls[0]
+                    firstThumb
                 );
 
             }
@@ -1689,8 +1696,24 @@ async function handleGenerateSubmit(
                         elements.resultTaskId.textContent = currentTaskId;
                     }
 
+                    const inlineImageCompleted =
+                        isImageModel(model) &&
+                        response?.completed === true &&
+                        (
+                            response?.result_url ||
+                            (Array.isArray(response?.result_urls) && response.result_urls.length > 0)
+                        );
+
+                    if (inlineImageCompleted) {
+                        return {
+                            taskId: currentTaskId,
+                            result: response,
+                            cancelled: false
+                        };
+                    }
+
                     showLoading(
-                        `KIE.AI menerima task ${currentTaskId}. Menunggu hasil...`
+                        `GEN-Z.AI menerima task ${currentTaskId}. Menunggu hasil...`
                     );
 
                     progressUpdate({
@@ -1710,7 +1733,7 @@ async function handleGenerateSubmit(
                             currentTaskId,
                             {
                                 modelId,
-                                interval: 10000,
+                                interval: isImageModel(model) ? 4500 : 10000,
                                 timeout: null,
                                 retryUntilTerminal: true,
                                 opusQueueAttempt: queueAttempt,
@@ -1772,7 +1795,11 @@ async function handleGenerateSubmit(
 
                                         setGenerateStatus(
                                             "processing",
-                                            liveStageMessage || "Video sedang diproses. Mohon tunggu..."
+                                            liveStageMessage || (
+                                                isImageModel(model)
+                                                    ? "Gambar sedang diproses. Mohon tunggu..."
+                                                    : "Video sedang diproses. Mohon tunggu..."
+                                            )
                                         );
                                     }
                                 }
@@ -1981,10 +2008,20 @@ async function handleGenerateSubmit(
 
         /* ===== GENZ PROGRESS CARD — SUCCESS ===== */
 
+        if (isImageModel(model)) {
+            try {
+                window.GENZGenerateApp?.renderImageResult?.(result, model);
+            } catch (imgErr) {
+                console.warn("[GEN-Z.AI] renderImageResult warning:", imgErr);
+            }
+        }
+
         progressSuccess({
 
             message:
-                "Video selesai dibuat! Cek History."
+                isImageModel(model)
+                    ? "Gambar selesai dibuat! Tersimpan di History."
+                    : "Video selesai dibuat! Cek History."
 
         });
 

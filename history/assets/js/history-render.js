@@ -323,17 +323,40 @@
         "avif"
     ];
 
+    const GENERATED_IMAGE_MODEL_IDS = [
+        "opus-gpt-image-2.5-flare",
+        "opus-gpt-image-2.5-sunburst",
+        "opus-seedream-5.0-pro",
+        "opus-nano-banana-2",
+        "opus-nano-banana-pro"
+    ];
+
+    function isImageHistoryItem(item) {
+        const mediaType = String(item?.media_type || item?.mediaType || "").trim().toLowerCase();
+        if (mediaType === "image") return true;
+        const modelId = String(item?.model_id || item?.modelId || "").trim().toLowerCase();
+        return modelId === "upscale-photo" || GENERATED_IMAGE_MODEL_IDS.indexOf(modelId) !== -1;
+    }
+
     function isImageResultUrl(url) {
 
         if (!url) {
             return false;
         }
 
-        const clean =
+        const raw =
             String(url)
-                .split("?")[0]
-                .split("#")[0]
+                .trim()
                 .toLowerCase();
+
+        if (raw.indexOf("data:image/") === 0) {
+            return true;
+        }
+
+        const clean =
+            raw
+                .split("?")[0]
+                .split("#")[0];
 
         const dot =
             clean.lastIndexOf(".");
@@ -1191,7 +1214,7 @@
            object-fit: contain supaya tidak zoom.
         ================================================= */
 
-        if (isImageResultUrl(url)) {
+        if (isImageResultUrl(url) || isImageHistoryItem(item)) {
 
             return `
                 <div

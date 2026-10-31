@@ -30,8 +30,14 @@ import {
     getOrderedParameterNames,
     isClientForbiddenParameter,
     getDefaultValue,
-    normalizeParameterValue
+    normalizeParameterValue,
+    resolveModel
 } from "./generate-form-core.js";
+
+import {
+    getActiveImageSubMode,
+    isImageModel
+} from "./generate-mode-state.js";
 
 import {
     findField,
@@ -531,6 +537,10 @@ export async function getFormParameters(modelArgument = null) {
         }
     );
 
+    const activeModel = resolveModel(modelArgument);
+    if (isImageModel(activeModel)) {
+        parameters.image_mode = getActiveImageSubMode();
+    }
 
     return parameters;
 }
