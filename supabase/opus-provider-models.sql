@@ -103,6 +103,12 @@ seed (
             'Konsistensi karakter, gerakan, suara & produk dari hingga 3 gambar referensi (@image1–@image3), 3 video referensi (@video1–@video3), dan/atau audio referensi (@audio1) via Opus Labs — 4–30 detik.',
             4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', '{4,5,8,10,12,15,20,25,30}', 18, 28, 0
         ),
+        (
+            'opus-seedance-2.5-r2v-30s',
+            'Seedance 2.5 Reference to Video (30s)',
+            'Video 30 detik bertahap (3 × 10 detik tersambung mulus dari frame akhir tiap klip) dari hingga 3 gambar (@image1–@image3), 3 video (@video1–@video3), dan/atau audio referensi (@audio1) via Opus Labs.',
+            30, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{480p,720p}', '{30}', 6000, 7500, 0
+        ),
 
         -- SEEDANCE 2.0 ------------------------------------
         (

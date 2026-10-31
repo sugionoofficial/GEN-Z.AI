@@ -1521,7 +1521,8 @@ function validateModelCapabilities(
     const requiresAnyReferenceMedia = Boolean(
         model?.config?.referenceRequired ||
         model?.repository?.config?.referenceRequired ||
-        modelId === "opus-seedance-2.5-r2v"
+        modelId === "opus-seedance-2.5-r2v" ||
+        modelId === "opus-seedance-2.5-r2v-30s"
     );
 
     if (

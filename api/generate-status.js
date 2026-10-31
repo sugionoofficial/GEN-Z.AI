@@ -84,6 +84,14 @@ import {
     shouldSuppressOpusBusyFailureHistory
 } from "../generate/assets/js/opus-queue-retry.js";
 
+import {
+    STAGED_30S_CLIP_COUNT,
+    isStaged30sModelId,
+    isStaged30sTaskId
+} from "../lib/generate/staged-video-30s.js";
+
+const STAGED_30S_STALE_TIMEOUT_MS = 55 * 60 * 1000;
+
 /* =========================================================
    CONSTANTS
    ========================================================= */
@@ -4337,6 +4345,212 @@ export default async function handler(
                     history_status: "failed",
                     history_row_id: existingHistory.id,
                     history_database_status: "failed"
+                }
+            );
+        }
+
+        if (
+            isStaged30sTaskId(taskId) ||
+            isStaged30sModelId(modelId)
+        ) {
+            const historyStatus = lower(existingHistory?.status);
+
+            if (
+                existingHistory &&
+                historyStatus === "success" &&
+                existingHistory.result_url
+            ) {
+                return json(
+                    res,
+                    200,
+                    {
+                        success: true,
+                        user_id: user.id,
+                        model_id: modelId,
+                        task_id: taskId,
+                        taskId,
+                        state: "completed",
+                        provider_state: "completed",
+                        processing: false,
+                        completed: true,
+                        failed: false,
+                        has_result: true,
+                        hasResult: true,
+                        result_urls: [existingHistory.result_url],
+                        resultUrls: [existingHistory.result_url],
+                        result: {
+                            resultUrls: [existingHistory.result_url]
+                        },
+                        final_duration: existingHistory.duration || 30,
+                        history_updated: true,
+                        history_matched: true,
+                        history_status: "success",
+                        history_row_id: existingHistory.id,
+                        history_database_status: "success",
+                        history_result_url: existingHistory.result_url,
+                        history_completed_at: existingHistory.completed_at || null
+                    }
+                );
+            }
+
+            if (
+                existingHistory &&
+                historyStatus === "failed"
+            ) {
+                return json(
+                    res,
+                    200,
+                    {
+                        success: true,
+                        user_id: user.id,
+                        model_id: modelId,
+                        task_id: taskId,
+                        taskId,
+                        state: "failed",
+                        provider_state: "failed",
+                        processing: false,
+                        completed: false,
+                        failed: true,
+                        error_message:
+                            existingHistory.error_message ||
+                            "Pemrosesan video bertahap gagal.",
+                        credit_refunded: Boolean(existingHistory.credit_refunded),
+                        history_updated: false,
+                        history_matched: true,
+                        history_status: "failed",
+                        history_row_id: existingHistory.id,
+                        history_database_status: "failed"
+                    }
+                );
+            }
+
+            let stagedJob = null;
+            try {
+                const jobParams = new URLSearchParams();
+                jobParams.set(
+                    "select",
+                    "id,status,current_stage,stage_message,completed_clips,final_duration_seconds,error_message,created_at,updated_at"
+                );
+                jobParams.set("task_id", `eq.${taskId}`);
+                jobParams.set("user_id", `eq.${user.id}`);
+                jobParams.set("limit", "1");
+
+                const stagedRows = await supabaseRequest(
+                    `/rest/v1/staged_generation_jobs?${jobParams.toString()}`,
+                    { method: "GET" }
+                );
+                stagedJob = Array.isArray(stagedRows) ? stagedRows[0] || null : null;
+            } catch (jobLookupError) {
+                console.warn(
+                    "[generate-status] Lookup staged_generation_jobs gagal:",
+                    serializeError(jobLookupError)
+                );
+            }
+
+            const createdAtMs = Date.parse(
+                stagedJob?.created_at || existingHistory?.created_at || ""
+            );
+            const isStaleStagedJob =
+                Number.isFinite(createdAtMs) &&
+                Date.now() - createdAtMs > STAGED_30S_STALE_TIMEOUT_MS;
+
+            if (isStaleStagedJob && existingHistory) {
+                const staleMsg =
+                    "Pemrosesan video 30 detik melewati batas waktu maksimum server.";
+                await supabaseRequest(
+                    `/rest/v1/generation_history?id=eq.${encodeURIComponent(existingHistory.id)}&status=in.(processing,pending)`,
+                    {
+                        method: "PATCH",
+                        headers: { Prefer: "return=minimal" },
+                        body: JSON.stringify({
+                            status: "failed",
+                            error_message: staleMsg,
+                            completed_at: new Date().toISOString()
+                        })
+                    }
+                ).catch(() => null);
+
+                const refund = await refundFailedGenerationCredits(
+                    user.id,
+                    taskId
+                ).catch(() => null);
+
+                if (stagedJob?.id) {
+                    await supabaseRequest(
+                        `/rest/v1/staged_generation_jobs?id=eq.${encodeURIComponent(stagedJob.id)}`,
+                        {
+                            method: "PATCH",
+                            headers: { Prefer: "return=minimal" },
+                            body: JSON.stringify({
+                                status: "failed",
+                                current_stage: "failed",
+                                error_message: staleMsg,
+                                internal_token: null,
+                                completed_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString()
+                            })
+                        }
+                    ).catch(() => null);
+                }
+
+                return json(
+                    res,
+                    200,
+                    {
+                        success: true,
+                        user_id: user.id,
+                        model_id: modelId,
+                        task_id: taskId,
+                        taskId,
+                        state: "failed",
+                        provider_state: "failed",
+                        processing: false,
+                        completed: false,
+                        failed: true,
+                        error_message: staleMsg,
+                        credit_refunded: true,
+                        refunded_credit: refund?.amount ?? 0,
+                        history_updated: true,
+                        history_matched: true,
+                        history_status: "failed",
+                        history_row_id: existingHistory.id,
+                        history_database_status: "failed"
+                    }
+                );
+            }
+
+            const stageName = cleanString(stagedJob?.current_stage) || "processing";
+            const stageMessage =
+                cleanString(stagedJob?.stage_message) ||
+                "Memproses video 30 detik secara bertahap (3 × 10 detik)...";
+
+            return json(
+                res,
+                200,
+                {
+                    success: true,
+                    user_id: user.id,
+                    model_id: modelId,
+                    task_id: taskId,
+                    taskId,
+                    state: "processing",
+                    provider_state: "processing",
+                    stage: stageName,
+                    stage_message: stageMessage,
+                    completed_clips: Number(stagedJob?.completed_clips) || 0,
+                    total_clips: STAGED_30S_CLIP_COUNT,
+                    processing: true,
+                    completed: false,
+                    failed: false,
+                    has_result: false,
+                    hasResult: false,
+                    result_urls: [],
+                    resultUrls: [],
+                    history_updated: false,
+                    history_matched: Boolean(existingHistory),
+                    history_status: existingHistory?.status || "processing",
+                    history_row_id: existingHistory?.id || null,
+                    history_database_status: existingHistory?.status || "processing"
                 }
             );
         }

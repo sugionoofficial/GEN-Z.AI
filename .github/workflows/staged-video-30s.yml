@@ -1,0 +1,68 @@
+name: Staged 30s Video Pipeline
+run-name: Staged 30s Video - ${{ inputs.history_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "ID row staged_generation_jobs"
+        required: true
+        type: string
+      history_id:
+        description: "ID row generation_history"
+        required: true
+        type: string
+      user_id:
+        description: "User ID pemilik job"
+        required: true
+        type: string
+      api_base_url:
+        description: "Base URL Cloudflare Worker untuk step internal Opus"
+        required: true
+        type: string
+        default: "https://genzai.genzai-f37.workers.dev"
+
+permissions:
+  contents: read
+
+jobs:
+  staged-video-30s:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Run 3x10s staged generation & seamless merge
+        env:
+          GENZ_SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          GENZ_SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          JOB_ID: ${{ inputs.job_id }}
+          HISTORY_ID: ${{ inputs.history_id }}
+          USER_ID: ${{ inputs.user_id }}
+          API_BASE_URL: ${{ inputs.api_base_url }}
+        run: |
+          node scripts/run-staged-video-30s.mjs
+
+      - name: Emergency finalize partial clips & credit settlement
+        if: ${{ failure() || cancelled() }}
+        env:
+          GENZ_SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          GENZ_SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          JOB_ID: ${{ inputs.job_id }}
+          HISTORY_ID: ${{ inputs.history_id }}
+          USER_ID: ${{ inputs.user_id }}
+          API_BASE_URL: ${{ inputs.api_base_url }}
+        run: |
+          node scripts/run-staged-video-30s.mjs --finalize-emergency

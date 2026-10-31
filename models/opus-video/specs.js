@@ -122,6 +122,46 @@ const OPUS_VIDEO_SPECS = Object.freeze([
         maxPrompt: 8000
     },
 
+    {
+        id: "opus-seedance-2.5-r2v-30s",
+        opusModel: "seedance-2.5",
+        modelAliases: [
+            "seedance-2.5",
+            "bytedance/seedance-2.5",
+            "byteplus/seedance-2.5",
+            "dreamina/seedance-2.5",
+            "volcengine/seedance-2.5",
+            "dreamina-seedance-2-5-260628",
+            "byteplus/dreamina-seedance-2-5-260628",
+            "seedance-2-5",
+            "Seedance 2.5"
+        ],
+        name: "Seedance 2.5 Reference to Video 30s (Opus)",
+        logo: "seedance.svg",
+        kind: "r2v",
+        type: "image-to-video",
+        workflow: "reference2video",
+        staged30s: true,
+        promptHint: "Deskripsi adegan 30 detik (@image1..@image3, @video1..@video3, @audio1). Bisa memakai durasi (0-10, 11-20, 21-30) atau tanpa durasi (sistem otomatis membuatkan durasi tiap segmen agar tersambung mulus).",
+        referenceRequired: true,
+        maxReferences: 3,
+        allowReferenceVideos: true,
+        maxReferenceVideos: 3,
+        allowReferenceAudio: true,
+        maxReferenceAudio: 3,
+        ratios: ["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"],
+        defaultRatio: "9:16",
+        resolutions: ["720p", "480p"],
+        defaultResolution: "720p",
+        durations: ["30"],
+        selectableDurations: true,
+        durationRange: { min: 30, max: 30 },
+        defaultDuration: "30",
+        generateAudio: true,
+        defaultGenerateAudio: true,
+        maxPrompt: 8000
+    },
+
     /* =====================================================
        SEEDANCE 2.0 (4–15 DETIK, T2V & REFERENCE TO VIDEO)
     ===================================================== */
