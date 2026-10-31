@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#000000">
     <title>Pengaturan Pembayaran - GEN-Z.AI</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
     <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/topup-crypto.js?v=crypto-20261031"></script>
     <script src="../../navigation/navigation.js?v=navlockup-20261029"></script>
     <style>
         * { box-sizing: border-box; }
@@ -22,7 +24,7 @@
         button, input { font: inherit; }
         .page { width: 100%; min-height: 100vh; padding: 28px; }
         .container { width: 100%; max-width: 1100px; margin: 0 auto; }
-        .header, .method-card {
+        .header, .method-card, .crypto-section-banner {
             border: 1px solid rgba(255, 106, 0, .38);
             border-radius: 16px;
             background: linear-gradient(145deg, #141416, #070707);
@@ -35,12 +37,56 @@
             padding: 22px;
             margin-bottom: 18px;
         }
+        .header-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
         h1 { margin: 0; font-size: 27px; }
         .subtitle, .hint { color: #a5a5ad; line-height: 1.55; }
         .subtitle { margin: 7px 0 0; font-size: 13px; }
+        .section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 24px 0 12px;
+        }
+        .section-heading h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #fff;
+        }
+        .section-heading p {
+            margin: 4px 0 0;
+            font-size: 12.5px;
+            color: #9ca3af;
+        }
         .methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
         .method-card { padding: 20px; }
-        .method-card h2 { margin: 0 0 16px; color: #ff8a2a; font-size: 18px; }
+        .method-card.crypto-card {
+            border-color: rgba(245, 158, 11, 0.38);
+        }
+        .method-card-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .method-card h2 { margin: 0; color: #ff8a2a; font-size: 18px; }
+        .method-card.crypto-card h2 { color: #fbbf24; }
+        .network-badge {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fde68a;
+            background: rgba(245, 158, 11, 0.14);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+        }
         .field { display: grid; gap: 7px; margin-bottom: 14px; }
         .field label { color: #cbd5e1; font-size: 13px; font-weight: 700; }
         .field input {
@@ -60,10 +106,11 @@
             padding: 8px;
             border-radius: 10px;
             background: #fff;
+            margin-bottom: 8px;
         }
         .qr-preview.show { display: block; }
-        .active-control { display: flex; align-items: center; gap: 9px; color: #cbd5e1; font-size: 13px; }
-        .active-control input { accent-color: #ff6a00; }
+        .active-control { display: flex; align-items: center; gap: 9px; color: #cbd5e1; font-size: 13px; cursor: pointer; }
+        .active-control input { accent-color: #ff6a00; width: 17px; height: 17px; }
         .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
         .button {
             border: 1px solid rgba(255, 106, 0, .65);
@@ -75,11 +122,16 @@
             cursor: pointer;
         }
         .button.primary { color: #111; background: #ff7a18; }
+        .button.crypto-btn {
+            border-color: rgba(245, 158, 11, 0.65);
+            background: #f59e0b;
+            color: #111;
+        }
         .button:disabled { cursor: wait; opacity: .55; }
         .message { min-height: 22px; margin-top: 14px; font-size: 13px; }
         .message.error { color: #fca5a5; }
         .message.success { color: #86efac; }
-        .hint { margin: 16px 0 0; font-size: 12px; }
+        .hint { margin: 10px 0 12px; font-size: 12px; }
         .hidden { display: none; }
         @media (max-width: 700px) {
             .page { padding: 76px 14px 28px; }
@@ -93,7 +145,7 @@
     >
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
-<link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
+    <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
     <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
     <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
@@ -101,7 +153,6 @@
         rel="stylesheet"
         href="/assets/css/genz-compact-desktop.css?v=compact-20261022"
     >
-
 </head>
 <body>
     <div id="genz-navigation"></div>
@@ -110,28 +161,73 @@
             <header class="header">
                 <div>
                     <h1>Pengaturan Pembayaran</h1>
-                    <p class="subtitle">Atur rekening dan QRIS yang ditampilkan pada halaman Top Up pengguna.</p>
+                    <p class="subtitle">Atur rekening Bank, QRIS, dan alamat Wallet Cryptocurrency default untuk semua paket Top Up.</p>
                 </div>
-                <button class="button" id="backButton" type="button">← Admin Panel</button>
+                <div class="header-btns">
+                    <button class="button" id="editPackagesButton" type="button">Edit Paket Credit</button>
+                    <button class="button" id="backButton" type="button">← Admin Panel</button>
+                </div>
             </header>
-            <div id="methodCards" class="methods">
+
+            <div id="message" class="message" role="status"></div>
+
+            <div class="section-heading">
+                <div>
+                    <h2>Rekening Bank, E-Wallet & QRIS (Rupiah)</h2>
+                    <p>Metode pembayaran lokal yang selalu tersedia pada paket Top Up aktif.</p>
+                </div>
+            </div>
+            <div id="fiatMethodCards" class="methods">
                 <div class="method-card">Memuat pengaturan pembayaran...</div>
             </div>
-            <p class="hint">Metode hanya terlihat oleh pengguna setelah datanya lengkap dan status Aktif dinyalakan. Gambar QRIS akan diunggah ke penyimpanan publik khusus gambar pembayaran.</p>
-            <div id="message" class="message" role="status"></div>
+
+            <div class="section-heading">
+                <div>
+                    <h2>Cryptocurrency Wallet (Default Semua Paket)</h2>
+                    <p>Tersimpan sekali dan otomatis dipakai pada setiap paket yang mengaktifkan opsi pembayaran Crypto.</p>
+                </div>
+                <div class="header-btns">
+                    <button class="button" id="syncEvmBtn" type="button">Samakan Alamat 0x (BEP-20 & Polygon)</button>
+                    <button class="button" id="syncTronBtn" type="button">Samakan Alamat T... (TRON)</button>
+                    <button class="button crypto-btn" id="saveAllCryptoBtn" type="button">Simpan Semua Wallet Crypto</button>
+                </div>
+            </div>
+            <div id="cryptoMethodCards" class="methods">
+                <div class="method-card crypto-card">Memuat wallet cryptocurrency...</div>
+            </div>
+
+            <p class="hint">Metode pembayaran hanya terlihat oleh pengguna jika status Aktif dinyalakan dan data wajib telah terisi. Metode Crypto muncul pada paket yang mengaktifkan koin tersebut.</p>
         </div>
     </main>
     <script>
     (function () {
         "use strict";
 
-        const methods = [
-            { id: "bca", label: "BCA", kind: "bank" },
-            { id: "dana", label: "DANA", kind: "bank" },
-            { id: "seabank", label: "SeaBank", kind: "bank" },
-            { id: "qris", label: "QRIS", kind: "qris" }
+        const TopupCrypto = window.GENZ_TOPUP_CRYPTO;
+
+        const fiatMethods = [
+            { id: "bca", label: "BCA", kind: "bank", assetSymbol: "IDR", network: "Bank Transfer" },
+            { id: "dana", label: "DANA", kind: "bank", assetSymbol: "IDR", network: "E-Wallet" },
+            { id: "seabank", label: "SeaBank", kind: "bank", assetSymbol: "IDR", network: "Bank Transfer" },
+            { id: "qris", label: "QRIS", kind: "qris", assetSymbol: "IDR", network: "QRIS Nasional" }
         ];
-        const cards = document.getElementById("methodCards");
+
+        const cryptoMethods = (TopupCrypto ? TopupCrypto.CRYPTO_METHODS : []).map(function (meta) {
+            return {
+                id: meta.key,
+                label: meta.title,
+                kind: "crypto",
+                assetSymbol: meta.symbol,
+                network: meta.network,
+                addressFamily: meta.addressFamily,
+                placeholder: meta.addressPlaceholder
+            };
+        });
+
+        const allMethods = fiatMethods.concat(cryptoMethods);
+
+        const fiatCards = document.getElementById("fiatMethodCards");
+        const cryptoCards = document.getElementById("cryptoMethodCards");
         const message = document.getElementById("message");
         let supabaseClient;
         let saving = false;
@@ -164,14 +260,13 @@
             throw new Error("Konfigurasi Supabase tidak ditemukan.");
         }
 
-        function renderCards(rows) {
-            const byMethod = new Map(rows.map(function (row) {
-                return [row.method, row];
-            }));
-            cards.innerHTML = methods.map(function (method) {
-                const row = byMethod.get(method.id) || {};
-                const details = method.kind === "bank"
-                    ? `
+        function renderCardMarkup(method, row) {
+            if (method.kind === "bank") {
+                return `
+                    <section class="method-card" data-method="${method.id}" data-kind="bank">
+                        <div class="method-card-head">
+                            <h2>${escapeHtml(method.label)}</h2>
+                        </div>
                         <div class="field">
                             <label for="${method.id}-number">Nomor rekening / tujuan</label>
                             <input id="${method.id}-number" name="account_number" value="${escapeHtml(row.account_number)}" autocomplete="off">
@@ -180,8 +275,23 @@
                             <label for="${method.id}-name">Nama pemilik rekening / akun</label>
                             <input id="${method.id}-name" name="account_name" value="${escapeHtml(row.account_name)}" autocomplete="name">
                         </div>
-                    `
-                    : `
+                        <label class="active-control">
+                            <input name="is_active" type="checkbox" ${row.is_active ? "checked" : ""}>
+                            Aktifkan untuk pengguna
+                        </label>
+                        <div class="actions">
+                            <button class="button primary" type="button" data-save="${method.id}">Simpan ${escapeHtml(method.label)}</button>
+                        </div>
+                    </section>
+                `;
+            }
+
+            if (method.kind === "qris") {
+                return `
+                    <section class="method-card" data-method="${method.id}" data-kind="qris">
+                        <div class="method-card-head">
+                            <h2>${escapeHtml(method.label)}</h2>
+                        </div>
                         <div class="field">
                             <label for="${method.id}-qr">Unggah gambar QRIS (JPG, PNG, WEBP; maksimal 5 MB)</label>
                             <input id="${method.id}-qr" name="qr_image_file" type="file" accept="image/jpeg,image/png,image/webp">
@@ -192,117 +302,188 @@
                             <label for="${method.id}-name">Nama penerima (opsional)</label>
                             <input id="${method.id}-name" name="account_name" value="${escapeHtml(row.account_name)}" autocomplete="name">
                         </div>
-                    `;
-                return `
-                    <section class="method-card" data-method="${method.id}" data-kind="${method.kind}">
-                        <h2>${method.label}</h2>
-                        ${details}
                         <label class="active-control">
                             <input name="is_active" type="checkbox" ${row.is_active ? "checked" : ""}>
                             Aktifkan untuk pengguna
                         </label>
                         <div class="actions">
-                            <button class="button primary" type="button" data-save="${method.id}">Simpan ${method.label}</button>
+                            <button class="button primary" type="button" data-save="${method.id}">Simpan ${escapeHtml(method.label)}</button>
                         </div>
                     </section>
                 `;
+            }
+
+            return `
+                <section class="method-card crypto-card" data-method="${method.id}" data-kind="crypto" data-family="${escapeHtml(method.addressFamily)}">
+                    <div class="method-card-head">
+                        <h2>${escapeHtml(method.label)}</h2>
+                        <span class="network-badge">${escapeHtml(method.network)}</span>
+                    </div>
+                    <div class="field">
+                        <label for="${method.id}-number">Alamat Wallet (${escapeHtml(method.network)})</label>
+                        <input
+                            id="${method.id}-number"
+                            name="account_number"
+                            value="${escapeHtml(row.account_number)}"
+                            placeholder="${escapeHtml(method.placeholder)}"
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                    </div>
+                    <div class="field">
+                        <label for="${method.id}-name">Label Wallet / Catatan Jaringan (opsional)</label>
+                        <input
+                            id="${method.id}-name"
+                            name="account_name"
+                            value="${escapeHtml(row.account_name)}"
+                            placeholder="Contoh: Wallet Utama GEN-Z.AI"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <div class="field">
+                        <label for="${method.id}-qr">QR Code Wallet (opsional — JPG, PNG, WEBP maks 5 MB)</label>
+                        <input id="${method.id}-qr" name="qr_image_file" type="file" accept="image/jpeg,image/png,image/webp">
+                    </div>
+                    <img class="qr-preview ${row.qr_image_url ? "show" : ""}" data-qr-preview alt="Pratinjau QR Wallet" src="${escapeHtml(row.qr_image_url)}">
+                    <label class="active-control">
+                        <input name="is_active" type="checkbox" ${row.is_active ? "checked" : ""}>
+                        Aktifkan wallet ini untuk paket ber-opsi ${escapeHtml(method.assetSymbol)}
+                    </label>
+                    <div class="actions">
+                        <button class="button crypto-btn" type="button" data-save="${method.id}">Simpan ${escapeHtml(method.assetSymbol)}</button>
+                    </div>
+                </section>
+            `;
+        }
+
+        function renderCards(rows) {
+            const byMethod = new Map(rows.map(function (row) {
+                return [String(row.method || "").toLowerCase(), row];
+            }));
+
+            fiatCards.innerHTML = fiatMethods.map(function (method) {
+                return renderCardMarkup(method, byMethod.get(method.id) || {});
+            }).join("");
+
+            cryptoCards.innerHTML = cryptoMethods.map(function (method) {
+                return renderCardMarkup(method, byMethod.get(method.id) || {});
             }).join("");
         }
 
         async function loadSettings() {
             const { data, error } = await supabaseClient
                 .from("topup_payment_methods")
-                .select("method,display_name,account_number,account_name,qr_image_url,is_active");
+                .select("method,display_name,account_number,account_name,qr_image_url,asset_symbol,network,is_active");
             if (error) throw error;
             renderCards(data || []);
         }
 
+        async function uploadMethodQrIfNeeded(folderPrefix, qrFile) {
+            const extensionByType = {
+                "image/jpeg": "jpg",
+                "image/png": "png",
+                "image/webp": "webp"
+            };
+            if (!extensionByType[qrFile.type]) {
+                throw new Error("Format gambar QR harus JPG, PNG, atau WEBP.");
+            }
+            if (qrFile.size > 5 * 1024 * 1024) {
+                throw new Error("Ukuran gambar QR maksimal 5 MB.");
+            }
+            const uploadedQrPath = folderPrefix + "/" + Date.now() + "-" +
+                Math.random().toString(36).slice(2, 10) + "." +
+                extensionByType[qrFile.type];
+            const { error: uploadError } = await supabaseClient
+                .storage
+                .from("topup-payment-assets")
+                .upload(uploadedQrPath, qrFile, {
+                    cacheControl: "3600",
+                    contentType: qrFile.type,
+                    upsert: false
+                });
+            if (uploadError) throw uploadError;
+
+            const { data } = supabaseClient
+                .storage
+                .from("topup-payment-assets")
+                .getPublicUrl(uploadedQrPath);
+            return {
+                uploadedQrPath: uploadedQrPath,
+                publicUrl: data.publicUrl
+            };
+        }
+
         async function saveMethod(methodId) {
             if (saving) return;
-            const card = cards.querySelector(`[data-method="${methodId}"]`);
+            const card = document.querySelector(`[data-method="${methodId}"]`);
+            if (!card) return;
+
+            const methodMeta = allMethods.find(function (item) {
+                return item.id === methodId;
+            });
+            if (!methodMeta) return;
+
             const kind = card.dataset.kind;
             const accountNumber = card.querySelector('[name="account_number"]')?.value.trim() || "";
-            const accountName = card.querySelector('[name="account_name"]').value.trim();
+            const accountName = card.querySelector('[name="account_name"]')?.value.trim() || "";
             const qrFileInput = card.querySelector('[name="qr_image_file"]');
             const qrFile = qrFileInput?.files?.[0] || null;
-            let qrImageUrl = card.querySelector('[data-qr-preview]')?.getAttribute("src") || "";
-            const isActive = card.querySelector('[name="is_active"]').checked;
+            const previewEl = card.querySelector('[data-qr-preview]');
+            let qrImageUrl = previewEl?.getAttribute("src") || "";
+            if (qrImageUrl.startsWith("blob:")) {
+                qrImageUrl = "";
+            }
+            const isActive = Boolean(card.querySelector('[name="is_active"]')?.checked);
 
             if (isActive && kind === "bank" && (!accountNumber || !accountName)) {
                 showMessage("Lengkapi nomor dan nama rekening sebelum mengaktifkan metode.", "error");
                 return;
             }
-            if (isActive && kind === "qris") {
-                if (!qrImageUrl && !qrFile) {
-                    showMessage("Unggah gambar QRIS sebelum mengaktifkan metode ini.", "error");
-                    return;
-                }
-                if (qrFile && !["image/jpeg", "image/png", "image/webp"].includes(qrFile.type)) {
-                    showMessage("Format QRIS harus JPG, PNG, atau WEBP.", "error");
-                    return;
-                }
-                if (qrFile && qrFile.size > 5 * 1024 * 1024) {
-                    showMessage("Ukuran gambar QRIS maksimal 5 MB.", "error");
+            if (isActive && kind === "qris" && !qrImageUrl && !qrFile) {
+                showMessage("Unggah gambar QRIS sebelum mengaktifkan metode ini.", "error");
+                return;
+            }
+            if (kind === "crypto" && (isActive || accountNumber) && TopupCrypto) {
+                const check = TopupCrypto.validateWalletAddress(methodId, accountNumber);
+                if (!check.valid) {
+                    showMessage(check.error, "error");
                     return;
                 }
             }
 
             const button = card.querySelector("[data-save]");
             saving = true;
-            button.disabled = true;
-            showMessage("Menyimpan pengaturan...", "");
+            if (button) button.disabled = true;
+            showMessage("Menyimpan pengaturan " + methodMeta.label + "...", "");
             let uploadedQrPath = null;
             try {
-                if (kind === "qris" && qrFile) {
-                    const extensionByType = {
-                        "image/jpeg": "jpg",
-                        "image/png": "png",
-                        "image/webp": "webp"
-                    };
-                    uploadedQrPath = "qris/" + Date.now() + "-" +
-                        Math.random().toString(36).slice(2, 10) + "." +
-                        extensionByType[qrFile.type];
-                    const { error: uploadError } = await supabaseClient
-                        .storage
-                        .from("topup-payment-assets")
-                        .upload(uploadedQrPath, qrFile, {
-                            cacheControl: "3600",
-                            contentType: qrFile.type,
-                            upsert: false
-                        });
-                    if (uploadError) throw uploadError;
-
-                    const { data } = supabaseClient
-                        .storage
-                        .from("topup-payment-assets")
-                        .getPublicUrl(uploadedQrPath);
-                    qrImageUrl = data.publicUrl;
+                if ((kind === "qris" || kind === "crypto") && qrFile) {
+                    const folder = kind === "qris" ? "qris" : ("crypto/" + methodId);
+                    const uploadRes = await uploadMethodQrIfNeeded(folder, qrFile);
+                    uploadedQrPath = uploadRes.uploadedQrPath;
+                    qrImageUrl = uploadRes.publicUrl;
                 }
 
                 const { error } = await supabaseClient
                     .from("topup_payment_methods")
                     .upsert({
                         method: methodId,
-                        display_name: methods.find(item => item.id === methodId).label,
+                        display_name: methodMeta.label,
                         account_number: accountNumber,
                         account_name: accountName,
                         qr_image_url: qrImageUrl,
+                        asset_symbol: methodMeta.assetSymbol,
+                        network: methodMeta.network,
                         is_active: isActive,
                         updated_at: new Date().toISOString()
                     }, { onConflict: "method" });
                 if (error) throw error;
-                showMessage("Pengaturan " + methodId.toUpperCase() + " berhasil disimpan.", "success");
+                showMessage("Pengaturan " + methodMeta.label + " berhasil disimpan.", "success");
                 await loadSettings();
             } catch (error) {
                 console.error("[GEN-Z.AI] Payment method save failed:", error);
                 if (uploadedQrPath) {
-                    const { error: cleanupError } = await supabaseClient
-                        .storage
-                        .from("topup-payment-assets")
-                        .remove([uploadedQrPath]);
-                    if (cleanupError) {
-                        console.error("[GEN-Z.AI] QR upload cleanup failed:", cleanupError);
-                    }
+                    await supabaseClient.storage.from("topup-payment-assets").remove([uploadedQrPath]);
                 }
                 const errorMessage = String(error.message || "");
                 showMessage(
@@ -313,15 +494,121 @@
                 );
             } finally {
                 saving = false;
-                if (button.isConnected) button.disabled = false;
+                if (button && button.isConnected) button.disabled = false;
             }
         }
 
-        cards.addEventListener("click", function (event) {
+        async function saveAllCryptoMethods() {
+            if (saving) return;
+            const saveAllBtn = document.getElementById("saveAllCryptoBtn");
+            saving = true;
+            if (saveAllBtn) saveAllBtn.disabled = true;
+            showMessage("Menyimpan seluruh Wallet Cryptocurrency...", "");
+
+            const uploadedPaths = [];
+            try {
+                const payloadRows = [];
+                const nowIso = new Date().toISOString();
+
+                for (let i = 0; i < cryptoMethods.length; i += 1) {
+                    const meta = cryptoMethods[i];
+                    const card = cryptoCards.querySelector(`[data-method="${meta.id}"]`);
+                    if (!card) continue;
+
+                    const accountNumber = card.querySelector('[name="account_number"]')?.value.trim() || "";
+                    const accountName = card.querySelector('[name="account_name"]')?.value.trim() || "";
+                    const qrFile = card.querySelector('[name="qr_image_file"]')?.files?.[0] || null;
+                    let qrImageUrl = card.querySelector('[data-qr-preview]')?.getAttribute("src") || "";
+                    if (qrImageUrl.startsWith("blob:")) {
+                        qrImageUrl = "";
+                    }
+                    const isActive = Boolean(card.querySelector('[name="is_active"]')?.checked);
+
+                    if ((isActive || accountNumber) && TopupCrypto) {
+                        const check = TopupCrypto.validateWalletAddress(meta.id, accountNumber);
+                        if (!check.valid) {
+                            throw new Error(check.error);
+                        }
+                    }
+
+                    if (qrFile) {
+                        const uploadRes = await uploadMethodQrIfNeeded("crypto/" + meta.id, qrFile);
+                        uploadedPaths.push(uploadRes.uploadedQrPath);
+                        qrImageUrl = uploadRes.publicUrl;
+                    }
+
+                    payloadRows.push({
+                        method: meta.id,
+                        display_name: meta.label,
+                        account_number: accountNumber,
+                        account_name: accountName,
+                        qr_image_url: qrImageUrl,
+                        asset_symbol: meta.assetSymbol,
+                        network: meta.network,
+                        is_active: isActive,
+                        updated_at: nowIso
+                    });
+                }
+
+                const { error } = await supabaseClient
+                    .from("topup_payment_methods")
+                    .upsert(payloadRows, { onConflict: "method" });
+                if (error) throw error;
+
+                showMessage("Seluruh Wallet Cryptocurrency berhasil disimpan.", "success");
+                await loadSettings();
+            } catch (error) {
+                console.error("[GEN-Z.AI] Save all crypto failed:", error);
+                if (uploadedPaths.length > 0) {
+                    await supabaseClient.storage.from("topup-payment-assets").remove(uploadedPaths);
+                }
+                showMessage(error.message || "Gagal menyimpan wallet cryptocurrency.", "error");
+            } finally {
+                saving = false;
+                if (saveAllBtn && saveAllBtn.isConnected) saveAllBtn.disabled = false;
+            }
+        }
+
+        function syncFamilyAddress(family) {
+            const familyCards = Array.from(
+                cryptoCards.querySelectorAll(`[data-family="${family}"]`)
+            );
+            let sourceAddr = "";
+            familyCards.forEach(function (card) {
+                if (sourceAddr) return;
+                const val = card.querySelector('[name="account_number"]')?.value.trim() || "";
+                if (val) sourceAddr = val;
+            });
+
+            if (!sourceAddr) {
+                showMessage(
+                    family === "evm"
+                        ? "Isi dulu salah satu alamat wallet 0x... pada jaringan BEP-20 atau Polygon."
+                        : "Isi dulu salah satu alamat wallet T... pada jaringan TRON.",
+                    "error"
+                );
+                return;
+            }
+
+            familyCards.forEach(function (card) {
+                const addrInput = card.querySelector('[name="account_number"]');
+                const activeCheck = card.querySelector('[name="is_active"]');
+                if (addrInput) addrInput.value = sourceAddr;
+                if (activeCheck) activeCheck.checked = true;
+            });
+
+            showMessage(
+                "Alamat wallet disalin ke " + familyCards.length + " jaringan. Klik 'Simpan Semua Wallet Crypto' untuk menyimpan.",
+                "success"
+            );
+        }
+
+        function handleCardClick(event) {
             const button = event.target.closest("[data-save]");
             if (button) saveMethod(button.dataset.save);
-        });
-        cards.addEventListener("change", function (event) {
+        }
+
+        function handleQrChange(event) {
             const input = event.target.closest('[name="qr_image_file"]');
             if (!input) return;
             const card = input.closest("[data-method]");
@@ -335,8 +622,34 @@
             }
             preview.src = URL.createObjectURL(file);
             preview.classList.add("show");
+        }
+
+        fiatCards.addEventListener("click", handleCardClick);
+        cryptoCards.addEventListener("click", handleCardClick);
+        fiatCards.addEventListener("change", handleQrChange);
+        cryptoCards.addEventListener("change", handleQrChange);
+
+        cryptoCards.addEventListener("input", function (event) {
+            const input = event.target.closest('[name="account_number"]');
+            if (!input) return;
+            const card = input.closest("[data-method]");
+            const activeCheck = card?.querySelector('[name="is_active"]');
+            if (activeCheck && input.value.trim() && !activeCheck.dataset.touched) {
+                activeCheck.checked = true;
+                activeCheck.dataset.touched = "true";
+            }
         });
 
+        document.getElementById("saveAllCryptoBtn").addEventListener("click", saveAllCryptoMethods);
+        document.getElementById("syncEvmBtn").addEventListener("click", function () {
+            syncFamilyAddress("evm");
+        });
+        document.getElementById("syncTronBtn").addEventListener("click", function () {
+            syncFamilyAddress("tron");
+        });
+        document.getElementById("editPackagesButton").addEventListener("click", function () {
+            window.location.href = "./index.html";
+        });
         document.getElementById("backButton").addEventListener("click", function () {
             window.location.href = "../admin-panel.html";
         });
@@ -358,7 +671,8 @@
                 await loadSettings();
             } catch (error) {
                 console.error("[GEN-Z.AI] Payment settings initialization failed:", error);
-                cards.innerHTML = "";
+                fiatCards.innerHTML = "";
+                cryptoCards.innerHTML = "";
                 showMessage(
                     String(error.message || "").includes("topup_payment_methods")
                         ? "Tabel pengaturan belum dibuat. Jalankan supabase/topup-payment-methods.sql di Supabase SQL Editor."
