@@ -1942,6 +1942,17 @@ function extFromMime(mime) {
     return "jpg";
 }
 
+function isReadOnlyAssetOrCdnUrl(rawUrl) {
+    const s = String(rawUrl || "").trim();
+    if (!s) return false;
+    return (
+        /(?:^https?:\/\/[^/?#]*cdn\.opus\.pro\/)/i.test(s) ||
+        /[?&]hdnts=/i.test(s) ||
+        /[?&]x-id=GetObject\b/i.test(s) ||
+        /[?&]response-content-(?:disposition|type)=/i.test(s)
+    );
+}
+
 function extractImportedAssetRecord(raw, clientItemId = "") {
     const data = unwrapEnvelope(raw);
     if (!data || typeof data !== "object") {
@@ -2005,7 +2016,10 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
         ? { ...data, ...(nestedAsset || {}), ...item }
         : { ...data, ...(nestedAsset || {}) };
 
-    const uploadObj = source.upload && typeof source.upload === "object" ? source.upload : null;
+    const uploadObj =
+        (source.upload && typeof source.upload === "object" ? source.upload : null) ||
+        (source.presignedUpload && typeof source.presignedUpload === "object" ? source.presignedUpload : null) ||
+        (source.uploadTarget && typeof source.uploadTarget === "object" ? source.uploadTarget : null);
     const arrayAssetId =
         Array.isArray(data.assetIds) && typeof data.assetIds[0] === "string"
             ? data.assetIds[0]
@@ -2055,16 +2069,39 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
             ? assetId
             : "";
 
-    const uploadUrl = String(
+    const isAlreadyReadyStatus = /^(?:ready|imported|completed|complete|succeeded|available|active|done|processed)$/i.test(
+        status
+    );
+    const hasExplicitUploadField = Boolean(
+        uploadObj ||
         source.uploadUrl ||
         source.upload_url ||
-        source.presignedUrl ||
-        source.presigned_url ||
         source.putUrl ||
         source.put_url ||
-        source.signedUrl ||
-        source.signed_url ||
         source.signedUploadUrl ||
+        source.signed_upload_url ||
+        source.presignedUploadUrl ||
+        source.presigned_upload_url ||
+        typeof source.upload === "string"
+    );
+
+    /*
+     * PENTING: JANGAN PERNAH membaca `source.signedUrl` / `source.signed_url`
+     * sebagai `uploadUrl`! Saat `import_assets` berhasil mengimpor URL remote
+     * (mis. dari Supabase Storage), Opus mengembalikan objek aset `status: "ready"`
+     * yang memiliki `signedUrl: "https://signed-opus-lab-ext.cdn.opus.pro/...?hdnts=..."`
+     * (URL baca/preview CDN GET, BUKAN URL presigned PUT). Mengirim HTTP PUT ke URL
+     * baca CDN tersebut akan selalu ditolak dengan HTTP 400.
+     */
+    const explicitUploadUrl = String(
+        source.uploadUrl ||
+        source.upload_url ||
+        source.putUrl ||
+        source.put_url ||
+        source.signedUploadUrl ||
+        source.signed_upload_url ||
+        source.presignedUploadUrl ||
+        source.presigned_upload_url ||
         (typeof source.upload === "string" ? source.upload : "") ||
         uploadObj?.url ||
         uploadObj?.uploadUrl ||
@@ -2076,6 +2113,17 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
         ""
     ).trim();
 
+    const fallbackPresignedUploadUrl = !isAlreadyReadyStatus
+        ? String(source.presignedUrl || source.presigned_url || "").trim()
+        : "";
+    const candidateUploadUrl = explicitUploadUrl || fallbackPresignedUploadUrl;
+    const uploadUrl =
+        candidateUploadUrl &&
+        !isReadOnlyAssetOrCdnUrl(candidateUploadUrl) &&
+        !(isAlreadyReadyStatus && validAssetId && !hasExplicitUploadField)
+            ? candidateUploadUrl
+            : "";
+
     const uploadMethod = String(
         source.uploadMethod ||
         source.upload_method ||
@@ -2085,18 +2133,24 @@ function extractImportedAssetRecord(raw, clientItemId = "") {
 
     const uploadHeaders =
         (source.uploadHeaders && typeof source.uploadHeaders === "object" ? source.uploadHeaders : null) ||
-        (uploadObj?.headers && typeof uploadObj.headers === "object" ? uploadObj.headers : null);
+        (uploadObj?.headers && typeof uploadObj.headers === "object" ? uploadObj.headers : null) ||
+        (uploadObj?.requiredHeaders && typeof uploadObj.requiredHeaders === "object" ? uploadObj.requiredHeaders : null) ||
+        (uploadObj?.putHeaders && typeof uploadObj.putHeaders === "object" ? uploadObj.putHeaders : null);
 
     const uri = String(
         source.uri ||
         source.url ||
         source.cdnUrl ||
         source.cdn_url ||
+        source.signedUrl ||
+        source.signed_url ||
         source.assetUri ||
         source.assetUrl ||
         source.storageUri ||
         nestedAsset?.uri ||
         nestedAsset?.url ||
+        nestedAsset?.signedUrl ||
+        nestedAsset?.signed_url ||
         ""
     ).trim();
     const cleanUri = /^https?:\/\//i.test(uri) && uri !== uploadUrl ? uri : "";
@@ -2431,8 +2485,12 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         };
     }
 
+    const isAssetAlreadyReady =
+        Boolean(record.assetId) &&
+        /^(?:ready|imported|completed|complete|succeeded|available|active|done|processed)$/i.test(record.status);
+
     /* Tangani kontrak resmi Opus MCP: status === "awaiting_upload" -> PUT bytes -> finalize import_assets */
-    if ((record.status === "awaiting_upload" || record.uploadUrl) && record.uploadUrl) {
+    if (!isAssetAlreadyReady && (record.status === "awaiting_upload" || record.uploadUrl) && record.uploadUrl) {
         if (!cachedDownloaded) {
             cachedDownloaded = await downloadSourceImageBytes(
                 refItem.url,
@@ -2440,24 +2498,104 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                 refItem.mediaCache || null
             );
         }
-        const putHeaders = {
+        const basePutHeaders = {
             ...(record.uploadHeaders || {})
         };
-        if (!Object.keys(putHeaders).some(k => k.toLowerCase() === "content-type")) {
-            putHeaders["Content-Type"] = cachedDownloaded.mimeType;
+        const hasExplicitContentType = Object.keys(basePutHeaders).some(
+            k => k.toLowerCase() === "content-type"
+        );
+        const signedHeadersMatch = /[?&]X-(?:Amz|Goog)-SignedHeaders=([^&#]+)/i.exec(record.uploadUrl);
+        const signedHeadersRaw = signedHeadersMatch
+            ? decodeURIComponent(signedHeadersMatch[1]).toLowerCase()
+            : "";
+        const isGcsUnsignedContentType =
+            /[?&]X-Goog-SignedHeaders=/i.test(record.uploadUrl) &&
+            signedHeadersRaw &&
+            !signedHeadersRaw.includes("content-type");
+
+        const putHeaderCandidates = [];
+        if (hasExplicitContentType) {
+            putHeaderCandidates.push(basePutHeaders);
+        } else if (isGcsUnsignedContentType) {
+            putHeaderCandidates.push(basePutHeaders);
+            putHeaderCandidates.push({
+                ...basePutHeaders,
+                "Content-Type": cachedDownloaded.mimeType
+            });
+        } else {
+            putHeaderCandidates.push({
+                ...basePutHeaders,
+                "Content-Type": cachedDownloaded.mimeType
+            });
+            if (refItem.mimeType && refItem.mimeType !== cachedDownloaded.mimeType) {
+                putHeaderCandidates.push({
+                    ...basePutHeaders,
+                    "Content-Type": refItem.mimeType
+                });
+            }
+            putHeaderCandidates.push(basePutHeaders);
         }
 
-        const putRes = await fetchWithTimeout(
-            record.uploadUrl,
-            {
-                method: record.uploadMethod || "PUT",
-                headers: putHeaders,
-                body: cachedDownloaded.bytes
-            },
-            itemMediaType === "video" ? 40_000 : itemMediaType === "audio" ? 30_000 : 25_000
-        );
+        const putTimeoutMs =
+            itemMediaType === "video" ? 40_000 : itemMediaType === "audio" ? 30_000 : 25_000;
+        let putRes = null;
+        for (let hIdx = 0; hIdx < putHeaderCandidates.length; hIdx += 1) {
+            putRes = await fetchWithTimeout(
+                record.uploadUrl,
+                {
+                    method: record.uploadMethod || "PUT",
+                    headers: putHeaderCandidates[hIdx],
+                    body: cachedDownloaded.bytes
+                },
+                putTimeoutMs
+            );
+            if (putRes.ok) break;
+            if (putRes.status !== 400 && putRes.status !== 403) break;
+        }
 
-        if (!putRes.ok) {
+        let recoveredViaInlineDataUrl = false;
+        if (!putRes.ok && dataKey) {
+            try {
+                const inlineRescueEntry = buildBaseEntry(uploadItemProps);
+                const mimeKey = pickSupportedKey(
+                    uploadItemProps,
+                    ["mimeType", "mime_type", "contentType", "content_type"],
+                    ""
+                );
+                if (mimeKey) inlineRescueEntry[mimeKey] = cachedDownloaded.mimeType;
+                if (sizeKey) inlineRescueEntry[sizeKey] = cachedDownloaded.bytes.byteLength;
+                const b64 = bytesToBase64(cachedDownloaded.bytes);
+                inlineRescueEntry[dataKey] = /url|uri/i.test(dataKey)
+                    ? `data:${cachedDownloaded.mimeType};base64,${b64}`
+                    : b64;
+                const rescueRes = await session
+                    .callTool(importTool.name, wrapCallArgs(inlineRescueEntry))
+                    .catch(() => null);
+                if (rescueRes && !rescueRes.isError) {
+                    const rescueRecord = extractImportedAssetRecord(rescueRes.data, clientItemId);
+                    if (!rescueRecord.itemFailed && rescueRecord.assetId && !rescueRecord.uploadUrl) {
+                        record = rescueRecord;
+                        recoveredViaInlineDataUrl = true;
+                    }
+                }
+            } catch {
+                /* Lanjutkan pelaporan error PUT asli bila rescue inline gagal */
+            }
+        }
+
+        if (!putRes.ok && !recoveredViaInlineDataUrl) {
+            let storageErrDetail = "";
+            try {
+                const errBody = await putRes.text();
+                const xmlCode = /<Code>([^<]{1,64})<\/Code>/i.exec(errBody)?.[1]?.trim() || "";
+                const xmlMsg = /<Message>([^<]{1,120})<\/Message>/i.exec(errBody)?.[1]?.trim() || "";
+                const rawHint = xmlCode && xmlMsg ? `${xmlCode}: ${xmlMsg}` : xmlCode || xmlMsg;
+                if (rawHint) {
+                    storageErrDetail = ` — ${redactSecrets(rawHint).slice(0, 120)}`;
+                }
+            } catch {
+                /* Abaikan gagal baca body error PUT */
+            }
             const putMediaLabel =
                 itemMediaType === "video"
                     ? "video referensi"
@@ -2465,13 +2603,13 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                         ? "audio referensi"
                         : "gambar referensi";
             throw createProviderError({
-                message: `Gagal mengunggah ${putMediaLabel} ke penyimpanan Opus Labs (HTTP ${putRes.status}).`,
+                message: `Gagal mengunggah ${putMediaLabel} ke penyimpanan Opus Labs (HTTP ${putRes.status})${storageErrDetail}.`,
                 code: "ASSET_UPLOAD_FAILED",
                 status: 502
             });
         }
 
-        if (record.assetId) {
+        if (!recoveredViaInlineDataUrl && record.assetId) {
             const finalizePayloads = [];
             const topFinalizeArrayKey = pickSupportedKey(
                 topProps,
@@ -7138,7 +7276,7 @@ function inspectImageJobOutcome(
                     if (/^(?:reference|character|outfit|person|product|garment|first_frame|last_frame|input|subject|style|video|audio)$/.test(kind)) {
                         return false;
                     }
-                    if (/^(?:image\d+|character|outfit|video\d+|audio\d+|first_frame|last_frame|ref[-_]\d+|reference[-_]\d+)$/.test(label)) {
+                    if (/^(?:image\d+|character|outfit|video\d+|audio\d+|first_frame|last_frame|asset[-_]\d+|ref[-_]\d+|reference[-_]\d+)(?:\.[a-z0-9]{2,5})?$/.test(label)) {
                         return false;
                     }
                     return true;
@@ -7149,7 +7287,20 @@ function inspectImageJobOutcome(
         }
 
         if (excludedUrls instanceof Set && excludedUrls.size > 0 && imageUrls.length > 0) {
-            imageUrls = imageUrls.filter(url => !excludedUrls.has(url));
+            const excludedPathKeys = new Set();
+            for (const ex of excludedUrls) {
+                if (typeof ex === "string" && /^https?:\/\//i.test(ex)) {
+                    excludedPathKeys.add(ex.split("?")[0].split("#")[0]);
+                }
+            }
+            imageUrls = imageUrls.filter(url => {
+                if (excludedUrls.has(url)) return false;
+                if (/^https?:\/\//i.test(url)) {
+                    const base = url.split("?")[0].split("#")[0];
+                    if (excludedPathKeys.has(base)) return false;
+                }
+                return true;
+            });
         }
     }
 
