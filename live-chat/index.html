@@ -177,8 +177,11 @@
             .notice { margin-bottom: 7px; }
             .composer-foot { margin-top: 7px; }
         }
+        @media (max-width: 768px) {
+            .chat-shell { padding-top: 66px; }
+        }
         @media (max-width: 620px) {
-            .chat-shell { width: min(100% - 22px, 1100px); padding-top: 28px; }
+            .chat-shell { width: min(100% - 22px, 1100px); padding-top: 66px; }
             .chat-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
             .heading-badge { display: none; }
             .toolbar { align-items: flex-start; flex-direction: column; gap: 10px; padding: 14px; }
@@ -864,7 +867,7 @@
         </section>
     </main>
 
-    <script src="/navigation/navigation.js?v=navlockup-20261029"></script>
+    <script src="/navigation/navigation.js?v=livechat-nav-20261101"></script>
     <script type="module" src="/live-chat/live-chat.js?v=photo-analysis-options-20261017"></script>
     <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
 </body>
