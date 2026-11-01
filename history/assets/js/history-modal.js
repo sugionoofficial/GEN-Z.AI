@@ -153,6 +153,7 @@
     ===================================================== */
 
     var IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"];
+    var AUDIO_EXTENSIONS = ["mp3", "wav", "m4a", "aac", "ogg", "opus", "flac"];
     var GENERATED_IMAGE_MODEL_IDS = [
         "opus-gpt-image-2.5-flare",
         "opus-gpt-image-2.5-sunburst",
@@ -160,6 +161,15 @@
         "opus-nano-banana-2",
         "opus-nano-banana-pro"
     ];
+    var GENERATED_AUDIO_MODEL_IDS = [
+        "opus-audio-speech",
+        "opus-audio-music",
+        "opus-audio-sfx"
+    ];
+    var GENERATED_TRANSCRIBE_MODEL_IDS = [
+        "opus-transcribe-audio"
+    ];
+    var cachedModalTranscripts = new Map();
 
     function isImageUrl(url) {
         if (!url) return false;
@@ -170,6 +180,25 @@
         if (dot === -1) return false;
         var ext = clean.slice(dot + 1);
         return IMAGE_EXTENSIONS.indexOf(ext) !== -1;
+    }
+
+    function isAudioUrl(url) {
+        if (!url) return false;
+        var raw = String(url).trim().toLowerCase();
+        if (raw.indexOf("data:audio/") === 0) return true;
+        var clean = raw.split("?")[0].split("#")[0];
+        var dot = clean.lastIndexOf(".");
+        if (dot === -1) return false;
+        var ext = clean.slice(dot + 1);
+        return AUDIO_EXTENSIONS.indexOf(ext) !== -1;
+    }
+
+    function isTranscriptUrl(url) {
+        if (!url) return false;
+        var raw = String(url).trim().toLowerCase();
+        if (raw.indexOf("data:application/json") === 0) return true;
+        var clean = raw.split("?")[0].split("#")[0];
+        return clean.indexOf("/gentrx-") !== -1 || /\.(?:json|srt|vtt|txt)$/i.test(clean);
     }
 
     function isUpscalePhoto(item) {
@@ -187,6 +216,20 @@
         return GENERATED_IMAGE_MODEL_IDS.indexOf(modelId) !== -1;
     }
 
+    function isGeneratedAudioItem(item) {
+        var mediaType = String(item?.media_type || item?.mediaType || "").trim().toLowerCase();
+        if (mediaType === "audio") return true;
+        var modelId = String(item?.model_id || item?.modelId || "").trim().toLowerCase();
+        return GENERATED_AUDIO_MODEL_IDS.indexOf(modelId) !== -1 || modelId.indexOf("opus-audio-") === 0;
+    }
+
+    function isTranscribeItem(item) {
+        var mediaType = String(item?.media_type || item?.mediaType || "").trim().toLowerCase();
+        if (mediaType === "transcribe" || mediaType === "transcription") return true;
+        var modelId = String(item?.model_id || item?.modelId || "").trim().toLowerCase();
+        return GENERATED_TRANSCRIBE_MODEL_IDS.indexOf(modelId) !== -1 || modelId.indexOf("opus-transcribe-") === 0;
+    }
+
     function isUpscaleVideo(item) {
         var modelId = String(item?.model_id || item?.modelId || "").toLowerCase();
         if (modelId === "upscale-video") return true;
@@ -197,6 +240,8 @@
 
     function getMediaType(item) {
         var url = getResultUrl(item);
+        if (isTranscribeItem(item) || (url && isTranscriptUrl(url))) return "transcribe";
+        if ((url && isAudioUrl(url)) || isGeneratedAudioItem(item)) return "audio";
         if (url && isImageUrl(url)) return "image";
         if (isUpscalePhoto(item) || isGeneratedImageItem(item)) return "image";
         return "video";
@@ -564,6 +609,25 @@
             `;
         }
 
+        if (mediaType === "audio") {
+            return `
+                <div class="detail-audio-preview" style="padding:16px;border-radius:12px;background:#030509;border:1px solid rgba(192,132,252,0.32);">
+                    <div style="font-size:11px;font-weight:800;letter-spacing:0.08em;color:#d8b4fe;margin-bottom:10px;text-transform:uppercase;">🎵 Pratinjau Audio AI</div>
+                    <audio controls preload="metadata" src="${safeUrl}" style="width:100%;display:block;"></audio>
+                </div>
+            `;
+        }
+
+        if (mediaType === "transcribe") {
+            return `
+                <div class="detail-transcript-preview" id="modalTranscriptPreviewBox" style="padding:15px;border-radius:12px;background:#030509;border:1px solid rgba(251,191,36,0.34);color:#e2e8f0;">
+                    <div style="font-size:11px;font-weight:800;letter-spacing:0.08em;color:#fde68a;margin-bottom:8px;text-transform:uppercase;">📝 Isi Transkrip &amp; Timestamp</div>
+                    <div id="modalTranscriptLoading" style="font-size:13px;color:#94a3b8;">Memuat transkrip...</div>
+                    <div id="modalTranscriptBody" hidden></div>
+                </div>
+            `;
+        }
+
         return `
             <div class="detail-video-preview">
                 <video controls playsinline preload="metadata" src="${safeUrl}"></video>
@@ -664,13 +728,61 @@
         const safeId = escapeHtml(String(item.id || "").trim());
         const mediaType = getMediaType(item);
         const isPhoto = mediaType === "image";
+        const isAudio = mediaType === "audio";
+        const isTranscribe = mediaType === "transcribe";
         const isVideoUpscale = isUpscaleVideo(item);
 
-        const downloadLabel = isPhoto ? "Download Foto" : "Download Video";
+        if (isTranscribe) {
+            return `
+                <div class="detail-row detail-action-row">
+                    <div class="detail-label">Action</div>
+                    <div class="detail-value">
+                        <div class="detail-action-buttons" style="display:flex;flex-wrap:wrap;gap:8px;">
+                            <button
+                                type="button"
+                                class="download-button"
+                                data-action="copy-transcript"
+                                data-history-id="${safeId}"
+                                title="Salin Teks Transkrip"
+                            >
+                                <span class="download-icon" aria-hidden="true">📋</span>
+                                Salin Teks
+                            </button>
+                            <button
+                                type="button"
+                                class="download-button"
+                                data-action="download-transcript-txt"
+                                data-history-id="${safeId}"
+                                title="Download Transkrip .TXT"
+                            >
+                                <span class="download-icon" aria-hidden="true">⬇</span>
+                                Download .TXT
+                            </button>
+                            <button
+                                type="button"
+                                class="download-button"
+                                data-action="download-transcript-srt"
+                                data-history-id="${safeId}"
+                                title="Download Subtitle .SRT"
+                            >
+                                <span class="download-icon" aria-hidden="true">⬇</span>
+                                Download .SRT
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        const downloadLabel = isPhoto
+            ? "Download Foto"
+            : isAudio
+                ? "Download Audio"
+                : "Download Video";
 
         const alreadyUpscaled = isVideoUpscale || hasAlreadyUpscaled(item.id);
 
-        const canUpscale = !isPhoto && !alreadyUpscaled;
+        const canUpscale = mediaType === "video" && !alreadyUpscaled;
         if (canUpscale && cachedUpscaleVideoCost === null) {
             loadUpscaleVideoCost();
         }
@@ -712,7 +824,7 @@
                                     </button>
                                 `
                                 : (
-                                    alreadyUpscaled && !isPhoto
+                                    alreadyUpscaled && mediaType === "video"
                                         ? `<span class="upscale-already-text">✓ Upscale sudah diproses</span>`
                                         : ""
                                 )
@@ -788,6 +900,166 @@
             ${renderUpscaleProgressActions(item)}
             ${renderActionRow(item)}
         `;
+
+        if (getMediaType(item) === "transcribe" && normalizeStatus(item?.status) === "success") {
+            hydrateModalTranscript(item);
+        }
+    }
+
+    function formatModalTimestamp(sec) {
+        const s = Number.isFinite(Number(sec)) && Number(sec) >= 0 ? Math.floor(Number(sec)) : 0;
+        const hrs = Math.floor(s / 3600);
+        const mins = Math.floor((s % 3600) / 60);
+        const rem = s % 60;
+        if (hrs > 0) {
+            return String(hrs).padStart(2, "0") + ":" + String(mins).padStart(2, "0") + ":" + String(rem).padStart(2, "0");
+        }
+        return String(mins).padStart(2, "0") + ":" + String(rem).padStart(2, "0");
+    }
+
+    function formatFallbackSrtTime(sec) {
+        const msTotal = Math.max(0, Math.round((Number(sec) || 0) * 1000));
+        const hrs = Math.floor(msTotal / 3600000);
+        const mins = Math.floor((msTotal % 3600000) / 60000);
+        const secs = Math.floor((msTotal % 60000) / 1000);
+        const ms = msTotal % 1000;
+        return (
+            String(hrs).padStart(2, "0") + ":" +
+            String(mins).padStart(2, "0") + ":" +
+            String(secs).padStart(2, "0") + "," +
+            String(ms).padStart(3, "0")
+        );
+    }
+
+    async function loadTranscriptForItem(item) {
+        const historyId = String(item?.id || "").trim();
+        if (historyId && cachedModalTranscripts.has(historyId)) {
+            return cachedModalTranscripts.get(historyId);
+        }
+        const url = getResultUrl(item);
+        if (!url) return null;
+
+        const resp = await fetch(url);
+        if (!resp.ok) {
+            throw new Error("HTTP " + resp.status);
+        }
+        const rawText = await resp.text();
+        let parsed = null;
+        try {
+            parsed = JSON.parse(rawText);
+        } catch (_err) {
+            parsed = { text: rawText, txt: rawText, srt: rawText, segments: [] };
+        }
+
+        const text = String(parsed?.text || parsed?.txt || "").trim();
+        const segments = Array.isArray(parsed?.segments) ? parsed.segments : [];
+        let srt = String(parsed?.srt || "").trim();
+        if (!srt && segments.length > 0) {
+            srt = segments
+                .map((seg, idx) =>
+                    `${idx + 1}\n${formatFallbackSrtTime(seg.start)} --> ${formatFallbackSrtTime(seg.end)}\n${String(seg.text || "").trim()}`
+                )
+                .join("\n\n");
+        } else if (!srt && text) {
+            srt = `1\n00:00:00,000 --> 00:00:05,000\n${text}`;
+        }
+
+        const normalized = {
+            text,
+            txt: String(parsed?.txt || text),
+            srt,
+            segments,
+            language: parsed?.language || null,
+            durationSeconds: parsed?.durationSeconds || null
+        };
+        if (historyId) {
+            cachedModalTranscripts.set(historyId, normalized);
+        }
+        return normalized;
+    }
+
+    async function hydrateModalTranscript(item) {
+        const loadingEl = document.getElementById("modalTranscriptLoading");
+        const contentEl = document.getElementById("modalTranscriptBody");
+        if (!contentEl) return;
+
+        try {
+            const trx = await loadTranscriptForItem(item);
+            if (!trx || !trx.text) {
+                if (loadingEl) loadingEl.textContent = "Isi transkrip kosong atau tidak tersedia.";
+                return;
+            }
+            if (loadingEl) loadingEl.hidden = true;
+
+            const segHtml = Array.isArray(trx.segments) && trx.segments.length > 0
+                ? `<div style="margin-top:12px;">
+                       <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;">Segmen Timestamp</div>
+                       <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;">
+                           ${trx.segments
+                               .map(
+                                   seg => `<div style="display:flex;gap:10px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.04);font-size:12.5px;">
+                                       <span style="font-family:monospace;color:#fbbf24;font-weight:700;flex-shrink:0;">${escapeHtml(formatModalTimestamp(seg.start))} → ${escapeHtml(formatModalTimestamp(seg.end))}</span>
+                                       <span style="color:#f1f5f9;word-break:break-word;">${escapeHtml(String(seg.text || ""))}</span>
+                                   </div>`
+                               )
+                               .join("")}
+                       </div>
+                   </div>`
+                : "";
+
+            contentEl.innerHTML = `
+                <div style="padding:10px 12px;border-radius:9px;background:rgba(255,255,255,0.04);font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow-y:auto;">${escapeHtml(trx.text)}</div>
+                ${segHtml}
+            `;
+            contentEl.hidden = false;
+        } catch (err) {
+            if (loadingEl) {
+                loadingEl.textContent = "Gagal memuat pratinjau transkrip (" + (err?.message || "network error") + ").";
+            }
+        }
+    }
+
+    async function handleTranscriptExportAction(button, mode) {
+        const historyId = String(button?.dataset?.historyId || "").trim();
+        const item = getHistoryById(historyId);
+        if (!item) {
+            notifyDownloadFailure("Data history tidak ditemukan.");
+            return;
+        }
+        try {
+            const trx = await loadTranscriptForItem(item);
+            if (!trx || !trx.text) {
+                notifyDownloadFailure("Isi transkrip tidak tersedia atau sudah kedaluwarsa.");
+                return;
+            }
+            if (mode === "copy") {
+                await navigator.clipboard.writeText(trx.text);
+                notifyDownloadSuccess("Teks transkrip disalin", "Tersimpan ke clipboard perangkat Anda.");
+                return;
+            }
+            const ext = mode === "srt" ? "srt" : "txt";
+            const mime = mode === "srt" ? "application/x-subrip" : "text/plain";
+            const content = mode === "srt" ? (trx.srt || trx.text) : (trx.txt || trx.text);
+            const filename = window.GENZGeneratedFileName.create("", ext);
+            const blob = new Blob([content], { type: mime + ";charset=utf-8" });
+            const objUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = objUrl;
+            a.download = filename;
+            a.style.display = "none";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => {
+                try { URL.revokeObjectURL(objUrl); } catch (_e) {}
+            }, 6000);
+            notifyDownloadSuccess(
+                mode === "srt" ? "Subtitle .SRT diunduh" : "Transkrip .TXT diunduh",
+                filename
+            );
+        } catch (err) {
+            notifyDownloadFailure(err?.message || "Gagal memproses transkrip.");
+        }
     }
 
 
@@ -797,10 +1069,15 @@
 
     function buildDownloadFilename(item) {
         const url = getResultUrl(item);
+        const mediaType = getMediaType(item);
         const fallbackExtension =
-            getMediaType(item) === "image"
+            mediaType === "image"
                 ? "jpg"
-                : "mp4";
+                : mediaType === "audio"
+                    ? "mp3"
+                    : mediaType === "transcribe"
+                        ? "txt"
+                        : "mp4";
 
         return window.GENZGeneratedFileName.create(
             url,
@@ -1234,6 +1511,27 @@
                 return;
             }
 
+            const copyTrxBtn = event.target.closest("[data-action='copy-transcript']");
+            if (copyTrxBtn) {
+                event.preventDefault();
+                handleTranscriptExportAction(copyTrxBtn, "copy");
+                return;
+            }
+
+            const txtTrxBtn = event.target.closest("[data-action='download-transcript-txt']");
+            if (txtTrxBtn) {
+                event.preventDefault();
+                handleTranscriptExportAction(txtTrxBtn, "txt");
+                return;
+            }
+
+            const srtTrxBtn = event.target.closest("[data-action='download-transcript-srt']");
+            if (srtTrxBtn) {
+                event.preventDefault();
+                handleTranscriptExportAction(srtTrxBtn, "srt");
+                return;
+            }
+
             const upscaleBtn = event.target.closest("[data-action='upscale']");
             if (upscaleBtn) {
                 event.preventDefault();
@@ -1344,7 +1642,7 @@
         const modal = elements.detailModal || document.getElementById("detailModal");
         if (!modal) return;
 
-        const videos = modal.querySelectorAll("video");
+        const videos = modal.querySelectorAll("video, audio");
         videos.forEach(v => {
             try { v.pause(); v.currentTime = 0; } catch (e) {}
         });

@@ -72,6 +72,7 @@ import {
 } from "./generate-model.js";
 
 import {
+    isFlatCreditNonVideoModel,
     isImageModel
 } from "./generate-mode-state.js";
 
@@ -1287,7 +1288,7 @@ export function resolveModelCredit(
         (
             model.flat_credit === true ||
             model.has_resolution === false ||
-            isImageModel(model) ||
+            isFlatCreditNonVideoModel(model) ||
             (
                 Array.isArray(model.supported_resolutions) &&
                 model.supported_resolutions.length === 0

@@ -40,7 +40,10 @@ import {
 } from "./opus-queue-retry.js?v=20261029-historygate";
 
 import {
-    isImageModel
+    isAudioModel,
+    isFlatCreditNonVideoModel,
+    isImageModel,
+    isTranscribeModel
 } from "./generate-mode-state.js";
 
 
@@ -1696,15 +1699,16 @@ async function handleGenerateSubmit(
                         elements.resultTaskId.textContent = currentTaskId;
                     }
 
-                    const inlineImageCompleted =
-                        isImageModel(model) &&
+                    const inlineFastCompleted =
+                        isFlatCreditNonVideoModel(model) &&
                         response?.completed === true &&
                         (
                             response?.result_url ||
+                            response?.transcript ||
                             (Array.isArray(response?.result_urls) && response.result_urls.length > 0)
                         );
 
-                    if (inlineImageCompleted) {
+                    if (inlineFastCompleted) {
                         return {
                             taskId: currentTaskId,
                             result: response,
@@ -1733,7 +1737,7 @@ async function handleGenerateSubmit(
                             currentTaskId,
                             {
                                 modelId,
-                                interval: isImageModel(model) ? 4500 : 10000,
+                                interval: isFlatCreditNonVideoModel(model) ? 4500 : 10000,
                                 timeout: null,
                                 retryUntilTerminal: true,
                                 opusQueueAttempt: queueAttempt,
@@ -1798,7 +1802,11 @@ async function handleGenerateSubmit(
                                             liveStageMessage || (
                                                 isImageModel(model)
                                                     ? "Gambar sedang diproses. Mohon tunggu..."
-                                                    : "Video sedang diproses. Mohon tunggu..."
+                                                    : isAudioModel(model)
+                                                        ? "Audio sedang diproses oleh AI. Mohon tunggu..."
+                                                        : isTranscribeModel(model)
+                                                            ? "Transkripsi audio/video sedang diproses. Mohon tunggu..."
+                                                            : "Video sedang diproses. Mohon tunggu..."
                                             )
                                         );
                                     }
@@ -2014,6 +2022,18 @@ async function handleGenerateSubmit(
             } catch (imgErr) {
                 console.warn("[GEN-Z.AI] renderImageResult warning:", imgErr);
             }
+        } else if (isAudioModel(model)) {
+            try {
+                window.GENZGenerateApp?.renderAudioResult?.(result, model);
+            } catch (audErr) {
+                console.warn("[GEN-Z.AI] renderAudioResult warning:", audErr);
+            }
+        } else if (isTranscribeModel(model)) {
+            try {
+                await window.GENZGenerateApp?.renderTranscribeResult?.(result, model);
+            } catch (trxErr) {
+                console.warn("[GEN-Z.AI] renderTranscribeResult warning:", trxErr);
+            }
         }
 
         progressSuccess({
@@ -2021,7 +2041,11 @@ async function handleGenerateSubmit(
             message:
                 isImageModel(model)
                     ? "Gambar selesai dibuat! Tersimpan di History."
-                    : "Video selesai dibuat! Cek History."
+                    : isAudioModel(model)
+                        ? "Audio selesai dibuat! Tersimpan di History."
+                        : isTranscribeModel(model)
+                            ? "Transkripsi selesai dibuat! Tersimpan di History."
+                            : "Video selesai dibuat! Cek History."
 
         });
 

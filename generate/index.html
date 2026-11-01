@@ -184,7 +184,7 @@
 
     <link
         rel="stylesheet"
-        href="./assets/css/generate-modes.css?v=20261101"
+        href="./assets/css/generate-modes.css?v=20261101-audio-transcribe"
     >
 
 
@@ -468,7 +468,7 @@
                     </div>
 
 
-                    <!-- MAIN MODE SWITCHER (VIDEO vs GAMBAR) -->
+                    <!-- MAIN MODE SWITCHER (VIDEO / GAMBAR / AUDIO / TRANSCRIBE) -->
 
                     <div
                         id="generateMainModeTabs"
@@ -495,6 +495,26 @@
                         >
                             <span class="generate-mode-tab-icon" aria-hidden="true">🖼️</span>
                             <span>Generate Gambar</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="generate-mode-tab"
+                            role="tab"
+                            aria-selected="false"
+                            data-main-mode="audio"
+                        >
+                            <span class="generate-mode-tab-icon" aria-hidden="true">🎵</span>
+                            <span>Generate Audio</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="generate-mode-tab"
+                            role="tab"
+                            aria-selected="false"
+                            data-main-mode="transcribe"
+                        >
+                            <span class="generate-mode-tab-icon" aria-hidden="true">📝</span>
+                            <span>Transcribe Audio</span>
                         </button>
                     </div>
 
@@ -598,6 +618,58 @@
                                 yang konsisten (rasio default <strong>16:9</strong>). Unggah Foto Outfit jika ingin
                                 mengganti pakaian karakter di seluruh sudut pandang.
                             </div>
+                        </div>
+                    </section>
+
+
+                    <!-- AUDIO TYPE QUICK SWITCHER (VOICEOVER / MUSIC / SFX) -->
+
+                    <section
+                        id="generateAudioSubModeWrap"
+                        class="generate-submode-section generate-audio-submode-section"
+                        aria-label="Jenis Generate Audio"
+                        hidden
+                    >
+                        <div class="generate-submode-header">
+                            <span class="generate-submode-eyebrow generate-audio-submode-eyebrow">JENIS GENERATE AUDIO</span>
+                        </div>
+                        <div class="generate-submode-grid generate-audio-submode-grid" role="tablist">
+                            <button
+                                type="button"
+                                class="generate-submode-btn generate-audio-submode-btn is-active"
+                                role="tab"
+                                aria-selected="true"
+                                data-audio-model-id="opus-audio-speech"
+                            >
+                                <span class="generate-submode-title">🎙️ Voiceover &amp; TTS</span>
+                                <span class="generate-submode-desc">
+                                    30 karakter suara ekspresif + arahan gaya bicara &amp; tag emosi.
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                class="generate-submode-btn generate-audio-submode-btn"
+                                role="tab"
+                                aria-selected="false"
+                                data-audio-model-id="opus-audio-music"
+                            >
+                                <span class="generate-submode-title">🎹 Music / Lagu AI</span>
+                                <span class="generate-submode-desc">
+                                    Lyria 3.5 untuk musik BGM instrumental maupun lagu penuh bervokal.
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                class="generate-submode-btn generate-audio-submode-btn"
+                                role="tab"
+                                aria-selected="false"
+                                data-audio-model-id="opus-audio-sfx"
+                            >
+                                <span class="generate-submode-title">🔊 Sound Effects (SFX)</span>
+                                <span class="generate-submode-desc">
+                                    Efek suara sinematik, foley, transisi, &amp; ambience kustom.
+                                </span>
+                            </button>
                         </div>
                     </section>
 
@@ -747,6 +819,100 @@
                     </div>
                 </section>
 
+                <!-- INLINE GENERATED AUDIO RESULT -->
+
+                <section
+                    id="generateAudioResultCard"
+                    class="generate-audio-result-card"
+                    aria-label="Hasil Generate Audio"
+                    hidden
+                >
+                    <div class="generate-image-result-head">
+                        <span class="generate-audio-result-badge">🎵 Hasil Audio Siap</span>
+                        <span id="generateAudioResultModel" class="generate-result-model-meta"></span>
+                    </div>
+                    <div class="generate-audio-player-wrap">
+                        <audio
+                            id="generateAudioResultPlayer"
+                            controls
+                            preload="metadata"
+                        ></audio>
+                    </div>
+                    <div id="generateAudioResultLyricsWrap" class="generate-audio-lyrics-wrap" hidden>
+                        <div class="generate-audio-lyrics-label">Lirik Lagu</div>
+                        <pre id="generateAudioResultLyrics" class="generate-audio-lyrics-text"></pre>
+                    </div>
+                    <div class="generate-image-result-actions">
+                        <button
+                            type="button"
+                            id="generateAudioDownloadBtn"
+                            class="generate-audio-download-btn"
+                        >
+                            ⬇ Download Audio
+                        </button>
+                        <a
+                            href="/history/"
+                            class="generate-image-history-link"
+                        >
+                            Buka di History →
+                        </a>
+                    </div>
+                </section>
+
+                <!-- INLINE TRANSCRIBE AUDIO RESULT -->
+
+                <section
+                    id="generateTranscribeResultCard"
+                    class="generate-transcribe-result-card"
+                    aria-label="Hasil Transcribe Audio"
+                    hidden
+                >
+                    <div class="generate-image-result-head">
+                        <span class="generate-transcribe-result-badge">📝 Transkrip &amp; Subtitle Siap</span>
+                        <span id="generateTranscribeMeta" class="generate-result-model-meta"></span>
+                    </div>
+
+                    <div class="generate-transcribe-block">
+                        <div class="generate-transcribe-label">Teks Transkripsi Utuh</div>
+                        <div id="generateTranscribeText" class="generate-transcribe-text-box"></div>
+                    </div>
+
+                    <div id="generateTranscribeSegmentsWrap" class="generate-transcribe-block" hidden>
+                        <div class="generate-transcribe-label">Segmen Timestamp (.SRT)</div>
+                        <div id="generateTranscribeSegmentsList" class="generate-transcribe-segments-list"></div>
+                    </div>
+
+                    <div class="generate-image-result-actions">
+                        <button
+                            type="button"
+                            id="generateTranscribeCopyBtn"
+                            class="generate-transcribe-action-btn is-primary"
+                        >
+                            📋 Salin Teks
+                        </button>
+                        <button
+                            type="button"
+                            id="generateTranscribeDownloadTxtBtn"
+                            class="generate-transcribe-action-btn"
+                        >
+                            ⬇ Download .TXT
+                        </button>
+                        <button
+                            type="button"
+                            id="generateTranscribeDownloadSrtBtn"
+                            class="generate-transcribe-action-btn"
+                        >
+                            ⬇ Download .SRT
+                        </button>
+                        <a
+                            href="/history/"
+                            class="generate-image-history-link"
+                        >
+                            Buka di History →
+                        </a>
+                    </div>
+                </section>
+
 
                 <!-- =================================================
                      MODEL HEADER COMPATIBILITY
@@ -810,7 +976,7 @@
          untuk rollback bila diperlukan.
     ========================================================== -->
 
-    <script src="/assets/js/generated-file-name.js?v=20261101"></script>
+    <script src="/assets/js/generated-file-name.js?v=20261101-audio-srt"></script>
     <script src="./assets/js/generate-progress-card.js?v=mobile-spinner-20261029"></script>
     <script src="../assets/js/generation-regenerate.js?v=20261016-regenerate"></script>
 
@@ -821,7 +987,7 @@
 
     <script
         type="module"
-        src="./assets/js/generate-app.js?v=stored-uploads-20261026-20261101-image-video-modes"
+        src="./assets/js/generate-app.js?v=stored-uploads-20261026-20261101-audio-transcribe"
     ></script>
 
 

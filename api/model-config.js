@@ -110,6 +110,12 @@ import opusVideoModels
 import opusImageModels
     from "../models/opus-image/index.js";
 
+import opusAudioModels
+    from "../models/opus-audio/index.js";
+
+import opusTranscribeModels
+    from "../models/opus-transcribe/index.js";
+
 
 /* =========================================================
    MODEL REGISTRY
@@ -132,7 +138,13 @@ const MODEL_REGISTRY = Object.freeze([
    ...opusVideoModels,
 
    /* Opus Labs Image Generation (generate_keyframes) */
-   ...opusImageModels
+   ...opusImageModels,
+
+   /* Opus Labs Audio Generation (generate_audio) */
+   ...opusAudioModels,
+
+   /* Opus Labs Audio/Video Transcription (transcribe_audio) */
+   ...opusTranscribeModels
 
 ]);
 
@@ -1881,6 +1893,12 @@ function buildModelConfig(
                 .trim()
                 .toLowerCase() ||
             "video",
+
+
+        audio_kind:
+            config.audioKind
+                ? String(config.audioKind).trim().toLowerCase()
+                : null,
 
 
         sub_modes:

@@ -331,11 +331,64 @@
         "opus-nano-banana-pro"
     ];
 
+    const AUDIO_EXTENSIONS = [
+        "mp3",
+        "wav",
+        "m4a",
+        "aac",
+        "ogg",
+        "opus",
+        "flac"
+    ];
+
+    const GENERATED_AUDIO_MODEL_IDS = [
+        "opus-audio-speech",
+        "opus-audio-music",
+        "opus-audio-sfx"
+    ];
+
+    const GENERATED_TRANSCRIBE_MODEL_IDS = [
+        "opus-transcribe-audio"
+    ];
+
     function isImageHistoryItem(item) {
         const mediaType = String(item?.media_type || item?.mediaType || "").trim().toLowerCase();
         if (mediaType === "image") return true;
         const modelId = String(item?.model_id || item?.modelId || "").trim().toLowerCase();
         return modelId === "upscale-photo" || GENERATED_IMAGE_MODEL_IDS.indexOf(modelId) !== -1;
+    }
+
+    function isAudioHistoryItem(item) {
+        const mediaType = String(item?.media_type || item?.mediaType || "").trim().toLowerCase();
+        if (mediaType === "audio") return true;
+        const modelId = String(item?.model_id || item?.modelId || "").trim().toLowerCase();
+        return GENERATED_AUDIO_MODEL_IDS.indexOf(modelId) !== -1 || modelId.indexOf("opus-audio-") === 0;
+    }
+
+    function isTranscribeHistoryItem(item) {
+        const mediaType = String(item?.media_type || item?.mediaType || "").trim().toLowerCase();
+        if (mediaType === "transcribe" || mediaType === "transcription") return true;
+        const modelId = String(item?.model_id || item?.modelId || "").trim().toLowerCase();
+        return GENERATED_TRANSCRIBE_MODEL_IDS.indexOf(modelId) !== -1 || modelId.indexOf("opus-transcribe-") === 0;
+    }
+
+    function isAudioResultUrl(url) {
+        if (!url) return false;
+        const raw = String(url).trim().toLowerCase();
+        if (raw.indexOf("data:audio/") === 0) return true;
+        const clean = raw.split("?")[0].split("#")[0];
+        const dot = clean.lastIndexOf(".");
+        if (dot === -1) return false;
+        const ext = clean.slice(dot + 1);
+        return AUDIO_EXTENSIONS.indexOf(ext) !== -1;
+    }
+
+    function isTranscriptResultUrl(url) {
+        if (!url) return false;
+        const raw = String(url).trim().toLowerCase();
+        if (raw.indexOf("data:application/json") === 0) return true;
+        const clean = raw.split("?")[0].split("#")[0];
+        return clean.indexOf("/gentrx-") !== -1 || /\.(?:json|srt|vtt|txt)$/i.test(clean);
     }
 
     function isImageResultUrl(url) {
@@ -1238,6 +1291,42 @@
             `;
         }
 
+        if (isTranscribeHistoryItem(item) || isTranscriptResultUrl(url)) {
+            return `
+                <div
+                    class="history-thumbnail thumbnail-transcribe-success"
+                    role="button"
+                    tabindex="0"
+                    aria-label="Lihat hasil transkripsi audio"
+                    style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:linear-gradient(145deg,rgba(30,22,8,0.92),rgba(10,14,24,0.96));border:1px solid rgba(251,191,36,0.38);"
+                >
+                    <span aria-hidden="true" style="font-size:24px;line-height:1;">📝</span>
+                    <span style="font-size:10.5px;font-weight:800;letter-spacing:0.08em;color:#fde68a;">TRANSKRIP &amp; SRT</span>
+                    <span class="thumbnail-success">
+                        SUCCESS
+                    </span>
+                </div>
+            `;
+        }
+
+        if (isAudioResultUrl(url) || isAudioHistoryItem(item)) {
+            return `
+                <div
+                    class="history-thumbnail thumbnail-audio-success"
+                    role="button"
+                    tabindex="0"
+                    aria-label="Putar hasil audio"
+                    style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:linear-gradient(145deg,rgba(26,12,42,0.92),rgba(10,14,24,0.96));border:1px solid rgba(192,132,252,0.4);"
+                >
+                    <span aria-hidden="true" style="font-size:24px;line-height:1;">🎵</span>
+                    <span style="font-size:10.5px;font-weight:800;letter-spacing:0.08em;color:#d8b4fe;">AUDIO AI</span>
+                    <span class="thumbnail-success">
+                        SUCCESS
+                    </span>
+                </div>
+            `;
+        }
+
         /* =================================================
            VIDEO RESULT
         ================================================= */
@@ -1451,6 +1540,12 @@
 
     App.isImageResultUrl =
         isImageResultUrl;
+
+    App.isAudioResultUrl =
+        isAudioResultUrl;
+
+    App.isTranscribeHistoryItem =
+        isTranscribeHistoryItem;
 
 
     /* =====================================================

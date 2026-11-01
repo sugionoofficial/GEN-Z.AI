@@ -60,15 +60,25 @@
 import {
     IMAGE_SUBMODE_CHARACTER_SHEET,
     IMAGE_SUBMODE_STANDARD,
+    MAIN_MODE_AUDIO,
     MAIN_MODE_IMAGE,
+    MAIN_MODE_TRANSCRIBE,
     MAIN_MODE_VIDEO,
     getActiveImageSubMode,
     getActiveMainMode,
     inferSubModeFromRegenerateParameters,
+    isAudioModel,
     isImageModel,
+    isTranscribeModel,
+    resolveMainModeForModel,
     setActiveImageSubMode,
     setActiveMainMode
 } from "./generate-mode-state.js";
+
+import {
+    formatReadableTimestamp,
+    normalizeTranscriptPayload
+} from "../../../assets/js/transcript-format.js";
 
 const STATE_MODULE =
     "./generate-state.js";
@@ -77,13 +87,13 @@ const AUTH_MODULE =
     "./generate-auth.js?v=20261013-auth-refresh";
 
 const UI_MODULE =
-    "./generate-ui.js?v=20261101-image-video-modes";
+    "./generate-ui.js?v=20261101-audio-transcribe";
 
 const MODEL_MODULE =
-    "./generate-model.js?v=20261101-image-video-modes";
+    "./generate-model.js?v=20261101-audio-transcribe";
 
 const FORM_MODULE =
-    "./generate-form.js?v=20261101-image-video-modes";
+    "./generate-form.js?v=20261101-audio-transcribe";
 
 const SEEDANCE_MODULE =
     "./generate-seedance.js";
@@ -92,10 +102,10 @@ const RENDER_MODULE =
     "./generate-render.js";
 
 const SUBMIT_MODULE =
-    "./generate-submit.js?v=20261101-image-video-modes";
+    "./generate-submit.js?v=20261101-audio-transcribe";
 
 const VALIDATION_MODULE =
-    "./generate-validation.js?v=20261101-image-video-modes";
+    "./generate-validation.js?v=20261101-audio-transcribe";
 
 const REQUEST_MODULE =
     "./generate-request.js?v=20261029-historygate";
@@ -3835,14 +3845,17 @@ function applyPendingRegeneration() {
     const parameters =
         regeneration.parameters || {};
 
-    if (isImageModel(model)) {
+    const targetRegenMode = resolveMainModeForModel(model);
+    setActiveMainMode(targetRegenMode);
+    if (targetRegenMode === MAIN_MODE_IMAGE) {
         const restoredSubMode = inferSubModeFromRegenerateParameters(parameters);
-        setActiveMainMode(MAIN_MODE_IMAGE);
         setActiveImageSubMode(restoredSubMode);
         syncModeSwitcherUI();
         if (restoredSubMode === IMAGE_SUBMODE_CHARACTER_SHEET) {
             appState.modules.render?.renderModelForm?.(model);
         }
+    } else {
+        syncModeSwitcherUI();
     }
 
     const setIfAvailable =
@@ -3865,6 +3878,12 @@ function applyPendingRegeneration() {
 
     [
         "prompt",
+        "voice",
+        "style",
+        "vocal_mode",
+        "target_duration",
+        "lyrics",
+        "language",
         "character_notes",
         "aspect_ratio",
         "duration",
@@ -3881,6 +3900,9 @@ function applyPendingRegeneration() {
     }
     if (parameters.outfit_image_url) {
         setIfAvailable("outfit_image_url", parameters.outfit_image_url);
+    }
+    if (parameters.audio_url) {
+        setIfAvailable("audio_url", parameters.audio_url);
     }
 
     const setReference =
@@ -3908,13 +3930,13 @@ function applyPendingRegeneration() {
         ]
     );
 
+    const cleanVideoOrAudioRef = String(parameters.video_reference_url || "").trim();
+    const looksLikeAudioRef = /\.(?:mp3|wav|m4a|aac|ogg|opus|flac)(?:[?#]|$)/i.test(cleanVideoOrAudioRef);
     setReference(
-        parameters.video_reference_url,
-        [
-            "video_urls",
-            "video_url",
-            "reference_video_urls"
-        ]
+        cleanVideoOrAudioRef,
+        looksLikeAudioRef
+            ? ["audio_url", "audio_urls", "video_urls", "video_url"]
+            : ["video_urls", "video_url", "reference_video_urls", "audio_url"]
     );
 
     if (!window.GENZRegenerate?.clear?.()) {
@@ -4489,6 +4511,8 @@ async function handleModelChange(
         appState.modelReady =
             true;
 
+        syncModeSwitcherUI();
+
         syncModelCreditForResolution();
 
         enableGenerateButton(
@@ -4981,6 +5005,25 @@ function renderGenerationResult(
 
             continue;
 
+        }
+
+        const isAudioOutput =
+            isAudioModel(getCurrentModel()) ||
+            /^data:audio\//i.test(url) ||
+            /\.(?:mp3|wav|m4a|aac|ogg|opus|flac)(?:[?#]|$)/i.test(url);
+
+        if (isAudioOutput) {
+            const audioEl = document.createElement("audio");
+            audioEl.controls = true;
+            audioEl.preload = "metadata";
+            audioEl.src = url;
+            audioEl.style.cssText = "width:100%;max-width:760px;display:block;";
+            resultBox.appendChild(audioEl);
+            continue;
+        }
+
+        if (isTranscribeModel(getCurrentModel()) || /\.json(?:[?#]|$)/i.test(url)) {
+            continue;
         }
 
         const isImgOutput =
@@ -5655,11 +5698,344 @@ function initializeVisualState() {
 ========================================================= */
 
 let latestGeneratedImageUrl = "";
+let latestGeneratedAudioUrl = "";
+let latestGeneratedTranscript = null;
 
 function hideImageResult() {
     const card = document.getElementById("generateImageResultCard");
     if (card) {
         card.hidden = true;
+    }
+}
+
+function hideAudioResult() {
+    const card = document.getElementById("generateAudioResultCard");
+    const player = document.getElementById("generateAudioResultPlayer");
+    if (player) {
+        try {
+            player.pause();
+        } catch {
+            /* ignore */
+        }
+    }
+    if (card) {
+        card.hidden = true;
+    }
+}
+
+function hideTranscribeResult() {
+    const card = document.getElementById("generateTranscribeResultCard");
+    if (card) {
+        card.hidden = true;
+    }
+}
+
+function extractResultAudioUrl(result) {
+    if (!result || typeof result !== "object") return "";
+    const directCandidates = [
+        result.result_url,
+        result.resultUrl,
+        result.audio_url,
+        result.audioUrl,
+        result.data?.result_url,
+        result.data?.resultUrl,
+        result.data?.audio_url,
+        ...(Array.isArray(result.result_urls) ? result.result_urls : []),
+        ...(Array.isArray(result.resultUrls) ? result.resultUrls : []),
+        ...(Array.isArray(result.data?.result_urls) ? result.data.result_urls : []),
+        ...(Array.isArray(result.data?.resultUrls) ? result.data.resultUrls : [])
+    ];
+    for (const candidate of directCandidates) {
+        const clean = String(candidate || "").trim();
+        if (/^(?:https?:\/\/|data:audio\/)/i.test(clean)) {
+            return clean;
+        }
+    }
+    return "";
+}
+
+function renderAudioResult(result, model = getCurrentModel()) {
+    const url = extractResultAudioUrl(result);
+    if (!url) return;
+
+    const card = document.getElementById("generateAudioResultCard");
+    const player = document.getElementById("generateAudioResultPlayer");
+    const modelLabel = document.getElementById("generateAudioResultModel");
+    const lyricsWrap = document.getElementById("generateAudioResultLyricsWrap");
+    const lyricsPre = document.getElementById("generateAudioResultLyrics");
+    if (!card || !player) return;
+
+    hideImageResult();
+    hideTranscribeResult();
+
+    latestGeneratedAudioUrl = url;
+    player.src = url;
+    try {
+        player.load();
+    } catch {
+        /* ignore */
+    }
+
+    const durSec = result?.duration_seconds ?? result?.data?.duration_seconds ?? null;
+    const durSuffix =
+        typeof durSec === "number" && Number.isFinite(durSec) && durSec > 0
+            ? ` • ${Math.round(durSec)} dtk`
+            : "";
+    if (modelLabel) {
+        modelLabel.textContent = `${getModelName(model) || "Audio AI"}${durSuffix}`;
+    }
+
+    const lyricsText = String(
+        result?.lyrics ||
+        result?.data?.lyrics ||
+        result?.result?.lyrics ||
+        ""
+    ).trim();
+    if (lyricsWrap && lyricsPre) {
+        if (lyricsText) {
+            lyricsPre.textContent = lyricsText;
+            lyricsWrap.hidden = false;
+        } else {
+            lyricsPre.textContent = "";
+            lyricsWrap.hidden = true;
+        }
+    }
+
+    card.hidden = false;
+    try {
+        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch {
+        /* ignore */
+    }
+}
+
+function bindAudioDownloadButton() {
+    const btn = document.getElementById("generateAudioDownloadBtn");
+    if (!btn || btn.dataset.genzAudioDownloadBound === "true") return;
+
+    btn.addEventListener("click", async () => {
+        const url = latestGeneratedAudioUrl || document.getElementById("generateAudioResultPlayer")?.src || "";
+        if (!url) return;
+
+        const cleanPath = url.split("?")[0].toLowerCase();
+        const fallbackExt = cleanPath.endsWith(".wav") ? "wav" : "mp3";
+        const filename = window.GENZGeneratedFileName?.create
+            ? window.GENZGeneratedFileName.create(url, fallbackExt)
+            : `GEN-Z.AI-${Date.now()}.${fallbackExt}`;
+
+        const originalLabel = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "Menyiapkan...";
+
+        try {
+            window.GenzToast?.info?.({
+                title: "Menyiapkan unduhan audio...",
+                message: filename,
+                duration: 2800
+            });
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = blobUrl;
+            anchor.download = filename;
+            anchor.rel = "noopener";
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+            window.GenzToast?.success?.({
+                title: "Audio berhasil diunduh",
+                message: filename,
+                duration: 5000
+            });
+        } catch {
+            window.open(url, "_blank", "noopener,noreferrer");
+            window.GenzToast?.info?.({
+                title: "Audio dibuka di tab baru",
+                message: "Simpan audio langsung dari tab yang terbuka.",
+                duration: 4500
+            });
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalLabel;
+        }
+    });
+
+    btn.dataset.genzAudioDownloadBound = "true";
+}
+
+async function resolveTranscriptFromResultPayload(result) {
+    if (!result || typeof result !== "object") return null;
+    const directCandidate =
+        result.transcript ||
+        result.data?.transcript ||
+        result.result?.transcript ||
+        null;
+    if (directCandidate) {
+        const normalized = normalizeTranscriptPayload(directCandidate);
+        if (normalized && normalized.text) return normalized;
+    }
+
+    const urlCandidates = [
+        result.result_url,
+        result.resultUrl,
+        result.data?.result_url,
+        ...(Array.isArray(result.result_urls) ? result.result_urls : []),
+        ...(Array.isArray(result.data?.result_urls) ? result.data.result_urls : [])
+    ];
+    for (const rawUrl of urlCandidates) {
+        const cleanUrl = String(rawUrl || "").trim();
+        if (!cleanUrl) continue;
+        try {
+            const resp = await fetch(cleanUrl);
+            if (!resp.ok) continue;
+            const bodyText = await resp.text();
+            const parsed = normalizeTranscriptPayload(bodyText);
+            if (parsed && parsed.text) return parsed;
+        } catch {
+            /* coba kandidat berikutnya */
+        }
+    }
+    return null;
+}
+
+async function renderTranscribeResult(result, model = getCurrentModel()) {
+    const transcript = await resolveTranscriptFromResultPayload(result);
+    if (!transcript || !transcript.text) return;
+
+    const card = document.getElementById("generateTranscribeResultCard");
+    const metaEl = document.getElementById("generateTranscribeMeta");
+    const textEl = document.getElementById("generateTranscribeText");
+    const segWrap = document.getElementById("generateTranscribeSegmentsWrap");
+    const segList = document.getElementById("generateTranscribeSegmentsList");
+    if (!card || !textEl) return;
+
+    hideImageResult();
+    hideAudioResult();
+
+    latestGeneratedTranscript = transcript;
+    textEl.textContent = transcript.text;
+
+    const metaParts = [getModelName(model) || "Opus Transcribe"];
+    if (transcript.language) {
+        metaParts.push(`Bahasa: ${String(transcript.language).toUpperCase()}`);
+    }
+    if (typeof transcript.durationSeconds === "number" && transcript.durationSeconds > 0) {
+        metaParts.push(formatReadableTimestamp(transcript.durationSeconds));
+    }
+    if (metaEl) {
+        metaEl.textContent = metaParts.join(" • ");
+    }
+
+    if (segWrap && segList) {
+        segList.innerHTML = "";
+        const segments = Array.isArray(transcript.segments) ? transcript.segments : [];
+        if (segments.length > 0) {
+            segments.forEach(seg => {
+                const row = document.createElement("div");
+                row.className = "generate-transcribe-segment-row";
+
+                const timeSpan = document.createElement("span");
+                timeSpan.className = "generate-transcribe-segment-time";
+                timeSpan.textContent = `${formatReadableTimestamp(seg.start)} → ${formatReadableTimestamp(seg.end)}`;
+
+                const txtSpan = document.createElement("span");
+                txtSpan.className = "generate-transcribe-segment-text";
+                txtSpan.textContent = seg.speaker ? `[${seg.speaker}] ${seg.text}` : seg.text;
+
+                row.appendChild(timeSpan);
+                row.appendChild(txtSpan);
+                segList.appendChild(row);
+            });
+            segWrap.hidden = false;
+        } else {
+            segWrap.hidden = true;
+        }
+    }
+
+    card.hidden = false;
+    try {
+        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch {
+        /* ignore */
+    }
+}
+
+function triggerTextFileDownload(content, ext, mimeType, toastTitle) {
+    const cleanContent = String(content || "");
+    if (!cleanContent.trim()) return;
+    const filename = window.GENZGeneratedFileName?.create
+        ? window.GENZGeneratedFileName.create("", ext)
+        : `GEN-Z.AI-${Date.now()}.${ext}`;
+    const blob = new Blob([cleanContent], { type: `${mimeType};charset=utf-8` });
+    const blobUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = blobUrl;
+    anchor.download = filename;
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    window.GenzToast?.success?.({
+        title: toastTitle,
+        message: filename,
+        duration: 4500
+    });
+}
+
+function bindTranscribeActionButtons() {
+    const copyBtn = document.getElementById("generateTranscribeCopyBtn");
+    if (copyBtn && copyBtn.dataset.genzTrxCopyBound !== "true") {
+        copyBtn.addEventListener("click", async () => {
+            const text = latestGeneratedTranscript?.text || document.getElementById("generateTranscribeText")?.textContent || "";
+            if (!text.trim()) return;
+            try {
+                await navigator.clipboard.writeText(text);
+                window.GenzToast?.success?.({
+                    title: "Teks disalin",
+                    message: "Transkrip berhasil disalin ke clipboard.",
+                    duration: 3500
+                });
+            } catch {
+                window.GenzToast?.error?.({
+                    title: "Gagal menyalin",
+                    message: "Silakan blok teks secara manual untuk menyalin.",
+                    duration: 3500
+                });
+            }
+        });
+        copyBtn.dataset.genzTrxCopyBound = "true";
+    }
+
+    const txtBtn = document.getElementById("generateTranscribeDownloadTxtBtn");
+    if (txtBtn && txtBtn.dataset.genzTrxTxtBound !== "true") {
+        txtBtn.addEventListener("click", () => {
+            if (!latestGeneratedTranscript) return;
+            triggerTextFileDownload(
+                latestGeneratedTranscript.txt || latestGeneratedTranscript.text,
+                "txt",
+                "text/plain",
+                "File .TXT berhasil diunduh"
+            );
+        });
+        txtBtn.dataset.genzTrxTxtBound = "true";
+    }
+
+    const srtBtn = document.getElementById("generateTranscribeDownloadSrtBtn");
+    if (srtBtn && srtBtn.dataset.genzTrxSrtBound !== "true") {
+        srtBtn.addEventListener("click", () => {
+            if (!latestGeneratedTranscript) return;
+            triggerTextFileDownload(
+                latestGeneratedTranscript.srt || latestGeneratedTranscript.text,
+                "srt",
+                "application/x-subrip",
+                "Subtitle .SRT berhasil diunduh"
+            );
+        });
+        srtBtn.dataset.genzTrxSrtBound = "true";
     }
 }
 
@@ -5768,6 +6144,10 @@ function syncModeSwitcherUI() {
     const mainMode = getActiveMainMode();
     const subMode = getActiveImageSubMode();
     const isImg = mainMode === MAIN_MODE_IMAGE;
+    const isAud = mainMode === MAIN_MODE_AUDIO;
+    const isTrx = mainMode === MAIN_MODE_TRANSCRIBE;
+    const currentModel = getCurrentModel();
+    const currentModelId = getModelId(currentModel);
 
     document.querySelectorAll("#generateMainModeTabs [data-main-mode]").forEach(btn => {
         const active = btn.getAttribute("data-main-mode") === mainMode;
@@ -5786,6 +6166,17 @@ function syncModeSwitcherUI() {
         btn.setAttribute("aria-selected", active ? "true" : "false");
     });
 
+    const audioSubWrap = document.getElementById("generateAudioSubModeWrap");
+    if (audioSubWrap) {
+        audioSubWrap.hidden = !isAud;
+    }
+
+    document.querySelectorAll("#generateAudioSubModeWrap [data-audio-model-id]").forEach(btn => {
+        const active = btn.getAttribute("data-audio-model-id") === currentModelId;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+
     const lockedBanner = document.getElementById("characterSheetLockedBanner");
     if (lockedBanner) {
         lockedBanner.hidden = !(isImg && subMode === IMAGE_SUBMODE_CHARACTER_SHEET);
@@ -5793,30 +6184,62 @@ function syncModeSwitcherUI() {
 
     const sectionEyebrow = document.getElementById("generateSectionEyebrow");
     if (sectionEyebrow) {
-        sectionEyebrow.textContent = isImg ? "GENERATE GAMBAR AI" : "GENERATE VIDEO AI";
+        sectionEyebrow.textContent = isImg
+            ? "GENERATE GAMBAR AI"
+            : isAud
+                ? "GENERATE AUDIO & MUSIC AI"
+                : isTrx
+                    ? "TRANSCRIBE AUDIO & SUBTITLE AI"
+                    : "GENERATE VIDEO AI";
     }
 
     const sectionDesc = document.getElementById("generateSectionDescription");
     if (sectionDesc) {
-        sectionDesc.textContent = isImg
-            ? (
+        if (isImg) {
+            sectionDesc.textContent =
                 subMode === IMAGE_SUBMODE_CHARACTER_SHEET
                     ? "Unggah foto karakter (dan opsional foto outfit) untuk membuat lembar Character Sheet studio multi-sudut secara otomatis."
-                    : "Pilih model gambar AI, unggah hingga 8 gambar referensi (opsional), lalu tulis prompt gambar Anda."
-            )
-            : "Pilih model dan parameter video yang tersedia pada konfigurasi model aktif.";
+                    : "Pilih model gambar AI, unggah hingga 8 gambar referensi (opsional), lalu tulis prompt gambar Anda.";
+        } else if (isAud) {
+            sectionDesc.textContent =
+                "Buat Voiceover narator 30 karakter suara, Musik / Lagu AI (Lyria 3.5), atau Sound Effects (SFX) kualitas studio.";
+        } else if (isTrx) {
+            sectionDesc.textContent =
+                "Unggah file Audio (MP3/WAV/M4A/AAC/OGG/FLAC) atau Video (MP4/MOV/WEBM) untuk diubah menjadi teks & file subtitle .SRT bertanda waktu.";
+        } else {
+            sectionDesc.textContent =
+                "Pilih model dan parameter video yang tersedia pada konfigurasi model aktif.";
+        }
     }
 
     const topbarEyebrow = document.querySelector(".topbar-eyebrow");
     if (topbarEyebrow) {
-        topbarEyebrow.textContent = isImg ? "AI IMAGE & CHARACTER STUDIO" : "AI VIDEO GENERATOR";
+        topbarEyebrow.textContent = isImg
+            ? "AI IMAGE & CHARACTER STUDIO"
+            : isAud
+                ? "AI VOICEOVER, MUSIC & SFX STUDIO"
+                : isTrx
+                    ? "AI SPEECH-TO-TEXT & SRT STUDIO"
+                    : "AI VIDEO GENERATOR";
     }
 
     const buttonLabel = document.querySelector("#generateButton .generate-button-label");
     if (buttonLabel) {
-        buttonLabel.textContent = isImg
-            ? (subMode === IMAGE_SUBMODE_CHARACTER_SHEET ? "Generate Karakter Sheet" : "Generate Gambar")
-            : "Generate Video";
+        if (isImg) {
+            buttonLabel.textContent =
+                subMode === IMAGE_SUBMODE_CHARACTER_SHEET ? "Generate Karakter Sheet" : "Generate Gambar";
+        } else if (isAud) {
+            buttonLabel.textContent =
+                currentModelId === "opus-audio-music"
+                    ? "Generate Musik AI"
+                    : currentModelId === "opus-audio-sfx"
+                        ? "Generate Sound Effect"
+                        : "Generate Voiceover";
+        } else if (isTrx) {
+            buttonLabel.textContent = "Transcribe Audio";
+        } else {
+            buttonLabel.textContent = "Generate Video";
+        }
     }
 }
 
@@ -5826,8 +6249,14 @@ async function switchMainMode(nextMode) {
     }
 
     const targetMode = setActiveMainMode(nextMode);
-    if (targetMode === MAIN_MODE_VIDEO) {
+    if (targetMode !== MAIN_MODE_IMAGE) {
         hideImageResult();
+    }
+    if (targetMode !== MAIN_MODE_AUDIO) {
+        hideAudioResult();
+    }
+    if (targetMode !== MAIN_MODE_TRANSCRIBE) {
+        hideTranscribeResult();
     }
     syncModeSwitcherUI();
     hideError();
@@ -5843,11 +6272,15 @@ async function switchMainMode(nextMode) {
         disableGenerateButton();
         const container = getDOM().dynamicFields;
         if (container) {
-            container.innerHTML = `<div class="generate-empty-parameters">${
+            const emptyLabel =
                 targetMode === MAIN_MODE_IMAGE
                     ? "Belum ada model gambar yang aktif."
-                    : "Belum ada model video yang aktif."
-            }</div>`;
+                    : targetMode === MAIN_MODE_AUDIO
+                        ? "Belum ada model audio yang aktif."
+                        : targetMode === MAIN_MODE_TRANSCRIBE
+                            ? "Belum ada model transkripsi yang aktif."
+                            : "Belum ada model video yang aktif.";
+            container.innerHTML = `<div class="generate-empty-parameters">${emptyLabel}</div>`;
         }
         return;
     }
@@ -5860,6 +6293,7 @@ async function switchMainMode(nextMode) {
             const normalized = setCurrentModel(model);
             await renderModel(normalized);
             appState.modelReady = true;
+            syncModeSwitcherUI();
             syncModelCreditForResolution();
             enableGenerateButton(normalized);
         }
@@ -5868,6 +6302,25 @@ async function switchMainMode(nextMode) {
     } finally {
         hideLoading();
     }
+}
+
+async function switchAudioModelType(targetModelId) {
+    if (appState.modules.submit?.isGenerationInProgress?.()) {
+        return;
+    }
+    const cleanId = String(targetModelId || "").trim();
+    if (!cleanId) return;
+
+    const select = getDOM().modelSelect;
+    if (select && select.value !== cleanId) {
+        const hasOption = Array.from(select.options || []).some(opt => opt.value === cleanId);
+        if (hasOption) {
+            select.value = cleanId;
+            await handleModelChange({ target: select });
+            return;
+        }
+    }
+    syncModeSwitcherUI();
 }
 
 async function switchImageSubMode(nextSubMode) {
@@ -5920,6 +6373,19 @@ function bindModeSwitcherEvents() {
         });
         subModeWrap.dataset.genzSubModeBound = "true";
     }
+
+    const audioSubWrap = document.getElementById("generateAudioSubModeWrap");
+    if (audioSubWrap && audioSubWrap.dataset.genzAudioSubModeBound !== "true") {
+        audioSubWrap.addEventListener("click", event => {
+            const btn = event.target?.closest?.("[data-audio-model-id]");
+            if (!btn) return;
+            const targetModelId = btn.getAttribute("data-audio-model-id");
+            if (targetModelId) {
+                switchAudioModelType(targetModelId);
+            }
+        });
+        audioSubWrap.dataset.genzAudioSubModeBound = "true";
+    }
 }
 
 /* =========================================================
@@ -5965,6 +6431,10 @@ async function bootstrap() {
         bindModeSwitcherEvents();
 
         bindImageDownloadButton();
+
+        bindAudioDownloadButton();
+
+        bindTranscribeActionButtons();
 
         syncModeSwitcherUI();
 
@@ -6184,9 +6654,19 @@ window.GENZGenerateApp =
 
         hideImageResult,
 
+        renderAudioResult,
+
+        hideAudioResult,
+
+        renderTranscribeResult,
+
+        hideTranscribeResult,
+
         switchMainMode,
 
         switchImageSubMode,
+
+        switchAudioModelType,
 
 
         /* =================================================

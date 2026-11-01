@@ -30,6 +30,12 @@ import {
     clearOpusMemoryTokenVault,
     resolveOpusOAuthTokenWithVault
 } from "./oauth-vault.js";
+import {
+    createOpusAudioTools,
+    extractAudioUrls,
+    extractTranscriptUrls,
+    isLikelyAudioOutputUrl
+} from "./audio-tools.js";
 
 function getEnv() {
     return (
@@ -82,7 +88,13 @@ const CLIENT_ITEM_IDS = new Set([
     "video3",
     "audio1",
     "audio2",
-    "audio3"
+    "audio3",
+    "audio-1",
+    "speech-1",
+    "music-1",
+    "sfx-1",
+    "transcribe-1",
+    "transcript-1"
 ]);
 
 const PROJECT_PENDING_JOB_ID = "__project_pending__";
@@ -1911,7 +1923,10 @@ function inferImageMimeFromUrl(url) {
 }
 
 function inferVideoMimeFromUrl(url) {
-    const clean = String(url || "").split("?")[0].split("#")[0].toLowerCase();
+    const raw = String(url || "").trim();
+    const dataMatch = /^data:(video\/[a-z0-9.+-]+);base64,/i.exec(raw);
+    if (dataMatch) return dataMatch[1].toLowerCase();
+    const clean = raw.split("?")[0].split("#")[0].toLowerCase();
     if (clean.endsWith(".mov") || clean.endsWith(".qt")) return "video/quicktime";
     if (clean.endsWith(".webm")) return "video/webm";
     if (clean.endsWith(".m4v")) return "video/x-m4v";
@@ -1919,11 +1934,15 @@ function inferVideoMimeFromUrl(url) {
 }
 
 function inferAudioMimeFromUrl(url) {
-    const clean = String(url || "").split("?")[0].split("#")[0].toLowerCase();
+    const raw = String(url || "").trim();
+    const dataMatch = /^data:(audio\/[a-z0-9.+-]+);base64,/i.exec(raw);
+    if (dataMatch) return dataMatch[1].toLowerCase();
+    const clean = raw.split("?")[0].split("#")[0].toLowerCase();
     if (clean.endsWith(".wav") || clean.endsWith(".wave")) return "audio/wav";
+    if (clean.endsWith(".flac")) return "audio/flac";
     if (clean.endsWith(".m4a")) return "audio/mp4";
     if (clean.endsWith(".aac")) return "audio/aac";
-    if (clean.endsWith(".ogg") || clean.endsWith(".oga")) return "audio/ogg";
+    if (clean.endsWith(".ogg") || clean.endsWith(".oga") || clean.endsWith(".opus")) return "audio/ogg";
     return "audio/mpeg";
 }
 
@@ -1935,9 +1954,10 @@ function extFromMime(mime) {
     if (mime === "video/x-m4v") return "m4v";
     if (mime === "video/mp4") return "mp4";
     if (mime === "audio/wav" || mime === "audio/x-wav" || mime === "audio/wave" || mime === "audio/x-pn-wav") return "wav";
+    if (mime === "audio/flac" || mime === "audio/x-flac") return "flac";
     if (mime === "audio/mp4" || mime === "audio/x-m4a" || mime === "audio/m4a") return "m4a";
     if (mime === "audio/aac") return "aac";
-    if (mime === "audio/ogg") return "ogg";
+    if (mime === "audio/ogg" || mime === "audio/opus") return "ogg";
     if (mime === "audio/mpeg" || mime === "audio/mp3") return "mp3";
     return "jpg";
 }
@@ -8774,6 +8794,70 @@ async function getImageTask(taskId, apiKey, options = {}) {
     });
 }
 
+const {
+    createAudioTask,
+    getAudioTask,
+    createTranscribeTask,
+    getTranscribeTask
+} = createOpusAudioTools({
+    PROVIDER_ID,
+    PROVIDER_NAME,
+    CREATE_TIMEOUT_MS,
+    QUERY_TIMEOUT_MS,
+    COMPLETED_INLINE_CACHE_TTL_MS,
+    PROJECT_PENDING_JOB_ID,
+    TERMINAL_FAILED_TOKENS,
+    inlineCompletedResults,
+    getActiveKeyIndex: () => activeOpusKeyIndex,
+    setActiveKeyIndex: nextIdx => {
+        activeOpusKeyIndex = nextIdx;
+    },
+    sleep,
+    makeUuid,
+    getMcpEndpoint,
+    createProviderError,
+    translateOpusError,
+    openMcpSession,
+    findMcpTool,
+    ensureProjectId,
+    stageSingleReferenceImage,
+    inferAudioMimeFromUrl,
+    inferVideoMimeFromUrl,
+    extFromMime,
+    resolveObjectSchema,
+    expandObjectBranches,
+    resolveArrayItemSchema,
+    pickSupportedKey,
+    extractAllowedValues,
+    matchEnumCaseInsensitive,
+    schemaTypeIncludes,
+    applyDurationControls,
+    buildFrameFieldValue,
+    buildReferenceAssetsValue,
+    unwrapEnvelope,
+    tryParseJsonFromText,
+    normalizeStatus,
+    findJobIdFromResponse,
+    isOpusNonTerminalWorkerDeadline,
+    extractOpusEgressJobId,
+    isTransientNotFoundError,
+    buildListJobsArgs,
+    buildResolveJobArgs,
+    extractAllowedEnumValuesFromError,
+    extractUnrecognizedKeysFromError,
+    stripKeysDeep,
+    stripRequestKeysForComparison,
+    isRetryableKeyframeValidationFailure,
+    summarizeMcpToolSchema,
+    encodeOpusTaskId,
+    parseOpusTaskId,
+    extractOpusApiKeyPool,
+    parseApiKeyInput,
+    isOpusCreditExhaustedError,
+    normalizeExcludedSlotSet,
+    fetchWithTimeout
+});
+
 export {
     DEFAULT_MCP_URL,
     DEFAULT_OPUS_WORKOS_CLIENT_ID,
@@ -8783,16 +8867,23 @@ export {
     MAX_REFERENCE_VIDEOS,
     PROVIDER_ID,
     PROVIDER_NAME,
+    createAudioTask,
     createImageTask,
+    createTranscribeTask,
     createVideoTask,
     encodeOpusTaskId,
+    extractAudioUrls,
     extractImageUrls,
     extractOpusApiKeyPool,
+    extractTranscriptUrls,
     extractVideoUrls,
     getActiveOpusKeyIndex,
+    getAudioTask,
     getImageTask,
     getMcpEndpoint,
+    getTranscribeTask,
     getVideoTask,
+    isLikelyAudioOutputUrl,
     isOpusCreditExhaustedError,
     normalizeStatus,
     parseOpusTaskId,
@@ -8807,15 +8898,22 @@ export default {
     PROVIDER_NAME,
     DEFAULT_MCP_URL,
     MAX_IMAGE_REFERENCE_IMAGES,
+    createAudioTask,
     createImageTask,
+    createTranscribeTask,
     createVideoTask,
+    getAudioTask,
     getImageTask,
+    getTranscribeTask,
     getVideoTask,
     encodeOpusTaskId,
+    extractAudioUrls,
     extractImageUrls,
     extractOpusApiKeyPool,
     extractOpusEgressJobId,
+    extractTranscriptUrls,
     getActiveOpusKeyIndex,
+    isLikelyAudioOutputUrl,
     isOpusCreditExhaustedError,
     isOpusNonTerminalWorkerDeadline,
     parseOpusTaskId,

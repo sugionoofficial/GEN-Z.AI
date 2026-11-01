@@ -81,8 +81,19 @@ import opusVideoModels
 import opusImageModels
     from "../models/opus-image/index.js";
 
+import opusAudioModels
+    from "../models/opus-audio/index.js";
+
+import opusTranscribeModels
+    from "../models/opus-transcribe/index.js";
+
 import { persistGeneratedImage }
     from "../lib/generate/persist-generated-image.js";
+
+import {
+    persistGeneratedAudio,
+    persistGeneratedTranscript
+} from "../lib/generate/persist-generated-audio.js";
 
 import {
     resolveOpusApiKeyPoolPayload,
@@ -161,7 +172,13 @@ const MODEL_REGISTRY = Object.freeze([
     ...opusVideoModels,
 
     /* Opus Labs Image Generation (generate_keyframes) */
-    ...opusImageModels
+    ...opusImageModels,
+
+    /* Opus Labs Audio Generation (generate_audio) */
+    ...opusAudioModels,
+
+    /* Opus Labs Audio/Video Transcription (transcribe_audio) */
+    ...opusTranscribeModels
 ]);
 
 
@@ -1812,9 +1829,11 @@ async function createGenerationHistory({
             parameters?.video_urls ??
             parameters?.video_url ??
             parameters?.reference_video_urls ??
+            parameters?.audio_url ??
             body?.video_reference_url ??
             body?.video_url ??
             body?.video_reference ??
+            body?.audio_url ??
             null
         );
 
@@ -6530,27 +6549,49 @@ export default async function handler(
         );
     }
 
-    const isImageModel =
-        String(modelConfig?.mediaType || modelConfig?.generationType || "")
-            .trim()
-            .toLowerCase() === "image";
+    const resolvedMediaType = String(
+        modelConfig?.mediaType || modelConfig?.generationType || "video"
+    )
+        .trim()
+        .toLowerCase() || "video";
+
+    const isImageModel = resolvedMediaType === "image";
+    const isAudioModel = resolvedMediaType === "audio";
+    const isTranscribeModel = resolvedMediaType === "transcribe";
+
+    const isTaskCompletedInline =
+        String(task?.status || "").trim().toUpperCase() === "COMPLETED";
 
     const inlineOutputUrl =
-        String(task?.status || "").trim().toUpperCase() === "COMPLETED" &&
+        isTaskCompletedInline &&
         Array.isArray(task?.outputUrls) &&
         task.outputUrls.length > 0
             ? String(task.outputUrls[0] || "").trim()
             : "";
 
-    const persistedInlineImageUrl =
-        isImageModel && inlineOutputUrl
-            ? await persistGeneratedImage({
-                  sourceUrl: inlineOutputUrl,
-                  userId: user.id,
-                  supabaseUrl: SUPABASE_URL,
-                  serviceKey: SUPABASE_SERVICE_ROLE_KEY
-              })
-            : "";
+    let persistedInlineResultUrl = "";
+    if (isImageModel && inlineOutputUrl) {
+        persistedInlineResultUrl = await persistGeneratedImage({
+            sourceUrl: inlineOutputUrl,
+            userId: user.id,
+            supabaseUrl: SUPABASE_URL,
+            serviceKey: SUPABASE_SERVICE_ROLE_KEY
+        });
+    } else if (isAudioModel && inlineOutputUrl) {
+        persistedInlineResultUrl = await persistGeneratedAudio({
+            sourceUrl: inlineOutputUrl,
+            userId: user.id,
+            supabaseUrl: SUPABASE_URL,
+            serviceKey: SUPABASE_SERVICE_ROLE_KEY
+        });
+    } else if (isTranscribeModel && isTaskCompletedInline && task?.transcript) {
+        persistedInlineResultUrl = await persistGeneratedTranscript({
+            transcript: task.transcript,
+            userId: user.id,
+            supabaseUrl: SUPABASE_URL,
+            serviceKey: SUPABASE_SERVICE_ROLE_KEY
+        });
+    }
 
     await createGenerationHistory({
 
@@ -6572,10 +6613,10 @@ export default async function handler(
 
         taskId,
 
-        ...(persistedInlineImageUrl
+        ...(persistedInlineResultUrl
             ? {
                   status: "completed",
-                  resultUrl: persistedInlineImageUrl,
+                  resultUrl: persistedInlineResultUrl,
                   completedAt: new Date().toISOString()
               }
             : {})
@@ -6607,7 +6648,11 @@ export default async function handler(
                 modelConfig.id,
 
             media_type:
-                isImageModel ? "image" : "video",
+                resolvedMediaType,
+
+            ...(modelConfig.audioKind
+                ? { audio_kind: modelConfig.audioKind }
+                : {}),
 
             provider:
                 provider.provider_name ||
@@ -6640,14 +6685,20 @@ export default async function handler(
             jobId:
                 taskId,
 
-            ...(persistedInlineImageUrl
+            ...(persistedInlineResultUrl
                 ? {
                       completed: true,
                       state: "completed",
-                      result_url: persistedInlineImageUrl,
-                      result_urls: [persistedInlineImageUrl],
-                      resultUrls: [persistedInlineImageUrl]
+                      result_url: persistedInlineResultUrl,
+                      result_urls: [persistedInlineResultUrl],
+                      resultUrls: [persistedInlineResultUrl]
                   }
+                : {}),
+
+            ...(task?.transcript ? { transcript: task.transcript } : {}),
+            ...(task?.lyrics ? { lyrics: task.lyrics } : {}),
+            ...(typeof task?.durationSeconds === "number"
+                ? { duration_seconds: task.durationSeconds }
                 : {}),
 
             provider_response:

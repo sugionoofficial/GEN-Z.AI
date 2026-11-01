@@ -18,6 +18,29 @@
         "mpg",
         "webm"
     ]);
+    const AUDIO_EXTENSIONS = new Set([
+        "aac",
+        "flac",
+        "m4a",
+        "mp3",
+        "ogg",
+        "opus",
+        "wav"
+    ]);
+    const TEXT_EXPORT_EXTENSIONS = new Set([
+        "srt",
+        "txt",
+        "vtt"
+    ]);
+
+    function isAllowedExtension(ext) {
+        return (
+            IMAGE_EXTENSIONS.has(ext) ||
+            VIDEO_EXTENSIONS.has(ext) ||
+            AUDIO_EXTENSIONS.has(ext) ||
+            TEXT_EXPORT_EXTENSIONS.has(ext)
+        );
+    }
 
     function getRandomNumber() {
         const values = new Uint32Array(1);
@@ -49,13 +72,13 @@
     }
 
     function create(url, fallbackExtension = "mp4") {
-        const requestedExtension =
-            getExtension(url) ||
-            String(fallbackExtension).toLowerCase();
-        const extension = IMAGE_EXTENSIONS.has(requestedExtension) ||
-            VIDEO_EXTENSIONS.has(requestedExtension)
-            ? requestedExtension
-            : "mp4";
+        const cleanFallback = String(fallbackExtension || "mp4").toLowerCase();
+        const urlExt = getExtension(url);
+        const extension = isAllowedExtension(urlExt)
+            ? urlExt
+            : isAllowedExtension(cleanFallback)
+                ? cleanFallback
+                : "mp4";
 
         return `GEN-Z.AI-${getRandomNumber()}.${extension}`;
     }

@@ -188,7 +188,10 @@ export const ALLOWED_AUDIO_TYPES =
         "audio/x-m4a",
         "audio/m4a",
         "audio/aac",
-        "audio/ogg"
+        "audio/ogg",
+        "audio/opus",
+        "audio/flac",
+        "audio/x-flac"
     ]);
 
 
@@ -199,7 +202,9 @@ export const MAX_AUDIO_SIZE =
 export const ALLOWED_VIDEO_TYPES =
     new Set([
         "video/mp4",
-        "video/webm"
+        "video/webm",
+        "video/quicktime",
+        "video/x-m4v"
     ]);
 
 
@@ -528,6 +533,12 @@ export function validateAudioFile(
         ) ||
         fileName.endsWith(
             ".ogg"
+        ) ||
+        fileName.endsWith(
+            ".opus"
+        ) ||
+        fileName.endsWith(
+            ".flac"
         );
 
 
@@ -543,7 +554,7 @@ export function validateAudioFile(
     ) {
 
         throw new Error(
-            "Format audio tidak didukung. Gunakan MP3, WAV, M4A, AAC, atau OGG."
+            "Format audio tidak didukung. Gunakan MP3, WAV, M4A, AAC, OGG, atau FLAC."
         );
 
     }
@@ -590,6 +601,7 @@ export function validateVideoFile(
             file.type ||
             ""
         )
+            .split(";")[0]
             .trim()
             .toLowerCase();
 
@@ -608,6 +620,12 @@ export function validateVideoFile(
             ".mp4"
         ) ||
         fileName.endsWith(
+            ".mov"
+        ) ||
+        fileName.endsWith(
+            ".m4v"
+        ) ||
+        fileName.endsWith(
             ".webm"
         );
 
@@ -624,7 +642,7 @@ export function validateVideoFile(
     ) {
 
         throw new Error(
-            "Format video tidak didukung. Gunakan MP4 atau WebM."
+            "Format video tidak didukung. Gunakan MP4, MOV, atau WebM."
         );
 
     }
@@ -882,9 +900,11 @@ export async function uploadAudioFile(
                 ? "audio/mp4"
                 : lowerAudioName.endsWith(".aac")
                     ? "audio/aac"
-                    : lowerAudioName.endsWith(".ogg")
+                    : lowerAudioName.endsWith(".ogg") || lowerAudioName.endsWith(".opus")
                         ? "audio/ogg"
-                        : "audio/mpeg");
+                        : lowerAudioName.endsWith(".flac")
+                            ? "audio/flac"
+                            : "audio/mpeg");
 
 
     const {
@@ -1032,17 +1052,17 @@ export async function uploadVideoFile(
     );
 
 
+    const lowerVideoName = String(file.name || "").toLowerCase();
+    const rawVideoMime = String(file.type || "").split(";")[0].trim().toLowerCase();
     const contentType =
-        file.type ||
-        (
-            file.name
-                .toLowerCase()
-                .endsWith(
-                    ".webm"
-                )
-                ? "video/webm"
-                : "video/mp4"
-        );
+        (rawVideoMime && ALLOWED_VIDEO_TYPES.has(rawVideoMime) ? rawVideoMime : "") ||
+        (lowerVideoName.endsWith(".webm")
+            ? "video/webm"
+            : lowerVideoName.endsWith(".mov")
+                ? "video/quicktime"
+                : lowerVideoName.endsWith(".m4v")
+                    ? "video/x-m4v"
+                    : "video/mp4");
 
 
     const {

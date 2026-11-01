@@ -42,7 +42,7 @@ const FUNCTION_PATH =
             id: "models-data",
             src:
                 BASE_PATH +
-                "models-data.js?v=models-opus-image-20261101",
+                "models-data.js?v=models-opus-audio-transcribe-20261101",
             global:
                 "GENZModelsData"
         },

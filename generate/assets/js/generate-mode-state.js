@@ -20,6 +20,8 @@
 
 export const MAIN_MODE_VIDEO = "video";
 export const MAIN_MODE_IMAGE = "image";
+export const MAIN_MODE_AUDIO = "audio";
+export const MAIN_MODE_TRANSCRIBE = "transcribe";
 
 export const IMAGE_SUBMODE_STANDARD = "standard";
 export const IMAGE_SUBMODE_CHARACTER_SHEET = "character_sheet";
@@ -28,6 +30,8 @@ const MAIN_MODE_STORAGE_KEY = "genz_generate_main_mode";
 const IMAGE_SUBMODE_STORAGE_KEY = "genz_generate_image_submode";
 const SELECTED_VIDEO_MODEL_KEY = "genz_generate_selected_model";
 const SELECTED_IMAGE_MODEL_KEY = "genz_generate_selected_image_model";
+const SELECTED_AUDIO_MODEL_KEY = "genz_generate_selected_audio_model";
+const SELECTED_TRANSCRIBE_MODEL_KEY = "genz_generate_selected_transcribe_model";
 
 const KNOWN_OPUS_IMAGE_IDS = Object.freeze([
     "opus-gpt-image-2.5-flare",
@@ -35,6 +39,16 @@ const KNOWN_OPUS_IMAGE_IDS = Object.freeze([
     "opus-seedream-5.0-pro",
     "opus-nano-banana-2",
     "opus-nano-banana-pro"
+]);
+
+const KNOWN_OPUS_AUDIO_IDS = Object.freeze([
+    "opus-audio-speech",
+    "opus-audio-music",
+    "opus-audio-sfx"
+]);
+
+const KNOWN_OPUS_TRANSCRIBE_IDS = Object.freeze([
+    "opus-transcribe-audio"
 ]);
 
 let activeMainMode = MAIN_MODE_VIDEO;
@@ -70,6 +84,26 @@ export function normalizeMainMode(value) {
     const token = String(value || "").trim().toLowerCase();
     if (token === MAIN_MODE_IMAGE || token === "gambar" || token === "photo") {
         return MAIN_MODE_IMAGE;
+    }
+    if (
+        token === MAIN_MODE_AUDIO ||
+        token === "generate_audio" ||
+        token === "generate-audio" ||
+        token === "suara" ||
+        token === "music" ||
+        token === "tts"
+    ) {
+        return MAIN_MODE_AUDIO;
+    }
+    if (
+        token === MAIN_MODE_TRANSCRIBE ||
+        token === "transcribe_audio" ||
+        token === "transcribe-audio" ||
+        token === "transkrip" ||
+        token === "subtitle" ||
+        token === "srt"
+    ) {
+        return MAIN_MODE_TRANSCRIBE;
     }
     return MAIN_MODE_VIDEO;
 }
@@ -148,9 +182,11 @@ export function setActiveImageSubMode(subMode) {
 }
 
 export function getSelectedModelStorageKeyForMode(mode = getActiveMainMode()) {
-    return normalizeMainMode(mode) === MAIN_MODE_IMAGE
-        ? SELECTED_IMAGE_MODEL_KEY
-        : SELECTED_VIDEO_MODEL_KEY;
+    const normalized = normalizeMainMode(mode);
+    if (normalized === MAIN_MODE_IMAGE) return SELECTED_IMAGE_MODEL_KEY;
+    if (normalized === MAIN_MODE_AUDIO) return SELECTED_AUDIO_MODEL_KEY;
+    if (normalized === MAIN_MODE_TRANSCRIBE) return SELECTED_TRANSCRIBE_MODEL_KEY;
+    return SELECTED_VIDEO_MODEL_KEY;
 }
 
 export function isImageModel(model) {
@@ -205,13 +241,135 @@ export function isImageModel(model) {
     return KNOWN_OPUS_IMAGE_IDS.includes(modelId) || modelId.startsWith("opus-image-");
 }
 
+export function isAudioModel(model) {
+    if (!model) return false;
+    if (typeof model === "string") {
+        const cleanId = model.trim().toLowerCase();
+        return KNOWN_OPUS_AUDIO_IDS.includes(cleanId) || cleanId.startsWith("opus-audio-");
+    }
+    if (typeof model !== "object") return false;
+
+    const mediaType = String(
+        model.media_type ||
+        model.mediaType ||
+        model.generation_type ||
+        model.generationType ||
+        model.config?.mediaType ||
+        model.config?.generationType ||
+        model.repository?.mediaType ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+    if (mediaType === "audio") {
+        return true;
+    }
+
+    const typeToken = String(
+        model.type ||
+        model.category ||
+        model.config?.type ||
+        model.config?.category ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+    if (typeToken === "audio-generation" || typeToken === "text-to-audio" || typeToken === "audio") {
+        return true;
+    }
+
+    const modelId = String(
+        model.model_id ||
+        model.modelId ||
+        model.id ||
+        model.config?.id ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+    return KNOWN_OPUS_AUDIO_IDS.includes(modelId) || modelId.startsWith("opus-audio-");
+}
+
+export function isTranscribeModel(model) {
+    if (!model) return false;
+    if (typeof model === "string") {
+        const cleanId = model.trim().toLowerCase();
+        return KNOWN_OPUS_TRANSCRIBE_IDS.includes(cleanId) || cleanId.startsWith("opus-transcribe-");
+    }
+    if (typeof model !== "object") return false;
+
+    const mediaType = String(
+        model.media_type ||
+        model.mediaType ||
+        model.generation_type ||
+        model.generationType ||
+        model.config?.mediaType ||
+        model.config?.generationType ||
+        model.repository?.mediaType ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+    if (mediaType === "transcribe" || mediaType === "transcription") {
+        return true;
+    }
+
+    const typeToken = String(
+        model.type ||
+        model.category ||
+        model.config?.type ||
+        model.config?.category ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+    if (typeToken === "audio-transcription" || typeToken === "speech-to-text" || typeToken === "transcribe") {
+        return true;
+    }
+
+    const modelId = String(
+        model.model_id ||
+        model.modelId ||
+        model.id ||
+        model.config?.id ||
+        ""
+    )
+        .trim()
+        .toLowerCase();
+
+    return KNOWN_OPUS_TRANSCRIBE_IDS.includes(modelId) || modelId.startsWith("opus-transcribe-");
+}
+
+export function isFlatCreditNonVideoModel(model) {
+    return isImageModel(model) || isAudioModel(model) || isTranscribeModel(model);
+}
+
+export function resolveMainModeForModel(model) {
+    if (isImageModel(model)) return MAIN_MODE_IMAGE;
+    if (isAudioModel(model)) return MAIN_MODE_AUDIO;
+    if (isTranscribeModel(model)) return MAIN_MODE_TRANSCRIBE;
+    return MAIN_MODE_VIDEO;
+}
+
 export function filterModelsByMainMode(models, mode = getActiveMainMode()) {
     const list = Array.isArray(models) ? models : [];
     const targetMode = normalizeMainMode(mode);
-    return list.filter(model =>
-        targetMode === MAIN_MODE_IMAGE
-            ? isImageModel(model)
-            : !isImageModel(model)
+    if (targetMode === MAIN_MODE_IMAGE) {
+        return list.filter(model => isImageModel(model));
+    }
+    if (targetMode === MAIN_MODE_AUDIO) {
+        return list.filter(model => isAudioModel(model));
+    }
+    if (targetMode === MAIN_MODE_TRANSCRIBE) {
+        return list.filter(model => isTranscribeModel(model));
+    }
+    return list.filter(
+        model => !isImageModel(model) && !isAudioModel(model) && !isTranscribeModel(model)
     );
 }
 

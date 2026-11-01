@@ -80,13 +80,16 @@ import {
 } from "./generate-model-logo.js";
 
 import {
+    MAIN_MODE_AUDIO,
     MAIN_MODE_IMAGE,
+    MAIN_MODE_TRANSCRIBE,
     MAIN_MODE_VIDEO,
     filterModelsByMainMode,
     getActiveMainMode,
     getSelectedModelStorageKeyForMode,
     inferSubModeFromRegenerateParameters,
     isImageModel,
+    resolveMainModeForModel,
     setActiveImageSubMode,
     setActiveMainMode
 } from "./generate-mode-state.js";
@@ -3086,8 +3089,9 @@ export function renderModelSelector(
             getActiveMainMode()
         );
 
+    const activeMode = getActiveMainMode();
     const normalizedModels =
-        filteredByMode.length > 0 || getActiveMainMode() === MAIN_MODE_IMAGE
+        filteredByMode.length > 0 || activeMode !== MAIN_MODE_VIDEO
             ? filteredByMode
             : allVisibleModels;
 
@@ -3998,15 +4002,14 @@ export async function resolveInitialModel() {
         );
 
     if (regenerationModel) {
-        if (isImageModel(regenerationModel)) {
-            setActiveMainMode(MAIN_MODE_IMAGE);
+        const targetMainMode = resolveMainModeForModel(regenerationModel);
+        setActiveMainMode(targetMainMode);
+        if (targetMainMode === MAIN_MODE_IMAGE) {
             setActiveImageSubMode(
                 inferSubModeFromRegenerateParameters(
                     pendingRegeneration?.parameters
                 )
             );
-        } else {
-            setActiveMainMode(MAIN_MODE_VIDEO);
         }
         selectedModelId =
             getModelId(regenerationModel);
@@ -4020,7 +4023,7 @@ export async function resolveInitialModel() {
 
     if (
         modeFilteredModels.length === 0 &&
-        getActiveMainMode() === MAIN_MODE_IMAGE
+        getActiveMainMode() !== MAIN_MODE_VIDEO
     ) {
         const videoFallback = filterModelsByMainMode(models, MAIN_MODE_VIDEO);
         if (videoFallback.length > 0) {

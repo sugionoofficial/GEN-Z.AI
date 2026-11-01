@@ -53,7 +53,7 @@
 ========================================================= */
 
 const MODEL_DATA_VERSION =
-    "2026-10-28-opus-v14";
+    "2026-11-01-opus-audio-transcribe";
 
 
 /* =========================================================
@@ -110,6 +110,12 @@ import opusVideoModels
 
 import opusImageModels
     from "../../models/opus-image/index.js?v=models-registry-opus-image-20261101";
+
+import opusAudioModels
+    from "../../models/opus-audio/index.js?v=models-registry-opus-audio-20261101";
+
+import opusTranscribeModels
+    from "../../models/opus-transcribe/index.js?v=models-registry-opus-transcribe-20261101";
 
 
 /* =========================================================
@@ -253,6 +259,38 @@ const MODEL_REGISTRY = [
         model => ({
             folder:
                 "models/opus-image",
+
+            config:
+                model.config,
+
+            parameters:
+                model.parameters
+        })
+    ),
+
+    /*
+     * Opus Labs Audio Generation (generate_audio)
+     */
+    ...opusAudioModels.map(
+        model => ({
+            folder:
+                "models/opus-audio",
+
+            config:
+                model.config,
+
+            parameters:
+                model.parameters
+        })
+    ),
+
+    /*
+     * Opus Labs Audio/Video Transcription (transcribe_audio)
+     */
+    ...opusTranscribeModels.map(
+        model => ({
+            folder:
+                "models/opus-transcribe",
 
             config:
                 model.config,
