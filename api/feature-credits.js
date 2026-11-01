@@ -13,7 +13,8 @@ const OPTIONAL_FEATURE_IDS = new Set([
     "opusclip_thumbnail",
     "opusclip_censor_edit",
     "opusclip_understanding",
-    "opusclip_motion_ui"
+    "opusclip_motion_ui",
+    "opusclip_social_post"
 ]);
 
 const FEATURE_IDS = new Set([

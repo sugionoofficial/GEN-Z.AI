@@ -17,7 +17,7 @@
     <script src="/assets/js/feature-credit.js?v=feature-history-20261028" defer></script>
 
     <link rel="stylesheet" href="../assets/css/genz-premium.css?v=navlockup-20261029">
-    <link rel="stylesheet" href="./assets/css/opusclip.css?v=20261101-bagian2">
+    <link rel="stylesheet" href="./assets/css/opusclip.css?v=20261102-social-autopost">
     <link rel="stylesheet" href="/assets/css/genz-compact-desktop.css?v=compact-20261022">
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -81,8 +81,9 @@
             🎬 Motion UI (Remotion)
             <span class="oc-tab-cost" id="ocCostBadgeMotion">2.500</span>
         </button>
-        <button type="button" class="oc-tab-btn" role="tab" aria-selected="false" data-oc-tab="social" id="ocSocialTabBtn" hidden>
-            📡 Social &amp; API Usage (Admin)
+        <button type="button" class="oc-tab-btn" role="tab" aria-selected="false" data-oc-tab="social" id="ocSocialTabBtn">
+            📡 Social &amp; Auto Post
+            <span class="oc-tab-cost" id="ocCostBadgeSocial">250</span>
         </button>
     </nav>
 
@@ -608,94 +609,207 @@
     ====================================================== -->
     <section class="oc-panel" data-oc-panel="social" id="ocSocialPanel" hidden>
         <div class="oc-grid-2">
+            <!-- KARTU KIRI: MULTI-USER CONNECT & AUTO POST (SEMUA USER) -->
             <div class="oc-card">
                 <div class="oc-card-head">
                     <div>
-                        <h2 class="oc-card-title">Multi-Platform Social Publishing &amp; Scheduling</h2>
-                        <p class="oc-card-sub">Publikasikan atau jadwalkan klip ke YouTube, TikTok, Instagram, Facebook, LinkedIn, &amp; X.</p>
-                    </div>
-                    <button type="button" id="ocLoadSocialAccountsBtn" class="oc-btn oc-btn--sm">🔄 Muat Akun</button>
-                </div>
-
-                <div class="oc-row-2">
-                    <div class="oc-field">
-                        <label class="oc-label" for="ocSocProjectId">Project ID</label>
-                        <input type="text" id="ocSocProjectId" class="oc-input" placeholder="Project ID">
-                    </div>
-                    <div class="oc-field">
-                        <label class="oc-label" for="ocSocClipId">Clip ID</label>
-                        <input type="text" id="ocSocClipId" class="oc-input" placeholder="Clip ID">
+                        <h2 class="oc-card-title">1. Hubungkan Akun Medsos &amp; Auto Post Video</h2>
+                        <p class="oc-card-sub">
+                            Tautkan akun Facebook Page, YouTube, dan TikTok milik Anda sendiri langsung dari web GEN-Z.AI —
+                            tanpa perlu Project ID / Clip ID (<strong id="ocNativeUnitCostLabel">250</strong> kredit / post, refund otomatis jika gagal).
+                        </p>
                     </div>
                 </div>
 
-                <div class="oc-row-2">
-                    <div class="oc-field">
-                        <label class="oc-label" for="ocSocAccountSelect">Akun Sosial Terhubung</label>
-                        <select id="ocSocAccountSelect" class="oc-select">
-                            <option value="">-- Klik Muat Akun --</option>
-                        </select>
-                    </div>
-                    <div class="oc-field">
-                        <label class="oc-label" for="ocSocPlatform">Platform</label>
-                        <select id="ocSocPlatform" class="oc-select">
-                            <option value="YOUTUBE">YOUTUBE</option>
-                            <option value="TIKTOK">TIKTOK</option>
-                            <option value="INSTAGRAM">INSTAGRAM</option>
-                            <option value="FACEBOOK">FACEBOOK</option>
-                            <option value="LINKEDIN">LINKEDIN</option>
-                            <option value="X">X (Twitter)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="oc-switch-group">
-                    <button type="button" id="ocGenSocialCopyBtn" class="oc-btn oc-btn--sm">✨ Generate AI Caption &amp; Hashtags</button>
+                <div class="oc-connect-grid">
+                    <button type="button" id="ocConnectFbBtn" class="oc-connect-btn oc-connect-btn--fb">
+                        📘 Hubungkan Facebook
+                    </button>
+                    <button type="button" id="ocConnectYtBtn" class="oc-connect-btn oc-connect-btn--yt">
+                        ▶️ Hubungkan YouTube
+                    </button>
+                    <button type="button" id="ocConnectTtBtn" class="oc-connect-btn oc-connect-btn--tt">
+                        🎵 Hubungkan TikTok
+                    </button>
                 </div>
 
                 <div class="oc-field">
-                    <label class="oc-label" for="ocSocTitle">Judul Postingan</label>
-                    <input type="text" id="ocSocTitle" class="oc-input" placeholder="Judul video / Shorts">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <label class="oc-label" style="margin:0;">Akun Terhubung Saya (Centang Tujuan Posting)</label>
+                        <button type="button" id="ocRefreshUserAccountsBtn" class="oc-btn oc-btn--sm">🔄 Segarkan</button>
+                    </div>
+                    <div id="ocUserSocialAccountsList" class="oc-acct-list">
+                        <p class="oc-card-sub">Memuat daftar akun medsos Anda…</p>
+                    </div>
                 </div>
 
                 <div class="oc-field">
-                    <label class="oc-label" for="ocSocDesc">Deskripsi / Caption</label>
-                    <textarea id="ocSocDesc" class="oc-textarea" placeholder="Caption sosial media…"></textarea>
+                    <label class="oc-label">2. Pilih Sumber Video MP4</label>
+                    <div class="oc-src-tabs" role="tablist" aria-label="Pilih sumber video posting">
+                        <button type="button" class="oc-src-tab active" data-vid-src="upload">📱 Upload dari HP</button>
+                        <button type="button" class="oc-src-tab" data-vid-src="history">🕘 Dari History Saya</button>
+                        <button type="button" class="oc-src-tab" data-vid-src="url">🔗 URL / Klip Studio</button>
+                    </div>
+
+                    <div id="ocVidSrcBoxUpload" data-vid-src-box="upload">
+                        <div class="oc-row-2">
+                            <input type="file" id="ocNativeVideoFile" class="oc-input" accept="video/mp4,video/quicktime,video/webm,video/x-m4v">
+                            <button type="button" id="ocNativeUploadVideoBtn" class="oc-btn oc-btn--primary">☁️ Upload Video MP4</button>
+                        </div>
+                        <p class="oc-card-sub" id="ocNativeUploadStatus" style="margin-top:6px;">Pilih file video dari galeri HP lalu klik Upload Video MP4 (maks. 180 MB).</p>
+                    </div>
+
+                    <div id="ocVidSrcBoxHistory" data-vid-src-box="history" hidden>
+                        <div class="oc-row-2">
+                            <select id="ocNativeHistoryVideoSelect" class="oc-select">
+                                <option value="">-- Pilih Video dari Riwayat Generate / Motion UI --</option>
+                            </select>
+                            <button type="button" id="ocRefreshHistoryVideosBtn" class="oc-btn">🔄 Muat History</button>
+                        </div>
+                    </div>
+
+                    <div id="ocVidSrcBoxUrl" data-vid-src-box="url" hidden>
+                        <input type="url" id="ocNativeVideoUrlInput" class="oc-input" placeholder="https://.../video.mp4 (atau klik tombol 📡 Post dari kartu Klip / Motion UI)">
+                    </div>
+
+                    <input type="hidden" id="ocSelectedVideoRef" value="">
+                    <input type="hidden" id="ocSelectedVideoSourceType" value="upload">
+
+                    <div id="ocNativePreviewWrap" class="oc-video-preview-box" hidden>
+                        <video id="ocNativeVideoPreview" controls preload="metadata"></video>
+                    </div>
+                </div>
+
+                <div class="oc-switch-group" style="margin-bottom:10px;">
+                    <button type="button" id="ocGenNativeAiCopyBtn" class="oc-btn oc-btn--sm">✨ Buat Judul, Caption &amp; Hashtag AI Otomatis</button>
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocNativePostTitle">Judul Video / Shorts / Reels</label>
+                    <input type="text" id="ocNativePostTitle" class="oc-input" placeholder="Judul menarik untuk YouTube Shorts / Facebook Video…">
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocNativePostCaption">Deskripsi / Caption</label>
+                    <textarea id="ocNativePostCaption" class="oc-textarea" placeholder="Tulis caption postingan untuk Facebook, YouTube, &amp; TikTok…"></textarea>
                 </div>
 
                 <div class="oc-row-2">
                     <div class="oc-field">
-                        <label class="oc-label" for="ocSocTags">Hashtags (pisahkan koma/spasi)</label>
-                        <input type="text" id="ocSocTags" class="oc-input" placeholder="#shorts #viral #ai">
+                        <label class="oc-label" for="ocNativePostHashtags">Hashtags</label>
+                        <input type="text" id="ocNativePostHashtags" class="oc-input" placeholder="#shorts #reels #tiktok #fyp">
                     </div>
                     <div class="oc-field">
-                        <label class="oc-label" for="ocSocScheduleTime">Jadwal Tayang (Kosong = Langsung)</label>
-                        <input type="datetime-local" id="ocSocScheduleTime" class="oc-input">
+                        <label class="oc-label" for="ocNativePostPrivacy">Privasi Tayang</label>
+                        <select id="ocNativePostPrivacy" class="oc-select">
+                            <option value="public">Publik (Semua Orang)</option>
+                            <option value="unlisted">Tidak Publik / Unlisted</option>
+                            <option value="private">Pribadi / Hanya Saya</option>
+                            <option value="inbox_draft">Draft Kotak Masuk (Khusus TikTok)</option>
+                        </select>
                     </div>
                 </div>
 
+                <div class="oc-field">
+                    <label class="oc-label" for="ocNativeScheduleTime">Jadwal Tayang Auto Post (Kosongkan jika ingin Publish Sekarang)</label>
+                    <input type="datetime-local" id="ocNativeScheduleTime" class="oc-input">
+                </div>
+
                 <div class="oc-row-2">
-                    <button type="button" id="ocPublishNowBtn" class="oc-btn oc-btn--primary">🚀 Publish Sekarang</button>
-                    <button type="button" id="ocSchedulePostBtn" class="oc-btn">📅 Jadwalkan Tayang</button>
+                    <button type="button" id="ocNativePublishNowBtn" class="oc-btn oc-btn--primary">🚀 Publish Sekarang</button>
+                    <button type="button" id="ocNativeScheduleBtn" class="oc-btn">📅 Jadwalkan Auto Post</button>
                 </div>
             </div>
 
+            <!-- KOLOM KANAN: ANTREAN USER + PANEL ADMIN OPUSCLIP ORG -->
             <div>
                 <div class="oc-card">
                     <div class="oc-card-head">
-                        <h3 class="oc-card-title">Kuota &amp; Pemakaian API Organisasi</h3>
-                        <button type="button" id="ocLoadApiUsageBtn" class="oc-btn oc-btn--sm">📊 Cek /api-usage</button>
+                        <div>
+                            <h3 class="oc-card-title">Antrean Jadwal &amp; Riwayat Auto Post Saya</h3>
+                            <p class="oc-card-sub">Jadwal otomatis dieksekusi server setiap menit walaupun browser HP ditutup.</p>
+                        </div>
+                        <button type="button" id="ocRefreshNativePostsBtn" class="oc-btn oc-btn--sm">🔄 Muat Ulang</button>
                     </div>
-                    <pre id="ocApiUsageBox" class="oc-pre">Klik "Cek /api-usage" untuk melihat sisa kuota API organisasi OpusClip.</pre>
+                    <div id="ocNativePostsList">
+                        <p class="oc-card-sub">Belum ada antrean atau riwayat Auto Post.</p>
+                    </div>
                 </div>
 
-                <div class="oc-card">
-                    <div class="oc-card-head">
-                        <h3 class="oc-card-title">Daftar Postingan Terjadwal &amp; Riwayat</h3>
-                        <button type="button" id="ocLoadScheduledBtn" class="oc-btn oc-btn--sm">🔄 Muat Jadwal</button>
+                <!-- KHUSUS OWNER & ADMIN: KUOTA API ORGANISASI OPUSCLIP -->
+                <div id="ocAdminOpusOrgSection" hidden>
+                    <div class="oc-card">
+                        <div class="oc-card-head">
+                            <h3 class="oc-card-title">Kuota &amp; Pemakaian API Organisasi OpusClip (Admin)</h3>
+                            <button type="button" id="ocLoadApiUsageBtn" class="oc-btn oc-btn--sm">📊 Cek /api-usage</button>
+                        </div>
+                        <pre id="ocApiUsageBox" class="oc-pre">Klik "Cek /api-usage" untuk melihat sisa kuota API organisasi OpusClip.</pre>
                     </div>
-                    <div id="ocScheduledPostsList">
-                        <p class="oc-card-sub">Klik "Muat Jadwal" untuk melihat antrean publikasi sosial.</p>
-                    </div>
+
+                    <details class="oc-card" style="cursor:pointer;">
+                        <summary style="font-weight:800; font-size:13.5px;">⚙️ Panel Posting Langsung via Organisasi OpusClip API (Opsional Admin)</summary>
+                        <div style="margin-top:14px; cursor:default;">
+                            <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+                                <button type="button" id="ocLoadSocialAccountsBtn" class="oc-btn oc-btn--sm">🔄 Muat Akun Org</button>
+                            </div>
+                            <div class="oc-row-2">
+                                <div class="oc-field">
+                                    <label class="oc-label" for="ocSocProjectId">Project ID</label>
+                                    <input type="text" id="ocSocProjectId" class="oc-input" placeholder="Project ID">
+                                </div>
+                                <div class="oc-field">
+                                    <label class="oc-label" for="ocSocClipId">Clip ID</label>
+                                    <input type="text" id="ocSocClipId" class="oc-input" placeholder="Clip ID">
+                                </div>
+                            </div>
+                            <div class="oc-row-2">
+                                <div class="oc-field">
+                                    <label class="oc-label" for="ocSocAccountSelect">Akun Sosial Org OpusClip</label>
+                                    <select id="ocSocAccountSelect" class="oc-select">
+                                        <option value="">-- Klik Muat Akun Org --</option>
+                                    </select>
+                                </div>
+                                <div class="oc-field">
+                                    <label class="oc-label" for="ocSocPlatform">Platform</label>
+                                    <select id="ocSocPlatform" class="oc-select">
+                                        <option value="YOUTUBE">YOUTUBE</option>
+                                        <option value="TIKTOK">TIKTOK</option>
+                                        <option value="INSTAGRAM">INSTAGRAM</option>
+                                        <option value="FACEBOOK">FACEBOOK</option>
+                                        <option value="LINKEDIN">LINKEDIN</option>
+                                        <option value="X">X (Twitter)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="oc-switch-group">
+                                <button type="button" id="ocGenSocialCopyBtn" class="oc-btn oc-btn--sm">✨ Generate AI Copy Org</button>
+                                <button type="button" id="ocLoadScheduledBtn" class="oc-btn oc-btn--sm">🔄 Muat Jadwal Org</button>
+                            </div>
+                            <div class="oc-field">
+                                <label class="oc-label" for="ocSocTitle">Judul Postingan</label>
+                                <input type="text" id="ocSocTitle" class="oc-input" placeholder="Judul video / Shorts">
+                            </div>
+                            <div class="oc-field">
+                                <label class="oc-label" for="ocSocDesc">Deskripsi / Caption</label>
+                                <textarea id="ocSocDesc" class="oc-textarea" placeholder="Caption sosial media…"></textarea>
+                            </div>
+                            <div class="oc-row-2">
+                                <div class="oc-field">
+                                    <label class="oc-label" for="ocSocTags">Hashtags</label>
+                                    <input type="text" id="ocSocTags" class="oc-input" placeholder="#shorts #viral #ai">
+                                </div>
+                                <div class="oc-field">
+                                    <label class="oc-label" for="ocSocScheduleTime">Jadwal Tayang</label>
+                                    <input type="datetime-local" id="ocSocScheduleTime" class="oc-input">
+                                </div>
+                            </div>
+                            <div class="oc-row-2">
+                                <button type="button" id="ocPublishNowBtn" class="oc-btn oc-btn--primary">🚀 Publish Org</button>
+                                <button type="button" id="ocSchedulePostBtn" class="oc-btn">📅 Jadwalkan Org</button>
+                            </div>
+                            <div id="ocScheduledPostsList" style="margin-top:10px;"></div>
+                        </div>
+                    </details>
                 </div>
             </div>
         </div>
@@ -704,7 +818,7 @@
 </main>
 
 <script src="/navigation/navigation.js?v=opusclip-nav-20261101"></script>
-<script type="module" src="./assets/js/opusclip-app.js?v=20261101-bagian2"></script>
+<script type="module" src="./assets/js/opusclip-app.js?v=20261102-social-autopost"></script>
 <script src="/assets/js/support-chat.js?v=touch-close-20261029" defer></script>
 <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
 </body>

@@ -20,11 +20,14 @@ import opusVoicePreview from "../api/opus-voice-preview.js";
 import opusBlackbox from "../api/opus-blackbox.js";
 import opusclipBlackbox from "../api/opusclip-blackbox.js";
 import opusclip from "../api/opusclip.js";
+import socialVideoAutopost from "../api/social-video-autopost.js";
+import socialVideoOAuthCallback from "../api/social-video-oauth-callback.js";
 import sightengineDetect from "../api/sightengine-detect.js";
 import socialPublisher from "../api/social-publisher.js";
 import facebookDataDeletion from "../api/facebook-data-deletion.js";
 import monitoring from "../api/monitoring.js";
 import { runSocialPublisherCron } from "./_shared/social-publisher-cron.js";
+import { runSocialVideoAutopostCron } from "./_shared/social-video-autopost-cron.js";
 import { runStorageRetentionCron } from "./_shared/storage-retention-cron.js";
 import { runSupportGuestCleanupCron } from "./_shared/support-guest-cleanup-cron.js";
 import { runMonitoringCron } from "./_shared/monitoring-cron.js";
@@ -56,6 +59,8 @@ const handlers = new Map([
     ["/api/opus-blackbox", opusBlackbox],
     ["/api/opusclip-blackbox", opusclipBlackbox],
     ["/api/opusclip", opusclip],
+    ["/api/social-video-autopost", socialVideoAutopost],
+    ["/api/social-video-oauth-callback", socialVideoOAuthCallback],
     ["/api/sightengine-detect", sightengineDetect],
     ["/api/social-publisher", socialPublisher],
     ["/api/facebook-oauth-callback", socialPublisher],
@@ -155,6 +160,16 @@ export default {
                 (socialResult?.resumed || 0) > 0
             );
             if (socialBusy) {
+                return;
+            }
+
+            const videoSocialResult = await runSocialVideoAutopostCron(env, scheduledAt)
+                .catch(error => {
+                    console.error("[Cloudflare Worker] Social Video Autopost cron failed:", error?.message || "unknown error");
+                    return null;
+                });
+
+            if ((videoSocialResult?.claimed || 0) > 0) {
                 return;
             }
 

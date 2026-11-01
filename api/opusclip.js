@@ -106,7 +106,8 @@ const DEFAULT_OPUSCLIP_CREDITS = Object.freeze({
     opusclip_thumbnail: 1000,
     opusclip_censor_edit: 500,
     opusclip_understanding: 1000,
-    opusclip_motion_ui: 2500
+    opusclip_motion_ui: 2500,
+    opusclip_social_post: 250
 });
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

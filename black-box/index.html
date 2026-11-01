@@ -582,6 +582,61 @@
                         </button>
                     </div>
                 </div>
+
+                <div class="bb-diag-card" style="grid-column: 1 / -1;">
+                    <h4 class="bb-diag-card-title">3. OAuth App Multi-User Auto Post (Facebook · YouTube · TikTok)</h4>
+                    <div id="bbSocialOAuthStatus" class="bb-diag-list">
+                        <span class="bb-diag-empty">Memuat status OAuth medsos…</span>
+                    </div>
+
+                    <div class="bb-diag-form-row" style="margin-top: 10px;">
+                        <input
+                            type="text"
+                            id="bbSocialRedirectUriBox"
+                            class="bb-diag-input"
+                            readonly
+                            value="https://genzai.genzai-f37.workers.dev/api/social-video-oauth-callback"
+                            aria-label="Redirect URI OAuth Sosmed Universal"
+                        >
+                        <button type="button" id="bbCopySocialRedirectBtn" class="bb-diag-btn bb-diag-btn--primary">
+                            📋 Salin Redirect URI (FB / YT / TikTok)
+                        </button>
+                    </div>
+
+                    <div class="bb-diag-grid" style="margin-top: 12px;">
+                        <div class="bb-diag-row">
+                            <div class="bb-diag-row-top"><strong>▶️ YouTube (Google Cloud OAuth)</strong></div>
+                            <div class="bb-diag-form-row" style="margin-top: 8px;">
+                                <input type="text" id="bbYtClientId" class="bb-diag-input" placeholder="Google Client ID (…apps.googleusercontent.com)" autocomplete="off">
+                                <input type="password" id="bbYtClientSecret" class="bb-diag-input" placeholder="Google Client Secret" autocomplete="off">
+                                <button type="button" id="bbSaveYtOAuthBtn" class="bb-diag-btn bb-diag-btn--primary">🔐 Simpan YouTube OAuth</button>
+                            </div>
+                        </div>
+
+                        <div class="bb-diag-row">
+                            <div class="bb-diag-row-top"><strong>🎵 TikTok Developer App</strong></div>
+                            <div class="bb-diag-form-row" style="margin-top: 8px;">
+                                <input type="text" id="bbTtClientKey" class="bb-diag-input" placeholder="TikTok Client Key" autocomplete="off">
+                                <input type="password" id="bbTtClientSecret" class="bb-diag-input" placeholder="TikTok Client Secret" autocomplete="off">
+                                <select id="bbTtPostMode" class="bb-diag-input" aria-label="Mode Publikasi TikTok">
+                                    <option value="direct">Mode: Direct Post (Otomatis Fallback Inbox jika Sandbox)</option>
+                                    <option value="inbox">Mode: Kirim ke Inbox / Draft Aplikasi TikTok</option>
+                                </select>
+                                <button type="button" id="bbSaveTtOAuthBtn" class="bb-diag-btn bb-diag-btn--primary">🔐 Simpan TikTok OAuth</button>
+                            </div>
+                        </div>
+
+                        <div class="bb-diag-row" style="grid-column: 1 / -1;">
+                            <div class="bb-diag-row-top"><strong>📘 Facebook Meta App (Opsional — Otomatis Aktif dari Meta Studio Medsos)</strong></div>
+                            <div class="bb-diag-form-row" style="margin-top: 8px;">
+                                <input type="text" id="bbFbAppId" class="bb-diag-input" placeholder="META_APP_ID khusus (kosongkan jika pakai bawaan)" autocomplete="off">
+                                <input type="password" id="bbFbAppSecret" class="bb-diag-input" placeholder="META_APP_SECRET khusus" autocomplete="off">
+                                <input type="text" id="bbFbLoginConfigId" class="bb-diag-input" placeholder="Facebook Login Config ID (opsional)" autocomplete="off">
+                                <button type="button" id="bbSaveFbOAuthBtn" class="bb-diag-btn">💾 Simpan Override Facebook</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -1178,6 +1233,12 @@
         var saveKeyBtn = document.getElementById("bbOpusClipSaveKeyBtn");
         var mcpTokenInput = document.getElementById("bbOpusClipMcpTokenInput");
         var saveMcpBtn = document.getElementById("bbOpusClipSaveMcpBtn");
+        var socialBox = document.getElementById("bbSocialOAuthStatus");
+        var redirectBox = document.getElementById("bbSocialRedirectUriBox");
+        var copyRedirectBtn = document.getElementById("bbCopySocialRedirectBtn");
+        var saveYtBtn = document.getElementById("bbSaveYtOAuthBtn");
+        var saveTtBtn = document.getElementById("bbSaveTtOAuthBtn");
+        var saveFbBtn = document.getElementById("bbSaveFbOAuthBtn");
         var loadedOnce = false;
 
         if (!toggleBtn || !panel) return;
@@ -1255,6 +1316,34 @@
                             '<div class="bb-diag-row-sub">' + mcpSub + '</div>' +
                         '</div>';
                 }
+
+                var soc = data.socialApps || {};
+                if (redirectBox && soc.redirectUri) {
+                    redirectBox.value = soc.redirectUri;
+                }
+                if (socialBox) {
+                    function renderSocRow(label, cfg) {
+                        var ok = Boolean(cfg && cfg.configured);
+                        var pill = ok
+                            ? '<span class="bb-diag-pill bb-diag-pill--ok">SIAP</span>'
+                            : '<span class="bb-diag-pill bb-diag-pill--err">BELUM DIISI</span>';
+                        var sub = ok
+                            ? "ID: " + escapeHtml(cfg.maskedId || "••••") +
+                              " • Sumber: " + escapeHtml(cfg.source === "worker_env" ? "Otomatis Server" : "Vault Terenkripsi") +
+                              (cfg.postMode ? " • Mode: " + escapeHtml(cfg.postMode) : "")
+                            : "Isi Client ID/Key & Secret di bawah lalu klik Simpan.";
+                        return (
+                            '<div class="bb-diag-row">' +
+                                '<div class="bb-diag-row-top"><strong>' + escapeHtml(label) + '</strong>' + pill + '</div>' +
+                                '<div class="bb-diag-row-sub">' + sub + '</div>' +
+                            '</div>'
+                        );
+                    }
+                    socialBox.innerHTML =
+                        renderSocRow("📘 Facebook Page & Reels", soc.facebook) +
+                        renderSocRow("▶️ YouTube Video & Shorts", soc.youtube) +
+                        renderSocRow("🎵 TikTok Content Posting", soc.tiktok);
+                }
             } catch (err) {
                 if (banner) banner.textContent = "Gagal memeriksa Vault OpusClip: " + (err && err.message ? err.message : err);
             } finally {
@@ -1321,6 +1410,114 @@
                     if (banner) banner.textContent = "Gagal menyimpan Token OAuth: " + (err && err.message ? err.message : err);
                 } finally {
                     saveMcpBtn.disabled = false;
+                }
+            });
+        }
+
+        if (copyRedirectBtn && redirectBox) {
+            copyRedirectBtn.addEventListener("click", async function () {
+                var text = redirectBox.value || "";
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(text);
+                    } else {
+                        redirectBox.select();
+                        document.execCommand("copy");
+                    }
+                    copyRedirectBtn.textContent = "✅ Redirect URI Tersalin!";
+                    setTimeout(function () {
+                        copyRedirectBtn.textContent = "📋 Salin Redirect URI (FB / YT / TikTok)";
+                    }, 2200);
+                } catch (_err) {
+                    redirectBox.select();
+                }
+            });
+        }
+
+        if (saveYtBtn) {
+            saveYtBtn.addEventListener("click", async function () {
+                var cid = (document.getElementById("bbYtClientId") || {}).value || "";
+                var csec = (document.getElementById("bbYtClientSecret") || {}).value || "";
+                if (!cid.trim() || !csec.trim()) {
+                    if (banner) banner.textContent = "Isi Google Client ID dan Client Secret terlebih dahulu.";
+                    return;
+                }
+                saveYtBtn.disabled = true;
+                try {
+                    var res = await callVaultApi("POST", {
+                        action: "save_social_oauth_app",
+                        platform: "youtube",
+                        clientId: cid.trim(),
+                        clientSecret: csec.trim()
+                    });
+                    document.getElementById("bbYtClientId").value = "";
+                    document.getElementById("bbYtClientSecret").value = "";
+                    if (banner) banner.textContent = res.message || "YouTube OAuth tersimpan!";
+                    await loadVaultStatus();
+                } catch (err) {
+                    if (banner) banner.textContent = "Gagal menyimpan YouTube OAuth: " + (err && err.message ? err.message : err);
+                } finally {
+                    saveYtBtn.disabled = false;
+                }
+            });
+        }
+
+        if (saveTtBtn) {
+            saveTtBtn.addEventListener("click", async function () {
+                var ckey = (document.getElementById("bbTtClientKey") || {}).value || "";
+                var csec = (document.getElementById("bbTtClientSecret") || {}).value || "";
+                var mode = (document.getElementById("bbTtPostMode") || {}).value || "direct";
+                if (!ckey.trim() || !csec.trim()) {
+                    if (banner) banner.textContent = "Isi TikTok Client Key dan Client Secret terlebih dahulu.";
+                    return;
+                }
+                saveTtBtn.disabled = true;
+                try {
+                    var res = await callVaultApi("POST", {
+                        action: "save_social_oauth_app",
+                        platform: "tiktok",
+                        clientKey: ckey.trim(),
+                        clientSecret: csec.trim(),
+                        postMode: mode
+                    });
+                    document.getElementById("bbTtClientKey").value = "";
+                    document.getElementById("bbTtClientSecret").value = "";
+                    if (banner) banner.textContent = res.message || "TikTok OAuth tersimpan!";
+                    await loadVaultStatus();
+                } catch (err) {
+                    if (banner) banner.textContent = "Gagal menyimpan TikTok OAuth: " + (err && err.message ? err.message : err);
+                } finally {
+                    saveTtBtn.disabled = false;
+                }
+            });
+        }
+
+        if (saveFbBtn) {
+            saveFbBtn.addEventListener("click", async function () {
+                var aid = (document.getElementById("bbFbAppId") || {}).value || "";
+                var asec = (document.getElementById("bbFbAppSecret") || {}).value || "";
+                var cfgId = (document.getElementById("bbFbLoginConfigId") || {}).value || "";
+                if (!aid.trim() || !asec.trim()) {
+                    if (banner) banner.textContent = "Isi META_APP_ID dan META_APP_SECRET jika ingin menyimpan override.";
+                    return;
+                }
+                saveFbBtn.disabled = true;
+                try {
+                    var res = await callVaultApi("POST", {
+                        action: "save_social_oauth_app",
+                        platform: "facebook",
+                        appId: aid.trim(),
+                        appSecret: asec.trim(),
+                        loginConfigId: cfgId.trim()
+                    });
+                    document.getElementById("bbFbAppId").value = "";
+                    document.getElementById("bbFbAppSecret").value = "";
+                    if (banner) banner.textContent = res.message || "Facebook Meta App tersimpan!";
+                    await loadVaultStatus();
+                } catch (err) {
+                    if (banner) banner.textContent = "Gagal menyimpan Facebook OAuth: " + (err && err.message ? err.message : err);
+                } finally {
+                    saveFbBtn.disabled = false;
                 }
             });
         }
