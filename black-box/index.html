@@ -64,7 +64,7 @@
 
     <link
         rel="stylesheet"
-        href="./assets/css/black-box.css?v=contrast-fix-20261102"
+        href="./assets/css/black-box.css?v=mobile-fit-20261102"
     >
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -583,7 +583,7 @@
                     </div>
                 </div>
 
-                <div class="bb-diag-card" style="grid-column: 1 / -1;">
+                <div class="bb-diag-card bb-diag-span-full">
                     <h4 class="bb-diag-card-title">3. OAuth App Multi-User Auto Post (Facebook · YouTube · TikTok)</h4>
                     <div id="bbSocialOAuthStatus" class="bb-diag-list">
                         <span class="bb-diag-empty">Memuat status OAuth medsos…</span>
@@ -607,7 +607,7 @@
                         <div class="bb-diag-row">
                             <div class="bb-diag-row-top"><strong>▶️ YouTube (Google Cloud OAuth)</strong></div>
                             <div class="bb-diag-form-row" style="margin-top: 8px;">
-                                <input type="text" id="bbYtClientId" class="bb-diag-input" placeholder="Google Client ID (…apps.googleusercontent.com)" autocomplete="off">
+                                <input type="text" id="bbYtClientId" class="bb-diag-input" placeholder="Google Client ID (…googleusercontent.com)" autocomplete="off">
                                 <input type="password" id="bbYtClientSecret" class="bb-diag-input" placeholder="Google Client Secret" autocomplete="off">
                                 <button type="button" id="bbSaveYtOAuthBtn" class="bb-diag-btn bb-diag-btn--primary">🔐 Simpan YouTube OAuth</button>
                             </div>
@@ -619,17 +619,17 @@
                                 <input type="text" id="bbTtClientKey" class="bb-diag-input" placeholder="TikTok Client Key" autocomplete="off">
                                 <input type="password" id="bbTtClientSecret" class="bb-diag-input" placeholder="TikTok Client Secret" autocomplete="off">
                                 <select id="bbTtPostMode" class="bb-diag-input" aria-label="Mode Publikasi TikTok">
-                                    <option value="direct">Mode: Direct Post (Otomatis Fallback Inbox jika Sandbox)</option>
-                                    <option value="inbox">Mode: Kirim ke Inbox / Draft Aplikasi TikTok</option>
+                                    <option value="direct">Mode: Direct Post (Auto Fallback Inbox)</option>
+                                    <option value="inbox">Mode: Kirim ke Inbox Draft TikTok</option>
                                 </select>
                                 <button type="button" id="bbSaveTtOAuthBtn" class="bb-diag-btn bb-diag-btn--primary">🔐 Simpan TikTok OAuth</button>
                             </div>
                         </div>
 
-                        <div class="bb-diag-row" style="grid-column: 1 / -1;">
+                        <div class="bb-diag-row bb-diag-span-full">
                             <div class="bb-diag-row-top"><strong>📘 Facebook Meta App (Opsional — Otomatis Aktif dari Meta Studio Medsos)</strong></div>
                             <div class="bb-diag-form-row" style="margin-top: 8px;">
-                                <input type="text" id="bbFbAppId" class="bb-diag-input" placeholder="META_APP_ID khusus (kosongkan jika pakai bawaan)" autocomplete="off">
+                                <input type="text" id="bbFbAppId" class="bb-diag-input" placeholder="META_APP_ID khusus (kosong = bawaan)" autocomplete="off">
                                 <input type="password" id="bbFbAppSecret" class="bb-diag-input" placeholder="META_APP_SECRET khusus" autocomplete="off">
                                 <input type="text" id="bbFbLoginConfigId" class="bb-diag-input" placeholder="Facebook Login Config ID (opsional)" autocomplete="off">
                                 <button type="button" id="bbSaveFbOAuthBtn" class="bb-diag-btn">💾 Simpan Override Facebook</button>
