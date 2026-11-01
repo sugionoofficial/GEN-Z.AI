@@ -634,7 +634,7 @@ export function createOpusAudioTools(deps) {
 
         const kindKey = pickSupportedKey(
             props,
-            ["type", "kind", "audioType", "audio_type", "category", "mode", "workflow"],
+            ["audioType", "audio_type", "type", "kind", "category", "mode", "workflow"],
             ""
         );
         if (kindKey) {
@@ -796,8 +796,8 @@ export function createOpusAudioTools(deps) {
 
         const kindKey = pickSupportedKey(
             props,
-            ["type", "kind", "audioType", "audio_type", "category", "mode", "workflow"],
-            !props ? "type" : ""
+            ["audioType", "audio_type", "type", "kind", "category", "mode", "workflow"],
+            !props ? "audioType" : ""
         );
         if (kindKey) {
             const schemaKinds = extractAllowedValues(props?.[kindKey], rootSchema);
@@ -946,6 +946,56 @@ export function createOpusAudioTools(deps) {
                 effectiveDur,
                 !props ? "durationSeconds" : ""
             );
+        }
+
+        /* Dukungan sub-objek bersarang (mis. `speech`, `music`, `sfx`, `spec`, `config`, `options`) bila diekspos skema */
+        if (props) {
+            const subCandidates = [
+                "spec",
+                "config",
+                "options",
+                "parameters",
+                ...(audioKind === "speech"
+                    ? ["speech", "tts", "voiceover"]
+                    : audioKind === "music"
+                      ? ["music", "bgm", "song"]
+                      : ["sfx", "soundEffect", "sound_effect", "soundEffects"])
+            ];
+            for (const subKey of subCandidates) {
+                if (!Object.prototype.hasOwnProperty.call(props, subKey)) continue;
+                if (target[subKey] !== undefined) continue;
+                if (resolveArrayItemSchema(props[subKey], rootSchema)) continue;
+                if (minimal && !required.includes(subKey)) continue;
+                const subObj = resolveObjectSchema(props[subKey], rootSchema, (_raw, resolved) =>
+                    scoreAudioSchemaBranch(resolved, rootSchema, { audioKind })
+                );
+                if (!subObj.properties) continue;
+                const nested = {};
+                populateAudioFields(nested, subObj, rootSchema, {
+                    audioKind,
+                    text,
+                    prompt,
+                    voice,
+                    style,
+                    vocalMode,
+                    lyrics,
+                    durationSeconds,
+                    opusModel,
+                    modelAliases,
+                    projectId: "",
+                    requestKey: "",
+                    maxCredits: null,
+                    isBatchItem: false,
+                    minimal,
+                    omitModel,
+                    discoveredAllowedVoices,
+                    discoveredAllowedModels,
+                    discoveredAllowedKinds
+                });
+                if (Object.keys(nested).length > 0 || required.includes(subKey)) {
+                    target[subKey] = nested;
+                }
+            }
         }
 
         fillMissingAudioRequiredFields(target, objectSchema, rootSchema, {
@@ -1855,6 +1905,13 @@ export function createOpusAudioTools(deps) {
         let transcriptUrls = [];
 
         if (status !== "FAILED") {
+            const firstOutput =
+                Array.isArray(focus?.outputs) && focus.outputs.length > 0 && typeof focus.outputs[0] === "object"
+                    ? focus.outputs[0]
+                    : focus?.output && typeof focus.output === "object"
+                      ? focus.output
+                      : null;
+
             /* Hindari salah menganggap pesan status "queued"/"processing" sebagai isi transkrip */
             const hasTranscriptIndicators =
                 Boolean(
@@ -1869,6 +1926,11 @@ export function createOpusAudioTools(deps) {
                     focus?.vtt ||
                     focus?.fullText ||
                     focus?.full_text ||
+                    firstOutput?.text ||
+                    firstOutput?.words ||
+                    firstOutput?.segments ||
+                    firstOutput?.srt ||
+                    firstOutput?.vtt ||
                     (status === "COMPLETED" && typeof focus?.text === "string" && focus.text.trim())
                 ) ||
                 Boolean(
@@ -1877,7 +1939,9 @@ export function createOpusAudioTools(deps) {
                     unwrapped?.segments ||
                     unwrapped?.words ||
                     unwrapped?.srt ||
-                    unwrapped?.vtt
+                    unwrapped?.vtt ||
+                    unwrapped?.output?.text ||
+                    unwrapped?.output?.words
                 );
 
             if (hasTranscriptIndicators) {
@@ -1885,6 +1949,27 @@ export function createOpusAudioTools(deps) {
             }
 
             transcriptUrls = extractTranscriptUrls(focus || parsedSource, excludedUrls);
+
+            /* Fallback bila status COMPLETED mengembalikan signed URL tanpa ekstensi pada outputs[] */
+            if (!transcript && transcriptUrls.length === 0 && status === "COMPLETED") {
+                const rawOutputs = Array.isArray(focus?.outputs)
+                    ? focus.outputs
+                    : focus?.output && typeof focus.output === "object"
+                      ? [focus.output]
+                      : [];
+                for (const outItem of rawOutputs) {
+                    if (!outItem || typeof outItem !== "object") continue;
+                    const outUrl = String(
+                        outItem.url || outItem.downloadUrl || outItem.signedUrl || outItem.transcriptUrl || ""
+                    ).trim();
+                    if (!/^https?:\/\//i.test(outUrl)) continue;
+                    if (excludedUrls instanceof Set && excludedUrls.has(outUrl)) continue;
+                    const cleanPath = outUrl.split("?")[0].split("#")[0].toLowerCase();
+                    if (/\.(?:mp3|wav|m4a|aac|ogg|flac|mp4|mov|webm|png|jpe?g|webp)$/i.test(cleanPath)) continue;
+                    if (!transcriptUrls.includes(outUrl)) transcriptUrls.push(outUrl);
+                }
+            }
+
             if (!transcript && transcriptUrls.length > 0) {
                 transcript = await fetchRemoteTranscriptIfNeeded(transcriptUrls);
             }
@@ -1901,12 +1986,229 @@ export function createOpusAudioTools(deps) {
             rawState: activeNonTerminalDeadline ? "processing" : (common.rawState || status.toLowerCase()),
             transcript,
             transcriptUrls,
+            needsApproval: String(common.rawState || "").toLowerCase() === "needs_approval",
+            estimatedCredits:
+                typeof focus?.estimatedCredits === "number"
+                    ? focus.estimatedCredits
+                    : typeof unwrapped?.estimatedCredits === "number"
+                      ? unwrapped.estimatedCredits
+                      : null,
             errorCode: status === "FAILED" ? (common.errorCode || "OPUS_TASK_FAILED") : null,
             errorMessage: status === "FAILED" ? translateOpusError(common.errorCode, common.rawErrorMessage) : null,
             rawErrorMessage: common.rawErrorMessage,
             nonTerminalDeadline: activeNonTerminalDeadline,
             egressJobId: common.egressJobId || null
         };
+    }
+
+    const TRANSCRIBE_LANGUAGE_EQUIVALENTS = Object.freeze({
+        id: ["id", "ind", "id-ID", "indonesian"],
+        en: ["en", "eng", "en-US", "english"],
+        ja: ["ja", "jpn", "ja-JP", "japanese"],
+        ko: ["ko", "kor", "ko-KR", "korean"],
+        zh: ["zh", "cmn", "zho", "zh-CN", "chinese", "mandarin"],
+        ar: ["ar", "ara", "ar-SA", "arabic"],
+        es: ["es", "spa", "es-ES", "spanish"],
+        fr: ["fr", "fra", "fr-FR", "french"],
+        de: ["de", "deu", "de-DE", "german"],
+        pt: ["pt", "por", "pt-BR", "portuguese"],
+        ru: ["ru", "rus", "ru-RU", "russian"],
+        hi: ["hi", "hin", "hi-IN", "hindi"],
+        th: ["th", "tha", "th-TH", "thai"],
+        vi: ["vi", "vie", "vi-VN", "vietnamese"],
+        ms: ["ms", "msa", "ms-MY", "malay"]
+    });
+
+    function resolveLanguageCandidates(rawLang) {
+        const clean = String(rawLang || "").trim();
+        if (!clean || clean.toLowerCase() === "auto") return [];
+        const lower = clean.toLowerCase();
+        if (TRANSCRIBE_LANGUAGE_EQUIVALENTS[lower]) {
+            return TRANSCRIBE_LANGUAGE_EQUIVALENTS[lower];
+        }
+        return [clean];
+    }
+
+    /**
+     * Menghasilkan daftar kandidat nilai berurutan untuk properti input media tunggal
+     * pada `transcribe_audio` (mis. `audio` pada skema live Opus Labs MCP:
+     * `keys=[audio,purpose,languageCode,diarize,requestKey,projectId]`).
+     * Mendukung bentuk objek (`{ assetId }`, `{ type: "asset", assetId }`, `{ url }`),
+     * union `oneOf`/`anyOf`, maupun string langsung (`assetId` / `altRef` / `url`).
+     */
+    function buildSingleMediaInputCandidates(propSchema, rootSchema, stagedMedia) {
+        if (!stagedMedia) return [];
+        const primaryAssetId = String(stagedMedia.assetId || "").trim();
+        const altAssetRef = String(stagedMedia.altRef || "").trim();
+        const remoteUrl = String(stagedMedia.url || "").trim();
+        const mimeType = String(stagedMedia.mimeType || "").trim();
+
+        const candidates = [];
+        const seen = new Set();
+        const pushCandidate = val => {
+            if (val === undefined || val === null || val === "") return;
+            if (typeof val === "object" && Object.keys(val).length === 0) return;
+            const fp = JSON.stringify(val);
+            if (seen.has(fp)) return;
+            seen.add(fp);
+            candidates.push(val);
+        };
+
+        const expectsString = propSchema ? schemaTypeIncludes(propSchema, rootSchema, "string") : false;
+        const expectsObject = propSchema ? schemaTypeIncludes(propSchema, rootSchema, "object") : false;
+        const objBranches = propSchema ? expandObjectBranches(propSchema, rootSchema) : [];
+
+        const buildObjectForBranch = (branch, { useAlt = false, includeOptionalMeta = false } = {}) => {
+            const bProps = branch?.properties;
+            const bReq = Array.isArray(branch?.required) ? branch.required : [];
+            if (!bProps) return null;
+
+            const chosenId = useAlt && altAssetRef ? altAssetRef : (primaryAssetId || altAssetRef);
+            const idKey = pickSupportedKey(
+                bProps,
+                ["assetId", "asset_id", "assetRef", "asset_ref", "ref", "id"],
+                ""
+            );
+            const urlKey = pickSupportedKey(
+                bProps,
+                ["url", "uri", "audioUrl", "audio_url", "videoUrl", "video_url", "mediaUrl", "media_url", "sourceUrl", "source_url"],
+                ""
+            );
+            const pathKey = pickSupportedKey(bProps, ["localPath", "local_path", "filePath", "file_path", "path"], "");
+
+            /* Cabang localPath tidak relevan untuk server remote MCP bila diwajibkan */
+            if (pathKey && bReq.includes(pathKey) && !idKey && !urlKey) {
+                return null;
+            }
+
+            const out = {};
+            let boundAsset = false;
+            let boundUrl = false;
+
+            if (idKey && chosenId) {
+                out[idKey] = chosenId;
+                boundAsset = true;
+            }
+            if (urlKey && remoteUrl && (!boundAsset || bReq.includes(urlKey))) {
+                out[urlKey] = remoteUrl;
+                boundUrl = true;
+            }
+            if (!boundAsset && !boundUrl) {
+                return null;
+            }
+
+            /* Tangani discriminator union seperti `type: "asset"` / `source: "asset"` / `kind: "url"` */
+            for (const discKey of ["type", "kind", "source", "sourceType", "source_type", "mode"]) {
+                if (!Object.prototype.hasOwnProperty.call(bProps, discKey)) continue;
+                if (out[discKey] !== undefined) continue;
+                const allowedDisc = extractAllowedValues(bProps[discKey], rootSchema);
+                if (allowedDisc.length > 0) {
+                    const preferredTokens = boundAsset
+                        ? ["asset", "project_asset", "managed_asset", "imported", "id", "reference", "audio", "video", "media"]
+                        : ["url", "remote", "uri", "http", "external", "audio", "video", "media"];
+                    const matchedDisc = matchEnumCaseInsensitive(preferredTokens, allowedDisc);
+                    if (matchedDisc !== null) {
+                        out[discKey] = matchedDisc;
+                    } else if (bReq.includes(discKey)) {
+                        out[discKey] = allowedDisc[0];
+                    }
+                }
+            }
+
+            const mimeKey = pickSupportedKey(bProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
+            if (mimeKey && mimeType && (bReq.includes(mimeKey) || includeOptionalMeta)) {
+                out[mimeKey] = mimeType;
+            }
+
+            const mediaKindKey = pickSupportedKey(bProps, ["mediaType", "media_type", "assetType", "asset_type"], "");
+            if (mediaKindKey && (bReq.includes(mediaKindKey) || includeOptionalMeta)) {
+                const allowedMediaKinds = extractAllowedValues(bProps[mediaKindKey], rootSchema);
+                const mediaKindTokens =
+                    stagedMedia.mediaType === "video"
+                        ? ["video", "audio", "media"]
+                        : ["audio", "media", "sound"];
+                const matchedMediaKind =
+                    allowedMediaKinds.length > 0
+                        ? matchEnumCaseInsensitive(mediaKindTokens, allowedMediaKinds)
+                        : stagedMedia.mediaType || "audio";
+                if (matchedMediaKind !== null) {
+                    out[mediaKindKey] = matchedMediaKind;
+                }
+            }
+
+            const labelKey = pickSupportedKey(bProps, ["label", "name", "title"], "");
+            if (labelKey && bReq.includes(labelKey)) {
+                out[labelKey] = stagedMedia.label || "audio1";
+            }
+
+            return out;
+        };
+
+        const rankedObjectBranches = objBranches
+            .map((branch, idx) => {
+                const bProps = branch?.properties || {};
+                const bReq = Array.isArray(branch?.required) ? branch.required : [];
+                let score = 0;
+                if (pickSupportedKey(bProps, ["assetId", "asset_id", "assetRef", "asset_ref", "ref", "id"], "")) {
+                    score += primaryAssetId || altAssetRef ? 100 : -20;
+                }
+                if (pickSupportedKey(bProps, ["url", "uri", "audioUrl", "audio_url", "sourceUrl", "mediaUrl"], "")) {
+                    score += remoteUrl ? 50 : -20;
+                }
+                if (bReq.some(k => /^(?:localPath|local_path|filePath|file_path|path)$/i.test(k))) {
+                    score -= 100;
+                }
+                return { branch, score, idx };
+            })
+            .sort((a, b) => (b.score !== a.score ? b.score - a.score : a.idx - b.idx))
+            .map(entry => entry.branch);
+
+        const pushStringCandidates = () => {
+            const isExplicitUri =
+                propSchema?.format === "uri" ||
+                propSchema?.format === "url" ||
+                /^https?/i.test(String(propSchema?.pattern || ""));
+            if (isExplicitUri) {
+                if (remoteUrl && /^https?:\/\//i.test(remoteUrl)) pushCandidate(remoteUrl);
+                if (primaryAssetId) pushCandidate(primaryAssetId);
+                if (altAssetRef) pushCandidate(altAssetRef);
+            } else {
+                if (primaryAssetId) pushCandidate(primaryAssetId);
+                if (altAssetRef) pushCandidate(altAssetRef);
+                if (remoteUrl && /^https?:\/\//i.test(remoteUrl)) pushCandidate(remoteUrl);
+            }
+        };
+
+        const pushObjectCandidates = () => {
+            if (rankedObjectBranches.length > 0) {
+                for (const branch of rankedObjectBranches) {
+                    pushCandidate(buildObjectForBranch(branch, { useAlt: false, includeOptionalMeta: false }));
+                    if (altAssetRef && altAssetRef !== primaryAssetId) {
+                        pushCandidate(buildObjectForBranch(branch, { useAlt: true, includeOptionalMeta: false }));
+                    }
+                    pushCandidate(buildObjectForBranch(branch, { useAlt: false, includeOptionalMeta: true }));
+                }
+            } else {
+                if (primaryAssetId) pushCandidate({ assetId: primaryAssetId });
+                if (altAssetRef && altAssetRef !== primaryAssetId) pushCandidate({ assetId: altAssetRef });
+                if (remoteUrl && /^https?:\/\//i.test(remoteUrl)) pushCandidate({ url: remoteUrl });
+            }
+        };
+
+        if (expectsString && !expectsObject && rankedObjectBranches.length === 0) {
+            pushStringCandidates();
+        } else if (expectsObject || rankedObjectBranches.length > 0) {
+            pushObjectCandidates();
+            if (expectsString) {
+                pushStringCandidates();
+            }
+        } else {
+            /* Skema tanpa deklarasi tipe eksplisit: sediakan objek { assetId } lalu string assetId lalu { url } */
+            pushObjectCandidates();
+            pushStringCandidates();
+        }
+
+        return candidates;
     }
 
     function detectTranscribeBatchArrayKey(topObj, rootSchema) {
@@ -1928,7 +2230,12 @@ export function createOpusAudioTools(deps) {
         requestKey = "",
         isBatchItem = false,
         minimal = false,
-        useAltRef = false
+        useAltRef = false,
+        audioCandidateIndex = 0,
+        langCandidateIndex = 0,
+        omitLanguage = false,
+        discoveredAllowedPurposes = null,
+        discoveredAllowedLanguages = null
     }) {
         const props = objectSchema?.properties;
         const required = Array.isArray(objectSchema?.required) ? objectSchema.required : [];
@@ -1971,7 +2278,7 @@ export function createOpusAudioTools(deps) {
             target[reqKeyName] = requestKey;
         }
 
-        /* Asset / Audio / Video Reference Binding */
+        /* Asset / Audio / Video Reference Binding (termasuk `audio` pada skema live Opus Labs MCP!) */
         if (stagedMedia) {
             const effectiveAssetId = useAltRef && stagedMedia.altRef
                 ? stagedMedia.altRef
@@ -1980,6 +2287,8 @@ export function createOpusAudioTools(deps) {
             const singleObjOrIdKey = pickSupportedKey(
                 props,
                 [
+                    "audio",
+                    "media",
                     "asset",
                     "audioAsset",
                     "audio_asset",
@@ -1989,6 +2298,9 @@ export function createOpusAudioTools(deps) {
                     "source_asset",
                     "inputAsset",
                     "input_asset",
+                    "video",
+                    "file",
+                    "clip",
                     "source",
                     "input",
                     "assetId",
@@ -2002,7 +2314,7 @@ export function createOpusAudioTools(deps) {
                     "inputAssetId",
                     "input_asset_id"
                 ],
-                !props && effectiveAssetId ? "assetId" : ""
+                !props && effectiveAssetId ? "audio" : ""
             );
 
             const arrayRefKey = pickSupportedKey(
@@ -2022,9 +2334,29 @@ export function createOpusAudioTools(deps) {
             );
 
             if (singleObjOrIdKey && props?.[singleObjOrIdKey]) {
-                target[singleObjOrIdKey] = buildFrameFieldValue(props[singleObjOrIdKey], rootSchema, stagedMedia);
+                if (/Id$|_id$/.test(singleObjOrIdKey) && schemaTypeIncludes(props[singleObjOrIdKey], rootSchema, "string")) {
+                    target[singleObjOrIdKey] = effectiveAssetId || stagedMedia.url;
+                } else {
+                    const mediaCandidates = buildSingleMediaInputCandidates(
+                        props[singleObjOrIdKey],
+                        rootSchema,
+                        stagedMedia
+                    );
+                    if (mediaCandidates.length > 0) {
+                        const chosenIdx = Math.min(Math.max(0, audioCandidateIndex), mediaCandidates.length - 1);
+                        target[singleObjOrIdKey] = mediaCandidates[chosenIdx];
+                    } else {
+                        target[singleObjOrIdKey] = buildFrameFieldValue(
+                            props[singleObjOrIdKey],
+                            rootSchema,
+                            stagedMedia
+                        );
+                    }
+                }
             } else if (singleObjOrIdKey && !props && effectiveAssetId) {
-                target[singleObjOrIdKey] = effectiveAssetId;
+                target[singleObjOrIdKey] = audioCandidateIndex === 1
+                    ? effectiveAssetId
+                    : { assetId: effectiveAssetId };
             } else if (arrayRefKey && props?.[arrayRefKey]) {
                 target[arrayRefKey] = buildReferenceAssetsValue(props[arrayRefKey], rootSchema, [stagedMedia], {
                     minimal,
@@ -2037,33 +2369,95 @@ export function createOpusAudioTools(deps) {
             }
         }
 
-        const cleanLang = String(language || "").trim();
-        if (cleanLang && cleanLang.toLowerCase() !== "auto") {
-            const langKey = pickSupportedKey(
-                props,
-                ["language", "languageCode", "language_code", "locale", "sourceLanguage", "source_language"],
-                ""
-            );
-            if (langKey) {
-                const allowedLangs = extractAllowedValues(props?.[langKey], rootSchema);
-                if (allowedLangs.length > 0) {
-                    const matchedLang = matchEnumCaseInsensitive([cleanLang], allowedLangs);
-                    if (matchedLang !== null) target[langKey] = matchedLang;
-                } else {
-                    target[langKey] = cleanLang;
+        /* Purpose (hanya diisi bila diwajibkan atau cocok dengan enum resmi skema agar tidak ditolak Zod) */
+        if (props) {
+            const purposeKey = pickSupportedKey(props, ["purpose", "mode", "task", "intent"], "");
+            if (purposeKey && (required.includes(purposeKey) || (!minimal && Array.isArray(discoveredAllowedPurposes)))) {
+                const schemaPurposes = extractAllowedValues(props[purposeKey], rootSchema);
+                const allowedPurposes =
+                    Array.isArray(discoveredAllowedPurposes) && discoveredAllowedPurposes.length > 0
+                        ? discoveredAllowedPurposes
+                        : schemaPurposes;
+                if (allowedPurposes.length > 0) {
+                    const matchedPurpose = matchEnumCaseInsensitive(
+                        ["transcript", "transcription", "captions", "subtitles", "dialogue", "timing", "general", "speech_to_text", "asr"],
+                        allowedPurposes
+                    );
+                    target[purposeKey] = matchedPurpose !== null ? matchedPurpose : allowedPurposes[0];
+                } else if (required.includes(purposeKey)) {
+                    target[purposeKey] = "transcript";
+                }
+            } else if (purposeKey && !minimal) {
+                const schemaPurposes = extractAllowedValues(props[purposeKey], rootSchema);
+                if (schemaPurposes.length > 0) {
+                    const matchedPurpose = matchEnumCaseInsensitive(
+                        ["transcript", "transcription", "captions", "subtitles", "dialogue", "timing", "general", "speech_to_text", "asr"],
+                        schemaPurposes
+                    );
+                    if (matchedPurpose !== null) {
+                        target[purposeKey] = matchedPurpose;
+                    }
                 }
             }
         }
 
-        /* Aktifkan timestamp segmen/kata bila skema menyediakan opsi boolean */
+        /* Language / languageCode (mendukung ISO 639-1 `id`, ISO 639-3 `ind`, BCP-47 `id-ID`, serta auto-detect) */
+        const cleanLang = String(language || "").trim();
+        if (!omitLanguage && cleanLang && cleanLang.toLowerCase() !== "auto") {
+            const langKey = pickSupportedKey(
+                props,
+                ["languageCode", "language_code", "language", "locale", "sourceLanguage", "source_language"],
+                ""
+            );
+            if (langKey) {
+                const langSchema = props?.[langKey];
+                const schemaAllowedLangs = extractAllowedValues(langSchema, rootSchema);
+                const allowedLangs =
+                    Array.isArray(discoveredAllowedLanguages) && discoveredAllowedLanguages.length > 0
+                        ? discoveredAllowedLanguages
+                        : schemaAllowedLangs;
+                const langEquiv = resolveLanguageCandidates(cleanLang);
+
+                if (allowedLangs.length > 0) {
+                    const matchedLang = matchEnumCaseInsensitive(langEquiv, allowedLangs);
+                    if (matchedLang !== null) {
+                        target[langKey] = matchedLang;
+                    } else if (required.includes(langKey)) {
+                        target[langKey] = allowedLangs[0];
+                    }
+                } else {
+                    const minLen = typeof langSchema?.minLength === "number" ? langSchema.minLength : 0;
+                    const maxLen = typeof langSchema?.maxLength === "number" ? langSchema.maxLength : 0;
+                    const patternStr = String(langSchema?.pattern || "");
+                    if ((minLen === 3 && maxLen === 3) || /^\^?\[a-z.*\]\{3\}\$?$/i.test(patternStr)) {
+                        target[langKey] = langEquiv.find(c => c.length === 3) || cleanLang;
+                    } else if (patternStr.includes("-") && langEquiv.some(c => c.includes("-"))) {
+                        target[langKey] = langEquiv.find(c => c.includes("-")) || cleanLang;
+                    } else if (langCandidateIndex > 0 && langEquiv[langCandidateIndex]) {
+                        target[langKey] = langEquiv[langCandidateIndex];
+                    } else {
+                        target[langKey] = langEquiv[0] || cleanLang;
+                    }
+                }
+            }
+        }
+
+        /* Aktifkan diarize & timestamp segmen/kata bila skema menyediakan opsi boolean */
         if (props && !minimal) {
-            for (const tsKey of ["timestamps", "includeTimestamps", "include_timestamps", "wordTimestamps", "word_timestamps"]) {
+            for (const boolKey of [
+                "diarize",
+                "timestamps",
+                "includeTimestamps",
+                "include_timestamps",
+                "wordTimestamps",
+                "word_timestamps"
+            ]) {
                 if (
-                    Object.prototype.hasOwnProperty.call(props, tsKey) &&
-                    target[tsKey] === undefined &&
-                    schemaTypeIncludes(props[tsKey], rootSchema, "boolean")
+                    Object.prototype.hasOwnProperty.call(props, boolKey) &&
+                    target[boolKey] === undefined &&
+                    schemaTypeIncludes(props[boolKey], rootSchema, "boolean")
                 ) {
-                    target[tsKey] = true;
+                    target[boolKey] = true;
                 }
             }
         }
@@ -2116,7 +2510,12 @@ export function createOpusAudioTools(deps) {
                 requestKey: makeUuid(),
                 isBatchItem: true,
                 minimal,
-                useAltRef
+                useAltRef,
+                audioCandidateIndex: profile.audioCandidateIndex || 0,
+                langCandidateIndex: profile.langCandidateIndex || 0,
+                omitLanguage: Boolean(profile.omitLanguage),
+                discoveredAllowedPurposes: profile.discoveredAllowedPurposes || null,
+                discoveredAllowedLanguages: profile.discoveredAllowedLanguages || null
             });
             args[batchArrayKey] = [item];
             return args;
@@ -2134,7 +2533,12 @@ export function createOpusAudioTools(deps) {
             requestKey: makeUuid(),
             isBatchItem: false,
             minimal,
-            useAltRef
+            useAltRef,
+            audioCandidateIndex: profile.audioCandidateIndex || 0,
+            langCandidateIndex: profile.langCandidateIndex || 0,
+            omitLanguage: Boolean(profile.omitLanguage),
+            discoveredAllowedPurposes: profile.discoveredAllowedPurposes || null,
+            discoveredAllowedLanguages: profile.discoveredAllowedLanguages || null
         });
         return flatArgs;
     }
@@ -2150,13 +2554,31 @@ export function createOpusAudioTools(deps) {
             variants.push(obj);
         };
 
+        const hasExplicitLang =
+            Boolean(params?.language) && String(params.language).trim().toLowerCase() !== "auto";
+
         const profiles = [
-            { minimal: false, useAltRef: false, branchIndex: 0 },
-            { minimal: true, useAltRef: false, branchIndex: 0 },
-            { minimal: true, useAltRef: true, branchIndex: 0 },
-            { minimal: false, useAltRef: false, branchIndex: 1 },
-            { minimal: true, useAltRef: false, branchIndex: 1 },
-            { minimal: true, useAltRef: false, branchIndex: 0, forceFlat: true }
+            /* 1. Varian lengkap sesuai skema utama (audio kandidat terbaik + diarize + languageCode ISO-639-1) */
+            { minimal: false, useAltRef: false, branchIndex: 0, audioCandidateIndex: 0, langCandidateIndex: 0 },
+            /* 2. Varian minimal ketat hanya field wajib + kandidat audio utama */
+            { minimal: true, useAltRef: false, branchIndex: 0, audioCandidateIndex: 0, langCandidateIndex: 0 },
+            /* 3. Bila user memilih bahasa eksplisit, sediakan juga varian kode ISO-639-3 (mis. `ind`, `eng`) */
+            ...(hasExplicitLang
+                ? [{ minimal: true, useAltRef: false, branchIndex: 0, audioCandidateIndex: 0, langCandidateIndex: 1 }]
+                : []),
+            /* 4. Kandidat bentuk `audio` alternatif (mis. string `assetId`, `{ assetId }` penuh, `{ url }`, `url`) */
+            { minimal: true, useAltRef: false, branchIndex: 0, audioCandidateIndex: 1, langCandidateIndex: 0 },
+            { minimal: true, useAltRef: false, branchIndex: 0, audioCandidateIndex: 2, langCandidateIndex: 0 },
+            { minimal: true, useAltRef: false, branchIndex: 0, audioCandidateIndex: 3, langCandidateIndex: 0 },
+            { minimal: true, useAltRef: true, branchIndex: 0, audioCandidateIndex: 0, langCandidateIndex: 0 },
+            /* 5. Cabang skema alternatif bila top-level memakai oneOf/anyOf */
+            { minimal: false, useAltRef: false, branchIndex: 1, audioCandidateIndex: 0, langCandidateIndex: 0 },
+            { minimal: true, useAltRef: false, branchIndex: 1, audioCandidateIndex: 0, langCandidateIndex: 0 },
+            /* 6. Fallback auto-detect tanpa languageCode bila format languageCode ditolak */
+            ...(hasExplicitLang
+                ? [{ minimal: true, useAltRef: false, branchIndex: 0, audioCandidateIndex: 0, omitLanguage: true }]
+                : []),
+            { minimal: true, useAltRef: false, branchIndex: 0, audioCandidateIndex: 0, forceFlat: true }
         ];
 
         for (const profile of profiles) {
@@ -2297,16 +2719,32 @@ export function createOpusAudioTools(deps) {
         let lastError = null;
         let discoveredDuringTimeout = null;
 
-        for (let vIdx = 0; vIdx < candidateVariants.length && vIdx < 10; vIdx += 1) {
-            const variantArgs = candidateVariants[vIdx];
+        for (let vIdx = 0; vIdx < candidateVariants.length && vIdx < 12; vIdx += 1) {
+            let variantArgs = candidateVariants[vIdx];
             triedFingerprints.add(JSON.stringify(stripRequestKeysForComparison(variantArgs)));
             try {
-                const res = await session.callTool(transcribeTool.name, variantArgs);
+                let res = await session.callTool(transcribeTool.name, variantArgs);
                 lastCallResult = res;
-                const callOutcome = await inspectTranscribeJobOutcome(res.data, res.text, "", {
+                let callOutcome = await inspectTranscribeJobOutcome(res.data, res.text, "", {
                     content: res.content,
                     excludedUrls
                 });
+
+                /* Otomatis setujui quote bila transcribe_audio meminta needs_approval */
+                if (callOutcome.needsApproval && typeof callOutcome.estimatedCredits === "number") {
+                    const maxCreditsKey = Object.keys(variantArgs).find(k => /^max_?credits$/i.test(k)) || "maxCredits";
+                    variantArgs = {
+                        ...variantArgs,
+                        [maxCreditsKey]: Math.max(1, Math.ceil(callOutcome.estimatedCredits))
+                    };
+                    res = await session.callTool(transcribeTool.name, variantArgs);
+                    lastCallResult = res;
+                    callOutcome = await inspectTranscribeJobOutcome(res.data, res.text, "", {
+                        content: res.content,
+                        excludedUrls
+                    });
+                }
+
                 const callJobId = findJobIdFromResponse(res.data, res.text, projectId);
 
                 if (!res.isError && callOutcome.status !== "FAILED") {
@@ -2322,12 +2760,36 @@ export function createOpusAudioTools(deps) {
                     res.text
                 );
                 if (retryable) {
-                    const badKeys = extractUnrecognizedKeysFromError(
+                    let insertOffset = vIdx + 1;
+                    const errTextCombined = `${callOutcome.rawErrorMessage || ""} ${res.text || ""}`;
+                    const discoveredPurposes = extractAllowedEnumValuesFromError(
                         res.data,
-                        `${callOutcome.rawErrorMessage || ""} ${res.text || ""}`
+                        errTextCombined,
+                        /purpose|mode|task|intent/i
                     );
+                    const discoveredLanguages = extractAllowedEnumValuesFromError(
+                        res.data,
+                        errTextCombined,
+                        /language|locale/i
+                    );
+                    if (discoveredPurposes.length > 0 || discoveredLanguages.length > 0) {
+                        for (const minFlag of [false, true]) {
+                            try {
+                                const adapted = buildSingleTranscribeArgs(transcribeTool, baseParams, {
+                                    minimal: minFlag,
+                                    discoveredAllowedPurposes: discoveredPurposes.length > 0 ? discoveredPurposes : null,
+                                    discoveredAllowedLanguages: discoveredLanguages.length > 0 ? discoveredLanguages : null
+                                });
+                                if (enqueueVariant(insertOffset, adapted)) insertOffset += 1;
+                            } catch {
+                                /* lanjut */
+                            }
+                        }
+                    }
+
+                    const badKeys = extractUnrecognizedKeysFromError(res.data, errTextCombined);
                     if (badKeys.length > 0) {
-                        enqueueVariant(vIdx + 1, stripKeysDeep(variantArgs, new Set(badKeys)));
+                        enqueueVariant(insertOffset, stripKeysDeep(variantArgs, new Set(badKeys)));
                     }
                     if (vIdx + 1 < candidateVariants.length) {
                         continue;

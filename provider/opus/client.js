@@ -6661,7 +6661,7 @@ function summarizeMcpToolSchema(tool) {
     }
     const describeEnums = (propsMap, prefix = "") => {
         for (const [k, propSchema] of Object.entries(propsMap)) {
-            if (/model|aspect|ratio|quality|size|workflow|mode|role/i.test(k)) {
+            if (/model|aspect|ratio|quality|size|workflow|mode|role|type|kind|purpose|voice|language/i.test(k)) {
                 const allowed = extractAllowedValues(propSchema, rootSchema);
                 if (allowed.length > 0 && allowed.length <= 15) {
                     parts.push(`${prefix}${k}.enum=[${allowed.join("|")}]`);
@@ -6671,7 +6671,8 @@ function summarizeMcpToolSchema(tool) {
     };
     describeEnums(obj.properties);
     for (const k of keys) {
-        const itemSchema = resolveArrayItemSchema(obj.properties[k], rootSchema);
+        const propSchema = obj.properties[k];
+        const itemSchema = resolveArrayItemSchema(propSchema, rootSchema);
         if (itemSchema) {
             const itemObj = resolveObjectSchema(itemSchema, rootSchema);
             if (itemObj.properties) {
@@ -6680,6 +6681,19 @@ function summarizeMcpToolSchema(tool) {
                     parts.push(`${k}[].required=[${itemObj.required.join(",")}]`);
                 }
                 describeEnums(itemObj.properties, `${k}[].`);
+            }
+        } else if (/^(?:audio|video|media|asset|source|input|speech|music|sfx|spec)$/i.test(k)) {
+            const subTypes = ["string", "object", "array"].filter(t => schemaTypeIncludes(propSchema, rootSchema, t));
+            if (subTypes.length > 0) {
+                parts.push(`${k}.type=${subTypes.join("|")}`);
+            }
+            const subBranches = expandObjectBranches(propSchema, rootSchema);
+            if (subBranches.length > 0) {
+                const branchDesc = subBranches
+                    .slice(0, 4)
+                    .map(b => `{${Object.keys(b.properties || {}).join(",")}}`)
+                    .join("|");
+                parts.push(`${k}.branches=${branchDesc}`);
             }
         }
     }
