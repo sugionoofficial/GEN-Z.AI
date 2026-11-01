@@ -303,6 +303,8 @@ export function createOpusVideoModel(spec) {
         type: spec.type,
         kind: spec.kind,
         workflow: spec.workflow || "reference2video",
+        allowLastFrame: Boolean(spec.allowLastFrame),
+        generateAudio: Boolean(spec.generateAudio),
         staged30s: Boolean(spec.staged30s),
         referenceRequired: Boolean(spec.referenceRequired),
         adminEditor: buildAdminEditorConfig(spec),

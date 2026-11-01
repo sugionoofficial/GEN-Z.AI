@@ -106,8 +106,8 @@ seed (
         (
             'opus-seedance-2.5-r2v-30s',
             'Seedance 2.5 Reference to Video (30s)',
-            'Video 30 detik bertahap (3 × 10 detik tersambung mulus dari frame akhir tiap klip) dari hingga 3 gambar (@image1–@image3), 3 video (@video1–@video3), dan/atau audio referensi (@audio1) via Opus Labs.',
-            30, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{480p,720p}', '{30}', 6000, 7500, 0
+            'Video 20 atau 30 detik bertahap (2 × 10 detik atau 3 × 10 detik tersambung mulus dari frame akhir tiap klip) dari hingga 3 gambar (@image1–@image3), 3 video (@video1–@video3), dan/atau audio referensi (@audio1) via Opus Labs.',
+            20, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{480p,720p}', '{20,30}', 6000, 7500, 0
         ),
 
         -- SEEDANCE 2.0 ------------------------------------
@@ -130,6 +130,12 @@ seed (
             'MiniMax Hailuo 3 First & Last Frame (Opus)',
             'Image to video MiniMax Hailuo 3 dari frame awal + frame akhir opsional via Opus Labs — 5–15 detik, 768p & 2K.',
             5, 15, '{}', '{768p,2k}', '{5,6,8,10,12,15}', 0, 25, 45
+        ),
+        (
+            'opus-hailuo-3-i2v-30s',
+            'MiniMax Hailuo 3 First & Last Frame (30s)',
+            'Video 20 atau 30 detik utuh secara bertahap (2 × 10 detik atau 3 × 10 detik tersambung mulus dari frame akhir tiap klip) menggunakan MiniMax Hailuo 3 dari frame awal + frame akhir opsional pada ujung video (768p & 2K). Mendukung prompt berdurasi maupun otomatis.',
+            20, 30, '{}', '{720p,1080p}', '{20,30}', 0, 6000, 7500
         ),
 
         -- OPUS IMAGE GENERATION (`generate_keyframes` — flat credit_480p = 500) --

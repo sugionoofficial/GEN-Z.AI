@@ -1704,9 +1704,32 @@ function buildModelConfig(
      * karena DB bisa punya array kosong.
      */
 
+    const rawAliases =
+        config.adminEditor && typeof config.adminEditor.resolutionAliases === "object"
+            ? config.adminEditor.resolutionAliases
+            : null;
+    const inverseResolutionMap = new Map();
+    if (rawAliases) {
+        for (const [displayRes, storageRes] of Object.entries(rawAliases)) {
+            const displayClean = String(displayRes || "").trim();
+            const storageClean = String(storageRes || "").trim().toLowerCase();
+            if (displayClean && storageClean) {
+                const canonicalDisplay =
+                    folderResolutions.find(
+                        f => String(f || "").trim().toLowerCase() === displayClean.toLowerCase()
+                    ) || displayClean;
+                inverseResolutionMap.set(storageClean, canonicalDisplay);
+            }
+        }
+    }
+    const mappedDatabaseResolutions = databaseResolutions.map(item => {
+        const key = String(item || "").trim().toLowerCase();
+        return inverseResolutionMap.get(key) || item;
+    });
+
     const finalResolutions =
-        databaseResolutions.length > 0
-            ? databaseResolutions
+        mappedDatabaseResolutions.length > 0
+            ? mappedDatabaseResolutions
             : folderResolutions;
 
     /* =====================================================
@@ -1905,6 +1928,10 @@ function buildModelConfig(
             Array.isArray(config.subModes)
                 ? config.subModes
                 : null,
+
+
+        staged30s:
+            Boolean(config.staged30s),
 
 
         provider: {

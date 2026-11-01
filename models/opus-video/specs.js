@@ -259,6 +259,36 @@ const OPUS_VIDEO_SPECS = Object.freeze([
         defaultDuration: "5",
         generateAudio: false,
         maxPrompt: 7000
+    },
+
+    {
+        id: "opus-hailuo-3-i2v-30s",
+        opusModel: "hailuo-3",
+        modelAliases: [
+            "hailuo-3",
+            "minimax/hailuo-3",
+            "minimax/MiniMax-H3",
+            "MiniMax-H3",
+            "Hailuo 3",
+            "minimax-hailuo-3"
+        ],
+        name: "MiniMax Hailuo 3 First & Last Frame 30s (Opus)",
+        logo: "minimax.svg",
+        kind: "i2v",
+        type: "image-to-video",
+        workflow: "first_last_frame",
+        allowLastFrame: true,
+        staged30s: true,
+        promptHint: "Deskripsi adegan 20 atau 30 detik dari frame awal (+ frame akhir opsional pada ujung video). Bisa memakai durasi (0-10, 11-20 untuk 20s atau 0-10, 11-20, 21-30 untuk 30s) maupun tanpa durasi (sistem otomatis membagi segmen mulus).",
+        ratios: [],
+        resolutions: ["768p", "2k"],
+        defaultResolution: "768p",
+        durations: ["20", "30"],
+        selectableDurations: true,
+        durationRange: { min: 20, max: 30 },
+        defaultDuration: "30",
+        generateAudio: false,
+        maxPrompt: 7000
     }
 
 ]);
