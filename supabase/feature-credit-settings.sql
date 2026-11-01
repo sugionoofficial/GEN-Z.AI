@@ -23,6 +23,31 @@ create table if not exists public.feature_credit_settings (
     updated_by uuid null
 );
 
+alter table public.feature_credit_settings
+    add column if not exists label text not null default '';
+
+alter table public.feature_credit_settings
+    drop constraint if exists feature_credit_settings_feature_id_check;
+
+alter table public.feature_credit_settings
+    add constraint feature_credit_settings_feature_id_check
+    check (
+        feature_id in (
+            'vision',
+            'vision_video',
+            'upscale',
+            'upscale_video',
+            'prompt_studio',
+            'metadata_cleaner',
+            'opusclip_clipping',
+            'opusclip_dubbing',
+            'opusclip_thumbnail',
+            'opusclip_censor_edit',
+            'opusclip_understanding',
+            'opusclip_motion_ui'
+        )
+    );
+
 insert into public.feature_credit_settings (feature_id, label, credit_cost)
 values
     ('metadata_cleaner', 'AI Metadata Cleaner', 0),
@@ -30,7 +55,13 @@ values
     ('vision', 'Vision Image', 0),
     ('vision_video', 'Vision Video', 0),
     ('upscale', 'Upscale Foto', 0),
-    ('upscale_video', 'Upscale Video', 0)
+    ('upscale_video', 'Upscale Video', 0),
+    ('opusclip_clipping', 'OpusClip AI Video Clipping', 2500),
+    ('opusclip_dubbing', 'OpusClip AI Video Dubbing', 3500),
+    ('opusclip_thumbnail', 'OpusClip AI YouTube Thumbnail', 1000),
+    ('opusclip_censor_edit', 'OpusClip Edit & Sensor Klip', 500),
+    ('opusclip_understanding', 'OpusClip Deep Video Understanding', 1000),
+    ('opusclip_motion_ui', 'OpusClip Motion UI Video (Remotion)', 2500)
 on conflict (feature_id) do update
 set label = excluded.label;
 
@@ -127,6 +158,54 @@ begin
                 'Upscale Video'::text,
                 'Upscale Video'::text,
                 ('upscale_' || v_tx)::text;
+        when 'opusclip_clipping' then
+            return query select
+                'opusclip'::text,
+                'OpusClip'::text,
+                'opusclip-ai-clipping'::text,
+                'OpusClip AI Video Clipping'::text,
+                'Potong video panjang otomatis menjadi klip Shorts/Reels/TikTok'::text,
+                ('opusclip_clip_' || v_tx)::text;
+        when 'opusclip_dubbing' then
+            return query select
+                'opusclip'::text,
+                'OpusClip'::text,
+                'opusclip-ai-dubbing'::text,
+                'OpusClip AI Video Dubbing'::text,
+                'Sulih suara AI video lintas bahasa'::text,
+                ('opusclip_dub_' || v_tx)::text;
+        when 'opusclip_thumbnail' then
+            return query select
+                'opusclip'::text,
+                'OpusClip'::text,
+                'opusclip-youtube-thumbnail'::text,
+                'OpusClip AI YouTube Thumbnail'::text,
+                'Generate desain thumbnail YouTube AI'::text,
+                ('opusclip_thumb_' || v_tx)::text;
+        when 'opusclip_censor_edit' then
+            return query select
+                'opusclip'::text,
+                'OpusClip'::text,
+                'opusclip-censor-edit'::text,
+                'OpusClip Edit & Sensor Klip'::text,
+                'Sensor kata kasar / edit naskah klip server-side'::text,
+                ('opusclip_edit_' || v_tx)::text;
+        when 'opusclip_understanding' then
+            return query select
+                'opusclip'::text,
+                'OpusClip'::text,
+                'opusclip-video-understanding'::text,
+                'OpusClip Deep Video Understanding'::text,
+                'Analisis mendalam gaya editing video referensi'::text,
+                ('opusclip_und_' || v_tx)::text;
+        when 'opusclip_motion_ui' then
+            return query select
+                'opusclip'::text,
+                'OpusClip'::text,
+                'opusclip-motion-ui'::text,
+                'OpusClip Motion UI Video'::text,
+                'Render video animasi produk/UI Remotion'::text,
+                ('opusclip_mui_' || v_tx)::text;
         else
             return query select
                 'genzai-internal'::text,

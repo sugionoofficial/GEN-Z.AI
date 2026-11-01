@@ -923,7 +923,9 @@
 
             blackBox: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.7 21 7v10l-9 4.3L3 17V7z"></path><path d="M3 7l9 4.3L21 7"></path><path d="M12 11.3v10"></path></svg>`,
 
-            monitoring: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path><circle cx="12" cy="12" r="2.6"></circle><path d="M12 2v2"></path><path d="M22 12h-2"></path></svg>`
+            monitoring: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path><circle cx="12" cy="12" r="2.6"></circle><path d="M12 2v2"></path><path d="M22 12h-2"></path></svg>`,
+
+            opusclip: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>`
 
         });
 
@@ -931,6 +933,7 @@
         const commonUserItems = [
             { label: "Dashboard", href: "/user/dashboard.html", icon: ICONS.dashboard },
             { label: "Generate", href: "/generate/index.html", icon: ICONS.generate },
+            { label: "OpusClip Studio", href: "/opusclip/index.html", icon: ICONS.opusclip },
             { label: "Prompt Studio", href: "/prompt-studio/index.html", icon: ICONS.promptStudio },
             { label: "Live Chat AI", href: "/live-chat/index.html", icon: ICONS.liveChat },
             { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
@@ -948,6 +951,7 @@
         const adminItems = [
             { label: "Dashboard", href: "/admin/dashboard/index.html", icon: ICONS.dashboard },
             { label: "Generate", href: "/generate/index.html", icon: ICONS.generate },
+            { label: "OpusClip Studio", href: "/opusclip/index.html", icon: ICONS.opusclip },
             { label: "Prompt Studio", href: "/prompt-studio/index.html", icon: ICONS.promptStudio },
             { label: "Live Chat AI", href: "/live-chat/index.html", icon: ICONS.liveChat },
             { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },

@@ -1,0 +1,69 @@
+name: Motion UI Remotion Video Render
+run-name: Motion UI Render - ${{ inputs.job_key }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_key:
+        description: "Unique job_key in public.motion_ui_jobs"
+        required: true
+        type: string
+      user_id:
+        description: "Supabase user UUID"
+        required: true
+        type: string
+      transaction_id:
+        description: "Feature credit transaction UUID"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  render-motion-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install system Chromium libs & FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 || sudo apt-get install -y -qq ffmpeg
+
+      - name: Install Remotion renderer in isolated workspace
+        run: |
+          mkdir -p /tmp/remotion-runner
+          cd /tmp/remotion-runner
+          npm init -y >/dev/null 2>&1
+          npm install --no-audit --no-fund remotion@4.0.242 @remotion/bundler@4.0.242 @remotion/renderer@4.0.242 react@18.3.1 react-dom@18.3.1
+
+      - name: Render Motion UI MP4 & Upload to Supabase Storage
+        env:
+          GENZ_SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          GENZ_SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          JOB_KEY: ${{ inputs.job_key }}
+          USER_ID: ${{ inputs.user_id }}
+          TRANSACTION_ID: ${{ inputs.transaction_id }}
+          REMOTION_RUNNER_DIR: /tmp/remotion-runner
+        run: |
+          node scripts/render-motion-ui.mjs
+
+      - name: Emergency credit refund on failure or cancellation
+        if: ${{ failure() || cancelled() }}
+        env:
+          GENZ_SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          GENZ_SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
+          JOB_KEY: ${{ inputs.job_key }}
+          USER_ID: ${{ inputs.user_id }}
+          TRANSACTION_ID: ${{ inputs.transaction_id }}
+        run: |
+          node scripts/render-motion-ui.mjs --finalize-emergency

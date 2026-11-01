@@ -1,10 +1,24 @@
-const FEATURE_IDS = new Set([
+const CORE_FEATURE_IDS = new Set([
     "vision",
     "vision_video",
     "upscale",
     "upscale_video",
     "prompt_studio",
     "metadata_cleaner"
+]);
+
+const OPTIONAL_FEATURE_IDS = new Set([
+    "opusclip_clipping",
+    "opusclip_dubbing",
+    "opusclip_thumbnail",
+    "opusclip_censor_edit",
+    "opusclip_understanding",
+    "opusclip_motion_ui"
+]);
+
+const FEATURE_IDS = new Set([
+    ...CORE_FEATURE_IDS,
+    ...OPTIONAL_FEATURE_IDS
 ]);
 
 function getSupabaseConfig(env = {}) {
@@ -158,8 +172,10 @@ function validateSettings(settings) {
     }
 
     const entries = Object.entries(settings);
-    if (entries.length !== FEATURE_IDS.size) {
-        throw fail("Tarif untuk semua fitur harus dikirim.", 400);
+    for (const coreId of CORE_FEATURE_IDS) {
+        if (!Object.prototype.hasOwnProperty.call(settings, coreId)) {
+            throw fail("Tarif untuk semua fitur harus dikirim.", 400);
+        }
     }
 
     for (const [featureId, cost] of entries) {

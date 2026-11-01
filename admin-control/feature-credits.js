@@ -2,12 +2,18 @@
     "use strict";
 
     const FEATURE_LABELS = {
-        vision: ["Vision", "Setiap generate"],
-        vision_video: ["Vision Video", "Setiap analisis"],
-        upscale: ["Upscale", "Setiap proses"],
-        upscale_video: ["Upscale Video", "Setiap proses video"],
-        prompt_studio: ["Prompt Studio", "Setiap Copy Prompt"],
-        metadata_cleaner: ["Metadata Cleaner", "Setiap CHECK atau CLEAN"]
+        vision: ["Vision", "Setiap generate", 1],
+        vision_video: ["Vision Video", "Setiap analisis", 1],
+        upscale: ["Upscale", "Setiap proses", 1],
+        upscale_video: ["Upscale Video", "Setiap proses video", 1],
+        prompt_studio: ["Prompt Studio", "Setiap Copy Prompt", 1],
+        metadata_cleaner: ["Metadata Cleaner", "Setiap CHECK atau CLEAN", 1],
+        opusclip_clipping: ["OpusClip AI Video Clipping", "Setiap submit project clipping / translate caption", 2500],
+        opusclip_dubbing: ["OpusClip AI Video Dubbing", "Setiap submit sulih suara AI video penuh", 3500],
+        opusclip_thumbnail: ["OpusClip AI YouTube Thumbnail", "Setiap generate desain thumbnail YouTube", 1000],
+        opusclip_censor_edit: ["OpusClip Edit & Sensor Klip", "Setiap sensor kata kasar atau apply edit klip", 500],
+        opusclip_understanding: ["OpusClip Deep Video Understanding", "Setiap analisis gaya editing video referensi", 1000],
+        opusclip_motion_ui: ["OpusClip Motion UI Video", "Setiap render video template animasi UI/produk", 2500]
     };
     const endpoint = "/api/feature-credits";
     const form = document.getElementById("settings-form");
@@ -86,7 +92,7 @@
         const costs = Object.fromEntries(settings.map(item => [item.feature_id, item.credit_cost]));
         list.replaceChildren();
 
-        Object.entries(FEATURE_LABELS).forEach(([featureId, [name, trigger]]) => {
+        Object.entries(FEATURE_LABELS).forEach(([featureId, [name, trigger, fallbackCost]]) => {
             const row = document.createElement("label");
             row.className = "row";
 
@@ -104,7 +110,7 @@
             input.step = "1";
             input.required = true;
             input.name = featureId;
-            input.value = String(costs[featureId] ?? 1);
+            input.value = String(costs[featureId] ?? fallbackCost ?? 1);
             input.setAttribute("aria-label", `Biaya credit ${name}`);
             row.append(description, input);
             list.append(row);

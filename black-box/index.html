@@ -108,7 +108,7 @@
 
             <span class="bb-chip">
                 <span class="bb-chip-dot" aria-hidden="true"></span>
-                2 MODUL AKTIF
+                3 MODUL AKTIF
             </span>
 
             <span class="bb-chip">AKSES TERBATAS</span>
@@ -131,7 +131,7 @@
                 TOMBOL PINTAS
             </h2>
 
-            <span class="bb-deck-count">02 / 09</span>
+            <span class="bb-deck-count">03 / 09</span>
 
         </div>
 
@@ -310,6 +310,93 @@
 
             <!--
                 ============================================
+                MODUL 03 — OPUSCLIP API KEY & MCP OAUTH VAULT
+                Mobile-ready encrypted vault untuk Bagian 2
+                ============================================
+            -->
+
+            <button
+                type="button"
+                id="bbOpusClipVaultToggle"
+                class="bb-tile bb-tile--opus bb-tile--diag"
+                aria-expanded="false"
+                aria-controls="bbOpusClipVaultPanel"
+            >
+
+                <span class="bb-tile-head">
+
+                    <span class="bb-tile-index">
+                        MODUL 03
+                    </span>
+
+                    <span class="bb-tile-tag">
+                        OPUSCLIP VAULT
+                    </span>
+
+                </span>
+
+                <span class="bb-tile-icon" aria-hidden="true">
+
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.9"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="m15 5 4 4"></path>
+                        <path d="M13 7 8.7 2.7a2.41 2.41 0 0 0-3.4 0L2.7 5.3a2.41 2.41 0 0 0 0 3.4L7 13"></path>
+                        <path d="m8 6 2-2"></path>
+                        <path d="m2 22 5.5-1.5L21.17 6.83a2.82 2.82 0 0 0-4-4L3.5 16.5Z"></path>
+                    </svg>
+
+                </span>
+
+                <span class="bb-tile-label">
+                    OPUSCLIP STUDIO VAULT
+                </span>
+
+                <span class="bb-tile-desc">
+                    Simpan/rotasi OPUSCLIP_API_KEY terenkripsi &amp; login OAuth 1-klik
+                    mcp.opus.pro langsung dari browser HP tanpa PowerShell.
+                </span>
+
+                <span class="bb-tile-cta">
+
+                    <span class="bb-tile-cta-text" id="bbOpusClipVaultCtaText">
+                        BUKA VAULT
+                    </span>
+
+                    <span class="bb-tile-arrow" aria-hidden="true">
+
+                        <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.1"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M6 9l6 6 6-6"></path>
+                        </svg>
+
+                    </span>
+
+                </span>
+
+                <span class="bb-tile-url">
+                    /api/opusclip-blackbox · api.opus.pro · mcp.opus.pro
+                </span>
+
+            </button>
+
+            <!--
+                ============================================
                 SLOT KOSONG — penanda tombol berikutnya
                 ============================================
             -->
@@ -406,6 +493,94 @@
                 <h4 class="bb-diag-card-title">Job Opus Menggantung / Gagal Terbaru (1-Klik Recovery)</h4>
                 <div id="bbOpusHistoryContainer" class="bb-diag-list">
                     <span class="bb-diag-empty">Belum dimuat.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             MODUL 03 PANEL — OPUSCLIP STUDIO ENCRYPTED VAULT
+        ====================================================== -->
+
+        <section
+            id="bbOpusClipVaultPanel"
+            class="bb-diag-panel"
+            aria-label="Vault Kredensial OpusClip Studio Bagian 2"
+            hidden
+        >
+            <div class="bb-diag-header">
+                <div>
+                    <span class="bb-diag-eyebrow">MODUL 03 // OPUSCLIP API &amp; MCP UNDERSTANDING VAULT</span>
+                    <h3 class="bb-diag-title">Kredensial Terenkripsi OpusClip Studio (Mobile-Ready)</h3>
+                </div>
+                <div class="bb-diag-actions">
+                    <button type="button" id="bbOpusClipRefreshBtn" class="bb-diag-btn bb-diag-btn--primary">
+                        🔄 Cek Kesehatan API &amp; MCP
+                    </button>
+                    <button type="button" id="bbOpusClipCloseBtn" class="bb-diag-btn">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+
+            <p id="bbOpusClipBanner" class="bb-diag-banner">
+                Kelola OPUSCLIP_API_KEY (api.opus.pro) &amp; sesi OAuth Video Understanding (mcp.opus.pro) secara terenkripsi AES-256-GCM.
+            </p>
+
+            <div class="bb-diag-grid">
+                <div class="bb-diag-card">
+                    <h4 class="bb-diag-card-title">1. Core REST API (api.opus.pro)</h4>
+                    <div id="bbOpusClipRestStatus" class="bb-diag-list">
+                        <span class="bb-diag-empty">Belum diperiksa.</span>
+                    </div>
+                    <div class="bb-diag-form-row" style="margin-top: 12px;">
+                        <input
+                            type="password"
+                            id="bbOpusClipApiKeyInput"
+                            class="bb-diag-input"
+                            placeholder="Tempel OPUSCLIP_API_KEY baru…"
+                            autocomplete="off"
+                        >
+                        <input
+                            type="text"
+                            id="bbOpusClipOrgIdInput"
+                            class="bb-diag-input"
+                            placeholder="Org ID (opsional, x-opus-org-id)"
+                            autocomplete="off"
+                        >
+                        <button type="button" id="bbOpusClipSaveKeyBtn" class="bb-diag-btn bb-diag-btn--primary">
+                            🔐 Simpan API Key Terenkripsi
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bb-diag-card">
+                    <h4 class="bb-diag-card-title">2. Video Understanding MCP (mcp.opus.pro)</h4>
+                    <div id="bbOpusClipMcpStatus" class="bb-diag-list">
+                        <span class="bb-diag-empty">Belum diperiksa.</span>
+                    </div>
+                    <div class="bb-diag-form-row" style="margin-top: 12px;">
+                        <a
+                            href="/api/opus-oauth-login?mcp=https%3A%2F%2Fmcp.opus.pro%2Fmcp"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="bb-diag-btn bb-diag-btn--primary"
+                            style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;"
+                        >
+                            🔑 1-Klik Login OAuth mcp.opus.pro ↗
+                        </a>
+                    </div>
+                    <div class="bb-diag-form-row" style="margin-top: 10px;">
+                        <input
+                            type="password"
+                            id="bbOpusClipMcpTokenInput"
+                            class="bb-diag-input"
+                            placeholder="Tempel JSON Token hasil 1-Klik Login OAuth mcp.opus.pro…"
+                            autocomplete="off"
+                        >
+                        <button type="button" id="bbOpusClipSaveMcpBtn" class="bb-diag-btn bb-diag-btn--primary">
+                            💾 Simpan Token OAuth ke Vault
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -662,6 +837,7 @@
         if (hasAdminAccess(role)) {
             revealPage();
             initOpusDiagConsole();
+            initOpusClipVaultConsole();
             return;
         }
 
@@ -986,6 +1162,168 @@
         document.addEventListener("DOMContentLoaded", start, { once: true });
     } else {
         start();
+    }
+
+    function initOpusClipVaultConsole() {
+        var toggleBtn = document.getElementById("bbOpusClipVaultToggle");
+        var ctaText = document.getElementById("bbOpusClipVaultCtaText");
+        var panel = document.getElementById("bbOpusClipVaultPanel");
+        var closeBtn = document.getElementById("bbOpusClipCloseBtn");
+        var refreshBtn = document.getElementById("bbOpusClipRefreshBtn");
+        var banner = document.getElementById("bbOpusClipBanner");
+        var restBox = document.getElementById("bbOpusClipRestStatus");
+        var mcpBox = document.getElementById("bbOpusClipMcpStatus");
+        var apiKeyInput = document.getElementById("bbOpusClipApiKeyInput");
+        var orgIdInput = document.getElementById("bbOpusClipOrgIdInput");
+        var saveKeyBtn = document.getElementById("bbOpusClipSaveKeyBtn");
+        var mcpTokenInput = document.getElementById("bbOpusClipMcpTokenInput");
+        var saveMcpBtn = document.getElementById("bbOpusClipSaveMcpBtn");
+        var loadedOnce = false;
+
+        if (!toggleBtn || !panel) return;
+
+        async function callVaultApi(method, payload) {
+            var token = await readOperatorAccessToken();
+            var url = "/api/opusclip-blackbox";
+            var init = {
+                method: method,
+                headers: { "Content-Type": "application/json" }
+            };
+            if (token) init.headers.Authorization = "Bearer " + token;
+            if (method === "GET") {
+                url += "?action=status";
+                delete init.headers["Content-Type"];
+            } else {
+                init.body = JSON.stringify(payload || {});
+            }
+            var resp = await fetch(url, init);
+            var data = await resp.json().catch(function () { return null; });
+            if (!resp.ok || !data || !data.success) {
+                throw new Error((data && data.error) || ("HTTP " + resp.status));
+            }
+            return data;
+        }
+
+        async function loadVaultStatus() {
+            if (refreshBtn) refreshBtn.disabled = true;
+            if (banner) banner.textContent = "Memeriksa kesehatan OPUSCLIP_API_KEY (api.opus.pro) & sesi OAuth mcp.opus.pro…";
+
+            try {
+                var data = await callVaultApi("GET");
+                loadedOnce = true;
+                var rest = data.rest || {};
+                var mcp = data.mcp || {};
+
+                if (banner) {
+                    banner.textContent =
+                        "REST API: " + (rest.healthy ? "ONLINE" : (rest.configured ? "ERROR" : "BELUM DIISI")) +
+                        " • MCP Understanding: " + (mcp.healthy ? "ONLINE" : (mcp.configured ? "PERLU REFRESH" : "BELUM LOGIN")) +
+                        " • Dicek " + new Date(data.checkedAt || Date.now()).toLocaleTimeString("id-ID");
+                }
+
+                if (restBox) {
+                    var restBadge = rest.healthy
+                        ? '<span class="bb-diag-pill bb-diag-pill--ok">ONLINE</span>'
+                        : '<span class="bb-diag-pill bb-diag-pill--err">' + (rest.configured ? "ERROR" : "BELUM DIISI") + '</span>';
+                    var restSub = rest.configured
+                        ? "Key: " + escapeHtml(rest.maskedKey || "••••") +
+                          (rest.orgId ? " • Org: " + escapeHtml(rest.orgId) : "") +
+                          " • Sumber: " + escapeHtml(rest.source || "-") +
+                          (rest.error ? " • " + escapeHtml(rest.error) : "")
+                        : "Belum ada OPUSCLIP_API_KEY tersimpan. Tempel di bawah lalu klik Simpan.";
+                    restBox.innerHTML =
+                        '<div class="bb-diag-row">' +
+                            '<div class="bb-diag-row-top"><strong>api.opus.pro/api</strong>' + restBadge + '</div>' +
+                            '<div class="bb-diag-row-sub">' + restSub + '</div>' +
+                        '</div>';
+                }
+
+                if (mcpBox) {
+                    var mcpBadge = mcp.healthy
+                        ? '<span class="bb-diag-pill bb-diag-pill--ok">ONLINE</span>'
+                        : '<span class="bb-diag-pill bb-diag-pill--err">' + (mcp.configured ? "ERROR" : "BELUM LOGIN") + '</span>';
+                    var acct = mcp.account || {};
+                    var who = acct.email || acct.name || acct.userId || (mcp.healthy ? "OAuth Valid" : "");
+                    var mcpSub = mcp.configured
+                        ? (who ? "Akun: " + escapeHtml(who) + " • " : "") +
+                          "Auto-Refresh: " + (mcp.hasRefreshToken ? "Aktif" : "Statis") +
+                          (mcp.error ? " • " + escapeHtml(mcp.error) : "")
+                        : "Klik '1-Klik Login OAuth mcp.opus.pro', salin JSON token, lalu simpan di bawah.";
+                    mcpBox.innerHTML =
+                        '<div class="bb-diag-row">' +
+                            '<div class="bb-diag-row-top"><strong>mcp.opus.pro/mcp</strong>' + mcpBadge + '</div>' +
+                            '<div class="bb-diag-row-sub">' + mcpSub + '</div>' +
+                        '</div>';
+                }
+            } catch (err) {
+                if (banner) banner.textContent = "Gagal memeriksa Vault OpusClip: " + (err && err.message ? err.message : err);
+            } finally {
+                if (refreshBtn) refreshBtn.disabled = false;
+            }
+        }
+
+        function setOpen(open) {
+            panel.hidden = !open;
+            toggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+            if (ctaText) ctaText.textContent = open ? "TUTUP VAULT" : "BUKA VAULT";
+            if (open && !loadedOnce) loadVaultStatus();
+        }
+
+        toggleBtn.addEventListener("click", function () {
+            setOpen(panel.hidden);
+        });
+        if (closeBtn) closeBtn.addEventListener("click", function () { setOpen(false); });
+        if (refreshBtn) refreshBtn.addEventListener("click", function () { loadVaultStatus(); });
+
+        if (saveKeyBtn) {
+            saveKeyBtn.addEventListener("click", async function () {
+                var keyVal = apiKeyInput ? apiKeyInput.value.trim() : "";
+                var orgVal = orgIdInput ? orgIdInput.value.trim() : "";
+                if (!keyVal) {
+                    if (banner) banner.textContent = "Tempel OPUSCLIP_API_KEY terlebih dahulu sebelum menyimpan.";
+                    return;
+                }
+                saveKeyBtn.disabled = true;
+                try {
+                    var res = await callVaultApi("POST", {
+                        action: "save_api_key",
+                        apiKey: keyVal,
+                        orgId: orgVal
+                    });
+                    if (apiKeyInput) apiKeyInput.value = "";
+                    if (banner) banner.textContent = res.message || "OPUSCLIP_API_KEY tersimpan!";
+                    await loadVaultStatus();
+                } catch (err) {
+                    if (banner) banner.textContent = "Gagal menyimpan API Key: " + (err && err.message ? err.message : err);
+                } finally {
+                    saveKeyBtn.disabled = false;
+                }
+            });
+        }
+
+        if (saveMcpBtn) {
+            saveMcpBtn.addEventListener("click", async function () {
+                var tokVal = mcpTokenInput ? mcpTokenInput.value.trim() : "";
+                if (!tokVal) {
+                    if (banner) banner.textContent = "Tempel JSON Token hasil login OAuth mcp.opus.pro terlebih dahulu.";
+                    return;
+                }
+                saveMcpBtn.disabled = true;
+                try {
+                    var res = await callVaultApi("POST", {
+                        action: "save_mcp_oauth",
+                        rawToken: tokVal
+                    });
+                    if (mcpTokenInput) mcpTokenInput.value = "";
+                    if (banner) banner.textContent = res.message || "Token OAuth mcp.opus.pro tersimpan!";
+                    await loadVaultStatus();
+                } catch (err) {
+                    if (banner) banner.textContent = "Gagal menyimpan Token OAuth: " + (err && err.message ? err.message : err);
+                } finally {
+                    saveMcpBtn.disabled = false;
+                }
+            });
+        }
     }
 
 })();
