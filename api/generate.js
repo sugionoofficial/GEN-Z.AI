@@ -40,11 +40,13 @@ import {
 
 import {
     STAGED_30S_BASE_R2V_MODEL_ID,
+    STAGED_30S_BASE_T2V_MODEL_ID,
     STAGED_30S_CLIP_DURATION,
     STAGED_30S_CONTINUATION_I2V_MODEL_ID,
     STAGED_30S_HAILUO_BASE_MODEL_ID,
     STAGED_30S_TOTAL_DURATION,
     STAGED_30S_WORKFLOW_FILE,
+    buildDefaultDirectorBgmPrompt,
     buildStaged30sPrompts,
     cleanContinuationPromptForFirstFrame,
     generateStaged30sTaskId,
@@ -96,6 +98,7 @@ import { persistGeneratedImage }
 
 import {
     persistGeneratedAudio,
+    persistGeneratedPodcastAudio,
     persistGeneratedTranscript
 } from "../lib/generate/persist-generated-audio.js";
 
@@ -4523,7 +4526,8 @@ async function createStagedHistoryAndJob({
 
     const creditCost = Number(generationCredit?.credit) || 0;
     const targetConfig = resolveStagedTargetConfig(
-        parameters?.duration ?? stagedPrompts?.targetDuration ?? STAGED_30S_TOTAL_DURATION
+        parameters?.duration ?? stagedPrompts?.targetDuration ?? STAGED_30S_TOTAL_DURATION,
+        modelConfig?.id || databaseModel?.model_id
     );
     const historyRatio = normalizeHistoryText(
         parameters?.aspect_ratio ??
@@ -4618,8 +4622,22 @@ async function createStagedHistoryAndJob({
             : null,
         image_urls: toStableMediaList(parameters?.image_urls),
         video_urls: toStableMediaList(parameters?.video_urls),
-        audio_urls: toStableMediaList(normalizedAudioInputs)
+        audio_urls: toStableMediaList(normalizedAudioInputs),
+        ...(stagedProfile.isVideoDirector
+            ? {
+                  video_director: true,
+                  narration_script: String(parameters?.narration_script || "").trim(),
+                  voice: String(parameters?.voice || "Sulafat").trim(),
+                  bgm_prompt: String(
+                      parameters?.bgm_prompt || buildDefaultDirectorBgmPrompt(parameters?.prompt)
+                  ).trim()
+              }
+            : {})
     };
+
+    const initialStageMessage = stagedProfile.isVideoDirector
+        ? `AI Video Director: membuat visual video (${targetConfig.targetDuration} detik), narasi suara & musik latar...`
+        : `Membuat Klip 1/${targetConfig.totalClips} (durasi 0–10 detik)...`;
 
     const jobRows = await supabaseRequest(
         "/rest/v1/staged_generation_jobs?select=*",
@@ -4633,7 +4651,7 @@ async function createStagedHistoryAndJob({
                 model_id: modelConfig?.id || databaseModel?.model_id,
                 status: "processing",
                 current_stage: "clip_1_generating",
-                stage_message: `Membuat Klip 1/${targetConfig.totalClips} (durasi 0–10 detik)...`,
+                stage_message: initialStageMessage,
                 internal_token: internalToken,
                 request_payload: requestPayload,
                 clip_1_task_id: clip1TaskId,
@@ -4710,9 +4728,96 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
         : {};
     const stagedProfile = resolveStagedModelProfile(job.model_id);
     const stagedJobTarget = resolveStagedTargetConfig(
-        reqPayload.target_duration ?? (Number(reqPayload.total_clips) === 2 ? 20 : 30)
+        reqPayload.target_duration ?? (Number(reqPayload.total_clips) === 2 ? 20 : 30),
+        job.model_id
     );
     const totalJobClips = stagedJobTarget.totalClips;
+
+    if (stepAction === "create_director_audio") {
+        const audioKind = String(body?.audio_kind || "speech").trim().toLowerCase();
+        const audioAdapterId = audioKind === "music" ? "opus-audio-music" : "opus-audio-speech";
+        const audioAdapter = getModelAdapter(audioAdapterId);
+        if (!audioAdapter) {
+            return rawJsonResponse(res, 500, {
+                success: false,
+                error: `Adapter audio ${audioAdapterId} tidak ditemukan.`
+            });
+        }
+
+        const audioInput =
+            audioKind === "music"
+                ? {
+                      prompt: String(
+                          body?.prompt ||
+                          reqPayload.bgm_prompt ||
+                          buildDefaultDirectorBgmPrompt(reqPayload.prompt)
+                      ).trim(),
+                      vocal_mode: "instrumental",
+                      force_instrumental: true,
+                      target_duration: "15"
+                  }
+                : {
+                      prompt: String(body?.prompt || reqPayload.narration_script || "").trim(),
+                      voice: String(body?.voice || reqPayload.voice || "Sulafat").trim()
+                  };
+
+        try {
+            const createdAudio = await audioAdapter.createTask(audioInput, opusApiKey, {
+                env: req?.env
+            });
+            return rawJsonResponse(res, 200, {
+                success: true,
+                audio_kind: audioKind,
+                task_id: createdAudio.taskId,
+                status: createdAudio.status || "QUEUED",
+                output_urls: Array.isArray(createdAudio.outputUrls) ? createdAudio.outputUrls : []
+            });
+        } catch (err) {
+            return rawJsonResponse(res, 200, {
+                success: false,
+                audio_kind: audioKind,
+                error_code: err?.code || null,
+                error: err?.message || `Gagal membuat audio ${audioKind} untuk AI Video Director.`
+            });
+        }
+    }
+
+    if (stepAction === "query_director_audio") {
+        const audioKind = String(body?.audio_kind || "speech").trim().toLowerCase();
+        const audioTaskId = String(body?.audio_task_id || "").trim();
+        const audioAdapterId = audioKind === "music" ? "opus-audio-music" : "opus-audio-speech";
+        const audioAdapter = getModelAdapter(audioAdapterId);
+        if (!audioTaskId || !audioAdapter) {
+            return rawJsonResponse(res, 400, {
+                success: false,
+                error: "audio_task_id tidak valid."
+            });
+        }
+
+        try {
+            const queriedAudio = await audioAdapter.queryTask(audioTaskId, opusApiKey, {
+                env: req?.env
+            });
+            return rawJsonResponse(res, 200, {
+                success: true,
+                audio_kind: audioKind,
+                audio_task_id: audioTaskId,
+                status: queriedAudio.status,
+                completed: Boolean(queriedAudio.completed),
+                failed: Boolean(queriedAudio.failed),
+                processing: Boolean(queriedAudio.processing),
+                output_urls: Array.isArray(queriedAudio.outputUrls) ? queriedAudio.outputUrls : [],
+                error_code: queriedAudio.errorCode || null,
+                error_message: queriedAudio.errorMessage || null
+            });
+        } catch (err) {
+            return rawJsonResponse(res, 502, {
+                success: false,
+                retryable: true,
+                error: err?.message || "Gagal memeriksa status audio AI Video Director."
+            });
+        }
+    }
 
     const videoSegmentRefs = Array.isArray(body?.video_segment_refs)
         ? body.video_segment_refs.map(v => String(v || "").trim()).filter(Boolean)
@@ -4725,18 +4830,20 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
         (Array.isArray(reqPayload.video_urls) && reqPayload.video_urls.length > 0) ||
         (Array.isArray(reqPayload.audio_urls) && reqPayload.audio_urls.length > 0);
     const useR2vForContinuation =
-        !stagedProfile.isHailuoFirstLast &&
+        Boolean(stagedProfile.continuationR2vAdapterId) &&
         (stepAction === "create_clip"
             ? hasStepSegmentRefs
             : hasPayloadReferenceMedia);
 
-    const targetAdapterId = stagedProfile.isHailuoFirstLast
-        ? STAGED_30S_HAILUO_BASE_MODEL_ID
-        : (
-            clipIndex === 1 || useR2vForContinuation
-                ? STAGED_30S_BASE_R2V_MODEL_ID
-                : STAGED_30S_CONTINUATION_I2V_MODEL_ID
-        );
+    const targetAdapterId = stagedProfile.isVideoDirector
+        ? (reqPayload.image_url ? STAGED_30S_CONTINUATION_I2V_MODEL_ID : STAGED_30S_BASE_T2V_MODEL_ID)
+        : stagedProfile.isHailuoFirstLast
+          ? STAGED_30S_HAILUO_BASE_MODEL_ID
+          : clipIndex === 1
+            ? stagedProfile.clip1AdapterId
+            : useR2vForContinuation
+              ? stagedProfile.continuationR2vAdapterId
+              : stagedProfile.continuationI2vAdapterId;
     const stepAdapter = getModelAdapter(targetAdapterId);
 
     if (!stepAdapter) {
@@ -4914,6 +5021,58 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
                         error: "clip_index harus 1, 2, atau 3."
                     });
                 }
+            } else if (
+                clipIndex === 1 &&
+                targetAdapterId === STAGED_30S_CONTINUATION_I2V_MODEL_ID
+            ) {
+                const rawFirstImage = String(
+                    reqPayload.image_url ||
+                    (Array.isArray(reqPayload.image_urls) ? reqPayload.image_urls[0] : "") ||
+                    ""
+                ).trim();
+                if (!rawFirstImage) {
+                    return rawJsonResponse(res, 400, {
+                        success: false,
+                        error: "Gambar frame awal (image_url) tidak ditemukan pada job."
+                    });
+                }
+                if (isPrivateMediaRef(rawFirstImage) && !isRefOwnedByUser(rawFirstImage, job.user_id)) {
+                    return rawJsonResponse(res, 400, {
+                        success: false,
+                        error: "Referensi frame awal tidak sah atau bukan milik user."
+                    });
+                }
+                const signedClip1 = await signUserMediaRefsInPayload(
+                    { image_url: rawFirstImage },
+                    {
+                        userId: job.user_id,
+                        supabaseUrl: SUPABASE_URL,
+                        serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+                        ttlSeconds: 60 * 60
+                    }
+                );
+                createInput = {
+                    image_url: signedClip1.image_url,
+                    prompt: stagedProfile.isVideoDirector
+                        ? String(reqPayload.prompt || "").trim()
+                        : String(clipPrompts.clip1 || reqPayload.prompt || "").trim(),
+                    resolution: String(reqPayload.resolution || "720p"),
+                    duration: String(stagedJobTarget.clipDuration),
+                    generate_audio: stagedProfile.isVideoDirector ? false : effectiveGenerateAudio
+                };
+            } else if (
+                clipIndex === 1 &&
+                targetAdapterId === STAGED_30S_BASE_T2V_MODEL_ID
+            ) {
+                createInput = {
+                    prompt: stagedProfile.isVideoDirector
+                        ? String(reqPayload.prompt || "").trim()
+                        : String(clipPrompts.clip1 || reqPayload.prompt || "").trim(),
+                    aspect_ratio: String(reqPayload.aspect_ratio || "9:16"),
+                    resolution: String(reqPayload.resolution || "720p"),
+                    duration: String(stagedJobTarget.clipDuration),
+                    generate_audio: stagedProfile.isVideoDirector ? false : effectiveGenerateAudio
+                };
             } else if (clipIndex === 1) {
                 const signedRefs = await signUserMediaRefsInPayload(
                     {
@@ -5926,7 +6085,7 @@ export default async function handler(
         : null;
 
     const stagedTargetConfig = isStaged30s
-        ? resolveStagedTargetConfig(parameters?.duration)
+        ? resolveStagedTargetConfig(parameters?.duration, modelConfig.id || modelId)
         : null;
 
     const stagedPrompts = isStaged30s
@@ -6110,8 +6269,9 @@ export default async function handler(
     try {
 
         if (isStaged30s) {
-            const clip1AdapterId =
-                stagedProfile?.clip1AdapterId || STAGED_30S_BASE_R2V_MODEL_ID;
+            const clip1AdapterId = stagedProfile?.isVideoDirector
+                ? (parameters?.image_url ? STAGED_30S_CONTINUATION_I2V_MODEL_ID : STAGED_30S_BASE_T2V_MODEL_ID)
+                : (stagedProfile?.clip1AdapterId || STAGED_30S_BASE_R2V_MODEL_ID);
             const clip1Adapter =
                 getModelAdapter(clip1AdapterId);
             if (!clip1Adapter) {
@@ -6125,11 +6285,17 @@ export default async function handler(
             // agar Klip 1 (0–10s) bergerak natural dari frame awal menuju tengah adegan.
             const clip1Parameters = {
                 ...parameters,
-                prompt: stagedPrompts.clip1,
-                duration: String(STAGED_30S_CLIP_DURATION)
+                prompt: stagedProfile?.isVideoDirector
+                    ? String(parameters.prompt || "").trim()
+                    : stagedPrompts.clip1,
+                duration: String(stagedTargetConfig?.clipDuration || STAGED_30S_CLIP_DURATION),
+                ...(stagedProfile?.isVideoDirector ? { generate_audio: false } : {})
             };
             delete clip1Parameters.last_frame_url;
             delete clip1Parameters.lastFrameUrl;
+            delete clip1Parameters.narration_script;
+            delete clip1Parameters.bgm_prompt;
+            delete clip1Parameters.voice;
 
             task =
                 await clip1Adapter.createTask(
@@ -6764,12 +6930,23 @@ export default async function handler(
             serviceKey: SUPABASE_SERVICE_ROLE_KEY
         });
     } else if (isAudioModel && inlineOutputUrl) {
-        persistedInlineResultUrl = await persistGeneratedAudio({
-            sourceUrl: inlineOutputUrl,
-            userId: user.id,
-            supabaseUrl: SUPABASE_URL,
-            serviceKey: SUPABASE_SERVICE_ROLE_KEY
-        });
+        const isInlinePodcast =
+            String(selectedModelId || "").toLowerCase() === "opus-audio-podcast" &&
+            Array.isArray(task?.outputUrls) &&
+            task.outputUrls.length > 1;
+        persistedInlineResultUrl = isInlinePodcast
+            ? await persistGeneratedPodcastAudio({
+                  sourceUrls: task.outputUrls,
+                  userId: user.id,
+                  supabaseUrl: SUPABASE_URL,
+                  serviceKey: SUPABASE_SERVICE_ROLE_KEY
+              })
+            : await persistGeneratedAudio({
+                  sourceUrl: inlineOutputUrl,
+                  userId: user.id,
+                  supabaseUrl: SUPABASE_URL,
+                  serviceKey: SUPABASE_SERVICE_ROLE_KEY
+              });
     } else if (isTranscribeModel && isTaskCompletedInline && task?.transcript) {
         persistedInlineResultUrl = await persistGeneratedTranscript({
             transcript: task.transcript,

@@ -33,6 +33,10 @@ import {
     OPUS_SPEECH_VOICE_IDS,
     computeSpeechWeightedLength
 } from "./specs.js";
+import {
+    MAX_PODCAST_SCRIPT_CHARS,
+    parsePodcastDialogScript
+} from "./podcast-dialog.js";
 
 const PROVIDER_ID = "opus";
 const PROVIDER_NAME = "GEN-Z.AI";
@@ -103,6 +107,59 @@ function buildParametersForAudioKind(audioKind) {
                     "Contoh: Narator dokumenter yang tenang, hangat, tempo sedikit pelan, artikulasi tegas...",
                 description:
                     "Opsional (maks 500 karakter): atur emosi, aksen, tempo, atau karakter pembawaan suara."
+            }
+        };
+    }
+
+    if (audioKind === "podcast") {
+        return {
+            prompt: {
+                type: "textarea",
+                required: true,
+                maxLength: MAX_PODCAST_SCRIPT_CHARS,
+                label: "Naskah Dialog 2 Pembicara (Format A: ... dan B: ...)",
+                placeholder:
+                    "A: Halo semuanya! Selamat datang di episode podcast kita hari ini.\nB: Halo! Senang banget bisa ngobrol soal teknologi AI kreatif terbaru.\nA: Menurut kamu fitur mana yang paling membantu kreator?\nB: Pastinya penggabungan 2 karakter suara berbeda jadi satu rekaman utuh!",
+                description:
+                    "Tulis percakapan bergantian menggunakan awalan 'A:' dan 'B:' (atau 'Host:' / 'Tamu:'). Maksimal 12 giliran bicara dalam 1 rekaman podcast utuh."
+            },
+            voice_a: {
+                type: "select",
+                required: false,
+                default: "Aoede",
+                label: "Suara Pembicara A / Host (30 Pilihan Resmi Opus)",
+                options: OPUS_SPEECH_VOICES,
+                description:
+                    "Pilih karakter vokal untuk Pembicara A (Host utama)."
+            },
+            voice_b: {
+                type: "select",
+                required: false,
+                default: "Orus",
+                label: "Suara Pembicara B / Tamu (30 Pilihan Resmi Opus)",
+                options: OPUS_SPEECH_VOICES,
+                description:
+                    "Pilih karakter vokal berbeda untuk Pembicara B (Co-Host / Narasumber)."
+            },
+            style_a: {
+                type: "textarea",
+                required: false,
+                maxLength: MAX_SPEECH_STYLE_LENGTH,
+                label: "Gaya Bicara Pembicara A (Opsional)",
+                placeholder:
+                    "Contoh: Host podcast santai, ramah, antusias, artikulasi natural...",
+                description:
+                    "Opsional: atur pembawaan emosi/tempo khusus untuk Pembicara A."
+            },
+            style_b: {
+                type: "textarea",
+                required: false,
+                maxLength: MAX_SPEECH_STYLE_LENGTH,
+                label: "Gaya Bicara Pembicara B (Opsional)",
+                placeholder:
+                    "Contoh: Narasumber tenang, berwibawa, informatif...",
+                description:
+                    "Opsional: atur pembawaan emosi/tempo khusus untuk Pembicara B."
             }
         };
     }
@@ -179,6 +236,12 @@ function buildDefaultsForAudioKind(audioKind) {
             voice: "Sulafat"
         };
     }
+    if (audioKind === "podcast") {
+        return {
+            voice_a: "Aoede",
+            voice_b: "Orus"
+        };
+    }
     if (audioKind === "music") {
         return {
             vocal_mode: "instrumental",
@@ -226,7 +289,8 @@ export function createOpusAudioModel(spec) {
         minDuration: null,
         maxDuration: null,
         capabilities: {
-            textToSpeech: audioKind === "speech",
+            textToSpeech: audioKind === "speech" || audioKind === "podcast",
+            podcastDialog: audioKind === "podcast",
             textToMusic: audioKind === "music",
             textToSfx: audioKind === "sfx",
             audioKind,
@@ -281,6 +345,36 @@ export function createOpusAudioModel(spec) {
                 text: scriptText,
                 voice: matchedVoice,
                 ...(style ? { style } : {})
+            };
+        }
+
+        if (audioKind === "podcast") {
+            const scriptText = normalizeString(source.prompt || source.text);
+            const rawVoiceA = normalizeString(source.voice_a) || "Aoede";
+            const rawVoiceB = normalizeString(source.voice_b) || "Orus";
+            const matchedVoiceA =
+                OPUS_SPEECH_VOICE_IDS.find(v => v.toLowerCase() === rawVoiceA.toLowerCase()) ||
+                rawVoiceA;
+            const matchedVoiceB =
+                OPUS_SPEECH_VOICE_IDS.find(v => v.toLowerCase() === rawVoiceB.toLowerCase()) ||
+                rawVoiceB;
+            const styleA = normalizeString(source.style_a);
+            const styleB = normalizeString(source.style_b);
+            const parsedDialog = parsePodcastDialogScript(scriptText, {
+                voiceA: matchedVoiceA,
+                voiceB: matchedVoiceB,
+                styleA,
+                styleB
+            });
+
+            return {
+                audio_type: "podcast",
+                prompt: scriptText,
+                voice_a: matchedVoiceA,
+                voice_b: matchedVoiceB,
+                ...(styleA ? { style_a: styleA } : {}),
+                ...(styleB ? { style_b: styleB } : {}),
+                ...(parsedDialog.valid ? { podcast_turns: parsedDialog.turns } : {})
             };
         }
 
@@ -357,6 +451,61 @@ export function createOpusAudioModel(spec) {
                 const styleText = normalizeString(source.style);
                 if (styleText.length > MAX_SPEECH_STYLE_LENGTH) {
                     errors.push(`Arahan gaya bicara maksimal ${MAX_SPEECH_STYLE_LENGTH} karakter.`);
+                }
+            }
+        } else if (audioKind === "podcast") {
+            const scriptText = normalizeString(source.prompt || source.text);
+            const rawVoiceA = normalizeString(source.voice_a) || "Aoede";
+            const rawVoiceB = normalizeString(source.voice_b) || "Orus";
+
+            if (
+                rawVoiceA &&
+                !OPUS_SPEECH_VOICE_IDS.some(v => v.toLowerCase() === rawVoiceA.toLowerCase())
+            ) {
+                errors.push(
+                    `Suara Pembicara A "${rawVoiceA}" tidak dikenali. Pilih salah satu dari 30 suara resmi Opus.`
+                );
+            }
+            if (
+                rawVoiceB &&
+                !OPUS_SPEECH_VOICE_IDS.some(v => v.toLowerCase() === rawVoiceB.toLowerCase())
+            ) {
+                errors.push(
+                    `Suara Pembicara B "${rawVoiceB}" tidak dikenali. Pilih salah satu dari 30 suara resmi Opus.`
+                );
+            }
+            if (rawVoiceA && rawVoiceB && rawVoiceA.toLowerCase() === rawVoiceB.toLowerCase()) {
+                errors.push(
+                    "Suara Pembicara A dan Pembicara B harus berbeda agar dialog 2 suara terdengar kontras."
+                );
+            }
+
+            if (source.style_a !== undefined && source.style_a !== null) {
+                if (normalizeString(source.style_a).length > MAX_SPEECH_STYLE_LENGTH) {
+                    errors.push(`Gaya bicara Pembicara A maksimal ${MAX_SPEECH_STYLE_LENGTH} karakter.`);
+                }
+            }
+            if (source.style_b !== undefined && source.style_b !== null) {
+                if (normalizeString(source.style_b).length > MAX_SPEECH_STYLE_LENGTH) {
+                    errors.push(`Gaya bicara Pembicara B maksimal ${MAX_SPEECH_STYLE_LENGTH} karakter.`);
+                }
+            }
+
+            const parsedDialog = parsePodcastDialogScript(scriptText, {
+                voiceA: rawVoiceA,
+                voiceB: rawVoiceB
+            });
+            if (!parsedDialog.valid) {
+                errors.push(parsedDialog.error);
+            } else {
+                const weightedLen = parsedDialog.turns.reduce(
+                    (sum, turn) => sum + computeSpeechWeightedLength(turn.text),
+                    0
+                );
+                if (weightedLen > MAX_SPEECH_WEIGHTED_LENGTH) {
+                    errors.push(
+                        `Total naskah dialog terlalu panjang (${weightedLen} karakter berbobot, maksimal ${MAX_SPEECH_WEIGHTED_LENGTH}).`
+                    );
                 }
             }
         } else if (audioKind === "music") {
@@ -505,6 +654,12 @@ export function createOpusAudioModel(spec) {
             output_urls: outputUrls,
             outputUrl: outputUrls[0] || null,
             audioUrls: outputUrls,
+            ...(audioKind === "podcast"
+                ? {
+                      podcastAudioUrls: outputUrls,
+                      isPodcastConcatRequired: outputUrls.length > 1
+                  }
+                : {}),
             durationSeconds: result.durationSeconds || null,
             lyrics: result.lyrics || null,
             keySlot: Number.isInteger(result.keySlot) ? result.keySlot : 0,

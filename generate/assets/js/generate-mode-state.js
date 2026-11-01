@@ -43,6 +43,7 @@ const KNOWN_OPUS_IMAGE_IDS = Object.freeze([
 
 const KNOWN_OPUS_AUDIO_IDS = Object.freeze([
     "opus-audio-speech",
+    "opus-audio-podcast",
     "opus-audio-music",
     "opus-audio-sfx"
 ]);

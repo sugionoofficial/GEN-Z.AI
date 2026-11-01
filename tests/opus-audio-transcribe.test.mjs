@@ -102,12 +102,13 @@ test("transcript-format: memformat SRT, mem-parse VTT/SRT, dan menormalisasi seg
     assert.match(wordBased.srt, /-->/);
 });
 
-test("opusAudioModels & opusTranscribeModels: katalog, 30 suara resmi, flat 500 kredit, dan validasi", () => {
-    assert.equal(opusAudioModels.length, 3);
+test("opusAudioModels & opusTranscribeModels: katalog, 30 suara resmi, flat 500/1000 kredit, dan validasi", () => {
+    assert.equal(opusAudioModels.length, 4);
     assert.deepEqual(OPUS_AUDIO_MODEL_IDS, [
         "opus-audio-speech",
         "opus-audio-music",
-        "opus-audio-sfx"
+        "opus-audio-sfx",
+        "opus-audio-podcast"
     ]);
     assert.equal(OPUS_SPEECH_VOICES.length, 30);
     assert.equal(opusTranscribeModels.length, 1);
@@ -115,7 +116,8 @@ test("opusAudioModels & opusTranscribeModels: katalog, 30 suara resmi, flat 500 
 
     for (const model of [...opusAudioModels, ...opusTranscribeModels]) {
         assert.equal(model.config.provider, "opus");
-        assert.equal(model.config.adminDefaults.credit_480p, 500);
+        const expectedCredit = model.config.id === "opus-audio-podcast" ? 1000 : 500;
+        assert.equal(model.config.adminDefaults.credit_480p, expectedCredit);
         assert.equal(model.config.adminDefaults.credit_720p, 0);
         assert.equal(model.config.adminDefaults.credit_1080p, 0);
         assert.equal(model.config.adminEditor.resolutionIndependent, true);

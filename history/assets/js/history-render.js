@@ -343,6 +343,7 @@
 
     const GENERATED_AUDIO_MODEL_IDS = [
         "opus-audio-speech",
+        "opus-audio-podcast",
         "opus-audio-music",
         "opus-audio-sfx"
     ];

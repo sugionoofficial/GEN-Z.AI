@@ -8,6 +8,7 @@
 
 import {
     DEFAULT_OPUS_AUDIO_CREDIT,
+    DEFAULT_OPUS_PODCAST_CREDIT,
     OPUS_AUDIO_MODEL_IDS,
     OPUS_AUDIO_SPECS,
     OPUS_SPEECH_VOICES,
@@ -15,6 +16,7 @@ import {
     computeSpeechWeightedLength,
     isOpusAudioModelId
 } from "./specs.js";
+import { parsePodcastDialogScript } from "./podcast-dialog.js";
 import { createOpusAudioModel } from "./factory.js";
 
 export const opusAudioModels = OPUS_AUDIO_SPECS.map(spec =>
@@ -30,12 +32,14 @@ export const opusAudioModelMap = Object.fromEntries(
 
 export {
     DEFAULT_OPUS_AUDIO_CREDIT,
+    DEFAULT_OPUS_PODCAST_CREDIT,
     OPUS_AUDIO_MODEL_IDS,
     OPUS_AUDIO_SPECS,
     OPUS_SPEECH_VOICES,
     OPUS_SPEECH_VOICE_IDS,
     computeSpeechWeightedLength,
-    isOpusAudioModelId
+    isOpusAudioModelId,
+    parsePodcastDialogScript
 };
 
 export default opusAudioModels;

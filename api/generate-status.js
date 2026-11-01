@@ -93,6 +93,7 @@ import { persistGeneratedImage }
 
 import {
     persistGeneratedAudio,
+    persistGeneratedPodcastAudio,
     persistGeneratedTranscript
 } from "../lib/generate/persist-generated-audio.js";
 
@@ -4606,12 +4607,15 @@ export default async function handler(
             const stagedTarget = resolveStagedTargetConfig(
                 stagedJob?.request_payload?.target_duration ??
                 existingHistory?.duration ??
-                30
+                30,
+                stagedJob?.model_id || modelId
             );
             const stageName = cleanString(stagedJob?.current_stage) || "processing";
             const stageMessage =
                 cleanString(stagedJob?.stage_message) ||
-                `Memproses video ${stagedTarget.targetDuration} detik secara bertahap (${stagedTarget.totalClips} × 10 detik)...`;
+                (stagedTarget.isVideoDirector
+                    ? `AI Video Director sedang memproduksi video ${stagedTarget.targetDuration} detik, voiceover & musik latar...`
+                    : `Memproses video ${stagedTarget.targetDuration} detik secara bertahap (${stagedTarget.totalClips} × 10 detik)...`);
 
             return json(
                 res,
@@ -5029,17 +5033,30 @@ export default async function handler(
             Array.isArray(normalized.result_urls) &&
             normalized.result_urls.length > 0
         ) {
-            const persistedAudioRef = await persistGeneratedAudio({
-                sourceUrl: normalized.result_urls[0],
-                userId: user.id,
-                supabaseUrl: SUPABASE_URL,
-                serviceKey: SUPABASE_SERVICE_ROLE_KEY
-            });
+            const isPodcastDialogTask =
+                String(resolvedModelId || "").toLowerCase() === "opus-audio-podcast" ||
+                Boolean(providerResult?.isPodcastConcatRequired);
+
+            const persistedAudioRef = isPodcastDialogTask
+                ? await persistGeneratedPodcastAudio({
+                      sourceUrls: normalized.result_urls,
+                      userId: user.id,
+                      supabaseUrl: SUPABASE_URL,
+                      serviceKey: SUPABASE_SERVICE_ROLE_KEY
+                  })
+                : await persistGeneratedAudio({
+                      sourceUrl: normalized.result_urls[0],
+                      userId: user.id,
+                      supabaseUrl: SUPABASE_URL,
+                      serviceKey: SUPABASE_SERVICE_ROLE_KEY
+                  });
             if (persistedAudioRef) {
-                normalized.result_urls = [
-                    persistedAudioRef,
-                    ...normalized.result_urls.slice(1)
-                ];
+                normalized.result_urls = isPodcastDialogTask
+                    ? [persistedAudioRef]
+                    : [
+                          persistedAudioRef,
+                          ...normalized.result_urls.slice(1)
+                      ];
                 if (
                     normalized.resultJson &&
                     typeof normalized.resultJson === "object"

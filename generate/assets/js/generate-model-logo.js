@@ -163,6 +163,18 @@ const LOGO_MAP = Object.freeze({
     "opus-audio-sfx":
         "gemini.svg",
 
+    "opus-audio-podcast":
+        "gemini.svg",
+
+    "opus-video-director":
+        "seedance.svg",
+
+    "opus-seedance-2.5-t2v-30s":
+        "seedance.svg",
+
+    "opus-seedance-2.5-i2v-30s":
+        "seedance.svg",
+
     "opus-transcribe-audio":
         "gemini.svg"
 
