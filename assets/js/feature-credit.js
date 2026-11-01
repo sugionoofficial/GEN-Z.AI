@@ -8,7 +8,13 @@
         upscale: "Upscale Foto — setiap proses",
         upscale_video: "Upscale Video — setiap proses",
         prompt_studio: "Prompt Studio — setiap Copy Prompt",
-        metadata_cleaner: "Metadata Cleaner — setiap CHECK atau CLEAN"
+        metadata_cleaner: "Metadata Cleaner — setiap CHECK atau CLEAN",
+        opusclip_clipping: "OpusClip AI Clipping — setiap project",
+        opusclip_dubbing: "OpusClip AI Dubbing — setiap video",
+        opusclip_thumbnail: "OpusClip Thumbnail AI — setiap generate",
+        opusclip_censor_edit: "OpusClip Edit & Sensor — setiap proses",
+        opusclip_understanding: "OpusClip Video Understanding — setiap analisis",
+        opusclip_motion_ui: "OpusClip Motion UI — setiap render video"
     };
     let currentCosts = {};
 

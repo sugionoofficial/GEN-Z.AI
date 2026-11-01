@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GEN-Z.AI OpusClip Studio — AI Video Clipping, AI Dubbing, YouTube Thumbnail AI, Sensor Klip, Deep Video Understanding, Motion UI Remotion, &amp; Social Publishing.">
+    <meta name="theme-color" content="#000000">
+    <meta name="color-scheme" content="dark light">
+    <title>GEN-Z.AI — OpusClip Studio</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
+    <script src="../assets/js/config.js"></script>
+    <script src="/assets/js/feature-credit.js?v=feature-history-20261028" defer></script>
+
+    <link rel="stylesheet" href="../assets/css/genz-premium.css?v=navlockup-20261029">
+    <link rel="stylesheet" href="./assets/css/opusclip.css?v=20261101-bagian2">
+    <link rel="stylesheet" href="/assets/css/genz-compact-desktop.css?v=compact-20261022">
+
+    <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
+    <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
+    <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
+    <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
+</head>
+<body class="oc-body" data-feature-credit="opusclip_clipping">
+
+<div id="navigation"></div>
+
+<main class="oc-page" id="ocMain">
+
+    <header class="oc-hero">
+        <div>
+            <span class="oc-kicker">GEN-Z.AI // OPUSCLIP STUDIO BAGIAN 2</span>
+            <h1 class="oc-title">OpusClip <em>AI Video Suite</em></h1>
+            <p class="oc-subtitle">
+                Potong video panjang menjadi Shorts/Reels/TikTok skor viral tinggi, sulih suara AI lintas bahasa,
+                desain Thumbnail YouTube AI, sensor kata kasar server-side, bedah gaya video referensi, hingga render Motion UI Remotion.
+            </p>
+        </div>
+
+        <div class="oc-hero-meta">
+            <div class="oc-credit-box">
+                <span class="oc-credit-label">SALDO KREDIT</span>
+                <strong class="oc-credit-val" id="ocCreditValue">--</strong>
+            </div>
+            <div class="oc-readiness-row" id="ocReadinessBadges">
+                <span class="oc-pill">Memuat status studio…</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="ocGlobalBanner" class="oc-status-bar">
+        Siap digunakan. Pilih tab fitur OpusClip di bawah ini.
+    </div>
+
+    <!-- =====================================================
+         6 TAB WORKSPACE (7 FITUR BAGIAN 2)
+    ====================================================== -->
+    <nav class="oc-tabs" role="tablist" aria-label="Fitur OpusClip Studio">
+        <button type="button" class="oc-tab-btn active" role="tab" aria-selected="true" data-oc-tab="clipping">
+            ✂️ Clipping &amp; Dubbing
+            <span class="oc-tab-cost" id="ocCostBadgeClipping">2.500</span>
+        </button>
+        <button type="button" class="oc-tab-btn" role="tab" aria-selected="false" data-oc-tab="thumbnail">
+            🖼️ Thumbnail YouTube AI
+            <span class="oc-tab-cost" id="ocCostBadgeThumbnail">1.000</span>
+        </button>
+        <button type="button" class="oc-tab-btn" role="tab" aria-selected="false" data-oc-tab="editor">
+            🔇 Editor &amp; Sensor Klip
+            <span class="oc-tab-cost" id="ocCostBadgeEditor">500</span>
+        </button>
+        <button type="button" class="oc-tab-btn" role="tab" aria-selected="false" data-oc-tab="understanding">
+            🧠 Copy Video Style (MCP)
+            <span class="oc-tab-cost" id="ocCostBadgeUnderstanding">1.000</span>
+        </button>
+        <button type="button" class="oc-tab-btn" role="tab" aria-selected="false" data-oc-tab="motion">
+            🎬 Motion UI (Remotion)
+            <span class="oc-tab-cost" id="ocCostBadgeMotion">2.500</span>
+        </button>
+        <button type="button" class="oc-tab-btn" role="tab" aria-selected="false" data-oc-tab="social" id="ocSocialTabBtn" hidden>
+            📡 Social &amp; API Usage (Admin)
+        </button>
+    </nav>
+
+    <!-- =====================================================
+         PANEL 1: AI VIDEO CLIPPING & AI DUBBING (FITUR 1 & 2)
+    ====================================================== -->
+    <section class="oc-panel" data-oc-panel="clipping">
+        <div class="oc-grid-2">
+            <div class="oc-card">
+                <div class="oc-card-head">
+                    <div>
+                        <h2 class="oc-card-title">1. Buat Project Clipping / AI Dubbing</h2>
+                        <p class="oc-card-sub">Mendukung YouTube, Loom, Zoom, Vimeo, Twitch, S3, atau upload video lokal.</p>
+                    </div>
+                </div>
+
+                <div class="oc-mode-toggle" role="radiogroup" aria-label="Pilih mode pemrosesan video">
+                    <button type="button" class="oc-mode-btn active" data-clip-mode="clipping" id="ocModeBtnClipping">
+                        ✂️ AI Video Clipping / Translate Caption<br>
+                        <small id="ocModeLabelClipCost">2.500 kredit / project</small>
+                    </button>
+                    <button type="button" class="oc-mode-btn" data-clip-mode="dubbing" id="ocModeBtnDubbing">
+                        🎙️ AI Video Dubbing Penuh<br>
+                        <small id="ocModeLabelDubCost">3.500 kredit / video</small>
+                    </button>
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocVideoUrl">URL Video Publik atau Upload ID</label>
+                    <input type="text" id="ocVideoUrl" class="oc-input" placeholder="https://www.youtube.com/watch?v=... atau unggah file di bawah">
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocLocalVideoFile">Atau Unggah File Video Lokal (MP4/MOV/WEBM langsung ke Cloud GCS)</label>
+                    <div class="oc-row-2">
+                        <input type="file" id="ocLocalVideoFile" class="oc-input" accept="video/mp4,video/quicktime,video/webm,video/x-m4v">
+                        <button type="button" id="ocUploadLocalVideoBtn" class="oc-btn">☁️ Upload Video ke OpusClip</button>
+                    </div>
+                </div>
+
+                <div class="oc-row-2">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocProjectTitle">Judul Project (Opsional)</label>
+                        <input type="text" id="ocProjectTitle" class="oc-input" placeholder="Contoh: Podcast Episode 12">
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocAspectRatio">Rasio Aspek Output</label>
+                        <select id="ocAspectRatio" class="oc-select">
+                            <option value="portrait">Portrait 9:16 (Shorts / Reels / TikTok)</option>
+                            <option value="landscape">Landscape 16:9 (YouTube)</option>
+                            <option value="square">Square 1:1 (Feed)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Opsi khusus Mode Dubbing -->
+                <div id="ocDubbingFields" hidden>
+                    <div class="oc-row-2">
+                        <div class="oc-field">
+                            <label class="oc-label" for="ocSourceLangDub">Bahasa Asli Video (Opsional)</label>
+                            <select id="ocSourceLangDub" class="oc-select">
+                                <option value="">Deteksi Otomatis</option>
+                                <option value="en">English (en)</option>
+                                <option value="id">Bahasa Indonesia (id)</option>
+                                <option value="ja">Japanese (ja)</option>
+                                <option value="ko">Korean (ko)</option>
+                                <option value="zh">Mandarin (zh)</option>
+                                <option value="es">Spanish (es)</option>
+                            </select>
+                        </div>
+                        <div class="oc-field">
+                            <label class="oc-label" for="ocDubbingLang">Target Bahasa Suara AI Dubbing (Wajib)</label>
+                            <select id="ocDubbingLang" class="oc-select">
+                                <option value="id">Bahasa Indonesia (id)</option>
+                                <option value="en">English (en)</option>
+                                <option value="es">Spanish (es)</option>
+                                <option value="ja">Japanese (ja)</option>
+                                <option value="ko">Korean (ko)</option>
+                                <option value="ar">Arabic (ar)</option>
+                                <option value="fr">French (fr)</option>
+                                <option value="de">German (de)</option>
+                                <option value="pt">Portuguese (pt)</option>
+                                <option value="hi">Hindi (hi)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Opsi khusus Mode Clipping -->
+                <div id="ocClippingFields">
+                    <div class="oc-row-3">
+                        <div class="oc-field">
+                            <label class="oc-label" for="ocCurationModel">Model AI</label>
+                            <select id="ocCurationModel" class="oc-select">
+                                <option value="ClipAnything">ClipAnything (Semua Genre &amp; Visual)</option>
+                                <option value="ClipBasic">ClipBasic (Podcast / Talking Head)</option>
+                            </select>
+                        </div>
+                        <div class="oc-field">
+                            <label class="oc-label" for="ocClipDuration">Target Durasi Klip</label>
+                            <select id="ocClipDuration" class="oc-select">
+                                <option value="auto">Otomatis Terbaik</option>
+                                <option value="0-30">Singkat (&lt; 30 detik)</option>
+                                <option value="30-60">Ideal (30 – 60 detik)</option>
+                                <option value="60-90">Menengah (60 – 90 detik)</option>
+                                <option value="90-180">Panjang (90 – 180 detik)</option>
+                            </select>
+                        </div>
+                        <div class="oc-field">
+                            <label class="oc-label" for="ocTargetLang">Terjemah Caption</label>
+                            <select id="ocTargetLang" class="oc-select">
+                                <option value="">Sesuai Bahasa Asli</option>
+                                <option value="id">Terjemah ke Indonesia (id)</option>
+                                <option value="en">Terjemah ke English (en)</option>
+                                <option value="es">Spanish (es)</option>
+                                <option value="ja">Japanese (ja)</option>
+                                <option value="ko">Korean (ko)</option>
+                                <option value="ar">Arabic (ar)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="oc-row-3">
+                        <div class="oc-field">
+                            <label class="oc-label" for="ocBrandTemplate">Brand Template</label>
+                            <select id="ocBrandTemplate" class="oc-select">
+                                <option value="">Default OpusClip</option>
+                            </select>
+                        </div>
+                        <div class="oc-field">
+                            <label class="oc-label" for="ocRangeStart">Mulai Detik (Opsional)</label>
+                            <input type="number" id="ocRangeStart" class="oc-input" min="0" placeholder="0">
+                        </div>
+                        <div class="oc-field">
+                            <label class="oc-label" for="ocRangeEnd">Sampai Detik (Opsional)</label>
+                            <input type="number" id="ocRangeEnd" class="oc-input" min="1" placeholder="600">
+                        </div>
+                    </div>
+
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocCustomPrompt">Instruksi Kurasi / Kata Kunci Momen (Opsional)</label>
+                        <input type="text" id="ocCustomPrompt" class="oc-input" placeholder="Contoh: ambil momen tips bisnis paling kontroversial &amp; punchline lucu">
+                    </div>
+
+                    <div class="oc-switch-group">
+                        <label class="oc-check"><input type="checkbox" id="ocEnableCaption" checked> Caption Dinamis</label>
+                        <label class="oc-check"><input type="checkbox" id="ocEnableAutoHook"> Auto Viral Hook</label>
+                        <label class="oc-check"><input type="checkbox" id="ocRemoveFiller"> Hapus Kata Filler (um/uh)</label>
+                        <label class="oc-check"><input type="checkbox" id="ocSkipSlicing"> Utuh Tanpa Potong (Skip Slicing)</label>
+                    </div>
+                </div>
+
+                <label class="oc-copyright-box">
+                    <input type="checkbox" id="ocCopyrightConfirm">
+                    <span>
+                        <strong>Konfirmasi Hak Cipta Wajib:</strong> Using video you don't own may violate copyright laws.
+                        By continuing, you confirm this is your own original content (atau Anda memiliki izin resmi).
+                    </span>
+                </label>
+
+                <button type="button" id="ocSubmitProjectBtn" class="oc-btn oc-btn--primary oc-btn--full">
+                    🚀 Proses Project di OpusClip
+                </button>
+            </div>
+
+            <!-- Kolom Kanan: Daftar Project, Transkrip & Koleksi -->
+            <div>
+                <div class="oc-card">
+                    <div class="oc-card-head">
+                        <div>
+                            <h2 class="oc-card-title">Daftar Project &amp; Klip Hasil</h2>
+                            <p class="oc-card-sub">Pilih project untuk memantau klip, melihat skor viralitas, transkrip, atau ekspor HD.</p>
+                        </div>
+                        <button type="button" id="ocRefreshProjectsBtn" class="oc-btn oc-btn--sm">🔄 Muat Project</button>
+                    </div>
+
+                    <div class="oc-row-2">
+                        <div class="oc-field">
+                            <label class="oc-label" for="ocProjectSelect">Pilih Project OpusClip</label>
+                            <select id="ocProjectSelect" class="oc-select">
+                                <option value="">-- Klik Muat Project atau masukkan ID --</option>
+                            </select>
+                        </div>
+                        <div class="oc-field">
+                            <label class="oc-label" for="ocManualProjectId">Atau Tempel Project ID</label>
+                            <input type="text" id="ocManualProjectId" class="oc-input" placeholder="Project ID OpusClip">
+                        </div>
+                    </div>
+
+                    <div class="oc-switch-group">
+                        <button type="button" id="ocLoadClipsBtn" class="oc-btn oc-btn--primary oc-btn--sm">🎞️ Tampilkan Klip</button>
+                        <button type="button" id="ocLoadTranscriptBtn" class="oc-btn oc-btn--sm">📝 Lihat Transkrip</button>
+                        <button type="button" id="ocShareProjectBtn" class="oc-btn oc-btn--sm">🔗 Buka Share Publik</button>
+                        <button type="button" id="ocLoadTemplatesBtn" class="oc-btn oc-btn--sm">🎨 Muat Brand Template</button>
+                    </div>
+
+                    <div id="ocTranscriptBox" hidden style="margin-top: 12px;">
+                        <div class="oc-card-head">
+                            <strong>Transkrip Project (Kata kuning = Filler Word)</strong>
+                            <button type="button" id="ocCopyTranscriptBtn" class="oc-btn oc-btn--sm">📋 Salin Transkrip</button>
+                        </div>
+                        <div id="ocTranscriptContent" class="oc-pre"></div>
+                    </div>
+                </div>
+
+                <div class="oc-card">
+                    <div class="oc-card-head">
+                        <div>
+                            <h3 class="oc-card-title">Koleksi Klip (Collections)</h3>
+                            <p class="oc-card-sub">Kelompokkan klip pilihan dan ekspor batch URL HD sekaligus.</p>
+                        </div>
+                        <button type="button" id="ocLoadCollectionsBtn" class="oc-btn oc-btn--sm">📂 Muat Koleksi</button>
+                    </div>
+                    <div class="oc-row-2">
+                        <input type="text" id="ocNewCollectionName" class="oc-input" placeholder="Nama koleksi baru…">
+                        <button type="button" id="ocCreateCollectionBtn" class="oc-btn oc-btn--sm">➕ Buat Koleksi</button>
+                    </div>
+                    <div class="oc-row-2" style="margin-top: 10px;">
+                        <select id="ocCollectionSelect" class="oc-select">
+                            <option value="">-- Pilih Koleksi Aktif --</option>
+                        </select>
+                        <button type="button" id="ocExportCollectionBtn" class="oc-btn oc-btn--sm">⬇️ Export Semua Klip Koleksi</button>
+                    </div>
+                    <pre id="ocCollectionOutput" class="oc-pre" hidden style="margin-top: 10px;"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="oc-card">
+            <div class="oc-card-head">
+                <h3 class="oc-card-title">Galeri Klip &amp; Skor Viralitas (Hook · Coherence · Connection · Trend)</h3>
+                <span id="ocClipsCountLabel" class="oc-pill">0 Klip</span>
+            </div>
+            <div id="ocClipsGrid" class="oc-clips-grid">
+                <p class="oc-card-sub">Pilih project di atas lalu klik "Tampilkan Klip" untuk memuat video hasil potongan AI.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- =====================================================
+         PANEL 2: AI YOUTUBE THUMBNAIL GENERATOR (FITUR 3)
+    ====================================================== -->
+    <section class="oc-panel" data-oc-panel="thumbnail" hidden>
+        <div class="oc-grid-2">
+            <div class="oc-card">
+                <h2 class="oc-card-title">AI YouTube Thumbnail Generator</h2>
+                <p class="oc-card-sub">Ekstrak frame ekspresif dari video &amp; hasilkan desain thumbnail CTR tinggi secara otomatis.</p>
+
+                <div class="oc-field" style="margin-top: 14px;">
+                    <label class="oc-label" for="ocThumbVideoUrl">URL Video Sumber (YouTube / MP4 Publik)</label>
+                    <input type="text" id="ocThumbVideoUrl" class="oc-input" placeholder="https://www.youtube.com/watch?v=...">
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocThumbPrompt">Instruksi Gaya Thumbnail (Opsional)</label>
+                    <textarea id="ocThumbPrompt" class="oc-textarea" placeholder="Contoh: Ekspresi terkejut close-up, teks kuning tebal kontras tinggi 'RAHASIA AI 2026', pencahayaan dramatis studio"></textarea>
+                </div>
+
+                <div class="oc-row-2">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocThumbRefFile">Gambar Referensi Gaya (Opsional)</label>
+                        <input type="file" id="ocThumbRefFile" class="oc-input" accept="image/png,image/jpeg,image/webp">
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocThumbMaskFile">Mask Image (Opsional)</label>
+                        <input type="file" id="ocThumbMaskFile" class="oc-input" accept="image/png,image/jpeg,image/webp">
+                    </div>
+                </div>
+
+                <button type="button" id="ocSubmitThumbBtn" class="oc-btn oc-btn--primary oc-btn--full">
+                    🖼️ Generate Thumbnail YouTube AI
+                </button>
+            </div>
+
+            <div class="oc-card">
+                <div class="oc-card-head">
+                    <h3 class="oc-card-title">Hasil Thumbnail AI</h3>
+                    <span id="ocThumbStatusBadge" class="oc-pill">Menunggu</span>
+                </div>
+                <div id="ocThumbGallery" class="oc-clips-grid">
+                    <p class="oc-card-sub">Thumbnail yang selesai di-render akan tampil di sini siap diunduh resolusi penuh.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =====================================================
+         PANEL 3: SERVER-SIDE CLIP EDITOR & PROFANITY CENSOR (FITUR 4)
+    ====================================================== -->
+    <section class="oc-panel" data-oc-panel="editor" hidden>
+        <div class="oc-grid-2">
+            <div class="oc-card">
+                <h2 class="oc-card-title">Server-Side Clip Editor &amp; Sensor Kata Kasar</h2>
+                <p class="oc-card-sub">Duplikat klip gratis agar klip asli tetap aman sebelum menyensor kata kasar atau mengubah EditingScript.</p>
+
+                <div class="oc-row-2" style="margin-top: 14px;">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocEditProjectId">Project ID</label>
+                        <input type="text" id="ocEditProjectId" class="oc-input" placeholder="Project ID">
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocEditClipId">Clip ID</label>
+                        <input type="text" id="ocEditClipId" class="oc-input" placeholder="Clip ID (tanpa prefix project)">
+                    </div>
+                </div>
+
+                <div class="oc-switch-group">
+                    <button type="button" id="ocDuplicateClipBtn" class="oc-btn">📑 Duplikat Klip (GRATIS)</button>
+                    <label class="oc-check"><input type="checkbox" id="ocCensorBeep" checked> Efek Suara Beep Sensor</label>
+                    <button type="button" id="ocCensorClipBtn" class="oc-btn oc-btn--primary">🔇 Jalankan Sensor Kata Kasar</button>
+                </div>
+
+                <div id="ocCensorStatusBox" class="oc-status-bar" hidden></div>
+            </div>
+
+            <div class="oc-card">
+                <div class="oc-card-head">
+                    <div>
+                        <h3 class="oc-card-title">EditingScript Inspector &amp; Re-Render</h3>
+                        <p class="oc-card-sub">Ambil struktur timeline/caption klip (`?include=editingScript`), ubah, lalu re-render di server OpusClip.</p>
+                    </div>
+                    <button type="button" id="ocFetchScriptBtn" class="oc-btn oc-btn--sm">📥 Ambil EditingScript</button>
+                </div>
+
+                <div class="oc-field">
+                    <textarea id="ocEditingScriptArea" class="oc-textarea" style="min-height: 210px; font-family: monospace;" placeholder='Klik "Ambil EditingScript" untuk memuat JSON naskah klip…'></textarea>
+                </div>
+
+                <button type="button" id="ocApplyScriptBtn" class="oc-btn oc-btn--primary oc-btn--full">
+                    ⚡ Terapkan EditingScript &amp; Re-Render Klip
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- =====================================================
+         PANEL 4: DEEP VIDEO UNDERSTANDING & COPY VIDEO STYLE (FITUR 6)
+    ====================================================== -->
+    <section class="oc-panel" data-oc-panel="understanding" hidden>
+        <div class="oc-grid-2">
+            <div class="oc-card">
+                <h2 class="oc-card-title">Deep Video Understanding &amp; Copy Video Style</h2>
+                <p class="oc-card-sub">
+                    Terhubung ke MCP <code>mcp.opus.pro</code> untuk membedah ritme cut, tipografi, transisi, dan blueprint gaya editing video referensi (maks 5 menit).
+                </p>
+
+                <div class="oc-field" style="margin-top: 14px;">
+                    <label class="oc-label" for="ocUndMediaUrl">URL File Video Langsung (HTTPS &le; 15 MB) atau Upload ID</label>
+                    <input type="text" id="ocUndMediaUrl" class="oc-input" placeholder="https://.../reference.mp4 atau unggah file di bawah">
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocUndVideoFile">Atau Unggah File Video Referensi (&le; 5 menit)</label>
+                    <div class="oc-row-2">
+                        <input type="file" id="ocUndVideoFile" class="oc-input" accept="video/mp4,video/quicktime,video/webm">
+                        <button type="button" id="ocUndUploadBtn" class="oc-btn">☁️ Upload ke MCP</button>
+                    </div>
+                </div>
+
+                <div class="oc-row-2">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocUndPreset">Mode Analisis</label>
+                        <select id="ocUndPreset" class="oc-select">
+                            <option value="copy_video_style">Blueprint Copy Video Style Lengkap</option>
+                            <option value="viral_teardown">Bedah Psikologi &amp; Struktur Viral</option>
+                            <option value="shot_by_shot">Shot-by-Shot Storyboard &amp; Timestamp</option>
+                        </select>
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocUndDuration">Estimasi Durasi Video (1 – 300 dtk)</label>
+                        <input type="number" id="ocUndDuration" class="oc-input" min="1" max="300" value="60">
+                    </div>
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocUndCustomPrompt">Fokus Pertanyaan Tambahan (Opsional)</label>
+                    <textarea id="ocUndCustomPrompt" class="oc-textarea" placeholder="Contoh: Jelaskan bagaimana gaya teks highlight ini bisa direplikasi ke topik edukasi finansial…"></textarea>
+                </div>
+
+                <button type="button" id="ocSubmitUndBtn" class="oc-btn oc-btn--primary oc-btn--full">
+                    🧠 Analisis Video Referensi Sekarang
+                </button>
+            </div>
+
+            <div class="oc-card">
+                <div class="oc-card-head">
+                    <h3 class="oc-card-title">Blueprint Hasil Analisis</h3>
+                    <div class="oc-switch-group" style="margin-bottom: 0;">
+                        <button type="button" id="ocCopyUndBtn" class="oc-btn oc-btn--sm">📋 Salin</button>
+                        <button type="button" id="ocDownloadUndBtn" class="oc-btn oc-btn--sm">💾 Unduh .TXT</button>
+                    </div>
+                </div>
+                <pre id="ocUndOutput" class="oc-pre">Hasil bedah gaya editing &amp; Copy Video Style akan muncul di sini.</pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- =====================================================
+         PANEL 5: MOTION UI VIDEO TEMPLATES - REMOTION (FITUR 7)
+    ====================================================== -->
+    <section class="oc-panel" data-oc-panel="motion" hidden>
+        <div class="oc-card">
+            <h2 class="oc-card-title">Pilih Template Motion UI (Remotion Studio)</h2>
+            <p class="oc-card-sub">Pratinjau animasi 60fps secara real-time di kanvas interaktif sebelum me-render MP4 Full HD via GitHub Actions.</p>
+            <div id="ocMotionTemplateGrid" class="oc-template-grid" style="margin-top: 12px;"></div>
+        </div>
+
+        <div class="oc-grid-2">
+            <div class="oc-card">
+                <h3 class="oc-card-title">Kustomisasi Konten &amp; Warna Brand</h3>
+
+                <div class="oc-row-3" style="margin-top: 12px;">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiAspect">Rasio Video</label>
+                        <select id="ocMuiAspect" class="oc-select">
+                            <option value="16:9">Landscape 16:9 (1920×1080)</option>
+                            <option value="9:16">Vertical 9:16 (1080×1920)</option>
+                            <option value="1:1">Square 1:1 (1080×1080)</option>
+                        </select>
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiDuration">Durasi MP4</label>
+                        <select id="ocMuiDuration" class="oc-select">
+                            <option value="8">8 Detik</option>
+                            <option value="10" selected>10 Detik</option>
+                            <option value="15">15 Detik</option>
+                        </select>
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiTheme">Tema Latar</label>
+                        <select id="ocMuiTheme" class="oc-select">
+                            <option value="dark">Pitch Dark</option>
+                            <option value="light">Clean Light</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="oc-row-2">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiBrand">Nama Brand</label>
+                        <input type="text" id="ocMuiBrand" class="oc-input">
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiBadge">Teks Badge Atas</label>
+                        <input type="text" id="ocMuiBadge" class="oc-input">
+                    </div>
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocMuiHeadline">Headline Utama</label>
+                    <input type="text" id="ocMuiHeadline" class="oc-input">
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocMuiSubheadline">Subheadline Pendukung</label>
+                    <textarea id="ocMuiSubheadline" class="oc-textarea" style="min-height: 64px;"></textarea>
+                </div>
+
+                <div class="oc-row-3">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiCta">Tombol CTA</label>
+                        <input type="text" id="ocMuiCta" class="oc-input">
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiAccent">Warna Aksen</label>
+                        <input type="color" id="ocMuiAccent" class="oc-input" value="#22c55e" style="height: 41px; padding: 4px;">
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiSecondary">Warna Sekunder</label>
+                        <input type="color" id="ocMuiSecondary" class="oc-input" value="#06b6d4" style="height: 41px; padding: 4px;">
+                    </div>
+                </div>
+
+                <div class="oc-row-3">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiM1Val">Metrik 1 (Label | Nilai)</label>
+                        <input type="text" id="ocMuiM1Label" class="oc-input" placeholder="Label 1" style="margin-bottom: 6px;">
+                        <input type="text" id="ocMuiM1Val" class="oc-input" placeholder="Nilai 1">
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiM2Val">Metrik 2 (Label | Nilai)</label>
+                        <input type="text" id="ocMuiM2Label" class="oc-input" placeholder="Label 2" style="margin-bottom: 6px;">
+                        <input type="text" id="ocMuiM2Val" class="oc-input" placeholder="Nilai 2">
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocMuiM3Val">Metrik 3 (Label | Nilai)</label>
+                        <input type="text" id="ocMuiM3Label" class="oc-input" placeholder="Label 3" style="margin-bottom: 6px;">
+                        <input type="text" id="ocMuiM3Val" class="oc-input" placeholder="Nilai 3">
+                    </div>
+                </div>
+
+                <button type="button" id="ocSubmitMotionBtn" class="oc-btn oc-btn--primary oc-btn--full">
+                    🎬 Render Video MP4 Full HD (Remotion Cloud)
+                </button>
+            </div>
+
+            <div>
+                <div class="oc-card">
+                    <div class="oc-card-head">
+                        <h3 class="oc-card-title">Live Interactive Preview (Gratis)</h3>
+                        <button type="button" id="ocReplayCanvasBtn" class="oc-btn oc-btn--sm">▶️ Ulangi Animasi</button>
+                    </div>
+                    <div class="oc-canvas-wrap">
+                        <canvas id="ocMotionCanvas" width="960" height="540"></canvas>
+                    </div>
+                </div>
+
+                <div class="oc-card">
+                    <div class="oc-card-head">
+                        <h3 class="oc-card-title">Antrean &amp; Hasil Render MP4 Saya</h3>
+                        <button type="button" id="ocRefreshMotionJobsBtn" class="oc-btn oc-btn--sm">🔄 Cek Status Render</button>
+                    </div>
+                    <div id="ocMotionJobsList">
+                        <p class="oc-card-sub">Belum ada antrean render Motion UI.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =====================================================
+         PANEL 6: SOCIAL POSTING & ORG API USAGE (KHUSUS ADMIN/OWNER)
+    ====================================================== -->
+    <section class="oc-panel" data-oc-panel="social" id="ocSocialPanel" hidden>
+        <div class="oc-grid-2">
+            <div class="oc-card">
+                <div class="oc-card-head">
+                    <div>
+                        <h2 class="oc-card-title">Multi-Platform Social Publishing &amp; Scheduling</h2>
+                        <p class="oc-card-sub">Publikasikan atau jadwalkan klip ke YouTube, TikTok, Instagram, Facebook, LinkedIn, &amp; X.</p>
+                    </div>
+                    <button type="button" id="ocLoadSocialAccountsBtn" class="oc-btn oc-btn--sm">🔄 Muat Akun</button>
+                </div>
+
+                <div class="oc-row-2">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocSocProjectId">Project ID</label>
+                        <input type="text" id="ocSocProjectId" class="oc-input" placeholder="Project ID">
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocSocClipId">Clip ID</label>
+                        <input type="text" id="ocSocClipId" class="oc-input" placeholder="Clip ID">
+                    </div>
+                </div>
+
+                <div class="oc-row-2">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocSocAccountSelect">Akun Sosial Terhubung</label>
+                        <select id="ocSocAccountSelect" class="oc-select">
+                            <option value="">-- Klik Muat Akun --</option>
+                        </select>
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocSocPlatform">Platform</label>
+                        <select id="ocSocPlatform" class="oc-select">
+                            <option value="YOUTUBE">YOUTUBE</option>
+                            <option value="TIKTOK">TIKTOK</option>
+                            <option value="INSTAGRAM">INSTAGRAM</option>
+                            <option value="FACEBOOK">FACEBOOK</option>
+                            <option value="LINKEDIN">LINKEDIN</option>
+                            <option value="X">X (Twitter)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="oc-switch-group">
+                    <button type="button" id="ocGenSocialCopyBtn" class="oc-btn oc-btn--sm">✨ Generate AI Caption &amp; Hashtags</button>
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocSocTitle">Judul Postingan</label>
+                    <input type="text" id="ocSocTitle" class="oc-input" placeholder="Judul video / Shorts">
+                </div>
+
+                <div class="oc-field">
+                    <label class="oc-label" for="ocSocDesc">Deskripsi / Caption</label>
+                    <textarea id="ocSocDesc" class="oc-textarea" placeholder="Caption sosial media…"></textarea>
+                </div>
+
+                <div class="oc-row-2">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocSocTags">Hashtags (pisahkan koma/spasi)</label>
+                        <input type="text" id="ocSocTags" class="oc-input" placeholder="#shorts #viral #ai">
+                    </div>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocSocScheduleTime">Jadwal Tayang (Kosong = Langsung)</label>
+                        <input type="datetime-local" id="ocSocScheduleTime" class="oc-input">
+                    </div>
+                </div>
+
+                <div class="oc-row-2">
+                    <button type="button" id="ocPublishNowBtn" class="oc-btn oc-btn--primary">🚀 Publish Sekarang</button>
+                    <button type="button" id="ocSchedulePostBtn" class="oc-btn">📅 Jadwalkan Tayang</button>
+                </div>
+            </div>
+
+            <div>
+                <div class="oc-card">
+                    <div class="oc-card-head">
+                        <h3 class="oc-card-title">Kuota &amp; Pemakaian API Organisasi</h3>
+                        <button type="button" id="ocLoadApiUsageBtn" class="oc-btn oc-btn--sm">📊 Cek /api-usage</button>
+                    </div>
+                    <pre id="ocApiUsageBox" class="oc-pre">Klik "Cek /api-usage" untuk melihat sisa kuota API organisasi OpusClip.</pre>
+                </div>
+
+                <div class="oc-card">
+                    <div class="oc-card-head">
+                        <h3 class="oc-card-title">Daftar Postingan Terjadwal &amp; Riwayat</h3>
+                        <button type="button" id="ocLoadScheduledBtn" class="oc-btn oc-btn--sm">🔄 Muat Jadwal</button>
+                    </div>
+                    <div id="ocScheduledPostsList">
+                        <p class="oc-card-sub">Klik "Muat Jadwal" untuk melihat antrean publikasi sosial.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<script src="/navigation/navigation.js?v=opusclip-nav-20261101"></script>
+<script type="module" src="./assets/js/opusclip-app.js?v=20261101-bagian2"></script>
+<script src="/assets/js/support-chat.js?v=touch-close-20261029" defer></script>
+<script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
+</body>
+</html>

@@ -18,6 +18,8 @@ import opusOAuthLogin from "../api/opus-oauth-login.js";
 import opusOAuthCallback from "../api/opus-oauth-callback.js";
 import opusVoicePreview from "../api/opus-voice-preview.js";
 import opusBlackbox from "../api/opus-blackbox.js";
+import opusclipBlackbox from "../api/opusclip-blackbox.js";
+import opusclip from "../api/opusclip.js";
 import sightengineDetect from "../api/sightengine-detect.js";
 import socialPublisher from "../api/social-publisher.js";
 import facebookDataDeletion from "../api/facebook-data-deletion.js";
@@ -52,6 +54,8 @@ const handlers = new Map([
     ["/api/opus-oauth-callback", opusOAuthCallback],
     ["/api/opus-voice-preview", opusVoicePreview],
     ["/api/opus-blackbox", opusBlackbox],
+    ["/api/opusclip-blackbox", opusclipBlackbox],
+    ["/api/opusclip", opusclip],
     ["/api/sightengine-detect", sightengineDetect],
     ["/api/social-publisher", socialPublisher],
     ["/api/facebook-oauth-callback", socialPublisher],
