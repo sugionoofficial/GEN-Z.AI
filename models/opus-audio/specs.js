@@ -113,6 +113,7 @@ export const OPUS_AUDIO_SPECS = Object.freeze([
         modelAliases: [
             "gemini-3.8-flash-tts",
             "google/gemini-3.8-flash-tts",
+            "seed-audio-1.0",
             "gemini-2.5-flash-preview-tts",
             "gemini-tts",
             "speech"
@@ -129,10 +130,16 @@ export const OPUS_AUDIO_SPECS = Object.freeze([
         upstreamModel: "lyria-3.5",
         modelAliases: [
             "lyria-3.5",
-            "google/lyria-3.5",
+            "lyria-3-pro-preview",
+            "lyria-3-pro",
+            "lyria-3-clip-preview",
             "lyria-3",
-            "lyria-2",
-            "music"
+            "google/lyria-3.5",
+            "google/lyria-3-pro-preview",
+            "elevenlabs-music",
+            "minimax-music",
+            "music",
+            "lyria-2"
         ],
         logo: "gemini.svg",
         description:

@@ -16,6 +16,191 @@
 import { inspectReferenceMediaUrl } from "../../assets/js/media-url-guard.js";
 import { normalizeTranscriptPayload } from "../../assets/js/transcript-format.js";
 
+const MAX_LYRIA_PROMPT_CHARS = 7950;
+
+/**
+ * Menormalisasi lirik lagu pengguna agar selalu memiliki penanda struktur
+ * `[Verse]` / `[Chorus]` yang dibutuhkan Google Lyria 3 / Lyria 3.5 pada Opus Labs.
+ * Lirik tetap dipertahankan dalam bahasa aslinya (Indonesia, Inggris, dll.).
+ */
+export function formatMusicLyricsForLyria(rawLyrics) {
+    const cleaned = String(rawLyrics || "")
+        .replace(/\r\n?/g, "\n")
+        .trim();
+    if (!cleaned) return "";
+
+    /* Konversi header bagian lagu Bahasa Indonesia atau baris tanpa kurung siku menjadi tag standar Lyria */
+    const normalizedHeaders = cleaned
+        .replace(/^\s*\[\s*bait(?:\s+(\d+))?\s*\]\s*$/gim, (_m, num) => (num ? `[Verse ${num}]` : "[Verse]"))
+        .replace(/^\s*\[\s*(?:reff|refrain|korus)(?:\s+(\d+))?\s*\]\s*$/gim, (_m, num) =>
+            num ? `[Chorus ${num}]` : "[Chorus]"
+        )
+        .replace(/^\s*bait(?:\s+(\d+))?\s*:?\s*$/gim, (_m, num) => (num ? `[Verse ${num}]` : "[Verse]"))
+        .replace(/^\s*(?:reff|refrain|korus)(?:\s+(\d+))?\s*:?\s*$/gim, (_m, num) =>
+            num ? `[Chorus ${num}]` : "[Chorus]"
+        )
+        .replace(
+            /^\s*(verse(?:\s+\d+)?|pre-chorus|post-chorus|chorus(?:\s+\d+)?|bridge|intro|outro|hook)\s*:?\s*$/gim,
+            (_m, tag) => {
+                const formatted = String(tag)
+                    .trim()
+                    .replace(/\s+/g, " ")
+                    .replace(/\b[a-z]/g, ch => ch.toUpperCase());
+                return `[${formatted}]`;
+            }
+        );
+
+    const hasExplicitSectionTag =
+        /^\s*\[(?:verse|chorus|pre-chorus|post-chorus|bridge|intro|outro|hook|refrain)\b[^\]]*\]/im.test(
+            normalizedHeaders
+        );
+    if (hasExplicitSectionTag) {
+        return normalizedHeaders;
+    }
+
+    const blocks = normalizedHeaders
+        .split(/\n\s*\n+/)
+        .map(block =>
+            block
+                .split("\n")
+                .map(line => line.trim())
+                .filter(Boolean)
+                .join("\n")
+        )
+        .filter(Boolean);
+
+    if (blocks.length === 0) return "";
+
+    if (blocks.length === 1) {
+        const lines = blocks[0]
+            .split("\n")
+            .map(line => line.trim())
+            .filter(Boolean);
+        if (lines.length <= 1) {
+            return `[Chorus]\n${lines[0]}`;
+        }
+        if (lines.length <= 3) {
+            return `[Verse]\n${lines[0]}\n\n[Chorus]\n${lines.slice(1).join("\n")}`;
+        }
+        const splitIdx = Math.ceil(lines.length / 2);
+        return `[Verse]\n${lines.slice(0, splitIdx).join("\n")}\n\n[Chorus]\n${lines.slice(splitIdx).join("\n")}`;
+    }
+
+    if (blocks.length === 2) {
+        return `[Verse]\n${blocks[0]}\n\n[Chorus]\n${blocks[1]}`;
+    }
+
+    let verseCounter = 1;
+    return blocks
+        .map((block, idx) => {
+            if (idx === 1 || (idx === blocks.length - 1 && idx >= 3)) {
+                return `[Chorus]\n${block}`;
+            }
+            if (blocks.length >= 5 && idx === blocks.length - 2) {
+                return `[Bridge]\n${block}`;
+            }
+            const tag = `[Verse ${verseCounter}]`;
+            verseCounter += 1;
+            return `${tag}\n${block}`;
+        })
+        .join("\n\n");
+}
+
+function sanitizeMusicStyleForVocals(rawPrompt) {
+    const cleaned = String(rawPrompt || "")
+        .replace(/\binstrumental\s+only\s*,?\s*no\s+vocals?\.?/gi, "")
+        .replace(/\bno\s+vocals?\b/gi, "")
+        .replace(/\bwithout\s+vocals?\b/gi, "")
+        .replace(/\btanpa\s+vokal\b/gi, "")
+        .replace(/\bmusik\s+instrumen(?:tal)?\b/gi, "lagu")
+        .replace(/\binstrumental(?:\s+only)?\b/gi, "")
+        .replace(/\bbgm\b/gi, "song")
+        .replace(/\s{2,}/g, " ")
+        .replace(/^[\s,.;:-]+|[\s,;:-]+$/g, "")
+        .trim();
+    return cleaned || String(rawPrompt || "").trim();
+}
+
+/**
+ * Menyusun prompt musik Google Lyria 3 / Lyria 3.5 sesuai kontrak resmi Opus Labs:
+ * - Di Lyria 3.5, `prompt` adalah kontrol utama untuk genre, durasi, vokal, dan lirik `[Verse]`/`[Chorus]`.
+ * - Mode vokal selalu menyertakan arahan vokal eksplisit, waktu masuk vokal awal (agar klip 15–30 detik
+ *   tidak habis oleh intro instrumental panjang), serta lirik berstruktur `[Verse]`/`[Chorus]` di dalam `prompt`.
+ */
+export function buildLyriaMusicPrompt({
+    prompt = "",
+    text = "",
+    vocalMode = "instrumental",
+    lyrics = "",
+    durationSeconds = null,
+    includeTargetLengthInPrompt = true
+} = {}) {
+    const cleanLyrics = String(lyrics || "").trim();
+    const normalizedMode = String(vocalMode || "").trim().toLowerCase();
+    const isInstrumental = !cleanLyrics && normalizedMode !== "vocal";
+    const rawStyle = String(prompt || text || "").trim();
+    const roundedDur =
+        Number.isFinite(Number(durationSeconds)) && Number(durationSeconds) > 0
+            ? Math.round(Number(durationSeconds))
+            : null;
+
+    if (isInstrumental) {
+        const parts = [rawStyle].filter(Boolean);
+        if (roundedDur && includeTargetLengthInPrompt) {
+            parts.push(`Target length: about ${roundedDur} seconds.`);
+        }
+        if (!/instrumental/i.test(parts.join(" "))) {
+            parts.push("Instrumental only, no vocals.");
+        }
+        return {
+            isInstrumental: true,
+            structuredLyrics: "",
+            musicPrompt: parts.join("\n\n").trim().slice(0, MAX_LYRIA_PROMPT_CHARS)
+        };
+    }
+
+    const vocalStyle = sanitizeMusicStyleForVocals(rawStyle);
+    const structuredLyrics = cleanLyrics ? formatMusicLyricsForLyria(cleanLyrics) : "";
+    const parts = [vocalStyle].filter(Boolean);
+
+    const lengthPrefix =
+        roundedDur && includeTargetLengthInPrompt ? `Target length: about ${roundedDur} seconds. ` : "";
+    if (roundedDur && roundedDur <= 20) {
+        parts.push(
+            `${lengthPrefix}Arrangement & vocals: lead vocals enter immediately at 0:00 with no instrumental intro; prominent, clear, expressive sung lead vocals carrying a strong vocal melody to a clean ending (full vocal song, not instrumental).`
+        );
+    } else if (!roundedDur || roundedDur <= 40) {
+        parts.push(
+            `${lengthPrefix}Arrangement & vocals: brief 1-2 second musical pickup, then prominent, clear, expressive sung lead vocals enter immediately at 0:02 and sing continuously to a clean ending (no long instrumental intro; full vocal song, not instrumental).`
+        );
+    } else {
+        parts.push(
+            `${lengthPrefix}Arrangement & vocals: short 2-4 second musical intro, then prominent, clear, expressive sung lead vocals enter early by 0:04 and sing clearly through verse and chorus to a clean ending (full vocal song, not instrumental).`
+        );
+    }
+
+    if (structuredLyrics) {
+        parts.push(
+            `Sing the following lyrics clearly in their written language:\n\n${structuredLyrics}`
+        );
+    } else {
+        parts.push(
+            "Vocals: include natural, expressive sung lead vocals with clear melodic lyrics matching the song's mood and language (not instrumental)."
+        );
+    }
+
+    let finalPrompt = parts.join("\n\n").trim();
+    if (finalPrompt.length > MAX_LYRIA_PROMPT_CHARS) {
+        finalPrompt = finalPrompt.slice(0, MAX_LYRIA_PROMPT_CHARS).trim();
+    }
+
+    return {
+        isInstrumental: false,
+        structuredLyrics,
+        musicPrompt: finalPrompt
+    };
+}
+
 export function isLikelyAudioOutputUrl(url, keyHint = "", mimeHint = "") {
     const clean = String(url || "").trim();
     if (!clean) return false;
@@ -616,10 +801,13 @@ export function createOpusAudioTools(deps) {
         return "";
     }
 
-    function getAudioKindCandidates(audioKind) {
+    function getAudioKindCandidates(audioKind, vocalMode = "instrumental") {
         const normalized = String(audioKind || "speech").trim().toLowerCase();
         if (normalized === "music") {
-            return ["music", "bgm", "song", "soundtrack", "musical", "background_music"];
+            const isVocal = String(vocalMode || "").trim().toLowerCase() === "vocal";
+            return isVocal
+                ? ["music", "song", "vocal_music", "soundtrack", "musical", "bgm", "background_music"]
+                : ["music", "bgm", "soundtrack", "background_music", "musical", "song"];
         }
         if (normalized === "sfx" || normalized === "sound_effect" || normalized === "sound_effects") {
             return ["sfx", "sound_effect", "sound_effects", "soundEffect", "soundEffects", "effect", "fx", "sound"];
@@ -630,6 +818,8 @@ export function createOpusAudioTools(deps) {
     function scoreAudioSchemaBranch(branchObj, rootSchema, params = {}) {
         const props = branchObj?.properties || {};
         const audioKind = String(params.audioKind || "speech").toLowerCase();
+        const effectiveVocal =
+            params.lyrics || String(params.vocalMode || "").toLowerCase() === "vocal" ? "vocal" : "instrumental";
         let score = 0;
 
         const kindKey = pickSupportedKey(
@@ -640,7 +830,10 @@ export function createOpusAudioTools(deps) {
         if (kindKey) {
             const allowedKinds = extractAllowedValues(props[kindKey], rootSchema);
             if (allowedKinds.length > 0) {
-                const matched = matchEnumCaseInsensitive(getAudioKindCandidates(audioKind), allowedKinds);
+                const matched = matchEnumCaseInsensitive(
+                    getAudioKindCandidates(audioKind, effectiveVocal),
+                    allowedKinds
+                );
                 score += matched !== null ? 45 : -45;
             }
         }
@@ -650,7 +843,15 @@ export function createOpusAudioTools(deps) {
             if (pickSupportedKey(props, ["text", "script", "narration", "transcript"], "")) score += 20;
             if (pickSupportedKey(props, ["style", "delivery", "direction", "persona"], "")) score += 10;
         } else if (audioKind === "music") {
-            if (pickSupportedKey(props, ["lyrics", "instrumental", "bpm", "genre"], "")) score += 25;
+            if (
+                pickSupportedKey(
+                    props,
+                    ["lyrics", "lyricsPrompt", "lyrics_prompt", "instrumental", "force_instrumental", "bpm", "genre"],
+                    ""
+                )
+            ) {
+                score += 25;
+            }
             if (pickSupportedKey(props, ["prompt", "description", "brief"], "")) score += 20;
             if (pickSupportedKey(props, ["durationSeconds", "duration_seconds", "duration"], "")) score += 10;
         } else {
@@ -794,6 +995,12 @@ export function createOpusAudioTools(deps) {
             target[maxCreditsKey] = typeof maxCredits === "number" ? maxCredits : 0;
         }
 
+        const effectiveVocalMode =
+            audioKind === "music" &&
+            (String(lyrics || "").trim().length > 0 || String(vocalMode || "").trim().toLowerCase() === "vocal")
+                ? "vocal"
+                : String(vocalMode || "instrumental").trim().toLowerCase() || "instrumental";
+
         const kindKey = pickSupportedKey(
             props,
             ["audioType", "audio_type", "type", "kind", "category", "mode", "workflow"],
@@ -805,7 +1012,7 @@ export function createOpusAudioTools(deps) {
                 Array.isArray(discoveredAllowedKinds) && discoveredAllowedKinds.length > 0
                     ? discoveredAllowedKinds
                     : schemaKinds;
-            const kindCandidates = getAudioKindCandidates(audioKind);
+            const kindCandidates = getAudioKindCandidates(audioKind, effectiveVocalMode);
             if (allowedKinds.length > 0) {
                 const matchedKind = matchEnumCaseInsensitive(kindCandidates, allowedKinds);
                 if (matchedKind !== null) {
@@ -829,13 +1036,31 @@ export function createOpusAudioTools(deps) {
                 Array.isArray(discoveredAllowedModels) && discoveredAllowedModels.length > 0
                     ? discoveredAllowedModels
                     : schemaModels;
-            const candidates = [opusModel, ...(Array.isArray(modelAliases) ? modelAliases : [])].filter(Boolean);
+            const rawCandidates = [opusModel, ...(Array.isArray(modelAliases) ? modelAliases : [])].filter(Boolean);
+            /* Untuk mode vokal pada musik, hindari fallback ke Lyria 2 (instrumental-only) jika ada model vokal (Lyria 3/3.5, dll.) */
+            const candidates =
+                audioKind === "music" && effectiveVocalMode === "vocal"
+                    ? rawCandidates.filter(c => !/^lyria-?0*2$/i.test(String(c).trim()))
+                    : rawCandidates;
             if (allowedModels.length > 0) {
-                const matchedModel = matchEnumCaseInsensitive(candidates, allowedModels);
+                let matchedModel = matchEnumCaseInsensitive(candidates, allowedModels);
+                if (matchedModel === null && audioKind === "music") {
+                    const preferredSubstr =
+                        effectiveVocalMode === "vocal"
+                            ? allowedModels.find(m => /lyria-?3|elevenlabs|minimax|ace/i.test(String(m)))
+                            : allowedModels.find(m => /lyria/i.test(String(m)));
+                    if (preferredSubstr !== undefined) {
+                        matchedModel = preferredSubstr;
+                    }
+                }
                 if (matchedModel !== null) {
                     target[modelKey] = matchedModel;
                 } else if (required.includes(modelKey)) {
-                    target[modelKey] = allowedModels[0];
+                    const nonLyria2 =
+                        audioKind === "music" && effectiveVocalMode === "vocal"
+                            ? allowedModels.find(m => !/lyria-?0*2\b/i.test(String(m)))
+                            : undefined;
+                    target[modelKey] = nonLyria2 !== undefined ? nonLyria2 : allowedModels[0];
                 }
             } else if (required.includes(modelKey)) {
                 target[modelKey] = opusModel;
@@ -881,38 +1106,110 @@ export function createOpusAudioTools(deps) {
                 }
             }
         } else if (audioKind === "music") {
-            const lyricsKey = pickSupportedKey(props, ["lyrics", "lyric", "vocalLyrics", "songLyrics"], "");
-            const instrumentalKey = pickSupportedKey(props, ["instrumental", "isInstrumental", "instrumentalOnly"], "");
-            const isInstrumental = String(vocalMode || "instrumental").toLowerCase() !== "vocal";
-            const cleanLyrics = String(lyrics || "").trim();
+            const hasDedicatedDurationKey = Boolean(
+                pickSupportedKey(
+                    props,
+                    [
+                        "durationSeconds",
+                        "duration_seconds",
+                        "duration",
+                        "lengthSeconds",
+                        "length_seconds",
+                        "musicLengthMs",
+                        "music_length_ms"
+                    ],
+                    ""
+                )
+            );
 
+            const { isInstrumental, structuredLyrics, musicPrompt } = buildLyriaMusicPrompt({
+                prompt,
+                text,
+                vocalMode: effectiveVocalMode,
+                lyrics,
+                durationSeconds,
+                includeTargetLengthInPrompt: !hasDedicatedDurationKey
+            });
+
+            const instrumentalKey = pickSupportedKey(
+                props,
+                [
+                    "instrumental",
+                    "isInstrumental",
+                    "is_instrumental",
+                    "instrumentalOnly",
+                    "instrumental_only",
+                    "forceInstrumental",
+                    "force_instrumental",
+                    "makeInstrumental",
+                    "make_instrumental"
+                ],
+                ""
+            );
             if (instrumentalKey && schemaTypeIncludes(props?.[instrumentalKey], rootSchema, "boolean")) {
                 target[instrumentalKey] = isInstrumental;
             }
-            if (lyricsKey && !isInstrumental && cleanLyrics) {
-                target[lyricsKey] = cleanLyrics;
+
+            const vocalBoolKey = pickSupportedKey(
+                props,
+                [
+                    "vocals",
+                    "hasVocals",
+                    "has_vocals",
+                    "withVocals",
+                    "with_vocals",
+                    "enableVocals",
+                    "enable_vocals"
+                ],
+                ""
+            );
+            if (vocalBoolKey && schemaTypeIncludes(props?.[vocalBoolKey], rootSchema, "boolean")) {
+                target[vocalBoolKey] = !isInstrumental;
             }
 
-            const promptParts = [String(prompt || text || "").trim()].filter(Boolean);
-            if (
-                Number.isFinite(Number(durationSeconds)) &&
-                Number(durationSeconds) > 0 &&
-                !pickSupportedKey(props, ["durationSeconds", "duration_seconds", "duration", "lengthSeconds"], "")
-            ) {
-                promptParts.push(`Target length: about ${Math.round(Number(durationSeconds))} seconds.`);
-            }
-            if (isInstrumental) {
-                if (!/instrumental/i.test(promptParts.join(" "))) {
-                    promptParts.push("Instrumental only, no vocals.");
+            const vocalModeKey = pickSupportedKey(
+                props,
+                ["vocalMode", "vocal_mode", "vocalsMode", "vocals_mode", "musicMode", "music_mode"],
+                ""
+            );
+            if (vocalModeKey && vocalModeKey !== kindKey) {
+                const allowedVocalModes = extractAllowedValues(props?.[vocalModeKey], rootSchema);
+                const modeCandidates = isInstrumental
+                    ? ["instrumental", "bgm", "none", "no_vocals"]
+                    : ["vocal", "vocals", "lyrics", "song", "sung", "with_vocals"];
+                if (allowedVocalModes.length > 0) {
+                    const matchedVocalMode = matchEnumCaseInsensitive(modeCandidates, allowedVocalModes);
+                    if (matchedVocalMode !== null) {
+                        target[vocalModeKey] = matchedVocalMode;
+                    }
+                } else if (!minimal || required.includes(vocalModeKey)) {
+                    target[vocalModeKey] = isInstrumental ? "instrumental" : "vocal";
                 }
-            } else if (cleanLyrics && !lyricsKey) {
-                promptParts.push(`Lyrics:\n${cleanLyrics}`);
             }
 
-            const musicPrompt = promptParts.join("\n\n").trim();
+            const lyricsKey = pickSupportedKey(
+                props,
+                [
+                    "lyrics",
+                    "lyric",
+                    "lyricsPrompt",
+                    "lyrics_prompt",
+                    "vocalLyrics",
+                    "vocal_lyrics",
+                    "songLyrics",
+                    "song_lyrics",
+                    "customLyrics",
+                    "custom_lyrics"
+                ],
+                ""
+            );
+            if (lyricsKey && !isInstrumental && structuredLyrics) {
+                target[lyricsKey] = structuredLyrics;
+            }
+
             const promptKey = pickSupportedKey(
                 props,
-                ["prompt", "description", "brief", "instruction", "text"],
+                ["prompt", "description", "brief", "instruction", "text", "tags"],
                 !props ? "prompt" : ""
             );
             if (promptKey && musicPrompt) {
@@ -1076,8 +1373,12 @@ export function createOpusAudioTools(deps) {
                 );
                 if (topKindKey && (!minimal || topRequired.includes(topKindKey))) {
                     const allowedTopKinds = extractAllowedValues(topProps[topKindKey], rootSchema);
+                    const topVocalMode =
+                        params.lyrics || String(params.vocalMode || "").toLowerCase() === "vocal"
+                            ? "vocal"
+                            : "instrumental";
                     const matchedKind = matchEnumCaseInsensitive(
-                        getAudioKindCandidates(params.audioKind),
+                        getAudioKindCandidates(params.audioKind, topVocalMode),
                         allowedTopKinds
                     );
                     if (matchedKind !== null) {
@@ -1243,14 +1544,21 @@ export function createOpusAudioTools(deps) {
         const usesCreateProject = Boolean(findMcpTool(session.tools, "create_project"));
         const projectId = usesCreateProject ? await ensureProjectId(session) : "";
 
+        const cleanPayloadLyrics = String(payload.lyrics || "").trim();
+        const rawPayloadVocalMode = String(payload.vocal_mode || payload.vocalMode || "").trim().toLowerCase();
+        const resolvedVocalMode =
+            audioKind === "music" && payload.force_instrumental !== true && (rawPayloadVocalMode === "vocal" || Boolean(cleanPayloadLyrics))
+                ? "vocal"
+                : rawPayloadVocalMode || "instrumental";
+
         const baseBuildParams = {
             audioKind,
             text: String(payload.text || "").trim(),
             prompt: String(payload.prompt || "").trim(),
             voice: String(payload.voice || "Sulafat").trim(),
             style: String(payload.style || "").trim(),
-            vocalMode: String(payload.vocal_mode || "instrumental").trim(),
-            lyrics: String(payload.lyrics || "").trim(),
+            vocalMode: resolvedVocalMode,
+            lyrics: resolvedVocalMode === "vocal" ? cleanPayloadLyrics : "",
             durationSeconds:
                 payload.duration !== undefined && payload.duration !== null && payload.duration !== ""
                     ? Number(payload.duration)

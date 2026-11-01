@@ -40,10 +40,12 @@ import {
     opusTranscribeModels
 } from "../models/opus-transcribe/index.js";
 import {
+    buildLyriaMusicPrompt,
     createAudioTask,
     createTranscribeTask,
     extractAudioUrls,
     extractTranscriptUrls,
+    formatMusicLyricsForLyria,
     getAudioTask,
     getTranscribeTask
 } from "../provider/opus/client.js";
@@ -879,4 +881,196 @@ test("Regresi skema live Opus MCP transcribe_audio: keys=[audio,purpose,language
         await new Promise(resolve => server.close(resolve));
     }
 });
+
+test("Lyria 3.5 vocal & lyrics: memformat tag [Verse]/[Chorus] otomatis dan selalu menyematkan lirik ke dalam prompt", async () => {
+    /* 1. Baris lirik polos tanpa tag -> otomatis diberi [Verse] & [Chorus] tanpa menghilangkan lirik asli */
+    const plainIndoLyrics = [
+        "Melangkah sendiri di malam yang tenang",
+        "Menatap bintang di langit tinggi",
+        "Takkan menyerah mengejar harapan",
+        "Kita bersinar menyambut pagi"
+    ].join("\n");
+    const structuredPlain = formatMusicLyricsForLyria(plainIndoLyrics);
+    assert.match(structuredPlain, /\[Verse\]/);
+    assert.match(structuredPlain, /\[Chorus\]/);
+    assert.match(structuredPlain, /Melangkah sendiri di malam yang tenang/);
+    assert.match(structuredPlain, /Kita bersinar menyambut pagi/);
+
+    /* 2. Tag Bahasa Indonesia ([Bait 1], [Reff]) dinormalisasi ke [Verse 1], [Chorus] */
+    const indoTagged = formatMusicLyricsForLyria("[Bait 1]\nLangkah pertama\n\n[Reff]\nTerbang bersama");
+    assert.match(indoTagged, /^\[Verse 1\]/m);
+    assert.match(indoTagged, /^\[Chorus\]/m);
+
+    /* 3. buildLyriaMusicPrompt: vokal + lirik membersihkan kata kontradiktif & menyertakan waktu masuk vokal awal */
+    const vocalBuilt = buildLyriaMusicPrompt({
+        prompt: "BGM pop akustik instrumental lembut dengan gitar akustik, 92 BPM",
+        vocalMode: "vocal",
+        lyrics: plainIndoLyrics,
+        durationSeconds: 30,
+        includeTargetLengthInPrompt: true
+    });
+    assert.equal(vocalBuilt.isInstrumental, false);
+    assert.doesNotMatch(vocalBuilt.musicPrompt, /Instrumental only, no vocals/i);
+    assert.match(vocalBuilt.musicPrompt, /Target length: about 30 seconds\./);
+    assert.match(vocalBuilt.musicPrompt, /enter immediately at 0:02/);
+    assert.match(vocalBuilt.musicPrompt, /not instrumental/i);
+    assert.match(vocalBuilt.musicPrompt, /\[Verse\]/);
+    assert.match(vocalBuilt.musicPrompt, /\[Chorus\]/);
+    assert.match(vocalBuilt.musicPrompt, /Kita bersinar menyambut pagi/);
+
+    /* 4. Mode vokal tanpa lirik kustom tetap memberi instruksi nyanyian vokal, bukan kosong */
+    const vocalNoLyrics = buildLyriaMusicPrompt({
+        prompt: "Pop R&B hangat romantis",
+        vocalMode: "vocal",
+        lyrics: "",
+        durationSeconds: 30,
+        includeTargetLengthInPrompt: true
+    });
+    assert.equal(vocalNoLyrics.isInstrumental, false);
+    assert.match(vocalNoLyrics.musicPrompt, /sung lead vocals/i);
+    assert.doesNotMatch(vocalNoLyrics.musicPrompt, /Instrumental only, no vocals/i);
+
+    /* 5. Mode instrumental murni tanpa lirik tetap menjaga aturan "Instrumental only, no vocals." */
+    const instBuilt = buildLyriaMusicPrompt({
+        prompt: "Cinematic ambient piano",
+        vocalMode: "instrumental",
+        lyrics: "",
+        durationSeconds: 30,
+        includeTargetLengthInPrompt: true
+    });
+    assert.equal(instBuilt.isInstrumental, true);
+    assert.match(instBuilt.musicPrompt, /Instrumental only, no vocals\./);
+
+    /* 6. Adapter opus-audio-music otomatis mempromosikan vocal_mode ke "vocal" bila lirik diisi */
+    const musicAdapter = opusAudioModelMap["opus-audio-music"];
+    const autoPromotedPayload = musicAdapter.buildPayload({
+        prompt: "Acoustic pop ceria",
+        vocal_mode: "instrumental",
+        target_duration: "30",
+        lyrics: "Aku bernyanyi di pagi cerah\nMenyambut hari penuh semangat"
+    });
+    assert.equal(autoPromotedPayload.vocal_mode, "vocal");
+    assert.match(autoPromotedPayload.lyrics, /Aku bernyanyi di pagi cerah/);
+
+    /* 7. End-to-end MCP generate_audio: walau skema MCP punya properti `lyrics` & enum model `[lyria-2, lyria-3-pro-preview]`,
+          `prompt` WAJIB tetap berisi lirik [Verse]/[Chorus] + arahan vokal, dan memilih `lyria-3-pro-preview` (bukan `lyria-2`) */
+    const musicCalls = [];
+    const server = http.createServer(async (req, res) => {
+        let rawBody = "";
+        for await (const chunk of req) rawBody += chunk;
+        const rpc = JSON.parse(rawBody || "{}");
+        const sendRpc = result => {
+            res.writeHead(200, {
+                "Content-Type": "application/json",
+                "Mcp-Session-Id": "sess-music-vocal-1"
+            });
+            res.end(JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result }));
+        };
+
+        if (rpc.method === "initialize") {
+            sendRpc({ protocolVersion: "2025-03-26", serverInfo: { name: "mock-opus-music" }, capabilities: {} });
+            return;
+        }
+        if (rpc.method === "notifications/initialized") {
+            res.writeHead(202);
+            res.end();
+            return;
+        }
+        if (rpc.method === "tools/list") {
+            sendRpc({
+                tools: [
+                    {
+                        name: "create_project",
+                        inputSchema: { type: "object", properties: { name: { type: "string" } } }
+                    },
+                    {
+                        name: "generate_audio",
+                        inputSchema: {
+                            type: "object",
+                            required: ["projectId", "requestKey", "audioType", "prompt"],
+                            properties: {
+                                projectId: { type: "string" },
+                                requestKey: { type: "string" },
+                                maxCredits: { type: "number" },
+                                audioType: { type: "string", enum: ["speech", "bgm", "song"] },
+                                model: { type: "string", enum: ["lyria-2", "lyria-3-pro-preview"] },
+                                prompt: { type: "string" },
+                                lyrics: { type: "string" },
+                                instrumental: { type: "boolean" },
+                                hasVocals: { type: "boolean" },
+                                durationSeconds: { type: "number" }
+                            }
+                        }
+                    }
+                ]
+            });
+            return;
+        }
+        if (rpc.method === "tools/call") {
+            const { name, arguments: args } = rpc.params;
+            if (name === "create_project") {
+                sendRpc({
+                    structuredContent: { projectId: "proj-music-v1" },
+                    content: [{ type: "text", text: JSON.stringify({ projectId: "proj-music-v1" }) }]
+                });
+                return;
+            }
+            if (name === "generate_audio") {
+                musicCalls.push(args);
+                if (!args.maxCredits || args.maxCredits <= 0) {
+                    const quote = { status: "needs_approval", estimatedCredits: 4 };
+                    sendRpc({
+                        structuredContent: quote,
+                        content: [{ type: "text", text: JSON.stringify(quote) }]
+                    });
+                    return;
+                }
+                const ok = { jobId: "job-music-vocal-88", status: "queued" };
+                sendRpc({
+                    structuredContent: ok,
+                    content: [{ type: "text", text: JSON.stringify(ok) }]
+                });
+                return;
+            }
+        }
+        res.writeHead(400);
+        res.end();
+    });
+
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    const port = server.address().port;
+    const mcpEndpoint = `http://127.0.0.1:${port}/mcp`;
+
+    try {
+        const createdVocalSong = await musicAdapter.createTask(
+            {
+                prompt: "Pop akustik hangat dengan gitar dan piano, 95 BPM",
+                vocal_mode: "vocal",
+                target_duration: "30",
+                lyrics: plainIndoLyrics
+            },
+            "test-bearer-token",
+            { mcpUrl: mcpEndpoint }
+        );
+        assert.match(createdVocalSong.taskId, /^opus:proj-music-v1:job-music-vocal-88$/);
+        assert.equal(musicCalls.length, 2); /* quote maxCredits:0 -> approved maxCredits:4 */
+
+        const finalMusicArgs = musicCalls[1];
+        assert.equal(finalMusicArgs.audioType, "song"); /* memilih "song" di atas "bgm" saat vokal aktif */
+        assert.equal(finalMusicArgs.model, "lyria-3-pro-preview"); /* menghindari lyria-2 yang instrumental-only */
+        assert.equal(finalMusicArgs.instrumental, false);
+        assert.equal(finalMusicArgs.hasVocals, true);
+        assert.equal(finalMusicArgs.maxCredits, 4);
+        assert.match(finalMusicArgs.lyrics, /\[Verse\]/);
+        assert.match(finalMusicArgs.lyrics, /\[Chorus\]/);
+        /* Pastikan `prompt` TETAP berisi arahan vokal + lirik [Verse]/[Chorus] walau field `lyrics` juga ada */
+        assert.match(finalMusicArgs.prompt, /enter immediately at 0:02/);
+        assert.match(finalMusicArgs.prompt, /\[Verse\]/);
+        assert.match(finalMusicArgs.prompt, /\[Chorus\]/);
+        assert.match(finalMusicArgs.prompt, /Melangkah sendiri di malam yang tenang/);
+    } finally {
+        await new Promise(resolve => server.close(resolve));
+    }
+});
+
 

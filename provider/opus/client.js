@@ -31,9 +31,11 @@ import {
     resolveOpusOAuthTokenWithVault
 } from "./oauth-vault.js";
 import {
+    buildLyriaMusicPrompt,
     createOpusAudioTools,
     extractAudioUrls,
     extractTranscriptUrls,
+    formatMusicLyricsForLyria,
     isLikelyAudioOutputUrl
 } from "./audio-tools.js";
 
@@ -8881,6 +8883,7 @@ export {
     MAX_REFERENCE_VIDEOS,
     PROVIDER_ID,
     PROVIDER_NAME,
+    buildLyriaMusicPrompt,
     createAudioTask,
     createImageTask,
     createTranscribeTask,
@@ -8891,6 +8894,7 @@ export {
     extractOpusApiKeyPool,
     extractTranscriptUrls,
     extractVideoUrls,
+    formatMusicLyricsForLyria,
     getActiveOpusKeyIndex,
     getAudioTask,
     getImageTask,
