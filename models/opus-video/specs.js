@@ -53,6 +53,47 @@ const OPUS_VIDEO_SPECS = Object.freeze([
     },
 
     {
+        id: "opus-seedance-2.5-t2v-30s",
+        opusModel: "seedance-2.5",
+        modelAliases: [
+            "seedance-2.5",
+            "bytedance/seedance-2.5",
+            "byteplus/seedance-2.5",
+            "dreamina/seedance-2.5",
+            "volcengine/seedance-2.5",
+            "dreamina-seedance-2-5-260628",
+            "byteplus/dreamina-seedance-2-5-260628",
+            "seedance-2-5",
+            "Seedance 2.5"
+        ],
+        name: "Seedance 2.5 Text to Video 30s (Opus)",
+        logo: "seedance.svg",
+        kind: "t2v",
+        type: "text-to-video",
+        workflow: "reference2video",
+        staged30s: true,
+        promptHint: "Deskripsi alur cerita 20 atau 30 detik murni dari teks. Bisa memakai pembagian waktu (0-10, 11-20, 21-30) maupun narasi bebas (sistem otomatis menyambung frame antar-klip secara mulus).",
+        ratios: ["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"],
+        defaultRatio: "9:16",
+        resolutions: ["720p", "480p"],
+        defaultResolution: "720p",
+        durations: ["20", "30"],
+        selectableDurations: true,
+        durationRange: { min: 20, max: 30 },
+        defaultDuration: "30",
+        generateAudio: true,
+        defaultGenerateAudio: true,
+        adminDefaults: {
+            credit_480p: 4500,
+            credit_720p: 6000,
+            credit_1080p: 0,
+            discount_percent: 0,
+            status: "active"
+        },
+        maxPrompt: 8000
+    },
+
+    {
         id: "opus-seedance-2.5-i2v",
         opusModel: "seedance-2.5",
         modelAliases: [
@@ -81,6 +122,47 @@ const OPUS_VIDEO_SPECS = Object.freeze([
         defaultDuration: "5",
         generateAudio: true,
         defaultGenerateAudio: true,
+        maxPrompt: 8000
+    },
+
+    {
+        id: "opus-seedance-2.5-i2v-30s",
+        opusModel: "seedance-2.5",
+        modelAliases: [
+            "seedance-2.5",
+            "bytedance/seedance-2.5",
+            "byteplus/seedance-2.5",
+            "dreamina/seedance-2.5",
+            "volcengine/seedance-2.5",
+            "dreamina-seedance-2-5-260628",
+            "byteplus/dreamina-seedance-2-5-260628",
+            "seedance-2-5",
+            "Seedance 2.5"
+        ],
+        name: "Seedance 2.5 Image to Video 30s (Opus)",
+        logo: "seedance.svg",
+        kind: "i2v",
+        type: "image-to-video",
+        workflow: "first_last_frame",
+        allowLastFrame: false,
+        staged30s: true,
+        promptHint: "Deskripsi kelanjutan adegan 20 atau 30 detik dari gambar frame awal. Bisa memakai durasi (0-10, 11-20, 21-30) maupun narasi bebas (sistem otomatis mengekstrak frame akhir tiap klip untuk kesinambungan mulus).",
+        ratios: [],
+        resolutions: ["720p", "480p"],
+        defaultResolution: "720p",
+        durations: ["20", "30"],
+        selectableDurations: true,
+        durationRange: { min: 20, max: 30 },
+        defaultDuration: "30",
+        generateAudio: true,
+        defaultGenerateAudio: true,
+        adminDefaults: {
+            credit_480p: 4500,
+            credit_720p: 6000,
+            credit_1080p: 0,
+            discount_percent: 0,
+            status: "active"
+        },
         maxPrompt: 8000
     },
 
@@ -289,6 +371,45 @@ const OPUS_VIDEO_SPECS = Object.freeze([
         defaultDuration: "30",
         generateAudio: false,
         maxPrompt: 7000
+    },
+
+    /* =====================================================
+       OPUS AI VIDEO DIRECTOR + AUTO MUXING (VIDEO + TTS + BGM)
+    ===================================================== */
+
+    {
+        id: "opus-video-director",
+        opusModel: "seedance-2.5",
+        modelAliases: [
+            "seedance-2.5",
+            "bytedance/seedance-2.5",
+            "byteplus/seedance-2.5",
+            "dreamina/seedance-2.5",
+            "volcengine/seedance-2.5",
+            "dreamina-seedance-2-5-260628",
+            "byteplus/dreamina-seedance-2-5-260628",
+            "seedance-2-5",
+            "Seedance 2.5"
+        ],
+        name: "Opus AI Video Director (Video + Voiceover + Musik)",
+        logo: "seedance.svg",
+        kind: "t2v",
+        type: "text-to-video",
+        workflow: "reference2video",
+        staged30s: true,
+        videoDirector: true,
+        promptHint: "Deskripsikan konsep visual video sinematik / iklan produk / storytelling secara detail. Sistem AI Video Director otomatis memproduksi visual video, rekaman narasi voiceover, musik latar Lyria 3.5, lalu menggabungkannya (Auto Muxing) menjadi 1 file MP4 siap tayang.",
+        ratios: ["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"],
+        defaultRatio: "9:16",
+        resolutions: ["720p", "480p"],
+        defaultResolution: "720p",
+        durations: ["10", "15"],
+        selectableDurations: true,
+        durationRange: { min: 10, max: 15 },
+        defaultDuration: "10",
+        generateAudio: false,
+        defaultCredit: 3500,
+        maxPrompt: 8000
     }
 
 ]);

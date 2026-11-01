@@ -163,6 +163,7 @@
     ];
     var GENERATED_AUDIO_MODEL_IDS = [
         "opus-audio-speech",
+        "opus-audio-podcast",
         "opus-audio-music",
         "opus-audio-sfx"
     ];
@@ -966,11 +967,12 @@
 
         const normalized = {
             text,
-            txt: String(parsed?.txt || text),
+            txt: String(parsed?.txt || parsed?.dialogText || text),
             srt,
             segments,
             language: parsed?.language || null,
-            durationSeconds: parsed?.durationSeconds || null
+            durationSeconds: parsed?.durationSeconds || null,
+            speakerCount: Number(parsed?.speakerCount) || 0
         };
         if (historyId) {
             cachedModalTranscripts.set(historyId, normalized);
@@ -993,13 +995,13 @@
 
             const segHtml = Array.isArray(trx.segments) && trx.segments.length > 0
                 ? `<div style="margin-top:12px;">
-                       <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;">Segmen Timestamp</div>
+                       <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;">Segmen Timestamp${trx.speakerCount >= 2 ? ` • ${trx.speakerCount} Pembicara` : ""}</div>
                        <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;">
                            ${trx.segments
                                .map(
                                    seg => `<div style="display:flex;gap:10px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.04);font-size:12.5px;">
                                        <span style="font-family:monospace;color:#fbbf24;font-weight:700;flex-shrink:0;">${escapeHtml(formatModalTimestamp(seg.start))} → ${escapeHtml(formatModalTimestamp(seg.end))}</span>
-                                       <span style="color:#f1f5f9;word-break:break-word;">${escapeHtml(String(seg.text || ""))}</span>
+                                       <span style="color:#f1f5f9;word-break:break-word;">${seg.speaker ? `<strong style="color:#38bdf8;">[${escapeHtml(String(seg.speaker))}]</strong> ` : ""}${escapeHtml(String(seg.text || ""))}</span>
                                    </div>`
                                )
                                .join("")}
@@ -1008,7 +1010,7 @@
                 : "";
 
             contentEl.innerHTML = `
-                <div style="padding:10px 12px;border-radius:9px;background:rgba(255,255,255,0.04);font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow-y:auto;">${escapeHtml(trx.text)}</div>
+                <div style="padding:10px 12px;border-radius:9px;background:rgba(255,255,255,0.04);font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow-y:auto;">${escapeHtml(trx.txt || trx.text)}</div>
                 ${segHtml}
             `;
             contentEl.hidden = false;

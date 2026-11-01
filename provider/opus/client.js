@@ -8874,6 +8874,331 @@ const {
     fetchWithTimeout
 });
 
+/* =========================================================
+   OPUS BLACK BOX DIAGNOSTICS & JOB RECOVERY HELPERS
+========================================================= */
+
+function parseLooseMcpJson(rawData, rawText = "") {
+    if (rawData && typeof rawData === "object") {
+        if (rawData.structuredContent && typeof rawData.structuredContent === "object") {
+            return rawData.structuredContent;
+        }
+        return rawData;
+    }
+    const clean = String(rawText || "").trim();
+    if (clean.startsWith("{") || clean.startsWith("[")) {
+        try {
+            return JSON.parse(clean);
+        } catch {
+            /* ignore */
+        }
+    }
+    return null;
+}
+
+async function inspectOpusMcpAccountStatus(apiKey, options = {}) {
+    const endpoint = getMcpEndpoint(options);
+    const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
+    const activeSlot = getActiveOpusKeyIndex();
+
+    if (keyPool.length === 0) {
+        return {
+            configured: false,
+            endpoint,
+            activeSlot,
+            totalSlots: 0,
+            slots: []
+        };
+    }
+
+    const slots = [];
+    for (let idx = 0; idx < keyPool.length; idx += 1) {
+        const candidateKey = keyPool[idx];
+        const startedAt = Date.now();
+        try {
+            const session = await openMcpSession({
+                endpoint,
+                apiKey: candidateKey,
+                timeoutMs: 12_000,
+                includeTools: true,
+                isolateFromDefaultRefresh: idx > 0 || keyPool.length > 1,
+                env: options?.env || null
+            });
+
+            const toolNames = Array.isArray(session.tools)
+                ? session.tools.map(t => String(t?.name || "").trim()).filter(Boolean)
+                : [];
+
+            const whoamiTool =
+                findMcpTool(session.tools, "opus_video_tools_whoami") ||
+                findMcpTool(session.tools, "opusclip_whoami") ||
+                findMcpTool(session.tools, "whoami");
+
+            let accountInfo = null;
+            if (whoamiTool) {
+                const whoRes = await session.callTool(whoamiTool.name, {}).catch(() => null);
+                if (whoRes) {
+                    const parsed = parseLooseMcpJson(whoRes.data, whoRes.text);
+                    if (parsed && typeof parsed === "object") {
+                        accountInfo = {
+                            userId: String(parsed.userId || parsed.user_id || parsed.id || parsed.sub || "").trim() || null,
+                            email: String(parsed.email || parsed.user?.email || "").trim() || null,
+                            name: String(parsed.name || parsed.displayName || parsed.user?.name || "").trim() || null,
+                            organization:
+                                String(
+                                    parsed.orgName ||
+                                    parsed.organizationName ||
+                                    parsed.organization?.name ||
+                                    parsed.workspaceName ||
+                                    ""
+                                ).trim() || null,
+                            plan: String(parsed.plan || parsed.tier || parsed.subscriptionPlan || "").trim() || null,
+                            credits:
+                                parsed.credits ??
+                                parsed.remainingCredits ??
+                                parsed.creditBalance ??
+                                parsed.balance ??
+                                null
+                        };
+                    } else if (whoRes.text) {
+                        accountInfo = { summary: redactSecrets(String(whoRes.text).slice(0, 280)) };
+                    }
+                }
+            }
+
+            slots.push({
+                slot: idx,
+                label: `Slot #${idx + 1}`,
+                isActive: idx === activeSlot,
+                ok: true,
+                latencyMs: Date.now() - startedAt,
+                toolCount: toolNames.length,
+                tools: toolNames,
+                account: accountInfo
+            });
+        } catch (err) {
+            slots.push({
+                slot: idx,
+                label: `Slot #${idx + 1}`,
+                isActive: idx === activeSlot,
+                ok: false,
+                latencyMs: Date.now() - startedAt,
+                toolCount: 0,
+                tools: [],
+                account: null,
+                errorCode: err?.code || "MCP_CONNECT_FAILED",
+                errorMessage: redactSecrets(err?.message || "Gagal terhubung ke MCP Opus Labs.")
+            });
+        }
+    }
+
+    return {
+        configured: true,
+        endpoint,
+        activeSlot,
+        totalSlots: keyPool.length,
+        slots
+    };
+}
+
+async function listOpusProjectJobs(projectId, apiKey, options = {}) {
+    const cleanProjectId = String(projectId || "").trim();
+    if (!cleanProjectId) {
+        throw createProviderError({
+            message: "projectId wajib diisi untuk memanggil list_jobs.",
+            code: "INVALID_PROJECT_ID",
+            status: 400
+        });
+    }
+
+    const endpoint = getMcpEndpoint(options);
+    const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
+    const slotIdx =
+        Number.isInteger(options?.keySlot) && options.keySlot >= 0 && options.keySlot < keyPool.length
+            ? options.keySlot
+            : 0;
+    const targetKey = keyPool[slotIdx] || apiKey;
+
+    const session = await openMcpSession({
+        endpoint,
+        apiKey: targetKey,
+        timeoutMs: 15_000,
+        includeTools: true,
+        isolateFromDefaultRefresh: keyPool.length > 1,
+        env: options?.env || null
+    });
+
+    const listTool =
+        findMcpTool(session.tools, "list_jobs") ||
+        findMcpTool(session.tools, "opusclip_list_jobs") ||
+        findMcpTool(session.tools, "get_project_jobs");
+
+    if (!listTool) {
+        throw createProviderError({
+            message: "Tool list_jobs tidak tersedia di endpoint MCP Opus.",
+            code: "TOOL_UNAVAILABLE",
+            status: 502
+        });
+    }
+
+    const listRes = await session.callTool(listTool.name, buildListJobsArgs(listTool, cleanProjectId));
+    const parsed = parseLooseMcpJson(listRes.data, listRes.text);
+    const rawItems = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.jobs)
+          ? parsed.jobs
+          : Array.isArray(parsed?.items)
+            ? parsed.items
+            : Array.isArray(parsed?.results)
+              ? parsed.results
+              : [];
+
+    const jobs = rawItems
+        .filter(item => item && typeof item === "object")
+        .map(item => {
+            const jid = String(item.jobId || item.job_id || item.id || item.taskId || "").trim();
+            const rawState = String(item.status || item.state || "").trim();
+            const urls = [
+                ...extractVideoUrls(item),
+                ...extractAudioUrls(item),
+                ...extractImageUrls(item),
+                ...extractTranscriptUrls(item)
+            ];
+            return {
+                jobId: jid,
+                projectId: cleanProjectId,
+                status: normalizeStatus(rawState || (urls.length > 0 ? "COMPLETED" : "PROCESSING")),
+                rawState: rawState || "unknown",
+                type: String(item.type || item.tool || item.jobType || item.kind || "").trim() || null,
+                outputUrls: Array.from(new Set(urls)),
+                createdAt: item.createdAt || item.created_at || null,
+                errorMessage: item.error?.message || item.errorMessage || null
+            };
+        });
+
+    return {
+        projectId: cleanProjectId,
+        keySlot: slotIdx,
+        count: jobs.length,
+        jobs
+    };
+}
+
+async function resolveOpusJobDirectly(target = {}, apiKey, options = {}) {
+    const parsedFromTask = target?.taskId ? parseOpusTaskId(target.taskId) : null;
+    let projectId = String(target?.projectId || parsedFromTask?.projectId || "").trim();
+    let jobId = String(target?.jobId || parsedFromTask?.jobId || "").trim();
+    if (jobId.endsWith("|d0")) {
+        jobId = jobId.slice(0, -3);
+    }
+    if (jobId.startsWith("podcast:")) {
+        jobId = jobId.slice("podcast:".length).split(",")[0]?.trim() || "";
+    }
+
+    if (!jobId) {
+        throw createProviderError({
+            message: "jobId atau taskId Opus wajib diisi untuk pemulihan resolve_job.",
+            code: "TASK_ID_MISSING",
+            status: 400
+        });
+    }
+
+    const endpoint = getMcpEndpoint(options);
+    const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
+    const preferredSlot = Number.isInteger(target?.keySlot)
+        ? target.keySlot
+        : parsedFromTask?.hasExplicitSlot
+          ? parsedFromTask.keySlot
+          : 0;
+    const slotIdx = preferredSlot >= 0 && preferredSlot < keyPool.length ? preferredSlot : 0;
+    const selectedKey = keyPool[slotIdx] || apiKey;
+
+    const session = await openMcpSession({
+        endpoint,
+        apiKey: selectedKey,
+        timeoutMs: 20_000,
+        includeTools: true,
+        isolateFromDefaultRefresh: keyPool.length > 1,
+        env: options?.env || null
+    });
+
+    const collectedUrls = [];
+    let resolvedStatus = "PROCESSING";
+    let rawPayload = null;
+    let errorMessage = null;
+
+    const statusTool =
+        findMcpTool(session.tools, "get_status") ||
+        findMcpTool(session.tools, "get_job");
+    if (statusTool) {
+        const sArgs = { jobId };
+        if (projectId) sArgs.projectId = projectId;
+        const sRes = await session.callTool(statusTool.name, sArgs).catch(() => null);
+        if (sRes) {
+            const sObj = parseLooseMcpJson(sRes.data, sRes.text);
+            rawPayload = sObj || sRes.text || null;
+            if (sObj && typeof sObj === "object") {
+                const st = String(sObj.status || sObj.state || "").trim();
+                if (st) resolvedStatus = normalizeStatus(st);
+                if (sObj.error?.message || sObj.errorMessage) {
+                    errorMessage = String(sObj.error?.message || sObj.errorMessage);
+                }
+            }
+            for (const u of [
+                ...extractVideoUrls(sRes.data || sRes.text),
+                ...extractAudioUrls(sRes.data || sRes.text),
+                ...extractImageUrls(sRes.data || sRes.text),
+                ...extractTranscriptUrls(sRes.data || sRes.text)
+            ]) {
+                if (!collectedUrls.includes(u)) collectedUrls.push(u);
+            }
+        }
+    }
+
+    const resolveTool = findMcpTool(session.tools, "resolve_job");
+    if (resolveTool) {
+        const rRes = await session
+            .callTool(resolveTool.name, buildResolveJobArgs(resolveTool, jobId, projectId))
+            .catch(() => null);
+        if (rRes && !rRes.isError) {
+            const rObj = parseLooseMcpJson(rRes.data, rRes.text);
+            if (rObj) rawPayload = rObj;
+            if (rObj && typeof rObj === "object") {
+                const st = String(rObj.status || rObj.state || "").trim();
+                if (st) resolvedStatus = normalizeStatus(st);
+            }
+            for (const u of [
+                ...extractVideoUrls(rRes.data || rRes.text),
+                ...extractAudioUrls(rRes.data || rRes.text),
+                ...extractImageUrls(rRes.data || rRes.text),
+                ...extractTranscriptUrls(rRes.data || rRes.text)
+            ]) {
+                if (!collectedUrls.includes(u)) collectedUrls.push(u);
+            }
+        }
+    }
+
+    if (collectedUrls.length > 0 && resolvedStatus !== "FAILED") {
+        resolvedStatus = "COMPLETED";
+    }
+
+    return {
+        jobId,
+        projectId: projectId || null,
+        keySlot: slotIdx,
+        status: resolvedStatus,
+        recovered: collectedUrls.length > 0,
+        outputUrls: collectedUrls,
+        errorMessage,
+        summary: rawPayload && typeof rawPayload === "object"
+            ? {
+                  status: rawPayload.status || rawPayload.state || resolvedStatus.toLowerCase(),
+                  jobId: rawPayload.jobId || rawPayload.id || jobId
+              }
+            : null
+    };
+}
+
 export {
     DEFAULT_MCP_URL,
     DEFAULT_OPUS_WORKOS_CLIENT_ID,
@@ -8901,13 +9226,16 @@ export {
     getMcpEndpoint,
     getTranscribeTask,
     getVideoTask,
+    inspectOpusMcpAccountStatus,
     isLikelyAudioOutputUrl,
     isOpusCreditExhaustedError,
+    listOpusProjectJobs,
     normalizeStatus,
     parseOpusTaskId,
     redactSecrets,
     resetOpusKeyRotation,
     resolveBearerToken,
+    resolveOpusJobDirectly,
     translateOpusError
 };
 

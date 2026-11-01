@@ -21,6 +21,10 @@ import {
     getVideoTask,
     normalizeStatus
 } from "../../provider/opus/client.js";
+import {
+    OPUS_SPEECH_VOICES,
+    OPUS_SPEECH_VOICE_IDS
+} from "../opus-audio/specs.js";
 
 function normalizeString(value) {
     return value === null || value === undefined
@@ -108,6 +112,27 @@ function buildAdminEditorConfig(spec) {
             }
             : {};
 
+    if (spec.videoDirector) {
+        const defaultDirectorCredit = Number(spec.defaultCredit) || 3500;
+        return {
+            hideParameterSummary: true,
+            resolutionIndependent: true,
+            resolutionOptions: [
+                { value: "480p", label: "480p" },
+                { value: "720p", label: "720p" }
+            ],
+            hiddenCreditFields: ["credit_720p", "credit_1080p"],
+            creditFields: {
+                credit_480p: {
+                    label: "Credit AI Video Director (Paket Lengkap)",
+                    placeholder: `Contoh: ${defaultDirectorCredit}`,
+                    help: "Biaya credit flat per 1x produksi Video + Voiceover + Musik Latar + Auto Muxing MP4."
+                }
+            },
+            ...durationConfig
+        };
+    }
+
     if (isHailuo) {
         return {
             hideParameterSummary: true,
@@ -143,7 +168,15 @@ function buildParametersForSpec(spec) {
     const hasVideoRefs = Boolean(spec.allowReferenceVideos);
     const hasAudioRefs = Boolean(spec.allowReferenceAudio);
 
-    if (spec.kind === "i2v") {
+    if (spec.videoDirector) {
+        parameters.push({
+            name: "image_url",
+            type: "image_url",
+            required: false,
+            accept: "image/jpeg,image/png,image/webp",
+            description: "Opsional: unggah 1 gambar produk / karakter sebagai referensi visual awal."
+        });
+    } else if (spec.kind === "i2v") {
         parameters.push({
             name: "image_url",
             type: "image_url",
@@ -269,6 +302,42 @@ function buildParametersForSpec(spec) {
         });
     }
 
+    if (spec.videoDirector) {
+        parameters.push(
+            {
+                name: "narration_script",
+                type: "textarea",
+                required: true,
+                maxLength: 1500,
+                label: "Naskah Voiceover / Narasi Video (Wajib)",
+                placeholder:
+                    "Contoh: Temukan pengalaman kopi pagi yang lebih hangat dan autentik setiap hari. Dibuat dari biji pilihan terbaik nusantara.",
+                description:
+                    "Naskah narasi yang akan dibacakan karakter suara AI dan di-muxing otomatis bersama musik latar ke dalam video MP4."
+            },
+            {
+                name: "voice",
+                type: "select",
+                required: false,
+                default: "Sulafat",
+                label: "Karakter Suara Narator (30 Pilihan Resmi Opus)",
+                options: OPUS_SPEECH_VOICES,
+                description: "Pilih karakter vokal narator untuk membacakan naskah voiceover."
+            },
+            {
+                name: "bgm_prompt",
+                type: "textarea",
+                required: false,
+                maxLength: 800,
+                label: "Deskripsi Musik Latar / BGM AI (Opsional)",
+                placeholder:
+                    "Contoh: Warm cinematic acoustic guitar & soft piano instrumental, uplifting commercial mood, 95 BPM (kosongkan agar AI menyesuaikan otomatis).",
+                description:
+                    "Opsional: atur suasana musik latar instrumental Lyria 3.5 (volume otomatis diseimbangkan di bawah suara narator)."
+            }
+        );
+    }
+
     if (spec.generateAudio) {
         const defaultGenerateAudio =
             spec.defaultGenerateAudio !== undefined
@@ -306,7 +375,23 @@ export function createOpusVideoModel(spec) {
         allowLastFrame: Boolean(spec.allowLastFrame),
         generateAudio: Boolean(spec.generateAudio),
         staged30s: Boolean(spec.staged30s),
+        videoDirector: Boolean(spec.videoDirector),
         referenceRequired: Boolean(spec.referenceRequired),
+        ...(spec.adminDefaults && typeof spec.adminDefaults === "object"
+            ? {
+                  adminDefaults: { ...spec.adminDefaults }
+              }
+            : spec.videoDirector
+              ? {
+                    adminDefaults: {
+                        credit_480p: Number(spec.defaultCredit) || 3500,
+                        credit_720p: Number(spec.defaultCredit) || 3500,
+                        credit_1080p: 0,
+                        discount_percent: 0,
+                        status: "active"
+                    }
+                }
+              : {}),
         adminEditor: buildAdminEditorConfig(spec),
         api: {
             mcpEndpoint: DEFAULT_MCP_URL,
@@ -397,6 +482,24 @@ export function createOpusVideoModel(spec) {
             );
         }
 
+        if (definitions.has("narration_script")) {
+            result.narration_script = normalizeString(source.narration_script);
+        }
+
+        if (definitions.has("voice")) {
+            const rawVoice = normalizeString(source.voice) || "Sulafat";
+            result.voice =
+                OPUS_SPEECH_VOICE_IDS.find(v => v.toLowerCase() === rawVoice.toLowerCase()) ||
+                rawVoice;
+        }
+
+        if (definitions.has("bgm_prompt")) {
+            const bgm = normalizeString(source.bgm_prompt);
+            if (bgm) {
+                result.bgm_prompt = bgm;
+            }
+        }
+
         return result;
     }
 
@@ -422,11 +525,30 @@ export function createOpusVideoModel(spec) {
         }
 
         if (definitions.has("image_url")) {
-            if (!params.image_url) {
+            const imgDef = definitions.get("image_url");
+            if (imgDef.required && !params.image_url) {
                 errors.push("Gambar frame awal wajib diunggah.");
-            } else if (!isPublicHttpUrl(params.image_url)) {
+            } else if (params.image_url && !isPublicHttpUrl(params.image_url) && !params.image_url.startsWith("supabase-private://")) {
                 errors.push("image_url harus berupa URL HTTP/HTTPS publik yang valid.");
             }
+        }
+
+        if (definitions.has("narration_script")) {
+            if (!params.narration_script) {
+                errors.push("Naskah voiceover / narasi video wajib diisi untuk AI Video Director.");
+            } else if (params.narration_script.length > 1500) {
+                errors.push("Naskah voiceover maksimal 1500 karakter.");
+            }
+        }
+
+        if (definitions.has("voice") && params.voice) {
+            if (!OPUS_SPEECH_VOICE_IDS.some(v => v.toLowerCase() === params.voice.toLowerCase())) {
+                errors.push(`Karakter suara narator "${params.voice}" tidak dikenali.`);
+            }
+        }
+
+        if (definitions.has("bgm_prompt") && params.bgm_prompt && params.bgm_prompt.length > 800) {
+            errors.push("Deskripsi musik latar maksimal 800 karakter.");
         }
 
         if (definitions.has("last_frame_url") && params.last_frame_url) {
@@ -555,6 +677,13 @@ export function createOpusVideoModel(spec) {
         }
         if (typeof params.generate_audio === "boolean" && spec.generateAudio) {
             payload.generate_audio = params.generate_audio;
+        }
+        if (spec.videoDirector) {
+            payload.generate_audio = false;
+            payload.video_director = true;
+            if (params.narration_script) payload.narration_script = params.narration_script;
+            if (params.voice) payload.voice = params.voice;
+            if (params.bgm_prompt) payload.bgm_prompt = params.bgm_prompt;
         }
 
         return payload;

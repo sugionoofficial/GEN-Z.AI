@@ -145,6 +145,14 @@ export function createOpusTranscribeModel(spec) {
             options: OPUS_TRANSCRIBE_LANGUAGES,
             description:
                 "Pilih 'Deteksi Otomatis' atau tentukan bahasa spesifik untuk akurasi ejaan istilah yang lebih presisi."
+        },
+        diarize: {
+            type: "boolean",
+            required: false,
+            default: true,
+            label: "Pisahkan Pembicara (Multi-Speaker Diarization)",
+            description:
+                "Otomatis mendeteksi dan memberi label tiap pembicara (Speaker 1, Speaker 2, dst.) pada hasil transkrip, file .TXT, dan subtitle .SRT."
         }
     };
 
@@ -160,7 +168,7 @@ export function createOpusTranscribeModel(spec) {
         generationType: "transcribe",
         category: "audio-transcription",
         type: "audio-transcription",
-        version: "1.0",
+        version: "1.1",
         upstreamModel: spec.upstreamModel,
         description: spec.description,
         supportedRatios: [],
@@ -171,6 +179,7 @@ export function createOpusTranscribeModel(spec) {
         capabilities: {
             audioToText: true,
             videoToText: true,
+            speakerDiarization: true,
             srtExport: true,
             txtExport: true,
             aspectRatios: [],
@@ -204,10 +213,20 @@ export function createOpusTranscribeModel(spec) {
             queryTask: "tools/call:get_status"
         },
         defaults: {
-            language: "auto"
+            language: "auto",
+            diarize: true
         },
         parameters
     };
+
+    function parseDiarizeFlag(raw) {
+        if (raw === undefined || raw === null || raw === "") return true;
+        if (typeof raw === "boolean") return raw;
+        if (typeof raw === "number") return raw !== 0;
+        const normalized = String(raw).trim().toLowerCase();
+        if (["false", "0", "no", "off"].includes(normalized)) return false;
+        return true;
+    }
 
     function getParameters(input = {}) {
         const source = extractSourceBody(input);
@@ -216,16 +235,19 @@ export function createOpusTranscribeModel(spec) {
         const rawLang = normalizeString(source.language || "auto").toLowerCase() || "auto";
         const matchedLang =
             OPUS_TRANSCRIBE_LANGUAGE_CODES.find(code => code.toLowerCase() === rawLang) || "auto";
+        const diarize = parseDiarizeFlag(source.diarize);
 
         const sourceKindLabel = audioUrl ? "Audio" : videoList.length > 0 ? "Video" : "Media";
+        const diarizeSuffix = diarize ? " • Multi-Speaker" : "";
         const summaryPrompt =
             normalizeString(source.prompt) ||
-            `[Transkripsi ${sourceKindLabel}] Bahasa: ${buildLanguageLabel(matchedLang)}`;
+            `[Transkripsi ${sourceKindLabel}] Bahasa: ${buildLanguageLabel(matchedLang)}${diarizeSuffix}`;
 
         return {
             ...(audioUrl ? { audio_url: audioUrl } : {}),
             ...(videoList.length > 0 ? { video_urls: videoList.slice(0, 1), video_url: videoList[0] } : {}),
             language: matchedLang,
+            diarize,
             prompt: summaryPrompt
         };
     }
@@ -310,7 +332,7 @@ export function createOpusTranscribeModel(spec) {
         }
 
         const normalizedTranscript = response.transcript
-            ? normalizeTranscriptPayload(response.transcript)
+            ? normalizeTranscriptPayload(response.transcript, { diarize: payload.diarize })
             : null;
 
         return {
@@ -342,9 +364,15 @@ export function createOpusTranscribeModel(spec) {
 
         const result = await getTranscribeTask(normalizedId, apiKey, options);
         const status = normalizeStatus(result.status);
+        const diarizeOpt =
+            result.diarize !== undefined
+                ? Boolean(result.diarize)
+                : options?.diarize !== undefined
+                  ? Boolean(options.diarize)
+                  : !normalizedId.endsWith("|d0");
         const transcript =
             status === "COMPLETED" && result.transcript
-                ? normalizeTranscriptPayload(result.transcript)
+                ? normalizeTranscriptPayload(result.transcript, { diarize: diarizeOpt })
                 : null;
         const outputUrls = Array.isArray(result.outputUrls)
             ? result.outputUrls.map(normalizeString).filter(Boolean)

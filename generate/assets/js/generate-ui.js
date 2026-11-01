@@ -1193,16 +1193,6 @@ function isStaged30sVideoModel(
     }
 
 
-    if (
-        model.staged30s === true ||
-        model.config?.staged30s === true
-    ) {
-
-        return true;
-
-    }
-
-
     const candidateId =
         String(
             model.id ||
@@ -1214,9 +1204,24 @@ function isStaged30sVideoModel(
             .trim()
             .toLowerCase();
 
+    if (candidateId === "opus-video-director") {
+        return false;
+    }
+
+    if (
+        model.staged30s === true ||
+        model.config?.staged30s === true
+    ) {
+
+        return true;
+
+    }
+
 
     return (
         candidateId === "opus-seedance-2.5-r2v-30s" ||
+        candidateId === "opus-seedance-2.5-t2v-30s" ||
+        candidateId === "opus-seedance-2.5-i2v-30s" ||
         candidateId === "opus-hailuo-3-i2v-30s"
     );
 

@@ -92,10 +92,22 @@ seed (
             4, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{720p,480p}', '{4,5,8,10,12,15,20,25,30}', 15, 25, 0
         ),
         (
+            'opus-seedance-2.5-t2v-30s',
+            'Seedance 2.5 Text to Video (30s)',
+            'Video 20 atau 30 detik utuh secara bertahap (2 × 10 detik atau 3 × 10 detik tersambung mulus dari frame akhir tiap klip) menggunakan Seedance 2.5 Text to Video.',
+            20, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{480p,720p}', '{20,30}', 4500, 6000, 0
+        ),
+        (
             'opus-seedance-2.5-i2v',
             'Seedance 2.5 Image to Video (Opus)',
             'Image to video Seedance 2.5 dari gambar frame awal via Opus Labs — 4–30 detik, 480p/720p, audio bawaan.',
             4, 30, '{}', '{720p,480p}', '{4,5,8,10,12,15,20,25,30}', 15, 25, 0
+        ),
+        (
+            'opus-seedance-2.5-i2v-30s',
+            'Seedance 2.5 Image to Video (30s)',
+            'Video 20 atau 30 detik utuh secara bertahap (2 × 10 detik atau 3 × 10 detik tersambung mulus dari frame akhir tiap klip) dari gambar frame awal menggunakan Seedance 2.5.',
+            20, 30, '{}', '{480p,720p}', '{20,30}', 4500, 6000, 0
         ),
         (
             'opus-seedance-2.5-r2v',
@@ -108,6 +120,12 @@ seed (
             'Seedance 2.5 Reference to Video (30s)',
             'Video 20 atau 30 detik bertahap (2 × 10 detik atau 3 × 10 detik tersambung mulus dari frame akhir tiap klip) dari hingga 3 gambar (@image1–@image3), 3 video (@video1–@video3), dan/atau audio referensi (@audio1) via Opus Labs.',
             20, 30, '{9:16,16:9,1:1,4:3,3:4,21:9}', '{480p,720p}', '{20,30}', 6000, 7500, 0
+        ),
+        (
+            'opus-video-director',
+            'Opus AI Video Director + Auto Mux',
+            'Produksi video iklan/konten utuh sekali klik: klip sinematik Seedance 2.5 + Voiceover TTS ekspresif + Musik BGM Lyria 3.5 yang otomatis digabung (muxing) via FFmpeg menjadi satu file MP4 siap tayang.',
+            10, 15, '{9:16,16:9,1:1,4:3,3:4}', '{480p,720p}', '{10,15}', 3500, 3500, 0
         ),
 
         -- SEEDANCE 2.0 ------------------------------------
@@ -170,12 +188,18 @@ seed (
             null, null, '{1:1,16:9,9:16,4:3,3:4,21:9}', '{}', '{}', 500, 0, 0
         ),
 
-        -- OPUS AUDIO GENERATION (`generate_audio` — flat credit_480p = 500) --
+        -- OPUS AUDIO GENERATION (`generate_audio` — flat credit_480p = 500 / podcast = 1000) --
         (
             'opus-audio-speech',
             'Opus Voiceover & TTS',
             'Text-to-Speech & Voiceover studio dengan 30 karakter suara ekspresif, deteksi bahasa otomatis (Indonesia, Inggris, dll.), arahan gaya bicara, serta tag ekspresi (<laugh>, <sigh>, <short pause>).',
             null, null, '{}', '{}', '{}', 500, 0, 0
+        ),
+        (
+            'opus-audio-podcast',
+            'Opus Podcast / Dialog 2 Suara',
+            'Generator dialog & podcast 2 pembicara (Speaker A & Speaker B) dengan 2 karakter suara berbeda dari 30 koleksi Opus TTS yang digabung mulus menjadi satu file audio siap pakai.',
+            null, null, '{}', '{}', '{}', 1000, 0, 0
         ),
         (
             'opus-audio-music',

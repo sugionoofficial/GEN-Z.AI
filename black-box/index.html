@@ -64,7 +64,7 @@
 
     <link
         rel="stylesheet"
-        href="./assets/css/black-box.css?v=admin-guard-20261029"
+        href="./assets/css/black-box.css?v=opus-diag-20261101"
     >
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -108,7 +108,7 @@
 
             <span class="bb-chip">
                 <span class="bb-chip-dot" aria-hidden="true"></span>
-                1 MODUL AKTIF
+                2 MODUL AKTIF
             </span>
 
             <span class="bb-chip">AKSES TERBATAS</span>
@@ -131,7 +131,7 @@
                 TOMBOL PINTAS
             </h2>
 
-            <span class="bb-deck-count">01 / 09</span>
+            <span class="bb-deck-count">02 / 09</span>
 
         </div>
 
@@ -226,6 +226,90 @@
 
             <!--
                 ============================================
+                MODUL 02 — OPUS STATUS & JOB RECOVERY
+                Panel diagnostik whoami, list_jobs & resolve_job
+                ============================================
+            -->
+
+            <button
+                type="button"
+                id="bbOpusDiagToggle"
+                class="bb-tile bb-tile--opus bb-tile--diag"
+                aria-expanded="false"
+                aria-controls="bbOpusDiagPanel"
+            >
+
+                <span class="bb-tile-head">
+
+                    <span class="bb-tile-index">
+                        MODUL 02
+                    </span>
+
+                    <span class="bb-tile-tag">
+                        MCP DIAG &amp; RECOVERY
+                    </span>
+
+                </span>
+
+                <span class="bb-tile-icon" aria-hidden="true">
+
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.9"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
+
+                </span>
+
+                <span class="bb-tile-label">
+                    OPUS STATUS &amp; RECOVERY
+                </span>
+
+                <span class="bb-tile-desc">
+                    Cek status akun MCP Opus (whoami &amp; OAuth Vault), pantau job
+                    menggantung, dan pulihkan hasil via list_jobs / resolve_job tanpa potong kredit ulang.
+                </span>
+
+                <span class="bb-tile-cta">
+
+                    <span class="bb-tile-cta-text" id="bbOpusDiagCtaText">
+                        BUKA PANEL
+                    </span>
+
+                    <span class="bb-tile-arrow" aria-hidden="true">
+
+                        <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.1"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M6 9l6 6 6-6"></path>
+                        </svg>
+
+                    </span>
+
+                </span>
+
+                <span class="bb-tile-url">
+                    /api/opus-blackbox · whoami · list_jobs · resolve_job
+                </span>
+
+            </button>
+
+            <!--
+                ============================================
                 SLOT KOSONG — penanda tombol berikutnya
                 ============================================
             -->
@@ -245,6 +329,86 @@
             </div>
 
         </div>
+
+        <!-- =====================================================
+             MODUL 02 PANEL — OPUS STATUS & JOB RECOVERY CONSOLE
+        ====================================================== -->
+
+        <section
+            id="bbOpusDiagPanel"
+            class="bb-diag-panel"
+            aria-label="Konsol Status Akun dan Job Recovery Opus"
+            hidden
+        >
+            <div class="bb-diag-header">
+                <div>
+                    <span class="bb-diag-eyebrow">MODUL 02 // OPUS LABS MCP DIAGNOSTICS</span>
+                    <h3 class="bb-diag-title">Status Akun, OAuth Vault &amp; Job Recovery</h3>
+                </div>
+                <div class="bb-diag-actions">
+                    <button type="button" id="bbOpusRefreshBtn" class="bb-diag-btn bb-diag-btn--primary">
+                        🔄 Cek Status Sekarang
+                    </button>
+                    <button type="button" id="bbOpusCloseBtn" class="bb-diag-btn">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+
+            <p id="bbOpusStatusBanner" class="bb-diag-banner">
+                Klik "Cek Status Sekarang" untuk memeriksa kesehatan slot akun MCP Opus &amp; antrean job.
+            </p>
+
+            <div class="bb-diag-grid">
+                <div class="bb-diag-card">
+                    <h4 class="bb-diag-card-title">Slot Kredensial MCP (whoami)</h4>
+                    <div id="bbOpusSlotsContainer" class="bb-diag-list">
+                        <span class="bb-diag-empty">Belum dimuat.</span>
+                    </div>
+                </div>
+
+                <div class="bb-diag-card">
+                    <h4 class="bb-diag-card-title">OAuth Token Vault (Metadata Aman)</h4>
+                    <div id="bbOpusVaultContainer" class="bb-diag-list">
+                        <span class="bb-diag-empty">Belum dimuat.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bb-diag-card">
+                <h4 class="bb-diag-card-title">Pemulihan Manual (resolve_job / list_jobs)</h4>
+                <div class="bb-diag-form-row">
+                    <input
+                        type="text"
+                        id="bbOpusTaskInput"
+                        class="bb-diag-input"
+                        placeholder="Tempel Task ID (opus:proj_...:job_...) atau Job ID"
+                        autocomplete="off"
+                    >
+                    <input
+                        type="text"
+                        id="bbOpusProjectInput"
+                        class="bb-diag-input"
+                        placeholder="Project ID (opsional / wajib untuk list_jobs)"
+                        autocomplete="off"
+                    >
+                    <button type="button" id="bbOpusResolveBtn" class="bb-diag-btn bb-diag-btn--primary">
+                        ⚡ Resolve Job
+                    </button>
+                    <button type="button" id="bbOpusListJobsBtn" class="bb-diag-btn">
+                        📋 List Jobs Project
+                    </button>
+                </div>
+                <pre id="bbOpusManualOutput" class="bb-diag-output" hidden></pre>
+            </div>
+
+            <div class="bb-diag-card">
+                <h4 class="bb-diag-card-title">Job Opus Menggantung / Gagal Terbaru (1-Klik Recovery)</h4>
+                <div id="bbOpusHistoryContainer" class="bb-diag-list">
+                    <span class="bb-diag-empty">Belum dimuat.</span>
+                </div>
+            </div>
+        </section>
 
     </section>
 
@@ -497,10 +661,325 @@
 
         if (hasAdminAccess(role)) {
             revealPage();
+            initOpusDiagConsole();
             return;
         }
 
         denyAccess(role);
+    }
+
+    async function readOperatorAccessToken() {
+        try {
+            if (window.GENZSession && typeof window.GENZSession.getAccessToken === "function") {
+                var tok = await window.GENZSession.getAccessToken();
+                if (tok) return String(tok).trim();
+            }
+        } catch (e) {}
+
+        try {
+            if (window.supabaseClient && window.supabaseClient.auth) {
+                var s = await window.supabaseClient.auth.getSession();
+                if (s && s.data && s.data.session && s.data.session.access_token) {
+                    return String(s.data.session.access_token).trim();
+                }
+            }
+        } catch (e) {}
+
+        try {
+            for (var i = 0; i < localStorage.length; i += 1) {
+                var k = localStorage.key(i) || "";
+                if (k.indexOf("-auth-token") !== -1) {
+                    var parsed = JSON.parse(localStorage.getItem(k) || "{}");
+                    var candidate =
+                        parsed.access_token ||
+                        (parsed.currentSession && parsed.currentSession.access_token) ||
+                        "";
+                    if (candidate) return String(candidate).trim();
+                }
+            }
+        } catch (e) {}
+
+        return "";
+    }
+
+    function escapeHtml(text) {
+        return String(text === null || text === undefined ? "" : text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function initOpusDiagConsole() {
+        var toggleBtn = document.getElementById("bbOpusDiagToggle");
+        var ctaText = document.getElementById("bbOpusDiagCtaText");
+        var panel = document.getElementById("bbOpusDiagPanel");
+        var closeBtn = document.getElementById("bbOpusCloseBtn");
+        var refreshBtn = document.getElementById("bbOpusRefreshBtn");
+        var banner = document.getElementById("bbOpusStatusBanner");
+        var slotsBox = document.getElementById("bbOpusSlotsContainer");
+        var vaultBox = document.getElementById("bbOpusVaultContainer");
+        var historyBox = document.getElementById("bbOpusHistoryContainer");
+        var taskInput = document.getElementById("bbOpusTaskInput");
+        var projInput = document.getElementById("bbOpusProjectInput");
+        var resolveBtn = document.getElementById("bbOpusResolveBtn");
+        var listJobsBtn = document.getElementById("bbOpusListJobsBtn");
+        var manualOutput = document.getElementById("bbOpusManualOutput");
+        var loadedOnce = false;
+
+        if (!toggleBtn || !panel) return;
+
+        async function callOpusBlackbox(method, bodyOrQuery) {
+            var token = await readOperatorAccessToken();
+            var url = "/api/opus-blackbox";
+            var init = {
+                method: method,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            };
+            if (token) {
+                init.headers.Authorization = "Bearer " + token;
+            }
+            if (method === "GET" && bodyOrQuery) {
+                url += "?" + bodyOrQuery;
+                delete init.headers["Content-Type"];
+            } else if (method === "POST") {
+                init.body = JSON.stringify(bodyOrQuery || {});
+            }
+            var resp = await fetch(url, init);
+            var data = await resp.json().catch(function () { return null; });
+            if (!resp.ok || !data || !data.success) {
+                throw new Error((data && data.error) || ("HTTP " + resp.status));
+            }
+            return data;
+        }
+
+        async function loadStatus() {
+            if (refreshBtn) refreshBtn.disabled = true;
+            if (banner) banner.textContent = "Memeriksa status akun MCP Opus Labs & OAuth Vault…";
+
+            try {
+                var data = await callOpusBlackbox("GET", "action=status");
+                loadedOnce = true;
+                var mcp = data.mcp || {};
+                var slots = Array.isArray(mcp.slots) ? mcp.slots : [];
+                var okCount = slots.filter(function (s) { return s.ok; }).length;
+
+                if (banner) {
+                    banner.textContent =
+                        "Terhubung: " + okCount + "/" + (mcp.totalSlots || 0) +
+                        " slot MCP sehat • OAuth Vault: " + ((data.vault && data.vault.count) || 0) +
+                        " entri • Dicek " + new Date(data.checkedAt || Date.now()).toLocaleTimeString("id-ID");
+                }
+
+                if (slotsBox) {
+                    if (slots.length === 0) {
+                        slotsBox.innerHTML = '<span class="bb-diag-empty">Belum ada slot kredensial Opus aktif.</span>';
+                    } else {
+                        slotsBox.innerHTML = slots.map(function (s) {
+                            var badge = s.ok
+                                ? '<span class="bb-diag-pill bb-diag-pill--ok">ONLINE (' + (s.latencyMs || 0) + 'ms)</span>'
+                                : '<span class="bb-diag-pill bb-diag-pill--err">ERROR</span>';
+                            var acct = s.account || {};
+                            var identity = acct.email || acct.name || acct.organization || acct.userId || "Token MCP Valid";
+                            var creditsTxt = acct.credits !== null && acct.credits !== undefined
+                                ? " • Kredit Opus: " + escapeHtml(acct.credits)
+                                : "";
+                            var detail = s.ok
+                                ? escapeHtml(identity) + creditsTxt + " • " + (s.toolCount || 0) + " MCP tools"
+                                : escapeHtml(s.errorMessage || "Gagal terhubung");
+                            return (
+                                '<div class="bb-diag-row">' +
+                                    '<div class="bb-diag-row-top">' +
+                                        '<strong>' + escapeHtml(s.label) + (s.isActive ? " (Aktif)" : "") + '</strong>' +
+                                        badge +
+                                    '</div>' +
+                                    '<div class="bb-diag-row-sub">' + detail + '</div>' +
+                                '</div>'
+                            );
+                        }).join("");
+                    }
+                }
+
+                if (vaultBox) {
+                    var entries = (data.vault && Array.isArray(data.vault.entries)) ? data.vault.entries : [];
+                    if (entries.length === 0) {
+                        vaultBox.innerHTML = '<span class="bb-diag-empty">Tabel opus_oauth_tokens kosong / memakai env statis.</span>';
+                    } else {
+                        vaultBox.innerHTML = entries.map(function (v) {
+                            var freshBadge = v.isAccessFresh
+                                ? '<span class="bb-diag-pill bb-diag-pill--ok">FRESH</span>'
+                                : '<span class="bb-diag-pill">AUTO-ROTATE READY</span>';
+                            var expStr = v.expiresAt ? new Date(v.expiresAt).toLocaleString("id-ID") : "-";
+                            return (
+                                '<div class="bb-diag-row">' +
+                                    '<div class="bb-diag-row-top">' +
+                                        '<strong>Seed ' + escapeHtml(v.seedId) + '</strong>' +
+                                        freshBadge +
+                                    '</div>' +
+                                    '<div class="bb-diag-row-sub">Expires: ' + escapeHtml(expStr) + '</div>' +
+                                '</div>'
+                            );
+                        }).join("");
+                    }
+                }
+
+                if (historyBox) {
+                    var hist = Array.isArray(data.recoverableHistory) ? data.recoverableHistory : [];
+                    if (hist.length === 0) {
+                        historyBox.innerHTML = '<span class="bb-diag-empty">Tidak ada job Opus yang menggantung/gagal saat ini.</span>';
+                    } else {
+                        historyBox.innerHTML = hist.map(function (item) {
+                            return (
+                                '<div class="bb-diag-row">' +
+                                    '<div class="bb-diag-row-top">' +
+                                        '<strong>' + escapeHtml(item.modelName) + ' (' + escapeHtml(item.status) + ')</strong>' +
+                                        '<button type="button" class="bb-diag-btn bb-diag-btn--sm" ' +
+                                            'data-recover-task="' + escapeHtml(item.taskId) + '" ' +
+                                            'data-recover-history="' + escapeHtml(item.id) + '">' +
+                                            '⚡ Pulihkan' +
+                                        '</button>' +
+                                    '</div>' +
+                                    '<div class="bb-diag-row-sub">' +
+                                        escapeHtml(item.userEmail) + ' • Task: ' + escapeHtml(item.taskId) +
+                                        (item.errorMessage ? ' • ' + escapeHtml(item.errorMessage) : '') +
+                                    '</div>' +
+                                '</div>'
+                            );
+                        }).join("");
+                    }
+                }
+            } catch (err) {
+                if (banner) banner.textContent = "Gagal memuat status Opus: " + (err && err.message ? err.message : err);
+            } finally {
+                if (refreshBtn) refreshBtn.disabled = false;
+            }
+        }
+
+        function setPanelOpen(open) {
+            panel.hidden = !open;
+            toggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+            if (ctaText) ctaText.textContent = open ? "TUTUP PANEL" : "BUKA PANEL";
+            if (open && !loadedOnce) {
+                loadStatus();
+            }
+        }
+
+        toggleBtn.addEventListener("click", function () {
+            setPanelOpen(panel.hidden);
+        });
+
+        if (closeBtn) {
+            closeBtn.addEventListener("click", function () {
+                setPanelOpen(false);
+            });
+        }
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener("click", function () {
+                loadStatus();
+            });
+        }
+
+        if (resolveBtn) {
+            resolveBtn.addEventListener("click", async function () {
+                var taskVal = taskInput ? taskInput.value.trim() : "";
+                var projVal = projInput ? projInput.value.trim() : "";
+                if (!taskVal) {
+                    if (manualOutput) {
+                        manualOutput.hidden = false;
+                        manualOutput.textContent = "Masukkan Task ID atau Job ID terlebih dahulu.";
+                    }
+                    return;
+                }
+                resolveBtn.disabled = true;
+                if (manualOutput) {
+                    manualOutput.hidden = false;
+                    manualOutput.textContent = "Memanggil get_status + resolve_job di Opus Labs MCP…";
+                }
+                try {
+                    var res = await callOpusBlackbox("POST", {
+                        action: "resolve_job",
+                        task_id: taskVal.indexOf(":") !== -1 ? taskVal : "",
+                        job_id: taskVal.indexOf(":") === -1 ? taskVal : "",
+                        project_id: projVal
+                    });
+                    if (manualOutput) {
+                        manualOutput.textContent = JSON.stringify(res, null, 2);
+                    }
+                } catch (err) {
+                    if (manualOutput) {
+                        manualOutput.textContent = "Error: " + (err && err.message ? err.message : err);
+                    }
+                } finally {
+                    resolveBtn.disabled = false;
+                }
+            });
+        }
+
+        if (listJobsBtn) {
+            listJobsBtn.addEventListener("click", async function () {
+                var projVal = projInput ? projInput.value.trim() : "";
+                if (!projVal) {
+                    if (manualOutput) {
+                        manualOutput.hidden = false;
+                        manualOutput.textContent = "Masukkan Project ID untuk memanggil list_jobs.";
+                    }
+                    return;
+                }
+                listJobsBtn.disabled = true;
+                if (manualOutput) {
+                    manualOutput.hidden = false;
+                    manualOutput.textContent = "Memanggil list_jobs pada project " + projVal + "…";
+                }
+                try {
+                    var res = await callOpusBlackbox("POST", {
+                        action: "list_jobs",
+                        project_id: projVal
+                    });
+                    if (manualOutput) {
+                        manualOutput.textContent = JSON.stringify(res, null, 2);
+                    }
+                } catch (err) {
+                    if (manualOutput) {
+                        manualOutput.textContent = "Error: " + (err && err.message ? err.message : err);
+                    }
+                } finally {
+                    listJobsBtn.disabled = false;
+                }
+            });
+        }
+
+        if (historyBox) {
+            historyBox.addEventListener("click", async function (ev) {
+                var btn = ev.target && ev.target.closest ? ev.target.closest("[data-recover-task]") : null;
+                if (!btn) return;
+                var tId = btn.getAttribute("data-recover-task") || "";
+                var hId = btn.getAttribute("data-recover-history") || "";
+                btn.disabled = true;
+                btn.textContent = "Memulihkan…";
+                try {
+                    var res = await callOpusBlackbox("POST", {
+                        action: "resolve_job",
+                        task_id: tId,
+                        history_id: hId
+                    });
+                    if (manualOutput) {
+                        manualOutput.hidden = false;
+                        manualOutput.textContent = JSON.stringify(res, null, 2);
+                    }
+                    await loadStatus();
+                } catch (err) {
+                    btn.disabled = false;
+                    btn.textContent = "Gagal";
+                    if (manualOutput) {
+                        manualOutput.hidden = false;
+                        manualOutput.textContent = "Error: " + (err && err.message ? err.message : err);
+                    }
+                }
+            });
+        }
     }
 
     if (document.readyState === "loading") {

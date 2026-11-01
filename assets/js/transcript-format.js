@@ -152,14 +152,48 @@ export function parseSrtOrVttSegments(rawSubtitleText) {
     return segments;
 }
 
-function formatSpeakerLabel(rawSpeaker) {
+export function formatSpeakerLabel(rawSpeaker) {
     const clean = String(rawSpeaker || "").trim();
     if (!clean) return "";
-    const speakerIdxMatch = /^speaker[_-\s]*(\d+)$/i.exec(clean);
+    const alreadyHumanMatch = /^speaker\s+([1-9]\d*)$/i.exec(clean);
+    if (alreadyHumanMatch) {
+        return `Speaker ${Number(alreadyHumanMatch[1])}`;
+    }
+    const speakerIdxMatch = /^speaker(?:[_-]+|\s*0\b\s*)?(\d+)$/i.exec(clean);
     if (speakerIdxMatch) {
         return `Speaker ${Number(speakerIdxMatch[1]) + 1}`;
     }
+    if (/^\d+$/.test(clean)) {
+        return `Speaker ${Number(clean) + 1}`;
+    }
     return clean;
+}
+
+export function buildSpeakerFormattedDialog(segments = []) {
+    if (!Array.isArray(segments) || segments.length === 0) return "";
+    const distinct = new Set(
+        segments
+            .map(seg => String(seg?.speaker || "").trim())
+            .filter(Boolean)
+    );
+    if (distinct.size < 2) return "";
+
+    const blocks = [];
+    for (const seg of segments) {
+        const text = String(seg?.text || "").trim();
+        if (!text) continue;
+        const speaker = String(seg?.speaker || "").trim() || "Speaker 1";
+        const prev = blocks.length > 0 ? blocks[blocks.length - 1] : null;
+        if (prev && prev.speaker === speaker) {
+            prev.lines.push(text);
+        } else {
+            blocks.push({ speaker, lines: [text] });
+        }
+    }
+
+    return blocks
+        .map(block => `[${block.speaker}]: ${block.lines.join(" ").replace(/\s+([,.;!?])/g, "$1")}`)
+        .join("\n\n");
 }
 
 function groupWordsIntoSegments(words, maxWordsPerCue = 10) {
@@ -317,7 +351,7 @@ export function buildSrtFromSegments(segments = [], fallbackText = "", durationS
     );
 }
 
-export function normalizeTranscriptPayload(rawInput) {
+export function normalizeTranscriptPayload(rawInput, options = {}) {
     if (!rawInput) return null;
 
     if (typeof rawInput === "string") {
@@ -327,7 +361,7 @@ export function normalizeTranscriptPayload(rawInput) {
         if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
             try {
                 const parsed = JSON.parse(trimmed);
-                return normalizeTranscriptPayload(parsed);
+                return normalizeTranscriptPayload(parsed, options);
             } catch {
                 /* lanjut sebagai teks / SRT */
             }
@@ -344,6 +378,8 @@ export function normalizeTranscriptPayload(rawInput) {
                 txt: joinedText,
                 language: "",
                 durationSeconds,
+                speakers: [],
+                speakerCount: 0,
                 segments: srtSegments,
                 srt: buildSrtFromSegments(srtSegments, joinedText, durationSeconds)
             };
@@ -357,13 +393,15 @@ export function normalizeTranscriptPayload(rawInput) {
             txt: trimmed,
             language: "",
             durationSeconds: null,
+            speakers: [],
+            speakerCount: 0,
             segments: fallbackSegments,
             srt: buildSrtFromSegments(fallbackSegments, trimmed, null)
         };
     }
 
     if (Array.isArray(rawInput)) {
-        return normalizeTranscriptPayload({ segments: rawInput });
+        return normalizeTranscriptPayload({ segments: rawInput }, options);
     }
 
     if (typeof rawInput !== "object") {
@@ -440,12 +478,17 @@ export function normalizeTranscriptPayload(rawInput) {
                         ? resolvedStart + durSec
                         : resolvedStart + 2.5;
 
+            const rawSegSpeaker = String(
+                item.speaker ?? item.speakerId ?? item.speaker_id ?? ""
+            ).trim();
+            const normalizedSegSpeaker = formatSpeakerLabel(rawSegSpeaker);
+
             segments.push({
                 index: segments.length + 1,
                 start: Number(resolvedStart.toFixed(3)),
                 end: Number(resolvedEnd.toFixed(3)),
                 text: segText,
-                ...(item.speaker ? { speaker: String(item.speaker).trim() } : {})
+                ...(normalizedSegSpeaker ? { speaker: normalizedSegSpeaker } : {})
             });
         }
     }
@@ -458,6 +501,38 @@ export function normalizeTranscriptPayload(rawInput) {
         segments = parseSrtOrVttSegments(source.srt);
     } else if (segments.length === 0 && typeof source.vtt === "string" && source.vtt.includes("-->")) {
         segments = parseSrtOrVttSegments(source.vtt);
+    }
+
+    const diarizeEnabled =
+        options?.diarize !== undefined
+            ? Boolean(options.diarize)
+            : source?.diarize !== undefined
+              ? Boolean(source.diarize)
+              : true;
+
+    if (!diarizeEnabled && segments.length > 0) {
+        segments = segments.map(seg => {
+            if (!seg || typeof seg !== "object" || !seg.speaker) return seg;
+            const copy = { ...seg };
+            delete copy.speaker;
+            return copy;
+        });
+    } else if (diarizeEnabled && segments.length > 0) {
+        const distinctSegmentSpeakers = Array.from(
+            new Set(
+                segments
+                    .map(seg => String(seg?.speaker || "").trim())
+                    .filter(Boolean)
+            )
+        );
+        if (distinctSegmentSpeakers.length < 2) {
+            segments = segments.map(seg => {
+                if (!seg || typeof seg !== "object" || !seg.speaker) return seg;
+                const copy = { ...seg };
+                delete copy.speaker;
+                return copy;
+            });
+        }
     }
 
     const directTextCandidates = [
@@ -512,6 +587,26 @@ export function normalizeTranscriptPayload(rawInput) {
         segments = synthesizeSegmentsFromPlainText(fullText, durationSeconds);
     }
 
+    const detectedSpeakers = diarizeEnabled
+        ? Array.from(
+              new Set(
+                  segments
+                      .map(seg => String(seg?.speaker || "").trim())
+                      .filter(Boolean)
+              )
+          )
+        : [];
+
+    const speakerDialogText =
+        diarizeEnabled && detectedSpeakers.length >= 2
+            ? buildSpeakerFormattedDialog(segments)
+            : "";
+
+    const effectiveText =
+        speakerDialogText && !/^\s*\[[^\]]+\]:/.test(fullText)
+            ? speakerDialogText
+            : fullText;
+
     const language = String(
         source.language ||
         source.languageCode ||
@@ -523,7 +618,7 @@ export function normalizeTranscriptPayload(rawInput) {
     ).trim();
 
     const srt =
-        typeof source.srt === "string" && source.srt.includes("-->")
+        typeof source.srt === "string" && source.srt.includes("-->") && (!speakerDialogText || !diarizeEnabled)
             ? source.srt.trim() + "\n"
             : buildSrtFromSegments(segments, fullText, durationSeconds);
 
@@ -531,9 +626,14 @@ export function normalizeTranscriptPayload(rawInput) {
         kind: "transcript",
         version: 1,
         text: fullText,
-        txt: fullText,
+        dialogText: speakerDialogText,
+        txt: speakerDialogText || fullText,
+        plainText: fullText,
         language,
         durationSeconds,
+        diarize: diarizeEnabled,
+        speakers: detectedSpeakers,
+        speakerCount: detectedSpeakers.length,
         segments,
         srt
     };

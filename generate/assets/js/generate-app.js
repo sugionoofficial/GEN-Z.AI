@@ -2576,14 +2576,6 @@ function isStaged30sVideoModel(
         of sources
     ) {
 
-        if (
-            src?.staged30s === true
-        ) {
-
-            return true;
-
-        }
-
         const id =
             String(
                 src?.id ||
@@ -2593,8 +2585,22 @@ function isStaged30sVideoModel(
                 .trim()
                 .toLowerCase();
 
+        if (id === "opus-video-director") {
+            return false;
+        }
+
+        if (
+            src?.staged30s === true
+        ) {
+
+            return true;
+
+        }
+
         if (
             id === "opus-seedance-2.5-r2v-30s" ||
+            id === "opus-seedance-2.5-t2v-30s" ||
+            id === "opus-seedance-2.5-i2v-30s" ||
             id === "opus-hailuo-3-i2v-30s"
         ) {
 
@@ -6080,11 +6086,14 @@ async function renderTranscribeResult(result, model = getCurrentModel()) {
     hideAudioResult();
 
     latestGeneratedTranscript = transcript;
-    textEl.textContent = transcript.text;
+    textEl.textContent = transcript.dialogText || transcript.txt || transcript.text;
 
     const metaParts = [getModelName(model) || "Opus Transcribe"];
     if (transcript.language) {
         metaParts.push(`Bahasa: ${String(transcript.language).toUpperCase()}`);
+    }
+    if (Number(transcript.speakerCount) >= 2) {
+        metaParts.push(`${transcript.speakerCount} Pembicara`);
     }
     if (typeof transcript.durationSeconds === "number" && transcript.durationSeconds > 0) {
         metaParts.push(formatReadableTimestamp(transcript.durationSeconds));
@@ -6154,7 +6163,12 @@ function bindTranscribeActionButtons() {
     const copyBtn = document.getElementById("generateTranscribeCopyBtn");
     if (copyBtn && copyBtn.dataset.genzTrxCopyBound !== "true") {
         copyBtn.addEventListener("click", async () => {
-            const text = latestGeneratedTranscript?.text || document.getElementById("generateTranscribeText")?.textContent || "";
+            const text =
+                latestGeneratedTranscript?.dialogText ||
+                latestGeneratedTranscript?.txt ||
+                latestGeneratedTranscript?.text ||
+                document.getElementById("generateTranscribeText")?.textContent ||
+                "";
             if (!text.trim()) return;
             try {
                 await navigator.clipboard.writeText(text);
@@ -6366,10 +6380,10 @@ function syncModeSwitcherUI() {
                     : "Pilih model gambar AI, unggah hingga 8 gambar referensi (opsional), lalu tulis prompt gambar Anda.";
         } else if (isAud) {
             sectionDesc.textContent =
-                "Buat Voiceover narator 30 karakter suara, Musik / Lagu AI (Lyria 3.5), atau Sound Effects (SFX) kualitas studio.";
+                "Buat Voiceover narator 30 karakter suara (dengan Preview Suara gratis), Podcast 2 Suara, Musik / Lagu AI (Lyria 3.5), atau Sound Effects (SFX) kualitas studio.";
         } else if (isTrx) {
             sectionDesc.textContent =
-                "Unggah file Audio (MP3/WAV/M4A/AAC/OGG/FLAC) atau Video (MP4/MOV/WEBM) untuk diubah menjadi teks & file subtitle .SRT bertanda waktu.";
+                "Unggah file Audio (MP3/WAV/M4A/AAC/OGG/FLAC) atau Video (MP4/MOV/WEBM) untuk diubah menjadi teks dialog pembicara & subtitle .SRT bertanda waktu.";
         } else {
             sectionDesc.textContent =
                 "Pilih model dan parameter video yang tersedia pada konfigurasi model aktif.";
@@ -6398,7 +6412,9 @@ function syncModeSwitcherUI() {
                     ? "Generate Musik AI"
                     : currentModelId === "opus-audio-sfx"
                         ? "Generate Sound Effect"
-                        : "Generate Voiceover";
+                        : currentModelId === "opus-audio-podcast"
+                            ? "Generate Podcast AI"
+                            : "Generate Voiceover";
         } else if (isTrx) {
             buttonLabel.textContent = "Transcribe Audio";
         } else {

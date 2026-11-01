@@ -21,6 +21,7 @@
 ========================================================= */
 
 export const DEFAULT_OPUS_AUDIO_CREDIT = 500;
+export const DEFAULT_OPUS_PODCAST_CREDIT = 1000;
 export const MAX_SPEECH_WEIGHTED_LENGTH = 6000;
 export const MAX_SPEECH_STYLE_LENGTH = 500;
 export const MAX_MUSIC_PROMPT_LENGTH = 4000;
@@ -161,6 +162,22 @@ export const OPUS_AUDIO_SPECS = Object.freeze([
         description:
             "Generator efek suara (Sound Effects / Foley / Ambience) presisi tinggi untuk kebutuhan editing video, transisi sinematik, game, dan podcast.",
         defaultCredit: DEFAULT_OPUS_AUDIO_CREDIT
+    },
+    {
+        id: "opus-audio-podcast",
+        name: "Opus Podcast / Dialog 2 Suara",
+        audioKind: "podcast",
+        upstreamModel: "gemini-3.8-flash-tts",
+        modelAliases: [
+            "gemini-3.8-flash-tts",
+            "google/gemini-3.8-flash-tts",
+            "podcast",
+            "speech"
+        ],
+        logo: "gemini.svg",
+        description:
+            "Studio podcast & dialog percakapan 2 karakter suara berbeda (Pembicara A & Pembicara B) yang otomatis digabungkan menjadi 1 file audio utuh siap tayang.",
+        defaultCredit: DEFAULT_OPUS_PODCAST_CREDIT
     }
 ]);
 

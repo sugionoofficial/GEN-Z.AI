@@ -264,6 +264,16 @@ export function renderParameter(
         wrapper.appendChild(
             input
         );
+
+        if (
+            (name === "voice" || name === "voice_a" || name === "voice_b") &&
+            input.tagName === "SELECT"
+        ) {
+            appendOpusVoicePreviewControl(
+                wrapper,
+                input
+            );
+        }
     }
 
 
@@ -595,6 +605,135 @@ export function forceContainerVisible(
             }
         }
     );
+}
+
+
+/* =========================================================
+   OPUS FREE CACHED VOICE PREVIEW CONTROL
+========================================================= */
+
+const voicePreviewUrlCache = new Map();
+let activeVoicePreviewAudio = null;
+let activeVoicePreviewBtn = null;
+
+function stopActiveVoicePreview() {
+    if (activeVoicePreviewAudio) {
+        try {
+            activeVoicePreviewAudio.pause();
+            activeVoicePreviewAudio.currentTime = 0;
+        } catch {
+            /* ignore */
+        }
+        activeVoicePreviewAudio = null;
+    }
+    if (activeVoicePreviewBtn) {
+        activeVoicePreviewBtn.classList.remove("is-playing");
+        activeVoicePreviewBtn.textContent = "🔊 Preview Suara (Gratis)";
+        activeVoicePreviewBtn = null;
+    }
+}
+
+async function resolveBrowserSupabaseJwt() {
+    if (typeof window !== "undefined" && typeof window.GENZSession?.getAccessToken === "function") {
+        const token = String((await window.GENZSession.getAccessToken()) || "").trim();
+        if (token) return token;
+    }
+    try {
+        const mod = await import("./generate-auth.js");
+        if (typeof mod.getAccessToken === "function") {
+            return String((await mod.getAccessToken()) || "").trim();
+        }
+    } catch {
+        /* ignore */
+    }
+    return "";
+}
+
+function appendOpusVoicePreviewControl(wrapper, selectEl) {
+    if (!wrapper || !selectEl) return;
+
+    const bar = document.createElement("div");
+    bar.className = "opus-voice-preview-bar";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "opus-voice-preview-btn";
+    btn.textContent = "🔊 Preview Suara (Gratis)";
+
+    const statusSpan = document.createElement("span");
+    statusSpan.className = "opus-voice-preview-status";
+    statusSpan.textContent = "0 kredit • Dengarkan contoh suara";
+
+    const audioEl = document.createElement("audio");
+    audioEl.preload = "none";
+    audioEl.hidden = true;
+
+    selectEl.addEventListener("change", () => {
+        if (activeVoicePreviewBtn === btn) {
+            stopActiveVoicePreview();
+        }
+        statusSpan.textContent = `0 kredit • Siap putar suara ${selectEl.value || ""}`;
+    });
+
+    audioEl.addEventListener("ended", () => {
+        if (activeVoicePreviewBtn === btn) {
+            stopActiveVoicePreview();
+        }
+    });
+
+    btn.addEventListener("click", async () => {
+        if (activeVoicePreviewBtn === btn && activeVoicePreviewAudio && !activeVoicePreviewAudio.paused) {
+            stopActiveVoicePreview();
+            statusSpan.textContent = "Preview dihentikan";
+            return;
+        }
+
+        stopActiveVoicePreview();
+        const selectedVoice = String(selectEl.value || "Sulafat").trim();
+        if (!selectedVoice) return;
+
+        btn.disabled = true;
+        btn.textContent = "⏳ Memuat Sampel...";
+        statusSpan.textContent = `Menyiapkan sampel suara ${selectedVoice} (0 kredit)...`;
+
+        try {
+            let previewUrl = voicePreviewUrlCache.get(selectedVoice.toLowerCase()) || "";
+            if (!previewUrl) {
+                const token = await resolveBrowserSupabaseJwt();
+                const resp = await fetch(
+                    `/api/opus-voice-preview?voice=${encodeURIComponent(selectedVoice)}`,
+                    {
+                        method: "GET",
+                        headers: token ? { Authorization: `Bearer ${token}` } : {}
+                    }
+                );
+                const payload = await resp.json().catch(() => null);
+                if (!resp.ok || !payload?.preview_url) {
+                    throw new Error(payload?.error || "Gagal memuat sampel suara.");
+                }
+                previewUrl = String(payload.preview_url).trim();
+                voicePreviewUrlCache.set(selectedVoice.toLowerCase(), previewUrl);
+            }
+
+            audioEl.src = previewUrl;
+            activeVoicePreviewAudio = audioEl;
+            activeVoicePreviewBtn = btn;
+            btn.disabled = false;
+            btn.classList.add("is-playing");
+            btn.textContent = "⏹️ Hentikan Preview";
+            statusSpan.textContent = `Memutar suara ${selectedVoice} (Gratis)`;
+            await audioEl.play();
+        } catch (err) {
+            stopActiveVoicePreview();
+            btn.disabled = false;
+            statusSpan.textContent = err?.message || "Gagal memutar sampel suara.";
+        }
+    });
+
+    bar.appendChild(btn);
+    bar.appendChild(statusSpan);
+    bar.appendChild(audioEl);
+    wrapper.appendChild(bar);
 }
 
 

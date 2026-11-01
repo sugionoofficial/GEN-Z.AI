@@ -1934,6 +1934,10 @@ function buildModelConfig(
             Boolean(config.staged30s),
 
 
+        videoDirector:
+            Boolean(config.videoDirector),
+
+
         provider: {
 
             id:

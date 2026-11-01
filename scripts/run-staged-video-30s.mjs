@@ -38,6 +38,7 @@ import {
 } from "../lib/generate/private-media.js";
 
 import {
+    buildDirectorMuxFfmpegArgs,
     buildLastFrameFfmpegArgs,
     buildReferenceAudioSliceFfmpegArgs,
     buildReferenceVideoSliceFfmpegArgs,
@@ -571,7 +572,8 @@ export async function runStagedVideoOrchestrator({
     function getJobTargetConfig(jobRow) {
         const reqPayload = jobRow?.request_payload || {};
         return resolveStagedTargetConfig(
-            reqPayload.target_duration ?? reqPayload.duration ?? 30
+            reqPayload.target_duration ?? reqPayload.duration ?? 30,
+            jobRow?.model_id || ""
         );
     }
 
@@ -1071,7 +1073,170 @@ export async function runStagedVideoOrchestrator({
 
     const completedClipLocalPaths = [];
 
+    async function executeDirectorAudioTrack(audioKind, destFileName) {
+        const createRes = await callWorkerStep(internalToken, {
+            step_action: "create_director_audio",
+            audio_kind: audioKind
+        });
+        if (!createRes.ok || !createRes.data?.success || !createRes.data?.task_id) {
+            throw new Error(
+                createRes.data?.error || `Gagal memulai pembuatan trek ${audioKind} AI Video Director.`
+            );
+        }
+
+        let audioUrl =
+            Array.isArray(createRes.data.output_urls) && createRes.data.output_urls[0]
+                ? String(createRes.data.output_urls[0]).trim()
+                : "";
+        const audioTaskId = String(createRes.data.task_id).trim();
+        const startedAt = Date.now();
+
+        while (!audioUrl && Date.now() - startedAt < 12 * 60 * 1000) {
+            await sleepImpl(pollIntervalMs);
+            const qRes = await callWorkerStep(internalToken, {
+                step_action: "query_director_audio",
+                audio_kind: audioKind,
+                audio_task_id: audioTaskId
+            });
+            if (!qRes.ok || !qRes.data?.success) {
+                continue;
+            }
+            if (qRes.data.failed) {
+                throw new Error(
+                    qRes.data.error_message || `Trek ${audioKind} AI Video Director gagal dibuat.`
+                );
+            }
+            if (qRes.data.completed && Array.isArray(qRes.data.output_urls) && qRes.data.output_urls[0]) {
+                audioUrl = String(qRes.data.output_urls[0]).trim();
+                break;
+            }
+        }
+
+        if (!audioUrl) {
+            throw new Error(`Waktu tunggu trek ${audioKind} AI Video Director habis.`);
+        }
+
+        const localDest = path.join(tempRoot, destFileName);
+        await downloadHttpUrlToFile(audioUrl, localDest);
+        return localDest;
+    }
+
     try {
+        if (targetConfig.isVideoDirector) {
+            const voicePromise = executeDirectorAudioTrack("speech", "director-voiceover.mp3");
+            const bgmPromise = executeDirectorAudioTrack("music", "director-bgm.mp3").catch(err => {
+                console.warn("[staged-video-30s] BGM opsional gagal/timeout, lanjut dengan voiceover:", err?.message || err);
+                return "";
+            });
+
+            let clip1Result;
+            let voiceLocalPath = "";
+            let bgmLocalPath = "";
+
+            try {
+                [clip1Result, voiceLocalPath, bgmLocalPath] = await Promise.all([
+                    executeAndPersistClip({
+                        clipIndex: 1,
+                        initialTaskId: job.clip_1_task_id || "",
+                        referenceMedia: null
+                    }),
+                    voicePromise,
+                    bgmPromise
+                ]);
+            } catch (directorErr) {
+                if (directorErr?.cancelled) {
+                    await patchJobProgress({
+                        status: "cancelled",
+                        current_stage: "cancelled",
+                        internal_token: null,
+                        completed_at: new Date().toISOString()
+                    });
+                    return { finalized: true, outcome: "cancelled" };
+                }
+                return await finalizeFailureZeroClips(
+                    job,
+                    directorErr?.message || "Produksi AI Video Director gagal."
+                );
+            }
+
+            await patchJobProgress({
+                completed_clips: 1,
+                clip_1_storage_ref: clip1Result.clipStorageRef,
+                current_stage: "merging",
+                stage_message: "AI Video Director: menggabungkan visual video, narasi suara & musik latar (Auto Muxing)..."
+            });
+
+            const probed = await probeVideoFile(clip1Result.localClipPath, false);
+            const muxedLocalPath = path.join(tempRoot, "director-muxed.mp4");
+            const muxArgs = buildDirectorMuxFfmpegArgs({
+                videoPath: clip1Result.localClipPath,
+                videoDuration: probed.duration || targetDurationSeconds,
+                voicePath: voiceLocalPath,
+                bgmPath: bgmLocalPath,
+                bgmVolume: 0.22,
+                outputPath: muxedLocalPath
+            });
+            await execFileImpl("ffmpeg", muxArgs);
+
+            const finalObjectKey = `upscale-videos/outputs/${job.user_id}/director-${job.history_id}-${Date.now()}.mp4`;
+            const finalStorageRef = await uploadFileToStorage(muxedLocalPath, finalObjectKey, "video/mp4");
+            const finalDuration = Math.round(probed.duration || targetDurationSeconds);
+            const chargedCredits = Number(job.credit_total) || 0;
+            const summaryMsg = `Selesai! AI Video Director berhasil menggabungkan video ${finalDuration} detik, voiceover, dan musik latar.`;
+
+            const claimed = await sbRest(
+                `/rest/v1/staged_generation_jobs?id=eq.${encodeURIComponent(job.id)}&status=eq.processing`,
+                {
+                    method: "PATCH",
+                    headers: { Prefer: "return=representation" },
+                    body: JSON.stringify({
+                        status: "completed",
+                        current_stage: "completed",
+                        stage_message: summaryMsg,
+                        merged_storage_ref: finalStorageRef,
+                        completed_clips: 1,
+                        final_duration_seconds: finalDuration,
+                        credit_charged: chargedCredits,
+                        credit_refunded_amount: 0,
+                        error_message: null,
+                        internal_token: null,
+                        completed_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    })
+                }
+            );
+
+            if (!Array.isArray(claimed) || claimed.length === 0) {
+                return { finalized: false, outcome: "already_finalized" };
+            }
+
+            await sbRest(
+                `/rest/v1/generation_history?id=eq.${encodeURIComponent(job.history_id)}&status=in.(processing,pending)`,
+                {
+                    method: "PATCH",
+                    headers: { Prefer: "return=representation" },
+                    body: JSON.stringify({
+                        status: "success",
+                        result_url: finalStorageRef,
+                        duration: finalDuration,
+                        credit_cost: chargedCredits,
+                        error_message: null,
+                        completed_at: new Date().toISOString()
+                    })
+                }
+            );
+
+            return {
+                finalized: true,
+                outcome: "completed",
+                completedClips: 1,
+                finalDuration,
+                charged: chargedCredits,
+                refunded: 0,
+                resultRef: finalStorageRef
+            };
+        }
+
         const referenceMedia = await prepareJobReferenceMedia(job);
         const directRefAudio = referenceMedia?.directRefAudio || null;
 

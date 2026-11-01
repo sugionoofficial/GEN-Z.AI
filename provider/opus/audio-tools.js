@@ -15,6 +15,7 @@
 
 import { inspectReferenceMediaUrl } from "../../assets/js/media-url-guard.js";
 import { normalizeTranscriptPayload } from "../../assets/js/transcript-format.js";
+import { parsePodcastDialogScript } from "../../models/opus-audio/podcast-dialog.js";
 
 const MAX_LYRIA_PROMPT_CHARS = 7950;
 
@@ -1516,16 +1517,167 @@ export function createOpusAudioTools(deps) {
         const endpoint = getMcpEndpoint(options);
         const keySlot = Number.isInteger(options?.keySlot) && options.keySlot > 0 ? options.keySlot : 0;
         const isolateFromDefaultRefresh = Boolean(options?.isolateFromDefaultRefresh);
-        const session = await openMcpSession({
-            endpoint,
-            apiKey,
-            timeoutMs: CREATE_TIMEOUT_MS,
-            includeTools: true,
-            isolateFromDefaultRefresh,
-            env: options?.env || null
-        });
-
         const audioKind = String(payload.audio_type || payload.audioKind || "speech").trim().toLowerCase();
+
+        if (audioKind === "podcast") {
+            const voiceA = String(payload.voice_a || "Aoede").trim() || "Aoede";
+            const voiceB = String(payload.voice_b || "Orus").trim() || "Orus";
+            const styleA = String(payload.style_a || "").trim();
+            const styleB = String(payload.style_b || "").trim();
+            const turns = Array.isArray(payload.podcast_turns) && payload.podcast_turns.length >= 2
+                ? payload.podcast_turns
+                : parsePodcastDialogScript(payload.prompt || payload.text || "", {
+                      voiceA,
+                      voiceB,
+                      styleA,
+                      styleB
+                  }).turns;
+
+            if (!Array.isArray(turns) || turns.length < 2) {
+                throw createProviderError({
+                    message: "Naskah dialog podcast membutuhkan minimal 2 giliran bicara (A: ... dan B: ...).",
+                    code: "INVALID_MODEL_INPUT",
+                    status: 400
+                });
+            }
+
+            const session =
+                options?.existingSession ||
+                (await openMcpSession({
+                    endpoint,
+                    apiKey,
+                    timeoutMs: CREATE_TIMEOUT_MS,
+                    includeTools: true,
+                    isolateFromDefaultRefresh,
+                    env: options?.env || null
+                }));
+            const usesCreateProject = Boolean(findMcpTool(session.tools, "create_project"));
+            const sharedProjectId =
+                options?.existingProjectId ||
+                (usesCreateProject ? await ensureProjectId(session) : "");
+
+            const turnTokens = [];
+            const immediateTurnUrls = [];
+            let allImmediateDone = true;
+            let totalImmediateDuration = 0;
+
+            for (let tIdx = 0; tIdx < turns.length; tIdx += 1) {
+                const turn = turns[tIdx];
+                const turnText = String(turn?.text || "").trim();
+                if (!turnText) continue;
+                const turnVoice = String(turn?.voice || (turn?.speaker === "B" ? voiceB : voiceA)).trim();
+                const turnStyle = String(turn?.style ?? (turn?.speaker === "B" ? styleB : styleA) ?? "").trim();
+
+                const turnResult = await createAudioTaskForSingleKey(
+                    {
+                        ...payload,
+                        audio_type: "speech",
+                        audioKind: "speech",
+                        prompt: turnText,
+                        text: turnText,
+                        voice: turnVoice,
+                        style: turnStyle,
+                        podcast_turns: undefined
+                    },
+                    apiKey,
+                    {
+                        ...options,
+                        keySlot,
+                        existingSession: session,
+                        existingProjectId: sharedProjectId
+                    }
+                );
+
+                const firstImmediateUrl =
+                    Array.isArray(turnResult.audioUrls) && turnResult.audioUrls[0]
+                        ? turnResult.audioUrls[0]
+                        : Array.isArray(turnResult.outputUrls) && turnResult.outputUrls[0]
+                          ? turnResult.outputUrls[0]
+                          : "";
+
+                if (turnResult.status === "COMPLETED" && firstImmediateUrl) {
+                    const inlKey = `opus-inline:${makeUuid()}`;
+                    inlineCompletedResults.set(inlKey, {
+                        mediaType: "audio",
+                        audioUrls: [firstImmediateUrl],
+                        videoUrls: [firstImmediateUrl],
+                        durationSeconds: turnResult.durationSeconds || null,
+                        createdAtMs: Date.now()
+                    });
+                    turnTokens.push(`inl~${inlKey.slice("opus-inline:".length)}`);
+                    immediateTurnUrls.push(firstImmediateUrl);
+                    if (Number.isFinite(turnResult.durationSeconds)) {
+                        totalImmediateDuration += Number(turnResult.durationSeconds);
+                    }
+                } else {
+                    allImmediateDone = false;
+                    const rawTurnJob = String(turnResult.jobId || "").trim();
+                    if (!rawTurnJob) {
+                        throw createProviderError({
+                            message: `Gagal mendapatkan jobId pada giliran dialog ke-${tIdx + 1}.`,
+                            code: "MISSING_TASK_ID",
+                            status: 502
+                        });
+                    }
+                    turnTokens.push(rawTurnJob);
+                }
+            }
+
+            if (allImmediateDone && immediateTurnUrls.length === turnTokens.length && immediateTurnUrls.length > 0) {
+                const inlinePodcastId = `opus-inline:${makeUuid()}`;
+                inlineCompletedResults.set(inlinePodcastId, {
+                    mediaType: "audio",
+                    audioUrls: immediateTurnUrls,
+                    videoUrls: immediateTurnUrls,
+                    durationSeconds: totalImmediateDuration > 0 ? Number(totalImmediateDuration.toFixed(2)) : null,
+                    createdAtMs: Date.now()
+                });
+                return {
+                    success: true,
+                    provider: PROVIDER_ID,
+                    providerName: PROVIDER_NAME,
+                    mediaType: "audio",
+                    taskId: inlinePodcastId,
+                    task_id: inlinePodcastId,
+                    jobId: inlinePodcastId,
+                    projectId: sharedProjectId,
+                    keySlot,
+                    status: "COMPLETED",
+                    outputUrls: immediateTurnUrls,
+                    audioUrls: immediateTurnUrls,
+                    durationSeconds: totalImmediateDuration > 0 ? Number(totalImmediateDuration.toFixed(2)) : null
+                };
+            }
+
+            const podcastJobToken = `podcast:${turnTokens.join(",")}`;
+            const compositeTaskId = encodeOpusTaskId(sharedProjectId, podcastJobToken, keySlot);
+            return {
+                success: true,
+                provider: PROVIDER_ID,
+                providerName: PROVIDER_NAME,
+                mediaType: "audio",
+                taskId: compositeTaskId,
+                task_id: compositeTaskId,
+                jobId: podcastJobToken,
+                projectId: sharedProjectId,
+                keySlot,
+                status: "QUEUED",
+                outputUrls: [],
+                audioUrls: []
+            };
+        }
+
+        const session =
+            options?.existingSession ||
+            (await openMcpSession({
+                endpoint,
+                apiKey,
+                timeoutMs: CREATE_TIMEOUT_MS,
+                includeTools: true,
+                isolateFromDefaultRefresh,
+                env: options?.env || null
+            }));
+
         const audioTool =
             findMcpTool(session.tools, "generate_audio") ||
             (audioKind === "speech" ? findMcpTool(session.tools, "opusclip_create_speech_job") : null) ||
@@ -1542,7 +1694,9 @@ export function createOpusAudioTools(deps) {
         }
 
         const usesCreateProject = Boolean(findMcpTool(session.tools, "create_project"));
-        const projectId = usesCreateProject ? await ensureProjectId(session) : "";
+        const projectId =
+            options?.existingProjectId ||
+            (usesCreateProject ? await ensureProjectId(session) : "");
 
         const cleanPayloadLyrics = String(payload.lyrics || "").trim();
         const rawPayloadVocalMode = String(payload.vocal_mode || payload.vocalMode || "").trim().toLowerCase();
@@ -1883,16 +2037,154 @@ export function createOpusAudioTools(deps) {
 
     async function getAudioTaskForSingleKey(parsedId, apiKey, options = {}) {
         const endpoint = getMcpEndpoint(options);
-        const session = await openMcpSession({
-            endpoint,
-            apiKey,
-            timeoutMs: QUERY_TIMEOUT_MS,
-            includeTools: true,
-            isolateFromDefaultRefresh: Boolean(options?.isolateFromDefaultRefresh),
-            env: options?.env || null
-        });
+        const session =
+            options?.existingSession ||
+            (await openMcpSession({
+                endpoint,
+                apiKey,
+                timeoutMs: QUERY_TIMEOUT_MS,
+                includeTools: true,
+                isolateFromDefaultRefresh: Boolean(options?.isolateFromDefaultRefresh),
+                env: options?.env || null
+            }));
 
         let activeJobId = parsedId.jobId;
+
+        if (String(activeJobId || "").startsWith("podcast:")) {
+            const rawList = String(activeJobId)
+                .slice("podcast:".length)
+                .split(",")
+                .map(s => s.trim())
+                .filter(Boolean);
+
+            if (rawList.length === 0) {
+                return {
+                    status: "FAILED",
+                    providerState: "failed",
+                    mediaType: "audio",
+                    audioUrls: [],
+                    outputUrls: [],
+                    videoUrls: [],
+                    errorCode: "TASK_ID_MISSING",
+                    errorMessage: "Daftar job giliran podcast kosong.",
+                    projectId: parsedId.projectId,
+                    jobId: activeJobId
+                };
+            }
+
+            const orderedUrls = [];
+            let completedCount = 0;
+            let totalDuration = 0;
+            let anyNonTerminalDeadline = false;
+
+            for (let idx = 0; idx < rawList.length; idx += 1) {
+                const token = rawList[idx];
+                if (token.startsWith("inl~")) {
+                    const inlKey = `opus-inline:${token.slice(4)}`;
+                    const cached = inlineCompletedResults.get(inlKey);
+                    const cachedUrl = cached?.audioUrls?.[0] || cached?.videoUrls?.[0] || "";
+                    if (cachedUrl) {
+                        orderedUrls.push(cachedUrl);
+                        completedCount += 1;
+                        if (Number.isFinite(cached?.durationSeconds)) {
+                            totalDuration += Number(cached.durationSeconds);
+                        }
+                        continue;
+                    }
+                    return {
+                        status: "FAILED",
+                        providerState: "failed",
+                        mediaType: "audio",
+                        audioUrls: [],
+                        outputUrls: [],
+                        videoUrls: [],
+                        errorCode: "OPUS_STATUS_EXPIRED",
+                        errorMessage: `Hasil sementara giliran dialog ke-${idx + 1} sudah kedaluwarsa.`,
+                        projectId: parsedId.projectId,
+                        jobId: activeJobId
+                    };
+                }
+
+                const turnStatus = await getAudioTaskForSingleKey(
+                    {
+                        ...parsedId,
+                        jobId: token,
+                        isProjectPending: token === PROJECT_PENDING_JOB_ID,
+                        isInlineDone: false
+                    },
+                    apiKey,
+                    {
+                        ...options,
+                        existingSession: session
+                    }
+                );
+
+                if (turnStatus.status === "FAILED") {
+                    return {
+                        status: "FAILED",
+                        providerState: turnStatus.providerState || "failed",
+                        mediaType: "audio",
+                        audioUrls: [],
+                        outputUrls: [],
+                        videoUrls: [],
+                        errorCode: turnStatus.errorCode || "OPUS_STATUS_FAILED",
+                        errorMessage:
+                            turnStatus.errorMessage || `Giliran dialog ke-${idx + 1} gagal diproses oleh Opus Labs.`,
+                        projectId: parsedId.projectId,
+                        jobId: activeJobId
+                    };
+                }
+
+                const turnUrl =
+                    (Array.isArray(turnStatus.audioUrls) && turnStatus.audioUrls[0]) ||
+                    (Array.isArray(turnStatus.outputUrls) && turnStatus.outputUrls[0]) ||
+                    "";
+
+                if (turnStatus.status === "COMPLETED" && turnUrl) {
+                    orderedUrls.push(turnUrl);
+                    completedCount += 1;
+                    if (Number.isFinite(turnStatus.durationSeconds)) {
+                        totalDuration += Number(turnStatus.durationSeconds);
+                    }
+                } else if (turnStatus.nonTerminalDeadline) {
+                    anyNonTerminalDeadline = true;
+                }
+            }
+
+            if (completedCount === rawList.length && orderedUrls.length === rawList.length) {
+                return {
+                    status: "COMPLETED",
+                    providerState: "completed",
+                    mediaType: "audio",
+                    audioUrls: orderedUrls,
+                    outputUrls: orderedUrls,
+                    videoUrls: orderedUrls,
+                    durationSeconds: totalDuration > 0 ? Number(totalDuration.toFixed(2)) : null,
+                    lyrics: null,
+                    errorCode: null,
+                    errorMessage: null,
+                    nonTerminalDeadline: false,
+                    projectId: parsedId.projectId,
+                    jobId: activeJobId
+                };
+            }
+
+            return {
+                status: "PROCESSING",
+                providerState: `processing_podcast_${completedCount}_of_${rawList.length}`,
+                mediaType: "audio",
+                audioUrls: [],
+                outputUrls: [],
+                videoUrls: [],
+                durationSeconds: null,
+                lyrics: null,
+                errorCode: null,
+                errorMessage: null,
+                nonTerminalDeadline: anyNonTerminalDeadline,
+                projectId: parsedId.projectId,
+                jobId: activeJobId
+            };
+        }
 
         if (parsedId.isProjectPending) {
             const discovered = await discoverProjectAudioJob(session, parsedId.projectId, { retries: 0 });
@@ -2534,6 +2826,7 @@ export function createOpusAudioTools(deps) {
     function populateTranscribeFields(target, objectSchema, rootSchema, {
         stagedMedia,
         language = "",
+        diarize = true,
         projectId = "",
         requestKey = "",
         isBatchItem = false,
@@ -2750,10 +3043,14 @@ export function createOpusAudioTools(deps) {
             }
         }
 
-        /* Aktifkan diarize & timestamp segmen/kata bila skema menyediakan opsi boolean */
+        /* Aktifkan/matikan diarize sesuai pilihan user & aktifkan timestamp segmen/kata bila skema menyediakan opsi boolean */
         if (props && !minimal) {
+            const diarizeBool = diarize !== false;
             for (const boolKey of [
                 "diarize",
+                "speakerDiarization",
+                "speaker_diarization",
+                "enableDiarization",
                 "timestamps",
                 "includeTimestamps",
                 "include_timestamps",
@@ -2765,7 +3062,8 @@ export function createOpusAudioTools(deps) {
                     target[boolKey] === undefined &&
                     schemaTypeIncludes(props[boolKey], rootSchema, "boolean")
                 ) {
-                    target[boolKey] = true;
+                    const isDiarizeField = /diariz/i.test(boolKey);
+                    target[boolKey] = isDiarizeField ? diarizeBool : true;
                 }
             }
         }
@@ -3006,10 +3304,18 @@ export function createOpusAudioTools(deps) {
             0
         );
 
+        const wantDiarize =
+            payload.diarize === undefined || payload.diarize === null || payload.diarize === ""
+                ? true
+                : typeof payload.diarize === "string"
+                  ? !["false", "0", "no", "off"].includes(payload.diarize.trim().toLowerCase())
+                  : Boolean(payload.diarize);
+
         const excludedUrls = new Set([sourceUrl, stagedMedia?.url].filter(Boolean));
         const baseParams = {
             stagedMedia,
             language: String(payload.language || "auto").trim(),
+            diarize: wantDiarize,
             projectId
         };
 
@@ -3237,15 +3543,17 @@ export function createOpusAudioTools(deps) {
         }
 
         if (jobId) {
-            const compositeTaskId = encodeOpusTaskId(projectId, jobId, keySlot);
+            const encodedJobToken = wantDiarize ? jobId : `${jobId}|d0`;
+            const compositeTaskId = encodeOpusTaskId(projectId, encodedJobToken, keySlot);
             return {
                 success: true,
                 provider: PROVIDER_ID,
                 providerName: PROVIDER_NAME,
                 mediaType: "transcribe",
+                diarize: wantDiarize,
                 taskId: compositeTaskId,
                 task_id: compositeTaskId,
-                jobId,
+                jobId: encodedJobToken,
                 projectId,
                 keySlot,
                 status: outcome.status === "COMPLETED" && outcome.transcript ? "COMPLETED" : "QUEUED",
@@ -3315,8 +3623,13 @@ export function createOpusAudioTools(deps) {
         });
 
         let activeJobId = parsedId.jobId;
+        let diarizeFlag = true;
+        if (String(activeJobId || "").endsWith("|d0")) {
+            activeJobId = String(activeJobId).slice(0, -3);
+            diarizeFlag = false;
+        }
 
-        if (parsedId.isProjectPending) {
+        if (parsedId.isProjectPending || activeJobId === PROJECT_PENDING_JOB_ID) {
             const discovered = await discoverProjectTranscribeJob(session, parsedId.projectId, { retries: 0 });
             if (discovered.outcome?.status === "FAILED") {
                 return {
@@ -3527,7 +3840,10 @@ export function createOpusAudioTools(deps) {
             status: outcome.status,
             providerState: safeProviderState,
             mediaType: "transcribe",
-            transcript: outcome.transcript || null,
+            diarize: diarizeFlag,
+            transcript: outcome.transcript
+                ? normalizeTranscriptPayload(outcome.transcript, { diarize: diarizeFlag })
+                : null,
             outputUrls: outcome.transcriptUrls || [],
             errorCode: outcome.errorCode,
             errorMessage: outcome.errorMessage,
