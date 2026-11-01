@@ -39,7 +39,7 @@ on:
 jobs:
   upscale:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - name: Install FFmpeg
@@ -51,9 +51,17 @@ jobs:
         env:
           SOURCE_URL: ${{ inputs.source_url }}
           SOURCE_OBJECT_PATH: ${{ inputs.source_object_path }}
+          SUPABASE_URL: ${{ secrets.GENZ_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.GENZ_SUPABASE_SERVICE_KEY }}
         run: |
           echo "Downloading video..."
-          if [ -n "$SOURCE_OBJECT_PATH" ]; then
+          if [[ "$SOURCE_URL" == supabase-private://* ]]; then
+            REST_PATH="${SOURCE_URL#supabase-private://}"
+            curl -L --fail --retry 3 \
+              -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+              -o input.mp4 "${SUPABASE_URL}/storage/v1/object/${REST_PATH}"
+          elif [ -n "$SOURCE_OBJECT_PATH" ]; then
             curl -L --fail --retry 3 --max-filesize 104857600 -o input.mp4 "$SOURCE_URL"
           else
             curl -L --fail --retry 3 -o input.mp4 "$SOURCE_URL"
@@ -64,7 +72,8 @@ jobs:
         id: probe
         env:
           SOURCE_OBJECT_PATH: ${{ inputs.source_object_path }}
-          MAX_DURATION_SECONDS: "15"
+          MAX_DURATION_SECONDS: "30"
+          MAX_DURATION_TOLERANCE_SECONDS: "0.95"
         run: |
           WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 input.mp4)
           HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 input.mp4)
@@ -140,7 +149,7 @@ jobs:
 
           if ! is_valid_duration "$DURATION" ||
             awk -v duration="$DURATION" 'BEGIN { exit !(duration < 0.5) }' ||
-            awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" 'BEGIN { exit !(duration > maximum) }'; then
+            awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" -v tol="$MAX_DURATION_TOLERANCE_SECONDS" 'BEGIN { exit !(duration > maximum + tol) }'; then
             if is_valid_duration "$PACKET_DURATION"; then
               DURATION="$PACKET_DURATION"
             elif [ -z "$FRAME_COUNT" ]; then
@@ -159,7 +168,7 @@ jobs:
             exit 1
           fi
 
-          if ! awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" 'BEGIN { exit !(duration > 0 && duration <= maximum) }'; then
+          if ! awk -v duration="$DURATION" -v maximum="$MAX_DURATION_SECONDS" -v tol="$MAX_DURATION_TOLERANCE_SECONDS" 'BEGIN { exit !(duration > 0 && duration <= maximum + tol) }'; then
             echo "Durasi video terukur ${DURATION} detik, melebihi batas ${MAX_DURATION_SECONDS} detik."
             exit 1
           fi
@@ -241,10 +250,21 @@ jobs:
           echo "Target total bitrate: ${TOTAL_KBPS} kbps"
           echo "Target video bitrate: ${VIDEO_KBPS} kbps"
 
-          # PASS 1 — analyze
-          echo "=== PASS 1 ==="
+          # Render filter berat (minterpolate + lanczos + unsharp) SATU KALI ke file sementara
+          # agar video hingga 30 detik tidak perlu menghitung optical-flow 2x pada 2-pass encode.
+          echo "=== FILTER INTERPOLATE + UPSCALE (1x) ==="
           ffmpeg -y -i input.mp4 \
             -vf "$FILTER" \
+            -c:v libx264 \
+            -preset ultrafast \
+            -crf 10 \
+            -pix_fmt yuv420p \
+            -an \
+            filtered.mp4
+
+          # PASS 1 — analyze bitrate dari hasil filter
+          echo "=== PASS 1 ==="
+          ffmpeg -y -i filtered.mp4 \
             -c:v libx264 \
             -preset medium \
             -b:v ${VIDEO_KBPS}k \
@@ -253,10 +273,11 @@ jobs:
             -f mp4 \
             -y /dev/null
 
-          # PASS 2 — final encode
+          # PASS 2 — final encode + mux audio asli jika ada
           echo "=== PASS 2 ==="
-          ffmpeg -y -i input.mp4 \
-            -vf "$FILTER" \
+          ffmpeg -y -i filtered.mp4 -i input.mp4 \
+            -map 0:v:0 \
+            -map 1:a:0? \
             -c:v libx264 \
             -preset medium \
             -b:v ${VIDEO_KBPS}k \
@@ -267,6 +288,7 @@ jobs:
             -movflags +faststart \
             output.mp4
 
+          rm -f filtered.mp4 ffmpeg2pass-0.log*
           ls -lh output.mp4
           echo "Upscale + interpolate selesai."
 
