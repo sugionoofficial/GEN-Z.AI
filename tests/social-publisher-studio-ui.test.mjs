@@ -1340,6 +1340,38 @@ test("5 blok fitur Studio Medsos tampil sebagai blok kecil kompak (termasuk KOLE
         assert.match(autopostOffBtn.className, /\bautopost-off\b/, "Tombol Autopost: OFF harus memakai class merah terang autopost-off");
         assert.doesNotMatch(autopostOffBtn.className, /\bgreen\b/, "Tombol Autopost: OFF tidak boleh lagi memakai class hijau green");
         assert.equal(autopostOffBtn.dataset.autopostState, "off");
+
+        // Verifikasi interaksi klik dropdown blok kecil ke bawah (5 model Opus) pada Manual & Auto Post
+        for (const [prefix, pickModelId, pickModelLabel] of [
+            ["manual", "seedream-5.0-pro", "Seedream 5.0 Pro"],
+            ["schedule", "nano-banana-pro", "Nano Banana Pro"]
+        ]) {
+            const dropdownEl = elementsById.get(`${prefix}-model-dropdown`);
+            const triggerEl = elementsById.get(`${prefix}-model-trigger`);
+            const listEl = elementsById.get(`${prefix}-model-list`);
+            const labelEl = elementsById.get(`${prefix}-model-label`);
+            const inputEl = elementsById.get(`${prefix}-image-model`);
+
+            assert.equal(listEl.hidden, true, `${prefix}-model-list harus tertutup saat awal`);
+            assert.equal(listEl.children.length, 5, `${prefix}-model-list harus merender 5 blok model Opus`);
+
+            // Klik pemicu -> blok daftar turun ke bawah (hidden = false)
+            triggerEl.dispatchEvent({ type: "click", target: triggerEl });
+            assert.equal(listEl.hidden, false, `${prefix}-model-list harus terbuka ke bawah saat diklik`);
+            assert.equal(dropdownEl.classList.contains("is-open"), true);
+            assert.equal(triggerEl.getAttribute("aria-expanded"), "true");
+
+            // Klik salah satu dari 5 model -> nilai terisi & blok daftar menutup kembali
+            const chosenBtn = listEl.children.find(c => c.dataset?.modelValue === pickModelId);
+            assert.ok(chosenBtn, `Opsi ${pickModelId} harus ditemukan di ${prefix}-model-list`);
+            chosenBtn.dispatchEvent({ type: "click", target: chosenBtn });
+
+            assert.equal(inputEl.value, pickModelId);
+            assert.equal(labelEl.textContent, pickModelLabel);
+            assert.equal(listEl.hidden, true, `${prefix}-model-list harus kembali tertutup setelah memilih model`);
+            assert.equal(dropdownEl.classList.contains("is-open"), false);
+            assert.equal(triggerEl.getAttribute("aria-expanded"), "false");
+        }
     } finally {
         for (const id of intervalIds) clearInterval(id);
         Object.assign(globalThis, prevGlobals);
@@ -1400,4 +1432,70 @@ test("tutorial langkah 1 menyertakan panduan mode desktop untuk HP dan klik Peri
     assert.match(step1Match[0], /setelah sukses/i);
     assert.match(step1Match[0], /Periksa izin/);
 });
+
+test("Studio Medsos menyediakan pemilih 5 model Opus pada Generate Manual dan Auto Post dengan dropdown blok kecil ke bawah (tidak mengambang)", async () => {
+    const lightCssSource = readFileSync(
+        fileURLToPath(new URL("../admin-control/assets/css/social-publisher-light.css", import.meta.url)),
+        "utf8"
+    );
+    const setHtml = readFileSync(
+        fileURLToPath(new URL("../admin-control/studio-medsos-set.html", import.meta.url)),
+        "utf8"
+    );
+    const cronSource = readFileSync(
+        fileURLToPath(new URL("../functions/_shared/social-publisher-cron.js", import.meta.url)),
+        "utf8"
+    );
+    const sqlSource = readFileSync(
+        fileURLToPath(new URL("../supabase/social-auto-publisher.sql", import.meta.url)),
+        "utf8"
+    );
+
+    const expectedModels = [
+        "gpt-image-2.5-flare",
+        "gpt-image-2.5-sunburst",
+        "seedream-5.0-pro",
+        "nano-banana-2",
+        "nano-banana-pro"
+    ];
+
+    // 1. HTML memuat komponen inline block dropdown di Manual Post & Auto Post + SET Studio Medsos
+    assert.match(htmlSource, /id="manual-model-dropdown"/, "Dropdown blok model harus ada di Buat posting manual");
+    assert.match(htmlSource, /id="manual-model-trigger"/, "Tombol pemicu blok model harus ada di Buat posting manual");
+    assert.match(htmlSource, /id="manual-model-list"[^>]*hidden/, "Daftar blok model manual harus tertutup saat awal");
+    assert.match(htmlSource, /id="schedule-model-dropdown"/, "Dropdown blok model harus ada di Buat jadwal autopost");
+    assert.match(htmlSource, /id="schedule-model-trigger"/, "Tombol pemicu blok model harus ada di Buat jadwal autopost");
+    assert.match(htmlSource, /id="schedule-model-list"[^>]*hidden/, "Daftar blok model jadwal harus tertutup saat awal");
+
+    for (const modelId of expectedModels) {
+        const escaped = modelId.replace(/\./g, "\\.");
+        const manualMatches = htmlSource.match(new RegExp(`data-model-value="${escaped}"`, "g")) || [];
+        assert.ok(
+            manualMatches.length >= 2,
+            `Model ${modelId} wajib tersedia di dropdown Manual Post dan Auto Post`
+        );
+        assert.match(setHtml, new RegExp(`value="${escaped}"`), `Model ${modelId} wajib tersedia di SET Studio Medsos`);
+    }
+
+    // 2. CSS wajib in-flow / tidak mengambang (position: static, bukan absolute/fixed)
+    const dropdownRule = htmlSource.match(/\.inline-model-dropdown\{([^}]*)\}/);
+    const listRule = htmlSource.match(/\.inline-model-list\{([^}]*)\}/);
+    assert.ok(dropdownRule, "CSS .inline-model-dropdown wajib ada");
+    assert.ok(listRule, "CSS .inline-model-list wajib ada");
+    assert.match(dropdownRule[1], /position:static/, ".inline-model-dropdown wajib position:static");
+    assert.match(listRule[1], /position:static/, ".inline-model-list wajib position:static (turun ke bawah di alur dokumen, bukan mengambang)");
+    assert.doesNotMatch(listRule[1], /position\s*:\s*(absolute|fixed)/, "Dropdown model dilarang mengambang (absolute/fixed)");
+    assert.match(lightCssSource, /\.inline-model-trigger/, "Light mode harus menata .inline-model-trigger");
+    assert.match(lightCssSource, /\.inline-model-list/, "Light mode harus menata .inline-model-list");
+    assert.match(lightCssSource, /\.inline-model-option\.is-selected/, "Light mode harus menata .inline-model-option.is-selected");
+
+    // 3. Wiring ke API, Cron, dan SQL
+    assert.match(source, /image_model:\s*getSelectedManualOpusModel\(\)/, "Manual post harus mengirim image_model terpilih");
+    assert.match(source, /image_model:\s*isQuote \? "" : getSelectedScheduleOpusModel\(\)/, "Auto post harus menyimpan image_model jadwal");
+    assert.match(apiSource, /requestedManualModel/, "API manual-generate harus membaca image_model pilihan user");
+    assert.match(apiSource, /resolvedScheduleImageModel/, "API save-schedule harus menyimpan image_model per jadwal");
+    assert.match(cronSource, /scheduleImageModel/, "Cron autopost harus memakai schedule.image_model saat generate");
+    assert.match(sqlSource, /add column if not exists image_model text/i, "Migrasi SQL harus menyertakan kolom image_model pada social_post_schedules");
+});
+
 

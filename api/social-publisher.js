@@ -63,6 +63,7 @@ import {
     OPUS_MAX_REFERENCE_IMAGES,
     OPUS_DEFAULT_ASPECT_RATIO,
     OPUS_DEFAULT_IMAGE_QUALITY,
+    isKnownOpusImageModel,
     isOpusContentPolicyError,
     normalizeOpusImageModel,
     resolveOpusAspectRatio
@@ -142,6 +143,10 @@ const SCHEDULE_QUOTE_BASE_COLUMNS = [
 const SCHEDULE_FULL_COLUMNS = [
     SCHEDULE_QUOTE_BASE_COLUMNS,
     "quote_publish_target"
+].join(",");
+const SCHEDULE_MODEL_COLUMNS = [
+    SCHEDULE_FULL_COLUMNS,
+    "image_model"
 ].join(",");
 const OAUTH_STATE_COOKIE = "__Secure-social-oauth-state";
 const OAUTH_STATE_COOKIE_PATH = "/api/facebook-oauth-callback";
@@ -1194,6 +1199,8 @@ async function getDashboard(config, userId, env, profile, runsOptions = {}) {
                 : imageProvider === "opus"
                     ? normalizeOpusImageModel(publisherConfig?.[0]?.image_model, env)
                     : "",
+            opusModels: OPUS_IMAGE_MODELS,
+            opusDefaultModel: normalizeOpusImageModel(publisherConfig?.[0]?.image_model, env),
             quoteLlmModel: normalizeQwenCloudLlmModel(publisherConfig?.[0]?.quote_llm_model),
             qwenCloudConfigured: Boolean(envValue(env, "QWENCLOUD_API_KEY")),
             imageApiConfigured: providerConfigured,
@@ -1572,6 +1579,12 @@ const SCHEDULE_QUOTE_COLUMNS = [
     "quote_publish_target"
 ];
 
+function isMissingScheduleImageModelColumn(error) {
+    const message = String(error?.message || "");
+    return (error?.code === "PGRST204" || error?.code === "42703" || /does not exist|schema cache|column/i.test(message))
+        && message.includes("image_model");
+}
+
 function isMissingQuoteTargetColumn(error) {
     const message = String(error?.message || "");
     return (error?.code === "PGRST204" || error?.code === "42703" || /does not exist|schema cache|column/i.test(message))
@@ -1594,10 +1607,21 @@ async function listSchedulesForDashboard(config, userId) {
     const query = `owner_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`;
     try {
         return {
-            rows: await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_FULL_COLUMNS},created_at,updated_at&${query}`)) || [],
+            rows: await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_MODEL_COLUMNS},created_at,updated_at&${query}`)) || [],
             sceneSchemaReady: true
         };
-    } catch (error) {
+    } catch (firstError) {
+        let error = firstError;
+        if (isMissingScheduleImageModelColumn(error)) {
+            try {
+                return {
+                    rows: await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_FULL_COLUMNS},created_at,updated_at&${query}`)) || [],
+                    sceneSchemaReady: true
+                };
+            } catch (fullColsError) {
+                error = fullColsError;
+            }
+        }
         if (isMissingQuoteTargetColumn(error)) {
             try {
                 return {
@@ -2548,6 +2572,13 @@ async function saveSchedule(config, userId, body, profile) {
         body?.quote_publish_target !== undefined ||
         body?.use_random_song !== undefined ||
         body?.song_mode !== undefined;
+    const hasExplicitImageModel = body?.image_model !== undefined || body?.opus_model !== undefined;
+    const rawScheduleImageModel = cleanText(body?.image_model ?? body?.opus_model, 120);
+    const resolvedScheduleImageModel = isQuoteMode
+        ? ""
+        : (rawScheduleImageModel
+            ? (isKnownOpusImageModel(rawScheduleImageModel) ? normalizeOpusImageModel(rawScheduleImageModel) : rawScheduleImageModel)
+            : "");
     const quotePublishTarget = normalizeQuotePublishTarget(body?.quote_publish_target, "feed");
     const characterId = isQuoteMode ? "" : cleanText(body?.character_id, 80);
     const pageConnectionId = cleanText(body?.page_connection_id, 80);
@@ -2692,6 +2723,7 @@ async function saveSchedule(config, userId, body, profile) {
         tag_name: tagName,
         tag_url: tagUrl,
         ...(hasExplicitQuoteFields ? quoteParams : {}),
+        ...(hasExplicitImageModel ? { image_model: resolvedScheduleImageModel } : {}),
         enabled: body?.enabled === true,
         updated_at: new Date().toISOString()
     };
@@ -2701,7 +2733,8 @@ async function saveSchedule(config, userId, body, profile) {
         values.autopublish_enabled = scheduleAutopublish;
     }
 
-    const selectColumns = hasExplicitQuoteFields ? SCHEDULE_FULL_COLUMNS : SCHEDULE_COLUMNS;
+    const baseSelectColumns = hasExplicitQuoteFields ? SCHEDULE_FULL_COLUMNS : SCHEDULE_COLUMNS;
+    const selectColumns = hasExplicitImageModel ? `${baseSelectColumns},image_model` : baseSelectColumns;
 
     async function writeScheduleRow(method, querySuffix = "") {
         try {
@@ -2714,10 +2747,30 @@ async function saveSchedule(config, userId, body, profile) {
                     body: JSON.stringify(values)
             }
             );
-        } catch (error) {
+        } catch (firstWriteError) {
+            let error = firstWriteError;
+            let workingValues = values;
+            if (hasExplicitImageModel && isMissingScheduleImageModelColumn(error)) {
+                workingValues = { ...values };
+                delete workingValues.image_model;
+                try {
+                    return await supabaseRequest(
+                        config,
+                        tablePath("social_post_schedules", `${querySuffix ? `${querySuffix}&` : ""}select=${baseSelectColumns}`),
+                        {
+                            method,
+                            headers: { Prefer: "return=representation" },
+                            body: JSON.stringify(workingValues)
+                        }
+                    );
+                } catch (retryWithoutModelError) {
+                    error = retryWithoutModelError;
+                }
+            }
             if (hasExplicitQuoteFields && isMissingQuoteTargetColumn(error)) {
-                const withoutTargetValues = { ...values };
+                const withoutTargetValues = { ...workingValues };
                 delete withoutTargetValues.quote_publish_target;
+                delete withoutTargetValues.image_model;
                 return await supabaseRequest(
                     config,
                     tablePath("social_post_schedules", `${querySuffix ? `${querySuffix}&` : ""}select=${SCHEDULE_QUOTE_BASE_COLUMNS}`),
@@ -2729,8 +2782,9 @@ async function saveSchedule(config, userId, body, profile) {
                 );
             }
             if (!isQuoteMode && hasExplicitQuoteFields && isMissingScheduleQuoteSchema(error) && !quoteParams.use_random_song) {
-                const legacyValues = { ...values };
+                const legacyValues = { ...workingValues };
                 for (const key of SCHEDULE_QUOTE_COLUMNS) delete legacyValues[key];
+                delete legacyValues.image_model;
                 return await supabaseRequest(
                     config,
                     tablePath("social_post_schedules", `${querySuffix ? `${querySuffix}&` : ""}select=${SCHEDULE_COLUMNS}`),
@@ -2844,6 +2898,10 @@ async function generateManualPost(config, userId, env, body = {}) {
         throw error;
     }
     const { provider: imageProvider, imageModel, opusModel, quoteLlmModel, textProvider } = await getSocialImageSettings(config, env);
+    const requestedManualModel = cleanText(body?.image_model ?? body?.opus_model, 120);
+    const resolvedManualOpusModel = requestedManualModel
+        ? normalizeOpusImageModel(requestedManualModel, env)
+        : (opusModel || normalizeOpusImageModel(imageModel, env));
     const hasQwenCloudKey = Boolean(envValue(env, "QWENCLOUD_API_KEY"));
     const quoteAiProvider = hasQwenCloudKey ? "qwencloud" : imageProvider;
     const activeProvider = isQuoteMode ? quoteAiProvider : imageProvider;
@@ -3229,7 +3287,7 @@ async function generateManualPost(config, userId, env, body = {}) {
                 ...(imageProvider === "qwencloud"
                     ? { imageModel }
                     : imageProvider === "opus"
-                        ? { imageModel: opusModel || normalizeOpusImageModel(imageModel, env) }
+                        ? { imageModel: resolvedManualOpusModel }
                         : {})
             })
         });

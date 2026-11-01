@@ -788,7 +788,10 @@
 
     const DEFAULT_OPUS_MODELS = [
         { id: "gpt-image-2.5-flare", label: "GPT Image 2.5 Flare", note: "Cepat & hemat latensi" },
-        { id: "gpt-image-2.5-sunburst", label: "GPT Image 2.5 Sunburst", note: "Presisi & detail produk tinggi" }
+        { id: "gpt-image-2.5-sunburst", label: "GPT Image 2.5 Sunburst", note: "Presisi & detail produk tinggi" },
+        { id: "seedream-5.0-pro", label: "Seedream 5.0 Pro", note: "Estetika premium & konsistensi karakter" },
+        { id: "nano-banana-2", label: "Nano Banana 2", note: "Gemini Flash Image cepat & konsisten" },
+        { id: "nano-banana-pro", label: "Nano Banana Pro", note: "Gemini Pro Image detail wajah & outfit" }
     ];
 
     function currentOpusModelEntries() {

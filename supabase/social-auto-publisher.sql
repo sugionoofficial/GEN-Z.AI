@@ -107,6 +107,7 @@ create table if not exists public.social_post_schedules (
     next_run_at timestamptz not null,
     timezone text not null default 'Asia/Jakarta' check (timezone = 'Asia/Jakarta'),
     aspect_ratio text not null default '9:16' check (aspect_ratio in ('9:16', '16:9')),
+    image_model text not null default '' check (char_length(image_model) <= 120),
     caption_template text not null default 'Cerita hari ini dari {location} ✨'
         check (char_length(caption_template) <= 1000),
     -- Switch autopublish milik blok jadwal ini. Mematikan satu jadwal tidak
@@ -138,6 +139,10 @@ create table if not exists public.social_post_schedules (
 alter table public.social_post_schedules
     add column if not exists aspect_ratio text not null default '9:16'
         check (aspect_ratio in ('9:16', '16:9'));
+
+alter table public.social_post_schedules
+    add column if not exists image_model text not null default ''
+        check (char_length(image_model) <= 120);
 
 alter table public.social_post_schedules
     add column if not exists autopublish_enabled boolean not null default true;
