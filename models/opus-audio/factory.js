@@ -141,11 +141,11 @@ function buildParametersForAudioKind(audioKind) {
                 type: "textarea",
                 required: false,
                 maxLength: MAX_MUSIC_LYRICS_LENGTH,
-                label: "Lirik Lagu (Opsional — untuk Mode Vokal)",
+                label: "Lirik Lagu (Opsional — Otomatis Aktifkan Mode Vokal)",
                 placeholder:
-                    "[Verse 1]\nMelangkah di bawah cahaya pagi...\n\n[Chorus]\nKita terbang menembus batas mimpi...",
+                    "[Verse 1]\nMelangkah di bawah cahaya pagi\nMenjemput harapan yang baru\n\n[Chorus]\nKita terbang menembus batas mimpi\nBersinar terang di langit biru",
                 description:
-                    "Opsional: isi lirik kustom jika memilih mode 'Dengan Vokal / Lirik Lagu'."
+                    "Opsional: tulis lirik lagu (dengan tag [Verse] / [Chorus] atau baris biasa — sistem otomatis memformat struktur vokal Lyria 3.5 sesuai bahasa lirik Anda)."
             }
         };
     }
@@ -286,18 +286,23 @@ export function createOpusAudioModel(spec) {
 
         if (audioKind === "music") {
             const musicPrompt = normalizeString(source.prompt);
-            const vocalMode = normalizeString(source.vocal_mode || "instrumental").toLowerCase();
+            const rawVocalMode = normalizeString(source.vocal_mode).toLowerCase();
             const rawTargetDuration = normalizeString(source.target_duration ?? source.duration ?? "30");
             const durationNum = Number(rawTargetDuration);
             const lyrics = normalizeString(source.lyrics);
+            const forceInstrumental = source.force_instrumental === true;
+            const effectiveVocalMode =
+                !forceInstrumental && (rawVocalMode === "vocal" || Boolean(lyrics))
+                    ? "vocal"
+                    : rawVocalMode || "instrumental";
 
             return {
                 audio_type: "music",
                 prompt: musicPrompt,
-                vocal_mode: vocalMode || "instrumental",
+                vocal_mode: effectiveVocalMode,
                 target_duration: rawTargetDuration || "30",
                 ...(Number.isFinite(durationNum) && durationNum > 0 ? { duration: Math.round(durationNum) } : {}),
-                ...(lyrics ? { lyrics } : {})
+                ...(effectiveVocalMode === "vocal" && lyrics ? { lyrics } : {})
             };
         }
 

@@ -542,6 +542,20 @@ export async function getFormParameters(modelArgument = null) {
         parameters.image_mode = getActiveImageSubMode();
     }
 
+    /* Sinkronisasi Mode Vokal & Lirik Lagu pada Music / Lagu AI */
+    if (
+        typeof parameters.lyrics === "string" &&
+        parameters.lyrics.trim().length > 0
+    ) {
+        const vocalField = findField("vocal_mode");
+        const vocalSelect = vocalField?.querySelector("select");
+        if (vocalSelect?.dataset?.manualInstrumental === "1" && parameters.vocal_mode === "instrumental") {
+            delete parameters.lyrics;
+        } else {
+            parameters.vocal_mode = "vocal";
+        }
+    }
+
     return parameters;
 }
 

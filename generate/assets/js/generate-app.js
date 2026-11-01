@@ -93,7 +93,7 @@ const MODEL_MODULE =
     "./generate-model.js?v=20261101-audio-transcribe";
 
 const FORM_MODULE =
-    "./generate-form.js?v=20261101-audio-transcribe";
+    "./generate-form.js?v=20261101-music-vocal-sync";
 
 const SEEDANCE_MODULE =
     "./generate-seedance.js";

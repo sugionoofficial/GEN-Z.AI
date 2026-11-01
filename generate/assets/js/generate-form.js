@@ -116,7 +116,7 @@ import {
 import {
     getFormParameters,
     getFormData
-} from "./generate-form-data.js?v=20261101-image-video-modes";
+} from "./generate-form-data.js?v=20261101-music-vocal-sync";
 
 
 /* =========================================================
@@ -347,6 +347,15 @@ export function renderGenerateForm(
 
 
     /* =====================================================
+       SYNC MODE VOKAL <-> LIRIK LAGU (MUSIC / LAGU AI)
+    ===================================================== */
+
+    bindMusicVocalLyricsSync(
+        container
+    );
+
+
+    /* =====================================================
        FORCE LAYOUT
     ===================================================== */
 
@@ -373,6 +382,108 @@ export function renderGenerateForm(
 
 
     return renderedCount > 0;
+
+}
+
+
+function bindMusicVocalLyricsSync(
+    container
+) {
+
+    if (
+        !container
+    ) {
+
+        return;
+
+    }
+
+    const vocalField =
+        container.querySelector(
+            '.generate-field[data-parameter="vocal_mode"]'
+        );
+
+    const lyricsField =
+        container.querySelector(
+            '.generate-field[data-parameter="lyrics"]'
+        );
+
+    const vocalSelect =
+        vocalField?.querySelector(
+            "select"
+        );
+
+    const lyricsTextarea =
+        lyricsField?.querySelector(
+            "textarea"
+        );
+
+    if (
+        !vocalSelect ||
+        !lyricsTextarea
+    ) {
+
+        return;
+
+    }
+
+    const syncLyricsVisualState = () => {
+        const isVocal =
+            String(
+                vocalSelect.value || ""
+            ).toLowerCase() === "vocal";
+
+        lyricsField.style.opacity =
+            isVocal || lyricsTextarea.value.trim().length > 0
+                ? "1"
+                : "0.88";
+    };
+
+    const handleLyricsChange = () => {
+        if (
+            lyricsTextarea.value.trim().length > 0
+        ) {
+            delete vocalSelect.dataset.manualInstrumental;
+            if (
+                String(
+                    vocalSelect.value || ""
+                ).toLowerCase() !== "vocal"
+            ) {
+                vocalSelect.value =
+                    "vocal";
+            }
+        }
+        syncLyricsVisualState();
+    };
+
+    lyricsTextarea.addEventListener(
+        "input",
+        handleLyricsChange
+    );
+
+    lyricsTextarea.addEventListener(
+        "change",
+        handleLyricsChange
+    );
+
+    vocalSelect.addEventListener(
+        "change",
+        () => {
+            if (
+                String(
+                    vocalSelect.value || ""
+                ).toLowerCase() === "instrumental"
+            ) {
+                vocalSelect.dataset.manualInstrumental =
+                    "1";
+            } else {
+                delete vocalSelect.dataset.manualInstrumental;
+            }
+            syncLyricsVisualState();
+        }
+    );
+
+    syncLyricsVisualState();
 
 }
 
