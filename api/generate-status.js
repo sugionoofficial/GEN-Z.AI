@@ -73,11 +73,28 @@ import opusVideoModels
 import opusImageModels
     from "../models/opus-image/index.js";
 
+import opusAudioModels
+    from "../models/opus-audio/index.js";
+
+import opusTranscribeModels
+    from "../models/opus-transcribe/index.js";
+
 import { isOpusImageModelId }
     from "../models/opus-image/specs.js";
 
+import { isOpusAudioModelId }
+    from "../models/opus-audio/specs.js";
+
+import { isOpusTranscribeModelId }
+    from "../models/opus-transcribe/specs.js";
+
 import { persistGeneratedImage }
     from "../lib/generate/persist-generated-image.js";
+
+import {
+    persistGeneratedAudio,
+    persistGeneratedTranscript
+} from "../lib/generate/persist-generated-audio.js";
 
 import {
     resolveOpusApiKeyPoolPayload,
@@ -121,7 +138,13 @@ const MODEL_REGISTRY = [
     ...opusVideoModels,
 
     /* Opus Labs Image Generation (generate_keyframes) */
-    ...opusImageModels
+    ...opusImageModels,
+
+    /* Opus Labs Audio Generation (generate_audio) */
+    ...opusAudioModels,
+
+    /* Opus Labs Audio/Video Transcription (transcribe_audio) */
+    ...opusTranscribeModels
 ];
 
 const STALE_TASK_EXPIRED_ERROR =
@@ -2224,7 +2247,7 @@ function uniqueUrls(
                 )
                 .filter(
                     url =>
-                        /^(?:https?:\/\/|supabase-private:\/\/|data:image\/(?:png|jpe?g|webp|avif);base64,)/i.test(
+                        /^(?:https?:\/\/|supabase-private:\/\/|data:(?:image\/(?:png|jpe?g|webp|avif)|audio\/[a-z0-9.+-]+|application\/json);base64,)/i.test(
                             url
                         )
                 )
@@ -4943,6 +4966,29 @@ export default async function handler(
             lower(adapter?.config?.mediaType || adapter?.mediaType) === "image" ||
             lower(providerRaw?.mediaType) === "image";
 
+        const isAudioTask =
+            isOpusAudioModelId(modelId) ||
+            lower(adapter?.config?.mediaType || adapter?.mediaType) === "audio" ||
+            lower(providerRaw?.mediaType) === "audio";
+
+        const isTranscribeTask =
+            isOpusTranscribeModelId(modelId) ||
+            lower(adapter?.config?.mediaType || adapter?.mediaType) === "transcribe" ||
+            lower(providerRaw?.mediaType) === "transcribe";
+
+        const resolvedTaskMediaType = isImageTask
+            ? "image"
+            : isAudioTask
+              ? "audio"
+              : isTranscribeTask
+                ? "transcribe"
+                : "video";
+
+        const inlineTranscript =
+            providerRaw?.transcript ||
+            providerRaw?.raw?.transcript ||
+            null;
+
         if (
             isImageTask &&
             normalized.completed &&
@@ -4969,6 +5015,57 @@ export default async function handler(
                         resultUrls: normalized.result_urls
                     };
                 }
+            }
+        } else if (
+            isAudioTask &&
+            normalized.completed &&
+            Array.isArray(normalized.result_urls) &&
+            normalized.result_urls.length > 0
+        ) {
+            const persistedAudioRef = await persistGeneratedAudio({
+                sourceUrl: normalized.result_urls[0],
+                userId: user.id,
+                supabaseUrl: SUPABASE_URL,
+                serviceKey: SUPABASE_SERVICE_ROLE_KEY
+            });
+            if (persistedAudioRef) {
+                normalized.result_urls = [
+                    persistedAudioRef,
+                    ...normalized.result_urls.slice(1)
+                ];
+                if (
+                    normalized.resultJson &&
+                    typeof normalized.resultJson === "object"
+                ) {
+                    normalized.resultJson = {
+                        ...normalized.resultJson,
+                        resultUrls: normalized.result_urls
+                    };
+                }
+            }
+        } else if (
+            isTranscribeTask &&
+            normalized.completed &&
+            inlineTranscript
+        ) {
+            const persistedTranscriptRef = await persistGeneratedTranscript({
+                transcript: inlineTranscript,
+                userId: user.id,
+                supabaseUrl: SUPABASE_URL,
+                serviceKey: SUPABASE_SERVICE_ROLE_KEY
+            });
+            if (persistedTranscriptRef) {
+                normalized.result_urls = [
+                    persistedTranscriptRef,
+                    ...(Array.isArray(normalized.result_urls) ? normalized.result_urls : [])
+                ];
+                normalized.resultJson = {
+                    ...(normalized.resultJson && typeof normalized.resultJson === "object"
+                        ? normalized.resultJson
+                        : {}),
+                    resultUrls: normalized.result_urls,
+                    transcript: inlineTranscript
+                };
             }
         }
 
@@ -5055,7 +5152,13 @@ export default async function handler(
                     modelId,
 
                 media_type:
-                    isImageTask ? "image" : "video",
+                    resolvedTaskMediaType,
+
+                ...(inlineTranscript ? { transcript: inlineTranscript } : {}),
+                ...(providerRaw?.lyrics ? { lyrics: providerRaw.lyrics } : {}),
+                ...(typeof providerRaw?.durationSeconds === "number"
+                    ? { duration_seconds: providerRaw.durationSeconds }
+                    : {}),
 
                 model_name:
                     firstDefined(

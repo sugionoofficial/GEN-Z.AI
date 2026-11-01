@@ -42,8 +42,14 @@ import {
 } from "./generate-state.js";
 
 import {
-    adaptDefinitionsForImageSubMode
+    adaptDefinitionsForImageSubMode,
+    isTranscribeModel
 } from "./generate-mode-state.js";
+
+import {
+    MAX_SPEECH_WEIGHTED_LENGTH,
+    computeSpeechWeightedLength
+} from "../../../models/opus-audio/specs.js";
 
 import {
     inspectReferenceMediaUrl,
@@ -1553,6 +1559,29 @@ function validateModelCapabilities(
         if (!hasImages && !hasVideos && !hasAudio) {
             errors.push(
                 "Minimal 1 gambar referensi atau video referensi (atau audio referensi) wajib diunggah untuk model ini."
+            );
+        }
+    }
+
+    if (isTranscribeModel(model)) {
+        const hasAudio =
+            Boolean(String(parameters.audio_url || "").trim()) ||
+            normalizeArray(parameters.audio_urls).length > 0;
+        const hasVideos =
+            normalizeArray(parameters.video_urls).length > 0 ||
+            Boolean(String(parameters.video_url || "").trim());
+        if (!hasAudio && !hasVideos) {
+            errors.push(
+                "Unggah minimal satu file Audio atau file Video untuk ditranskripsi."
+            );
+        }
+    }
+
+    if (modelId === "opus-audio-speech" && typeof parameters.prompt === "string" && parameters.prompt.trim()) {
+        const weightedLen = computeSpeechWeightedLength(parameters.prompt.trim());
+        if (weightedLen > MAX_SPEECH_WEIGHTED_LENGTH) {
+            errors.push(
+                `Naskah voiceover terlalu panjang (${weightedLen} karakter berbobot, maksimal ${MAX_SPEECH_WEIGHTED_LENGTH}).`
             );
         }
     }

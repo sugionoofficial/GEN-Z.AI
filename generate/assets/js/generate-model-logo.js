@@ -152,6 +152,18 @@ const LOGO_MAP = Object.freeze({
         "gemini.svg",
 
     "opus-nano-banana-pro":
+        "gemini.svg",
+
+    "opus-audio-speech":
+        "gemini.svg",
+
+    "opus-audio-music":
+        "gemini.svg",
+
+    "opus-audio-sfx":
+        "gemini.svg",
+
+    "opus-transcribe-audio":
         "gemini.svg"
 
 });

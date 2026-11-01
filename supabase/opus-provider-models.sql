@@ -162,6 +162,34 @@ seed (
             'Nano Banana Pro',
             'Google Nano Banana Pro (Gemini Pro Image) kelas studio untuk Character Sheet multi-angle, detail wajah presisi, dan penggabungan outfit.',
             null, null, '{1:1,16:9,9:16,4:3,3:4,21:9}', '{}', '{}', 500, 0, 0
+        ),
+
+        -- OPUS AUDIO GENERATION (`generate_audio` — flat credit_480p = 500) --
+        (
+            'opus-audio-speech',
+            'Opus Voiceover & TTS',
+            'Text-to-Speech & Voiceover studio dengan 30 karakter suara ekspresif, deteksi bahasa otomatis (Indonesia, Inggris, dll.), arahan gaya bicara, serta tag ekspresi (<laugh>, <sigh>, <short pause>).',
+            null, null, '{}', '{}', '{}', 500, 0, 0
+        ),
+        (
+            'opus-audio-music',
+            'Opus Music / Lagu AI (Lyria 3.5)',
+            'Generator musik & lagu orisinal berbasis Google Lyria 3.5 untuk BGM instrumental sinematik maupun lagu penuh dengan vokal dan lirik kustom.',
+            null, null, '{}', '{}', '{15,30,60,120}', 500, 0, 0
+        ),
+        (
+            'opus-audio-sfx',
+            'Opus Sound Effects (SFX)',
+            'Generator efek suara (Sound Effects / Foley / Ambience) presisi tinggi untuk kebutuhan editing video, transisi sinematik, game, dan podcast.',
+            null, null, '{}', '{}', '{2,5,10,15}', 500, 0, 0
+        ),
+
+        -- OPUS AUDIO/VIDEO TRANSCRIPTION (`transcribe_audio` — flat credit_480p = 500) --
+        (
+            'opus-transcribe-audio',
+            'Opus Transcribe Audio & Subtitle',
+            'Transkripsi otomatis Audio (MP3/WAV/M4A/AAC/OGG/FLAC) & Video (MP4/MOV/WEBM) menjadi teks akurat lengkap dengan timestamp per kalimat, tombol Salin Teks, serta unduh file .TXT dan subtitle .SRT.',
+            null, null, '{}', '{}', '{}', 500, 0, 0
         )
 )
 insert into public.models (
