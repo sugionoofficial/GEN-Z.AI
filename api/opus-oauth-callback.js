@@ -12,10 +12,12 @@
 
 import {
     OPUS_MCP_URL,
+    OPUS_UNDERSTANDING_MCP_URL,
     buildOpusLoginErrorHtml,
     buildOpusLoginSuccessHtml,
     decodeOAuthState,
     exchangeCodeForOpusTokens,
+    normalizeOpusMcpUrl,
     normalizeOpusSlot,
     resolvePublicOrigin,
     verifyOpusMcpToken
@@ -107,7 +109,10 @@ export default async function handler(req, res) {
         const candidateIdToken = cleanBundle._id_token || "";
         delete cleanBundle._id_token;
 
-        const mcpUrl = state.mu || OPUS_MCP_URL;
+        const mcpUrl = normalizeOpusMcpUrl(state.mu || OPUS_MCP_URL);
+        if (mcpUrl === OPUS_UNDERSTANDING_MCP_URL) {
+            cleanBundle.mcp_url = OPUS_UNDERSTANDING_MCP_URL;
+        }
         let check = await verifyOpusMcpToken(mcpUrl, cleanBundle.access_token);
         if (!check.ok && check.status === 401 && candidateIdToken) {
             const idCheck = await verifyOpusMcpToken(mcpUrl, candidateIdToken);
@@ -130,7 +135,8 @@ export default async function handler(req, res) {
             buildOpusLoginSuccessHtml({
                 compactJson: JSON.stringify(cleanBundle),
                 slot,
-                status: check.status
+                status: check.status,
+                mcpUrl
             })
         );
     } catch (error) {
@@ -141,7 +147,8 @@ export default async function handler(req, res) {
             buildOpusLoginErrorHtml({
                 message: error?.message || "Gagal menukar kode OAuth Opus menjadi token.",
                 slot,
-                origin
+                origin,
+                mcpUrl: state?.mu || OPUS_MCP_URL
             })
         );
     }

@@ -18,6 +18,7 @@ import {
     createPkcePair,
     discoverOpusOAuthEndpoints,
     encodeOAuthState,
+    normalizeOpusMcpUrl,
     normalizeOpusSlot,
     registerDynamicOAuthClient,
     resolvePublicOrigin
@@ -56,10 +57,11 @@ export default async function handler(req, res) {
 
     const url = new URL(req.url || "/api/opus-oauth-login", "https://genzai.local");
     const slot = normalizeOpusSlot(url.searchParams.get("slot"));
+    const requestedMcpUrl = normalizeOpusMcpUrl(url.searchParams.get("mcp"));
     const origin = resolvePublicOrigin(req);
 
     if (url.searchParams.get("start") !== "1") {
-        return sendHtml(res, 200, buildLoginIntroHtml({ slot, origin }));
+        return sendHtml(res, 200, buildLoginIntroHtml({ slot, origin, mcpUrl: requestedMcpUrl }));
     }
 
     let endpoints;
@@ -68,9 +70,7 @@ export default async function handler(req, res) {
     let client = null;
 
     try {
-        endpoints = await discoverOpusOAuthEndpoints(
-            url.searchParams.get("mcp") || OPUS_MCP_URL
-        );
+        endpoints = await discoverOpusOAuthEndpoints(requestedMcpUrl);
 
         const pkce = await createPkcePair();
         codeVerifier = pkce.codeVerifier;
@@ -129,7 +129,8 @@ export default async function handler(req, res) {
             buildOpusLoginErrorHtml({
                 message: error?.message || "Gagal memulai login OAuth Opus.",
                 slot,
-                origin
+                origin,
+                mcpUrl: requestedMcpUrl
             })
         );
     }

@@ -319,3 +319,54 @@ test("halaman sukses & pembuka memakai latar #000000 dan tanpa dependensi ekster
     const intro = buildLoginIntroHtml({ slot: 1, origin: "https://genzai.genzai-f37.workers.dev" });
     assert.match(intro, /start=1&amp;slot=1/);
 });
+
+test("MODUL 03 (?mcp=https://mcp.opus.pro/mcp) mempertahankan target mcp.opus.pro dan mengarahkan kembali ke BLACK BOX tanpa Cloudflare", async () => {
+    const resIntro = createMockRes();
+    await opusOAuthLogin(
+        createMockReq("/api/opus-oauth-login?mcp=https%3A%2F%2Fmcp.opus.pro%2Fmcp"),
+        resIntro
+    );
+    assert.equal(resIntro.statusCode, 200);
+    assert.match(resIntro.body, /MODUL 03/);
+    assert.match(resIntro.body, /mcp=https%3A%2F%2Fmcp\.opus\.pro%2Fmcp/);
+
+    const env = { OPUS_LOGIN_STATE_SECRET: "mod3-state" };
+    const state = await encodeOAuthState(
+        {
+            c: "client_mod3",
+            v: "verifier-mod3",
+            r: "https://mcp.opus.pro/mcp",
+            sc: "openid offline_access",
+            sl: 1,
+            ru: "https://genzai.genzai-f37.workers.dev/api/opus-oauth-callback",
+            te: "https://focused-horizon-38.authkit.app/oauth2/token",
+            mu: "https://mcp.opus.pro/mcp"
+        },
+        { env }
+    );
+
+    await withFetch(
+        (url) => {
+            if (url.endsWith("/oauth2/token")) {
+                return json({ access_token: "ok", refresh_token: "ref", expires_in: 3600 });
+            }
+            if (url === "https://mcp.opus.pro/mcp") {
+                return json({ jsonrpc: "2.0", id: 1, result: {} });
+            }
+            return new Response("not found", { status: 404 });
+        },
+        async () => {
+            const resCb = createMockRes();
+            await opusOAuthCallback(
+                createMockReq(`/api/opus-oauth-callback?code=c1&state=${encodeURIComponent(state)}`, { env }),
+                resCb
+            );
+            assert.equal(resCb.statusCode, 200);
+            assert.match(resCb.body, /BLACK BOX &rarr; MODUL 03/);
+            assert.match(resCb.body, /href='\/black-box\/'/);
+            assert.match(resCb.body, /mcp\.opus\.pro\/mcp/);
+            assert.doesNotMatch(resCb.body, /dash\.cloudflare\.com/);
+        }
+    );
+});
+
