@@ -47,7 +47,8 @@ import {
     cleanContinuationPromptForFirstFrame,
     generateStaged30sTaskId,
     isStaged30sModelId,
-    resolveStagedApiBaseUrl
+    resolveStagedApiBaseUrl,
+    resolveStagedTargetConfig
 } from "../lib/generate/staged-video-30s.js";
 
 
@@ -4492,6 +4493,9 @@ async function createStagedHistoryAndJob({
     );
 
     const creditCost = Number(generationCredit?.credit) || 0;
+    const targetConfig = resolveStagedTargetConfig(
+        parameters?.duration ?? stagedPrompts?.targetDuration ?? STAGED_30S_TOTAL_DURATION
+    );
 
     const historyPayload = {
         user_id: user.id,
@@ -4512,7 +4516,7 @@ async function createStagedHistoryAndJob({
             toPrivateMediaRef(videoReference, { supabaseUrl: SUPABASE_URL }) ||
             videoReference,
         ratio: normalizeHistoryText(parameters?.aspect_ratio ?? body?.aspect_ratio ?? "9:16"),
-        duration: STAGED_30S_TOTAL_DURATION,
+        duration: targetConfig.targetDuration,
         resolution,
         status: "processing",
         task_id: stagedTaskId,
@@ -4533,7 +4537,9 @@ async function createStagedHistoryAndJob({
 
     const historyRow = Array.isArray(historyRows) ? historyRows[0] : null;
     if (!historyRow?.id) {
-        throw new Error("Gagal membuat baris generation_history untuk video 30 detik.");
+        throw new Error(
+            `Gagal membuat baris generation_history untuk video ${targetConfig.targetDuration} detik.`
+        );
     }
 
     const toStableMediaList = list =>
@@ -4548,6 +4554,8 @@ async function createStagedHistoryAndJob({
         : (parameters?.audio_url ? [parameters.audio_url] : []);
     const requestPayload = {
         prompt: String(parameters?.prompt || "").trim(),
+        target_duration: targetConfig.targetDuration,
+        total_clips: targetConfig.totalClips,
         clip_prompts: {
             mode: stagedPrompts.mode,
             has_explicit_duration: Boolean(stagedPrompts.hasExplicitDuration),
@@ -4576,7 +4584,7 @@ async function createStagedHistoryAndJob({
                 model_id: modelConfig?.id || databaseModel?.model_id,
                 status: "processing",
                 current_stage: "clip_1_generating",
-                stage_message: "Membuat Klip 1/3 (durasi 0–10 detik)...",
+                stage_message: `Membuat Klip 1/${targetConfig.totalClips} (durasi 0–10 detik)...`,
                 internal_token: internalToken,
                 request_payload: requestPayload,
                 clip_1_task_id: clip1TaskId,
@@ -5760,9 +5768,14 @@ export default async function handler(
         parameters?.audio_url
     );
 
+    const stagedTargetConfig = isStaged30s
+        ? resolveStagedTargetConfig(parameters?.duration)
+        : null;
+
     const stagedPrompts = isStaged30s
         ? buildStaged30sPrompts(parameters?.prompt, {
-              preserveMediaRefs: hasStagedReferenceMedia
+              preserveMediaRefs: hasStagedReferenceMedia,
+              targetDuration: stagedTargetConfig.targetDuration
           })
         : null;
 
@@ -6479,7 +6492,7 @@ export default async function handler(
                         body: JSON.stringify({
                             status: "failed",
                             error_message:
-                                "Gagal memulai pemrosesan video bertahap 30 detik di server.",
+                                `Gagal memulai pemrosesan video bertahap ${stagedTargetConfig.targetDuration} detik di server.`,
                             credit_refunded: refundedOk || Number(generationCredit.credit) === 0,
                             completed_at: new Date().toISOString()
                         })
@@ -6510,7 +6523,7 @@ export default async function handler(
             return failure(
                 res,
                 502,
-                "Gagal memulai pemrosesan video bertahap 30 detik di server.",
+                `Gagal memulai pemrosesan video bertahap ${stagedTargetConfig.targetDuration} detik di server.`,
                 {
                     code: "STAGED_WORKFLOW_DISPATCH_FAILED",
                     provider: providerCode,
@@ -6538,10 +6551,12 @@ export default async function handler(
                 task_id: stagedTaskId,
                 jobId: stagedTaskId,
                 staged_30s: true,
+                target_duration: stagedTargetConfig.targetDuration,
+                total_clips: stagedTargetConfig.totalClips,
                 staged_job_id: stagedRecords.jobRow.id,
                 staged_history_id: stagedRecords.historyRow.id,
                 stage: "clip_1_generating",
-                stage_message: "Membuat Klip 1/3 (durasi 0–10 detik)...",
+                stage_message: `Membuat Klip 1/${stagedTargetConfig.totalClips} (durasi 0–10 detik)...`,
                 clip_prompts_mode: stagedPrompts.mode,
                 provider_response: safeTask,
                 model_database_id: databaseModel?.id || null

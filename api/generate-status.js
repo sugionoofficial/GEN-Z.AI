@@ -113,7 +113,8 @@ import {
 import {
     STAGED_30S_CLIP_COUNT,
     isStaged30sModelId,
-    isStaged30sTaskId
+    isStaged30sTaskId,
+    resolveStagedTargetConfig
 } from "../lib/generate/staged-video-30s.js";
 
 const STAGED_30S_STALE_TIMEOUT_MS = 55 * 60 * 1000;
@@ -4602,10 +4603,15 @@ export default async function handler(
                 );
             }
 
+            const stagedTarget = resolveStagedTargetConfig(
+                stagedJob?.request_payload?.target_duration ??
+                existingHistory?.duration ??
+                30
+            );
             const stageName = cleanString(stagedJob?.current_stage) || "processing";
             const stageMessage =
                 cleanString(stagedJob?.stage_message) ||
-                "Memproses video 30 detik secara bertahap (3 × 10 detik)...";
+                `Memproses video ${stagedTarget.targetDuration} detik secara bertahap (${stagedTarget.totalClips} × 10 detik)...`;
 
             return json(
                 res,
@@ -4621,7 +4627,8 @@ export default async function handler(
                     stage: stageName,
                     stage_message: stageMessage,
                     completed_clips: Number(stagedJob?.completed_clips) || 0,
-                    total_clips: STAGED_30S_CLIP_COUNT,
+                    total_clips: stagedTarget.totalClips || STAGED_30S_CLIP_COUNT,
+                    target_duration: stagedTarget.targetDuration,
                     processing: true,
                     completed: false,
                     failed: false,

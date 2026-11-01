@@ -1479,7 +1479,7 @@ test("semua 7 model provider Opus mendukung pilihan durasi sistem checkbox di Ed
         "opus-seedance-2.5-t2v": ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
         "opus-seedance-2.5-i2v": ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
         "opus-seedance-2.5-r2v": ["4", "5", "8", "10", "12", "15", "20", "25", "30"],
-        "opus-seedance-2.5-r2v-30s": ["30"],
+        "opus-seedance-2.5-r2v-30s": ["20", "30"],
         "opus-seedance-2.0-r2v": ["4", "5", "8", "10", "12", "15"],
         "opus-hailuo-3-t2v": ["5", "6", "8", "10", "12", "15"],
         "opus-hailuo-3-i2v": ["5", "6", "8", "10", "12", "15"]
