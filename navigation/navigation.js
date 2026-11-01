@@ -895,6 +895,8 @@
 
             promptStudio: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v3"></path><path d="m19 5-2 2"></path><path d="M22 12h-3"></path><path d="m19 19-2-2"></path><path d="M12 22v-3"></path><path d="m5 19 2-2"></path><path d="M2 12h3"></path><path d="m5 5 2 2"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
 
+            liveChat: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5z"></path></svg>`,
+
             visionImage: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path><circle cx="12" cy="12" r="2.7"></circle></svg>`,
 
             visionVideo: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"></rect><path d="M16 10l5-3v10l-5-3z"></path></svg>`,
@@ -930,6 +932,7 @@
             { label: "Dashboard", href: "/user/dashboard.html", icon: ICONS.dashboard },
             { label: "Generate", href: "/generate/index.html", icon: ICONS.generate },
             { label: "Prompt Studio", href: "/prompt-studio/index.html", icon: ICONS.promptStudio },
+            { label: "Live Chat AI", href: "/live-chat/index.html", icon: ICONS.liveChat },
             { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
             { label: "Vision Video", href: "/vision-video/index.html", icon: ICONS.visionVideo },
             { label: "Upscale Studio", href: "/upscale/index.html", icon: ICONS.upscale },
@@ -946,6 +949,7 @@
             { label: "Dashboard", href: "/admin/dashboard/index.html", icon: ICONS.dashboard },
             { label: "Generate", href: "/generate/index.html", icon: ICONS.generate },
             { label: "Prompt Studio", href: "/prompt-studio/index.html", icon: ICONS.promptStudio },
+            { label: "Live Chat AI", href: "/live-chat/index.html", icon: ICONS.liveChat },
             { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
             { label: "Vision Video", href: "/vision-video/index.html", icon: ICONS.visionVideo },
             { label: "Upscale Studio", href: "/upscale/index.html", icon: ICONS.upscale },
@@ -984,6 +988,13 @@
     }
 
 
+    function normalizeNavPath(pathname) {
+        const clean = String(pathname || "").trim();
+        if (!clean) return "/";
+        return clean.replace(/\/index\.html$/i, "/");
+    }
+
+
     function isActiveLink(href) {
 
         const currentPath = getCurrentPath();
@@ -996,9 +1007,14 @@
 
             if (targetPath === currentPath) return true;
 
+            const normalizedCurrent = normalizeNavPath(currentPath);
+            const normalizedTarget = normalizeNavPath(targetPath);
+
+            if (normalizedTarget === normalizedCurrent) return true;
+
             return (
-                currentPath.startsWith(targetPath) &&
-                targetPath !== "/"
+                normalizedCurrent.startsWith(normalizedTarget) &&
+                normalizedTarget !== "/"
             );
         } catch (error) {
             return false;
