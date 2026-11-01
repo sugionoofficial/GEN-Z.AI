@@ -152,14 +152,29 @@ export function parseSrtOrVttSegments(rawSubtitleText) {
     return segments;
 }
 
+function formatSpeakerLabel(rawSpeaker) {
+    const clean = String(rawSpeaker || "").trim();
+    if (!clean) return "";
+    const speakerIdxMatch = /^speaker[_-\s]*(\d+)$/i.exec(clean);
+    if (speakerIdxMatch) {
+        return `Speaker ${Number(speakerIdxMatch[1]) + 1}`;
+    }
+    return clean;
+}
+
 function groupWordsIntoSegments(words, maxWordsPerCue = 10) {
     if (!Array.isArray(words) || words.length === 0) return [];
     const normalizedWords = [];
+    const distinctSpeakers = new Set();
 
     for (const w of words) {
         if (!w || typeof w !== "object") continue;
+        /* Lewati token whitespace murni dari ElevenLabs Scribe (`type: "spacing"`) */
+        if (String(w.type || "").toLowerCase() === "spacing") continue;
         const wordText = String(w.word ?? w.text ?? w.token ?? w.value ?? "").trim();
         if (!wordText) continue;
+        const rawSpeaker = String(w.speaker ?? w.speakerId ?? w.speaker_id ?? "").trim();
+        if (rawSpeaker) distinctSpeakers.add(rawSpeaker);
         const start = resolveSegmentSeconds(
             w,
             ["start", "startSeconds", "start_seconds", "startTime", "start_time", "offset"],
@@ -172,6 +187,7 @@ function groupWordsIntoSegments(words, maxWordsPerCue = 10) {
         );
         normalizedWords.push({
             text: wordText,
+            speaker: rawSpeaker,
             start: start ?? (normalizedWords.length > 0 ? normalizedWords[normalizedWords.length - 1].end : 0),
             end:
                 end !== null && end >= (start ?? 0)
@@ -182,6 +198,7 @@ function groupWordsIntoSegments(words, maxWordsPerCue = 10) {
 
     if (normalizedWords.length === 0) return [];
 
+    const hasMultipleSpeakers = distinctSpeakers.size >= 2;
     const cues = [];
     let bucket = [];
 
@@ -189,19 +206,27 @@ function groupWordsIntoSegments(words, maxWordsPerCue = 10) {
         if (bucket.length === 0) return;
         const start = bucket[0].start;
         const lastEnd = bucket[bucket.length - 1].end;
+        const speakerLabel = hasMultipleSpeakers ? formatSpeakerLabel(bucket[0].speaker) : "";
         cues.push({
             index: cues.length + 1,
             start,
             end: lastEnd > start ? lastEnd : start + 1.5,
-            text: bucket.map(item => item.text).join(" ").replace(/\s+([,.;!?])/g, "$1")
+            text: bucket.map(item => item.text).join(" ").replace(/\s+([,.;!?])/g, "$1"),
+            ...(speakerLabel ? { speaker: speakerLabel } : {})
         });
         bucket = [];
     };
 
     for (const item of normalizedWords) {
         if (bucket.length > 0) {
-            const gap = item.start - bucket[bucket.length - 1].end;
-            if (gap > 1.2) {
+            const prev = bucket[bucket.length - 1];
+            const gap = item.start - prev.end;
+            const speakerChanged =
+                hasMultipleSpeakers &&
+                item.speaker &&
+                prev.speaker &&
+                item.speaker !== prev.speaker;
+            if (gap > 1.2 || speakerChanged) {
                 flushBucket();
             }
         }
@@ -345,6 +370,14 @@ export function normalizeTranscriptPayload(rawInput) {
         return null;
     }
 
+    const firstOutputItem =
+        Array.isArray(rawInput.outputs) &&
+        rawInput.outputs.length > 0 &&
+        rawInput.outputs[0] &&
+        typeof rawInput.outputs[0] === "object"
+            ? rawInput.outputs[0]
+            : null;
+
     const nested =
         (rawInput.transcript && typeof rawInput.transcript === "object" && !Array.isArray(rawInput.transcript)
             ? rawInput.transcript
@@ -352,8 +385,15 @@ export function normalizeTranscriptPayload(rawInput) {
         (rawInput.transcription && typeof rawInput.transcription === "object" && !Array.isArray(rawInput.transcription)
             ? rawInput.transcription
             : null) ||
+        (rawInput.output && typeof rawInput.output === "object" && !Array.isArray(rawInput.output)
+            ? rawInput.output
+            : null) ||
+        firstOutputItem ||
         (rawInput.result && typeof rawInput.result === "object" && !Array.isArray(rawInput.result)
             ? rawInput.result
+            : null) ||
+        (rawInput.data && typeof rawInput.data === "object" && !Array.isArray(rawInput.data)
+            ? rawInput.data
             : null);
 
     const source = nested

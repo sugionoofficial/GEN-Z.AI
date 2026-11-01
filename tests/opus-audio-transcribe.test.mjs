@@ -621,3 +621,262 @@ test("UI & Registry Wiring: /generate, /history, API endpoints, dan SQL seed mem
     assert.ok(statusApi.includes("persistGeneratedAudio"));
     assert.ok(statusApi.includes("persistGeneratedTranscript"));
 });
+
+test("Regresi skema live Opus MCP transcribe_audio: keys=[audio,purpose,languageCode,diarize,requestKey,projectId]", async () => {
+    const transcribeCalls = [];
+
+    const server = http.createServer(async (req, res) => {
+        const reqUrl = new URL(req.url, "http://127.0.0.1");
+        if (req.method === "PUT" && reqUrl.pathname === "/upload-live") {
+            for await (const _chunk of req) {
+                /* drain */
+            }
+            res.writeHead(200);
+            res.end();
+            return;
+        }
+
+        let rawBody = "";
+        for await (const chunk of req) rawBody += chunk;
+        const rpc = JSON.parse(rawBody || "{}");
+
+        const sendRpc = result => {
+            res.writeHead(200, {
+                "Content-Type": "application/json",
+                "Mcp-Session-Id": "sess-live-trx"
+            });
+            res.end(JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result }));
+        };
+
+        if (rpc.method === "initialize") {
+            sendRpc({ protocolVersion: "2025-03-26", serverInfo: { name: "mock-opus-live" }, capabilities: {} });
+            return;
+        }
+        if (rpc.method === "notifications/initialized") {
+            res.writeHead(202);
+            res.end();
+            return;
+        }
+
+        if (rpc.method === "tools/list") {
+            sendRpc({
+                tools: [
+                    {
+                        name: "create_project",
+                        inputSchema: { type: "object", properties: { name: { type: "string" } } }
+                    },
+                    {
+                        name: "import_assets",
+                        inputSchema: {
+                            type: "object",
+                            required: ["projectId", "assets"],
+                            properties: {
+                                projectId: { type: "string" },
+                                assets: {
+                                    type: "array",
+                                    items: {
+                                        type: "object",
+                                        properties: {
+                                            fileName: { type: "string" },
+                                            mimeType: { type: "string" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    {
+                        name: "transcribe_audio",
+                        inputSchema: {
+                            type: "object",
+                            required: ["audio", "requestKey", "projectId"],
+                            properties: {
+                                audio: {
+                                    anyOf: [
+                                        {
+                                            type: "object",
+                                            required: ["url"],
+                                            properties: { url: { type: "string" } }
+                                        },
+                                        {
+                                            type: "object",
+                                            required: ["assetId"],
+                                            properties: { assetId: { type: "string" } }
+                                        },
+                                        { type: "string" }
+                                    ]
+                                },
+                                purpose: {
+                                    type: "string",
+                                    enum: ["captions", "alignment"]
+                                },
+                                languageCode: { type: "string" },
+                                diarize: { type: "boolean" },
+                                requestKey: { type: "string" },
+                                projectId: { type: "string" }
+                            }
+                        }
+                    },
+                    {
+                        name: "get_status",
+                        inputSchema: {
+                            type: "object",
+                            required: ["jobId"],
+                            properties: {
+                                projectId: { type: "string" },
+                                jobId: { type: "string" },
+                                watch: { type: "boolean" }
+                            }
+                        }
+                    }
+                ]
+            });
+            return;
+        }
+
+        if (rpc.method === "tools/call") {
+            const { name, arguments: args } = rpc.params;
+            if (name === "create_project") {
+                sendRpc({
+                    structuredContent: { projectId: "proj-live-99" },
+                    content: [{ type: "text", text: JSON.stringify({ projectId: "proj-live-99" }) }]
+                });
+                return;
+            }
+            if (name === "import_assets") {
+                const port = server.address().port;
+                const payload = {
+                    assets: [
+                        {
+                            assetId: "ast-live-555",
+                            uploadUrl: `http://127.0.0.1:${port}/upload-live`,
+                            uploadMethod: "PUT"
+                        }
+                    ]
+                };
+                sendRpc({
+                    structuredContent: payload,
+                    content: [{ type: "text", text: JSON.stringify(payload) }]
+                });
+                return;
+            }
+            if (name === "transcribe_audio") {
+                transcribeCalls.push(args);
+                if (!args.audio) {
+                    const errPayload = { errorCode: "invalid_arguments", message: "audio is required." };
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: rpc.id,
+                            result: {
+                                isError: true,
+                                structuredContent: errPayload,
+                                content: [{ type: "text", text: JSON.stringify(errPayload) }]
+                            }
+                        })
+                    );
+                    return;
+                }
+                /* Simulasikan server yang mewajibkan languageCode 3 huruf ISO-639-3 (`ind`) bila diisi */
+                if (args.languageCode && args.languageCode !== "ind") {
+                    const errPayload = {
+                        errorCode: "invalid_arguments",
+                        message: "languageCode must be ISO 639-3 (e.g. 'ind')."
+                    };
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: rpc.id,
+                            result: {
+                                isError: true,
+                                structuredContent: errPayload,
+                                content: [{ type: "text", text: JSON.stringify(errPayload) }]
+                            }
+                        })
+                    );
+                    return;
+                }
+                const payload = { jobId: "job-live-trx-1", status: "queued" };
+                sendRpc({
+                    structuredContent: payload,
+                    content: [{ type: "text", text: JSON.stringify(payload) }]
+                });
+                return;
+            }
+            if (name === "get_status") {
+                /* Simulasikan output ElevenLabs Scribe v2 di dalam outputs[] */
+                const payload = {
+                    jobId: "job-live-trx-1",
+                    status: "completed",
+                    outputs: [
+                        {
+                            languageCode: "ind",
+                            text: "Halo semuanya! Selamat datang kembali.",
+                            words: [
+                                { text: "Halo", start: 0.1, end: 0.4, type: "word", speakerId: "speaker_0" },
+                                { text: " ", start: 0.4, end: 0.45, type: "spacing", speakerId: "speaker_0" },
+                                { text: "semuanya!", start: 0.45, end: 1.0, type: "word", speakerId: "speaker_0" },
+                                { text: "Selamat", start: 1.3, end: 1.7, type: "word", speakerId: "speaker_1" },
+                                { text: " ", start: 1.7, end: 1.72, type: "spacing", speakerId: "speaker_1" },
+                                { text: "datang", start: 1.72, end: 2.1, type: "word", speakerId: "speaker_1" },
+                                { text: "kembali.", start: 2.15, end: 2.6, type: "word", speakerId: "speaker_1" }
+                            ]
+                        }
+                    ]
+                };
+                sendRpc({
+                    structuredContent: payload,
+                    content: [{ type: "text", text: JSON.stringify(payload) }]
+                });
+                return;
+            }
+        }
+        res.writeHead(400);
+        res.end();
+    });
+
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    const port = server.address().port;
+    const mcpEndpoint = `http://127.0.0.1:${port}/mcp`;
+
+    try {
+        const dataAudioInput = `data:audio/mpeg;base64,${Buffer.from("ID3-live-mp3-test").toString("base64")}`;
+        const created = await createTranscribeTask(
+            {
+                audio_url: dataAudioInput,
+                language: "id"
+            },
+            "test-bearer-token",
+            { mcpUrl: mcpEndpoint }
+        );
+        assert.equal(created.status, "QUEUED");
+        assert.match(created.taskId, /^opus:proj-live-99:job-live-trx-1$/);
+
+        /* Pastikan argumen pertama langsung menyertakan `audio: { assetId: "ast-live-555" }`, `purpose: "captions"`, `diarize: true` */
+        assert.deepEqual(transcribeCalls[0].audio, { assetId: "ast-live-555" });
+        assert.equal(transcribeCalls[0].purpose, "captions");
+        assert.equal(transcribeCalls[0].diarize, true);
+        assert.equal(transcribeCalls[0].projectId, "proj-live-99");
+
+        /* Pastikan varian fallback ISO-639-3 (`ind`) berhasil diterima oleh server */
+        const acceptedCall = transcribeCalls[transcribeCalls.length - 1];
+        assert.deepEqual(acceptedCall.audio, { assetId: "ast-live-555" });
+        assert.equal(acceptedCall.languageCode, "ind");
+
+        const polled = await getTranscribeTask(created.taskId, "test-bearer-token", { mcpUrl: mcpEndpoint });
+        assert.equal(polled.status, "COMPLETED");
+        assert.ok(polled.transcript);
+        assert.equal(polled.transcript.language, "ind");
+        assert.equal(polled.transcript.text, "Halo semuanya! Selamat datang kembali.");
+        assert.equal(polled.transcript.segments.length, 2);
+        assert.equal(polled.transcript.segments[0].speaker, "Speaker 1");
+        assert.equal(polled.transcript.segments[1].speaker, "Speaker 2");
+        assert.match(polled.transcript.srt, /\[Speaker 1\] Halo semuanya!/);
+        assert.match(polled.transcript.srt, /\[Speaker 2\] Selamat datang kembali\./);
+    } finally {
+        await new Promise(resolve => server.close(resolve));
+    }
+});
+
