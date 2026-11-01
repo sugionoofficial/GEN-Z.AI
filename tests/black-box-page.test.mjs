@@ -200,3 +200,25 @@ test("seluruh teks panel diagnostik & vault BLACK BOX kontras tinggi (tidak mema
     );
 });
 
+test("panel diagnostik & vault BLACK BOX aman di layar HP tanpa teks atau input keluar blok", () => {
+    assert.match(
+        pageCss,
+        /\.bb-page,\s*\.bb-page \*,\s*\.bb-page \*::before,\s*\.bb-page \*::after\s*\{\s*box-sizing:\s*border-box;\s*\}/s,
+    );
+    assert.match(pageCss, /\.bb-diag-panel\s*\{[^}]*max-width:\s*100%;[^}]*min-width:\s*0;/s);
+    assert.match(pageCss, /\.bb-diag-card\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s);
+    assert.match(pageCss, /\.bb-diag-row\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s);
+    assert.match(pageCss, /\.bb-diag-input\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s);
+    assert.match(
+        pageCss,
+        /@media \(max-width: 720px\)[\s\S]*?\.bb-diag-grid\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
+        "grid diagnostik HP wajib memakai minmax(0, 1fr) agar select/input panjang tidak melebar keluar panel",
+    );
+    assert.match(
+        pageCss,
+        /@media \(max-width: 720px\)[\s\S]*?\.bb-diag-form-row\s*\{\s*flex-direction:\s*column;/,
+        "baris form HP wajib ditumpuk vertikal agar tombol & input tidak keluar kartu",
+    );
+});
+
+
