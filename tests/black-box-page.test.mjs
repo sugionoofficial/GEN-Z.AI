@@ -178,3 +178,25 @@ test("halaman BLACK BOX fail-closed: konten disembunyikan sampai role terverifik
     const guardIndex = pageHtml.indexOf("window.GENZ_NAVIGATION_ROLE");
     assert.ok(navigationIndex > -1 && guardIndex > navigationIndex);
 });
+
+test("seluruh teks panel diagnostik & vault BLACK BOX kontras tinggi (tidak memakai --bb-ink hitam di atas latar gelap)", () => {
+    const diagSection = pageCss.slice(pageCss.indexOf(".bb-diag-panel"));
+    assert.ok(diagSection.length > 0, "expected blok CSS .bb-diag-panel");
+    assert.doesNotMatch(
+        diagSection,
+        /color:\s*var\(--bb-ink\)/,
+        "elemen .bb-diag-* tidak boleh memakai --bb-ink (#000000) yang membuat tulisan hilang di atas latar gelap",
+    );
+
+    assert.match(pageCss, /\.bb-diag-title\s*\{[^}]*color:\s*#ffffff;/s);
+    assert.match(pageCss, /\.bb-diag-input\s*\{[^}]*color:\s*#ffffff;/s);
+    assert.match(
+        pageCss,
+        /html\[data-genz-theme="light"\] body \.bb-tile--opus \.bb-tile-label\s*\{\s*color:\s*var\(--bb-green\)\s*!important;/s,
+    );
+    assert.match(
+        pageCss,
+        /html\[data-genz-theme="light"\] body \.bb-tile--opus \.bb-tile-desc\s*\{\s*color:\s*#d6fbe4\s*!important;/s,
+    );
+});
+
