@@ -1176,6 +1176,233 @@ function calculateFinalCredit(
 
 
 /* =========================================================
+   STAGED 30S DURATION CREDIT SCALING (20S = 2/3, 30S = 100%)
+========================================================= */
+
+function isStaged30sVideoModel(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !== "object"
+    ) {
+
+        return false;
+
+    }
+
+
+    if (
+        model.staged30s === true ||
+        model.config?.staged30s === true
+    ) {
+
+        return true;
+
+    }
+
+
+    const candidateId =
+        String(
+            model.id ||
+            model.model_id ||
+            model.config?.id ||
+            model.config?.model_id ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return candidateId === "opus-seedance-2.5-r2v-30s";
+
+}
+
+
+function isDurationElement(
+    element
+) {
+
+    if (
+        !element ||
+        typeof element !== "object"
+    ) {
+
+        return false;
+
+    }
+
+
+    const name =
+        String(
+            element.name || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    const id =
+        String(
+            element.id || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    const dataParam =
+        String(
+            element.dataset?.parameter || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    const dataKey =
+        String(
+            element.dataset?.key || ""
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return (
+        name === "duration" ||
+        id === "duration" ||
+        dataParam === "duration" ||
+        dataKey === "duration" ||
+        element.hasAttribute?.("data-duration")
+    );
+
+}
+
+
+function parseDurationSecondsValue(
+    raw
+) {
+
+    const text =
+        String(
+            raw ?? ""
+        )
+            .trim()
+            .replace(/s$/i, "");
+
+
+    if (
+        !text
+    ) {
+
+        return null;
+
+    }
+
+
+    const num =
+        Number(text);
+
+
+    return Number.isFinite(num) && num > 0
+        ? Math.round(num)
+        : null;
+
+}
+
+
+function getSelectedDurationSeconds() {
+
+    const {
+        generateForm
+    } = elements();
+
+
+    if (
+        generateForm
+    ) {
+
+        const directControls =
+            generateForm.querySelectorAll(
+                'select[name="duration"], select#duration, select[data-parameter="duration"], select[data-key="duration"], input[name="duration"]:checked, input[type="number"][name="duration"], input[type="range"][name="duration"], input[type="hidden"][name="duration"]'
+            );
+
+
+        for (
+            const control
+            of directControls
+        ) {
+
+            const parsed =
+                parseDurationSecondsValue(
+                    control.value
+                );
+
+
+            if (
+                parsed !== null
+            ) {
+
+                return parsed;
+
+            }
+
+        }
+
+    }
+
+
+    const stateDuration =
+        parseDurationSecondsValue(
+            generateState?.parameters?.duration
+        );
+
+
+    if (
+        stateDuration !== null
+    ) {
+
+        return stateDuration;
+
+    }
+
+
+    return 30;
+
+}
+
+
+function applyStagedDurationBaseScale(
+    model,
+    baseCredit
+) {
+
+    if (
+        baseCredit === null ||
+        baseCredit === undefined
+    ) {
+
+        return null;
+
+    }
+
+
+    if (
+        isStaged30sVideoModel(model) &&
+        getSelectedDurationSeconds() === 20
+    ) {
+
+        return Math.round(
+            (Number(baseCredit) * 2) / 3
+        );
+
+    }
+
+
+    return baseCredit;
+
+}
+
+
+/* =========================================================
    RESOLVE MODEL CREDIT LOCALLY
 ========================================================= */
 
@@ -1200,7 +1427,7 @@ function resolveModelCreditLocally(
     }
 
 
-    const baseCredit =
+    const rawBaseCredit =
         getModelResolutionBaseCredit(
             model,
             normalizedResolution
@@ -1208,12 +1435,19 @@ function resolveModelCreditLocally(
 
 
     if (
-        baseCredit === null
+        rawBaseCredit === null
     ) {
 
         return null;
 
     }
+
+
+    const baseCredit =
+        applyStagedDurationBaseScale(
+            model,
+            rawBaseCredit
+        );
 
 
     const discountPercent =
@@ -1380,9 +1614,16 @@ export function resolveModelCredit(
                     helperBase !== null
                 ) {
 
+                    const scaledHelperBase =
+                        applyStagedDurationBaseScale(
+                            model,
+                            helperBase
+                        );
+
+
                     const recalculated =
                         calculateFinalCredit(
-                            helperBase,
+                            scaledHelperBase,
                             helperDiscount
                         );
 
@@ -1397,7 +1638,7 @@ export function resolveModelCredit(
                                 normalizedResolution,
 
                             credit_base:
-                                helperBase,
+                                scaledHelperBase,
 
                             discount_percent:
                                 helperDiscount,
@@ -3327,8 +3568,13 @@ function bindResolutionCreditSync() {
 
             if (
                 !target ||
-                !isResolutionElement(
-                    target
+                (
+                    !isResolutionElement(
+                        target
+                    ) &&
+                    !isDurationElement(
+                        target
+                    )
                 )
             ) {
 
@@ -3355,8 +3601,13 @@ function bindResolutionCreditSync() {
 
             if (
                 !target ||
-                !isResolutionElement(
-                    target
+                (
+                    !isResolutionElement(
+                        target
+                    ) &&
+                    !isDurationElement(
+                        target
+                    )
                 )
             ) {
 
@@ -3392,7 +3643,7 @@ function bindResolutionCreditSync() {
 
             const resolutionElement =
                 target.closest(
-                    "[data-resolution], [data-parameter='resolution'], [data-key='resolution'], [role='option'], [role='radio'], input[name='resolution'], select[name='resolution']"
+                    "[data-resolution], [data-parameter='resolution'], [data-key='resolution'], [data-duration], [data-parameter='duration'], [data-key='duration'], [role='option'], [role='radio'], input[name='resolution'], select[name='resolution'], input[name='duration'], select[name='duration']"
                 );
 
 

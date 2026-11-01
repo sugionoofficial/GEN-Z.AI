@@ -87,7 +87,7 @@ const AUTH_MODULE =
     "./generate-auth.js?v=20261013-auth-refresh";
 
 const UI_MODULE =
-    "./generate-ui.js?v=20261101-audio-transcribe";
+    "./generate-ui.js?v=20261101-staged-20s-credit";
 
 const MODEL_MODULE =
     "./generate-model.js?v=20261101-audio-transcribe";
@@ -2553,6 +2553,142 @@ function getModelDefaultResolution(
 }
 
 
+function isStaged30sVideoModel(
+    model
+) {
+
+    if (
+        !model ||
+        typeof model !== "object"
+    ) {
+
+        return false;
+
+    }
+
+    const sources =
+        getModelSourceObjects(
+            model
+        );
+
+    for (
+        const src
+        of sources
+    ) {
+
+        if (
+            src?.staged30s === true
+        ) {
+
+            return true;
+
+        }
+
+        const id =
+            String(
+                src?.id ||
+                src?.model_id ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+        if (
+            id === "opus-seedance-2.5-r2v-30s"
+        ) {
+
+            return true;
+
+        }
+
+    }
+
+    return false;
+
+}
+
+
+function getSelectedDurationSeconds() {
+
+    const dom =
+        getDOM();
+
+    const form =
+        dom?.generateForm;
+
+    if (
+        form
+    ) {
+
+        const controls =
+            form.querySelectorAll(
+                'select[name="duration"], select#duration, select[data-parameter="duration"], select[data-key="duration"], input[name="duration"]:checked, input[type="number"][name="duration"], input[type="range"][name="duration"], input[type="hidden"][name="duration"]'
+            );
+
+        for (
+            const ctrl
+            of controls
+        ) {
+
+            const raw =
+                String(
+                    ctrl.value ?? ""
+                )
+                    .trim()
+                    .replace(/s$/i, "");
+
+            const num =
+                Number(raw);
+
+            if (
+                raw &&
+                Number.isFinite(num) &&
+                num > 0
+            ) {
+
+                return Math.round(num);
+
+            }
+
+        }
+
+    }
+
+    return 30;
+
+}
+
+
+function applyStagedDurationBaseScale(
+    model,
+    creditAmount
+) {
+
+    if (
+        creditAmount === null ||
+        creditAmount === undefined
+    ) {
+
+        return null;
+
+    }
+
+    if (
+        isStaged30sVideoModel(model) &&
+        getSelectedDurationSeconds() === 20
+    ) {
+
+        return Math.round(
+            (Number(creditAmount) * 2) / 3
+        );
+
+    }
+
+    return creditAmount;
+
+}
+
+
 function getModelCredit(
     model,
     explicitResolution = ""
@@ -2581,16 +2717,22 @@ function getModelCredit(
         resolution
     ) {
 
-        const baseCredit =
+        const rawBaseCredit =
             getModelResolutionBaseCredit(
                 model,
                 resolution
             );
 
         if (
-            baseCredit !==
+            rawBaseCredit !==
                 null
         ) {
+
+            const baseCredit =
+                applyStagedDurationBaseScale(
+                    model,
+                    rawBaseCredit
+                );
 
             const discount =
                 getModelDiscountPercent(
@@ -2670,7 +2812,10 @@ function getModelCredit(
                     )
                 ) {
 
-                    return number;
+                    return applyStagedDurationBaseScale(
+                        model,
+                        number
+                    );
 
                 }
 
@@ -3335,8 +3480,26 @@ function bindResolutionEvent() {
                 id ===
                     "resolution";
 
+            const isDuration =
+                name ===
+                    "duration" ||
+
+                parameter ===
+                    "duration" ||
+
+                key ===
+                    "duration" ||
+
+                target.hasAttribute(
+                    "data-duration"
+                ) ||
+
+                id ===
+                    "duration";
+
             if (
-                !isResolution
+                !isResolution &&
+                !isDuration
             ) {
 
                 return;

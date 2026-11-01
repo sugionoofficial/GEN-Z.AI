@@ -20,7 +20,8 @@ import {
     generateStaged30sTaskId,
     isStaged30sModelId,
     isStaged30sTaskId,
-    resolveStagedApiBaseUrl
+    resolveStagedApiBaseUrl,
+    resolveStagedTargetConfig
 } from "../lib/generate/staged-video-30s.js";
 import { runStagedVideoOrchestrator } from "../scripts/run-staged-video-30s.mjs";
 
@@ -1043,6 +1044,247 @@ test("runStagedVideoOrchestrator memotong @audio1 (.wav/.mp3) pada Klip 2 (10-20
         );
         assert.doesNotMatch(formMediaJs, /fb_audio_out_\$\{uniqueId\}\.m4a/);
         assert.match(formMediaJs, /ensureCompatibleAudioUploadFile/);
+    } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+    }
+});
+
+test("opsi durasi 20 detik pada opus-seedance-2.5-r2v-30s: validasi, kredit proporsional 2/3, prompt 2 klip, dan orkestrasi 20 detik penuh", async () => {
+    const model = getOpusVideoModel(STAGED_30S_MODEL_ID);
+    const durationParam = model.parameters.find(p => p.name === "duration");
+    assert.deepEqual(durationParam.enum, ["20", "30"]);
+    assert.equal(durationParam.default, "30", "default tetap 30 detik");
+
+    const valid20 = model.validate({
+        prompt: "@image1 berjalan santai di taman sore hari mengikuti @video1",
+        image_urls: ["https://cdn.example.com/ref.jpg"],
+        video_urls: ["https://cdn.example.com/motion.mp4"],
+        aspect_ratio: "9:16",
+        resolution: "720p",
+        duration: "20",
+        generate_audio: true
+    });
+    assert.equal(valid20.valid, true, valid20.errors.join("; "));
+
+    // Kredit 20 detik = proporsional 2/3 dari tarif 30 detik (480p: 6000 -> 4000, 720p: 7500 -> 5000)
+    const billed20s720 = resolveBillableCredit(
+        7500,
+        { duration: "20" },
+        model.config,
+        STAGED_30S_MODEL_ID
+    );
+    const billed20s480 = resolveBillableCredit(
+        6000,
+        { duration: "20" },
+        model.config,
+        STAGED_30S_MODEL_ID
+    );
+    assert.equal(billed20s720.billableCredit, 5000, "20s 720p harus tepat 5000 kredit (2/3 dari 7500)");
+    assert.equal(billed20s480.billableCredit, 4000, "20s 480p harus tepat 4000 kredit (2/3 dari 6000)");
+
+    assert.deepEqual(resolveStagedTargetConfig("20"), {
+        targetDuration: 20,
+        totalClips: 2,
+        clipDuration: 10
+    });
+    assert.deepEqual(resolveStagedTargetConfig("30"), {
+        targetDuration: 30,
+        totalClips: 3,
+        clipDuration: 10
+    });
+
+    // Prompt 20 detik otomatis & eksplisit hanya menghasilkan 2 segmen (clip3 kosong)
+    const autoPrompts20 = buildStaged30sPrompts(
+        "@image1 membuka pintu kafe, lalu duduk sambil tersenyum menyeruput kopi hangat.",
+        { targetDuration: 20, preserveMediaRefs: true }
+    );
+    assert.equal(autoPrompts20.targetDuration, 20);
+    assert.equal(autoPrompts20.totalClips, 2);
+    assert.match(autoPrompts20.clip1, /Durasi 0-10 detik/);
+    assert.match(autoPrompts20.clip2, /Durasi 11-20 detik/);
+    assert.equal(autoPrompts20.clip3, "");
+    assert.equal(autoPrompts20.segmentsSummary.clip3Range, null);
+
+    const explicitPrompts20 = buildStaged30sPrompts(
+        "0-10 detik: @image1 berjalan di tepi pantai.\n11-20 detik: @image1 melambaikan tangan ke arah kamera.",
+        { targetDuration: 20 }
+    );
+    assert.equal(explicitPrompts20.mode, "explicit_duration");
+    assert.equal(explicitPrompts20.totalClips, 2);
+    assert.match(explicitPrompts20.clip1, /berjalan di tepi pantai/);
+    assert.match(explicitPrompts20.clip2, /melambaikan tangan/);
+    assert.equal(explicitPrompts20.clip3, "");
+
+    // Settlement 20s: 2/2 selesai penuh, 1/2 refund 50%, 0/2 refund 100%
+    const full20 = computeStagedCreditSettlement(5000, 2, 2);
+    assert.equal(full20.outcome, "completed");
+    assert.equal(full20.finalDuration, 20);
+    assert.equal(full20.charged, 5000);
+    assert.equal(full20.refund, 0);
+
+    const partial20 = computeStagedCreditSettlement(5000, 1, 2);
+    assert.equal(partial20.outcome, "partial_completed");
+    assert.equal(partial20.finalDuration, 10);
+    assert.equal(partial20.charged, 2500);
+    assert.equal(partial20.refund, 2500);
+
+    // Orkestrasi penuh 20 detik: hanya mengeksekusi Klip 1 & Klip 2 (tanpa Klip 3), lalu merge 20 detik
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "staged-20s-test-"));
+    try {
+        const jobState = {
+            id: JOB_ID,
+            task_id: "staged30_1793400000999_20sec",
+            history_id: HISTORY_ID,
+            user_id: USER_ID,
+            model_id: STAGED_30S_MODEL_ID,
+            status: "processing",
+            current_stage: "clip_1_generating",
+            internal_token: "tok_secret_20s",
+            clip_1_task_id: "opus_clip1_20s",
+            clip_2_task_id: null,
+            clip_3_task_id: null,
+            completed_clips: 0,
+            credit_total: 5000,
+            request_payload: {
+                prompt: autoPrompts20.originalPrompt,
+                target_duration: 20,
+                total_clips: 2,
+                clip_prompts: {
+                    mode: autoPrompts20.mode,
+                    clip1: autoPrompts20.clip1,
+                    clip2: autoPrompts20.clip2,
+                    clip3: autoPrompts20.clip3
+                },
+                aspect_ratio: "9:16",
+                resolution: "720p",
+                generate_audio: true,
+                image_urls: [`storage://user-uploads/upscale-photos/inputs/${USER_ID}/ref.png`],
+                video_urls: [],
+                audio_urls: []
+            }
+        };
+
+        const createClipCalls = [];
+        const storageUploads = [];
+        let historyPatchBody = null;
+
+        const mockFetch = async (url, init = {}) => {
+            const u = String(url);
+            const method = String(init.method || "GET").toUpperCase();
+
+            if (u.includes("/rest/v1/staged_generation_jobs") && method === "GET") {
+                return new Response(JSON.stringify([jobState]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/staged_generation_jobs") && method === "PATCH") {
+                Object.assign(jobState, JSON.parse(init.body));
+                return new Response(JSON.stringify([jobState]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/generation_history") && method === "GET") {
+                return new Response(JSON.stringify([{ status: "processing" }]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/generation_history") && method === "PATCH") {
+                historyPatchBody = JSON.parse(init.body);
+                return new Response(JSON.stringify([{ id: HISTORY_ID, ...historyPatchBody }]), {
+                    status: 200
+                });
+            }
+            if (u.includes("/storage/v1/object/user-uploads/") && method === "POST") {
+                storageUploads.push(u);
+                return new Response(JSON.stringify({ Key: u }), { status: 200 });
+            }
+            if (u.endsWith("/api/generate") && method === "POST") {
+                const payload = JSON.parse(init.body);
+                if (payload.step_action === "create_clip") {
+                    createClipCalls.push(payload);
+                    return new Response(
+                        JSON.stringify({
+                            success: true,
+                            task_id: `opus_clip${payload.clip_index}_20s`
+                        }),
+                        { status: 200 }
+                    );
+                }
+                if (payload.step_action === "query_clip") {
+                    return new Response(
+                        JSON.stringify({
+                            success: true,
+                            completed: true,
+                            output_urls: [`https://cdn.opus.example/clip-${payload.clip_index}.mp4`]
+                        }),
+                        { status: 200 }
+                    );
+                }
+            }
+            if (u.startsWith("https://cdn.opus.example/clip-")) {
+                return new Response(Buffer.alloc(2048, 0x33), { status: 200 });
+            }
+            throw new Error(`Unexpected fetch in 20s test: ${method} ${u}`);
+        };
+
+        const mockExecFile = async (cmd, args) => {
+            if (cmd === "ffprobe") {
+                if (args.includes("-count_frames")) {
+                    return { stdout: "240\n", stderr: "" };
+                }
+                return {
+                    stdout: JSON.stringify({
+                        streams: [
+                            {
+                                codec_type: "video",
+                                width: 720,
+                                height: 1280,
+                                avg_frame_rate: "24/1",
+                                duration: "10.0"
+                            },
+                            { codec_type: "audio", duration: "10.0" }
+                        ],
+                        format: { duration: "10.0" }
+                    }),
+                    stderr: ""
+                };
+            }
+            if (cmd === "ffmpeg") {
+                const outFile = args[args.length - 1];
+                await fs.writeFile(outFile, Buffer.alloc(4096, 0x55));
+                return { stdout: "", stderr: "" };
+            }
+            throw new Error(`Unexpected exec: ${cmd}`);
+        };
+
+        const outcome = await runStagedVideoOrchestrator({
+            env: {
+                SUPABASE_URL: "https://proj.supabase.co",
+                SUPABASE_SERVICE_KEY: "srv_key",
+                JOB_ID
+            },
+            fetchImpl: mockFetch,
+            execFileImpl: mockExecFile,
+            sleepImpl: async () => {},
+            workDir: tempDir,
+            pollIntervalMs: 1,
+            busyWaitMs: 1
+        });
+
+        assert.equal(outcome.outcome, "completed");
+        assert.equal(outcome.completedClips, 2);
+        assert.equal(outcome.finalDuration, 20);
+        assert.equal(outcome.charged, 5000);
+        assert.equal(outcome.refunded, 0);
+
+        assert.equal(
+            createClipCalls.some(call => call.clip_index === 3),
+            false,
+            "mode 20 detik tidak boleh mengeksekusi Klip 3"
+        );
+        assert.equal(
+            storageUploads.some(uploadUrl => uploadUrl.includes("frame-2-end.png")),
+            false,
+            "mode 20 detik tidak perlu mengekstrak frame akhir Klip 2"
+        );
+        assert.equal(historyPatchBody?.duration, 20);
+        assert.equal(historyPatchBody?.credit_cost, 5000);
+        assert.equal(historyPatchBody?.status, "success");
+        assert.match(jobState.stage_message, /2 klip berhasil digabungkan menjadi video 20 detik/);
     } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
     }

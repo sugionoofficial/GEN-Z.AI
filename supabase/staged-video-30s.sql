@@ -86,12 +86,12 @@ select
     provider.id,
     'opus-seedance-2.5-r2v-30s',
     'Seedance 2.5 Reference to Video (30s)',
-    'Video 30 detik utuh secara bertahap (3 × 10 detik tersambung mulus dari frame akhir tiap klip) menggunakan hingga 3 gambar (@image1–@image3), 3 video (@video1–@video3), dan/atau audio referensi (@audio1). Mendukung prompt berdurasi (0-10, 11-20, 21-30) maupun otomatis.',
-    30,
+    'Video 20 atau 30 detik utuh secara bertahap (2 × 10 detik atau 3 × 10 detik tersambung mulus dari frame akhir tiap klip) menggunakan hingga 3 gambar (@image1–@image3), 3 video (@video1–@video3), dan/atau audio referensi (@audio1). Mendukung prompt berdurasi maupun otomatis.',
+    20,
     30,
     '{9:16,16:9,1:1,4:3,3:4,21:9}'::text[],
     '{480p,720p}'::text[],
-    '{30}'::text[],
+    '{20,30}'::text[],
     6000,
     7500,
     0,
@@ -106,4 +106,4 @@ set
     max_duration = excluded.max_duration,
     supported_ratios = excluded.supported_ratios,
     supported_resolutions = excluded.supported_resolutions,
-    supported_durations = coalesce(public.models.supported_durations, excluded.supported_durations);
+    supported_durations = excluded.supported_durations;

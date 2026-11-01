@@ -37,7 +37,8 @@ import {
     buildReferenceAudioSliceFfmpegArgs,
     buildReferenceVideoSliceFfmpegArgs,
     buildSeamlessMergeFfmpegArgs,
-    computeStagedCreditSettlement
+    computeStagedCreditSettlement,
+    resolveStagedTargetConfig
 } from "../lib/generate/staged-video-30s.js";
 
 const execFileAsync = promisify(execFileCb);
@@ -556,14 +557,26 @@ export async function runStagedVideoOrchestrator({
         };
     }
 
+    function getJobTargetConfig(jobRow) {
+        const reqPayload = jobRow?.request_payload || {};
+        return resolveStagedTargetConfig(
+            reqPayload.target_duration ?? reqPayload.duration ?? 30
+        );
+    }
+
     async function finalizeCompletedOrPartialClips(
         job,
         localClipPaths,
         failureNote = "",
         directRefAudio = null
     ) {
+        const targetConfig = getJobTargetConfig(job);
         const clipCount = localClipPaths.length;
-        const settlement = computeStagedCreditSettlement(job.credit_total, clipCount);
+        const settlement = computeStagedCreditSettlement(
+            job.credit_total,
+            clipCount,
+            targetConfig.totalClips
+        );
         const mergedLocalPath = path.join(tempRoot, `merged-final-${clipCount}clips.mp4`);
 
         await mergeSavedClipsToOutput(localClipPaths, mergedLocalPath, directRefAudio);
@@ -578,7 +591,7 @@ export async function runStagedVideoOrchestrator({
         const jobStatus = settlement.outcome;
         const summaryMsg =
             settlement.outcome === "completed"
-                ? "Selesai! 3 klip berhasil digabungkan menjadi video 30 detik."
+                ? `Selesai! ${settlement.totalClips} klip berhasil digabungkan menjadi video ${settlement.finalDuration} detik.`
                 : `Selesai sebagian (${settlement.finalDuration} detik dari ${clipCount} klip). Sisa kredit telah dikembalikan.${failureNote ? ` (${failureNote})` : ""}`;
 
         const claimed = await sbRest(
@@ -671,6 +684,10 @@ export async function runStagedVideoOrchestrator({
         return { finalized: true, outcome: "cancelled" };
     }
 
+    const targetConfig = getJobTargetConfig(job);
+    const totalClips = targetConfig.totalClips;
+    const targetDurationSeconds = targetConfig.targetDuration;
+
     // Mode darurat (dipanggil jika job GitHub Actions dihentikan mendadak):
     // pulihkan klip yang sudah tersimpan di server, gabungkan & refund proporsional.
     if (emergencyFinalize) {
@@ -678,7 +695,7 @@ export async function runStagedVideoOrchestrator({
         const savedRefs = [
             job.clip_1_storage_ref,
             job.clip_2_storage_ref,
-            job.clip_3_storage_ref
+            totalClips >= 3 ? job.clip_3_storage_ref : null
         ].filter(Boolean);
 
         for (let idx = 0; idx < savedRefs.length; idx += 1) {
@@ -703,7 +720,7 @@ export async function runStagedVideoOrchestrator({
 
         return await finalizeFailureZeroClips(
             job,
-            "Pemrosesan video 30 detik terhenti sebelum Klip 1 selesai."
+            `Pemrosesan video ${targetDurationSeconds} detik terhenti sebelum Klip 1 selesai.`
         );
     }
 
@@ -883,7 +900,7 @@ export async function runStagedVideoOrchestrator({
                     await patchJobProgress({
                         [`clip_${clipIndex}_task_id`]: activeTaskId,
                         current_stage: `clip_${clipIndex}_generating`,
-                        stage_message: `Membuat Klip ${clipIndex}/3 (durasi ${(clipIndex - 1) * 10 + (clipIndex === 1 ? 0 : 1)}–${clipIndex * 10} detik)...`
+                        stage_message: `Membuat Klip ${clipIndex}/${totalClips} (durasi ${(clipIndex - 1) * 10 + (clipIndex === 1 ? 0 : 1)}–${clipIndex * 10} detik)...`
                     });
                 } else if (
                     !retriedMutedForCopyright &&
@@ -911,7 +928,7 @@ export async function runStagedVideoOrchestrator({
                         busyWaitCycles += 1;
                         excludedSlots.clear();
                         await patchJobProgress({
-                            stage_message: `Menunggu antrian Opus untuk Klip ${clipIndex}/3 (percobaan ulang ${busyWaitCycles}/${MAX_BUSY_WAIT_CYCLES})...`
+                            stage_message: `Menunggu antrian Opus untuk Klip ${clipIndex}/${totalClips} (percobaan ulang ${busyWaitCycles}/${MAX_BUSY_WAIT_CYCLES})...`
                         });
                         await sleepImpl(busyWaitMs);
                         continue;
@@ -1010,7 +1027,7 @@ export async function runStagedVideoOrchestrator({
                             busyWaitCycles += 1;
                             excludedSlots.clear();
                             await patchJobProgress({
-                                stage_message: `Menunggu antrian Opus untuk Klip ${clipIndex}/3 (percobaan ulang ${busyWaitCycles}/${MAX_BUSY_WAIT_CYCLES})...`
+                                stage_message: `Menunggu antrian Opus untuk Klip ${clipIndex}/${totalClips} (percobaan ulang ${busyWaitCycles}/${MAX_BUSY_WAIT_CYCLES})...`
                             });
                             await sleepImpl(busyWaitMs);
                             switchToAnotherKey = true;
@@ -1092,7 +1109,7 @@ export async function runStagedVideoOrchestrator({
             clip_1_storage_ref: clip1Result.clipStorageRef,
             clip_1_last_frame_ref: frame1Ref,
             current_stage: "clip_2_generating",
-            stage_message: "Klip 1 tersimpan di server • Membuat Klip 2/3 (durasi 11–20 detik)..."
+            stage_message: `Klip 1 tersimpan di server • Membuat Klip 2/${totalClips} (durasi 11–20 detik)...`
         });
 
         // =================================================
@@ -1125,6 +1142,22 @@ export async function runStagedVideoOrchestrator({
         }
 
         completedClipLocalPaths.push(clip2Result.localClipPath);
+
+        if (totalClips === 2) {
+            await patchJobProgress({
+                completed_clips: 2,
+                clip_2_storage_ref: clip2Result.clipStorageRef,
+                current_stage: "merging",
+                stage_message: "Klip 2 tersimpan di server • Menggabungkan 2 klip menjadi video 20 detik..."
+            });
+
+            return await finalizeCompletedOrPartialClips(
+                job,
+                completedClipLocalPaths,
+                "",
+                directRefAudio
+            );
+        }
 
         const frame2LocalPath = path.join(tempRoot, "frame-2-end.png");
         let frame2Ref = "";
