@@ -18,7 +18,7 @@
 const CONFIG = Object.freeze({
     /* Bucket privat: input tidak bisa diakses publik tanpa signed URL. */
     bucket: "user-uploads",
-    uploadUrlTtlSeconds: 60 * 60,
+    uploadUrlTtlSeconds: 2 * 60 * 60,
     photoInputFolder: "upscale-photos/inputs",
     videoInputFolder: "upscale-videos/inputs",
     apiEndpoint: "/api/generate",
@@ -26,7 +26,8 @@ const CONFIG = Object.freeze({
     maxVideoSize: 100 * 1024 * 1024,
     maxVideoUploadSize: 48_000_000,
     targetCompressedVideoSize: 44_000_000,
-    maxVideoDuration: 15,
+    maxVideoDuration: 30,
+    maxVideoDurationTolerance: 0.95,
     allowedPhotoTypes: ["image/jpeg", "image/png", "image/webp"],
     allowedVideoTypes: [
         "video/mp4",
@@ -239,8 +240,8 @@ async function validateFile(file) {
         }
 
         const duration = await getVideoDuration(file);
-        if (duration > CONFIG.maxVideoDuration) {
-            throw new Error("Durasi video maksimal 15 detik.");
+        if (duration > CONFIG.maxVideoDuration + CONFIG.maxVideoDurationTolerance) {
+            throw new Error("Durasi video maksimal 30 detik.");
         }
 
         return "video";

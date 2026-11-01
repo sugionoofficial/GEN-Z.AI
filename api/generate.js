@@ -31,6 +31,7 @@ import {
 
 import {
     createPrivateMediaSigner,
+    isPrivateMediaRef,
     isRefOwnedByUser,
     signPrivateMediaRef,
     signUserMediaRefsInPayload,
@@ -3785,7 +3786,7 @@ async function handleUpscaleVideoStatusAction(req, res, body, user) {
     const createdAt = Date.parse(historyRow.created_at);
     const isOlderThanWorkflowLimit =
         Number.isFinite(createdAt) &&
-        Date.now() - createdAt > 55 * 60 * 1000;
+        Date.now() - createdAt > 95 * 60 * 1000;
 
     if (!run) {
         if (!isOlderThanWorkflowLimit) {
@@ -3932,9 +3933,32 @@ async function handleUpscaleAction(req, res, body, user) {
         return failure(res, 409, "Hanya video dengan status success yang bisa diupscale");
     }
 
-    const sourceUrl = String(parent.result_url || "").trim();
-    if (!sourceUrl) {
+    const rawSourceUrl = String(parent.result_url || "").trim();
+    if (!rawSourceUrl) {
         return failure(res, 409, "Video sumber tidak punya result_url");
+    }
+
+    const storedSourceRef =
+        toPrivateMediaRef(rawSourceUrl, { supabaseUrl: SUPABASE_URL }) ||
+        rawSourceUrl;
+    let workflowSourceUrl = rawSourceUrl;
+
+    if (isPrivateMediaRef(storedSourceRef)) {
+        if (!isRefOwnedByUser(storedSourceRef, user.id)) {
+            return failure(res, 403, "Video sumber tidak cocok dengan akun yang login");
+        }
+
+        try {
+            workflowSourceUrl = await signPrivateMediaRef({
+                ref: storedSourceRef,
+                supabaseUrl: SUPABASE_URL,
+                serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+                ttlSeconds: 3 * 60 * 60
+            });
+        } catch (signErr) {
+            console.error("[upscale] Failed to sign private video source:", signErr);
+            return failure(res, 502, "Gagal menyiapkan URL video sumber untuk upscale");
+        }
     }
 
     try {
@@ -3981,7 +4005,7 @@ async function handleUpscaleAction(req, res, body, user) {
         upscaleRow = await createUpscaleHistoryRow({
             user,
             parent,
-            sourceUrl,
+            sourceUrl: storedSourceRef,
             taskId,
             creditCost,
             targetResolution
@@ -4002,7 +4026,7 @@ async function handleUpscaleAction(req, res, body, user) {
         await triggerUpscaleWorkflow({
             github,
             historyId: upscaleRow.id,
-            sourceUrl,
+            sourceUrl: workflowSourceUrl,
             userId: user.id,
             creditCost,
             targetResolution
