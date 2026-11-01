@@ -20,9 +20,18 @@
  */
 
 export const OPUS_MCP_URL = "https://labs.opus.pro/opus-video-tools/mcp";
+export const OPUS_UNDERSTANDING_MCP_URL = "https://mcp.opus.pro/mcp";
 export const OPUS_AUTH_SERVER = "https://focused-horizon-38.authkit.app";
 export const OPUS_LOGIN_INTRO_PATH = "/api/opus-oauth-login";
 export const OPUS_LOGIN_CALLBACK_PATH = "/api/opus-oauth-callback";
+
+export function normalizeOpusMcpUrl(rawValue) {
+    const cleaned = String(rawValue || "").trim().replace(/\/+$/, "");
+    if (cleaned === OPUS_UNDERSTANDING_MCP_URL) {
+        return OPUS_UNDERSTANDING_MCP_URL;
+    }
+    return OPUS_MCP_URL;
+}
 
 const MCP_PROTOCOL_VERSION = "2025-03-26";
 const STATE_TTL_MS = 15 * 60 * 1000;
@@ -503,10 +512,30 @@ function htmlShell({ title, body }) {
     );
 }
 
-export function buildLoginIntroHtml({ slot = 1, origin = "" } = {}) {
+export function buildLoginIntroHtml({ slot = 1, origin = "", mcpUrl = OPUS_MCP_URL } = {}) {
     const normalized = normalizeOpusSlot(slot);
+    const resolvedMcp = normalizeOpusMcpUrl(mcpUrl);
+    const isUnderstandingMcp = resolvedMcp === OPUS_UNDERSTANDING_MCP_URL;
     const secretName = opusSecretNameForSlot(normalized);
-    const startUrl = `${origin}${OPUS_LOGIN_INTRO_PATH}?start=1&slot=${normalized}`;
+    const startUrl = isUnderstandingMcp
+        ? `${origin}${OPUS_LOGIN_INTRO_PATH}?start=1&slot=${normalized}&mcp=${encodeURIComponent(OPUS_UNDERSTANDING_MCP_URL)}`
+        : `${origin}${OPUS_LOGIN_INTRO_PATH}?start=1&slot=${normalized}`;
+
+    if (isUnderstandingMcp) {
+        return htmlShell({
+            title: "Login OpusClip MCP (MODUL 03) — GEN-Z.AI",
+            body:
+                "<h1>Login Video Understanding MCP</h1>"
+                + "<span class='badge'>MODUL 03 &middot; mcp.opus.pro</span>"
+                + "<p>Halaman ini menghubungkan akun OpusClip Anda ke <b>mcp.opus.pro</b> langsung dari browser HP — <b>tanpa perlu buka Cloudflare Dashboard</b>.</p>"
+                + `<a class='btn' href='${escapeHtml(startUrl)}'>LANJUT LOGIN KE OPUSCLIP</a>`
+                + "<div class='steps'>"
+                + "1. Ketuk tombol hijau di atas, login ke akun OpusClip, lalu ketuk <b>Allow</b>.<br>"
+                + "2. Ketuk <b>SALIN TOKEN JSON KE CLIPBOARD</b>.<br>"
+                + "3. Kembali ke <b>BLACK BOX &rarr; MODUL 03</b>, tempel di kotak nomor 2, lalu ketuk <b>Simpan Token OAuth ke Vault</b> (tersimpan terenkripsi di server database, bukan di browser)."
+                + "</div>"
+        });
+    }
 
     return htmlShell({
         title: "Login Opus — GEN-Z.AI",
@@ -522,8 +551,39 @@ export function buildLoginIntroHtml({ slot = 1, origin = "" } = {}) {
     });
 }
 
-export function buildOpusLoginSuccessHtml({ compactJson = "", slot = 1, status = 0 } = {}) {
+export function buildOpusLoginSuccessHtml({ compactJson = "", slot = 1, status = 0, mcpUrl = OPUS_MCP_URL } = {}) {
+    const resolvedMcp = normalizeOpusMcpUrl(mcpUrl);
+    const isUnderstandingMcp = resolvedMcp === OPUS_UNDERSTANDING_MCP_URL;
     const secretName = opusSecretNameForSlot(slot);
+
+    if (isUnderstandingMcp) {
+        return htmlShell({
+            title: "OpusClip MCP Terhubung — GEN-Z.AI",
+            body:
+                "<h1>Login mcp.opus.pro Berhasil!</h1>"
+                + "<span class='badge'>Tempel ke: BLACK BOX &rarr; MODUL 03</span>"
+                + `<p>Token OAuth sudah <b>diverifikasi${status ? ` (HTTP ${status} OK)` : ""}</b> di <b>mcp.opus.pro</b>. Ketuk tombol hijau untuk menyalin JSON token:</p>`
+                + "<button id='copyBtn' type='button' class='btn'>SALIN TOKEN JSON KE CLIPBOARD</button>"
+                + `<textarea id='tokenBox' readonly onclick='this.select()'>${escapeHtml(compactJson)}</textarea>`
+                + "<a class='linkbtn' href='/black-box/'>&larr; Kembali ke BLACK BOX (MODUL 03)</a>"
+                + "<div class='steps'>"
+                + "<b>Langkah simpan permanen (tanpa Cloudflare):</b><br>"
+                + "1. Buka <b>BLACK BOX &rarr; MODUL 03</b>.<br>"
+                + "2. Tempel (Paste) di kolom <b>2. Video Understanding MCP (mcp.opus.pro)</b>.<br>"
+                + "3. Ketuk <b>Simpan Token OAuth ke Vault</b>. Token dienkripsi AES-256-GCM di server Supabase Vault &amp; auto-refresh otomatis."
+                + "</div>"
+                + "<script>"
+                + "const btn=document.getElementById('copyBtn');const box=document.getElementById('tokenBox');"
+                + "btn.addEventListener('click',async()=>{"
+                + "let ok=false;"
+                + "if(navigator.clipboard&&navigator.clipboard.writeText){try{await navigator.clipboard.writeText(box.value);ok=true;}catch(e){}}"
+                + "if(!ok){box.focus();box.select();try{ok=document.execCommand('copy');}catch(e){}}"
+                + "btn.textContent=ok?'TERSALIN! Sekarang tempel di BLACK BOX MODUL 03':'Silakan tahan & Salin teks di kotak bawah';"
+                + "});"
+                + "</script>"
+        });
+    }
+
     return htmlShell({
         title: "Opus Terhubung — GEN-Z.AI",
         body:
@@ -551,8 +611,11 @@ export function buildOpusLoginSuccessHtml({ compactJson = "", slot = 1, status =
     });
 }
 
-export function buildOpusLoginErrorHtml({ message = "", slot = 1, origin = "" } = {}) {
-    const retryUrl = `${origin}${OPUS_LOGIN_INTRO_PATH}?slot=${normalizeOpusSlot(slot)}`;
+export function buildOpusLoginErrorHtml({ message = "", slot = 1, origin = "", mcpUrl = OPUS_MCP_URL } = {}) {
+    const resolvedMcp = normalizeOpusMcpUrl(mcpUrl);
+    const retryUrl = resolvedMcp === OPUS_UNDERSTANDING_MCP_URL
+        ? `${origin}${OPUS_LOGIN_INTRO_PATH}?slot=${normalizeOpusSlot(slot)}&mcp=${encodeURIComponent(OPUS_UNDERSTANDING_MCP_URL)}`
+        : `${origin}${OPUS_LOGIN_INTRO_PATH}?slot=${normalizeOpusSlot(slot)}`;
     return htmlShell({
         title: "Login Opus Gagal — GEN-Z.AI",
         body:

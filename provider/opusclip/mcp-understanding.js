@@ -70,7 +70,13 @@ export function parseOpusClipMcpAuthConfig(rawCredential, defaultMcpUrl = DEFAUL
             const mcpUrl = String(
                 parsed.mcp_url || parsed.mcpUrl || oauth.resource || defaultMcpUrl
             ).trim();
-            const expiresAtMs = Number(oauth.expires_at_ms || oauth.expiresAtMs || 0) || 0;
+            const rawExpiresMs = Number(oauth.expires_at_ms || oauth.expiresAtMs || 0) || 0;
+            const rawExpiresSec = Number(oauth.expires_at || oauth.expiresAt || 0) || 0;
+            const expiresAtMs = rawExpiresMs > 0
+                ? rawExpiresMs
+                : rawExpiresSec > 0
+                    ? (rawExpiresSec < 1e12 ? rawExpiresSec * 1000 : rawExpiresSec)
+                    : 0;
 
             if (accessToken || refreshToken) {
                 return {
