@@ -53,7 +53,8 @@ const staticFiles = [
     "register.html",
     "reset-password.html",
     "service-worker.js",
-    "email.html"
+    "email.html",
+    "tiktokRA1pfqteEbk7mpBgD70IGSxDBNEdACO7.txt"
 ];
 
 await rm(output, { recursive: true, force: true });
