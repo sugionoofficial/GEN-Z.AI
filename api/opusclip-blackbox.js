@@ -26,6 +26,11 @@ import {
     saveOpusClipRestConfig
 } from "../lib/opus/opusclip-credentials.js";
 import {
+    loadSocialVideoOAuthAppsConfig,
+    resolveSocialVideoRedirectUri,
+    saveSocialVideoOAuthAppConfig
+} from "../lib/social-video/app-credentials.js";
+import {
     createOpusClipApiClient,
     getOrgApiUsage
 } from "../provider/opusclip/client.js";
@@ -131,10 +136,47 @@ export default async function handler(req, res) {
         }
     }
 
+    if (action === "save_social_oauth_app") {
+        if (req.method !== "POST") {
+            return sendJson(res, 405, {
+                success: false,
+                error: "Gunakan POST untuk menyimpan kredensial OAuth sosmed."
+            });
+        }
+        try {
+            const saved = await saveSocialVideoOAuthAppConfig(
+                env,
+                {
+                    platform: body.platform,
+                    appId: body.appId,
+                    appSecret: body.appSecret,
+                    loginConfigId: body.loginConfigId,
+                    clientId: body.clientId,
+                    clientSecret: body.clientSecret,
+                    clientKey: body.clientKey,
+                    postMode: body.postMode
+                },
+                { fetchImpl }
+            );
+            return sendJson(res, 200, {
+                success: true,
+                action: "save_social_oauth_app",
+                message: `Kredensial OAuth ${saved.platform.toUpperCase()} berhasil dienkripsi ke Vault Supabase.`,
+                saved
+            });
+        } catch (err) {
+            return sendJson(res, err?.status || 500, {
+                success: false,
+                error: err?.message || "Gagal menyimpan kredensial OAuth sosmed."
+            });
+        }
+    }
+
     if (action === "status") {
-        const [restCfg, mcpCfg] = await Promise.all([
+        const [restCfg, mcpCfg, socialApps] = await Promise.all([
             loadOpusClipRestConfig(env, { fetchImpl }),
-            loadOpusClipMcpCredential(env, { fetchImpl })
+            loadOpusClipMcpCredential(env, { fetchImpl }),
+            loadSocialVideoOAuthAppsConfig(env, { fetchImpl })
         ]);
 
         let restHealth = {
@@ -187,6 +229,29 @@ export default async function handler(req, res) {
                 source: mcpCfg.source,
                 hasRefreshToken: mcpCfg.hasRefreshToken,
                 updatedAt: mcpCfg.updatedAt || null
+            },
+            socialApps: {
+                redirectUri: resolveSocialVideoRedirectUri(req, env),
+                facebook: {
+                    configured: socialApps.facebook.configured,
+                    source: socialApps.facebook.source,
+                    maskedId: socialApps.facebook.maskedAppId || null,
+                    hasLoginConfigId: Boolean(socialApps.facebook.loginConfigId),
+                    updatedAt: socialApps.facebook.updatedAt || null
+                },
+                youtube: {
+                    configured: socialApps.youtube.configured,
+                    source: socialApps.youtube.source,
+                    maskedId: socialApps.youtube.maskedClientId || null,
+                    updatedAt: socialApps.youtube.updatedAt || null
+                },
+                tiktok: {
+                    configured: socialApps.tiktok.configured,
+                    source: socialApps.tiktok.source,
+                    postMode: socialApps.tiktok.postMode,
+                    maskedId: socialApps.tiktok.maskedClientKey || null,
+                    updatedAt: socialApps.tiktok.updatedAt || null
+                }
             },
             oauthLoginUrl: "/api/opus-oauth-login?mcp=https%3A%2F%2Fmcp.opus.pro%2Fmcp"
         });

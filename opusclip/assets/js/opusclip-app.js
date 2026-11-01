@@ -26,12 +26,15 @@ const state = {
         opusclip_thumbnail: 1000,
         opusclip_censor_edit: 500,
         opusclip_understanding: 1000,
-        opusclip_motion_ui: 2500
+        opusclip_motion_ui: 2500,
+        opusclip_social_post: 250
     },
     viewer: { isAdminOrOwner: false, credits: null },
     templates: MOTION_UI_TEMPLATES,
     selectedTemplateId: MOTION_UI_TEMPLATES[0].id,
     socialAccounts: [],
+    userSocialAccounts: [],
+    historyVideos: [],
     canvasStartMs: performance.now(),
     lastTranscriptPlain: ""
 };
@@ -126,6 +129,34 @@ async function callOpusClipApi(action, payload = {}, method = "POST") {
     return data;
 }
 
+async function callSocialVideoApi(action, payload = {}, method = "POST") {
+    const token = await getAccessToken();
+    const headers = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    let url = "/api/social-video-autopost";
+    const init = { method, headers };
+
+    if (method === "GET") {
+        const qs = new URLSearchParams({ action, ...payload });
+        url += `?${qs.toString()}`;
+    } else {
+        headers["Content-Type"] = "application/json";
+        init.body = JSON.stringify({ action, ...payload });
+    }
+
+    const resp = await fetch(url, init);
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok || !data?.success) {
+        throw new Error(data?.error || `Permintaan gagal (HTTP ${resp.status}).`);
+    }
+
+    if (data?.creditsRemaining !== undefined && data.creditsRemaining !== null) {
+        updateCreditDisplay(data.creditsRemaining);
+    }
+    return data;
+}
+
 function updateCreditDisplay(credits) {
     state.viewer.credits = credits;
     const el = $("ocCreditValue");
@@ -145,6 +176,8 @@ function updateCostBadges() {
     if ($("ocCostBadgeEditor")) $("ocCostBadgeEditor").textContent = formatNum(c.opusclip_censor_edit);
     if ($("ocCostBadgeUnderstanding")) $("ocCostBadgeUnderstanding").textContent = formatNum(c.opusclip_understanding);
     if ($("ocCostBadgeMotion")) $("ocCostBadgeMotion").textContent = formatNum(c.opusclip_motion_ui);
+    if ($("ocCostBadgeSocial")) $("ocCostBadgeSocial").textContent = formatNum(c.opusclip_social_post);
+    if ($("ocNativeUnitCostLabel")) $("ocNativeUnitCostLabel").textContent = formatNum(c.opusclip_social_post);
     if ($("ocModeLabelClipCost")) {
         $("ocModeLabelClipCost").textContent = `${formatNum(c.opusclip_clipping)} kredit / project`;
     }
@@ -522,7 +555,7 @@ function renderClipsGallery(clips, projectId) {
                         <button type="button" class="oc-btn oc-btn--sm" data-export-clip="${escapeHtml(c.clip_id)}" data-export-proj="${escapeHtml(c.project_id || projectId)}" data-export-target="xml">XML</button>
                         <button type="button" class="oc-btn oc-btn--sm" data-send-edit="${escapeHtml(c.clip_id)}" data-send-proj="${escapeHtml(c.project_id || projectId)}">🔇 Sensor/Edit</button>
                         <button type="button" class="oc-btn oc-btn--sm" data-add-col="${escapeHtml(c.clip_id)}" data-send-proj="${escapeHtml(c.project_id || projectId)}">➕ Koleksi</button>
-                        ${state.viewer.isAdminOrOwner ? `<button type="button" class="oc-btn oc-btn--sm" data-send-soc="${escapeHtml(c.clip_id)}" data-send-proj="${escapeHtml(c.project_id || projectId)}">📡 Post</button>` : ""}
+                        <button type="button" class="oc-btn oc-btn--sm" data-send-soc="${escapeHtml(c.clip_id)}" data-send-proj="${escapeHtml(c.project_id || projectId)}" data-send-url="${escapeHtml(c.export_url || c.preview_url || "")}" data-send-title="${escapeHtml(c.title || "")}">📡 Post</button>
                     </div>
                 </div>
             </article>
@@ -575,8 +608,19 @@ function renderClipsGallery(clips, projectId) {
 
         const socBtn = ev.target.closest?.("[data-send-soc]");
         if (socBtn) {
-            $("ocSocProjectId").value = socBtn.getAttribute("data-send-proj") || "";
-            $("ocSocClipId").value = socBtn.getAttribute("data-send-soc") || "";
+            const proj = socBtn.getAttribute("data-send-proj") || "";
+            const clip = socBtn.getAttribute("data-send-soc") || "";
+            const clipUrl = socBtn.getAttribute("data-send-url") || "";
+            const clipTitle = socBtn.getAttribute("data-send-title") || "";
+            if ($("ocSocProjectId")) $("ocSocProjectId").value = proj;
+            if ($("ocSocClipId")) $("ocSocClipId").value = clip;
+            if (clipUrl) {
+                sendVideoToNativeSocialComposer({
+                    videoRef: clipUrl,
+                    sourceType: "opusclip",
+                    title: clipTitle
+                });
+            }
             document.querySelector('[data-oc-tab="social"]')?.click();
         }
     };
@@ -1113,12 +1157,23 @@ async function loadMotionJobs() {
                 </div>
                 ${j.result_url ? `
                     <video controls preload="metadata" src="${escapeHtml(j.result_url)}" style="width:100%; border-radius:10px; margin-top:8px; max-height:240px; background:#000;"></video>
-                    <div style="margin-top:8px;">
+                    <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px;">
                         <a class="oc-btn oc-btn--primary oc-btn--sm" href="${escapeHtml(j.result_url)}" target="_blank" rel="noopener" download="${escapeHtml(j.job_key)}.mp4">⬇️ Unduh MP4 Full HD</a>
+                        <button type="button" class="oc-btn oc-btn--sm" data-mui-send-soc="${escapeHtml(j.result_url)}" data-mui-title="${escapeHtml(j.headline || j.brand_name || j.template_id)}">📡 Auto Post ke Medsos</button>
                     </div>
                 ` : j.error_message ? `<p class="oc-card-sub" style="color:#f87171;">${escapeHtml(j.error_message)}</p>` : `<p class="oc-card-sub">Sedang di-render di GitHub Actions… Klik Cek Status Render dalam 1-2 menit.</p>`}
             </div>
         `).join("");
+        box.onclick = ev => {
+            const sendBtn = ev.target.closest?.("[data-mui-send-soc]");
+            if (!sendBtn) return;
+            sendVideoToNativeSocialComposer({
+                videoRef: sendBtn.getAttribute("data-mui-send-soc") || "",
+                sourceType: "history",
+                title: sendBtn.getAttribute("data-mui-title") || ""
+            });
+            document.querySelector('[data-oc-tab="social"]')?.click();
+        };
     } catch (err) {
         notify(err.message, true);
     }
@@ -1272,6 +1327,372 @@ function bindSocialAdminHandlers() {
 }
 
 /* =========================================================
+   MULTI-USER SOCIAL VIDEO AUTO POST (SEMUA USER)
+========================================================= */
+
+function switchVideoSourceMode(mode) {
+    document.querySelectorAll("[data-vid-src]").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-vid-src") === mode);
+    });
+    document.querySelectorAll("[data-vid-src-box]").forEach(box => {
+        box.hidden = box.getAttribute("data-vid-src-box") !== mode;
+    });
+}
+
+async function updateSelectedVideoPreview(videoRef, sourceType = "url") {
+    const cleanRef = String(videoRef || "").trim();
+    if ($("ocSelectedVideoRef")) $("ocSelectedVideoRef").value = cleanRef;
+    if ($("ocSelectedVideoSourceType")) $("ocSelectedVideoSourceType").value = sourceType;
+
+    const wrap = $("ocNativePreviewWrap");
+    const vid = $("ocNativeVideoPreview");
+    if (!wrap || !vid) return;
+
+    if (!cleanRef) {
+        vid.removeAttribute("src");
+        wrap.hidden = true;
+        return;
+    }
+
+    try {
+        let previewUrl = cleanRef;
+        if (cleanRef.startsWith("supabase-private://")) {
+            const signed = await callSocialVideoApi("sign_preview", { videoRef: cleanRef }, "GET");
+            previewUrl = signed.previewUrl;
+        }
+        vid.src = previewUrl;
+        wrap.hidden = false;
+    } catch (err) {
+        notify(err.message, true);
+    }
+}
+
+function sendVideoToNativeSocialComposer({ videoRef, sourceType = "url", title = "" }) {
+    switchVideoSourceMode("url");
+    if ($("ocNativeVideoUrlInput")) $("ocNativeVideoUrlInput").value = videoRef;
+    if (title && $("ocNativePostTitle") && !$("ocNativePostTitle").value.trim()) {
+        $("ocNativePostTitle").value = title;
+    }
+    updateSelectedVideoPreview(videoRef, sourceType);
+}
+
+function platformIconLabel(platform) {
+    const p = String(platform || "").toLowerCase();
+    if (p === "facebook") return "📘 Facebook Page";
+    if (p === "youtube") return "▶️ YouTube";
+    if (p === "tiktok") return "🎵 TikTok";
+    return String(platform || "").toUpperCase();
+}
+
+function renderUserSocialAccounts(accounts = []) {
+    state.userSocialAccounts = accounts;
+    const box = $("ocUserSocialAccountsList");
+    if (!box) return;
+
+    if (!Array.isArray(accounts) || accounts.length === 0) {
+        box.innerHTML = `<p class="oc-card-sub">Belum ada akun medsos terhubung. Ketuk tombol Hubungkan Facebook, YouTube, atau TikTok di atas.</p>`;
+        return;
+    }
+
+    box.innerHTML = accounts.map((acct, idx) => `
+        <div class="oc-acct-item">
+            <label class="oc-acct-check">
+                <input type="checkbox" name="ocTargetSocialAcct" value="${escapeHtml(acct.id)}" ${idx === 0 ? "checked" : ""}>
+                <span class="oc-pill oc-pill--ok">${escapeHtml(platformIconLabel(acct.platform))}</span>
+                <span class="oc-acct-name">${escapeHtml(acct.account_name || acct.external_account_id)}${acct.account_handle ? ` (${escapeHtml(acct.account_handle)})` : ""}</span>
+            </label>
+            <button type="button" class="oc-btn oc-btn--sm oc-btn--danger" data-disconnect-acct="${escapeHtml(acct.id)}">Putuskan</button>
+        </div>
+    `).join("");
+
+    box.onclick = async ev => {
+        const discBtn = ev.target.closest?.("[data-disconnect-acct]");
+        if (!discBtn) return;
+        const accountId = discBtn.getAttribute("data-disconnect-acct");
+        discBtn.disabled = true;
+        try {
+            const res = await callSocialVideoApi("disconnect_account", { accountId });
+            renderUserSocialAccounts(res.accounts || []);
+            notify("Akun medsos berhasil diputuskan.");
+        } catch (err) {
+            notify(err.message, true);
+            discBtn.disabled = false;
+        }
+    };
+}
+
+function renderHistoryVideoOptions(historyVideos = []) {
+    state.historyVideos = historyVideos;
+    const sel = $("ocNativeHistoryVideoSelect");
+    if (!sel) return;
+    if (!Array.isArray(historyVideos) || historyVideos.length === 0) {
+        sel.innerHTML = `<option value="">Belum ada video selesai di Riwayat Generate / Motion UI</option>`;
+        return;
+    }
+    sel.innerHTML = `<option value="">-- Pilih dari ${historyVideos.length} Video Riwayat Saya --</option>` +
+        historyVideos.map((v, idx) => `<option value="${idx}">${escapeHtml(v.label)}</option>`).join("");
+}
+
+function renderNativePostsList(posts = []) {
+    const box = $("ocNativePostsList");
+    if (!box) return;
+
+    if (!Array.isArray(posts) || posts.length === 0) {
+        box.innerHTML = `<p class="oc-card-sub">Belum ada antrean jadwal atau riwayat Auto Post pada akun Anda.</p>`;
+        return;
+    }
+
+    box.innerHTML = posts.map(p => {
+        const st = String(p.status || "").toLowerCase();
+        const badgeCls = st === "published"
+            ? "oc-pill--ok"
+            : st === "failed" || st === "cancelled"
+                ? "oc-pill--warn"
+                : "";
+        const timeStr = p.published_at
+            ? `Tayang: ${new Date(p.published_at).toLocaleString("id-ID")}`
+            : p.scheduled_for
+                ? `Jadwal: ${new Date(p.scheduled_for).toLocaleString("id-ID")}`
+                : "";
+
+        return `
+            <div class="oc-post-item">
+                <div class="oc-post-head">
+                    <strong>${escapeHtml(platformIconLabel(p.platform))} · ${escapeHtml(p.title || "Video Post")}</strong>
+                    <span class="oc-pill ${badgeCls}">${escapeHtml(st.toUpperCase())}</span>
+                </div>
+                <div class="oc-card-sub">${escapeHtml(timeStr)}${p.credit_cost ? ` · ${formatNum(p.credit_cost)} kredit${p.credit_refunded ? " (Refunded)" : ""}` : ""}</div>
+                ${p.error_message ? `<div class="oc-card-sub" style="color:#f87171; margin-top:4px;">${escapeHtml(p.error_message)}</div>` : ""}
+                <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                    ${p.remote_post_url ? `<a class="oc-btn oc-btn--primary oc-btn--sm" href="${escapeHtml(p.remote_post_url)}" target="_blank" rel="noopener">🔗 Buka Postingan ↗</a>` : ""}
+                    ${st === "scheduled" ? `<button type="button" class="oc-btn oc-btn--sm oc-btn--danger" data-cancel-native-post="${escapeHtml(p.id)}">Batalkan Jadwal</button>` : ""}
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    box.onclick = async ev => {
+        const cancelBtn = ev.target.closest?.("[data-cancel-native-post]");
+        if (!cancelBtn) return;
+        cancelBtn.disabled = true;
+        try {
+            const res = await callSocialVideoApi("cancel_post", {
+                postId: cancelBtn.getAttribute("data-cancel-native-post")
+            });
+            renderNativePostsList(res.posts || []);
+            notify("Jadwal Auto Post dibatalkan.");
+        } catch (err) {
+            notify(err.message, true);
+            cancelBtn.disabled = false;
+        }
+    };
+}
+
+async function loadNativeSocialBootstrap() {
+    try {
+        const data = await callSocialVideoApi("bootstrap", {}, "GET");
+        if (typeof data.creditCost === "number") {
+            state.costs.opusclip_social_post = data.creditCost;
+            updateCostBadges();
+        }
+        renderUserSocialAccounts(data.accounts || []);
+        renderHistoryVideoOptions(data.historyVideos || []);
+        renderNativePostsList(data.posts || []);
+    } catch (err) {
+        const box = $("ocUserSocialAccountsList");
+        if (box) box.innerHTML = `<p class="oc-card-sub">${escapeHtml(err.message)}</p>`;
+    }
+}
+
+function bindMultiUserSocialHandlers() {
+    const startOAuth = async platform => {
+        try {
+            notify(`Membuka halaman izin resmi ${platform.toUpperCase()}…`);
+            const res = await callSocialVideoApi("oauth_start", { platform });
+            if (res.authorizeUrl) {
+                window.location.href = res.authorizeUrl;
+            }
+        } catch (err) {
+            notify(err.message, true);
+        }
+    };
+
+    $("ocConnectFbBtn")?.addEventListener("click", () => startOAuth("facebook"));
+    $("ocConnectYtBtn")?.addEventListener("click", () => startOAuth("youtube"));
+    $("ocConnectTtBtn")?.addEventListener("click", () => startOAuth("tiktok"));
+
+    $("ocRefreshUserAccountsBtn")?.addEventListener("click", async () => {
+        try {
+            const res = await callSocialVideoApi("list_accounts", {}, "GET");
+            renderUserSocialAccounts(res.accounts || []);
+            notify("Daftar akun medsos diperbarui.");
+        } catch (err) {
+            notify(err.message, true);
+        }
+    });
+
+    document.querySelectorAll("[data-vid-src]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            switchVideoSourceMode(btn.getAttribute("data-vid-src") || "upload");
+        });
+    });
+
+    $("ocNativeUploadVideoBtn")?.addEventListener("click", async () => {
+        const file = $("ocNativeVideoFile")?.files?.[0];
+        if (!file) return notify("Pilih file video MP4 dari HP terlebih dahulu.", true);
+        const btn = $("ocNativeUploadVideoBtn");
+        const statusEl = $("ocNativeUploadStatus");
+        btn.disabled = true;
+        try {
+            if (statusEl) statusEl.textContent = `Mengunggah ${file.name} (${Math.round(file.size / (1024 * 1024) * 10) / 10} MB)…`;
+            const signed = await callSocialVideoApi("create_upload_url", {
+                fileName: file.name,
+                fileSize: file.size
+            });
+            const putResp = await fetch(signed.uploadUrl, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": file.type || "video/mp4",
+                    "x-upsert": "true"
+                },
+                body: file
+            });
+            if (!putResp.ok) {
+                throw new Error(`Unggah video ke penyimpanan gagal (HTTP ${putResp.status}).`);
+            }
+            if (statusEl) statusEl.textContent = `✅ Video '${file.name}' siap di-post / dijadwalkan!`;
+            if ($("ocNativePostTitle") && !$("ocNativePostTitle").value.trim()) {
+                $("ocNativePostTitle").value = file.name.replace(/\.[^.]+$/, "").slice(0, 80);
+            }
+            await updateSelectedVideoPreview(signed.storageRef, "upload");
+            notify("Video MP4 berhasil diunggah dan siap dipublikasikan!");
+        } catch (err) {
+            if (statusEl) statusEl.textContent = `Gagal mengunggah: ${err.message}`;
+            notify(err.message, true);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    $("ocRefreshHistoryVideosBtn")?.addEventListener("click", async () => {
+        try {
+            const res = await callSocialVideoApi("list_history_videos", {}, "GET");
+            renderHistoryVideoOptions(res.historyVideos || []);
+            notify(`Memuat ${(res.historyVideos || []).length} video dari riwayat Anda.`);
+        } catch (err) {
+            notify(err.message, true);
+        }
+    });
+
+    $("ocNativeHistoryVideoSelect")?.addEventListener("change", () => {
+        const idx = Number($("ocNativeHistoryVideoSelect")?.value);
+        const item = state.historyVideos[idx];
+        if (!item) return;
+        if ($("ocNativePostTitle") && !$("ocNativePostTitle").value.trim()) {
+            $("ocNativePostTitle").value = item.title || "";
+        }
+        updateSelectedVideoPreview(item.video_ref, "history");
+    });
+
+    $("ocNativeVideoUrlInput")?.addEventListener("change", () => {
+        const val = $("ocNativeVideoUrlInput")?.value.trim() || "";
+        updateSelectedVideoPreview(val, "url");
+    });
+
+    $("ocGenNativeAiCopyBtn")?.addEventListener("click", async () => {
+        const btn = $("ocGenNativeAiCopyBtn");
+        btn.disabled = true;
+        try {
+            const checkedIds = [...document.querySelectorAll('input[name="ocTargetSocialAcct"]:checked')].map(el => el.value);
+            const platforms = state.userSocialAccounts
+                .filter(a => checkedIds.includes(a.id))
+                .map(a => a.platform);
+            const topic = $("ocNativePostTitle")?.value.trim() || $("ocNativePostCaption")?.value.trim() || "Video kreatif AI viral";
+            const res = await callSocialVideoApi("generate_ai_caption", { topic, platforms });
+            if (res.copy?.title) $("ocNativePostTitle").value = res.copy.title;
+            if (res.copy?.caption) $("ocNativePostCaption").value = res.copy.caption;
+            if (res.copy?.hashtags) $("ocNativePostHashtags").value = res.copy.hashtags;
+            notify("Judul, Caption & Hashtag AI siap!");
+        } catch (err) {
+            notify(err.message, true);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    const submitNativePost = async publishNow => {
+        const checkedIds = [...document.querySelectorAll('input[name="ocTargetSocialAcct"]:checked')].map(el => el.value);
+        if (checkedIds.length === 0) {
+            return notify("Centang minimal 1 akun medsos terhubung terlebih dahulu.", true);
+        }
+
+        let videoRef = $("ocSelectedVideoRef")?.value.trim() || "";
+        let sourceType = $("ocSelectedVideoSourceType")?.value || "url";
+        if (!videoRef && !$("ocVidSrcBoxUrl")?.hidden) {
+            videoRef = $("ocNativeVideoUrlInput")?.value.trim() || "";
+            sourceType = "url";
+        }
+        if (!videoRef) {
+            return notify("Unggah atau pilih sumber video MP4 terlebih dahulu.", true);
+        }
+
+        const rawSchedule = $("ocNativeScheduleTime")?.value || "";
+        if (!publishNow && !rawSchedule) {
+            return notify("Pilih tanggal & jam pada kolom Jadwal Tayang Auto Post terlebih dahulu.", true);
+        }
+
+        const btn = publishNow ? $("ocNativePublishNowBtn") : $("ocNativeScheduleBtn");
+        if (btn) btn.disabled = true;
+
+        try {
+            notify(
+                publishNow
+                    ? `Memublikasikan video ke ${checkedIds.length} akun medsos…`
+                    : `Menyimpan jadwal Auto Post untuk ${checkedIds.length} akun medsos…`
+            );
+            const res = await callSocialVideoApi("create_posts", {
+                accountIds: checkedIds,
+                videoRef,
+                videoSourceType: sourceType,
+                title: $("ocNativePostTitle")?.value.trim() || "",
+                caption: $("ocNativePostCaption")?.value.trim() || "",
+                hashtags: $("ocNativePostHashtags")?.value.trim() || "",
+                privacyLevel: $("ocNativePostPrivacy")?.value || "public",
+                publishNow,
+                scheduledFor: !publishNow && rawSchedule ? new Date(rawSchedule).toISOString() : ""
+            });
+
+            if (res.posts) renderNativePostsList(res.posts);
+            else await $("ocRefreshNativePostsBtn")?.click();
+
+            if (publishNow) {
+                notify(`Berhasil mem-posting ke ${res.succeeded} akun medsos!`);
+            } else {
+                notify(`Jadwal Auto Post tersimpan untuk ${res.scheduledCount} akun pada ${new Date(res.scheduledFor).toLocaleString("id-ID")}!`);
+            }
+        } catch (err) {
+            notify(err.message, true);
+            loadNativeSocialBootstrap().catch(() => {});
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    };
+
+    $("ocNativePublishNowBtn")?.addEventListener("click", () => submitNativePost(true));
+    $("ocNativeScheduleBtn")?.addEventListener("click", () => submitNativePost(false));
+
+    $("ocRefreshNativePostsBtn")?.addEventListener("click", async () => {
+        try {
+            const res = await callSocialVideoApi("list_posts", {}, "GET");
+            renderNativePostsList(res.posts || []);
+            notify("Riwayat & antrean Auto Post diperbarui.");
+        } catch (err) {
+            notify(err.message, true);
+        }
+    });
+}
+
+/* =========================================================
    BOOTSTRAP INITIALIZATION
 ========================================================= */
 
@@ -1282,11 +1703,28 @@ async function bootstrapStudio() {
     bindEditorHandlers();
     bindUnderstandingHandlers();
     bindMotionUiHandlers();
+    bindMultiUserSocialHandlers();
     bindSocialAdminHandlers();
+
+    /* Buka tab Social otomatis jika kembali dari callback OAuth */
+    const currentParams = new URLSearchParams(window.location.search);
+    if (currentParams.get("tab") === "social") {
+        document.querySelector('[data-oc-tab="social"]')?.click();
+    }
+    if (currentParams.get("connected")) {
+        const plat = currentParams.get("connected").toUpperCase();
+        notify(`✅ Akun ${plat} berhasil ditautkan ke profil GEN-Z.AI Anda!`);
+        window.history.replaceState({}, "", `${window.location.pathname}?tab=social`);
+    } else if (currentParams.get("oauth_error")) {
+        notify(currentParams.get("oauth_error"), true);
+        window.history.replaceState({}, "", `${window.location.pathname}?tab=social`);
+    }
 
     if (window.GENZNavigationReady?.then) {
         await window.GENZNavigationReady.catch(() => {});
     }
+
+    loadNativeSocialBootstrap().catch(() => {});
 
     try {
         const boot = await callOpusClipApi("studio_bootstrap", {}, "GET");
@@ -1299,8 +1737,8 @@ async function bootstrapStudio() {
             if (boot.viewer.credits !== null && boot.viewer.credits !== undefined) {
                 updateCreditDisplay(boot.viewer.credits);
             }
-            if (boot.viewer.isAdminOrOwner && $("ocSocialTabBtn")) {
-                $("ocSocialTabBtn").hidden = false;
+            if (boot.viewer.isAdminOrOwner && $("ocAdminOpusOrgSection")) {
+                $("ocAdminOpusOrgSection").hidden = false;
             }
         }
         const badges = $("ocReadinessBadges");

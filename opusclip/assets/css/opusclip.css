@@ -607,3 +607,149 @@ html[data-genz-theme="light"] .oc-tab-cost {
     padding: 0 3px;
     border-radius: 4px;
 }
+
+/* =========================================================
+   MULTI-USER SOCIAL AUTO POST (FB · YOUTUBE · TIKTOK)
+========================================================= */
+
+.oc-connect-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.oc-connect-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--oc-border-strong);
+    background: var(--oc-surface-2);
+    color: var(--oc-text);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.oc-connect-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: var(--oc-accent);
+}
+
+.oc-connect-btn--fb {
+    border-color: rgba(59, 130, 246, 0.45);
+}
+
+.oc-connect-btn--yt {
+    border-color: rgba(239, 68, 68, 0.45);
+}
+
+.oc-connect-btn--tt {
+    border-color: rgba(34, 197, 94, 0.45);
+}
+
+.oc-acct-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.oc-acct-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--oc-surface-2);
+    border: 1px solid var(--oc-border);
+}
+
+.oc-acct-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--oc-text);
+    flex: 1;
+    min-width: 0;
+}
+
+.oc-acct-name {
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.oc-src-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+@media (max-width: 560px) {
+    .oc-src-tabs {
+        grid-template-columns: 1fr;
+    }
+}
+
+.oc-src-tab {
+    padding: 9px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--oc-border);
+    background: var(--oc-surface-2);
+    color: var(--oc-text);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: center;
+}
+
+.oc-src-tab.active {
+    border-color: var(--oc-accent);
+    color: var(--oc-accent);
+    background: rgba(0, 234, 255, 0.10);
+}
+
+.oc-video-preview-box {
+    margin: 10px 0 14px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--oc-border);
+    background: #000000;
+}
+
+.oc-video-preview-box video {
+    display: block;
+    width: 100%;
+    max-height: 260px;
+    background: #000000;
+}
+
+.oc-post-item {
+    border: 1px solid var(--oc-border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--oc-surface-2);
+}
+
+.oc-post-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+

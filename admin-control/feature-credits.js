@@ -13,7 +13,8 @@
         opusclip_thumbnail: ["OpusClip AI YouTube Thumbnail", "Setiap generate desain thumbnail YouTube", 1000],
         opusclip_censor_edit: ["OpusClip Edit & Sensor Klip", "Setiap sensor kata kasar atau apply edit klip", 500],
         opusclip_understanding: ["OpusClip Deep Video Understanding", "Setiap analisis gaya editing video referensi", 1000],
-        opusclip_motion_ui: ["OpusClip Motion UI Video", "Setiap render video template animasi UI/produk", 2500]
+        opusclip_motion_ui: ["OpusClip Motion UI Video", "Setiap render video template animasi UI/produk", 2500],
+        opusclip_social_post: ["Social Video Auto Post (FB / YouTube / TikTok)", "Setiap publikasi / jadwal tayang video ke akun medsos", 250]
     };
     const endpoint = "/api/feature-credits";
     const form = document.getElementById("settings-form");
