@@ -59,12 +59,55 @@ alter table public.staged_generation_jobs enable row level security;
 revoke all on public.staged_generation_jobs from anon, authenticated;
 grant all on public.staged_generation_jobs to service_role;
 
--- Daftarkan / sinkronkan model clone 30 detik pada provider Opus
+-- Daftarkan / sinkronkan model clone 20s/30s pada provider Opus:
+--   1. `opus-seedance-2.5-r2v-30s` ("Seedance 2.5 Reference to Video (30s)")
+--   2. `opus-hailuo-3-i2v-30s` ("MiniMax Hailuo 3 First & Last Frame (30s)")
 with provider as (
     select id
     from public.providers
     where provider_id = 'opus'
     limit 1
+),
+staged_seed (
+    model_id,
+    model_name,
+    description,
+    min_duration,
+    max_duration,
+    supported_ratios,
+    supported_resolutions,
+    supported_durations,
+    credit_480p,
+    credit_720p,
+    credit_1080p
+) as (
+    values
+        (
+            'opus-seedance-2.5-r2v-30s',
+            'Seedance 2.5 Reference to Video (30s)',
+            'Video 20 atau 30 detik utuh secara bertahap (2 × 10 detik atau 3 × 10 detik tersambung mulus dari frame akhir tiap klip) menggunakan hingga 3 gambar (@image1–@image3), 3 video (@video1–@video3), dan/atau audio referensi (@audio1). Mendukung prompt berdurasi maupun otomatis.',
+            20,
+            30,
+            '{9:16,16:9,1:1,4:3,3:4,21:9}',
+            '{480p,720p}',
+            '{20,30}',
+            6000,
+            7500,
+            0
+        ),
+        (
+            'opus-hailuo-3-i2v-30s',
+            'MiniMax Hailuo 3 First & Last Frame (30s)',
+            'Video 20 atau 30 detik utuh secara bertahap (2 × 10 detik atau 3 × 10 detik tersambung mulus dari frame akhir tiap klip) menggunakan MiniMax Hailuo 3 dari frame awal + frame akhir opsional pada ujung video (768p & 2K). Mendukung prompt berdurasi maupun otomatis.',
+            20,
+            30,
+            '{}',
+            '{720p,1080p}',
+            '{20,30}',
+            0,
+            6000,
+            7500
+        )
 )
 insert into public.models (
     provider_id,
@@ -84,20 +127,21 @@ insert into public.models (
 )
 select
     provider.id,
-    'opus-seedance-2.5-r2v-30s',
-    'Seedance 2.5 Reference to Video (30s)',
-    'Video 20 atau 30 detik utuh secara bertahap (2 × 10 detik atau 3 × 10 detik tersambung mulus dari frame akhir tiap klip) menggunakan hingga 3 gambar (@image1–@image3), 3 video (@video1–@video3), dan/atau audio referensi (@audio1). Mendukung prompt berdurasi maupun otomatis.',
-    20,
-    30,
-    '{9:16,16:9,1:1,4:3,3:4,21:9}'::text[],
-    '{480p,720p}'::text[],
-    '{20,30}'::text[],
-    6000,
-    7500,
-    0,
+    staged_seed.model_id,
+    staged_seed.model_name,
+    staged_seed.description,
+    staged_seed.min_duration,
+    staged_seed.max_duration,
+    staged_seed.supported_ratios::text[],
+    staged_seed.supported_resolutions::text[],
+    staged_seed.supported_durations::text[],
+    staged_seed.credit_480p,
+    staged_seed.credit_720p,
+    staged_seed.credit_1080p,
     0,
     'active'
-from provider
+from staged_seed
+cross join provider
 on conflict on constraint models_provider_id_model_id_key do update
 set
     model_name = excluded.model_name,

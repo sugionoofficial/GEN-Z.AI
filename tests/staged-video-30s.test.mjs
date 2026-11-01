@@ -8,6 +8,8 @@ import { getOpusVideoModel } from "../models/opus-video/index.js";
 import { resolveBillableCredit } from "../lib/generate/qwencloud-credit.js";
 import { isRefOwnedByUser } from "../lib/generate/private-media.js";
 import {
+    STAGED_30S_HAILUO_BASE_MODEL_ID,
+    STAGED_30S_HAILUO_MODEL_ID,
     STAGED_30S_MODEL_ID,
     buildLastFrameFfmpegArgs,
     buildReferenceAudioSliceFfmpegArgs,
@@ -21,6 +23,7 @@ import {
     isStaged30sModelId,
     isStaged30sTaskId,
     resolveStagedApiBaseUrl,
+    resolveStagedModelProfile,
     resolveStagedTargetConfig
 } from "../lib/generate/staged-video-30s.js";
 import { runStagedVideoOrchestrator } from "../scripts/run-staged-video-30s.mjs";
@@ -1289,5 +1292,469 @@ test("opsi durasi 20 detik pada opus-seedance-2.5-r2v-30s: validasi, kredit prop
         await fs.rm(tempDir, { recursive: true, force: true });
     }
 });
+
+test("model clone MiniMax Hailuo 3 First & Last Frame 30s (opus-hailuo-3-i2v-30s): validasi 20s/30s, kredit 768p/2K, model-config alias, dan orkestrasi first/last frame", async () => {
+    const model = getOpusVideoModel(STAGED_30S_HAILUO_MODEL_ID);
+    assert.ok(model, "adapter opus-hailuo-3-i2v-30s harus terdaftar");
+    assert.equal(model.config.staged30s, true);
+    assert.equal(model.config.logo, "minimax.svg");
+    assert.equal(model.config.workflow, "first_last_frame");
+    assert.equal(model.config.allowLastFrame, true);
+    assert.equal(model.config.generateAudio, false);
+    assert.equal(isStaged30sModelId(STAGED_30S_HAILUO_MODEL_ID), true);
+    assert.equal(isStaged30sModelId("opus-hailuo-3-i2v"), false);
+
+    const profile = resolveStagedModelProfile(STAGED_30S_HAILUO_MODEL_ID);
+    assert.equal(profile.isHailuoFirstLast, true);
+    assert.equal(profile.clip1AdapterId, STAGED_30S_HAILUO_BASE_MODEL_ID);
+    assert.equal(profile.continuationI2vAdapterId, STAGED_30S_HAILUO_BASE_MODEL_ID);
+    assert.equal(profile.defaultResolution, "768p");
+    assert.equal(profile.supportsGenerateAudio, false);
+    assert.equal(profile.supportsLastFrame, true);
+    assert.equal(profile.maxPrompt, 7000);
+
+    const paramNames = model.parameters.map(p => p.name);
+    assert.ok(paramNames.includes("image_url"));
+    assert.ok(paramNames.includes("last_frame_url"));
+    assert.equal(paramNames.includes("aspect_ratio"), false);
+    assert.equal(paramNames.includes("generate_audio"), false);
+
+    const resParam = model.parameters.find(p => p.name === "resolution");
+    const durParam = model.parameters.find(p => p.name === "duration");
+    assert.deepEqual(resParam.enum, ["768p", "2k"]);
+    assert.equal(resParam.default, "768p");
+    assert.deepEqual(durParam.enum, ["20", "30"]);
+    assert.equal(durParam.default, "30");
+
+    // Validasi input 20s & 30s dengan frame awal + frame akhir opsional
+    const valid30WithLast = model.validate({
+        prompt: "Kamera mengikuti subjek berjalan dari lorong menuju balkon saat matahari terbit",
+        image_url: "https://cdn.example.com/first-frame.jpg",
+        last_frame_url: "https://cdn.example.com/last-frame.jpg",
+        resolution: "2k",
+        duration: "30"
+    });
+    assert.equal(valid30WithLast.valid, true, valid30WithLast.errors.join("; "));
+
+    const valid20FromAlias = model.validate({
+        prompt: "Subjek menoleh perlahan sambil tersenyum",
+        image_url: "https://cdn.example.com/first-frame.jpg",
+        resolution: "720p",
+        duration: "20"
+    });
+    assert.equal(valid20FromAlias.valid, true, valid20FromAlias.errors.join("; "));
+
+    const invalid10 = model.validate({
+        prompt: "Subjek berjalan",
+        image_url: "https://cdn.example.com/first-frame.jpg",
+        resolution: "768p",
+        duration: "10"
+    });
+    assert.equal(invalid10.valid, false);
+
+    // Perhitungan kredit 30s (100%) vs 20s (proporsional 2/3): 768p=6000->4000, 2K=7500->5000
+    assert.equal(
+        resolveBillableCredit(6000, { duration: "30" }, model.config, STAGED_30S_HAILUO_MODEL_ID).billableCredit,
+        6000
+    );
+    assert.equal(
+        resolveBillableCredit(7500, { duration: "30" }, model.config, STAGED_30S_HAILUO_MODEL_ID).billableCredit,
+        7500
+    );
+    assert.equal(
+        resolveBillableCredit(6000, { duration: "20" }, model.config, STAGED_30S_HAILUO_MODEL_ID).billableCredit,
+        4000
+    );
+    assert.equal(
+        resolveBillableCredit(7500, { duration: "20" }, model.config, STAGED_30S_HAILUO_MODEL_ID).billableCredit,
+        5000
+    );
+
+    // Prompt dengan hasFinalFrame & batas maxPrompt 7000
+    const longText = "Aksi sinematik detail ".repeat(400);
+    const hailuoPrompts30 = buildStaged30sPrompts(longText, {
+        targetDuration: 30,
+        maxPrompt: 7000,
+        hasFinalFrame: true
+    });
+    assert.ok(hailuoPrompts30.clip1.length <= 7000);
+    assert.ok(hailuoPrompts30.clip2.length <= 7000);
+    assert.ok(hailuoPrompts30.clip3.length <= 7000);
+    assert.doesNotMatch(hailuoPrompts30.clip2, /frame akhir target/);
+    assert.match(hailuoPrompts30.clip3, /frame akhir target/);
+
+    const hailuoPrompts20 = buildStaged30sPrompts(
+        "Subjek melangkah maju dari pintu menuju kursi taman.",
+        {
+            targetDuration: 20,
+            maxPrompt: 7000,
+            hasFinalFrame: true
+        }
+    );
+    assert.match(hailuoPrompts20.clip2, /frame akhir target/);
+    assert.equal(hailuoPrompts20.clip3, "");
+
+    // Merge FFmpeg untuk klip Hailuo 2K tanpa audio (-an, maxrate 16M, bufsize 32M)
+    const mergeHailuo2kArgs = buildSeamlessMergeFfmpegArgs({
+        clipPaths: ["/tmp/h1.mp4", "/tmp/h2.mp4", "/tmp/h3.mp4"],
+        clipInfos: [
+            { width: 2048, height: 1152, fps: 24, duration: 10, hasAudio: false },
+            { width: 2048, height: 1152, fps: 24, duration: 10, hasAudio: false },
+            { width: 2048, height: 1152, fps: 24, duration: 10, hasAudio: false }
+        ],
+        outputPath: "/tmp/merged-hailuo-2k.mp4"
+    });
+    assert.equal(mergeHailuo2kArgs.includes("-an"), true);
+    assert.equal(mergeHailuo2kArgs.includes("aac"), false);
+    assert.equal(mergeHailuo2kArgs[mergeHailuo2kArgs.indexOf("-maxrate") + 1], "16M");
+    assert.equal(mergeHailuo2kArgs[mergeHailuo2kArgs.indexOf("-bufsize") + 1], "32M");
+
+    // Verifikasi /api/model-config mengembalikan staged30s=true & memetakan DB [720p, 1080p] -> [768p, 2k]
+    const prevUrl = process.env.SUPABASE_URL;
+    const prevKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const origFetch = globalThis.fetch;
+
+    process.env.SUPABASE_URL = "https://supabase.mock.local";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "srv-test-token";
+
+    try {
+        globalThis.fetch = async (url) => {
+            const href = String(url);
+            if (href.includes("/auth/v1/user")) {
+                return Response.json({ id: USER_ID, email: "user@example.com" });
+            }
+            if (href.includes("/rest/v1/models")) {
+                return Response.json([
+                    {
+                        id: "be2812b9-8b59-412d-8d62-2622824d02b9",
+                        provider_id: "prov-opus-uuid",
+                        model_id: STAGED_30S_HAILUO_MODEL_ID,
+                        model_name: "MiniMax Hailuo 3 First & Last Frame (30s)",
+                        description: "Hailuo 3 Staged 20s/30s",
+                        min_duration: 20,
+                        max_duration: 30,
+                        supported_ratios: [],
+                        supported_resolutions: ["720p", "1080p"],
+                        supported_durations: ["20", "30"],
+                        credit_480p: 0,
+                        credit_720p: 6000,
+                        credit_1080p: 7500,
+                        discount_percent: 0,
+                        status: "active"
+                    }
+                ]);
+            }
+            if (href.includes("/rest/v1/providers")) {
+                return Response.json([
+                    {
+                        id: "prov-opus-uuid",
+                        provider_id: "opus",
+                        provider_name: "Opus",
+                        status: "active"
+                    }
+                ]);
+            }
+            throw new Error(`Unexpected fetch in model-config test: ${href}`);
+        };
+
+        const { default: modelConfigHandler } = await import(
+            `../api/model-config.js?hailuo30s=${Date.now()}`
+        );
+        let rawBody = "";
+        const req = {
+            method: "GET",
+            url: `/api/model-config?model_id=${STAGED_30S_HAILUO_MODEL_ID}`,
+            headers: {
+                authorization: "Bearer test-access-token"
+            }
+        };
+        const res = {
+            statusCode: 200,
+            setHeader() {},
+            end(chunk) {
+                rawBody = String(chunk || "");
+            }
+        };
+        await modelConfigHandler(req, res);
+        assert.equal(res.statusCode, 200);
+        const parsed = JSON.parse(rawBody);
+        assert.equal(parsed.model.staged30s, true);
+        assert.deepEqual(parsed.model.supported_resolutions, ["768p", "2k"]);
+        assert.deepEqual(parsed.model.supported_durations, ["20", "30"]);
+        assert.equal(parsed.model.credit_720p, 6000);
+        assert.equal(parsed.model.credit_1080p, 7500);
+    } finally {
+        globalThis.fetch = origFetch;
+        if (prevUrl === undefined) delete process.env.SUPABASE_URL;
+        else process.env.SUPABASE_URL = prevUrl;
+        if (prevKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+        else process.env.SUPABASE_SERVICE_ROLE_KEY = prevKey;
+    }
+
+    // Verifikasi handler step API: Klip 1 tanpa last_frame_url, Klip tengah tanpa last_frame_url, Klip penutup memakai last_frame_url
+    const prevEnvUrl = process.env.SUPABASE_URL;
+    const prevEnvKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const prevFetch2 = globalThis.fetch;
+
+    process.env.SUPABASE_URL = "https://proj.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "srv-test-token";
+
+    try {
+        const internalToken = "f".repeat(64);
+        const firstInputRef = `supabase-private://user-uploads/generate-input/${USER_ID}/first.png`;
+        const finalTargetRef = `supabase-private://user-uploads/generate-input/${USER_ID}/final-end.png`;
+        const extractedFrame1Ref = `supabase-private://user-uploads/upscale-videos/inputs/${USER_ID}/staged30-${JOB_ID}/frame-1-end.png`;
+        const extractedFrame2Ref = `supabase-private://user-uploads/upscale-videos/inputs/${USER_ID}/staged30-${JOB_ID}/frame-2-end.png`;
+
+        let activeTotalClips = 3;
+        const capturedMcpCreateArgs = [];
+
+        globalThis.fetch = async (url, init = {}) => {
+            const u = String(url);
+            const method = String(init.method || "GET").toUpperCase();
+
+            if (u.includes("/rest/v1/staged_generation_jobs") && method === "GET") {
+                return Response.json([
+                    {
+                        id: JOB_ID,
+                        task_id: "staged30_hailuo_step_test",
+                        history_id: HISTORY_ID,
+                        user_id: USER_ID,
+                        model_id: STAGED_30S_HAILUO_MODEL_ID,
+                        status: "processing",
+                        internal_token: internalToken,
+                        request_payload: {
+                            prompt: "Transisi sinematik dari pagi ke malam",
+                            target_duration: activeTotalClips * 10,
+                            total_clips: activeTotalClips,
+                            resolution: "2k",
+                            generate_audio: false,
+                            image_url: firstInputRef,
+                            last_frame_url: finalTargetRef,
+                            clip_prompts: buildStaged30sPrompts(
+                                "Transisi sinematik dari pagi ke malam",
+                                {
+                                    targetDuration: activeTotalClips * 10,
+                                    maxPrompt: 7000,
+                                    hasFinalFrame: true
+                                }
+                            )
+                        }
+                    }
+                ]);
+            }
+            if (u.includes("/rest/v1/provider_credentials") && method === "GET") {
+                return Response.json([]);
+            }
+            if (u.includes("/rest/v1/providers") && method === "GET") {
+                return Response.json([
+                    {
+                        id: "prov-opus-id",
+                        provider_id: "opus",
+                        provider_name: "Opus",
+                        api_key: "test-access-token",
+                        status: "active"
+                    }
+                ]);
+            }
+            if (u.includes("/rest/v1/opus_oauth_tokens") && method === "GET") {
+                return Response.json([]);
+            }
+            if (u.includes("/storage/v1/object/sign/user-uploads/")) {
+                const objPath = u.split("/storage/v1/object/sign/user-uploads/")[1];
+                return Response.json({
+                    signedURL: `/object/sign/user-uploads/${objPath}?token=test-signed`
+                });
+            }
+            if (u.includes("labs.opus.pro/")) {
+                const rpc = JSON.parse(init.body || "{}");
+                if (rpc.method === "initialize") {
+                    return new Response(
+                        JSON.stringify({
+                            jsonrpc: "2.0",
+                            id: rpc.id,
+                            result: { protocolVersion: "2025-03-26", capabilities: {} }
+                        }),
+                        {
+                            status: 200,
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Mcp-Session-Id": "sess-hailuo-test"
+                            }
+                        }
+                    );
+                }
+                if (rpc.method === "notifications/initialized") {
+                    return new Response("", { status: 202 });
+                }
+                if (rpc.method === "tools/list") {
+                    return Response.json({
+                        jsonrpc: "2.0",
+                        id: rpc.id,
+                        result: {
+                            tools: [
+                                {
+                                    name: "create_project",
+                                    inputSchema: {
+                                        type: "object",
+                                        properties: { title: { type: "string" } }
+                                    }
+                                },
+                                {
+                                    name: "generate_video_clips",
+                                    inputSchema: {
+                                        type: "object",
+                                        properties: {
+                                            projectId: { type: "string" },
+                                            model: { type: "string" },
+                                            workflow: { type: "string" },
+                                            prompt: { type: "string" },
+                                            durationSeconds: { type: "number" },
+                                            resolution: { type: "string" },
+                                            firstFrameUrl: { type: "string" },
+                                            lastFrameUrl: { type: "string" }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    });
+                }
+                if (rpc.method === "tools/call") {
+                    if (rpc.params?.name === "create_project") {
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: rpc.id,
+                            result: {
+                                content: [{ type: "text", text: JSON.stringify({ projectId: "proj-h3" }) }]
+                            }
+                        });
+                    }
+                    if (rpc.params?.name === "generate_video_clips") {
+                        capturedMcpCreateArgs.push(rpc.params.arguments);
+                        return Response.json({
+                            jsonrpc: "2.0",
+                            id: rpc.id,
+                            result: {
+                                content: [
+                                    {
+                                        type: "text",
+                                        text: JSON.stringify({
+                                            jobId: `job-h3-${capturedMcpCreateArgs.length}`,
+                                            status: "queued"
+                                        })
+                                    }
+                                ]
+                            }
+                        });
+                    }
+                }
+            }
+            throw new Error(`Unexpected fetch in hailuo step test: ${method} ${u}`);
+        };
+
+        const { default: generateHandler } = await import(
+            `../api/generate.js?hailuoStep=${Date.now()}`
+        );
+
+        async function invokeStep(stepPayload) {
+            let status = 200;
+            let raw = "";
+            await generateHandler(
+                {
+                    method: "POST",
+                    url: "/api/generate",
+                    headers: {
+                        "content-type": "application/json",
+                        "x-staged-job-token": internalToken
+                    },
+                    env: {
+                        OPUS_API_KEY: "test-access-token"
+                    },
+                    body: stepPayload
+                },
+                {
+                    status(code) {
+                        status = code;
+                        return this;
+                    },
+                    setHeader() {},
+                    json(obj) {
+                        raw = JSON.stringify(obj);
+                        return this;
+                    },
+                    end(chunk) {
+                        if (chunk) raw = String(chunk);
+                    }
+                }
+            );
+            return { status, body: JSON.parse(raw) };
+        }
+
+        // Mode 30s (3 klip): Klip 2 tidak memakai lastFrameUrl, Klip 3 memakai lastFrameUrl
+        const stepClip2Of3 = await invokeStep({
+            action: "staged-video-step",
+            job_id: JOB_ID,
+            step_action: "create_clip",
+            clip_index: 2,
+            first_frame_ref: extractedFrame1Ref
+        });
+        assert.equal(stepClip2Of3.status, 200, JSON.stringify(stepClip2Of3.body));
+        assert.equal(stepClip2Of3.body.success, true, JSON.stringify(stepClip2Of3.body));
+
+        const stepClip3Of3 = await invokeStep({
+            action: "staged-video-step",
+            job_id: JOB_ID,
+            step_action: "create_clip",
+            clip_index: 3,
+            first_frame_ref: extractedFrame2Ref
+        });
+        assert.equal(stepClip3Of3.status, 200);
+        assert.equal(stepClip3Of3.body.success, true);
+
+        assert.equal(capturedMcpCreateArgs[0].model, "hailuo-3");
+        assert.equal(capturedMcpCreateArgs[0].resolution, "2k");
+        assert.equal(capturedMcpCreateArgs[0].durationSeconds, 10);
+        assert.match(capturedMcpCreateArgs[0].firstFrameUrl, /frame-1-end\.png/);
+        assert.equal(
+            capturedMcpCreateArgs[0].lastFrameUrl,
+            undefined,
+            "Klip 2 dari 3 tidak boleh memasang lastFrameUrl sebelum klip terakhir"
+        );
+
+        assert.equal(capturedMcpCreateArgs[1].model, "hailuo-3");
+        assert.equal(capturedMcpCreateArgs[1].resolution, "2k");
+        assert.match(capturedMcpCreateArgs[1].firstFrameUrl, /frame-2-end\.png/);
+        assert.match(
+            capturedMcpCreateArgs[1].lastFrameUrl,
+            /final-end\.png/,
+            "Klip 3 dari 3 wajib memasang lastFrameUrl target akhir user"
+        );
+
+        // Mode 20s (2 klip): Klip 2 adalah klip penutup sehingga langsung memasang lastFrameUrl
+        activeTotalClips = 2;
+        const stepClip2Of2 = await invokeStep({
+            action: "staged-video-step",
+            job_id: JOB_ID,
+            step_action: "create_clip",
+            clip_index: 2,
+            first_frame_ref: extractedFrame1Ref
+        });
+        assert.equal(stepClip2Of2.status, 200);
+        assert.equal(stepClip2Of2.body.success, true);
+        assert.match(
+            capturedMcpCreateArgs[2].lastFrameUrl,
+            /final-end\.png/,
+            "Pada durasi 20s (2 klip), Klip 2 wajib memasang lastFrameUrl target akhir user"
+        );
+    } finally {
+        globalThis.fetch = prevFetch2;
+        if (prevEnvUrl === undefined) delete process.env.SUPABASE_URL;
+        else process.env.SUPABASE_URL = prevEnvUrl;
+        if (prevEnvKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+        else process.env.SUPABASE_SERVICE_ROLE_KEY = prevEnvKey;
+    }
+});
+
 
 

@@ -2594,7 +2594,8 @@ function isStaged30sVideoModel(
                 .toLowerCase();
 
         if (
-            id === "opus-seedance-2.5-r2v-30s"
+            id === "opus-seedance-2.5-r2v-30s" ||
+            id === "opus-hailuo-3-i2v-30s"
         ) {
 
             return true;

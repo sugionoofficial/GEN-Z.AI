@@ -1435,19 +1435,23 @@ function validateModelCapabilities(
             getSupportedResolutions(
                 model
             );
+        const supportedLower =
+            new Set(
+                supported.map(item =>
+                    String(item).trim().toLowerCase()
+                )
+            );
+        if (supportedLower.has("720p")) supportedLower.add("768p");
+        if (supportedLower.has("768p")) supportedLower.add("720p");
+        if (supportedLower.has("1080p")) supportedLower.add("2k");
+        if (supportedLower.has("2k")) supportedLower.add("1080p");
 
+        const requestedResolutionLower =
+            String(parameters.resolution).trim().toLowerCase();
 
         if (
             supported.length > 0 &&
-            !supported.some(
-                resolution =>
-                    String(
-                        resolution
-                    ) ===
-                    String(
-                        parameters.resolution
-                    )
-            )
+            !supportedLower.has(requestedResolutionLower)
         ) {
 
             errors.push(

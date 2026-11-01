@@ -42,6 +42,7 @@ import {
     STAGED_30S_BASE_R2V_MODEL_ID,
     STAGED_30S_CLIP_DURATION,
     STAGED_30S_CONTINUATION_I2V_MODEL_ID,
+    STAGED_30S_HAILUO_BASE_MODEL_ID,
     STAGED_30S_TOTAL_DURATION,
     STAGED_30S_WORKFLOW_FILE,
     buildStaged30sPrompts,
@@ -49,6 +50,7 @@ import {
     generateStaged30sTaskId,
     isStaged30sModelId,
     resolveStagedApiBaseUrl,
+    resolveStagedModelProfile,
     resolveStagedTargetConfig
 } from "../lib/generate/staged-video-30s.js";
 
@@ -4509,16 +4511,25 @@ async function createStagedHistoryAndJob({
         null
     );
 
+    const stagedProfile = resolveStagedModelProfile(
+        modelConfig?.id || databaseModel?.model_id
+    );
     const resolution = normalizeHistoryText(
         generationCredit?.resolution ??
         parameters?.resolution ??
         body?.resolution ??
-        "720p"
+        stagedProfile.defaultResolution
     );
 
     const creditCost = Number(generationCredit?.credit) || 0;
     const targetConfig = resolveStagedTargetConfig(
         parameters?.duration ?? stagedPrompts?.targetDuration ?? STAGED_30S_TOTAL_DURATION
+    );
+    const historyRatio = normalizeHistoryText(
+        parameters?.aspect_ratio ??
+        body?.aspect_ratio ??
+        stagedProfile.defaultAspectRatio ??
+        null
     );
 
     const historyPayload = {
@@ -4539,7 +4550,7 @@ async function createStagedHistoryAndJob({
         video_reference_url:
             toPrivateMediaRef(videoReference, { supabaseUrl: SUPABASE_URL }) ||
             videoReference,
-        ratio: normalizeHistoryText(parameters?.aspect_ratio ?? body?.aspect_ratio ?? "9:16"),
+        ratio: historyRatio,
         duration: targetConfig.targetDuration,
         resolution,
         status: "processing",
@@ -4571,6 +4582,11 @@ async function createStagedHistoryAndJob({
             .map(item => String(item || "").trim())
             .filter(Boolean)
             .map(item => toPrivateMediaRef(item, { supabaseUrl: SUPABASE_URL }) || item);
+    const toStableSingleMedia = value => {
+        const clean = String(value || "").trim();
+        if (!clean) return null;
+        return toPrivateMediaRef(clean, { supabaseUrl: SUPABASE_URL }) || clean;
+    };
 
     const internalToken = crypto.randomBytes(32).toString("hex");
     const normalizedAudioInputs = Array.isArray(parameters?.audio_urls) && parameters.audio_urls.length > 0
@@ -4584,13 +4600,22 @@ async function createStagedHistoryAndJob({
             mode: stagedPrompts.mode,
             has_explicit_duration: Boolean(stagedPrompts.hasExplicitDuration),
             preserve_media_refs: Boolean(stagedPrompts.preserveMediaRefs),
+            has_final_frame: Boolean(stagedPrompts.hasFinalFrame),
             clip1: stagedPrompts.clip1,
             clip2: stagedPrompts.clip2,
             clip3: stagedPrompts.clip3
         },
-        aspect_ratio: String(parameters?.aspect_ratio || "9:16").trim(),
-        resolution: String(parameters?.resolution || "720p").trim(),
-        generate_audio: Boolean(parameters?.generate_audio ?? true),
+        aspect_ratio: parameters?.aspect_ratio
+            ? String(parameters.aspect_ratio).trim()
+            : stagedProfile.defaultAspectRatio,
+        resolution: String(parameters?.resolution || stagedProfile.defaultResolution).trim(),
+        generate_audio: stagedProfile.supportsGenerateAudio
+            ? Boolean(parameters?.generate_audio ?? true)
+            : false,
+        image_url: toStableSingleMedia(parameters?.image_url ?? parameters?.first_frame_url),
+        last_frame_url: stagedProfile.supportsLastFrame
+            ? toStableSingleMedia(parameters?.last_frame_url)
+            : null,
         image_urls: toStableMediaList(parameters?.image_urls),
         video_urls: toStableMediaList(parameters?.video_urls),
         audio_urls: toStableMediaList(normalizedAudioInputs)
@@ -4683,6 +4708,11 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
     const reqPayload = job.request_payload && typeof job.request_payload === "object"
         ? job.request_payload
         : {};
+    const stagedProfile = resolveStagedModelProfile(job.model_id);
+    const stagedJobTarget = resolveStagedTargetConfig(
+        reqPayload.target_duration ?? (Number(reqPayload.total_clips) === 2 ? 20 : 30)
+    );
+    const totalJobClips = stagedJobTarget.totalClips;
 
     const videoSegmentRefs = Array.isArray(body?.video_segment_refs)
         ? body.video_segment_refs.map(v => String(v || "").trim()).filter(Boolean)
@@ -4695,14 +4725,18 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
         (Array.isArray(reqPayload.video_urls) && reqPayload.video_urls.length > 0) ||
         (Array.isArray(reqPayload.audio_urls) && reqPayload.audio_urls.length > 0);
     const useR2vForContinuation =
-        stepAction === "create_clip"
+        !stagedProfile.isHailuoFirstLast &&
+        (stepAction === "create_clip"
             ? hasStepSegmentRefs
-            : hasPayloadReferenceMedia;
+            : hasPayloadReferenceMedia);
 
-    const targetAdapterId =
-        clipIndex === 1 || useR2vForContinuation
-            ? STAGED_30S_BASE_R2V_MODEL_ID
-            : STAGED_30S_CONTINUATION_I2V_MODEL_ID;
+    const targetAdapterId = stagedProfile.isHailuoFirstLast
+        ? STAGED_30S_HAILUO_BASE_MODEL_ID
+        : (
+            clipIndex === 1 || useR2vForContinuation
+                ? STAGED_30S_BASE_R2V_MODEL_ID
+                : STAGED_30S_CONTINUATION_I2V_MODEL_ID
+        );
     const stepAdapter = getModelAdapter(targetAdapterId);
 
     if (!stepAdapter) {
@@ -4781,12 +4815,106 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
         const effectiveGenerateAudio =
             typeof body?.generate_audio_override === "boolean"
                 ? body.generate_audio_override
-                : Boolean(reqPayload.generate_audio ?? true);
+                : Boolean(reqPayload.generate_audio ?? stagedProfile.supportsGenerateAudio);
 
         let createInput;
 
         try {
-            if (clipIndex === 1) {
+            if (stagedProfile.isHailuoFirstLast) {
+                if (clipIndex === 1) {
+                    const rawFirstImage = String(
+                        reqPayload.image_url ||
+                        (Array.isArray(reqPayload.image_urls) ? reqPayload.image_urls[0] : "") ||
+                        ""
+                    ).trim();
+                    if (!rawFirstImage) {
+                        return rawJsonResponse(res, 400, {
+                            success: false,
+                            error: "Gambar frame awal (image_url) tidak ditemukan pada job."
+                        });
+                    }
+                    if (isPrivateMediaRef(rawFirstImage) && !isRefOwnedByUser(rawFirstImage, job.user_id)) {
+                        return rawJsonResponse(res, 400, {
+                            success: false,
+                            error: "Referensi frame awal tidak sah atau bukan milik user."
+                        });
+                    }
+
+                    const signedClip1 = await signUserMediaRefsInPayload(
+                        { image_url: rawFirstImage },
+                        {
+                            userId: job.user_id,
+                            supabaseUrl: SUPABASE_URL,
+                            serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+                            ttlSeconds: 60 * 60
+                        }
+                    );
+
+                    createInput = {
+                        image_url: signedClip1.image_url,
+                        prompt: String(clipPrompts.clip1 || reqPayload.prompt || "").trim(),
+                        resolution: String(reqPayload.resolution || "768p"),
+                        duration: String(STAGED_30S_CLIP_DURATION)
+                    };
+                } else if (clipIndex === 2 || clipIndex === 3) {
+                    const firstFrameRef = String(body?.first_frame_ref || "").trim();
+                    if (!firstFrameRef || !isRefOwnedByUser(firstFrameRef, job.user_id)) {
+                        return rawJsonResponse(res, 400, {
+                            success: false,
+                            error: "first_frame_ref tidak sah atau bukan milik user."
+                        });
+                    }
+
+                    const signedFirstFrameUrl = await signPrivateMediaRef({
+                        ref: firstFrameRef,
+                        supabaseUrl: SUPABASE_URL,
+                        serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+                        ttlSeconds: 60 * 60
+                    });
+
+                    let signedLastFrameUrl = "";
+                    const isFinalClip = clipIndex === totalJobClips;
+                    const rawLastFrame = String(reqPayload.last_frame_url || "").trim();
+                    if (isFinalClip && rawLastFrame) {
+                        if (isPrivateMediaRef(rawLastFrame) && !isRefOwnedByUser(rawLastFrame, job.user_id)) {
+                            return rawJsonResponse(res, 400, {
+                                success: false,
+                                error: "Referensi frame akhir tidak sah atau bukan milik user."
+                            });
+                        }
+                        const signedFinal = await signUserMediaRefsInPayload(
+                            { last_frame_url: rawLastFrame },
+                            {
+                                userId: job.user_id,
+                                supabaseUrl: SUPABASE_URL,
+                                serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+                                ttlSeconds: 60 * 60
+                            }
+                        );
+                        signedLastFrameUrl = String(signedFinal?.last_frame_url || "").trim();
+                    }
+
+                    const targetPrompt =
+                        clipIndex === 2
+                            ? String(clipPrompts.clip2 || reqPayload.prompt || "").trim()
+                            : String(clipPrompts.clip3 || reqPayload.prompt || "").trim();
+                    const cleanedFallbackPrompt =
+                        cleanContinuationPromptForFirstFrame(targetPrompt) || targetPrompt;
+
+                    createInput = {
+                        image_url: signedFirstFrameUrl,
+                        ...(signedLastFrameUrl ? { last_frame_url: signedLastFrameUrl } : {}),
+                        prompt: cleanedFallbackPrompt,
+                        resolution: String(reqPayload.resolution || "768p"),
+                        duration: String(STAGED_30S_CLIP_DURATION)
+                    };
+                } else {
+                    return rawJsonResponse(res, 400, {
+                        success: false,
+                        error: "clip_index harus 1, 2, atau 3."
+                    });
+                }
+            } else if (clipIndex === 1) {
                 const signedRefs = await signUserMediaRefsInPayload(
                     {
                         image_urls: reqPayload.image_urls || [],
@@ -4897,7 +5025,8 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
         try {
             const created = await stepAdapter.createTask(createInput, opusApiKey, {
                 excludeKeySlots,
-                env: req?.env
+                env: req?.env,
+                stageReferenceImage: stageOpusReferenceImageForGenerate
             });
 
             return rawJsonResponse(res, 200, {
@@ -5792,6 +5921,10 @@ export default async function handler(
         parameters?.audio_url
     );
 
+    const stagedProfile = isStaged30s
+        ? resolveStagedModelProfile(modelConfig.id || modelId)
+        : null;
+
     const stagedTargetConfig = isStaged30s
         ? resolveStagedTargetConfig(parameters?.duration)
         : null;
@@ -5799,7 +5932,11 @@ export default async function handler(
     const stagedPrompts = isStaged30s
         ? buildStaged30sPrompts(parameters?.prompt, {
               preserveMediaRefs: hasStagedReferenceMedia,
-              targetDuration: stagedTargetConfig.targetDuration
+              targetDuration: stagedTargetConfig.targetDuration,
+              maxPrompt: stagedProfile?.maxPrompt,
+              hasFinalFrame: Boolean(
+                  stagedProfile?.supportsLastFrame && parameters?.last_frame_url
+              )
           })
         : null;
 
@@ -5973,25 +6110,35 @@ export default async function handler(
     try {
 
         if (isStaged30s) {
+            const clip1AdapterId =
+                stagedProfile?.clip1AdapterId || STAGED_30S_BASE_R2V_MODEL_ID;
             const clip1Adapter =
-                getModelAdapter(STAGED_30S_BASE_R2V_MODEL_ID);
+                getModelAdapter(clip1AdapterId);
             if (!clip1Adapter) {
                 throw new Error(
-                    `Adapter ${STAGED_30S_BASE_R2V_MODEL_ID} tidak ditemukan.`
+                    `Adapter ${clip1AdapterId} tidak ditemukan.`
                 );
             }
 
+            // Pada mode First & Last Frame bertahap (20s/30s), `last_frame_url`
+            // baru dipasang pada klip penutup terakhir (Klip 2 untuk 20s atau Klip 3 untuk 30s)
+            // agar Klip 1 (0–10s) bergerak natural dari frame awal menuju tengah adegan.
+            const clip1Parameters = {
+                ...parameters,
+                prompt: stagedPrompts.clip1,
+                duration: String(STAGED_30S_CLIP_DURATION)
+            };
+            delete clip1Parameters.last_frame_url;
+            delete clip1Parameters.lastFrameUrl;
+
             task =
                 await clip1Adapter.createTask(
-                    {
-                        ...parameters,
-                        prompt: stagedPrompts.clip1,
-                        duration: String(STAGED_30S_CLIP_DURATION)
-                    },
+                    clip1Parameters,
                     providerApiKey,
                     {
                         excludeKeySlots: opusExcludeKeySlots,
-                        env: req?.env
+                        env: req?.env,
+                        stageReferenceImage: stageOpusReferenceImageForGenerate
                     }
                 );
         } else {

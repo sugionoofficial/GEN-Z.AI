@@ -6,12 +6,17 @@
 // File:
 //   scripts/run-staged-video-30s.mjs
 //
-// Menjalankan pipeline bertahap Seedance 2.5 Reference to Video 30s:
+// Menjalankan pipeline bertahap 20s (2 × 10s) & 30s (3 × 10s) untuk:
+//   - Seedance 2.5 Reference to Video 30s (`opus-seedance-2.5-r2v-30s`)
+//   - MiniMax Hailuo 3 First & Last Frame 30s (`opus-hailuo-3-i2v-30s`)
+//
+// Alur:
 //   1. Tunggu Klip 1 (0-10s) selesai -> simpan di Supabase Storage
 //      -> ekstrak frame paling akhir Klip 1
 //   2. Buat & tunggu Klip 2 (11-20s) memakai frame akhir Klip 1
-//      -> simpan di Supabase Storage -> ekstrak frame paling akhir Klip 2
-//   3. Buat & tunggu Klip 3 (21-30s) memakai frame akhir Klip 2
+//      (+ frame akhir user bila durasi target 20s) -> simpan di Supabase Storage
+//   3. Jika durasi target 30s: ekstrak frame paling akhir Klip 2 -> buat & tunggu
+//      Klip 3 (21-30s) memakai frame akhir Klip 2 (+ frame akhir user opsional)
 //      -> simpan di Supabase Storage
 //   4. Gabungkan klip secara mulus (tanpa lompatan frame / audio pop)
 //      -> simpan hasil akhir di Supabase Storage -> tampilkan di History
@@ -285,7 +290,7 @@ export async function runStagedVideoOrchestrator({
         return status === "cancelled";
     }
 
-    async function probeVideoFile(localPath) {
+    async function probeVideoFile(localPath, fallbackHasAudio = true) {
         try {
             const { stdout } = await execFileImpl("ffprobe", [
                 "-v",
@@ -312,7 +317,13 @@ export async function runStagedVideoOrchestrator({
 
             return { width, height, fps, duration, hasAudio };
         } catch {
-            return { width: 720, height: 1280, fps: 24, duration: 10, hasAudio: true };
+            return {
+                width: 720,
+                height: 1280,
+                fps: 24,
+                duration: 10,
+                hasAudio: Boolean(fallbackHasAudio)
+            };
         }
     }
 
@@ -365,10 +376,10 @@ export async function runStagedVideoOrchestrator({
         return outputPngPath;
     }
 
-    async function mergeSavedClipsToOutput(clipLocalPaths, outputMp4Path, directRefAudio = null) {
+    async function mergeSavedClipsToOutput(clipLocalPaths, outputMp4Path, directRefAudio = null, fallbackHasAudio = true) {
         const infos = [];
         for (const p of clipLocalPaths) {
-            infos.push(await probeVideoFile(p));
+            infos.push(await probeVideoFile(p, fallbackHasAudio));
         }
 
         const useDirectAudio = Boolean(directRefAudio?.path && directRefAudio?.hasAudio);
@@ -579,7 +590,13 @@ export async function runStagedVideoOrchestrator({
         );
         const mergedLocalPath = path.join(tempRoot, `merged-final-${clipCount}clips.mp4`);
 
-        await mergeSavedClipsToOutput(localClipPaths, mergedLocalPath, directRefAudio);
+        const expectedHasAudio = Boolean(job?.request_payload?.generate_audio ?? true);
+        await mergeSavedClipsToOutput(
+            localClipPaths,
+            mergedLocalPath,
+            directRefAudio,
+            expectedHasAudio
+        );
 
         const finalObjectKey = `upscale-videos/outputs/${job.user_id}/staged30-${job.history_id}-${Date.now()}.mp4`;
         const finalStorageRef = await uploadFileToStorage(
