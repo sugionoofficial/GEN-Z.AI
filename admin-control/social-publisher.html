@@ -839,12 +839,12 @@
                                         <label class="inline-check" hidden><input id="manual-quote-random-song" type="checkbox" checked><span>Musik auto-play acak.</span></label>
                                     </div>
                                 </div>
-                                <div class="field"><label for="manual-page">Facebook Page tujuan</label><select id="manual-page" required><option value="">Pilih Page…</option></select></div>
-                                <div class="field" id="manual-social-target-wrap">
-                                    <label for="manual-social-target">Arahkan juga ke medsos lain (opsional)</label>
-                                    <select id="manual-social-target" multiple size="3" aria-label="Akun YouTube/TikTok tambahan">
+                                <div class="field full">
+                                    <label for="manual-page">Tujuan posting — Facebook Page + YouTube/TikTok</label>
+                                    <select id="manual-page" multiple size="6" required aria-label="Tujuan posting (Facebook, YouTube, TikTok)">
+                                        <option value="">Pilih tujuan posting…</option>
                                     </select>
-                                    <span class="help">Opsional — khusus konten <strong>video</strong>: pilih nol akun atau lebih untuk menerbitkan hasil yang sama ke akun YouTube/TikTok yang terhubung. Kosong = hanya ke Facebook Page.</span>
+                                    <span class="help">Pilih <strong>satu Facebook Page</strong> (wajib). Untuk konten <strong>video</strong> Kata-kata Mutiara, boleh pilih juga akun YouTube/TikTok — hasil yang sama otomatis diposting ke tiap akun pilihan.</span>
                                 </div>
                                 <div class="field" id="manual-aspect-wrap"><label for="manual-aspect-ratio">Rasio gambar</label><select id="manual-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
                                 <div class="field full">
@@ -914,12 +914,12 @@
                             </select>
                         </div>
                         <div class="field" id="schedule-character-wrap"><label for="schedule-character">Karakter</label><select id="schedule-character" required><option value="">Pilih karakter…</option></select></div>
-                        <div class="field"><label for="schedule-page">Facebook Page</label><select id="schedule-page" required><option value="">Pilih Page…</option></select></div>
-                        <div class="field" id="schedule-social-target-wrap">
-                            <label for="schedule-social-target">Arahkan juga ke medsos lain (opsional)</label>
-                            <select id="schedule-social-target" multiple size="3" aria-label="Akun YouTube/TikTok tambahan">
+                        <div class="field full">
+                            <label for="schedule-page">Tujuan posting — Facebook Page + YouTube/TikTok</label>
+                            <select id="schedule-page" multiple size="6" required aria-label="Tujuan jadwal (Facebook, YouTube, TikTok)">
+                                <option value="">Pilih tujuan posting…</option>
                             </select>
-                            <span class="help">Opsional — khusus konten <strong>video</strong>: setiap eksekusi jadwal juga menerbitkan hasilnya ke akun YouTube/TikTok yang terhubung. Kosong = hanya ke Facebook Page.</span>
+                            <span class="help">Pilih <strong>satu Facebook Page</strong> (wajib). Untuk jadwal konten <strong>video</strong> Kata-kata Mutiara, boleh pilih juga akun YouTube/TikTok — tiap eksekusi sekalian memposting ke sana.</span>
                         </div>
                         <div class="field"><label for="interval-minutes">Posting setiap</label><div style="display:flex;gap:8px;align-items:center"><input id="interval-minutes" type="number" min="5" max="10080" step="1" value="1440" required><span style="font-size:12px;color:var(--muted);white-space:nowrap">menit</span></div><span class="help" id="interval-help">Minimal 5 menit untuk role ADMIN/OWNER dan 60 menit (1 jam) untuk USER; maksimal 10080 menit (7 hari). 1440 menit = satu post per hari.</span></div>
                         <div class="field"><label for="first-run">Waktu post pertama (WIB)</label><input id="first-run" type="datetime-local" required><span class="help">Berikutnya berulang sesuai interval.</span></div>
@@ -1071,7 +1071,7 @@
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=livechat-nav-20261101"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script type="module" src="./social-publisher.js?v=crosspost-targets-20261103"></script>
+    <script type="module" src="./social-publisher.js?v=tujuan-terpadu-20261103"></script>
     <script src="./social-video-connections.js?v=inline-confirm-20261103"></script>
     <script src="./social-video-composer.js?v=svp-composer-20261103"></script>
     <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>

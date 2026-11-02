@@ -96,5 +96,5 @@ test("tombol Muat ulang blok koneksi menyegarkan Facebook juga", () => {
         /\$\("refresh-social-connections"\)\?\.addEventListener\("click"[^}]*loadDashboard/,
         "listener social-publisher.js wajib memuat ulang dashboard (Facebook)"
     );
-    assert.match(html, /social-publisher\.js\?v=crosspost-targets-20261103/, "pin publisher wajib dimutakhirkan");
+    assert.match(html, /social-publisher\.js\?v=tujuan-terpadu-20261103/, "pin publisher wajib dimutakhirkan");
 });
