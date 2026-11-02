@@ -672,9 +672,13 @@
    --------------------------------------------------------- */
 
 .mon-toast {
-    position: sticky;
-    bottom: 14px;
-    align-self: center;
+    /* Fixed di tengah bawah viewport — bukan sticky di ujung konten.
+       Dulu notifikasi "Pemeriksaan selesai" menempel di dasar halaman
+       yang panjang sehingga tidak pernah terlihat dari atas. */
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    z-index: 90;
     padding: 9px 16px;
     border-radius: 999px;
     border: 1px solid var(--bb-green-line);
@@ -683,14 +687,14 @@
     font-size: 12px;
     letter-spacing: .04em;
     opacity: 0;
-    transform: translateY(8px);
+    transform: translate(-50%, 8px);
     transition: opacity .2s ease, transform .2s ease;
     pointer-events: none;
 }
 
 .mon-toast--show {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(-50%, 0);
 }
 
 .mon-toast--error {
