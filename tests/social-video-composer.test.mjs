@@ -285,9 +285,10 @@ test("riwayat posting YouTube/TikTok TIDAK ada di kartu composer, tapi di blok R
     assert.match(runsSection, /id="social-video-history"/, "sub-blok status YouTube/TikTok wajib ada di riwayat");
     assert.match(runsSection, /id="svh-list"/, "daftar status posting YouTube/TikTok wajib ada di riwayat");
     assert.match(runsSection, /Status posting YouTube &amp; TikTok/, "judul sub-blok wajib jelas");
+    assert.match(runsSection, /sudah benar-benar terbit \u2014 ini riwayat/, "legenda pembeda jadwal vs riwayat wajib ada");
     assert.match(runsSection, /id="refresh"/, "tombol muat ulang riwayat lama wajib tetap ada");
 
-    assert.match(studioHtml, /social-video-composer\.js\?v=svp-composer-20261102b/, "pin composer wajib dimutakhirkan");
+    assert.match(studioHtml, /social-video-composer\.js\?v=svp-composer-20261102c/, "pin composer wajib dimutakhirkan");
     assert.match(studioHtml, /social-publisher\.js\?v=publish-confirm-inline-20261102-runs-logo/, "pin social-publisher.js wajib dimutakhirkan");
 });
 
@@ -488,6 +489,9 @@ test("jadwal terjadwal tampil di antrean dan bisa dibatalkan lewat cancel_post",
     const item = ids["svh-list"].children[0];
     assert.match(item.textContent, /Video jadwal/);
     assert.match(item.textContent, /Terjadwal/);
+    /* Jadwal wajib berawalan "Jadwal tayang:" supaya tidak tertukar dengan riwayat. */
+    assert.match(item.textContent, /Jadwal tayang: /);
+    assert.doesNotMatch(item.textContent, /Tertayang:/);
 
     /* Baris riwayat YouTube wajib membawa logo YouTube di depan. */
     const title = item.children[0]?.children[0];

@@ -572,8 +572,10 @@
             meta.className = "svp-post-meta";
             const bits = [];
             if (account) bits.push(accountLabel(account));
-            if (post.status === "scheduled" && post.scheduled_for) bits.push(`Tayang: ${formatWhen(post.scheduled_for)}`);
-            if (post.published_at) bits.push(`Tayang: ${formatWhen(post.published_at)}`);
+            /* Pembeda jelas: jadwal autopost pakai awalan "Jadwal tayang",
+               yang sudah terbit pakai "Tertayang" (jam asli terbit). */
+            if (post.status === "scheduled" && post.scheduled_for) bits.push(`Jadwal tayang: ${formatWhen(post.scheduled_for)}`);
+            if (post.published_at) bits.push(`Tertayang: ${formatWhen(post.published_at)}`);
             meta.textContent = bits.join(" · ");
 
             const status = document.createElement("span");
