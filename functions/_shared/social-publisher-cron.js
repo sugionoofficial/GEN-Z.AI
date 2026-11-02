@@ -743,11 +743,39 @@ async function processRun(env, config, claimedRun, options = {}) {
             }
             quoteText = quoteResult.quoteText;
             quoteThemeLabel = quotePlan.themeLabel;
-            prompt = "solid-black-background (#000000)";
             generated = { model: resolvedQuoteModel };
+            /* Latar belakang Kata-kata Mutiara: gambar AI yang mengikuti
+               kalimat & tema kutipan (permintaan user). Gagal generate
+               jatuh kembali ke latar hitam tanpa menggagalkan jadwal. */
+            let backgroundBytes = null;
+            let backgroundModel = "";
+            try {
+                const background = await generateSocialQuoteImage({
+                    env,
+                    prompt: buildQuoteImagePrompt({ quotePlan, aspectRatio: "9:16" }),
+                    aspectRatio: "9:16",
+                    imageProvider: quoteAiProvider,
+                    /* T2I tanpa referensi — kuota terpisah dari model gambar karakter (i2i). */
+                    imageModel: quoteAiProvider === "qwencloud" ? "wan2.6-t2i" : ""
+                });
+                if (background?.bytes?.length) {
+                    backgroundBytes = background.bytes;
+                    backgroundModel = background.model || "";
+                    if (quoteAiProvider === "qwencloud") {
+                        recordModelUsage(config, backgroundModel).catch(recordError => {
+                            console.error("Could not record QwenCloud quote background usage:", recordError?.message || "unknown error");
+                        });
+                    }
+                }
+            } catch (backgroundError) {
+                console.warn(`[Social Publisher] Latar kutipan gagal dibuat, memakai latar hitam: ${String(backgroundError?.message || backgroundError).slice(0, 200)}`);
+            }
+            prompt = backgroundBytes ? "ai-scenic-quote-background" : "solid-black-background (#000000)";
+
             const audioBytes = await resolveStorySongAudioBytes(env, config, song);
             const storyCard = await renderQuoteStoryCard({
-                solidBlack: true,
+                backgroundBytes,
+                solidBlack: !backgroundBytes,
                 quoteText,
                 authorName: page.page_name
             });
@@ -759,7 +787,7 @@ async function processRun(env, config, claimedRun, options = {}) {
                 maxDurationSec: maxQuoteVideoDurationForTarget(quotePublishTarget)
             });
             storyMp4Bytes = encodedStory.mp4Bytes;
-            // Postingan Kata-kata Mutiara + Musik memakai latar hitam polos (#000000) tanpa kuota gambar + teks LLM QwenCloud.
+            // Kata-kata Mutiara + Musik: latar AI sesuai kalimat (1 kuota gambar per run); teks tetap bebas foto/orang.
             /* Caption mutiara = teks mutiara + tautan profil (bila diisi). */
             caption = [quoteText, formatTagBlockForCaption({
                 tag_name: schedule.tag_name || "",
@@ -767,7 +795,8 @@ async function processRun(env, config, claimedRun, options = {}) {
             })].filter(Boolean).join("\n\n");
             scenePlanRecord = {
                 ...quotePlan,
-                background_mode: "solid_black",
+                background_mode: backgroundBytes ? "ai_scenic" : "solid_black",
+                ...(backgroundModel ? { background_model: backgroundModel } : {}),
                 post_mode: "quote",
                 quote_publish_target: quotePublishTarget,
                 quote_llm_model: resolvedQuoteModel,

@@ -138,16 +138,24 @@ test("queueSocialVideoCrosspost: hanya akun aktif milik user, dan nol pilihan = 
    2. STRUKTUR — FORM FB PUNYA PILIHAN YOUTUBE/TIKTOK
    --------------------------------------------------------- */
 
-test("SATU pilihan tujuan terpadu: Facebook Page + YouTube/TikTok di select yang sama", () => {
+test("SATU dropdown tujuan terpadu (bukan listbox): FB Page + YouTube/TikTok di select tersembunyi", () => {
     for (const selectId of ["manual-page", "schedule-page"]) {
         const selectStart = studioHtml.indexOf(`id="${selectId}"`);
         assert.notEqual(selectStart, -1, `pilihan tujuan #${selectId} wajib ada`);
         const selectTag = studioHtml.slice(selectStart - 10, studioHtml.indexOf(">", selectStart) + 1);
-        assert.match(selectTag, /multiple/, "pilihan tujuan wajib multi-pilih agar memuat FB + YouTube/TikTok sekaligus");
+        assert.match(selectTag, /multiple/, "select tetap multi-pilih sebagai sumber data FB + YouTube/TikTok");
+        assert.match(selectTag, /hidden/, "select mentah wajib tersembunyi — yang tampil dropdown");
+        assert.match(studioHtml, new RegExp(`class="dest-picker" data-dest-for="${selectId}"`), "dropdown tujuan wajib terpasang di form");
     }
-    assert.match(studioHtml, /Tujuan posting — Facebook Page \+ YouTube\/TikTok/, "label wajib menjelaskan isinya FB + YT/TT");
-    assert.match(studioHtml, /boleh pilih juga akun YouTube\/TikTok/, "penjelasan crosspost wajib ada di form");
-    assert.doesNotMatch(studioHtml, /manual-social-target|schedule-social-target|Arahkan juga ke medsos lain/, "pilihan ganda terpisah (dobel) wajib dihapus");
+    assert.match(studioHtml, /<label for="manual-page">Tujuan posting<\/label>/, "label sederhana 'Tujuan posting'");
+    assert.match(studioHtml, /pilihan YouTube\/TikTok otomatis muncul/, "penjelasan kemunculan YT/TT saat mode video wajib ada");
+    assert.doesNotMatch(studioHtml, /manual-social-target|schedule-social-target|Arahkan juga ke medsos lain|size="6"/, "listbox & pilihan ganda terpisah wajib dihapus");
+    /* Dropdown dibangun publisher.js: radio FB, grup YT/TT terkunci mode video, tombol selesai. */
+    assert.match(publisherSource, /function renderDestinationPicker\(/, "komponen dropdown tujuan wajib ada");
+    assert.match(publisherSource, /Facebook Page — wajib pilih satu/, "grup radio Facebook wajib ada");
+    assert.match(publisherSource, /Terbitkan juga ke — khusus video Kata-kata Mutiara/, "grup crosspost wajib ada");
+    assert.match(publisherSource, /kind === "social" && !isVideoQuoteMode\(selectId\)/, "grup YouTube/TikTok HANYA muncul saat mode Kata-kata Mutiara (video berdurasi)");
+    assert.match(publisherSource, /inputType === "radio"/, "pemilihan Facebook Page wajib radio (maksimal satu)");
 });
 
 test("akun Facebook TIDAK diulang di grup YouTube/TikTok (saringan platform)", () => {
@@ -169,8 +177,6 @@ test("publisher kirim pilihan crosspost: body jadwal + header post manual", () =
     assert.match(publisherSource, /X-Social-Video-Accounts/, "post manual wajib mengirim header crosspost");
     assert.match(publisherSource, /socialTargetIds = isQuoteVideo \? selectedSocialDestinationIds\("manual-page"\) : \[\]/, "post manual hanya crosspost saat konten video");
     assert.match(publisherSource, /applySocialDestinationOptions\(\)/, "pilihan YouTube/TikTok wajib diisi dari akun terhubung");
-    /* Mode non-video: opsi YouTube/TikTok dimatikan (foto karakter tidak bisa ke YT/TT). */
-    assert.match(publisherSource, /option\.disabled = !isQuote/, "opsi YouTube/TikTok wajib mati saat mode bukan video");
 });
 
 test("server proses crosspost: API manual + cron jadwal, kolom DB dengan fallback", () => {

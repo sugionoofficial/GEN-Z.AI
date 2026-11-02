@@ -232,6 +232,18 @@
         .status.ok{color:var(--green)}
         .status.warn{color:var(--amber)}
         .social-connection-card .notice{margin:0}.social-connection-card .status{margin:0}
+        .dest-picker{position:relative}
+        .dest-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid #35445a;border-radius:10px;background:#101c2c;color:#f4f8ff;font:inherit;font-weight:650;cursor:pointer;text-align:left}
+        .dest-toggle .dest-caret{flex:0 0 auto;transition:transform .15s}
+        .dest-toggle[aria-expanded="true"] .dest-caret{transform:rotate(180deg)}
+        .dest-panel{position:absolute;z-index:40;top:calc(100% + 6px);left:0;right:0;max-height:300px;overflow:auto;background:#0d1626;border:1px solid #35445a;border-radius:12px;padding:10px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+        .dest-group + .dest-group{margin-top:10px;padding-top:10px;border-top:1px solid #22304a}
+        .dest-group-title{margin:0 0 6px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#9fb0c9}
+        .dest-option{display:flex;gap:9px;align-items:center;padding:10px 8px;border-radius:9px;cursor:pointer}
+        .dest-option:hover{background:#152238}
+        .dest-option input{accent-color:#3f6fff;width:18px;height:18px;flex:0 0 auto}
+        .dest-done{margin-top:10px;width:100%}
+        @media(max-width:768px){.dest-panel{max-height:56vh}}
         @media(max-width:960px){.social-connections-grid{grid-template-columns:1fr}}
         #usage-tutorial{margin-top:14px}#connect-help .actions{margin-top:10px}
         @media(max-width:768px){#social-connections{padding:16px}.social-connection-card{padding:12px}.social-connection-card .actions .btn{flex:1 1 auto}}
@@ -840,11 +852,12 @@
                                     </div>
                                 </div>
                                 <div class="field full">
-                                    <label for="manual-page">Tujuan posting — Facebook Page + YouTube/TikTok</label>
-                                    <select id="manual-page" multiple size="6" required aria-label="Tujuan posting (Facebook, YouTube, TikTok)">
+                                    <label for="manual-page">Tujuan posting</label>
+                                    <div class="dest-picker" data-dest-for="manual-page"></div>
+                                    <select id="manual-page" multiple hidden aria-label="Tujuan posting (Facebook, YouTube, TikTok)">
                                         <option value="">Pilih tujuan posting…</option>
                                     </select>
-                                    <span class="help">Pilih <strong>satu Facebook Page</strong> (wajib). Untuk konten <strong>video</strong> Kata-kata Mutiara, boleh pilih juga akun YouTube/TikTok — hasil yang sama otomatis diposting ke tiap akun pilihan.</span>
+                                    <span class="help">Pilih <strong>satu Facebook Page</strong>. Saat mode <strong>Kata-kata Mutiara</strong> (hasil berupa video berdurasi), pilihan YouTube/TikTok otomatis muncul — centang sekalian bila ingin hasil yang sama diposting ke sana.</span>
                                 </div>
                                 <div class="field" id="manual-aspect-wrap"><label for="manual-aspect-ratio">Rasio gambar</label><select id="manual-aspect-ratio"><option value="9:16">Vertikal 9:16</option><option value="16:9">Horizontal 16:9</option></select></div>
                                 <div class="field full">
@@ -915,11 +928,12 @@
                         </div>
                         <div class="field" id="schedule-character-wrap"><label for="schedule-character">Karakter</label><select id="schedule-character" required><option value="">Pilih karakter…</option></select></div>
                         <div class="field full">
-                            <label for="schedule-page">Tujuan posting — Facebook Page + YouTube/TikTok</label>
-                            <select id="schedule-page" multiple size="6" required aria-label="Tujuan jadwal (Facebook, YouTube, TikTok)">
+                            <label for="schedule-page">Tujuan posting</label>
+                            <div class="dest-picker" data-dest-for="schedule-page"></div>
+                            <select id="schedule-page" multiple hidden aria-label="Tujuan jadwal (Facebook, YouTube, TikTok)">
                                 <option value="">Pilih tujuan posting…</option>
                             </select>
-                            <span class="help">Pilih <strong>satu Facebook Page</strong> (wajib). Untuk jadwal konten <strong>video</strong> Kata-kata Mutiara, boleh pilih juga akun YouTube/TikTok — tiap eksekusi sekalian memposting ke sana.</span>
+                            <span class="help">Pilih <strong>satu Facebook Page</strong>. Saat mode <strong>Kata-kata Mutiara</strong> (hasil berupa video berdurasi), pilihan YouTube/TikTok otomatis muncul — tiap eksekusi jadwal sekalian memposting ke akun yang dicentang.</span>
                         </div>
                         <div class="field"><label for="interval-minutes">Posting setiap</label><div style="display:flex;gap:8px;align-items:center"><input id="interval-minutes" type="number" min="5" max="10080" step="1" value="1440" required><span style="font-size:12px;color:var(--muted);white-space:nowrap">menit</span></div><span class="help" id="interval-help">Minimal 5 menit untuk role ADMIN/OWNER dan 60 menit (1 jam) untuk USER; maksimal 10080 menit (7 hari). 1440 menit = satu post per hari.</span></div>
                         <div class="field"><label for="first-run">Waktu post pertama (WIB)</label><input id="first-run" type="datetime-local" required><span class="help">Berikutnya berulang sesuai interval.</span></div>
@@ -1071,7 +1085,7 @@
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=livechat-nav-20261101"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script type="module" src="./social-publisher.js?v=tujuan-terpadu-20261103"></script>
+    <script type="module" src="./social-publisher.js?v=dropdown-quotebg-20261103"></script>
     <script src="./social-video-connections.js?v=inline-confirm-20261103"></script>
     <script src="./social-video-composer.js?v=svp-composer-20261103"></script>
     <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
