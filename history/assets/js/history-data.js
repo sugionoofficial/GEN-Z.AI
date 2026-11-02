@@ -223,6 +223,100 @@
     const PRIVATE_MEDIA_REFRESH_MS =
         5 * 60 * 1000;
 
+    /* =====================================================
+       ANTI BANJIR REQUEST "Object not found"
+       -----------------------------------------------------
+       Laporan pengguna (02/11/2026): konsol halaman History
+       dipenuhi ribuan POST 400 ke
+       /storage/v1/object/sign/user-uploads/… disertai
+       "Gagal membuat signed URL: … Object not found".
+
+       Penyebabnya bukan file yang hilang secara misterius,
+       melainkan tiga hal yang saling melipatgandakan:
+
+       1. Cron retensi memang MENGHAPUS file itu (upload
+          Generate 1 jam, media upscale 24 jam), tetapi baris
+          riwayat menyimpan referensinya selamanya. Setiap
+          reload mencoba menandatangani ulang file yang sudah
+          pasti tidak ada.
+       2. Kegagalan tidak pernah diingat. Hanya URL sukses yang
+          masuk cache, jadi setiap auto-refresh/status-sync
+          mengulang request yang sama persis.
+       3. Satu request per referensi. 200 baris x 3 kolom =
+          ratusan POST paralel, dan endpoint per-objek menjawab
+          400 untuk file yang hilang sehingga browser mencetak
+          satu error jaringan per file.
+
+       Perbaikan:
+       -Referensi yang lewat masa retensi tidak pernah
+        ditandatangani lagi (hemat request, hasil tetap ditandai
+        kedaluwarsa seperti sebelumnya).
+       -Referensi yang gagal diingat sebentar (negative cache)
+        supaya polling tidak menembak ulang file yang sama.
+       -Penandatanganan digabung lewat `createSignedUrls`
+        (batch). Endpoint batch menjawab 200 dengan status per
+        file, jadi file hilang tidak lagi menjadi error 400 di
+        konsol. Satu request menggantikan ratusan.
+       -Request yang sama yang sedang berjalan dipakai bersama.
+       -Log digabung menjadi satu baris ringkasan, bukan satu
+        baris per file.
+    ===================================================== */
+
+    /** Upload halaman Generate dihapus cron setelah 1 jam. */
+    const PRIVATE_MEDIA_UPLOAD_RETENTION_MS =
+        60 * 60 * 1000;
+
+    /** Media riwayat upscale (input + output) disimpan 24 jam. */
+    const PRIVATE_MEDIA_HISTORY_RETENTION_MS =
+        24 * 60 * 60 * 1000;
+
+    /*
+     * Toleransi jam server vs jam browser. Tanpa ini, baris yang
+     * umurnya persis di batas retensi bisa dianggap kedaluwarsa
+     * beberapa detik terlalu cepat.
+     */
+    const PRIVATE_MEDIA_RETENTION_GRACE_MS =
+        5 * 60 * 1000;
+
+    /**
+     * Referensi yang gagal ditandatangani tidak dicoba lagi selama
+     * jendela ini. Cukup pendek supaya hasil yang BARU selesai
+     * (file belum terupload saat poll pertama) tetap muncul.
+     */
+    const PRIVATE_MEDIA_MISSING_RETRY_MS =
+        60 * 1000;
+
+    /** Batas request paralel saat memakai endpoint per-objek. */
+    const PRIVATE_MEDIA_MAX_CONCURRENCY =
+        6;
+
+    /** Ukuran satu request batch `createSignedUrls`. */
+    const PRIVATE_MEDIA_BATCH_SIZE =
+        50;
+
+    /** Batas jumlah entri cache supaya memori tidak tumbuh terus. */
+    const PRIVATE_MEDIA_CACHE_LIMIT =
+        2000;
+
+    /** ref -> { at } untuk file yang terbukti tidak ada. */
+    const privateMediaMissing =
+        new Map();
+
+    /** ref -> Promise<string> untuk request yang sedang berjalan. */
+    const privateMediaInFlight =
+        new Map();
+
+    /** Referensi yang sudah pernah dilaporkan ke konsol. */
+    const privateMediaMissingLogged =
+        new Set();
+
+    /*
+     * Bila server ternyata tidak menyediakan endpoint batch, ingat
+     * dan pakai jalur per-objek untuk sisa sesi. Tanpa ini, satu
+     * ketidaktersediaan route akan mengosongkan semua thumbnail.
+     */
+    let privateMediaBatchUnsupported = false;
+
     /*
      * Kolom yang bisa berisi referensi media privat.
      * `result_url`       = hasil upscale
@@ -292,6 +386,586 @@
     }
 
 
+    /**
+     * Masa simpan file sesuai aturan cron retensi
+     * (lib/storage-retention/cleanup.js). Nilai 0 berarti prefix
+     * tidak dikelola cron, jadi umurnya tidak boleh ditebak.
+     */
+    function getPrivateMediaRetentionMs(parsed) {
+
+        const objectPath =
+            String(parsed?.objectPath || "");
+
+        if (
+            objectPath.startsWith("generate-input/") ||
+            objectPath.startsWith("generate-inputs/")
+        ) {
+
+            return PRIVATE_MEDIA_UPLOAD_RETENTION_MS;
+        }
+
+        if (
+            objectPath.startsWith("upscale-photos/") ||
+            objectPath.startsWith("upscale-videos/") ||
+            objectPath.startsWith("outputs/")
+        ) {
+
+            return PRIVATE_MEDIA_HISTORY_RETENTION_MS;
+        }
+
+        return 0;
+    }
+
+
+    function getPrivateMediaItemCreatedAt(item) {
+
+        const raw =
+            item?.created_at ||
+            item?.createdAt ||
+            "";
+
+        if (!raw) {
+            return 0;
+        }
+
+        const created =
+            new Date(raw).getTime();
+
+        return Number.isFinite(created) && created > 0
+            ? created
+            : 0;
+    }
+
+
+    /**
+     * File sudah pasti dihapus cron retensi. Referensi seperti ini
+     * tidak perlu dikirim ke Storage API lagi — jawabannya akan
+     * selalu "Object not found".
+     */
+    function isPrivateMediaRetentionExpired(ref, item) {
+
+        const parsed =
+            parsePrivateMediaRef(ref);
+
+        if (!parsed) {
+            return false;
+        }
+
+        const retention =
+            getPrivateMediaRetentionMs(parsed);
+
+        if (!retention) {
+            return false;
+        }
+
+        const created =
+            getPrivateMediaItemCreatedAt(item);
+
+        if (!created) {
+            return false;
+        }
+
+        return (
+            Date.now() - created >=
+            retention + PRIVATE_MEDIA_RETENTION_GRACE_MS
+        );
+    }
+
+
+    function trimPrivateMediaCache(cache) {
+
+        if (cache.size <= PRIVATE_MEDIA_CACHE_LIMIT) {
+            return;
+        }
+
+        const excess =
+            cache.size - PRIVATE_MEDIA_CACHE_LIMIT;
+
+        let removed = 0;
+
+        for (const key of cache.keys()) {
+
+            cache.delete(key);
+            removed++;
+
+            if (removed >= excess) {
+                break;
+            }
+        }
+    }
+
+
+    function rememberPrivateMediaUrl(ref, url) {
+
+        privateMediaCache.set(
+            ref,
+            {
+                url,
+                expiresAt:
+                    Date.now() +
+                    (PRIVATE_MEDIA_TTL_SECONDS - 60) * 1000
+            }
+        );
+
+        privateMediaMissing.delete(ref);
+        trimPrivateMediaCache(privateMediaCache);
+    }
+
+
+    function rememberPrivateMediaMissing(refs) {
+
+        const list =
+            Array.isArray(refs) ? refs : [refs];
+
+        const now =
+            Date.now();
+
+        const fresh = [];
+
+        list.forEach(ref => {
+
+            if (!ref) {
+                return;
+            }
+
+            privateMediaCache.delete(ref);
+
+            privateMediaMissing.set(ref, { at: now });
+
+            if (!privateMediaMissingLogged.has(ref)) {
+                privateMediaMissingLogged.add(ref);
+                fresh.push(ref);
+            }
+        });
+
+        trimPrivateMediaCache(privateMediaMissing);
+        trimPrivateMediaCache(privateMediaMissingLogged);
+
+        return fresh;
+    }
+
+
+    function isPrivateMediaMissingCached(ref) {
+
+        const entry =
+            privateMediaMissing.get(ref);
+
+        if (!entry) {
+            return false;
+        }
+
+        if (
+            Date.now() - entry.at >=
+            PRIVATE_MEDIA_MISSING_RETRY_MS
+        ) {
+
+            privateMediaMissing.delete(ref);
+            return false;
+        }
+
+        return true;
+    }
+
+
+    /**
+     * Satu ringkasan per gelombang, bukan satu warning per file.
+     * Hanya referensi yang BARU diketahui hilang yang dicatat, jadi
+     * auto-refresh tidak mengulang pesan yang sama.
+     */
+    function logPrivateMediaMissing(freshRefs, reason) {
+
+        if (!freshRefs.length) {
+            return;
+        }
+
+        const sample =
+            freshRefs
+                .slice(0, 3)
+                .map(ref => {
+
+                    const parsed =
+                        parsePrivateMediaRef(ref);
+
+                    return parsed?.objectPath || ref;
+                })
+                .join(", ");
+
+        console.info(
+            "[GEN-Z.AI History] " +
+            freshRefs.length +
+            " media privat tidak tersedia (" +
+            reason +
+            "), dilewati tanpa request ulang. Contoh: " +
+            sample +
+            (freshRefs.length > 3 ? ", …" : "")
+        );
+    }
+
+
+    /** Jalankan task dengan batas paralel supaya tidak membanjiri API. */
+    async function runPrivateMediaTasks(tasks, limit) {
+
+        const results = [];
+        let cursor = 0;
+
+        const workers = [];
+        const total =
+            Math.min(
+                Math.max(Number(limit) || 1, 1),
+                tasks.length
+            );
+
+        for (let i = 0; i < total; i++) {
+
+            workers.push(
+                (async () => {
+
+                    while (cursor < tasks.length) {
+
+                        const index = cursor++;
+
+                        results[index] =
+                            await tasks[index]();
+                    }
+                })()
+            );
+        }
+
+        await Promise.all(workers);
+
+        return results;
+    }
+
+
+    /** Error yang berarti endpoint batch tidak tersedia di server. */
+    function isPrivateMediaBatchRouteError(error) {
+
+        const status =
+            Number(error?.status || error?.statusCode || 0);
+
+        return (
+            status === 404 ||
+            status === 405 ||
+            status === 501
+        );
+    }
+
+
+    /**
+     * Tanda tangani satu per satu. Dipakai oleh client lama yang
+     * belum punya `createSignedUrls`, dan sebagai jaring pengaman
+     * bila endpoint batch tidak tersedia di server.
+     */
+    async function signPrivateMediaEntriesIndividually(api, entries, signed) {
+
+        await runPrivateMediaTasks(
+            entries.map(entry => async () => {
+
+                try {
+
+                    const {
+                        data,
+                        error
+                    } = await api.createSignedUrl(
+                        entry.objectPath,
+                        PRIVATE_MEDIA_TTL_SECONDS
+                    );
+
+                    const url =
+                        error ? "" : (data?.signedUrl || "");
+
+                    if (url) {
+
+                        rememberPrivateMediaUrl(entry.ref, url);
+                        signed.set(entry.ref, url);
+
+                    } else {
+
+                        signed.set(entry.ref, "");
+
+                        logPrivateMediaMissing(
+                            rememberPrivateMediaMissing([entry.ref]),
+                            error?.message || "Object not found"
+                        );
+                    }
+
+                } catch (err) {
+
+                    signed.set(entry.ref, "");
+
+                    logPrivateMediaMissing(
+                        rememberPrivateMediaMissing([entry.ref]),
+                        err?.message || "request gagal"
+                    );
+                }
+            }),
+            PRIVATE_MEDIA_MAX_CONCURRENCY
+        );
+    }
+
+
+    /**
+     * Tanda tangani banyak referensi sekaligus.
+     *
+     * `createSignedUrls` (batch) dipakai bila tersedia: satu POST
+     * untuk puluhan path, dan file yang hilang dilaporkan sebagai
+     * status per path di dalam respons 200 — bukan error 400 per
+     * file. Client lama/test double tetap jalan lewat jalur
+     * per-objek dengan batas paralel.
+     */
+    async function requestPrivateMediaSignatures(client, refs) {
+
+        const signed =
+            new Map();
+
+        const byBucket =
+            new Map();
+
+        refs.forEach(ref => {
+
+            const parsed =
+                parsePrivateMediaRef(ref);
+
+            if (!parsed) {
+                signed.set(ref, "");
+                return;
+            }
+
+            if (!byBucket.has(parsed.bucket)) {
+                byBucket.set(parsed.bucket, []);
+            }
+
+            byBucket.get(parsed.bucket).push({
+                ref,
+                objectPath: parsed.objectPath
+            });
+        });
+
+        const batches = [];
+
+        byBucket.forEach((entries, bucket) => {
+
+            for (
+                let offset = 0;
+                offset < entries.length;
+                offset += PRIVATE_MEDIA_BATCH_SIZE
+            ) {
+
+                batches.push({
+                    bucket,
+                    entries:
+                        entries.slice(
+                            offset,
+                            offset + PRIVATE_MEDIA_BATCH_SIZE
+                        )
+                });
+            }
+        });
+
+        await runPrivateMediaTasks(
+            batches.map(batch => async () => {
+
+                const api =
+                    client.storage.from(batch.bucket);
+
+                if (
+                    !privateMediaBatchUnsupported &&
+                    typeof api.createSignedUrls === "function"
+                ) {
+
+                    try {
+
+                        const {
+                            data,
+                            error
+                        } = await api.createSignedUrls(
+                            batch.entries.map(entry => entry.objectPath),
+                            PRIVATE_MEDIA_TTL_SECONDS
+                        );
+
+                        if (error || !Array.isArray(data)) {
+
+                            /*
+                             * Route batch tidak ada / tidak diizinkan
+                             * (404/405/501): bukan file yang hilang.
+                             * Coba lagi lewat jalur per-objek supaya
+                             * media yang masih hidup tetap tampil.
+                             */
+                            if (isPrivateMediaBatchRouteError(error)) {
+
+                                privateMediaBatchUnsupported = true;
+
+                                await signPrivateMediaEntriesIndividually(
+                                    api,
+                                    batch.entries,
+                                    signed
+                                );
+
+                                return;
+                            }
+
+                            /*
+                             * Kegagalan seluruh batch (mis. sesi
+                             * kedaluwarsa) bukan bukti file hilang.
+                             * Tetap dicatat sebentar supaya polling
+                             * tidak menembak ulang detik itu juga.
+                             */
+                            const failed =
+                                rememberPrivateMediaMissing(
+                                    batch.entries.map(entry => entry.ref)
+                                );
+
+                            logPrivateMediaMissing(
+                                failed,
+                                error?.message || "request batch gagal"
+                            );
+
+                            batch.entries.forEach(entry => {
+                                signed.set(entry.ref, "");
+                            });
+
+                            return;
+                        }
+
+                        const byPath =
+                            new Map();
+
+                        data.forEach(entry => {
+
+                            if (entry && typeof entry.path === "string") {
+                                byPath.set(entry.path, entry);
+                            }
+                        });
+
+                        const missing = [];
+
+                        batch.entries.forEach(entry => {
+
+                            const result =
+                                byPath.get(entry.objectPath);
+
+                            const url =
+                                result?.signedUrl || "";
+
+                            if (url) {
+
+                                rememberPrivateMediaUrl(entry.ref, url);
+                                signed.set(entry.ref, url);
+
+                            } else {
+
+                                missing.push(entry.ref);
+                                signed.set(entry.ref, "");
+                            }
+                        });
+
+                        logPrivateMediaMissing(
+                            rememberPrivateMediaMissing(missing),
+                            "sudah dihapus / tidak dapat diakses"
+                        );
+
+                        return;
+
+                    } catch (err) {
+
+                        const failed =
+                            rememberPrivateMediaMissing(
+                                batch.entries.map(entry => entry.ref)
+                            );
+
+                        logPrivateMediaMissing(
+                            failed,
+                            err?.message || "request batch gagal"
+                        );
+
+                        batch.entries.forEach(entry => {
+                            signed.set(entry.ref, "");
+                        });
+
+                        return;
+                    }
+                }
+
+                /* Jalur per-objek untuk client tanpa API batch. */
+                await signPrivateMediaEntriesIndividually(
+                    api,
+                    batch.entries,
+                    signed
+                );
+            }),
+            PRIVATE_MEDIA_MAX_CONCURRENCY
+        );
+
+        return signed;
+    }
+
+
+    /**
+     * Gabungkan request yang sedang berjalan supaya auto-refresh,
+     * status sync, dan pergantian scope tidak menandatangani file
+     * yang sama berulang kali pada saat bersamaan.
+     */
+    function signPrivateMediaRefs(client, refs) {
+
+        const unique = [];
+        const seen =
+            new Set();
+
+        (Array.isArray(refs) ? refs : [refs])
+            .forEach(ref => {
+
+                if (
+                    typeof ref === "string" &&
+                    ref &&
+                    !seen.has(ref)
+                ) {
+
+                    seen.add(ref);
+                    unique.push(ref);
+                }
+            });
+
+        const pending =
+            unique.filter(ref => !privateMediaInFlight.has(ref));
+
+        if (pending.length) {
+
+            const request =
+                requestPrivateMediaSignatures(client, pending)
+                    .catch(() => new Map());
+
+            pending.forEach(ref => {
+
+                const shared =
+                    request.then(signed => {
+
+                        privateMediaInFlight.delete(ref);
+                        return signed.get(ref) || "";
+                    });
+
+                privateMediaInFlight.set(ref, shared);
+            });
+        }
+
+        return Promise.all(
+            unique.map(ref =>
+                privateMediaInFlight.get(ref) ||
+                Promise.resolve(privateMediaCache.get(ref)?.url || "")
+            )
+        ).then(urls => {
+
+            const signed =
+                new Map();
+
+            unique.forEach((ref, index) => {
+                signed.set(ref, urls[index] || "");
+            });
+
+            return signed;
+        });
+    }
+
+
     async function signPrivateMediaUrl(
         client,
         ref,
@@ -305,11 +979,14 @@
             return "";
         }
 
+        const cleanRef =
+            String(ref).trim();
+
         const force =
             options.force === true;
 
         const cached =
-            privateMediaCache.get(ref);
+            privateMediaCache.get(cleanRef);
 
         if (
             !force &&
@@ -320,53 +997,71 @@
             return cached.url;
         }
 
-        try {
-
-            const {
-                data,
-                error
-            } = await client
-                .storage
-                .from(parsed.bucket)
-                .createSignedUrl(
-                    parsed.objectPath,
-                    PRIVATE_MEDIA_TTL_SECONDS
-                );
-
-            if (error || !data?.signedUrl) {
-
-                console.warn(
-                    "Gagal membuat signed URL:",
-                    parsed.objectPath,
-                    error?.message || ""
-                );
-
-                return "";
-            }
-
-            privateMediaCache.set(
-                ref,
-                {
-                    url: data.signedUrl,
-                    expiresAt:
-                        Date.now() +
-                        (PRIVATE_MEDIA_TTL_SECONDS - 60) *
-                        1000
-                }
-            );
-
-            return data.signedUrl;
-
-        } catch (err) {
-
-            console.warn(
-                "Gagal membuat signed URL:",
-                parsed.objectPath,
-                err?.message || err
-            );
-
+        if (!force && isPrivateMediaMissingCached(cleanRef)) {
             return "";
         }
+
+        const signed =
+            await signPrivateMediaRefs(client, [cleanRef]);
+
+        return signed.get(cleanRef) || "";
+    }
+
+
+    /**
+     * Tulis hasil penandatanganan ke baris riwayat.
+     *
+     * Hanya `result_url` yang boleh menentukan status kedaluwarsa
+     * MEDIA HASIL. Referensi input (foto/video acuan) memang dihapus
+     * lebih cepat: upload di halaman Generate hanya disimpan 1 jam.
+     * Gagal menandatangani referensi TIDAK berarti hasil generation
+     * hilang, jadi baris riwayat tidak boleh ditandai kedaluwarsa
+     * hanya karena itu.
+     */
+    function applyPrivateMediaUrl(item, field, url) {
+
+        const previous =
+            item[field];
+
+        const previousExpired =
+            field === "result_url"
+                ? item.media_expired === true
+                : item.reference_expired?.[field] === true;
+
+        /*
+         * Kosongkan kalau gagal: lebih baik UI menampilkan
+         * placeholder daripada "supabase-private://" mentah.
+         */
+        item[field] =
+            url || "";
+
+        if (!url) {
+
+            if (field === "result_url") {
+
+                item.media_expired = true;
+
+            } else {
+
+                item.reference_expired =
+                    item.reference_expired || {};
+
+                item.reference_expired[field] = true;
+            }
+
+        } else if (field === "result_url") {
+
+            delete item.media_expired;
+
+        } else if (item.reference_expired) {
+
+            delete item.reference_expired[field];
+        }
+
+        return (
+            previous !== item[field] ||
+            previousExpired !== Boolean(!url)
+        );
     }
 
 
@@ -387,7 +1082,9 @@
             return items;
         }
 
-        const tasks = [];
+        const targets = [];
+        const needed = [];
+        const retentionExpired = [];
 
         items.forEach(item => {
 
@@ -408,89 +1105,93 @@
                     return;
                 }
 
-                tasks.push(
-                    (async () => {
+                const cleanRef =
+                    ref.trim();
 
-                        const cleanRef =
-                            ref.trim();
+                /*
+                 * Simpan referensi asli supaya bisa ditandatangani
+                 * ulang saat token mendekati kedaluwarsa.
+                 */
+                item.__privateMediaRefs =
+                    item.__privateMediaRefs || {};
 
-                        /*
-                         * Simpan referensi asli supaya bisa
-                         * ditandatangani ulang saat token
-                         * mendekati kedaluwarsa.
-                         */
-                        item.__privateMediaRefs =
-                            item.__privateMediaRefs || {};
+                item.__privateMediaRefs[field] =
+                    cleanRef;
 
-                        item.__privateMediaRefs[field] =
-                            cleanRef;
+                /*
+                 * File yang sudah lewat masa retensi tidak dikirim
+                 * ke Storage API: cron pasti sudah menghapusnya.
+                 */
+                if (isPrivateMediaRetentionExpired(cleanRef, item)) {
 
-                        const url =
-                            await signPrivateMediaUrl(
-                                client,
-                                cleanRef
-                            );
+                    retentionExpired.push(cleanRef);
+                    applyPrivateMediaUrl(item, field, "");
+                    return;
+                }
 
-                        /*
-                         * Kosongkan kalau gagal: lebih baik UI
-                         * menampilkan placeholder daripada
-                         * "supabase-private://" mentah.
-                         */
-                        item[field] =
-                            url || "";
+                targets.push({
+                    item,
+                    field,
+                    ref: cleanRef
+                });
 
-                        /*
-                         * Hanya `result_url` yang boleh menentukan
-                         * status kedaluwarsa MEDIA HASIL.
-                         *
-                         * Referensi input (foto/video acuan) memang
-                         * dihapus lebih cepat: upload di halaman
-                         * Generate hanya disimpan 1 jam. Gagal
-                         * menandatangani referensi TIDAK berarti
-                         * hasil generation hilang, jadi baris
-                         * riwayat tidak boleh ditandai kedaluwarsa
-                         * hanya karena itu.
-                         */
-                        if (!url) {
+                const cached =
+                    privateMediaCache.get(cleanRef);
 
-                            if (
-                                field === "result_url"
-                            ) {
+                if (
+                    cached &&
+                    cached.expiresAt > Date.now()
+                ) {
 
-                                item.media_expired =
-                                    true;
+                    applyPrivateMediaUrl(item, field, cached.url);
+                    return;
+                }
 
-                            } else {
+                if (isPrivateMediaMissingCached(cleanRef)) {
 
-                                item.reference_expired =
-                                    item.reference_expired || {};
+                    applyPrivateMediaUrl(item, field, "");
+                    return;
+                }
 
-                                item.reference_expired[field] =
-                                    true;
-                            }
-
-                        } else if (
-                            field === "result_url"
-                        ) {
-
-                            delete item.media_expired;
-
-                        } else if (
-                            item.reference_expired
-                        ) {
-
-                            delete item.reference_expired[field];
-                        }
-                    })()
-                );
+                needed.push(cleanRef);
             });
         });
 
-        if (!tasks.length) {
-            return items;
-        }
+        logPrivateMediaMissing(
+            rememberPrivateMediaMissing(retentionExpired),
+            "lewat masa simpan retensi"
+        );
 
-        await Promise.all(tasks);
+        if (needed.length) {
+
+            const signed =
+                await signPrivateMediaRefs(client, needed);
+
+            targets.forEach(target => {
+
+                if (target.item[target.field] !== target.ref) {
+                    return;
+                }
+
+                const cached =
+                    privateMediaCache.get(target.ref);
+
+                if (
+                    cached &&
+                    cached.expiresAt > Date.now()
+                ) {
+
+                    applyPrivateMediaUrl(target.item, target.field, cached.url);
+                    return;
+                }
+
+                applyPrivateMediaUrl(
+                    target.item,
+                    target.field,
+                    signed.get(target.ref) || ""
+                );
+            });
+        }
 
         ensurePrivateMediaWatch();
 
@@ -499,7 +1200,8 @@
 
     /*
      * Perbarui signed URL yang mendekati kedaluwarsa tanpa reload
-     * halaman. Hanya baris yang punya referensi tersimpan.
+     * halaman. Hanya baris yang punya referensi tersimpan, dan
+     * hanya file yang masih mungkin ada.
      */
     async function refreshPrivateMediaRefs() {
 
@@ -521,7 +1223,8 @@
         const now =
             Date.now();
 
-        const tasks = [];
+        const targets = [];
+        const needed = [];
         let changed = false;
 
         items.forEach(item => {
@@ -543,6 +1246,28 @@
                     return;
                 }
 
+                /*
+                 * Sama seperti resolvePrivateMediaRefs: file yang
+                 * sudah dihapus cron tidak ditandatangani ulang.
+                 */
+                if (isPrivateMediaRetentionExpired(ref, item)) {
+
+                    if (applyPrivateMediaUrl(item, field, "")) {
+                        changed = true;
+                    }
+
+                    return;
+                }
+
+                /*
+                 * File yang baru saja terbukti tidak ada dilewati.
+                 * Tanpa penjaga ini, timer 5 menit akan mengulang
+                 * ratusan request "Object not found" selamanya.
+                 */
+                if (isPrivateMediaMissingCached(ref)) {
+                    return;
+                }
+
                 const cached =
                     privateMediaCache.get(ref);
 
@@ -555,68 +1280,37 @@
                     return;
                 }
 
-                tasks.push(
-                    (async () => {
-
-                        const url =
-                            await signPrivateMediaUrl(
-                                client,
-                                ref,
-                                { force: true }
-                            );
-
-                        if (!url) {
-
-                            item[field] = "";
-
-                            /* Lihat resolvePrivateMediaRefs: hanya
-                               result_url yang menandai kedaluwarsa. */
-                            if (
-                                field === "result_url"
-                            ) {
-
-                                item.media_expired = true;
-
-                            } else {
-
-                                item.reference_expired =
-                                    item.reference_expired || {};
-
-                                item.reference_expired[field] =
-                                    true;
-                            }
-
-                            changed = true;
-
-                            return;
-                        }
-
-                        item[field] = url;
-
-                        if (
-                            field === "result_url"
-                        ) {
-
-                            delete item.media_expired;
-
-                        } else if (
-                            item.reference_expired
-                        ) {
-
-                            delete item.reference_expired[field];
-                        }
-
-                        changed = true;
-                    })()
-                );
+                targets.push({ item, field, ref });
+                needed.push(ref);
             });
         });
 
-        if (!tasks.length) {
-            return false;
+        if (!targets.length) {
+
+            if (
+                changed &&
+                typeof App.renderHistory ===
+                    "function"
+            ) {
+
+                App.renderHistory();
+            }
+
+            return changed;
         }
 
-        await Promise.all(tasks);
+        const signed =
+            await signPrivateMediaRefs(client, needed);
+
+        targets.forEach(target => {
+
+            const url =
+                signed.get(target.ref) || "";
+
+            if (applyPrivateMediaUrl(target.item, target.field, url)) {
+                changed = true;
+            }
+        });
 
         if (
             changed &&
@@ -664,6 +1358,11 @@
     App.resolvePrivateMediaRefs =
         resolvePrivateMediaRefs;
 
+    App.isPrivateMediaRef =
+        isPrivateMediaRef;
+
+    App.isPrivateMediaRetentionExpired =
+        isPrivateMediaRetentionExpired;
 
     /* =====================================================
        LOAD HISTORY

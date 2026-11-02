@@ -89,6 +89,38 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
    ≤ 5 menit dan me-render ulang tabel, jadi thumbnail tidak mati meski
    halaman dibiarkan terbuka lebih dari 1 jam.
 
+## Halaman History: mencegah banjir "Object not found"
+
+Baris riwayat hidup jauh lebih lama daripada file medianya. Tanpa penjaga,
+setiap reload/auto-refresh meminta signed URL untuk file yang **sudah pasti
+dihapus cron**, dan Storage API menjawab `400 Object not found` per file.
+Dengan 200 baris x 3 kolom media, satu halaman bisa mengirim ratusan POST
+gagal setiap 10 detik (laporan pengguna 02/11/2026: ribuan entri konsol).
+
+`history/assets/js/history-data.js` sekarang memakai empat lapis penjaga:
+
+1. **Lewat retensi → tidak dikirim.** Referensi yang umur barisnya sudah
+   melewati TTL (1 jam `generate-input/`, 24 jam `upscale-*`/`outputs/`,
+   plus toleransi jam 5 menit) langsung ditandai kedaluwarsa tanpa menyentuh
+   Storage API. Prefix yang tidak dikelola cron tidak pernah ditebak umurnya.
+2. **Kegagalan diingat.** Referensi yang terbukti tidak ada masuk
+   *negative cache* selama 60 detik, jadi polling tidak menembak ulang file
+   yang sama. Jendela ini pendek supaya hasil yang baru selesai di-upload
+   tetap muncul.
+3. **Batch, bukan per file.** Penandatanganan memakai `createSignedUrls`
+   (maks 50 path per request). Endpoint batch menjawab `200` dengan status
+   per path, sehingga file hilang tidak lagi menjadi error jaringan `400`
+   di konsol. Request paralel untuk path yang sama dipakai bersama, dan
+   jalur per-objek (client lama / route batch tidak tersedia) dibatasi
+   6 request paralel.
+4. **Log diringkas.** Satu baris `console.info` per gelombang, hanya untuk
+   referensi yang **baru** diketahui hilang — bukan satu `console.warn`
+   per file per reload.
+
+Perilaku UI tidak berubah: hanya kegagalan `result_url` yang menandai media
+hasil kedaluwarsa, referensi input yang hilang tidak menghilangkan hasil,
+dan tidak ada fallback ke URL publik.
+
 ## Implementasi
 
 - Aturan TTL & pembersihan: `lib/storage-retention/cleanup.js`
