@@ -138,12 +138,22 @@ test("queueSocialVideoCrosspost: hanya akun aktif milik user, dan nol pilihan = 
    2. STRUKTUR — FORM FB PUNYA PILIHAN YOUTUBE/TIKTOK
    --------------------------------------------------------- */
 
-test("Buat posting manual & Buat jadwal autopost punya pilihan arah YouTube/TikTok", () => {
-    assert.match(studioHtml, /id="manual-social-target"[\s\S]*?aria-label="Akun YouTube\/TikTok tambahan"/, "form manual wajib punya pilihan medsos lain");
-    assert.match(studioHtml, /id="schedule-social-target"[\s\S]*?aria-label="Akun YouTube\/TikTok tambahan"/, "form jadwal wajib punya pilihan medsos lain");
-    assert.match(studioHtml, /Arahkan juga ke medsos lain \(opsional\)/);
-    /* Hanya relevan untuk konten video. */
-    assert.match(studioHtml, /khusus konten <strong>video<\/strong>/);
+test("SATU pilihan tujuan terpadu: Facebook Page + YouTube/TikTok di select yang sama", () => {
+    for (const selectId of ["manual-page", "schedule-page"]) {
+        const selectStart = studioHtml.indexOf(`id="${selectId}"`);
+        assert.notEqual(selectStart, -1, `pilihan tujuan #${selectId} wajib ada`);
+        const selectTag = studioHtml.slice(selectStart - 10, studioHtml.indexOf(">", selectStart) + 1);
+        assert.match(selectTag, /multiple/, "pilihan tujuan wajib multi-pilih agar memuat FB + YouTube/TikTok sekaligus");
+    }
+    assert.match(studioHtml, /Tujuan posting — Facebook Page \+ YouTube\/TikTok/, "label wajib menjelaskan isinya FB + YT/TT");
+    assert.match(studioHtml, /boleh pilih juga akun YouTube\/TikTok/, "penjelasan crosspost wajib ada di form");
+    assert.doesNotMatch(studioHtml, /manual-social-target|schedule-social-target|Arahkan juga ke medsos lain/, "pilihan ganda terpisah (dobel) wajib dihapus");
+});
+
+test("akun Facebook TIDAK diulang di grup YouTube/TikTok (saringan platform)", () => {
+    assert.match(publisherSource, /\["youtube", "tiktok"\]\.includes\(String\(item\.platform \|\| ""\)\)/, "grup tambahan wajib hanya YouTube/TikTok — akun Facebook sudah jadi tujuan utama");
+    assert.match(publisherSource, /markOptionKind\(option, "fb"\)/, "opsi Facebook Page wajib ditandai kind fb");
+    assert.match(publisherSource, /selectedFacebookPageId/, "Page tujuan wajib dibaca dari opsi ber-kind fb");
 });
 
 test("blok composer 4 dijelaskan khusus YouTube/TikTok supaya tidak terkesan duplikat", () => {
@@ -155,12 +165,12 @@ test("blok composer 4 dijelaskan khusus YouTube/TikTok supaya tidak terkesan dup
 });
 
 test("publisher kirim pilihan crosspost: body jadwal + header post manual", () => {
-    assert.match(publisherSource, /social_video_account_ids: isQuote \? selectedSocialAccountIds\("schedule-social-target"\) : \[\]/, "submitSchedule wajib mengirim pilihan crosspost (mode quote)");
+    assert.match(publisherSource, /social_video_account_ids: isQuote \? selectedSocialDestinationIds\("schedule-page"\) : \[\]/, "submitSchedule wajib mengirim pilihan crosspost (mode quote)");
     assert.match(publisherSource, /X-Social-Video-Accounts/, "post manual wajib mengirim header crosspost");
-    assert.match(publisherSource, /socialTargetIds = isQuoteVideo \? selectedSocialAccountIds\("manual-social-target"\) : \[\]/, "post manual hanya crosspost saat konten video");
-    assert.match(publisherSource, /renderSocialTargetOptions\(\)/, "pilihan crosspost wajib diisi dari akun terhubung");
-    /* Mode non-video menyembunyikan pilihan (foto karakter tidak bisa ke YT/TT). */
-    assert.match(publisherSource, /modeHidden/);
+    assert.match(publisherSource, /socialTargetIds = isQuoteVideo \? selectedSocialDestinationIds\("manual-page"\) : \[\]/, "post manual hanya crosspost saat konten video");
+    assert.match(publisherSource, /applySocialDestinationOptions\(\)/, "pilihan YouTube/TikTok wajib diisi dari akun terhubung");
+    /* Mode non-video: opsi YouTube/TikTok dimatikan (foto karakter tidak bisa ke YT/TT). */
+    assert.match(publisherSource, /option\.disabled = !isQuote/, "opsi YouTube/TikTok wajib mati saat mode bukan video");
 });
 
 test("server proses crosspost: API manual + cron jadwal, kolom DB dengan fallback", () => {

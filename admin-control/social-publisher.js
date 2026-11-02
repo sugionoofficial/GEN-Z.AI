@@ -713,14 +713,22 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         const select = $("schedule-page");
         const manualSelect = $("manual-page");
         container.replaceChildren();
-        select.replaceChildren(new Option("Pilih Page…", ""));
-        manualSelect.replaceChildren(new Option("Pilih Page…", ""));
+        const buildDestinationSelect = target => {
+            target.replaceChildren(new Option("Pilih tujuan posting…", ""));
+            const fbSeparator = new Option("— Facebook Page (wajib pilih satu) —", "__fb-sep");
+            fbSeparator.disabled = true;
+            target.add(fbSeparator);
+        };
+        buildDestinationSelect(select);
+        buildDestinationSelect(manualSelect);
         for (const page of pages) {
-            const option = new Option(`${page.page_name}${page.can_publish ? "" : " — perlu izin"}`, page.id);
+            const option = new Option(`Facebook — ${page.page_name}${page.can_publish ? "" : " — perlu izin"}`, page.id);
             option.disabled = page.can_publish === false;
+            markOptionKind(option, "fb");
             select.add(option);
-            const manualOption = new Option(`${page.page_name}${page.can_publish ? "" : " — perlu izin"}`, page.id);
+            const manualOption = new Option(`Facebook — ${page.page_name}${page.can_publish ? "" : " — perlu izin"}`, page.id);
             manualOption.disabled = page.can_publish === false;
+            markOptionKind(manualOption, "fb");
             manualSelect.add(manualOption);
 
             const item = document.createElement("div");
@@ -758,6 +766,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             container.append(item);
         }
         if (!pages.length) container.innerHTML = '<div class="empty">Belum ada Facebook Page terhubung.</div>';
+        applySocialDestinationOptions();
     }
 
     function renderCharacters(characters = []) {
@@ -1138,7 +1147,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         if (manualModelWrap) manualModelWrap.hidden = isQuote;
         if (isQuote) setInlineModelDropdownOpen("manual", false);
         if (isQuote && aspectSelect) aspectSelect.value = "9:16";
-        if ($("manual-social-target-wrap")) renderSocialTargetOptions();
+        applySocialDestinationOptions();
         updateManualCharacterPreview();
     }
 
@@ -1168,7 +1177,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         if (scheduleModelWrap) scheduleModelWrap.hidden = isQuote;
         if (isQuote) setInlineModelDropdownOpen("schedule", false);
         if (isQuote && aspectSelect) aspectSelect.value = "9:16";
-        if ($("schedule-social-target-wrap")) renderSocialTargetOptions();
+        applySocialDestinationOptions();
         if (!preserveSongToggle && songCheck) {
             songCheck.checked = isQuote;
         }
@@ -1755,7 +1764,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         const postMode = $("manual-post-mode")?.value === "quote" ? "quote" : "character";
         const isQuote = postMode === "quote";
         const characterId = $("manual-character").value;
-        const pageConnectionId = $("manual-page").value;
+        const pageConnectionId = selectedFacebookPageId("manual-page");
         if ((!isQuote && !characterId) || !pageConnectionId) {
             status(
                 $("manual-post-status"),
@@ -1981,44 +1990,90 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
     }
 
     /* ---------------------------------------------------------
-       ARAHKAN HASIL MANUAL/JADWAL FB KE YOUTUBE & TIKTOK
+       TUJUAN POSTING TERPADU (SATU PILIHAN: FB + YOUTUBE/TIKTOK)
+       Satu <select multiple> memuat Facebook Page (wajib satu)
+       dan akun YouTube/TikTok (khusus konten video). Kind tiap
+       opsi ditandai data-dest-kind: "fb" | "social".
        --------------------------------------------------------- */
 
-    function socialTargetSelects() {
-        return [
-            { select: $("manual-social-target"), wrap: $("manual-social-target-wrap") },
-            { select: $("schedule-social-target"), wrap: $("schedule-social-target-wrap") }
-        ].filter(entry => entry.select);
+    function destinationOptionKind(option) {
+        if (!option) return "";
+        if (option.dataset && option.dataset.destKind) return String(option.dataset.destKind);
+        return option.getAttribute?.("data-dest-kind") || "";
     }
 
-    function renderSocialTargetOptions() {
-        const accounts = state.socialVideoAccounts.filter(item => (item.status || "active") === "active");
-        for (const { select, wrap } of socialTargetSelects()) {
+    function markOptionKind(option, kind) {
+        if (option.dataset) option.dataset.destKind = kind;
+        option.setAttribute?.("data-dest-kind", kind);
+    }
+
+    /* Hanya YouTube/TikTok — akun Facebook TIDAK diulang di sini
+       karena Facebook Page sudah jadi tujuan utama di daftar sama. */
+    function socialDestinationAccounts() {
+        return state.socialVideoAccounts.filter(item =>
+            ["youtube", "tiktok"].includes(String(item.platform || ""))
+            && (item.status || "active") === "active");
+    }
+
+    function applySocialDestinationOptions() {
+        const accounts = socialDestinationAccounts();
+        for (const selectId of ["manual-page", "schedule-page"]) {
+            const select = $(selectId);
             if (!select) continue;
-            const selected = new Set(Array.from(select.selectedOptions || []).map(option => option.value));
-            select.replaceChildren();
-            for (const account of accounts) {
-                const option = document.createElement("option");
-                option.value = account.id;
-                option.textContent = `${SOCIAL_VIDEO_PLATFORM_LABEL[account.platform] || account.platform} — ${account.account_name || account.account_handle || account.external_account_id}`;
-                option.selected = selected.has(account.id);
-                select.append(option);
+            for (const option of Array.from(select.options || [])) {
+                if (destinationOptionKind(option) === "social" || option.value === "__social-sep") option.remove?.();
             }
-            /* Tanpa akun terhubung atau mode bukan konten video: sembunyikan
-               pilihan ini supaya tidak mengganggu. Crosspost hanya untuk
-               konten video (Kata-kata Mutiara); foto karakter AI tidak
-               bisa tayang di YouTube/TikTok. */
-            const modeHidden = select.id === "manual-social-target"
-                ? $("manual-post-mode")?.value !== "quote"
-                : $("schedule-post-mode")?.value !== "quote";
-            if (wrap) wrap.hidden = accounts.length === 0 || modeHidden;
+            if (!accounts.length) continue;
+            const isQuote = selectId === "manual-page"
+                ? $("manual-post-mode")?.value === "quote"
+                : $("schedule-post-mode")?.value === "quote";
+            const separator = new Option("— Terbitkan juga ke (khusus video Kata-kata Mutiara) —", "__social-sep");
+            separator.disabled = true;
+            select.add(separator);
+            for (const account of accounts) {
+                const label = `${SOCIAL_VIDEO_PLATFORM_LABEL[account.platform] || account.platform} — ${account.account_name || account.account_handle || account.external_account_id}`;
+                const option = new Option(label, account.id);
+                option.disabled = !isQuote;
+                option.title = isQuote
+                    ? "Hasil video juga diposting otomatis ke akun ini"
+                    : "Aktifkan mode Kata-kata Mutiara untuk menerbitkan ke sini";
+                markOptionKind(option, "social");
+                select.add(option);
+            }
         }
     }
 
-    function selectedSocialAccountIds(selectId) {
+    /* Toleran terhadap lingkungan uji: bila selectedOptions tidak
+       tersedia, pakai select.value (pilihan tunggal). */
+    function selectedFacebookPageId(selectId) {
         const select = $(selectId);
-        if (!select || select.hidden) return [];
-        return Array.from(select.selectedOptions || []).map(option => option.value).filter(Boolean);
+        if (!select) return "";
+        const chosen = Array.from(select.selectedOptions || []);
+        if (chosen.length) {
+            const fb = chosen.find(option => destinationOptionKind(option) === "fb" && option.disabled !== true);
+            return fb ? fb.value : "";
+        }
+        return select.value || "";
+    }
+
+    function selectedSocialDestinationIds(selectId) {
+        const select = $(selectId);
+        if (!select) return [];
+        const chosen = Array.from(select.selectedOptions || []);
+        if (!chosen.length) return [];
+        return chosen
+            .filter(option => destinationOptionKind(option) === "social" && option.disabled !== true)
+            .map(option => option.value)
+            .filter(Boolean);
+    }
+
+    function setSocialDestinationSelection(selectId, ids = []) {
+        const select = $(selectId);
+        if (!select) return;
+        const wanted = new Set(ids.map(item => String(item)));
+        for (const option of Array.from(select.options || [])) {
+            if (destinationOptionKind(option) === "social") option.selected = wanted.has(option.value);
+        }
     }
 
     /* Crosspost manual dijalankan server-side: header berisi id akun
@@ -2119,7 +2174,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             return;
         }
         const isQuoteVideo = state.manualPreview.isQuoteVideo === true;
-        const pageConnectionId = $("manual-page").value;
+        const pageConnectionId = selectedFacebookPageId("manual-page");
         if (isQuoteVideo && state.manualPreview.pageConnectionId && pageConnectionId && pageConnectionId !== state.manualPreview.pageConnectionId) {
             status(
                 $("manual-post-status"),
@@ -2132,7 +2187,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             ? normalizeClientQuoteTarget($("manual-quote-target")?.value || state.manualPreview.quoteTarget)
             : "";
         const targetLabel = isQuoteVideo ? quoteTargetLabel(quoteTarget) : "Facebook Page";
-        const socialTargetIds = isQuoteVideo ? selectedSocialAccountIds("manual-social-target") : [];
+        const socialTargetIds = isQuoteVideo ? selectedSocialDestinationIds("manual-page") : [];
 
         /*
          * Konfirmasi DI DALAM tombol, bukan dialog mengambang.
@@ -3205,7 +3260,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
     });
 
     window.addEventListener("genz:social-video-accounts-changed", () => {
-        renderSocialTargetOptions();
+        applySocialDestinationOptions();
     });
 
     function renderRuns(runs = [], pagination = null) {
@@ -3477,7 +3532,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             await loadFacebookSongs();
             /* Muat juga status YouTube/TikTok supaya menyatu di daftar
                riwayat ( gagalnya tidak mengganggu riwayat Facebook). */
-            loadSocialVideoPosts().then(renderSocialTargetOptions);
+            loadSocialVideoPosts().then(applySocialDestinationOptions);
         } catch (error) {
             showNotice(pageMessage, error.message || "Gagal memuat Social Publisher.", "error");
             configList.replaceChildren();
@@ -3819,15 +3874,8 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         });
         setInlineModelDropdownOpen("schedule", false);
         if ($("schedule-quote-target")) $("schedule-quote-target").value = normalizeClientQuoteTarget(schedule.quote_publish_target || "feed");
-        if ($("schedule-social-target")) {
-            renderSocialTargetOptions();
-            const wanted = Array.isArray(schedule.social_video_account_ids)
-                ? schedule.social_video_account_ids.map(item => String(item))
-                : [];
-            for (const option of $("schedule-social-target").options) {
-                option.selected = wanted.includes(option.value);
-            }
-        }
+        applySocialDestinationOptions();
+        setSocialDestinationSelection("schedule-page", Array.isArray(schedule.social_video_account_ids) ? schedule.social_video_account_ids : []);
         if ($("schedule-quote-theme")) $("schedule-quote-theme").value = schedule.quote_theme || "";
         if ($("schedule-quote-visual")) $("schedule-quote-visual").value = schedule.quote_visual_style || "";
         if ($("schedule-random-song")) {
@@ -3874,9 +3922,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         $("schedule-id").value = "";
         setSchedulePostMode("character");
         if ($("schedule-quote-target")) $("schedule-quote-target").value = "feed";
-        if ($("schedule-social-target")) {
-            for (const option of $("schedule-social-target").options) option.selected = false;
-        }
+        setSocialDestinationSelection("schedule-page", []);
         if ($("schedule-quote-theme")) $("schedule-quote-theme").value = "";
         if ($("schedule-quote-visual")) $("schedule-quote-visual").value = "";
         const { min, max } = schedulePolicy();
@@ -3908,7 +3954,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         const postMode = $("schedule-post-mode")?.value === "quote" ? "quote" : "character";
         const isQuote = postMode === "quote";
         const characterId = $("schedule-character").value;
-        const pageConnectionId = $("schedule-page").value;
+        const pageConnectionId = selectedFacebookPageId("schedule-page");
         const intervalMinutes = Number($("interval-minutes").value);
         const nextRunAt = localWibToUtc($("first-run").value);
         const { role, min, max } = schedulePolicy();
@@ -3955,7 +4001,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             image_model: isQuote ? "" : getSelectedScheduleOpusModel(),
             caption_template: $("default-caption-template").value,
             quote_publish_target: isQuote ? normalizeClientQuoteTarget($("schedule-quote-target")?.value) : "feed",
-            social_video_account_ids: isQuote ? selectedSocialAccountIds("schedule-social-target") : [],
+            social_video_account_ids: isQuote ? selectedSocialDestinationIds("schedule-page") : [],
             quote_theme: isQuote ? ($("schedule-quote-theme")?.value || "") : "",
             quote_visual_style: isQuote ? ($("schedule-quote-visual")?.value || "") : "",
             ...scheduleSongFields,
@@ -4328,11 +4374,9 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
     $("cancel-song-edit")?.addEventListener("click", resetSongForm);
     $("seed-default-songs")?.addEventListener("click", seedDefaultSongs);
     $("manual-post-mode")?.addEventListener("change", event => setManualPostMode(event.target.value));
-    /* Mengubah arahan YouTube/TikTok membatalkan konfirmasi terbit
-       seperti perubahan Page/target lain. */
-    $("manual-social-target")?.addEventListener("change", () => {
-        disarmManualPublish();
-    });
+    /* Catatan: perubahan apa pun pada pilihan tujuan terpadu
+       (#manual-page, termasuk centangan YouTube/TikTok) sudah
+       membatalkan konfirmasi terbit lewat listener change di atas. */
     $("manual-quote-target")?.addEventListener("change", event => {
         const nextTarget = normalizeClientQuoteTarget(event.target.value);
         disarmManualPublish();
