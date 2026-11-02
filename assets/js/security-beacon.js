@@ -1094,6 +1094,38 @@
         return Boolean(siteHost && assetHost !== siteHost);
     }
 
+    /*
+     * "Script error." tanpa filename/baris adalah pesan yang disamarkan
+     * browser untuk skrip lintas-origin (CDN, ekstensi, WebView sisipan).
+     * Isinya nol: tidak ada modul, baris, maupun stack yang bisa diperbaiki,
+     * tapi tetap dihitung sebagai "Error berulang" di monitoring.
+     *
+     * Skrip CDN situs sudah memakai crossorigin="anonymous" supaya error
+     * asli tetap terbaca. Jadi yang lolos di sini benar-benar derau dari luar situs.
+     */
+    function isOpaqueCrossOriginError(event) {
+        var message = String((event && event.message) || "").trim();
+
+        if (!/^Script error\.?$/i.test(message)) return false;
+
+        var filename = String((event && event.filename) || "").trim();
+        var line = Number((event && event.lineno) || 0);
+        var stack = String((event && event.error && event.error.stack) || "").trim();
+
+        /* Kalau ada jejak yang bisa ditelusuri, tetap laporkan. */
+        return !filename && !line && !stack;
+    }
+
+    /*
+     * Referensi `supabase-private://` adalah penanda internal, bukan URL
+     * yang bisa diambil browser. Kalau sempat lolos ke <img>/<video>,
+     * kegagalannya bukan aset situs yang rusak — modul History yang
+     * harus mencegahnya, dan itu sudah diperbaiki di sana.
+     */
+    function isInternalMediaRef(source) {
+        return /^supabase-private:\/\//i.test(String(source || "").trim());
+    }
+
     window.addEventListener("error", function (event) {
         if (lockdownActive) return;
 
@@ -1109,6 +1141,12 @@
         /* Media pratinjau dari CDN provider eksternal (Opus, OSS, dll.) akan
            kedaluwarsa sesuai retensi provider — bukan modul situs yang rusak. */
         if (isResource && isExternalMediaResource(target, source)) return;
+
+        /* Penanda internal, bukan aset yang gagal diunduh. */
+        if (isResource && isInternalMediaRef(source)) return;
+
+        /* Pesan lintas-origin yang disamarkan browser: tidak bisa ditindaklanjuti. */
+        if (!isResource && isOpaqueCrossOriginError(event)) return;
 
         report("error", {
             message: isResource

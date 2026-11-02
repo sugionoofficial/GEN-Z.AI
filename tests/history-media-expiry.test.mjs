@@ -399,3 +399,106 @@ test("token Akamai hdnea (exp=...) dan S3 SigV4 (X-Amz-Date + X-Amz-Expires) iku
     assert.equal(App.getSignedLinkExpiresAt(s3Expired), Date.UTC(2025, 0, 1, 1, 0, 0));
     assert.equal(App.getMediaExpiryReason({ status: "success", result_url: s3Expired }), "link");
 });
+
+/* ---------------------------------------------------------
+   4. REFERENSI PRIVAT TIDAK BOLEH MASUK KE src
+   ---------------------------------------------------------
+   Laporan monitoring 02/11/2026: "Error berulang di /history/"
+   dengan contoh "Gagal memuat aset: supabase-private://…".
+
+   Referensi internal sempat lolos ke <img src>/<video src> saat
+   baris dirender sebelum resolvePrivateMediaRefs selesai. Browser
+   menembak scheme yang tidak dikenal, gagal, lalu beacon mengirim
+   error aset ke monitoring.
+--------------------------------------------------------- */
+
+const RAW_PRIVATE_RESULT =
+    "supabase-private://user-uploads/upscale-photos/outputs/" +
+    "c237fcef-6456-451e-ae98-691f2dabb60d/genimg-1793522307720-9b53af5139.png";
+
+function mediaSources(html) {
+    return [...html.matchAll(/(?:src|href)="([^"]*)"/g)].map(match => match[1]);
+}
+
+test("getResultUrl menolak referensi privat yang belum ditandatangani", () => {
+    const App = loadDataModule(makeClient());
+
+    assert.equal(
+        App.getResultUrl({ result_url: RAW_PRIVATE_RESULT }),
+        "",
+        "referensi internal bukan URL yang bisa dimuat browser"
+    );
+});
+
+test("thumbnail hasil tidak pernah memakai supabase-private:// sebagai src", () => {
+    const App = loadRenderModule();
+
+    const html = App.getRowHtml(
+        {
+            id: "r1",
+            task_id: "t1",
+            status: "success",
+            created_at: new Date().toISOString(),
+            model_id: "genimg",
+            prompt: "x",
+            result_url: RAW_PRIVATE_RESULT
+        },
+        0,
+        false
+    );
+
+    assert.equal(
+        mediaSources(html).some(value => value.startsWith("supabase-private://")),
+        false,
+        "src mentah memicu error 'Gagal memuat aset' di monitoring"
+    );
+});
+
+test("thumbnail referensi juga tidak memakai supabase-private:// sebagai src", () => {
+    const App = loadRenderModule();
+
+    const html = App.getRowHtml(
+        {
+            id: "r2",
+            task_id: "t2",
+            status: "processing",
+            created_at: new Date().toISOString(),
+            model_id: "opus-hailuo-3-i2v-30s",
+            prompt: "x",
+            image_reference_url: RAW_PRIVATE_RESULT
+        },
+        0,
+        false
+    );
+
+    assert.equal(
+        mediaSources(html).some(value => value.startsWith("supabase-private://")),
+        false
+    );
+});
+
+test("hasil yang sudah ditandatangani tetap tampil normal", () => {
+    const App = loadRenderModule();
+    const signed =
+        "https://project.supabase.co/storage/v1/object/sign/user-uploads/" +
+        "upscale-photos/outputs/u1/ada.png?token=abc";
+
+    const html = App.getRowHtml(
+        {
+            id: "r3",
+            task_id: "t3",
+            status: "success",
+            created_at: new Date().toISOString(),
+            model_id: "genimg",
+            prompt: "x",
+            result_url: signed
+        },
+        0,
+        false
+    );
+
+    assert.ok(
+        mediaSources(html).some(value => value.startsWith("https://project.supabase.co/")),
+        "signed URL asli tidak boleh ikut diblokir"
+    );
+});
