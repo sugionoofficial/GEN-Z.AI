@@ -2021,7 +2021,7 @@
                                 name="email"
                                 type="email"
                                 autocomplete="email"
-                                placeholder="Masukkan email"
+                                placeholder="Masukkan email Gmail (@gmail.com)"
                                 required
                             >
 
@@ -2680,6 +2680,25 @@
 
                 if (
                     message.includes(
+                        "email_domain_not_allowed"
+                    ) ||
+                    message.includes(
+                        "gmail"
+                    ) ||
+                    message.includes(
+                        "database error saving new user"
+                    )
+                ) {
+
+                    return (
+                        "Pendaftaran hanya boleh menggunakan email Gmail (@gmail.com)."
+                    );
+
+                }
+
+
+                if (
+                    message.includes(
                         "rate limit"
                     ) ||
                     message.includes(
@@ -2789,6 +2808,30 @@
 
                         showMessage(
                             "Format email tidak valid.",
+                            "error"
+                        );
+
+                        emailInput.focus();
+
+                        return;
+
+                    }
+
+
+                    /* ---------------------------------------------
+                       VALIDATE EMAIL GMAIL
+                       Hanya @gmail.com yang diterima supaya akun
+                       email temporer (tempmail) sulit dibuat.
+                       Aturan yang sama dijaga oleh trigger di
+                       supabase/restrict-registration-gmail.sql.
+                       --------------------------------------------- */
+
+                    if (
+                        !email.endsWith("@gmail.com")
+                    ) {
+
+                        showMessage(
+                            "Pendaftaran hanya boleh menggunakan email Gmail (@gmail.com).",
                             "error"
                         );
 
