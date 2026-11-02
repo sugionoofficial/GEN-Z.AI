@@ -14,7 +14,7 @@
    - `create_upload_url` : Buat Signed Upload URL MP4 langsung ke bucket privat
                            `user-uploads/social-video/<user_id>/...`.
    - `sign_preview`      : Buat Signed Preview URL untuk `supabase-private://...` milik user.
-   - `list_history_videos`: Daftar video hasil Generate / Motion UI milik user sendiri.
+   - `list_history_videos`: Daftar video hasil Generate milik user sendiri.
    - `generate_ai_caption`: Buat judul, caption, & hashtag viral otomatis (Workers AI + fallback).
    - `create_posts`      : Publish langsung (potong kredit per post + auto-refund jika gagal)
                            atau jadwalkan Auto Post ke antrean cron.
@@ -191,45 +191,6 @@ async function fetchUserHistoryVideos(supabaseUrl, serviceKey, userId, fetchImpl
                         source: "history",
                         label: `${row.model_name || row.model_id || "Video AI"} — ${String(row.prompt || "Tanpa judul").slice(0, 52)}`,
                         title: String(row.prompt || row.model_name || "Video AI").slice(0, 80),
-                        video_ref: String(row.result_url),
-                        created_at: row.created_at
-                    });
-                }
-            }
-        }
-    } catch {
-        /* ignore */
-    }
-
-    try {
-        const muiQs = new URLSearchParams({
-            select: "id,template_id,brand_name,headline,result_url,created_at,status",
-            user_id: `eq.${userId}`,
-            status: "eq.completed",
-            result_url: "not.is.null",
-            order: "created_at.desc",
-            limit: "15"
-        });
-        const muiResp = await fetchImpl(
-            `${supabaseUrl}/rest/v1/motion_ui_jobs?${muiQs.toString()}`,
-            {
-                method: "GET",
-                headers: {
-                    apikey: serviceKey,
-                    Authorization: `Bearer ${serviceKey}`
-                }
-            }
-        );
-        if (muiResp.ok) {
-            const rows = await muiResp.json().catch(() => []);
-            if (Array.isArray(rows)) {
-                for (const row of rows) {
-                    if (!row.result_url) continue;
-                    results.push({
-                        id: `mui_${row.id}`,
-                        source: "motion_ui",
-                        label: `Motion UI (${row.brand_name || row.template_id}) — ${String(row.headline || "").slice(0, 48)}`,
-                        title: String(row.headline || row.brand_name || "Motion UI Video").slice(0, 80),
                         video_ref: String(row.result_url),
                         created_at: row.created_at
                     });
@@ -428,7 +389,7 @@ export default async function handler(req, res) {
                     user_id: userId,
                     platform,
                     code_verifier: codeVerifier,
-                    return_path: "/opusclip/?tab=social",
+                    return_path: "/admin-control/social-publisher.html#social-connections",
                     expires_at: expiresAt
                 })
             });
@@ -622,7 +583,7 @@ export default async function handler(req, res) {
                 });
             }
 
-            const cleanSourceType = ["upload", "history", "url", "opusclip"].includes(String(body.videoSourceType || ""))
+            const cleanSourceType = ["upload", "history", "url"].includes(String(body.videoSourceType || ""))
                 ? String(body.videoSourceType)
                 : isPrivateMediaRef(videoRef)
                     ? "upload"

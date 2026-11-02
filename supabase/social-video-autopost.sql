@@ -9,7 +9,7 @@
    antrean jadwal publikasi video atomik untuk cron Worker.
 ========================================================= */
 
--- 1. Pastikan tarif fitur `opusclip_social_post` terdaftar di feature_credit_settings
+-- 1. Pastikan tarif fitur `social_video_post` terdaftar di feature_credit_settings
 alter table public.feature_credit_settings
     drop constraint if exists feature_credit_settings_feature_id_check;
 
@@ -23,6 +23,8 @@ alter table public.feature_credit_settings
             'upscale_video',
             'prompt_studio',
             'metadata_cleaner',
+            'social_video_post',
+            -- Legacy OpusClip Studio ids dipertahankan hanya agar transaksi/history lama tetap valid.
             'opusclip_clipping',
             'opusclip_dubbing',
             'opusclip_thumbnail',
@@ -35,7 +37,7 @@ alter table public.feature_credit_settings
 
 insert into public.feature_credit_settings (feature_id, label, credit_cost)
 values
-    ('opusclip_social_post', 'Social Video Auto Post (FB / YouTube / TikTok)', 250)
+    ('social_video_post', 'Social Video Auto Post (FB / YouTube / TikTok)', 250)
 on conflict (feature_id) do update
 set label = excluded.label;
 
@@ -46,7 +48,7 @@ create table if not exists public.social_video_oauth_states (
     user_id uuid not null references public.profiles(id) on delete cascade,
     platform text not null check (platform in ('facebook', 'youtube', 'tiktok')),
     code_verifier text null,
-    return_path text not null default '/opusclip/?tab=social',
+    return_path text not null default '/admin-control/social-publisher.html#social-connections',
     created_at timestamptz not null default now(),
     expires_at timestamptz not null default (now() + interval '15 minutes')
 );
