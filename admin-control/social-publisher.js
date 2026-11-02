@@ -1,16 +1,30 @@
 import { cleanImage } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure.js";
+import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
 
 (() => {
     "use strict";
 
     const endpoint = "/api/social-publisher";
+    const SOCIAL_VIDEO_ENDPOINT = "/api/social-video-autopost";
     const RUNS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
     const DEFAULT_RUNS_PER_PAGE = 10;
     const RUNS_PER_PAGE_STORAGE_KEY = "genz-social-runs-per-page";
     /* Logo resmi Facebook (huruf f dalam lingkaran biru #1877F2) ditempel inline
        supaya blok koneksi selalu menampilkan logo asli tanpa aset eksternal. */
     const FB_LOGO_SVG = '<svg viewBox="0 0 1024 1024" width="40" height="40" role="img" aria-label="Logo Facebook"><path fill="#1877F2" d="M1024 512C1024 229.23 794.77 0 512 0S0 229.23 0 512c0 255.55 187.23 467.37 432 505.78V660.28H301.5V512H432v-39.04c0-128.36 76.47-199.24 193.48-199.24 56.02 0 114.6 9.98 114.6 9.98v126.06h-64.64c-63.66 0-83.64 39.51-83.64 80.03V512h142.2l-22.74 148.28H591.8v357.5C836.77 979.37 1024 767.55 1024 512z"/></svg>';
+    /* Logo YouTube & TikTok untuk baris riwayat Social Video. */
+    const YT_LOGO_SVG = '<svg viewBox="0 0 24 24" role="img" aria-label="Logo YouTube"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>';
+    const TT_LOGO_SVG = '<svg viewBox="0 0 24 24" role="img" aria-label="Logo TikTok"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>';
+    const SOCIAL_VIDEO_LOGOS = { youtube: YT_LOGO_SVG, tiktok: TT_LOGO_SVG, facebook: FB_LOGO_SVG };
+    const SOCIAL_VIDEO_PLATFORM_LABEL = { youtube: "YouTube", tiktok: "TikTok", facebook: "Facebook" };
+    const SOCIAL_VIDEO_STATUS_LABEL = {
+        scheduled: "Terjadwal",
+        processing: "Diproses",
+        published: "Tayang",
+        failed: "Gagal",
+        cancelled: "Dibatalkan"
+    };
 
     function readSavedRunsPerPage() {
         try {
@@ -50,7 +64,11 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         orphanNoticeShown: false,
         songs: [],
         songLibraryReady: true,
-        defaultFacebookSongs: []
+        defaultFacebookSongs: [],
+        /* Status posting YouTube/TikTok (Social Video) — digabung ke
+           daftar riwayat yang sama, diurutkan berdasarkan waktu. */
+        socialVideoPosts: [],
+        socialVideoAccounts: []
     };
     const $ = id => document.getElementById(id);
     const pageMessage = $("page-message");
@@ -2970,6 +2988,142 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
         );
     }
 
+    /* ---------------------------------------------------------
+       STATUS POSTING YOUTUBE/TIKTOK — digabung ke daftar riwayat
+       (bukan blok terpisah) supaya ikut bergulir bersama riwayat
+       Facebook, diurutkan berdasarkan waktu.
+       --------------------------------------------------------- */
+
+    async function socialVideoApi(action, { method = "GET", body } = {}) {
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const token = await sessionToken(attempt > 0);
+            const response = await fetch(`${SOCIAL_VIDEO_ENDPOINT}?action=${encodeURIComponent(action)}`, {
+                method,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    ...(body ? { "Content-Type": "application/json" } : {})
+                },
+                ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            const data = await response.json().catch(() => ({}));
+            if (response.status === 401 && attempt === 0) continue;
+            if (!response.ok || data?.success === false) {
+                throw new Error(data?.error || `Permintaan gagal (HTTP ${response.status}).`);
+            }
+            return data;
+        }
+        throw new Error("Sesi login tidak valid. Silakan login ulang.");
+    }
+
+    async function loadSocialVideoPosts() {
+        try {
+            const data = await socialVideoApi("bootstrap");
+            state.socialVideoPosts = Array.isArray(data.posts) ? data.posts : [];
+            state.socialVideoAccounts = Array.isArray(data.accounts) ? data.accounts : [];
+            /* Render ulang halaman riwayat sekarang supaya baris Social
+               Video langsung menyatu tanpa menunggu refresh berikutnya. */
+            if (!state.runsBusy) await loadRunsPage(state.runsPage, { perPage: state.runsPerPage });
+        } catch {
+            /* Gagal memuat status Social Video tidak boleh mengganggu
+               riwayat Facebook yang sudah tampil. */
+        }
+    }
+
+    function socialVideoAccountLabel(accountId) {
+        const account = state.socialVideoAccounts.find(item => item.id === accountId);
+        return account?.account_name || account?.account_handle || "";
+    }
+
+    function socialVideoPlatformLogo(platform) {
+        const span = document.createElement("span");
+        span.className = `svp-logo svp-logo--${platform || "facebook"}`;
+        span.innerHTML = SOCIAL_VIDEO_LOGOS[platform] || FB_LOGO_SVG;
+        return span;
+    }
+
+    function renderSocialVideoRow(post) {
+        const item = document.createElement("div");
+        item.className = "item svp-post-item";
+        item.style.gridTemplateColumns = "minmax(0,1fr) auto";
+
+        const content = document.createElement("div");
+        const info = document.createElement("div");
+        info.className = "svp-post-info";
+
+        const head = document.createElement("span");
+        head.className = "svp-post-title";
+        /* Logo medsos dulu — pembeda utama tiap baris riwayat. */
+        head.appendChild(socialVideoPlatformLogo(post.platform));
+        const badge = document.createElement("span");
+        badge.className = `svp-platform-badge ${post.platform || ""}`;
+        badge.textContent = SOCIAL_VIDEO_PLATFORM_LABEL[post.platform] || post.platform || "Medsos";
+        head.appendChild(badge);
+        head.appendChild(document.createTextNode(` ${post.title || "(tanpa judul)"}`));
+
+        const meta = document.createElement("span");
+        meta.className = "svp-post-meta";
+        const bits = [];
+        const accountLabel = socialVideoAccountLabel(post.account_id);
+        if (accountLabel) bits.push(accountLabel);
+        /* Pembeda jelas: jadwal autopost pakai awalan "Jadwal tayang",
+           yang sudah terbit pakai "Tertayang" (jam asli terbit). */
+        if (post.status === "scheduled" && post.scheduled_for) bits.push(`Jadwal tayang: ${formatDate(post.scheduled_for)}`);
+        if (post.published_at) bits.push(`Tertayang: ${formatDate(post.published_at)}`);
+        meta.textContent = bits.join(" · ");
+
+        const status = document.createElement("span");
+        status.className = `svp-status ${post.status || ""}`;
+        status.textContent = SOCIAL_VIDEO_STATUS_LABEL[post.status] || post.status || "-";
+
+        info.append(head, meta, status);
+        if (post.error_message) {
+            const err = document.createElement("span");
+            err.className = "svp-post-error";
+            err.textContent = post.error_message;
+            info.append(err);
+        }
+        content.append(info);
+        item.append(content);
+
+        if (post.status === "scheduled") {
+            const actions = document.createElement("div");
+            actions.className = "item-actions";
+            const cancel = document.createElement("button");
+            cancel.type = "button";
+            cancel.className = "btn small danger";
+            cancel.textContent = "Batalkan";
+            cancel.addEventListener("click", () => {
+                /* Konvensi halaman: klik 1 mempersenjatai tombol,
+                   klik 2 benar-benar membatalkan. */
+                if (!confirmInlineAction(cancel, {
+                    label: "Konfirmasi batal",
+                    ariaLabel: `Konfirmasi batalkan jadwal ${post.title || "tanpa judul"}`,
+                    title: "Batalkan jadwal autopost YouTube/TikTok ini?"
+                })) return;
+                void cancelSocialVideoPost(post);
+            });
+            actions.append(cancel);
+            item.append(actions);
+        }
+        return item;
+    }
+
+    async function cancelSocialVideoPost(post) {
+        if (!post?.id) return;
+        try {
+            const data = await socialVideoApi("cancel_post", { method: "POST", body: { postId: post.id } });
+            state.socialVideoPosts = Array.isArray(data.posts) ? data.posts : state.socialVideoPosts.filter(item => item.id !== post.id);
+            showNotice(pageMessage, "Jadwal autopost YouTube/TikTok berhasil dibatalkan.", "success");
+            await loadRunsPage(state.runsPage, { perPage: state.runsPerPage });
+        } catch (error) {
+            showNotice(pageMessage, error.message || "Gagal membatalkan jadwal.", "error");
+        }
+    }
+
+    window.addEventListener("genz:social-video-posts-changed", () => {
+        loadSocialVideoPosts();
+    });
+
     function renderRuns(runs = [], pagination = null) {
         const container = $("runs-list");
         container.replaceChildren();
@@ -2998,7 +3152,22 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             state.runsPage = page;
         }
 
-        for (const run of visibleRuns) {
+        /* Satu daftar riwayat: run Facebook + status posting YouTube/
+           TikTok digabung dan diurutkan berdasarkan waktu sehingga
+           ikut bergulir bersama (tidak di-pin di blok terpisah). */
+        const mergedRows = mergeRunsAndPosts(
+            visibleRuns,
+            state.socialVideoPosts,
+            state.runsPage,
+            state.runsTotalPages
+        );
+
+        for (const row of mergedRows) {
+            if (row.type === "social") {
+                container.append(renderSocialVideoRow(row.post));
+                continue;
+            }
+            const run = row.run;
             const item = document.createElement("div");
             item.className = "item";
             item.style.gridTemplateColumns = "minmax(0,1fr) auto";
@@ -3087,7 +3256,7 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             item.append(content);
             container.append(item);
         }
-        if (!visibleRuns.length) container.innerHTML = '<div class="empty">Belum ada run. Aktifkan jadwal untuk mulai.</div>';
+        if (!mergedRows.length) container.innerHTML = '<div class="empty">Belum ada riwayat. Aktifkan jadwal untuk mulai, atau post video ke YouTube/TikTok dari kartu di atas.</div>';
         noticeOrphanPreview(runs);
         renderRunsPaginationControls();
     }
@@ -3222,6 +3391,9 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             const data = await api(`dashboard&runs_page=${state.runsPage}&runs_limit=${state.runsPerPage}`);
             render(data);
             await loadFacebookSongs();
+            /* Muat juga status YouTube/TikTok supaya menyatu di daftar
+               riwayat ( gagalnya tidak mengganggu riwayat Facebook). */
+            loadSocialVideoPosts();
         } catch (error) {
             showNotice(pageMessage, error.message || "Gagal memuat Social Publisher.", "error");
             configList.replaceChildren();

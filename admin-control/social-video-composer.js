@@ -12,8 +12,13 @@
      2. Auto post    — jadwalkan tayang; cron server
         (social-video-autopost-cron) menerbitkan tepat
         pada waktunya (`create_posts` scheduledFor).
-     3. Antrean      — daftar posting + batalkan jadwal
-        (`cancel_post`).
+
+   Status/riwayat posting TIDAK dirender di sini: ia
+   menyatu dengan riwayat Facebook di blok "Riwayat
+   pembuatan & posting" (social-publisher.js +
+   social-video-merge.js). Setelah posting berhasil,
+   composer memicu event "genz:social-video-posts-changed"
+   supaya daftar riwayat memuat ulang.
 
    Backend: /api/social-video-autopost (sama dengan blok
    koneksi). Token sesi tidak pernah disimpan di browser.
@@ -32,31 +37,9 @@
         facebook: "Facebook"
     };
 
-    /* Logo resmi tiap platform (path sederhana 24×24) supaya tiap baris
-       riwayat posting langsung terbedakan medsosnya. */
-    const PLATFORM_LOGOS = {
-        youtube:
-            '<svg viewBox="0 0 24 24" role="img" aria-label="Logo YouTube"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>',
-        tiktok:
-            '<svg viewBox="0 0 24 24" role="img" aria-label="Logo TikTok"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>',
-        facebook:
-            '<svg viewBox="0 0 24 24" role="img" aria-label="Logo Facebook"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>'
-    };
-
-    function platformLogo(platform) {
-        const span = document.createElement("span");
-        span.className = `svp-logo svp-logo--${platform || "facebook"}`;
-        span.innerHTML = PLATFORM_LOGOS[platform] || PLATFORM_LOGOS.facebook;
-        return span;
-    }
-
-    const STATUS_LABEL = {
-        scheduled: "Terjadwal",
-        processing: "Diproses",
-        published: "Tayang",
-        failed: "Gagal",
-        cancelled: "Dibatalkan"
-    };
+    /* Logo & label status untuk riwayat posting kini dirender oleh
+       social-publisher.js di daftar "Riwayat pembuatan & posting"
+       (menyatu dengan riwayat Facebook). Composer hanya form aksi. */
 
     const $ = id => document.getElementById(id);
 
@@ -81,10 +64,7 @@
         credit: null,
         schedule: null,
         publish: null,
-        scheduleBtn: null,
-        queue: null,
-        queueSection: null,
-        historyRefresh: null
+        scheduleBtn: null
     };
 
     const state = {
@@ -92,7 +72,6 @@
         source: "history",
         loaded: false,
         accounts: [],
-        posts: [],
         historyVideos: [],
         creditCost: 0,
         credits: 0,
@@ -448,19 +427,20 @@
                 body: buildPostPayload(videoTarget, extra)
             });
 
-            state.posts = Array.isArray(data.posts) ? data.posts : state.posts;
             if (typeof data.creditsRemaining === "number") state.credits = data.creditsRemaining;
-            renderQueue();
             updateCreditInfo();
+            /* Status posting baru muncul di daftar "Riwayat pembuatan &
+               posting" — minta modul riwayat memuat ulang. */
+            window.dispatchEvent(new CustomEvent("genz:social-video-posts-changed"));
 
             if (data.mode === "scheduled") {
-                showMessage(`${data.scheduledCount} posting dijadwalkan untuk tayang otomatis.`, "success");
+                showMessage(`${data.scheduledCount} posting dijadwalkan untuk tayang otomatis. Statusnya tampil di Riwayat pembuatan & posting.`, "success");
             } else {
                 const ok = Number(data.succeeded) || 0;
                 const fail = Number(data.failed) || 0;
                 showMessage(fail > 0
-                    ? `Selesai: ${ok} akun berhasil, ${fail} gagal. Lihat detail di antrean.`
-                    : `Berhasil diterbitkan ke ${ok} akun.`, ok > 0 ? "success" : "error");
+                    ? `Selesai: ${ok} akun berhasil, ${fail} gagal. Lihat detail di Riwayat pembuatan & posting.`
+                    : `Berhasil diterbitkan ke ${ok} akun. Statusnya tampil di Riwayat pembuatan & posting.`, ok > 0 ? "success" : "error");
             }
         } catch (error) {
             showMessage(error.message || "Gagal mengirim posting.", "error");
@@ -525,110 +505,6 @@
     }
 
     /* ---------------------------------------------------------
-       ANTREAN / RIWAYAT POSTING
-       --------------------------------------------------------- */
-
-    function formatWhen(iso) {
-        if (!iso) return "";
-        const parsed = Date.parse(iso);
-        if (!Number.isFinite(parsed)) return "";
-        return new Date(parsed).toLocaleString("id-ID");
-    }
-
-    function renderQueue() {
-        /* Antrean/riwayat YouTube/TikTok sengaja TIDAK dirender di kartu
-           composer, melainkan di blok "Riwayat pembuatan & posting"
-           (#svh-list) — sama seperti riwayat Facebook. */
-        if (!els.queue) return;
-        els.queue.replaceChildren();
-
-        if (state.posts.length === 0) {
-            const empty = document.createElement("div");
-            empty.className = "empty";
-            empty.textContent = "Belum ada posting YouTube/TikTok. Jadwal dan hasilnya tampil di sini.";
-            els.queue.appendChild(empty);
-            return;
-        }
-
-        for (const post of state.posts) {
-            const account = state.accounts.find(item => item.id === post.account_id);
-            const item = document.createElement("div");
-            item.className = "item svp-post-item";
-
-            const info = document.createElement("div");
-            info.className = "svp-post-info";
-
-            const head = document.createElement("span");
-            head.className = "svp-post-title";
-            /* Logo medsos dulu — pembeda utama tiap baris riwayat. */
-            head.appendChild(platformLogo(post.platform));
-            const badge = document.createElement("span");
-            badge.className = `svp-platform-badge ${post.platform || ""}`;
-            badge.textContent = PLATFORM_LABEL[post.platform] || post.platform || "Medsos";
-            head.appendChild(badge);
-            head.appendChild(document.createTextNode(` ${post.title || "(tanpa judul)"}`));
-
-            const meta = document.createElement("span");
-            meta.className = "svp-post-meta";
-            const bits = [];
-            if (account) bits.push(accountLabel(account));
-            /* Pembeda jelas: jadwal autopost pakai awalan "Jadwal tayang",
-               yang sudah terbit pakai "Tertayang" (jam asli terbit). */
-            if (post.status === "scheduled" && post.scheduled_for) bits.push(`Jadwal tayang: ${formatWhen(post.scheduled_for)}`);
-            if (post.published_at) bits.push(`Tertayang: ${formatWhen(post.published_at)}`);
-            meta.textContent = bits.join(" · ");
-
-            const status = document.createElement("span");
-            status.className = `svp-status ${post.status || ""}`;
-            status.textContent = STATUS_LABEL[post.status] || post.status || "-";
-
-            info.appendChild(head);
-            info.appendChild(meta);
-            info.appendChild(status);
-
-            if (post.error_message) {
-                const err = document.createElement("span");
-                err.className = "svp-post-error";
-                err.textContent = post.error_message;
-                info.appendChild(err);
-            }
-
-            item.appendChild(info);
-
-            if (post.status === "scheduled") {
-                const cancel = document.createElement("button");
-                cancel.type = "button";
-                cancel.className = "btn small danger";
-                cancel.textContent = "Batalkan";
-                cancel.disabled = state.busy;
-                cancel.addEventListener("click", () => cancelScheduledPost(post));
-                item.appendChild(cancel);
-            }
-
-            els.queue.appendChild(item);
-        }
-    }
-
-    async function cancelScheduledPost(post) {
-        if (state.busy || !post?.id) return;
-        if (!window.confirm("Batalkan jadwal autopost ini?")) return;
-        setBusy(true);
-        try {
-            const data = await api("cancel_post", {
-                method: "POST",
-                body: { postId: post.id }
-            });
-            state.posts = Array.isArray(data.posts) ? data.posts : state.posts;
-            renderQueue();
-            showMessage(data.message || "Jadwal berhasil dibatalkan.", "success");
-        } catch (error) {
-            showMessage(error.message || "Gagal membatalkan jadwal.", "error");
-        } finally {
-            setBusy(false);
-        }
-    }
-
-    /* ---------------------------------------------------------
        MUAT DATA & INISIALISASI
        --------------------------------------------------------- */
 
@@ -637,14 +513,12 @@
         try {
             const data = await api("bootstrap");
             state.accounts = Array.isArray(data.accounts) ? data.accounts : [];
-            state.posts = Array.isArray(data.posts) ? data.posts : [];
             state.historyVideos = Array.isArray(data.historyVideos) ? data.historyVideos : [];
             state.creditCost = Number(data.creditCost) || 0;
             state.credits = Number(data.viewer?.credits) || 0;
             state.loaded = true;
             renderAccounts();
             renderHistoryOptions();
-            renderQueue();
             updateCreditInfo();
         } catch (error) {
             showMessage(error.message || "Gagal memuat data post YouTube/TikTok.", "error");
@@ -676,11 +550,6 @@
         els.schedule = $("svp-schedule");
         els.publish = $("svp-publish");
         els.scheduleBtn = $("svp-schedule-btn");
-        /* Riwayat posting YouTube/TikTok tampil di blok "Riwayat
-           pembuatan & posting" (bukan di kartu composer). */
-        els.queue = $("svh-list");
-        els.queueSection = $("social-video-history");
-        els.historyRefresh = $("svh-refresh");
 
         els.refresh?.addEventListener("click", () => void load());
         for (const tab of document.querySelectorAll("[data-svp-source]")) {
@@ -692,7 +561,6 @@
         els.publish?.addEventListener("click", publishNow);
         els.scheduleBtn?.addEventListener("click", schedulePost);
         els.aiCaption?.addEventListener("click", () => void aiCaption());
-        els.historyRefresh?.addEventListener("click", () => void load());
 
         void load();
     }
