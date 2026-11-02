@@ -23,7 +23,6 @@ const staticDirectories = [
     "metadata-cleaner",
     "models",
     "navigation",
-    "opusclip",
     "privacy",
     "prompt-studio",
 

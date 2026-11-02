@@ -21,7 +21,7 @@ import {
 } from "../lib/social-video/publisher.js";
 import socialVideoAutopostHandler from "../api/social-video-autopost.js";
 import socialVideoOAuthCallback from "../api/social-video-oauth-callback.js";
-import opusclipBlackboxHandler from "../api/opusclip-blackbox.js";
+import socialVideoAdminHandler from "../api/social-video-admin.js";
 import { runSocialVideoAutopostCron } from "../functions/_shared/social-video-autopost-cron.js";
 
 const ROOT = process.cwd();
@@ -77,13 +77,13 @@ test("Vault App OAuth & enkripsi token per-user (AES-256-GCM) + fallback otomati
     );
     assert.equal(redirect, "https://genzai.example.com/api/social-video-oauth-callback");
 
-    /* Owner menyimpan YouTube OAuth lewat BLACK BOX MODUL 03 */
+    /* Owner menyimpan YouTube OAuth lewat BLACK BOX MODUL 03 (Social OAuth Vault) */
     let savedRow = null;
     const bbRes = createMockRes();
-    await opusclipBlackboxHandler(
+    await socialVideoAdminHandler(
         {
             method: "POST",
-            url: "/api/opusclip-blackbox",
+            url: "/api/social-video-admin",
             headers: { authorization: "Bearer test" },
             body: {
                 action: "save_social_oauth_app",
@@ -220,7 +220,7 @@ test("Alur OAuth PKCE multi-user (Facebook, YouTube, TikTok) & callback universa
                             user_id: "22222222-2222-4222-8222-222222222222",
                             platform: "youtube",
                             code_verifier: "ver1",
-                            return_path: "/opusclip/?tab=social",
+                            return_path: "/admin-control/social-publisher.html#social-connections",
                             expires_at: new Date(Date.now() + 600_000).toISOString()
                         }
                     ]);
@@ -250,7 +250,8 @@ test("Alur OAuth PKCE multi-user (Facebook, YouTube, TikTok) & callback universa
     );
 
     assert.equal(cbRes.statusCode, 302);
-    assert.match(cbRes.headers.location, /connected=youtube/);
+    assert.match(cbRes.headers.location, /social_connected=youtube/);
+    assert.match(cbRes.headers.location, /\/admin-control\/social-publisher\.html/);
     assert.equal(savedAccounts.length, 1);
     assert.equal(savedAccounts[0].user_id, "22222222-2222-4222-8222-222222222222");
     assert.equal(savedAccounts[0].external_account_id, "UC_TEST_1");
@@ -417,7 +418,7 @@ test("Member create_posts: potong kredit per post & auto-refund jika gagal + cro
 
     assert.equal(failRes.statusCode, 400);
     assert.equal(rpcLog.length, 2);
-    assert.equal(rpcLog[0].body.p_feature_id, "opusclip_social_post");
+    assert.equal(rpcLog[0].body.p_feature_id, "social_video_post");
     assert.equal(rpcLog[1].body.p_outcome, "refund");
 
     /* Skenario Cron mengeksekusi jadwal jatuh tempo & sukses */
@@ -470,14 +471,18 @@ test("Member create_posts: potong kredit per post & auto-refund jika gagal + cro
     assert.equal(cronOut.published, 1);
 });
 
-test("UI /opusclip/ membuka tab Social & Auto Post untuk semua user sambil mengunci panel API Org ke Admin", () => {
-    const opusHtml = fs.readFileSync(path.join(ROOT, "opusclip/index.html"), "utf8");
+test("UI Studio Medsos menyediakan Hubungkan YouTube/TikTok dan BLACK BOX Social OAuth Vault tetap admin-only", () => {
+    const studioHtml = fs.readFileSync(path.join(ROOT, "admin-control/social-publisher.html"), "utf8");
+    const studioConnections = fs.readFileSync(path.join(ROOT, "admin-control/social-video-connections.js"), "utf8");
     const bbHtml = fs.readFileSync(path.join(ROOT, "black-box/index.html"), "utf8");
 
-    assert.match(opusHtml, /id="ocSocialTabBtn"(?![^>]*hidden)/);
-    assert.match(opusHtml, /id="ocConnectFbBtn"/);
-    assert.match(opusHtml, /id="ocConnectYtBtn"/);
-    assert.match(opusHtml, /id="ocConnectTtBtn"/);
-    assert.match(opusHtml, /id="ocAdminOpusOrgSection"\s+hidden/);
+    assert.match(studioHtml, /id="social-connections"/);
+    assert.match(studioHtml, /id="connect-youtube"/);
+    assert.match(studioHtml, /id="connect-tiktok"/);
+    assert.match(studioHtml, /social-video-connections\.js/);
+    assert.match(studioConnections, /oauth_start/);
+    assert.match(studioConnections, /disconnect_account/);
     assert.match(bbHtml, /id="bbSocialOAuthStatus"/);
+    assert.match(bbHtml, /\/api\/social-video-admin/);
+    assert.doesNotMatch(bbHtml, /OpusClip Studio/i);
 });

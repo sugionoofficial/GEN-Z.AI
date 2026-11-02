@@ -39,6 +39,8 @@ alter table public.feature_credit_settings
             'upscale_video',
             'prompt_studio',
             'metadata_cleaner',
+            'social_video_post',
+            -- Legacy OpusClip Studio ids dipertahankan hanya agar transaksi/history lama tetap valid.
             'opusclip_clipping',
             'opusclip_dubbing',
             'opusclip_thumbnail',
@@ -57,13 +59,7 @@ values
     ('vision_video', 'Vision Video', 0),
     ('upscale', 'Upscale Foto', 0),
     ('upscale_video', 'Upscale Video', 0),
-    ('opusclip_clipping', 'OpusClip AI Video Clipping', 2500),
-    ('opusclip_dubbing', 'OpusClip AI Video Dubbing', 3500),
-    ('opusclip_thumbnail', 'OpusClip AI YouTube Thumbnail', 1000),
-    ('opusclip_censor_edit', 'OpusClip Edit & Sensor Klip', 500),
-    ('opusclip_understanding', 'OpusClip Deep Video Understanding', 1000),
-    ('opusclip_motion_ui', 'OpusClip Motion UI Video (Remotion)', 2500),
-    ('opusclip_social_post', 'Social Video Auto Post (FB / YouTube / TikTok)', 250)
+    ('social_video_post', 'Social Video Auto Post (FB / YouTube / TikTok)', 250)
 on conflict (feature_id) do update
 set label = excluded.label;
 
@@ -160,6 +156,14 @@ begin
                 'Upscale Video'::text,
                 'Upscale Video'::text,
                 ('upscale_' || v_tx)::text;
+        when 'social_video_post' then
+            return query select
+                'genzai-internal'::text,
+                'GEN-Z.AI'::text,
+                'social-video-autopost'::text,
+                'Social Video Auto Post (FB/YT/TikTok)'::text,
+                'Publikasi / jadwal otomatis video ke Facebook, YouTube, atau TikTok'::text,
+                ('socvid_' || v_tx)::text;
         when 'opusclip_clipping' then
             return query select
                 'opusclip'::text,

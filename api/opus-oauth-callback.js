@@ -12,7 +12,6 @@
 
 import {
     OPUS_MCP_URL,
-    OPUS_UNDERSTANDING_MCP_URL,
     buildOpusLoginErrorHtml,
     buildOpusLoginSuccessHtml,
     decodeOAuthState,
@@ -110,9 +109,6 @@ export default async function handler(req, res) {
         delete cleanBundle._id_token;
 
         const mcpUrl = normalizeOpusMcpUrl(state.mu || OPUS_MCP_URL);
-        if (mcpUrl === OPUS_UNDERSTANDING_MCP_URL) {
-            cleanBundle.mcp_url = OPUS_UNDERSTANDING_MCP_URL;
-        }
         let check = await verifyOpusMcpToken(mcpUrl, cleanBundle.access_token);
         if (!check.ok && check.status === 401 && candidateIdToken) {
             const idCheck = await verifyOpusMcpToken(mcpUrl, candidateIdToken);

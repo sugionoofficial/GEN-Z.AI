@@ -221,6 +221,18 @@
         @media(prefers-reduced-motion:reduce){.card.studio-collapsible,.studio-collapse-chevron,.studio-collapse-body,.master-status-pill .master-status-dot,.inline-model-chevron,.inline-model-list{animation:none;transition:none}}
         @media(max-width:768px){.inline-model-dropdown{max-width:100%}.master-switch-card{flex-direction:column;align-items:stretch;padding:13px 14px;gap:12px}.master-switch-right{justify-content:space-between;width:100%}.master-status-pill{min-width:112px;padding:8px 13px;font-size:11px}.master-switch-controls{width:100%;justify-content:stretch}.master-mode-btn{flex:1 1 0;text-align:center;padding:6px 6px;font-size:10px}.card.studio-collapsible.is-expanded{grid-column:auto}.studio-collapse-trigger{padding:14px 14px;gap:11px}.card.studio-collapsible.is-expanded .studio-collapse-trigger{padding:15px 15px}.studio-collapse-icon{width:38px;height:38px;border-radius:11px}.studio-collapse-copy h3{font-size:14.5px}.studio-collapse-body{padding:15px 14px 17px}.studio-collapse-chip-label{display:none}}
 
+
+        .social-connections-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:12px}
+        .social-connection-card{border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(255,255,255,.02);display:grid;gap:10px;min-width:0}
+        .social-connection-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+        .social-connection-head strong{font-size:14px}
+        .social-account-item{display:flex;align-items:center;justify-content:space-between;gap:10px}
+        .social-account-info{display:grid;gap:2px;min-width:0}
+        .social-account-info strong{overflow-wrap:anywhere}
+        .status.ok{color:var(--green)}
+        .status.warn{color:var(--amber)}
+        @media(max-width:768px){.social-connections-grid{grid-template-columns:1fr}}
+
     </style>
     <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261026f">
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -323,6 +335,34 @@
             </div>
             <div id="config-list" class="config-list" aria-live="polite"></div>
             <p class="help" style="margin-top:12px">Tombol <strong>Autopost saya</strong> hanya mengatur jadwal milik akun Anda; akun lain tidak terpengaruh. Blok <strong>Master Switch</strong> menampilkan status layanan global Studio Medsos (<strong style="color:var(--green)">ACTIVE</strong>, <strong style="color:var(--amber)">MAINTENANCE</strong>, atau <strong style="color:var(--red)">OFF</strong>) yang dikelola oleh Admin/Owner.</p>
+        </section>
+
+
+        <section class="card" id="social-connections" aria-labelledby="social-connections-title">
+            <div class="card-head">
+                <div>
+                    <h3 id="social-connections-title">Hubungkan YouTube &amp; TikTok</h3>
+                    <p class="sub">Login OAuth resmi untuk menyimpan akun video Anda di Studio Medsos. Token dienkripsi di server dan dapat diputuskan kapan saja.</p>
+                </div>
+                <div class="actions" style="margin:0">
+                    <button id="refresh-social-connections" class="btn small" type="button">Muat ulang</button>
+                </div>
+            </div>
+            <div id="social-connections-message" class="notice" role="status" hidden></div>
+            <div class="social-connections-grid">
+                <div class="social-connection-card">
+                    <div class="social-connection-head"><strong>YouTube</strong><span class="help">Google OAuth</span></div>
+                    <p id="youtube-connection-status" class="status" role="status">Memuat status…</p>
+                    <div id="youtube-accounts" class="list"><div class="empty">Memuat koneksi…</div></div>
+                    <div class="actions" style="margin:0"><button id="connect-youtube" class="btn primary" type="button" disabled>Hubungkan YouTube</button></div>
+                </div>
+                <div class="social-connection-card">
+                    <div class="social-connection-head"><strong>TikTok</strong><span class="help">TikTok OAuth</span></div>
+                    <p id="tiktok-connection-status" class="status" role="status">Memuat status…</p>
+                    <div id="tiktok-accounts" class="list"><div class="empty">Memuat koneksi…</div></div>
+                    <div class="actions" style="margin:0"><button id="connect-tiktok" class="btn primary" type="button" disabled>Hubungkan TikTok</button></div>
+                </div>
+            </div>
         </section>
 
         <div class="grid" style="margin-top:18px">
@@ -898,6 +938,7 @@
     <script src="/navigation/navigation.js?v=livechat-nav-20261101"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
     <script type="module" src="./social-publisher.js?v=publish-confirm-inline-premium-20261101a"></script>
+    <script src="./social-video-connections.js?v=studio-medsos-yt-tiktok-20261102"></script>
     <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
 </body>
 </html>

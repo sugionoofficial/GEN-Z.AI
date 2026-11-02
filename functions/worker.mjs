@@ -18,8 +18,7 @@ import opusOAuthLogin from "../api/opus-oauth-login.js";
 import opusOAuthCallback from "../api/opus-oauth-callback.js";
 import opusVoicePreview from "../api/opus-voice-preview.js";
 import opusBlackbox from "../api/opus-blackbox.js";
-import opusclipBlackbox from "../api/opusclip-blackbox.js";
-import opusclip from "../api/opusclip.js";
+import socialVideoAdmin from "../api/social-video-admin.js";
 import socialVideoAutopost from "../api/social-video-autopost.js";
 import socialVideoOAuthCallback from "../api/social-video-oauth-callback.js";
 import sightengineDetect from "../api/sightengine-detect.js";
@@ -57,8 +56,7 @@ const handlers = new Map([
     ["/api/opus-oauth-callback", opusOAuthCallback],
     ["/api/opus-voice-preview", opusVoicePreview],
     ["/api/opus-blackbox", opusBlackbox],
-    ["/api/opusclip-blackbox", opusclipBlackbox],
-    ["/api/opusclip", opusclip],
+    ["/api/social-video-admin", socialVideoAdmin],
     ["/api/social-video-autopost", socialVideoAutopost],
     ["/api/social-video-oauth-callback", socialVideoOAuthCallback],
     ["/api/sightengine-detect", sightengineDetect],

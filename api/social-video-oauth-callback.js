@@ -13,7 +13,7 @@
    Memverifikasi `state_hash` pada `public.social_video_oauth_states`
    (sekali pakai + TTL 15 menit), menukar `code` menjadi token akses
    & refresh, mengenkripsi AES-256-GCM ke `public.social_video_accounts`
-   milik `user_id` terkait, lalu me-redirect kembali ke `/opusclip/?tab=social`.
+   milik `user_id` terkait, lalu me-redirect kembali ke Studio Medsos (`/admin-control/social-publisher.html`).
 ========================================================= */
 
 import { resolveRuntimeEnv } from "../lib/opus/load-opus-credential.js";
@@ -35,12 +35,15 @@ function redirectTo(res, location) {
     return res.end("");
 }
 
-function safeReturnUrl(origin, returnPath, params = {}) {
-    const cleanPath = String(returnPath || "/opusclip/?tab=social").startsWith("/")
-        ? String(returnPath || "/opusclip/?tab=social")
-        : "/opusclip/?tab=social";
-    const target = new URL(cleanPath, origin);
-    target.searchParams.set("tab", "social");
+const STUDIO_RETURN_PATH = "/admin-control/social-publisher.html#social-connections";
+
+function safeReturnUrl(origin, _returnPath, params = {}) {
+    /*
+     * Selalu kembali ke Studio Medsos. Nilai return_path lama (/opusclip/...)
+     * dipetakan ke halaman baru; query/hash dari client tidak dipercaya sebagai
+     * tujuan redirect agar tidak menjadi open-redirect.
+     */
+    const target = new URL(STUDIO_RETURN_PATH, origin);
     for (const [k, v] of Object.entries(params)) {
         if (v !== undefined && v !== null && v !== "") {
             target.searchParams.set(k, String(v));
@@ -67,7 +70,7 @@ export default async function handler(req, res) {
     if (!supabaseUrl || !serviceKey) {
         return redirectTo(
             res,
-            safeReturnUrl(origin, "/opusclip/", { oauth_error: "Konfigurasi server belum lengkap." })
+            safeReturnUrl(origin, null, { social_oauth_error: "Konfigurasi server belum lengkap." })
         );
     }
 
@@ -79,7 +82,7 @@ export default async function handler(req, res) {
     if (!rawState) {
         return redirectTo(
             res,
-            safeReturnUrl(origin, "/opusclip/", { oauth_error: "Parameter state OAuth tidak ditemukan." })
+            safeReturnUrl(origin, null, { social_oauth_error: "Parameter state OAuth tidak ditemukan." })
         );
     }
 
@@ -111,8 +114,8 @@ export default async function handler(req, res) {
     if (!stateRow || Date.parse(stateRow.expires_at) <= Date.now()) {
         return redirectTo(
             res,
-            safeReturnUrl(origin, "/opusclip/", {
-                oauth_error: "Sesi login OAuth sudah kedaluwarsa. Silakan klik tombol Hubungkan kembali."
+            safeReturnUrl(origin, null, {
+                social_oauth_error: "Sesi login OAuth sudah kedaluwarsa. Silakan klik tombol Hubungkan kembali."
             })
         );
     }
@@ -134,7 +137,7 @@ export default async function handler(req, res) {
         return redirectTo(
             res,
             safeReturnUrl(origin, stateRow.return_path, {
-                oauth_error: `Login ${stateRow.platform.toUpperCase()} dibatalkan: ${String(desc).slice(0, 140)}`
+                social_oauth_error: `Login ${stateRow.platform.toUpperCase()} dibatalkan: ${String(desc).slice(0, 140)}`
             })
         );
     }
@@ -143,7 +146,7 @@ export default async function handler(req, res) {
         return redirectTo(
             res,
             safeReturnUrl(origin, stateRow.return_path, {
-                oauth_error: "Kode otorisasi OAuth tidak diterima."
+                social_oauth_error: "Kode otorisasi OAuth tidak diterima."
             })
         );
     }
@@ -229,15 +232,15 @@ export default async function handler(req, res) {
         return redirectTo(
             res,
             safeReturnUrl(origin, stateRow.return_path, {
-                connected: stateRow.platform,
-                count: upsertRows.length
+                social_connected: stateRow.platform,
+                social_count: upsertRows.length
             })
         );
     } catch (err) {
         return redirectTo(
             res,
             safeReturnUrl(origin, stateRow.return_path, {
-                oauth_error: String(err?.message || "Gagal menghubungkan akun medsos.").slice(0, 180)
+                social_oauth_error: String(err?.message || "Gagal menghubungkan akun medsos.").slice(0, 180)
             })
         );
     }
