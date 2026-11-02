@@ -43,6 +43,22 @@
         activeStatuses: ["processing", "pending"]
     };
 
+    if (typeof App.state.historyScope !== "string") {
+        App.state.historyScope = "own";
+    }
+
+    if (typeof App.state.taskIdSearch !== "string") {
+        App.state.taskIdSearch = "";
+    }
+
+    if (typeof App.state.historyLoadSequence !== "number") {
+        App.state.historyLoadSequence = 0;
+    }
+
+    if (typeof App.state.historySearchTruncated !== "boolean") {
+        App.state.historySearchTruncated = false;
+    }
+
     /* =====================================================
        INTERNAL HELPERS
     ===================================================== */
@@ -83,6 +99,69 @@
 
     App.normalizeRole = normalizeRole;
     App.isAdminOrOwner = isAdminOrOwner;
+
+    /* =====================================================
+       CAKUPAN RIWAYAT & PENCARIAN TASK ID
+       -----------------------------------------------------
+       Admin/owner boleh memilih riwayat global atau pribadi.
+       Role user selalu dipaksa ke riwayat pribadi, apa pun
+       nilai state yang mungkin tersisa di browser.
+    ===================================================== */
+
+    const HISTORY_QUERY_LIMIT = 200;
+    const TASK_ID_SEARCH_MAX_LENGTH = 256;
+
+    function normalizeHistoryScope(scope) {
+        const value = String(scope || "own").trim().toLowerCase();
+        return value === "global" && isAdminOrOwner() ? "global" : "own";
+    }
+
+    function getHistoryScope() {
+        return normalizeHistoryScope(getState().historyScope);
+    }
+
+    function setHistoryScope(scope) {
+        const normalized = normalizeHistoryScope(scope);
+        getState().historyScope = normalized;
+        return normalized;
+    }
+
+    function normalizeTaskIdSearch(value) {
+        return String(value || "")
+            .trim()
+            .slice(0, TASK_ID_SEARCH_MAX_LENGTH);
+    }
+
+    function getTaskIdSearch() {
+        return normalizeTaskIdSearch(getState().taskIdSearch);
+    }
+
+    function setTaskIdSearch(value) {
+        const normalized = normalizeTaskIdSearch(value);
+        getState().taskIdSearch = normalized;
+        return normalized;
+    }
+
+    /*
+     * `%` dan `_` adalah wildcard LIKE/ILIKE. Escape supaya
+     * Task ID yang mengandung karakter tersebut dicari harfiah.
+     */
+    function escapeLikePattern(value) {
+        return String(value || "").replace(/[\\%_]/g, "\\$&");
+    }
+
+    function getHistoryQueryLimit() {
+        return HISTORY_QUERY_LIMIT;
+    }
+
+    App.normalizeHistoryScope = normalizeHistoryScope;
+    App.getHistoryScope = getHistoryScope;
+    App.setHistoryScope = setHistoryScope;
+    App.normalizeTaskIdSearch = normalizeTaskIdSearch;
+    App.getTaskIdSearch = getTaskIdSearch;
+    App.setTaskIdSearch = setTaskIdSearch;
+    App.escapeLikePattern = escapeLikePattern;
+    App.getHistoryQueryLimit = getHistoryQueryLimit;
 
     /* =====================================================
        STATUS
@@ -612,13 +691,18 @@
         }
 
         /*
-         * Jangan jalankan query ganda bersamaan.
+         * Setiap request mendapat nomor urut. Scope/pencarian boleh
+         * berubah saat request lama masih berjalan; hanya hasil
+         * request terbaru yang boleh masuk ke state dan dirender.
          */
-        if (state.historyLoadInProgress) {
-            return state.historyData;
-        }
+        const requestId =
+            (Number(state.historyLoadSequence) || 0) + 1;
 
+        state.historyLoadSequence = requestId;
         state.historyLoadInProgress = true;
+
+        const scope = getHistoryScope();
+        const taskIdSearch = getTaskIdSearch();
 
         try {
 
@@ -659,27 +743,36 @@
 
             /*
              * Query generation history.
+             *
+             * Pencarian Task ID dilakukan di server sebelum LIMIT,
+             * jadi task lama tetap ditemukan meskipun tidak masuk
+             * 200 riwayat terbaru yang sedang ditampilkan.
              */
-                        let query = client
+            let query = client
                 .from(App.config.historyTable)
                 .select("*")
                 .order("created_at", {
                     ascending: false
                 })
-                .limit(200);
+                .limit(HISTORY_QUERY_LIMIT);
 
             /*
-             * USER hanya boleh melihat history
-             * miliknya sendiri.
-             *
-             * ADMIN / OWNER tetap dapat melihat
-             * seluruh history seperti sistem lama.
+             * Role user selalu dibatasi ke miliknya sendiri.
+             * Admin/owner hanya melihat global bila memilih scope
+             * "global"; default halaman adalah riwayat pribadi.
+             * RLS Supabase tetap menjadi lapisan keamanan akhir.
              */
-            if (!isAdminOrOwner()) {
-
+            if (scope !== "global") {
                 query = query.eq(
                     "user_id",
                     currentUser.id
+                );
+            }
+
+            if (taskIdSearch) {
+                query = query.ilike(
+                    "task_id",
+                    `%${escapeLikePattern(taskIdSearch)}%`
                 );
             }
 
@@ -687,6 +780,14 @@
                 data,
                 error
             } = await query;
+
+            /*
+             * Abaikan respons lama bila pengguna sudah mengganti
+             * scope atau kata kunci pencarian.
+             */
+            if (requestId !== state.historyLoadSequence) {
+                return state.historyData;
+            }
 
             if (error) {
 
@@ -709,6 +810,10 @@
                     ? data
                     : [];
 
+            state.historySearchTruncated =
+                Boolean(taskIdSearch) &&
+                state.historyData.length >= HISTORY_QUERY_LIMIT;
+
             /*
              * Tukar referensi media privat menjadi signed URL
              * sebelum render supaya thumbnail langsung tampil.
@@ -716,6 +821,10 @@
             await resolvePrivateMediaRefs(
                 state.historyData
             );
+
+            if (requestId !== state.historyLoadSequence) {
+                return state.historyData;
+            }
 
             /*
              * Render dilakukan oleh history-render.js.
@@ -734,8 +843,10 @@
 
         } finally {
 
-            state.historyLoadInProgress =
-                false;
+            if (requestId === state.historyLoadSequence) {
+                state.historyLoadInProgress =
+                    false;
+            }
         }
     }
 
@@ -800,9 +911,8 @@
         const filter =
             getCurrentFilter();
 
-        if (filter === "all") {
-            return data;
-        }
+        const taskIdSearch =
+            getTaskIdSearch().toLowerCase();
 
         return data.filter(item => {
 
@@ -811,7 +921,27 @@
                     item?.status
                 );
 
-            return status === filter;
+            const statusMatches =
+                filter === "all" ||
+                status === filter;
+
+            if (!statusMatches) {
+                return false;
+            }
+
+            if (!taskIdSearch) {
+                return true;
+            }
+
+            /*
+             * Query server sudah memakai ILIKE. Filter lokal ini
+             * menjaga data lama tidak sempat tampil saat kata kunci
+             * baru sedang dimuat, serta menggabungkan pencarian
+             * dengan filter status yang sudah ada.
+             */
+            return getTaskId(item)
+                .toLowerCase()
+                .includes(taskIdSearch);
         });
     }
 
