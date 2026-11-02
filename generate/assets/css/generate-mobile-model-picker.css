@@ -1,0 +1,211 @@
+/* =========================================================
+   GEN-Z.AI
+   MOBILE MODEL PICKER
+   ---------------------------------------------------------
+   Progressive enhancement untuk #modelSelect.
+   - Hanya aktif pada layar HP (<= 768px).
+   - Native select tetap menjadi sumber nilai untuk form,
+     parameter, kredit, dan submit generate.
+   - Daftar dibuat gelap dengan baris terpilih biru agar
+     konsisten di Android/iOS, tidak mengikuti popup OS.
+========================================================= */
+
+.generate-model-picker-trigger {
+    display: none;
+}
+
+.generate-model-picker-trigger[hidden],
+.generate-model-picker-menu[hidden] {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    .generate-model-select-wrap.is-mobile-picker-enhanced {
+        position: relative;
+    }
+
+    /*
+     * Jangan pakai display:none pada native select: nilai dan
+     * disabled state tetap dibaca oleh modul generate yang ada.
+     */
+    .generate-model-select-wrap.is-mobile-picker-enhanced > .generate-model-select {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        min-height: 0 !important;
+        margin: -1px !important;
+        padding: 0 !important;
+        border: 0 !important;
+        overflow: hidden !important;
+        clip-path: inset(50%) !important;
+        white-space: nowrap !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    .generate-model-select-wrap.is-mobile-picker-enhanced > .generate-model-picker-trigger {
+        display: flex;
+    }
+}
+
+.generate-model-picker-trigger {
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    min-height: 54px;
+    padding: 10px 12px 10px 16px;
+    border: 1px solid rgba(183, 255, 0, 0.27);
+    border-radius: var(--gz-radius-md, 14px);
+    background: rgba(2, 5, 2, 0.9);
+    color: #f5faee;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.generate-model-picker-trigger:focus-visible {
+    outline: none;
+    border-color: var(--gz-lime, #b7ff00);
+    box-shadow: 0 0 0 3px rgba(183, 255, 0, 0.12);
+}
+
+.generate-model-picker-trigger:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.generate-model-picker-trigger-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.generate-model-picker-trigger-arrow {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    color: currentColor;
+    opacity: 0.75;
+    transition: transform 0.15s ease;
+}
+
+.generate-model-picker-trigger[aria-expanded="true"] .generate-model-picker-trigger-arrow {
+    transform: rotate(180deg);
+}
+
+.generate-model-picker-menu {
+    position: fixed;
+    z-index: 1200;
+    display: block;
+    overflow: hidden;
+    border: 1px solid #3a4353;
+    border-radius: 8px;
+    background: #0d111a;
+    color: #f5f7fa;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+}
+
+.generate-model-picker-list {
+    max-height: inherit;
+    overflow-y: auto;
+    padding: 4px 0;
+    outline: none;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-width: thin;
+    scrollbar-color: #3a4353 transparent;
+}
+
+.generate-model-picker-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.generate-model-picker-list::-webkit-scrollbar-thumb {
+    border-radius: 99px;
+    background: #3a4353;
+}
+
+.generate-model-picker-option {
+    min-height: 44px;
+    padding: 10px 14px;
+    color: #f5f7fa;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.generate-model-picker-option.is-active:not([aria-selected="true"]) {
+    background: #1c2534;
+}
+
+.generate-model-picker-option[aria-selected="true"] {
+    background: #83b9f3;
+    color: #0b1220;
+}
+
+.generate-model-picker-option[aria-disabled="true"] {
+    color: #8b94a3;
+    cursor: default;
+}
+
+.generate-model-picker-option[aria-selected="true"][aria-disabled="true"] {
+    color: #334155;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .generate-model-picker-option {
+        transition: background-color 0.12s ease;
+    }
+}
+
+/* Tombol mengikuti tema halaman; daftar tetap punya kontras tinggi. */
+html[data-genz-theme="light"] .generate-model-picker-trigger {
+    border-color: #c3cfdd;
+    background: #ffffff;
+    color: #101a2e;
+}
+
+html[data-genz-theme="light"] .generate-model-picker-menu {
+    border-color: #c3cfdd;
+    background: #ffffff;
+    color: #101a2e;
+    box-shadow: 0 14px 36px rgba(40, 54, 82, 0.18);
+    color-scheme: light;
+}
+
+html[data-genz-theme="light"] .generate-model-picker-list {
+    scrollbar-color: #c3cfdd transparent;
+}
+
+html[data-genz-theme="light"] .generate-model-picker-list::-webkit-scrollbar-thumb {
+    background: #c3cfdd;
+}
+
+html[data-genz-theme="light"] .generate-model-picker-option {
+    color: #101a2e;
+}
+
+html[data-genz-theme="light"] .generate-model-picker-option.is-active:not([aria-selected="true"]) {
+    background: #eef3fb;
+}
+
+html[data-genz-theme="light"] .generate-model-picker-option[aria-selected="true"] {
+    background: #83b9f3;
+    color: #0b1220;
+}
+
+html[data-genz-theme="light"] .generate-model-picker-option[aria-disabled="true"] {
+    color: #6b7280;
+}
