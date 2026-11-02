@@ -21,6 +21,7 @@ import vm from "node:vm";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const composerSource = readFileSync(path.join(ROOT, "admin-control/social-video-composer.js"), "utf8");
 const studioHtml = readFileSync(path.join(ROOT, "admin-control/social-publisher.html"), "utf8");
+const publisherSource = readFileSync(path.join(ROOT, "admin-control/social-publisher.js"), "utf8");
 
 const ACCOUNT_YT = {
     id: "11111111-1111-4111-8111-111111111111",
@@ -138,7 +139,8 @@ function buildEnv({ bootstrap } = {}) {
         "svp-source-url", "svp-history-select", "svp-file", "svp-url",
         "svp-preview", "svp-title", "svp-caption", "svp-hashtags",
         "svp-privacy", "svp-ai-caption", "svp-credit", "svp-schedule",
-        "svp-publish", "svp-schedule-btn", "svp-queue"
+        "svp-publish", "svp-schedule-btn",
+        "social-video-history", "svh-list", "svh-refresh"
     ];
     for (const name of idNames) ids[name] = new FakeEl(name === "svp-history-select" ? "select" : "div");
 
@@ -261,8 +263,57 @@ test("Studio Medsos punya blok post YouTube/TikTok dengan pilihan post manual da
     assert.match(section, /Post sekarang/, "tombol POST MANUAL wajib ada di dalam blok");
     assert.match(section, /Jadwalkan autopost/, "tombol AUTO POST wajib ada di dalam blok");
     assert.match(section, /id="svp-accounts"/, "pilihan akun YouTube/TikTok wajib ada");
-    assert.match(section, /id="svp-queue"/, "antrean posting wajib ada");
     assert.match(studioHtml, /social-video-composer\.js\?v=/, "script composer wajib dipasang");
+});
+
+test("riwayat posting YouTube/TikTok TIDAK ada di kartu composer, tapi di blok Riwayat pembuatan & posting", () => {
+    const sectionStart = studioHtml.indexOf('id="social-video-post"');
+    const sectionEnd = studioHtml.indexOf("</section>", sectionStart);
+    const composerSection = studioHtml.slice(sectionStart, sectionEnd);
+
+    assert.doesNotMatch(
+        composerSection,
+        /svp-queue|Antrean/,
+        "kartu composer tidak boleh lagi memuat antrean/riwayat posting"
+    );
+
+    const runsStart = studioHtml.indexOf('id="runs-section"');
+    assert.notEqual(runsStart, -1, "blok Riwayat pembuatan & posting wajib ada");
+    const runsEnd = studioHtml.indexOf("</section>", runsStart);
+    const runsSection = studioHtml.slice(runsStart, runsEnd);
+
+    assert.match(runsSection, /id="social-video-history"/, "sub-blok status YouTube/TikTok wajib ada di riwayat");
+    assert.match(runsSection, /id="svh-list"/, "daftar status posting YouTube/TikTok wajib ada di riwayat");
+    assert.match(runsSection, /Status posting YouTube &amp; TikTok/, "judul sub-blok wajib jelas");
+    assert.match(runsSection, /id="refresh"/, "tombol muat ulang riwayat lama wajib tetap ada");
+
+    assert.match(studioHtml, /social-video-composer\.js\?v=svp-composer-20261102b/, "pin composer wajib dimutakhirkan");
+    assert.match(studioHtml, /social-publisher\.js\?v=publish-confirm-inline-20261102-runs-logo/, "pin social-publisher.js wajib dimutakhirkan");
+});
+
+test("setiap riwayat medsos membawa logo platformnya masing-masing", () => {
+    /* Composer: logo YouTube/TikTok/Facebook untuk tiap baris status posting. */
+    assert.match(composerSource, /M23\.498 6\.186/, "logo YouTube wajib ada di composer");
+    assert.match(composerSource, /M12\.525\.02/, "logo TikTok wajib ada di composer");
+    assert.match(composerSource, /M24 12\.073/, "logo Facebook wajib ada di composer");
+    assert.match(
+        composerSource,
+        /svp-logo svp-logo--\$\{platform \|\| "facebook"\}/,
+        "logo wajib dipilih sesuai platform tiap baris riwayat"
+    );
+    assert.match(
+        composerSource,
+        /head\.appendChild\(platformLogo\(post\.platform\)\)/,
+        "logo wajib ditempel di judul tiap baris riwayat posting"
+    );
+
+    /* Riwayat Facebook lama juga membawa logo Facebook. */
+    const renderRunsStart = publisherSource.indexOf("function renderRuns(");
+    const renderRunsEnd = publisherSource.indexOf("const autopostWatch", renderRunsStart);
+    assert.notEqual(renderRunsStart, -1, "renderRuns wajib ada");
+    const renderRunsBlock = publisherSource.slice(renderRunsStart, renderRunsEnd);
+    assert.match(renderRunsBlock, /run-logo run-logo--facebook/, "tiap baris riwayat Facebook wajib membawa logo Facebook");
+    assert.match(renderRunsBlock, /FB_LOGO_SVG/, "logo yang dipakai riwayat Facebook wajib FB_LOGO_SVG");
 });
 
 test("composer memakai endpoint social-video-autopost dan aksi create_posts", () => {
@@ -433,10 +484,16 @@ test("jadwal terjadwal tampil di antrean dan bisa dibatalkan lewat cancel_post",
         }
     });
 
-    assert.ok(await waitUntil(() => ids["svp-queue"].children.length === 1));
-    const item = ids["svp-queue"].children[0];
+    assert.ok(await waitUntil(() => ids["svh-list"].children.length === 1));
+    const item = ids["svh-list"].children[0];
     assert.match(item.textContent, /Video jadwal/);
     assert.match(item.textContent, /Terjadwal/);
+
+    /* Baris riwayat YouTube wajib membawa logo YouTube di depan. */
+    const title = item.children[0]?.children[0];
+    assert.ok(title, "struktur baris wajib punya judul");
+    const logo = title.children.find(node => String(node.className || "").includes("svp-logo--youtube"));
+    assert.ok(logo, "baris riwayat YouTube wajib membawa logo YouTube");
 
     const cancel = item.children.find(node => node.tagName === "BUTTON");
     assert.ok(cancel, "jadwal aktif wajib punya tombol batalkan");
@@ -473,7 +530,7 @@ test("posting gagal menampilkan pesan errornya di antrean", async () => {
         }
     });
 
-    assert.ok(await waitUntil(() => ids["svp-queue"].children.length === 1));
-    assert.match(ids["svp-queue"].children[0].textContent, /Token TikTok kedaluwarsa/);
-    assert.match(ids["svp-queue"].children[0].textContent, /Gagal/);
+    assert.ok(await waitUntil(() => ids["svh-list"].children.length === 1));
+    assert.match(ids["svh-list"].children[0].textContent, /Token TikTok kedaluwarsa/);
+    assert.match(ids["svh-list"].children[0].textContent, /Gagal/);
 });
