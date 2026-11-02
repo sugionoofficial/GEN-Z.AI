@@ -6,22 +6,25 @@ import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
 /* =========================================================
-   BLACK BOX // STUDIO MEDSOS — POST & AUTOPOST YOUTUBE/TIKTOK
+   BLACK BOX // STUDIO MEDSOS — COMPOSER POST & AUTOPOST
+   YOUTUBE/TIKTOK
    ---------------------------------------------------------
    Yang dijaga di sini:
    1. Halaman Studio Medsos wajib punya pilihan YouTube/TikTok
       untuk POST MANUAL ("Post sekarang") dan AUTO POST
-      ("Jadwalkan autopost") — bukan hanya blok koneksi.
+      ("Jadwalkan autopost").
    2. Post manual mengirim create_posts publishNow:true;
       autopost mengirim scheduledFor tanpa publishNow.
    3. Tanpa akun terhubung, tombol mati dan ada petunjuk.
-   4. Jadwal yang masih "scheduled" bisa dibatalkan.
+   4. Composer TIDAK merender riwayat — ia memicu event
+      "genz:social-video-posts-changed" dan statusnya menyatu
+      di daftar Riwayat pembuatan & posting (lihat
+      tests/social-video-merge.test.mjs).
    ========================================================= */
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const composerSource = readFileSync(path.join(ROOT, "admin-control/social-video-composer.js"), "utf8");
 const studioHtml = readFileSync(path.join(ROOT, "admin-control/social-publisher.html"), "utf8");
-const publisherSource = readFileSync(path.join(ROOT, "admin-control/social-publisher.js"), "utf8");
 
 const ACCOUNT_YT = {
     id: "11111111-1111-4111-8111-111111111111",
@@ -139,8 +142,7 @@ function buildEnv({ bootstrap } = {}) {
         "svp-source-url", "svp-history-select", "svp-file", "svp-url",
         "svp-preview", "svp-title", "svp-caption", "svp-hashtags",
         "svp-privacy", "svp-ai-caption", "svp-credit", "svp-schedule",
-        "svp-publish", "svp-schedule-btn",
-        "social-video-history", "svh-list", "svh-refresh"
+        "svp-publish", "svp-schedule-btn"
     ];
     for (const name of idNames) ids[name] = new FakeEl(name === "svp-history-select" ? "select" : "div");
 
@@ -152,6 +154,11 @@ function buildEnv({ bootstrap } = {}) {
 
     const calls = [];
     const confirms = [];
+    const events = [];
+
+    class CustomEventStub {
+        constructor(type) { this.type = type; }
+    }
 
     const payload = bootstrap ?? {
         success: true,
@@ -202,19 +209,14 @@ function buildEnv({ bootstrap } = {}) {
                     : { success: true, mode: "immediate", succeeded: 1, failed: 0, results: [{ ok: true }], creditsRemaining: 45, posts: [row] }
             };
         }
-        if (target.includes("action=cancel_post")) {
-            return {
-                ok: true,
-                status: 200,
-                json: async () => ({ success: true, message: "Jadwal Auto Post berhasil dibatalkan.", posts: [] })
-            };
-        }
         return { ok: true, status: 200, json: async () => ({ success: true }) };
     }
 
     const windowStub = {
         GENZSession: { ensureFreshSession: async () => ({ access_token: "token-uji" }) },
-        confirm: message => { confirms.push(String(message)); return true; }
+        confirm: message => { confirms.push(String(message)); return true; },
+        dispatchEvent: event => { events.push(event.type); return true; },
+        addEventListener: () => {}
     };
 
     const documentStub = {
@@ -232,6 +234,7 @@ function buildEnv({ bootstrap } = {}) {
         console,
         URL,
         URLSearchParams,
+        CustomEvent: CustomEventStub,
         fetch: fetchStub,
         setTimeout,
         clearTimeout
@@ -239,7 +242,7 @@ function buildEnv({ bootstrap } = {}) {
     vm.createContext(context);
     vm.runInContext(composerSource, context, { filename: "social-video-composer.js" });
 
-    return { ids, tabs, calls, confirms, payload };
+    return { ids, tabs, calls, confirms, payload, events };
 }
 
 async function waitUntil(condition, tries = 100) {
@@ -263,10 +266,11 @@ test("Studio Medsos punya blok post YouTube/TikTok dengan pilihan post manual da
     assert.match(section, /Post sekarang/, "tombol POST MANUAL wajib ada di dalam blok");
     assert.match(section, /Jadwalkan autopost/, "tombol AUTO POST wajib ada di dalam blok");
     assert.match(section, /id="svp-accounts"/, "pilihan akun YouTube/TikTok wajib ada");
-    assert.match(studioHtml, /social-video-composer\.js\?v=/, "script composer wajib dipasang");
+    assert.match(studioHtml, /social-video-composer\.js\?v=svp-composer-20261102d/, "script composer wajib terpasang dengan pin baru");
+    assert.match(studioHtml, /social-publisher\.js\?v=publish-confirm-inline-20261102-merge-sv/, "pin publisher wajib dimutakhirkan");
 });
 
-test("riwayat posting YouTube/TikTok TIDAK ada di kartu composer, tapi di blok Riwayat pembuatan & posting", () => {
+test("riwayat TIDAK ada di kartu composer dan TANPA sub-blok terpisah — menyatu di Riwayat pembuatan & posting", () => {
     const sectionStart = studioHtml.indexOf('id="social-video-post"');
     const sectionEnd = studioHtml.indexOf("</section>", sectionStart);
     const composerSection = studioHtml.slice(sectionStart, sectionEnd);
@@ -274,53 +278,31 @@ test("riwayat posting YouTube/TikTok TIDAK ada di kartu composer, tapi di blok R
     assert.doesNotMatch(
         composerSection,
         /svp-queue|Antrean/,
-        "kartu composer tidak boleh lagi memuat antrean/riwayat posting"
+        "kartu composer tidak boleh memuat antrean/riwayat posting"
+    );
+    assert.doesNotMatch(
+        studioHtml,
+        /social-video-history|svh-list|svh-refresh/,
+        "sub-blok status terpisah wajib dihapus dari HTML"
     );
 
     const runsStart = studioHtml.indexOf('id="runs-section"');
     assert.notEqual(runsStart, -1, "blok Riwayat pembuatan & posting wajib ada");
     const runsEnd = studioHtml.indexOf("</section>", runsStart);
     const runsSection = studioHtml.slice(runsStart, runsEnd);
-
-    assert.match(runsSection, /id="social-video-history"/, "sub-blok status YouTube/TikTok wajib ada di riwayat");
-    assert.match(runsSection, /id="svh-list"/, "daftar status posting YouTube/TikTok wajib ada di riwayat");
-    assert.match(runsSection, /Status posting YouTube &amp; TikTok/, "judul sub-blok wajib jelas");
-    assert.match(runsSection, /sudah benar-benar terbit \u2014 ini riwayat/, "legenda pembeda jadwal vs riwayat wajib ada");
-    assert.match(runsSection, /id="refresh"/, "tombol muat ulang riwayat lama wajib tetap ada");
-
-    assert.match(studioHtml, /social-video-composer\.js\?v=svp-composer-20261102c/, "pin composer wajib dimutakhirkan");
-    assert.match(studioHtml, /social-publisher\.js\?v=publish-confirm-inline-20261102-runs-logo/, "pin social-publisher.js wajib dimutakhirkan");
+    assert.match(runsSection, /id="runs-list"/, "daftar riwayat tunggal wajib ada");
+    assert.match(studioHtml, /satu daftar urut waktu/, "legenda daftar terpadu wajib ada");
 });
 
-test("setiap riwayat medsos membawa logo platformnya masing-masing", () => {
-    /* Composer: logo YouTube/TikTok/Facebook untuk tiap baris status posting. */
-    assert.match(composerSource, /M23\.498 6\.186/, "logo YouTube wajib ada di composer");
-    assert.match(composerSource, /M12\.525\.02/, "logo TikTok wajib ada di composer");
-    assert.match(composerSource, /M24 12\.073/, "logo Facebook wajib ada di composer");
-    assert.match(
-        composerSource,
-        /svp-logo svp-logo--\$\{platform \|\| "facebook"\}/,
-        "logo wajib dipilih sesuai platform tiap baris riwayat"
-    );
-    assert.match(
-        composerSource,
-        /head\.appendChild\(platformLogo\(post\.platform\)\)/,
-        "logo wajib ditempel di judul tiap baris riwayat posting"
-    );
-
-    /* Riwayat Facebook lama juga membawa logo Facebook. */
-    const renderRunsStart = publisherSource.indexOf("function renderRuns(");
-    const renderRunsEnd = publisherSource.indexOf("const autopostWatch", renderRunsStart);
-    assert.notEqual(renderRunsStart, -1, "renderRuns wajib ada");
-    const renderRunsBlock = publisherSource.slice(renderRunsStart, renderRunsEnd);
-    assert.match(renderRunsBlock, /run-logo run-logo--facebook/, "tiap baris riwayat Facebook wajib membawa logo Facebook");
-    assert.match(renderRunsBlock, /FB_LOGO_SVG/, "logo yang dipakai riwayat Facebook wajib FB_LOGO_SVG");
+test("composer hanya form aksi: memicu event pembaruan riwayat, tidak merender riwayat", () => {
+    assert.match(composerSource, /genz:social-video-posts-changed/, "composer wajib memicu event pembaruan riwayat");
+    assert.doesNotMatch(composerSource, /renderQueue|cancel_post|svp-logo/, "composer tidak lagi merender riwayat/logo");
+    assert.match(composerSource, /Riwayat pembuatan & posting/, "pesan sukses wajib mengarah ke blok riwayat");
 });
 
 test("composer memakai endpoint social-video-autopost dan aksi create_posts", () => {
     assert.match(composerSource, /\/api\/social-video-autopost/);
     assert.match(composerSource, /action=create_posts|"create_posts"/);
-    assert.match(composerSource, /cancel_post/);
     assert.match(composerSource, /publishNow: true/);
     assert.match(composerSource, /scheduledFor: new Date\(parsed\)\.toISOString\(\)/);
 });
@@ -335,15 +317,13 @@ test("bootstrap menampilkan akun YouTube/TikTok sebagai pilihan yang bisa dicent
     assert.ok(await waitUntil(() => ids["svp-accounts"].children.length === 2), "dua akun wajib dirender");
     assert.equal(calls[0]?.url.includes("action=bootstrap"), true);
 
-    const youtube = ids["svp-accounts"].children.find(item => item.querySelector && false) ||
-        ids["svp-accounts"].children[0];
+    const youtube = ids["svp-accounts"].children[0];
     const checkbox = youtube.children.find(item => item.tagName === "INPUT");
     assert.ok(checkbox, "pilihan akun wajib berupa checkbox");
     assert.equal(checkbox.value, ACCOUNT_YT.id);
     assert.equal(checkbox.dataset.svpPlatform, "youtube");
 
-    const info = ids["svp-credit"].textContent;
-    assert.match(info, /5 kredit/, "estimasi biaya per akun wajib tampil");
+    assert.match(ids["svp-credit"].textContent, /5 kredit/, "estimasi biaya per akun wajib tampil");
 
     const options = ids["svp-history-select"].children;
     assert.equal(options.length, 1, "video riwayat wajib jadi pilihan sumber");
@@ -374,8 +354,8 @@ test("tanpa akun terhubung tombol mati dan muncul petunjuk hubungkan dulu", asyn
    3. POST MANUAL
    --------------------------------------------------------- */
 
-test("Post sekarang mengirim create_posts publishNow ke akun terpilih", async () => {
-    const { ids, calls, confirms } = buildEnv();
+test("Post sekarang mengirim create_posts publishNow ke akun terpilih + picu refresh riwayat", async () => {
+    const { ids, calls, confirms, events } = buildEnv();
 
     assert.ok(await waitUntil(() => ids["svp-accounts"].children.length === 2));
     ids["svp-accounts"].children[0].children
@@ -401,6 +381,7 @@ test("Post sekarang mengirim create_posts publishNow ke akun terpilih", async ()
     assert.equal(confirms.length, 1, "wajib konfirmasi biaya kredit sebelum kirim");
     assert.match(confirms[0], /5 kredit/);
     assert.match(ids["svp-message"].textContent, /Berhasil diterbitkan ke 1 akun/);
+    assert.ok(events.includes("genz:social-video-posts-changed"), "riwayat wajib dimuat ulang setelah posting");
 });
 
 test("Post sekarang menolak ketika tidak ada akun yang dicentang", async () => {
@@ -417,8 +398,8 @@ test("Post sekarang menolak ketika tidak ada akun yang dicentang", async () => {
    4. AUTOPOST (JADWAL)
    --------------------------------------------------------- */
 
-test("Jadwalkan autopost mengirim scheduledFor tanpa publishNow", async () => {
-    const { ids, calls, confirms } = buildEnv();
+test("Jadwalkan autopost mengirim scheduledFor tanpa publishNow + picu refresh riwayat", async () => {
+    const { ids, calls, confirms, events } = buildEnv();
 
     assert.ok(await waitUntil(() => ids["svp-accounts"].children.length === 2));
     ids["svp-accounts"].children[1].children
@@ -438,6 +419,7 @@ test("Jadwalkan autopost mengirim scheduledFor tanpa publishNow", async () => {
 
     assert.match(confirms[0], /Jadwalkan autopost ke 1 akun/);
     assert.match(ids["svp-message"].textContent, /dijadwalkan/);
+    assert.ok(events.includes("genz:social-video-posts-changed"), "riwayat wajib dimuat ulang setelah menjadwalkan");
 });
 
 test("jadwal di masa lalu ditolak tanpa mengirim apa pun", async () => {
@@ -454,87 +436,4 @@ test("jadwal di masa lalu ditolak tanpa mengirim apa pun", async () => {
 
     assert.equal(calls.some(call => call.url.includes("action=create_posts")), false);
     assert.match(ids["svp-message"].textContent, /masa depan/);
-});
-
-/* ---------------------------------------------------------
-   5. ANTREAN & PEMBATALAN
-   --------------------------------------------------------- */
-
-test("jadwal terjadwal tampil di antrean dan bisa dibatalkan lewat cancel_post", async () => {
-    const scheduledPost = {
-        id: "44444444-4444-4444-8444-444444444444",
-        account_id: ACCOUNT_YT.id,
-        platform: "youtube",
-        title: "Video jadwal",
-        status: "scheduled",
-        scheduled_for: new Date(Date.now() + 3 * 3600 * 1000).toISOString(),
-        published_at: null,
-        error_message: null,
-        credit_cost: 5,
-        credit_refunded: false
-    };
-    const { ids, calls } = buildEnv({
-        bootstrap: {
-            success: true,
-            viewer: { id: "user-1", credits: 20, role: "member", isAdminOrOwner: false },
-            creditCost: 5,
-            platformsConfigured: { youtube: true, tiktok: true, facebook: true },
-            accounts: [ACCOUNT_YT],
-            posts: [scheduledPost],
-            historyVideos: []
-        }
-    });
-
-    assert.ok(await waitUntil(() => ids["svh-list"].children.length === 1));
-    const item = ids["svh-list"].children[0];
-    assert.match(item.textContent, /Video jadwal/);
-    assert.match(item.textContent, /Terjadwal/);
-    /* Jadwal wajib berawalan "Jadwal tayang:" supaya tidak tertukar dengan riwayat. */
-    assert.match(item.textContent, /Jadwal tayang: /);
-    assert.doesNotMatch(item.textContent, /Tertayang:/);
-
-    /* Baris riwayat YouTube wajib membawa logo YouTube di depan. */
-    const title = item.children[0]?.children[0];
-    assert.ok(title, "struktur baris wajib punya judul");
-    const logo = title.children.find(node => String(node.className || "").includes("svp-logo--youtube"));
-    assert.ok(logo, "baris riwayat YouTube wajib membawa logo YouTube");
-
-    const cancel = item.children.find(node => node.tagName === "BUTTON");
-    assert.ok(cancel, "jadwal aktif wajib punya tombol batalkan");
-
-    await cancel.dispatch("click");
-    assert.ok(await waitUntil(() => calls.some(call => call.url.includes("action=cancel_post"))));
-
-    const cancelCall = calls.find(call => call.url.includes("action=cancel_post"));
-    assert.equal(cancelCall.body.postId, scheduledPost.id);
-    assert.match(ids["svp-message"].textContent, /dibatalkan/);
-});
-
-test("posting gagal menampilkan pesan errornya di antrean", async () => {
-    const { ids } = buildEnv({
-        bootstrap: {
-            success: true,
-            viewer: { id: "user-1", credits: 20, role: "member", isAdminOrOwner: false },
-            creditCost: 5,
-            platformsConfigured: { youtube: true, tiktok: true, facebook: true },
-            accounts: [ACCOUNT_YT],
-            posts: [{
-                id: "55555555-5555-4555-8555-555555555555",
-                account_id: ACCOUNT_YT.id,
-                platform: "tiktok",
-                title: "Video gagal",
-                status: "failed",
-                scheduled_for: new Date().toISOString(),
-                published_at: null,
-                error_message: "Token TikTok kedaluwarsa",
-                credit_cost: 5,
-                credit_refunded: true
-            }],
-            historyVideos: []
-        }
-    });
-
-    assert.ok(await waitUntil(() => ids["svh-list"].children.length === 1));
-    assert.match(ids["svh-list"].children[0].textContent, /Token TikTok kedaluwarsa/);
-    assert.match(ids["svh-list"].children[0].textContent, /Gagal/);
 });
