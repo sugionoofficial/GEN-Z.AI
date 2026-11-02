@@ -1719,6 +1719,20 @@
             return "";
         }
 
+        /*
+         * Referensi privat bukan URL yang bisa dimuat browser.
+         * Kalau lolos ke <img src>/<video src>, browser menembak
+         * "supabase-private://…" yang langsung gagal dan memicu
+         * error "Gagal memuat aset" di monitoring.
+         *
+         * Baris yang belum sempat ditandatangani (mis. render awal
+         * sebelum resolvePrivateMediaRefs selesai) harus menampilkan
+         * placeholder, bukan URL mentah.
+         */
+        if (isPrivateMediaRef(url)) {
+            return "";
+        }
+
         return url;
     }
 

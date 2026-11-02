@@ -702,3 +702,96 @@ test("saklar devtools_lockdown=false dari BLACK BOX menonaktifkan penguncian tan
     assert.equal(env.window.GENZMonitor.isLockedDown(), false);
 });
 
+
+/* =========================================================
+   DERAU ERROR YANG TIDAK BISA DITINDAKLANJUTI
+   ---------------------------------------------------------
+   Laporan monitoring 02/11/2026:
+     - "Error berulang di /user/profile"  → "Script error."
+     - "Error berulang di /user/dashboard" → "Script error."
+     - "Error berulang di /history/"       → "Gagal memuat aset:
+        supabase-private://user-uploads/upscale-photos/outputs/…"
+   ========================================================= */
+
+test("Script error. tanpa filename/baris/stack tidak dilaporkan", () => {
+    const beacon = beaconForErrors();
+
+    beacon.dispatch("error", {
+        target: {},
+        message: "Script error.",
+        filename: "",
+        lineno: 0,
+        error: null
+    });
+
+    assert.equal(
+        beacon.errors().length,
+        0,
+        "pesan lintas-origin yang disamarkan browser tidak punya modul yang bisa diperbaiki"
+    );
+});
+
+test("Script error. yang masih punya jejak tetap dilaporkan", () => {
+    const beacon = beaconForErrors();
+
+    beacon.dispatch("error", {
+        target: {},
+        message: "Script error.",
+        filename: "https://contoh.test/assets/app.js",
+        lineno: 42,
+        error: null
+    });
+
+    assert.equal(beacon.errors().length, 1, "ada filename+baris berarti bisa ditelusuri");
+    assert.match(beacon.errors()[0].message, /app\.js:42/);
+});
+
+test("error JavaScript biasa dengan pesan asli tetap dilaporkan", () => {
+    const beacon = beaconForErrors();
+
+    beacon.dispatch("error", {
+        target: {},
+        message: "Cannot read properties of undefined (reading 'id')",
+        filename: "https://contoh.test/user/dashboard.js",
+        lineno: 12,
+        error: null
+    });
+
+    assert.equal(beacon.errors().length, 1);
+    assert.match(beacon.errors()[0].message, /Cannot read properties of undefined/);
+});
+
+test("referensi supabase-private:// tidak dianggap aset situs yang rusak", () => {
+    const beacon = beaconForErrors();
+
+    beacon.dispatch("error", {
+        target: {
+            tagName: "IMG",
+            src: "supabase-private://user-uploads/upscale-photos/outputs/c237fcef/genimg-1793522307720-9b53af5139.png"
+        }
+    });
+
+    assert.equal(
+        beacon.errors().length,
+        0,
+        "penanda internal bukan URL yang bisa diunduh browser"
+    );
+});
+
+test("skrip CDN situs memakai crossorigin agar error asli terbaca", async () => {
+    const fs = await import("node:fs");
+
+    for (const page of ["user/profile.html", "user/dashboard.html", "history/index.html"]) {
+        const html = fs.readFileSync(new URL(`../${page}`, import.meta.url), "utf8");
+        const tags = html.match(/<script[^>]*supabase\.min\.js[^>]*>/g) || [];
+
+        assert.ok(tags.length > 0, `${page} memuat Supabase client`);
+        tags.forEach(tag => {
+            assert.match(
+                tag,
+                /crossorigin="anonymous"/,
+                `${page}: tanpa crossorigin, error asli tertutup menjadi "Script error."`
+            );
+        });
+    }
+});

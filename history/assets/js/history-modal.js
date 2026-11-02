@@ -128,7 +128,12 @@
         const v = String(item?.result_url || "").trim();
         if (!v) return "";
         const lower = v.toLowerCase();
-        if (lower.startsWith("javascript:") || lower.startsWith("data:text/html")) return "";
+        /* Referensi privat belum bisa dimuat browser — jangan jadikan src. */
+        if (
+            lower.startsWith("javascript:") ||
+            lower.startsWith("data:text/html") ||
+            lower.startsWith("supabase-private://")
+        ) return "";
         return v;
     }
 

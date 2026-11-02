@@ -299,6 +299,9 @@
             ) ||
             lower.startsWith(
                 "data:text/html"
+            ) ||
+            lower.startsWith(
+                "supabase-private://"
             )
         ) {
             return "";
@@ -784,11 +787,23 @@
                 item?.video_reference_url || ""
             ).trim();
 
+        /*
+         * Referensi privat yang belum ditandatangani tidak boleh
+         * masuk ke src: browser akan gagal memuatnya dan mengirim
+         * error "Gagal memuat aset" ke monitoring.
+         */
+        const isLoadable =
+            value =>
+                Boolean(value) &&
+                !(typeof App.isPrivateMediaRef === "function"
+                    ? App.isPrivateMediaRef(value)
+                    : /^supabase-private:\/\//i.test(value));
+
         const imageUrl =
-            rawImage && !isSignedUrlAlreadyExpired(rawImage) ? rawImage : "";
+            isLoadable(rawImage) && !isSignedUrlAlreadyExpired(rawImage) ? rawImage : "";
 
         const videoUrl =
-            rawVideo && !isSignedUrlAlreadyExpired(rawVideo) ? rawVideo : "";
+            isLoadable(rawVideo) && !isSignedUrlAlreadyExpired(rawVideo) ? rawVideo : "";
 
         if (!imageUrl && !videoUrl) {
 
