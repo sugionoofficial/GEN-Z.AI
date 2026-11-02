@@ -22,6 +22,7 @@ import {
 } from "../lib/social-publisher/quotes.js";
 import {
     capStoryMp4Duration,
+    encodeRgbaToPng,
     encodeStoryMp4,
     extractAudioForStoryMp4,
     formatQuoteAuthorSignature,
@@ -1105,7 +1106,7 @@ test("Studio Medsos HTML, JS, Light CSS, and SQL migration include Cerita Kata-k
     assert.match(setJs, /quote_llm_model/);
 });
 
-test("Solid black Quote card + QwenCloud LLM uses 0 image quota, tracks LLM quota in SET Studio Medsos, and renders crisp quote + FB Page signature", async () => {
+test("Fallback tanpa latar: kartu Quote tetap hitam dengan tanda tangan FB Page & teks putih tajam; LLM QwenCloud tercatat di SET Studio Medsos", async () => {
     const blackCard = await renderQuoteStoryCard({
         solidBlack: true,
         quoteText: "Jangan tergesa mengutuk gelap, sebab di sanalah bintang paling terang sedang disiapkan.",
@@ -1147,12 +1148,14 @@ test("Solid black Quote card + QwenCloud LLM uses 0 image quota, tracks LLM quot
     assert.equal(bottomLeftBright, 0, "Bottom-left of pure black quote card must remain completely clean black");
     assert.ok(bottomRightBright > 80, `Bottom-right must contain 'quote by: Irisbela Naresha Aurelia' signature, got ${bottomRightBright}`);
 
-    // Verify QwenCloud LLM protocols (text-generation + openai-chat <think> stripping) and SET Studio Medsos admin API + zero-image-quota manual preview
+    // Verify QwenCloud LLM protocols (<think> stripping) + SET Studio Medsos admin API + latar AI T2I pada preview Quote
     const originalFetch = globalThis.fetch;
     let imageGenerationCalls = 0;
     let qwenLlmCalls = [];
+    const quoteBackgroundPng = await encodeRgbaToPng(new Uint8Array(48 * 48 * 4).fill(0).map((_, index) => (index % 4 === 0 ? 190 : index % 4 === 1 ? 120 : index % 4 === 2 ? 60 : 255)), 48, 48);
     const quotaStore = new Map([
-        // Simulate 100% EXHAUSTED image model quota — Quote mode MUST STILL SUCCEED because it uses 0 image quota!
+        // Model gambar karakter (i2i) sengaja dibuat EXHAUSTED — preview Quote tidak memakainya;
+        // latar Quote memakai model T2I terpisah (wan2.6-t2i).
         ["qwen-image-3.0", { model: "qwen-image-3.0", requests_used: 10, quota_limit: 10, exhausted: true, last_status: "AllocationQuota.FreeTierOnly" }]
     ]);
     let savedConfigRow = {
@@ -1168,9 +1171,25 @@ test("Solid black Quote card + QwenCloud LLM uses 0 image quota, tracks LLM quot
         const url = typeof input === "string" ? input : input.url;
         const method = (init.method || "GET").toUpperCase();
 
+        if (url.includes("/services/aigc/image-generation/generation")) {
+            /* Latar Quote: T2I asinkron wan2.6-t2i. */
+            imageGenerationCalls++;
+            return Response.json({ output: { task_id: "task-quote-bg" } });
+        }
+        if (url.includes("/tasks/task-quote-bg")) {
+            return Response.json({
+                output: {
+                    task_status: "SUCCEEDED",
+                    results: [{ url: "https://media.example/quote-bg.png" }]
+                }
+            });
+        }
+        if (url === "https://media.example/quote-bg.png") {
+            return new Response(quoteBackgroundPng, { status: 200, headers: { "Content-Type": "image/png" } });
+        }
         if (url.includes("multimodal-generation") || url.includes("text2image") || url.includes("image-synthesis") || url.includes("generateContent")) {
             imageGenerationCalls++;
-            throw new Error(`Image generation endpoint MUST NOT be called for Quote mode: ${url}`);
+            throw new Error(`Character image (i2i) endpoint MUST NOT be called for Quote mode: ${url}`);
         }
         if (url.includes("/services/aigc/text-generation/generation")) {
             const body = JSON.parse(init.body);
@@ -1366,13 +1385,15 @@ test("Solid black Quote card + QwenCloud LLM uses 0 image quota, tracks LLM quot
             env
         }, previewRes);
         assert.equal(previewRes.statusCode, 200);
-        assert.equal(imageGenerationCalls, 0, "Zero AI image generation calls must be made in Quote mode");
+        assert.equal(imageGenerationCalls, 1, "Quote mode kini generate 1 latar AI (T2I) sesuai kalimat & tema");
         assert.equal(previewRes.body.preview.quote_llm_model, "qwen3.5-plus");
-        assert.equal(previewRes.body.preview.scene.background_mode, "solid_black");
+        assert.equal(previewRes.body.preview.scene.background_mode, "ai_scenic");
+        assert.equal(previewRes.body.preview.scene.background_model, "wan2.6-t2i");
         assert.equal(previewRes.body.preview.quote_signature, "quote by: Irisbela Naresha Aurelia");
         assert.match(previewRes.body.preview.quote_text, /Tenanglah, yang ditakdirkan untukmu/);
         assert.equal(quotaStore.get("qwen3.5-plus")?.requests_used, 1, "LLM quota counter must increment by 1");
-        assert.equal(quotaStore.get("qwen-image-3.0")?.requests_used, 10, "Image model quota counter must NOT be touched");
+        assert.equal(quotaStore.get("wan2.6-t2i")?.requests_used, 1, "Kuota T2I latar Quote tercatat terpisah");
+        assert.equal(quotaStore.get("qwen-image-3.0")?.requests_used, 10, "Model gambar karakter (i2i) tetap TIDAK tersentuh oleh Quote mode");
     } finally {
         globalThis.fetch = originalFetch;
     }

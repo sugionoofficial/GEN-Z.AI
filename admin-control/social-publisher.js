@@ -2024,9 +2024,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
                 if (destinationOptionKind(option) === "social" || option.value === "__social-sep") option.remove?.();
             }
             if (!accounts.length) continue;
-            const isQuote = selectId === "manual-page"
-                ? $("manual-post-mode")?.value === "quote"
-                : $("schedule-post-mode")?.value === "quote";
+            const isQuote = isVideoQuoteMode(selectId);
             const separator = new Option("— Terbitkan juga ke (khusus video Kata-kata Mutiara) —", "__social-sep");
             separator.disabled = true;
             select.add(separator);
@@ -2041,6 +2039,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
                 select.add(option);
             }
         }
+        renderDestinationPickers();
     }
 
     /* Toleran terhadap lingkungan uji: bila selectedOptions tidak
@@ -2074,6 +2073,116 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         for (const option of Array.from(select.options || [])) {
             if (destinationOptionKind(option) === "social") option.selected = wanted.has(option.value);
         }
+        renderDestinationPicker(selectId);
+    }
+
+    /* ---------------------------------------------------------
+       UI DROPDOWN TUJUAN POSTING
+       Select asli (#manual-page/#schedule-page) tetap sumber data
+       (tersembunyi); dropdown di atasnya berisi radio Facebook
+       (wajib satu) + centangan YouTube/TikTok yang GRUP-NYA HANYA
+       MUNCUL saat mode konten video (Kata-kata Mutiara).
+       --------------------------------------------------------- */
+    const destinationPickerStates = new Map();
+
+    function isVideoQuoteMode(selectId) {
+        return (selectId === "manual-page"
+            ? $("manual-post-mode")?.value
+            : $("schedule-post-mode")?.value) === "quote";
+    }
+
+    function renderDestinationPicker(selectId) {
+        const select = $(selectId);
+        const host = document.querySelector?.(`.dest-picker[data-dest-for="${selectId}"]`);
+        if (!select || !host) return;
+        const pickerState = destinationPickerStates.get(selectId) || { open: false };
+        destinationPickerStates.set(selectId, pickerState);
+
+        const chosen = Array.from(select.selectedOptions || [])
+            .filter(option => option.value && destinationOptionKind(option) !== "")
+            .map(option => option.textContent);
+
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "dest-toggle";
+        toggle.setAttribute("aria-expanded", String(Boolean(pickerState.open)));
+        const summary = document.createElement("span");
+        summary.className = chosen.length ? "dest-summary" : "dest-summary dest-summary-empty";
+        summary.textContent = chosen.length
+            ? `${chosen.length} tujuan dipilih: ${chosen.join(", ")}`
+            : "Pilih tujuan posting…";
+        const caret = document.createElement("span");
+        caret.className = "dest-caret";
+        caret.textContent = "▾";
+        toggle.append(summary, caret);
+        toggle.addEventListener("click", () => {
+            pickerState.open = !pickerState.open;
+            renderDestinationPicker(selectId);
+        });
+
+        const panel = document.createElement("div");
+        panel.className = "dest-panel";
+        panel.hidden = !pickerState.open;
+
+        const buildGroup = (title, kind, inputType) => {
+            const options = Array.from(select.options || [])
+                .filter(option => destinationOptionKind(option) === kind && option.value);
+            if (!options.length) return null;
+            if (kind === "social" && !isVideoQuoteMode(selectId)) return null;
+            const group = document.createElement("div");
+            group.className = "dest-group";
+            const groupTitle = document.createElement("p");
+            groupTitle.className = "dest-group-title";
+            groupTitle.textContent = title;
+            group.append(groupTitle);
+            const inputName = `dest-${kind}-${selectId}`;
+            for (const option of options) {
+                if (kind === "social" && option.disabled) continue;
+                const row = document.createElement("label");
+                row.className = "dest-option";
+                const input = document.createElement("input");
+                input.type = inputType;
+                if (inputType === "radio") input.name = inputName;
+                input.value = option.value;
+                input.checked = option.selected === true;
+                input.addEventListener("change", () => {
+                    if (inputType === "radio") {
+                        for (const other of options) other.selected = other === option;
+                    } else {
+                        option.selected = input.checked;
+                    }
+                    if (selectId === "manual-page") disarmManualPublish();
+                    renderDestinationPicker(selectId);
+                });
+                const text = document.createElement("span");
+                text.textContent = option.textContent;
+                row.append(input, text);
+                group.append(row);
+            }
+            return group;
+        };
+
+        const fbGroup = buildGroup("Facebook Page — wajib pilih satu", "fb", "radio");
+        if (fbGroup) panel.appendChild(fbGroup);
+        const socialGroup = buildGroup("Terbitkan juga ke — khusus video Kata-kata Mutiara", "social", "checkbox");
+        if (socialGroup) panel.appendChild(socialGroup);
+
+        const done = document.createElement("button");
+        done.type = "button";
+        done.className = "btn small primary dest-done";
+        done.textContent = "Selesai";
+        done.addEventListener("click", () => {
+            pickerState.open = false;
+            renderDestinationPicker(selectId);
+        });
+        panel.append(done);
+
+        host.replaceChildren(toggle, panel);
+    }
+
+    function renderDestinationPickers() {
+        renderDestinationPicker("manual-page");
+        renderDestinationPicker("schedule-page");
     }
 
     /* Crosspost manual dijalankan server-side: header berisi id akun
