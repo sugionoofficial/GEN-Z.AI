@@ -41,6 +41,9 @@
         window.GENZHistory;
 
     let autoHistoryRefreshTimer = null;
+    let taskIdSearchDebounceTimer = null;
+
+    const TASK_ID_SEARCH_DEBOUNCE_MS = 350;
 
 
     /* =====================================================
@@ -73,6 +76,14 @@
         App.state.currentModalHistoryId =
             null;
 
+    }
+
+    if (typeof App.state.historyScope !== "string") {
+        App.state.historyScope = "own";
+    }
+
+    if (typeof App.state.taskIdSearch !== "string") {
+        App.state.taskIdSearch = "";
     }
 
 
@@ -614,6 +625,334 @@
      */
     App.setFilter =
         setFilter;
+
+
+    /* =====================================================
+       HISTORY SCOPE + TASK ID SEARCH
+       -----------------------------------------------------
+       Scope global hanya untuk admin/owner. Role user selalu
+       dikunci ke riwayat pribadi. Pencarian Task ID berlaku
+       untuk semua role, tetapi tetap mengikuti scope aktif.
+    ===================================================== */
+
+    function canUseGlobalHistoryScope() {
+
+        return typeof App.isAdminOrOwner ===
+            "function" &&
+            App.isAdminOrOwner();
+    }
+
+
+    function resetHistoryPagination() {
+
+        try {
+
+            window.dispatchEvent(
+                new CustomEvent(
+                    "genz:history-reset-pagination"
+                )
+            );
+
+        } catch (error) {
+
+            /* Browser lama tanpa CustomEvent. */
+            const event =
+                document.createEvent("Event");
+
+            event.initEvent(
+                "genz:history-reset-pagination",
+                false,
+                false
+            );
+
+            window.dispatchEvent(event);
+
+        }
+    }
+
+
+    function syncHistoryControls() {
+
+        const elements =
+            getElements();
+
+        const allowGlobal =
+            canUseGlobalHistoryScope();
+
+        const scope =
+            typeof App.getHistoryScope ===
+            "function"
+                ? App.getHistoryScope()
+                : "own";
+
+        if (
+            !allowGlobal &&
+            typeof App.setHistoryScope ===
+            "function"
+        ) {
+            App.setHistoryScope("own");
+        }
+
+        if (elements.historyScopeControl) {
+
+            elements.historyScopeControl.hidden =
+                !allowGlobal;
+
+            elements.historyScopeControl
+                .querySelectorAll("[data-history-scope]")
+                .forEach((button) => {
+
+                    const active =
+                        allowGlobal &&
+                        button.dataset.historyScope === scope;
+
+                    button.classList.toggle(
+                        "active",
+                        active
+                    );
+
+                    button.setAttribute(
+                        "aria-pressed",
+                        active ? "true" : "false"
+                    );
+                });
+        }
+
+        const search =
+            typeof App.getTaskIdSearch ===
+            "function"
+                ? App.getTaskIdSearch()
+                : String(getState().taskIdSearch || "").trim();
+
+        if (
+            elements.taskIdSearchInput &&
+            document.activeElement !== elements.taskIdSearchInput
+        ) {
+            elements.taskIdSearchInput.value = search;
+        }
+
+        if (elements.taskIdSearchClear) {
+            elements.taskIdSearchClear.hidden =
+                !String(
+                    elements.taskIdSearchInput
+                        ? elements.taskIdSearchInput.value
+                        : search
+                ).trim();
+        }
+    }
+
+
+    async function reloadHistoryForControls() {
+
+        resetHistoryPagination();
+        hideMessage();
+
+        const elements =
+            getElements();
+
+        /*
+         * Kosongkan baris lama supaya statistik dan pagination
+         * tidak sempat menampilkan data dari scope/pencarian
+         * sebelumnya saat query baru berjalan.
+         */
+        if (elements.historyBody) {
+            elements.historyBody.innerHTML = "";
+        }
+
+        if (elements.emptyState) {
+            elements.emptyState.style.display = "none";
+        }
+
+        safeCall("renderLoading");
+
+        try {
+
+            if (typeof App.loadHistory !== "function") {
+                throw new Error(
+                    "History data module belum tersedia."
+                );
+            }
+
+            await App.loadHistory({
+                silent: false
+            });
+
+        } catch (error) {
+
+            console.error(
+                "[GEN-Z.AI History] Gagal memuat ulang riwayat:",
+                error
+            );
+
+            showMessage(
+                error && error.message
+                    ? error.message
+                    : "Gagal memuat riwayat.",
+                "error"
+            );
+
+            safeCall("renderError");
+
+        } finally {
+
+            syncHistoryControls();
+            resetHistoryPagination();
+        }
+    }
+
+
+    function handleHistoryScopeClick(event) {
+
+        const target =
+            event.target;
+
+        if (!target) {
+            return;
+        }
+
+        const button =
+            target.closest("[data-history-scope]");
+
+        if (
+            !button ||
+            !canUseGlobalHistoryScope()
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const nextScope =
+            button.dataset.historyScope;
+
+        const currentScope =
+            typeof App.getHistoryScope ===
+            "function"
+                ? App.getHistoryScope()
+                : "own";
+
+        if (
+            typeof App.setHistoryScope !==
+            "function"
+        ) {
+            return;
+        }
+
+        const normalized =
+            App.setHistoryScope(nextScope);
+
+        syncHistoryControls();
+
+        if (normalized === currentScope) {
+            return;
+        }
+
+        reloadHistoryForControls();
+    }
+
+
+    function applyTaskIdSearch(value) {
+
+        if (typeof App.setTaskIdSearch !== "function") {
+            return;
+        }
+
+        const previous =
+            typeof App.getTaskIdSearch ===
+            "function"
+                ? App.getTaskIdSearch()
+                : String(getState().taskIdSearch || "").trim();
+
+        const normalized =
+            App.setTaskIdSearch(value);
+
+        syncHistoryControls();
+
+        if (normalized === previous) {
+            return;
+        }
+
+        reloadHistoryForControls();
+    }
+
+
+    function handleTaskIdSearchSubmit(event) {
+
+        event.preventDefault();
+
+        if (taskIdSearchDebounceTimer) {
+            window.clearTimeout(taskIdSearchDebounceTimer);
+            taskIdSearchDebounceTimer = null;
+        }
+
+        const elements =
+            getElements();
+
+        applyTaskIdSearch(
+            elements.taskIdSearchInput
+                ? elements.taskIdSearchInput.value
+                : ""
+        );
+    }
+
+
+    function handleTaskIdSearchInput() {
+
+        const elements =
+            getElements();
+
+        if (elements.taskIdSearchClear) {
+            elements.taskIdSearchClear.hidden =
+                !String(
+                    elements.taskIdSearchInput
+                        ? elements.taskIdSearchInput.value
+                        : ""
+                ).trim();
+        }
+
+        if (taskIdSearchDebounceTimer) {
+            window.clearTimeout(taskIdSearchDebounceTimer);
+        }
+
+        taskIdSearchDebounceTimer =
+            window.setTimeout(() => {
+
+                taskIdSearchDebounceTimer = null;
+
+                applyTaskIdSearch(
+                    elements.taskIdSearchInput
+                        ? elements.taskIdSearchInput.value
+                        : ""
+                );
+
+            }, TASK_ID_SEARCH_DEBOUNCE_MS);
+    }
+
+
+    function handleTaskIdSearchClear() {
+
+        if (taskIdSearchDebounceTimer) {
+            window.clearTimeout(taskIdSearchDebounceTimer);
+            taskIdSearchDebounceTimer = null;
+        }
+
+        const elements =
+            getElements();
+
+        if (elements.taskIdSearchInput) {
+            elements.taskIdSearchInput.value = "";
+            elements.taskIdSearchInput.focus();
+        }
+
+        applyTaskIdSearch("");
+    }
+
+
+    App.syncHistoryControls =
+        syncHistoryControls;
+
+    App.applyTaskIdSearch =
+        applyTaskIdSearch;
 
 
     /* =====================================================
@@ -1847,6 +2186,39 @@ function handleModalClick(
 
 
         /* =================================================
+           HISTORY SCOPE + TASK ID SEARCH
+        ================================================= */
+
+        if (elements.historyScopeControl) {
+            elements.historyScopeControl.addEventListener(
+                "click",
+                handleHistoryScopeClick
+            );
+        }
+
+        if (elements.taskIdSearchForm) {
+            elements.taskIdSearchForm.addEventListener(
+                "submit",
+                handleTaskIdSearchSubmit
+            );
+        }
+
+        if (elements.taskIdSearchInput) {
+            elements.taskIdSearchInput.addEventListener(
+                "input",
+                handleTaskIdSearchInput
+            );
+        }
+
+        if (elements.taskIdSearchClear) {
+            elements.taskIdSearchClear.addEventListener(
+                "click",
+                handleTaskIdSearchClear
+            );
+        }
+
+
+        /* =================================================
            MODAL CLOSE BUTTON
         ================================================= */
 
@@ -1927,6 +2299,8 @@ function handleModalClick(
                 getState().currentFilter
             )
         );
+
+        syncHistoryControls();
 
 
         eventsBound =

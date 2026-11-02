@@ -1,0 +1,328 @@
+/* =========================================================
+   GEN-Z.AI — HISTORY
+   SCOPE RIWAYAT + PENCARIAN TASK ID
+   ---------------------------------------------------------
+   File:
+   history/assets/css/history-controls.css
+
+   Dimuat setelah history-light.css. Kontrol scope hanya
+   ditampilkan oleh history-events.js untuk admin/owner;
+   pencarian Task ID tersedia untuk semua role dan selalu
+   mengikuti scope aktif (user dipaksa ke riwayat pribadi).
+========================================================= */
+
+.history-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px 18px;
+    margin: 0 0 14px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+}
+
+.history-controls-label {
+    display: block;
+    margin: 0 0 8px;
+    color: var(--text-3);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
+
+.history-scope-control[hidden] {
+    display: none !important;
+}
+
+.history-scope-buttons {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-soft);
+}
+
+.history-scope-button {
+    min-height: 36px;
+    padding: 8px 14px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    cursor: pointer;
+    transition:
+        background .2s var(--ease),
+        border-color .2s var(--ease),
+        color .2s var(--ease);
+}
+
+.history-scope-button:hover {
+    color: var(--text);
+    border-color: var(--line-hi);
+}
+
+.history-scope-button.active {
+    background: var(--red);
+    border-color: var(--red);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(255, 51, 85, .22);
+}
+
+.history-scope-button:focus-visible,
+.history-task-search-input:focus-visible,
+.history-task-search-submit:focus-visible,
+.history-task-search-clear:focus-visible {
+    outline: 2px solid var(--red);
+    outline-offset: 2px;
+}
+
+.history-task-search {
+    flex: 1 1 320px;
+    min-width: 0;
+    max-width: 620px;
+}
+
+.history-task-search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.history-task-search-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 40px;
+    padding: 10px 12px;
+    border: 1px solid var(--line-hi);
+    border-radius: 10px;
+    background: var(--bg-soft);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+}
+
+.history-task-search-input::placeholder {
+    color: var(--text-4);
+}
+
+.history-task-search-submit,
+.history-task-search-clear {
+    flex: 0 0 auto;
+    min-height: 40px;
+    border: 1px solid var(--line-hi);
+    border-radius: 10px;
+    background: var(--surface-hi);
+    color: var(--text);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    transition:
+        background .2s var(--ease),
+        border-color .2s var(--ease),
+        color .2s var(--ease);
+}
+
+.history-task-search-submit {
+    padding: 10px 16px;
+}
+
+.history-task-search-clear {
+    width: 40px;
+    padding: 0;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.history-task-search-submit:hover,
+.history-task-search-clear:hover {
+    border-color: var(--red);
+    color: var(--red);
+}
+
+.history-task-search-clear[hidden] {
+    display: none !important;
+}
+
+.history-search-meta {
+    margin: 0 0 18px;
+    color: var(--text-3);
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.history-search-meta:empty {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .history-controls {
+        align-items: stretch;
+        padding: 12px;
+    }
+
+    .history-scope-control,
+    .history-task-search {
+        flex: 1 1 100%;
+        max-width: none;
+    }
+
+    .history-scope-buttons {
+        display: flex;
+        width: 100%;
+    }
+
+    .history-scope-button {
+        flex: 1 1 0;
+        padding-inline: 10px;
+    }
+
+    .history-task-search-row {
+        flex-wrap: wrap;
+    }
+
+    .history-task-search-input {
+        flex: 1 1 100%;
+    }
+
+    .history-task-search-submit {
+        flex: 1 1 auto;
+    }
+}
+
+/* =========================================================
+   LIGHT THEME
+========================================================= */
+
+html[data-genz-theme="light"] .history-controls {
+    border-color: #e2e8f1;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(40, 54, 82, .06);
+}
+
+html[data-genz-theme="light"] .history-controls-label,
+html[data-genz-theme="light"] .history-search-meta {
+    color: #58657b;
+}
+
+html[data-genz-theme="light"] .history-scope-buttons {
+    border-color: #e2e8f1;
+    background: #f7f9fd;
+}
+
+html[data-genz-theme="light"] .history-scope-button {
+    color: #46536a;
+}
+
+html[data-genz-theme="light"] .history-scope-button:hover {
+    color: #0b1424;
+    border-color: #cfd9e6;
+}
+
+html[data-genz-theme="light"] .history-scope-button.active {
+    background: #c81e3c;
+    border-color: #c81e3c;
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(200, 30, 60, .18);
+}
+
+html[data-genz-theme="light"] .history-task-search-input {
+    border-color: #cfd9e6;
+    background: #f7f9fd;
+    color: #0b1424;
+}
+
+html[data-genz-theme="light"] .history-task-search-input::placeholder {
+    color: #66738a;
+}
+
+html[data-genz-theme="light"] .history-task-search-submit,
+html[data-genz-theme="light"] .history-task-search-clear {
+    border-color: #cfd9e6;
+    background: #f1f5fb;
+    color: #0b1424;
+}
+
+html[data-genz-theme="light"] .history-task-search-submit:hover,
+html[data-genz-theme="light"] .history-task-search-clear:hover {
+    border-color: #c81e3c;
+    color: #c81e3c;
+}
+
+/* =========================================================
+   GLOBAL HISTORY USER CELL
+   ---------------------------------------------------------
+   Layout kartu History menyembunyikan kolom ke-3 secara
+   default. Pada scope global admin/owner, sel User harus
+   terlihat supaya jelas riwayat milik siapa.
+========================================================= */
+
+.table-wrap tbody tr.history-row-global td.history-user-cell {
+    display: block;
+    grid-column: 2;
+    grid-row: 4;
+    min-width: 0;
+    color: var(--text-2);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.table-wrap tbody tr.history-row-global td.history-user-cell .history-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-soft);
+    color: var(--text-2);
+    font-size: 10px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 561px) {
+    .table-wrap tbody tr.history-row-global td.history-prompt-cell {
+        grid-row: 5;
+    }
+
+    .table-wrap tbody tr.history-row-global td.history-credit-cell,
+    .table-wrap tbody tr.history-row-global td.history-status-cell {
+        grid-row: 6;
+    }
+
+    .table-wrap tbody tr.history-row-global td.history-action-cell {
+        grid-row: 7;
+    }
+}
+
+@media (max-width: 560px) {
+    .table-wrap tbody tr.history-row-global td.history-user-cell {
+        grid-column: 1 / -1;
+        grid-row: auto;
+        order: 5;
+    }
+}
+
+#emptyStateGenerateButton[hidden] {
+    display: none !important;
+}
+
+html[data-genz-theme="light"] .table-wrap tbody tr.history-row-global td.history-user-cell .history-user {
+    border-color: #e2e8f1;
+    background: #f7f9fd;
+    color: #46536a;
+}

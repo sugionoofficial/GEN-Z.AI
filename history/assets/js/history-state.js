@@ -79,6 +79,40 @@
 
 
         /*
+         * Cakupan riwayat: "own" atau "global".
+         * Global hanya efektif untuk admin/owner.
+         */
+
+        historyScope:
+            "own",
+
+
+        /*
+         * Pencarian Task ID aktif (server-side).
+         */
+
+        taskIdSearch:
+            "",
+
+
+        /*
+         * Urutan request supaya hasil query lama tidak menimpa
+         * hasil scope/pencarian terbaru.
+         */
+
+        historyLoadSequence:
+            0,
+
+
+        /*
+         * True bila hasil pencarian mencapai batas halaman data.
+         */
+
+        historySearchTruncated:
+            false,
+
+
+        /*
          * Timer auto refresh.
          */
 
@@ -241,6 +275,54 @@
             elements.userColumnHeader =
                 document.getElementById(
                     "userColumnHeader"
+                );
+
+
+            elements.historyScopeControl =
+                document.getElementById(
+                    "historyScopeControl"
+                );
+
+
+            elements.taskIdSearchForm =
+                document.getElementById(
+                    "taskIdSearchForm"
+                );
+
+
+            elements.taskIdSearchInput =
+                document.getElementById(
+                    "taskIdSearchInput"
+                );
+
+
+            elements.taskIdSearchClear =
+                document.getElementById(
+                    "taskIdSearchClear"
+                );
+
+
+            elements.historySearchMeta =
+                document.getElementById(
+                    "historySearchMeta"
+                );
+
+
+            elements.emptyStateTitle =
+                document.getElementById(
+                    "emptyStateTitle"
+                );
+
+
+            elements.emptyStateDescription =
+                document.getElementById(
+                    "emptyStateDescription"
+                );
+
+
+            elements.emptyStateGenerateButton =
+                document.getElementById(
+                    "emptyStateGenerateButton"
                 );
 
 

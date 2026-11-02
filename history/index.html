@@ -2002,6 +2002,12 @@ tbody tr {
     rel="stylesheet"
     href="./assets/css/history-light.css?v=light-theme-20261022"
 >
+
+<!-- ===== HISTORY SCOPE + TASK ID SEARCH ===== -->
+<link
+    rel="stylesheet"
+    href="./assets/css/history-controls.css?v=20261102-scope-task-search"
+>
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
 <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
     <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
@@ -2454,6 +2460,65 @@ tbody tr {
             </div>
         </div>
 
+        <!-- ===== SCOPE RIWAYAT + PENCARIAN TASK ID ===== -->
+        <div class="history-controls" id="historyControls">
+            <div
+                class="history-scope-control"
+                id="historyScopeControl"
+                role="group"
+                aria-label="Cakupan riwayat"
+                hidden
+            >
+                <span class="history-controls-label">Cakupan riwayat</span>
+                <div class="history-scope-buttons">
+                    <button
+                        class="history-scope-button active"
+                        type="button"
+                        data-history-scope="own"
+                        aria-pressed="true"
+                    >History sendiri</button>
+                    <button
+                        class="history-scope-button"
+                        type="button"
+                        data-history-scope="global"
+                        aria-pressed="false"
+                    >History global user</button>
+                </div>
+            </div>
+
+            <form class="history-task-search" id="taskIdSearchForm" role="search">
+                <label class="history-controls-label" for="taskIdSearchInput">
+                    Cari Task ID
+                </label>
+                <div class="history-task-search-row">
+                    <input
+                        class="history-task-search-input"
+                        id="taskIdSearchInput"
+                        name="task_id"
+                        type="search"
+                        placeholder="Tempel / ketik Task ID..."
+                        autocomplete="off"
+                        spellcheck="false"
+                        maxlength="256"
+                        aria-describedby="historySearchMeta"
+                    >
+                    <button class="history-task-search-submit" type="submit">
+                        Cari
+                    </button>
+                    <button
+                        class="history-task-search-clear"
+                        id="taskIdSearchClear"
+                        type="button"
+                        aria-label="Hapus pencarian Task ID"
+                        title="Hapus pencarian"
+                        hidden
+                    >&times;</button>
+                </div>
+            </form>
+        </div>
+
+        <p class="history-search-meta" id="historySearchMeta" role="status" aria-live="polite"></p>
+
         <div class="filters">
             <button class="filter-button active" data-filter="all" type="button">Semua</button>
             <button class="filter-button" data-filter="success" type="button">Selesai</button>
@@ -2526,9 +2591,9 @@ tbody tr {
 
         <div class="empty-state" id="emptyState">
             <div class="empty-icon">🎬</div>
-            <h3>Belum ada riwayat</h3>
-            <p>Kamu belum melakukan generate video.</p>
-            <button class="generate-button" type="button" onclick="goToGenerate()">
+            <h3 id="emptyStateTitle">Belum ada riwayat</h3>
+            <p id="emptyStateDescription">Kamu belum melakukan generate video.</p>
+            <button class="generate-button" id="emptyStateGenerateButton" type="button" onclick="goToGenerate()">
                 MULAI GENERATE
             </button>
         </div>
@@ -2558,14 +2623,14 @@ tbody tr {
 <script src="../assets/js/generation-regenerate.js?v=20261016-regenerate"></script>
 <script src="/navigation/navigation.js?v=livechat-nav-20261101"></script>
 <script src="./assets/js/history-config.js"></script>
-<script src="./assets/js/history-state.js"></script>
-<script src="./assets/js/history-auth.js?v=persistent-auth-20261022"></script>
-<script src="./assets/js/history-data.js?v=20261026-expiry-result-only-audio-copyright"></script>
+<script src="./assets/js/history-state.js?v=20261102-scope-task-search"></script>
+<script src="./assets/js/history-auth.js?v=persistent-auth-20261022-scope-task-search-20261102"></script>
+<script src="./assets/js/history-data.js?v=20261026-expiry-result-only-audio-copyright-scope-task-search-20261102"></script>
 <script src="./assets/js/history-status-sync.js?v=20261031-opus-24h"></script>
-<script src="./assets/js/history-render.js?v=20261026-expiry-result-only-opus20261029-audio-copyright-expired-label-audio-transcribe"></script>
+<script src="./assets/js/history-render.js?v=20261026-expiry-result-only-opus20261029-audio-copyright-expired-label-audio-transcribe-scope-task-search-20261102"></script>
 <script src="./assets/js/history-runtime.js"></script>
 <script src="./assets/js/history-modal.js?v=20261029-close-fix-opus-1h-audio-copyright-audio-transcribe"></script>
-<script src="./assets/js/history-events.js?v=20261028-feature-credit"></script>
+<script src="./assets/js/history-events.js?v=20261028-feature-credit-scope-task-search-20261102"></script>
 <script src="./assets/js/history-app.js"></script>
 
 <script>
@@ -2827,6 +2892,12 @@ tbody tr {
                 setTimeout(applyPagination, 0);
             });
         });
+
+    /* Reset saat scope / pencarian Task ID berubah */
+    window.addEventListener("genz:history-reset-pagination", function () {
+        state.page = 1;
+        setTimeout(applyPagination, 0);
+    });
 
     /* Reset saat refresh */
     var refreshBtn = document.getElementById("refreshButton");

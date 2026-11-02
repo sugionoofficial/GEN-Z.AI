@@ -357,50 +357,22 @@
             GENZHistory.buildNavigation();
 
 
+            /*
+             * Kontrol scope (pribadi/global) hanya muncul untuk
+             * admin/owner. Render History yang menentukan subtitle
+             * dan kolom User sesuai scope aktif, jadi auth tidak
+             * lagi memaksa tampilan global untuk admin.
+             */
             if (
-                GENZHistory.isAdminOrOwner()
+                typeof GENZHistory.syncHistoryControls ===
+                "function"
             ) {
-
-                if (
-                    elements.historySubtitle
-                ) {
-
-                    elements.historySubtitle.textContent =
-                        "Riwayat generate seluruh aplikasi.";
-
-                }
-
-
-                if (
-                    elements.userColumnHeader
-                ) {
-
-                    elements.userColumnHeader.style.display =
-                        "table-cell";
-
-                }
-
-            } else {
-
-                if (
-                    elements.historySubtitle
-                ) {
-
-                    elements.historySubtitle.textContent =
-                        "Riwayat generate yang terkait dengan akun kamu.";
-
-                }
-
-
-                if (
-                    elements.userColumnHeader
-                ) {
-
-                    elements.userColumnHeader.style.display =
-                        "none";
-
-                }
-
+                GENZHistory.syncHistoryControls();
+            } else if (
+                elements.historySubtitle
+            ) {
+                elements.historySubtitle.textContent =
+                    "Riwayat generate yang terkait dengan akun kamu.";
             }
 
 

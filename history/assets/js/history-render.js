@@ -2241,6 +2241,7 @@
 
         return `
             <tr
+                class="${showUserColumn ? "history-row-global" : ""}"
                 data-history-id="${safeId}"
                 data-task-id="${safeTaskId}"
             >
@@ -2377,6 +2378,41 @@
             return;
         }
 
+        const search =
+            typeof App.getTaskIdSearch ===
+            "function"
+                ? App.getTaskIdSearch()
+                : String(getState().taskIdSearch || "").trim();
+
+        const scope =
+            typeof App.getHistoryScope ===
+            "function"
+                ? App.getHistoryScope()
+                : "own";
+
+        if (elements.emptyStateTitle) {
+            elements.emptyStateTitle.textContent =
+                search
+                    ? "Task ID tidak ditemukan"
+                    : scope === "global"
+                        ? "Belum ada riwayat global"
+                        : "Belum ada riwayat";
+        }
+
+        if (elements.emptyStateDescription) {
+            elements.emptyStateDescription.textContent =
+                search
+                    ? `Tidak ada riwayat yang cocok dengan Task ID "${search}" pada ${getScopeLabel().toLowerCase()}. Periksa kembali Task ID atau hapus pencarian.`
+                    : scope === "global"
+                        ? "Belum ada generation dari user yang bisa ditampilkan."
+                        : "Kamu belum melakukan generate video.";
+        }
+
+        if (elements.emptyStateGenerateButton) {
+            elements.emptyStateGenerateButton.hidden =
+                Boolean(search);
+        }
+
         elements.emptyState.style.display =
             "block";
 
@@ -2414,12 +2450,7 @@
         }
 
         const showUserColumn =
-            typeof App.isAdminOrOwner ===
-            "function"
-
-                ? App.isAdminOrOwner()
-
-                : false;
+            shouldShowUserColumn();
 
 
         elements.historyBody.innerHTML =
@@ -2506,6 +2537,28 @@
        USER COLUMN
     ===================================================== */
 
+    function shouldShowUserColumn() {
+
+        const isAdminOrOwner =
+            typeof App.isAdminOrOwner ===
+            "function" &&
+            App.isAdminOrOwner();
+
+        const scope =
+            typeof App.getHistoryScope ===
+            "function"
+                ? App.getHistoryScope()
+                : "own";
+
+        /*
+         * Kolom User hanya berguna pada riwayat global.
+         * Pada riwayat pribadi, semua baris sudah pasti milik
+         * akun yang sedang login.
+         */
+        return isAdminOrOwner && scope === "global";
+    }
+
+
     function updateUserColumn() {
 
         const elements =
@@ -2517,17 +2570,8 @@
             return;
         }
 
-        const visible =
-            typeof App.isAdminOrOwner ===
-            "function"
-
-                ? App.isAdminOrOwner()
-
-                : false;
-
-
         elements.userColumnHeader.style.display =
-            visible
+            shouldShowUserColumn()
                 ? ""
                 : "none";
     }
@@ -2564,8 +2608,63 @@
 
         elements.historyCount.textContent =
             total !== filtered
-                ? `${filtered} / ${total}`
-                : String(total);
+                ? `${filtered} / ${total} riwayat`
+                : `${total} riwayat`;
+    }
+
+
+    function getScopeLabel() {
+
+        const scope =
+            typeof App.getHistoryScope ===
+            "function"
+                ? App.getHistoryScope()
+                : "own";
+
+        return scope === "global"
+            ? "Riwayat global semua user"
+            : "Riwayat pribadi";
+    }
+
+
+    function updateSearchMeta(filteredCount) {
+
+        const elements =
+            getElements();
+
+        if (!elements.historySearchMeta) {
+            return;
+        }
+
+        const search =
+            typeof App.getTaskIdSearch ===
+            "function"
+                ? App.getTaskIdSearch()
+                : String(getState().taskIdSearch || "").trim();
+
+        const count =
+            Number(filteredCount) || 0;
+
+        const parts = [
+            getScopeLabel(),
+            search ? `Task ID: "${search}"` : "",
+            `${count} hasil`
+        ].filter(Boolean);
+
+        if (getState().historySearchTruncated) {
+            const limit =
+                typeof App.getHistoryQueryLimit ===
+                "function"
+                    ? App.getHistoryQueryLimit()
+                    : 200;
+
+            parts.push(
+                `Menampilkan ${limit} hasil pertama; persempit Task ID bila perlu.`
+            );
+        }
+
+        elements.historySearchMeta.textContent =
+            parts.join(" · ");
     }
 
 
@@ -2613,8 +2712,7 @@
 
 
         elements.historySubtitle.textContent =
-            labels[filter] ||
-            labels.all;
+            `${getScopeLabel()} · ${labels[filter] || labels.all}`;
     }
 
 
@@ -2660,6 +2758,11 @@
         updateSubtitle();
 
 
+        updateSearchMeta(
+            filteredData.length
+        );
+
+
         if (
             !filteredData.length
         ) {
@@ -2681,6 +2784,9 @@
 
     App.renderHistory =
         renderHistory;
+
+    App.shouldShowHistoryUserColumn =
+        shouldShowUserColumn;
 
 
     /* =====================================================
