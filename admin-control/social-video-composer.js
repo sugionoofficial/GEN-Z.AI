@@ -134,6 +134,14 @@
         state.busy = busy;
         syncActionButtons();
         if (els.refresh) els.refresh.disabled = busy;
+        /* renderAccounts() berjalan SAAT masih busy (di tengah load), jadi
+           semua checkbox lahir disabled. Tanpa toggle di sini checkbox akun
+           terkunci selamanya — inilah penyebab akun tak bisa dicentang. */
+        if (els.accounts) {
+            for (const input of els.accounts.querySelectorAll("input[data-svp-account]")) {
+                input.disabled = busy;
+            }
+        }
     }
 
     function activeAccounts() {
@@ -211,16 +219,21 @@
         }
 
         for (const account of list) {
-            const label = document.createElement("label");
-            label.className = "svp-account";
-
+            /* Checkbox DAN kartu = satu kesatuan (label.meliputi.input),
+               supaya ketukan di mana pun di kartu mencentang akun —
+               penting untuk layar sentuh HP. */
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
             checkbox.value = account.id;
             checkbox.dataset.svpAccount = "1";
             checkbox.dataset.svpPlatform = account.platform || "";
             checkbox.disabled = state.busy;
+            checkbox.id = `svp-account-${account.id}`;
             checkbox.addEventListener("change", syncActionButtons);
+
+            const label = document.createElement("label");
+            label.className = "svp-account";
+            label.htmlFor = checkbox.id;
 
             const meta = document.createElement("span");
             meta.className = "svp-account-meta";

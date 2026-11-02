@@ -164,7 +164,25 @@
             disconnect.className = "btn small danger";
             disconnect.textContent = "Putuskan";
             disconnect.disabled = state.busy;
-            disconnect.addEventListener("click", () => disconnectAccount(account));
+            /* Halaman ini melarang dialog mengambang (window.confirm):
+               di beberapa browser mobile dialognya tidak bisa disentuh.
+               Konfirmasi memakai pola halaman: klik 1 mempersenjatai
+               tombol jadi "Konfirmasi", klik 2 menjalankan. */
+            disconnect.addEventListener("click", () => {
+                if (window.GENZInlineConfirm?.request) {
+                    if (!window.GENZInlineConfirm.request(disconnect, {
+                        label: "Konfirmasi putus",
+                        ariaLabel: `Konfirmasi putuskan akun ${accountLabel(account)}`,
+                        title: `Putuskan akun "${accountLabel(account)}" dari Studio Medsos?`
+                    })) return;
+                    void disconnectAccount(account, { skipConfirm: true });
+                    return;
+                }
+                /* Modul konfirmasi gagal termuat: jalankan lewat jalur
+                   lama yang masih memakai window.confirm — jangan pernah
+                   memutus tanpa konfirmasi apa pun. */
+                void disconnectAccount(account);
+            });
 
             item.appendChild(info);
             item.appendChild(disconnect);
@@ -215,10 +233,12 @@
         }
     }
 
-    async function disconnectAccount(account) {
+    async function disconnectAccount(account, { skipConfirm = false } = {}) {
         if (!account?.id || state.busy) return;
-        const label = accountLabel(account);
-        if (!window.confirm(`Putuskan akun "${label}" dari Studio Medsos?`)) return;
+        if (!skipConfirm && !window.GENZInlineConfirm) {
+            const label = accountLabel(account);
+            if (!window.confirm(`Putuskan akun "${label}" dari Studio Medsos?`)) return;
+        }
         setBusy(true);
         try {
             const data = await api("disconnect_account", {

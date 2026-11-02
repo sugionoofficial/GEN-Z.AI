@@ -133,7 +133,7 @@ test("tampilan tombol konfirmasi tersedia di tema gelap dan terang", () => {
     assert.match(lightCss, /\.btn\.is-confirming/);
     assert.match(lightCss, /btn-confirm-pulse-light/);
     /* Aset baru tidak boleh tertahan cache lama. */
-    assert.match(htmlSource, /social-publisher\.js\?v=publish-confirm-inline-/);
+    assert.match(htmlSource, /social-publisher\.js\?v=crosspost-targets-/);
     assert.match(htmlSource, /social-publisher-light\.css\?v=light-theme-20261026/);
 });
 
