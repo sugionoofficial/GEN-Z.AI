@@ -245,6 +245,45 @@
         href="/assets/css/genz-compact-desktop.css?v=compact-20261022"
     >
 
+    <style>
+        /* Post & Jadwalkan Video ke YouTube/TikTok (social-video-composer.js) */
+        .svp-fields{display:grid;gap:14px;margin-top:14px}
+        .svp-block{display:grid;gap:9px;padding:14px;border:1px solid #29384d;border-radius:12px;background:#0b1421}
+        .svp-block h4{margin:0;font-size:13px;letter-spacing:.02em}
+        .svp-input{width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid #35445a;background:#101c2c;color:#e8eefc;font:inherit}
+        .svp-input:focus{outline:2px solid #3f6fff66;border-color:#3f6fff}
+        .svp-account-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+        .svp-account{display:flex;gap:9px;align-items:center;padding:9px 11px;border:1px solid #35445a;border-radius:10px;background:#101c2c;cursor:pointer}
+        .svp-account input{accent-color:#3f6fff;width:16px;height:16px}
+        .svp-account .svp-account-meta{display:grid;line-height:1.35}
+        .svp-account .svp-account-name{font-size:12.5px;font-weight:700;color:#e8eefc;overflow-wrap:anywhere}
+        .svp-account .svp-account-platform{font-size:10.5px;color:#8fd8ff;text-transform:uppercase;letter-spacing:.08em}
+        .svp-platform-badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+        .svp-platform-badge.youtube{background:rgba(255,0,0,.16);color:#ff8a8a;border:1px solid rgba(255,0,0,.4)}
+        .svp-platform-badge.tiktok{background:rgba(37,244,238,.12);color:#7ff5f0;border:1px solid rgba(37,244,238,.35)}
+        .svp-platform-badge.facebook{background:rgba(24,119,242,.16);color:#8fbcff;border:1px solid rgba(24,119,242,.4)}
+        .svp-source-tabs{display:flex;gap:6px;flex-wrap:wrap}
+        .svp-tab{padding:7px 12px;border-radius:999px;border:1px solid #35445a;background:#101c2c;color:#c9d6ee;font-size:12px;cursor:pointer}
+        .svp-tab.is-active{border-color:#3f6fff;background:#14243d;color:#ffffff;font-weight:700}
+        .svp-preview{width:100%;max-width:300px;aspect-ratio:9/16;object-fit:contain;border:1px solid var(--border);border-radius:12px;background:#0b111b}
+        .svp-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+        .svp-row .svp-input{flex:1;min-width:180px;width:auto}
+        .svp-queue-head{margin-top:18px}
+        .svp-queue-head h4{margin:0 0 8px;font-size:13px}
+        .svp-post-item{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+        .svp-post-info{display:grid;gap:3px;line-height:1.45}
+        .svp-post-title{font-weight:700;font-size:12.5px;overflow-wrap:anywhere}
+        .svp-post-meta{font-size:11px;color:#8fa3c0;overflow-wrap:anywhere}
+        .svp-post-error{font-size:11px;color:#ff9d9d;overflow-wrap:anywhere}
+        .svp-status{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+        .svp-status.scheduled{background:rgba(63,111,255,.15);color:#9db9ff;border:1px solid rgba(63,111,255,.4)}
+        .svp-status.processing{background:rgba(255,193,7,.13);color:#ffd66b;border:1px solid rgba(255,193,7,.35)}
+        .svp-status.published{background:rgba(34,197,94,.14);color:#7ef0a8;border:1px solid rgba(34,197,94,.35)}
+        .svp-status.failed{background:rgba(239,68,68,.14);color:#ff9d9d;border:1px solid rgba(239,68,68,.4)}
+        .svp-status.cancelled{background:rgba(148,163,184,.13);color:#c3cfdd;border:1px solid rgba(148,163,184,.35)}
+        @media(max-width:768px){.svp-account-grid{grid-template-columns:1fr}.svp-preview{max-width:200px}.svp-block{padding:11px}}
+    </style>
+
 </head>
 <body>
     <div id="navigation"></div>
@@ -363,6 +402,83 @@
                     <div class="actions" style="margin:0"><button id="connect-tiktok" class="btn primary" type="button" disabled>Hubungkan TikTok</button></div>
                 </div>
             </div>
+        </section>
+
+        <section class="card" id="social-video-post" aria-labelledby="social-video-post-title">
+            <div class="card-head">
+                <div>
+                    <h3 id="social-video-post-title">Post &amp; Jadwalkan Video ke YouTube &amp; TikTok</h3>
+                    <p class="sub">Pilih akun yang sudah terhubung di atas, pilih videonya, lalu terbitkan sekarang (post manual) atau jadwalkan autopost. Biaya kredit dihitung per akun tujuan.</p>
+                </div>
+                <div class="actions" style="margin:0">
+                    <button id="svp-refresh" class="btn small" type="button">Muat ulang</button>
+                </div>
+            </div>
+            <div id="svp-message" class="notice" role="status" hidden></div>
+
+            <div class="svp-fields">
+                <div class="svp-block">
+                    <h4>1. Akun tujuan (YouTube / TikTok)</h4>
+                    <div id="svp-accounts" class="svp-account-grid"><div class="empty">Memuat akun terhubung…</div></div>
+                    <p id="svp-accounts-hint" class="help" hidden></p>
+                </div>
+
+                <div class="svp-block">
+                    <h4>2. Video</h4>
+                    <div class="svp-source-tabs" role="tablist" aria-label="Sumber video">
+                        <button type="button" class="svp-tab is-active" data-svp-source="history">Dari Riwayat</button>
+                        <button type="button" class="svp-tab" data-svp-source="upload">Unggah video</button>
+                        <button type="button" class="svp-tab" data-svp-source="url">URL video</button>
+                    </div>
+                    <div id="svp-source-history">
+                        <select id="svp-history-select" class="svp-input" aria-label="Pilih video dari riwayat"></select>
+                    </div>
+                    <div id="svp-source-upload" hidden>
+                        <input id="svp-file" class="svp-input" type="file" accept="video/mp4,video/quicktime,video/x-m4v,video/webm">
+                        <p class="help">MP4/MOV/M4V/WEBM, maksimal 180 MB.</p>
+                    </div>
+                    <div id="svp-source-url" hidden>
+                        <input id="svp-url" class="svp-input" type="url" placeholder="https://contoh.com/video.mp4" aria-label="URL video publik">
+                    </div>
+                    <video id="svp-preview" class="svp-preview" controls muted playsinline hidden></video>
+                </div>
+
+                <div class="svp-block">
+                    <h4>3. Judul &amp; caption</h4>
+                    <input id="svp-title" class="svp-input" type="text" maxlength="120" placeholder="Judul video (maks. 120 karakter)" aria-label="Judul video">
+                    <textarea id="svp-caption" class="svp-input" rows="4" maxlength="4500" placeholder="Caption (maks. 4500 karakter)" aria-label="Caption video"></textarea>
+                    <input id="svp-hashtags" class="svp-input" type="text" maxlength="400" placeholder="#hashtag #fyp (maks. 400 karakter)" aria-label="Hashtag">
+                    <div class="svp-row">
+                        <select id="svp-privacy" class="svp-input" aria-label="Privasi">
+                            <option value="public">Publik</option>
+                            <option value="unlisted">Tidak publik / unlisted</option>
+                            <option value="private">Privat</option>
+                            <option value="self_only">Hanya saya (TikTok)</option>
+                            <option value="inbox_draft">Draft kotak masuk (TikTok)</option>
+                        </select>
+                        <button id="svp-ai-caption" class="btn small" type="button">✨ Caption AI</button>
+                    </div>
+                </div>
+
+                <div class="svp-block">
+                    <h4>4. Post manual atau autopost</h4>
+                    <p id="svp-credit" class="help">Memuat info kredit…</p>
+                    <div class="svp-row">
+                        <label class="help" for="svp-schedule">Jadwal autopost (opsional)</label>
+                        <input id="svp-schedule" class="svp-input" type="datetime-local" aria-label="Jadwal autopost">
+                    </div>
+                    <div class="actions">
+                        <button id="svp-publish" class="btn primary" type="button" disabled>Post sekarang</button>
+                        <button id="svp-schedule-btn" class="btn" type="button" disabled>Jadwalkan autopost</button>
+                    </div>
+                    <p class="help">“Post sekarang” menerbitkan langsung ke semua akun yang dicentang. “Jadwalkan autopost” menyimpan ke antrean dan cron server menerbitkan tepat pada waktunya.</p>
+                </div>
+            </div>
+
+            <div class="svp-queue-head">
+                <h4>Antrean &amp; riwayat posting</h4>
+            </div>
+            <div id="svp-queue" class="list"><div class="empty">Memuat antrean…</div></div>
         </section>
 
         <div class="grid" style="margin-top:18px">
@@ -939,6 +1055,7 @@
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
     <script type="module" src="./social-publisher.js?v=publish-confirm-inline-premium-20261101a"></script>
     <script src="./social-video-connections.js?v=studio-medsos-yt-tiktok-20261102"></script>
+    <script src="./social-video-composer.js?v=svp-composer-20261102"></script>
     <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
 </body>
 </html>
