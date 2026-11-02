@@ -222,7 +222,7 @@
         @media(max-width:768px){.inline-model-dropdown{max-width:100%}.master-switch-card{flex-direction:column;align-items:stretch;padding:13px 14px;gap:12px}.master-switch-right{justify-content:space-between;width:100%}.master-status-pill{min-width:112px;padding:8px 13px;font-size:11px}.master-switch-controls{width:100%;justify-content:stretch}.master-mode-btn{flex:1 1 0;text-align:center;padding:6px 6px;font-size:10px}.card.studio-collapsible.is-expanded{grid-column:auto}.studio-collapse-trigger{padding:14px 14px;gap:11px}.card.studio-collapsible.is-expanded .studio-collapse-trigger{padding:15px 15px}.studio-collapse-icon{width:38px;height:38px;border-radius:11px}.studio-collapse-copy h3{font-size:14.5px}.studio-collapse-body{padding:15px 14px 17px}.studio-collapse-chip-label{display:none}}
 
 
-        .social-connections-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:12px}
+        .social-connections-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:12px;align-items:start}
         .social-connection-card{border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(255,255,255,.02);display:grid;gap:10px;min-width:0}
         .social-connection-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
         .social-connection-head strong{font-size:14px}
@@ -231,7 +231,9 @@
         .social-account-info strong{overflow-wrap:anywhere}
         .status.ok{color:var(--green)}
         .status.warn{color:var(--amber)}
-        @media(max-width:768px){.social-connections-grid{grid-template-columns:1fr}}
+        @media(max-width:960px){.social-connections-grid{grid-template-columns:1fr}}
+        #usage-tutorial{margin-top:14px}
+        @media(max-width:768px){#social-connections{padding:16px}.social-connection-card{padding:12px}.social-connection-card .actions .btn{flex:1 1 auto}}
 
     </style>
     <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261026f">
@@ -386,11 +388,11 @@
         </section>
 
 
-        <section class="card" id="social-connections" aria-labelledby="social-connections-title">
+        <section class="card wide" id="social-connections" aria-labelledby="social-connections-title">
             <div class="card-head">
                 <div>
-                    <h3 id="social-connections-title">Hubungkan YouTube &amp; TikTok</h3>
-                    <p class="sub">Login OAuth resmi untuk menyimpan akun video Anda di Studio Medsos. Token dienkripsi di server dan dapat diputuskan kapan saja.</p>
+                    <h3 id="social-connections-title">Hubungkan akun medsos: Facebook, YouTube &amp; TikTok</h3>
+                    <p class="sub">Login OAuth resmi untuk Facebook Page, YouTube, dan TikTok dalam satu tempat. Token dienkripsi di server dan dapat diputuskan kapan saja.</p>
                 </div>
                 <div class="actions" style="margin:0">
                     <button id="refresh-social-connections" class="btn small" type="button">Muat ulang</button>
@@ -398,6 +400,23 @@
             </div>
             <div id="social-connections-message" class="notice" role="status" hidden></div>
             <div class="social-connections-grid">
+                <div class="social-connection-card">
+                    <div class="social-connection-head"><strong>Facebook Page</strong><span class="help">Meta OAuth</span></div>
+                    <div id="page-connections" class="list"><div class="empty">Memuat koneksi…</div></div>
+                    <div class="actions">
+                        <button id="connect-page" class="btn primary" type="button">Hubungkan Facebook</button>
+                        <button id="toggle-tutorial" class="btn tutorial-btn" type="button" aria-expanded="false" aria-controls="usage-tutorial">Tutorial</button>
+                    </div>
+                    <div id="connect-help" class="notice warn" role="status" hidden>
+                    <strong id="connect-help-title">Halaman izin Facebook belum terbuka?</strong>
+                    <p id="connect-help-text" style="margin:6px 0 10px"></p>
+                    <div class="actions" style="margin:0">
+                        <a id="oauth-manual-link" class="btn small primary" href="#" hidden>Buka halaman izin Facebook</a>
+                        <button id="connect-copy-link" class="btn small" type="button">Salin tautan halaman ini</button>
+                    </div>
+                    <p id="connect-copy-status" class="help" style="margin:8px 0 0"></p>
+                </div>
+                </div>
                 <div class="social-connection-card">
                     <div class="social-connection-head"><strong>YouTube</strong><span class="help">Google OAuth</span></div>
                     <p id="youtube-connection-status" class="status" role="status">Memuat status…</p>
@@ -411,6 +430,59 @@
                     <div class="actions" style="margin:0"><button id="connect-tiktok" class="btn primary" type="button" disabled>Hubungkan TikTok</button></div>
                 </div>
             </div>
+            <div id="usage-tutorial" class="tutorial-panel" role="region" aria-labelledby="usage-tutorial-title" hidden>
+                    <div class="tutorial-head">
+                        <div>
+                            <h4 id="usage-tutorial-title">Panduan Penggunaan Studio Medsos</h4>
+                            <p>Ikuti langkah berurutan di bawah ini untuk membuat dan menjadwalkan konten otomatis ke Facebook Page Anda.</p>
+                        </div>
+                        <button id="close-tutorial" class="btn small tutorial-close" type="button">Tutup</button>
+                    </div>
+                    <div class="tutorial-steps">
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">1</span>
+                            <div>
+                                <p class="tutorial-step-title">Hubungkan Facebook Page</p>
+                                <p class="tutorial-step-body">Klik tombol <strong>Hubungkan Facebook</strong>, login ke akun Facebook yang mengelola Page tujuan, pilih Page yang ingin dipakai, lalu setujui seluruh izin akses agar sistem dapat menerbitkan posting. Jika melalui HP, ubah browser ke <strong>mode desktop</strong> terlebih dahulu, lalu setelah sukses terhubung klik <strong>Periksa izin</strong>.</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">2</span>
+                            <div>
+                                <p class="tutorial-step-title">Tambahkan Karakter Referensi</p>
+                                <p class="tutorial-step-body">Pada bagian <strong>Tambah karakter referensi</strong>, isi nama karakter, unggah foto wajah/karakter yang jelas (JPEG/PNG/WebP maks. 8 MB), tambahkan catatan ciri fisik bila perlu, centang konfirmasi hak pakai, lalu klik <strong>Simpan karakter</strong>.</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">3</span>
+                            <div>
+                                <p class="tutorial-step-title">Simpan Koleksi Outfit &amp; Musik Auto-Play Facebook</p>
+                                <p class="tutorial-step-body">Pada blok <strong>Outfit &amp; link order</strong>, simpan outfit karakter beserta link order produk. Pada blok <strong>KOLEKSI MUSIK</strong>, unggah file lagu Anda sendiri (<code>.mp3</code> / <code>.m4a</code> / <code>.aac</code>) atau video unduhan dari Facebook Reels/Cerita (<code>.mp4</code> — otomatis diekstrak audionya), atau klik <strong>+ Isi 8 Musik Bawaan</strong> agar setiap posting Kata-kata Mutiara langsung auto-play musiknya tanpa mengulang lagu terakhir.</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">4</span>
+                            <div>
+                                <p class="tutorial-step-title">Atur Caption Dasar &amp; Link External</p>
+                                <p class="tutorial-step-body">Isi <strong>Caption dasar tetap</strong> serta opsional link external untuk posting foto karakter di Feed, kemudian klik <strong>Simpan Caption &amp; Link</strong>. (Mode Kata-kata Mutiara + Musik terbit murni tanpa caption teks tambahan, tanpa link, dan tanpa hashtag.)</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">5</span>
+                            <div>
+                                <p class="tutorial-step-title">Buat Posting Manual atau Jadwal Autopost (Karakter AI / Kata-kata Mutiara + Musik)</p>
+                                <p class="tutorial-step-body">Pilih mode <strong>Foto Karakter AI</strong> atau <strong>✨ Kata-kata Mutiara + Musik Auto-Play</strong> (default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Page</strong>, atau pilih <strong>Reels</strong>, <strong>Cerita 24 Jam</strong>, maupun <strong>Beranda + Cerita sekaligus</strong>). Untuk uji coba langsung, gunakan <strong>Buat posting manual</strong> lalu klik <strong>Buat &amp; bersihkan pratinjau</strong>. Untuk otomatis berkala, isi <strong>Buat jadwal autopost</strong>, centang <strong>Jadwal ini aktif</strong> dan <strong>Autopost untuk jadwal ini</strong>, lalu simpan. Pastikan juga tombol <strong>Autopost saya: ON</strong> di bagian atas menyala (<strong>AUTOPUBLISH ON</strong>). Role USER maksimal 2 jadwal; ADMIN dan OWNER tanpa batas.</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-step">
+                            <span class="tutorial-num">6</span>
+                            <div>
+                                <p class="tutorial-step-title">Pantau Riwayat &amp; Bagikan Post</p>
+                                <p class="tutorial-step-body">Cek status seluruh konten pada bagian <strong>Riwayat pembuatan &amp; posting</strong> di bawah halaman, lihat langsung posting yang sudah terbit di Page, atau bagikan ke profil pribadi Anda.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
         </section>
 
         <section class="card" id="social-video-post" aria-labelledby="social-video-post-title">
@@ -486,80 +558,8 @@
         </section>
 
         <div class="grid" style="margin-top:18px">
-            <section class="card" aria-labelledby="connect-title">
-                <div class="card-head"><div><h3 id="connect-title">1. Hubungkan Facebook Page</h3><p class="sub">Meta OAuth akan menampilkan Pages yang Anda kelola dan mengizinkan tool menerbitkan posting.</p></div></div>
-                <div id="page-connections" class="list"><div class="empty">Memuat koneksi…</div></div>
-                <div class="actions">
-                    <button id="connect-page" class="btn primary" type="button">Hubungkan Facebook</button>
-                    <button id="toggle-tutorial" class="btn tutorial-btn" type="button" aria-expanded="false" aria-controls="usage-tutorial">Tutorial</button>
-                </div>
-                <div id="connect-help" class="notice warn" role="status" hidden>
-                    <strong id="connect-help-title">Halaman izin Facebook belum terbuka?</strong>
-                    <p id="connect-help-text" style="margin:6px 0 10px"></p>
-                    <div class="actions" style="margin:0">
-                        <a id="oauth-manual-link" class="btn small primary" href="#" hidden>Buka halaman izin Facebook</a>
-                        <button id="connect-copy-link" class="btn small" type="button">Salin tautan halaman ini</button>
-                    </div>
-                    <p id="connect-copy-status" class="help" style="margin:8px 0 0"></p>
-                </div>
-                <div id="usage-tutorial" class="tutorial-panel" role="region" aria-labelledby="usage-tutorial-title" hidden>
-                    <div class="tutorial-head">
-                        <div>
-                            <h4 id="usage-tutorial-title">Panduan Penggunaan Studio Medsos</h4>
-                            <p>Ikuti langkah berurutan di bawah ini untuk membuat dan menjadwalkan konten otomatis ke Facebook Page Anda.</p>
-                        </div>
-                        <button id="close-tutorial" class="btn small tutorial-close" type="button">Tutup</button>
-                    </div>
-                    <div class="tutorial-steps">
-                        <div class="tutorial-step">
-                            <span class="tutorial-num">1</span>
-                            <div>
-                                <p class="tutorial-step-title">Hubungkan Facebook Page</p>
-                                <p class="tutorial-step-body">Klik tombol <strong>Hubungkan Facebook</strong>, login ke akun Facebook yang mengelola Page tujuan, pilih Page yang ingin dipakai, lalu setujui seluruh izin akses agar sistem dapat menerbitkan posting. Jika melalui HP, ubah browser ke <strong>mode desktop</strong> terlebih dahulu, lalu setelah sukses terhubung klik <strong>Periksa izin</strong>.</p>
-                            </div>
-                        </div>
-                        <div class="tutorial-step">
-                            <span class="tutorial-num">2</span>
-                            <div>
-                                <p class="tutorial-step-title">Tambahkan Karakter Referensi</p>
-                                <p class="tutorial-step-body">Pada bagian <strong>2. Tambah karakter referensi</strong>, isi nama karakter, unggah foto wajah/karakter yang jelas (JPEG/PNG/WebP maks. 8 MB), tambahkan catatan ciri fisik bila perlu, centang konfirmasi hak pakai, lalu klik <strong>Simpan karakter</strong>.</p>
-                            </div>
-                        </div>
-                        <div class="tutorial-step">
-                            <span class="tutorial-num">3</span>
-                            <div>
-                                <p class="tutorial-step-title">Simpan Koleksi Outfit &amp; Musik Auto-Play Facebook</p>
-                                <p class="tutorial-step-body">Pada blok <strong>Outfit &amp; link order</strong>, simpan outfit karakter beserta link order produk. Pada blok <strong>KOLEKSI MUSIK</strong>, unggah file lagu Anda sendiri (<code>.mp3</code> / <code>.m4a</code> / <code>.aac</code>) atau video unduhan dari Facebook Reels/Cerita (<code>.mp4</code> — otomatis diekstrak audionya), atau klik <strong>+ Isi 8 Musik Bawaan</strong> agar setiap posting Kata-kata Mutiara langsung auto-play musiknya tanpa mengulang lagu terakhir.</p>
-                            </div>
-                        </div>
-                        <div class="tutorial-step">
-                            <span class="tutorial-num">4</span>
-                            <div>
-                                <p class="tutorial-step-title">Atur Caption Dasar &amp; Link External</p>
-                                <p class="tutorial-step-body">Isi <strong>Caption dasar tetap</strong> serta opsional link external untuk posting foto karakter di Feed, kemudian klik <strong>Simpan Caption &amp; Link</strong>. (Mode Kata-kata Mutiara + Musik terbit murni tanpa caption teks tambahan, tanpa link, dan tanpa hashtag.)</p>
-                            </div>
-                        </div>
-                        <div class="tutorial-step">
-                            <span class="tutorial-num">5</span>
-                            <div>
-                                <p class="tutorial-step-title">Buat Posting Manual atau Jadwal Autopost (Karakter AI / Kata-kata Mutiara + Musik)</p>
-                                <p class="tutorial-step-body">Pilih mode <strong>Foto Karakter AI</strong> atau <strong>✨ Kata-kata Mutiara + Musik Auto-Play</strong> (default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Page</strong>, atau pilih <strong>Reels</strong>, <strong>Cerita 24 Jam</strong>, maupun <strong>Beranda + Cerita sekaligus</strong>). Untuk uji coba langsung, gunakan <strong>Buat posting manual</strong> lalu klik <strong>Buat &amp; bersihkan pratinjau</strong>. Untuk otomatis berkala, isi <strong>4. Buat jadwal autopost</strong>, centang <strong>Jadwal ini aktif</strong> dan <strong>Autopost untuk jadwal ini</strong>, lalu simpan. Pastikan juga tombol <strong>Autopost saya: ON</strong> di bagian atas menyala (<strong>AUTOPUBLISH ON</strong>). Role USER maksimal 2 jadwal; ADMIN dan OWNER tanpa batas.</p>
-                            </div>
-                        </div>
-                        <div class="tutorial-step">
-                            <span class="tutorial-num">6</span>
-                            <div>
-                                <p class="tutorial-step-title">Pantau Riwayat &amp; Bagikan Post</p>
-                                <p class="tutorial-step-body">Cek status seluruh konten pada bagian <strong>Riwayat pembuatan &amp; posting</strong> di bawah halaman, lihat langsung posting yang sudah terbit di Page, atau bagikan ke profil pribadi Anda.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <p class="status" id="connect-status"></p>
-            </section>
-
-            <section class="card" aria-labelledby="character-title">
-                <div class="card-head"><div><h3 id="character-title">2. Tambah karakter referensi</h3><p class="sub">Foto disimpan di bucket privat Supabase Storage dan hanya dibaca server untuk pembuatan gambar.</p></div></div>
+            <section class="card wide" aria-labelledby="character-title">
+                <div class="card-head"><div><h3 id="character-title">Tambah karakter referensi</h3><p class="sub">Foto disimpan di bucket privat Supabase Storage dan hanya dibaca server untuk pembuatan gambar.</p></div></div>
                 <form id="character-form" class="fields">
                     <div class="field"><label for="character-name">Nama karakter</label><input id="character-name" name="display_name" maxlength="80" required placeholder="Contoh: Alya"></div>
                     <div class="field"><label for="character-image">Foto referensi</label><input id="character-image" name="reference" type="file" accept="image/jpeg,image/png,image/webp" required><span class="help">JPEG, PNG, atau WebP · maksimal 8 MB · minimal 240×240 piksel</span></div>
@@ -1057,7 +1057,7 @@
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=livechat-nav-20261101"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script type="module" src="./social-publisher.js?v=publish-confirm-inline-20261102-merge-sv"></script>
+    <script type="module" src="./social-publisher.js?v=publish-confirm-inline-20261102-conn-align"></script>
     <script src="./social-video-connections.js?v=studio-medsos-yt-tiktok-20261102"></script>
     <script src="./social-video-composer.js?v=svp-composer-20261102d"></script>
     <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>

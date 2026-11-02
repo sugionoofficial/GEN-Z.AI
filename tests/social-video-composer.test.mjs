@@ -268,7 +268,7 @@ test("Studio Medsos punya blok post YouTube/TikTok dengan pilihan post manual da
     assert.match(section, /Jadwalkan autopost/, "tombol AUTO POST wajib ada di dalam blok");
     assert.match(section, /id="svp-accounts"/, "pilihan akun YouTube/TikTok wajib ada");
     assert.match(studioHtml, /social-video-composer\.js\?v=svp-composer-20261102d/, "script composer wajib terpasang dengan pin baru");
-    assert.match(studioHtml, /social-publisher\.js\?v=publish-confirm-inline-20261102-merge-sv/, "pin publisher wajib dimutakhirkan");
+    assert.match(studioHtml, /social-publisher\.js\?v=publish-confirm-inline-20261102-conn-align/, "pin publisher wajib dimutakhirkan");
 });
 
 test("riwayat TIDAK ada di kartu composer dan TANPA sub-blok terpisah — menyatu di Riwayat pembuatan & posting", () => {

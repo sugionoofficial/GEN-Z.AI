@@ -4296,6 +4296,11 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         if (nextPage === state.runsPage) return;
         loadRunsPage(nextPage, { perPage: state.runsPerPage, scrollIntoView: true });
     });
+    /* Satu tombol "Muat ulang" di blok koneksi menyegarkan SEMUA medsos:
+       Facebook (dashboard) + YouTube/TikTok (listener di social-video-connections.js). */
+    $("refresh-social-connections")?.addEventListener("click", () => {
+        void loadDashboard();
+    });
     $("refresh").addEventListener("click", loadDashboard);
     $("global-toggle").addEventListener("click", toggleAutopublish);
     masterToggle?.addEventListener("click", toggleMasterAutopublish);
