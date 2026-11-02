@@ -36,7 +36,6 @@ import {
     assertSafePublicVideoUrl,
     buildPlatformAuthorizeUrl,
     executeSocialVideoPostRow,
-    fetchSocialPostFeatureCost,
     generateOAuthStateAndPkce,
     signPrivateVideoReference
 } from "../lib/social-video/publisher.js";
@@ -290,9 +289,8 @@ export default async function handler(req, res) {
 
     try {
         if (action === "bootstrap") {
-            const [profile, creditCost, appsCfg, accounts, posts, historyVideos] = await Promise.all([
+            const [profile, appsCfg, accounts, posts, historyVideos] = await Promise.all([
                 fetchUserProfile(supabaseUrl, serviceKey, userId, fetchImpl),
-                fetchSocialPostFeatureCost(supabaseUrl, serviceKey, fetchImpl),
                 loadSocialVideoOAuthAppsConfig(env, { fetchImpl }),
                 fetchUserConnectedAccounts(supabaseUrl, serviceKey, userId, fetchImpl),
                 fetchUserPosts(supabaseUrl, serviceKey, userId, fetchImpl, 25),
@@ -308,7 +306,8 @@ export default async function handler(req, res) {
                     credits: profile.credits,
                     isAdminOrOwner: profile.role === "admin" || profile.role === "owner"
                 },
-                creditCost,
+                /* SISTEM LANGGANAN: posting selalu gratis (tanpa potong kredit). */
+                creditCost: 0,
                 redirectUri,
                 platformsConfigured: {
                     facebook: appsCfg.facebook.configured,
@@ -570,18 +569,10 @@ export default async function handler(req, res) {
                 scheduledIso = new Date(parsedTime).toISOString();
             }
 
-            const [profile, unitCost] = await Promise.all([
-                fetchUserProfile(supabaseUrl, serviceKey, userId, fetchImpl),
-                fetchSocialPostFeatureCost(supabaseUrl, serviceKey, fetchImpl)
-            ]);
-            const totalRequiredCredits = unitCost * selectedAccounts.length;
-            if (unitCost > 0 && profile.credits < totalRequiredCredits) {
-                return sendJson(res, 402, {
-                    success: false,
-                    code: "INSUFFICIENT_CREDITS",
-                    error: `Saldo kredit Anda (${profile.credits}) belum cukup untuk ${selectedAccounts.length} postingan (${totalRequiredCredits} kredit).`
-                });
-            }
+            /* SISTEM LANGGANAN: post manual maupun autopost tidak memotong
+               kredit dan tidak menulis ke generation_history (riwayat
+               generate utama) — jejaknya hanya di social_video_posts. */
+            const unitCost = 0;
 
             const cleanSourceType = ["upload", "history", "url"].includes(String(body.videoSourceType || ""))
                 ? String(body.videoSourceType)

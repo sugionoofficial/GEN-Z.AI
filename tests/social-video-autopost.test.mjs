@@ -340,7 +340,7 @@ test("Publisher protokol: Facebook Video, YouTube Resumable, & TikTok Auto-Fallb
     assert.ok(ttCalls.some(u => u.endsWith("/inbox/video/init/")));
 });
 
-test("Member create_posts: potong kredit per post & auto-refund jika gagal + cron terjadwal", async () => {
+test("SISTEM LANGGANAN: create_posts tidak memotong kredit & tidak menulis generation_history (manual maupun cron)", async () => {
     const env = {
         SUPABASE_URL: "https://mock.supabase.co",
         SUPABASE_SERVICE_ROLE_KEY: "test",
@@ -351,8 +351,10 @@ test("Member create_posts: potong kredit per post & auto-refund jika gagal + cro
     const encTok = encryptAccountTokenPair("tok", "", env);
     const acctId = "33333333-3333-4333-8333-333333333333";
     const rpcLog = [];
+    const writtenTables = new Set();
+    const insertedRows = [];
 
-    /* Skenario gagal upstream -> wajib auto-refund kredit */
+    /* Skenario gagal upstream: tetap gagal TANPA memotong/mengembalikan kredit */
     const failRes = createMockRes();
     await socialVideoAutopostHandler(
         {
@@ -368,6 +370,7 @@ test("Member create_posts: potong kredit per post & auto-refund jika gagal + cro
             },
             env,
             fetchImpl: async (url, init) => {
+                writtenTables.add(String(url));
                 if (url.includes("/auth/v1/user")) {
                     return Response.json({ id: "44444444-4444-4444-8444-444444444444", email: "m@genz.ai" });
                 }
@@ -375,7 +378,7 @@ test("Member create_posts: potong kredit per post & auto-refund jika gagal + cro
                     return Response.json([{ id: "44444444-4444-4444-8444-444444444444", role: "user", credits: 1000 }]);
                 }
                 if (url.includes("/rest/v1/feature_credit_settings")) {
-                    return Response.json([{ credit_cost: 250 }]);
+                    return Response.json([{ credit_cost: 0 }]);
                 }
                 if (url.includes("/rest/v1/social_video_accounts")) {
                     return Response.json([
@@ -391,7 +394,9 @@ test("Member create_posts: potong kredit per post & auto-refund jika gagal + cro
                     ]);
                 }
                 if (url.includes("/rest/v1/social_video_posts") && init?.method === "POST") {
-                    return Response.json(JSON.parse(init.body));
+                    const rows = JSON.parse(init.body);
+                    insertedRows.push(...rows);
+                    return Response.json(rows);
                 }
                 if (url.includes("/rest/v1/social_video_posts")) {
                     return Response.json([]);
@@ -416,12 +421,15 @@ test("Member create_posts: potong kredit per post & auto-refund jika gagal + cro
         failRes
     );
 
-    assert.equal(failRes.statusCode, 400);
-    assert.equal(rpcLog.length, 2);
-    assert.equal(rpcLog[0].body.p_feature_id, "social_video_post");
-    assert.equal(rpcLog[1].body.p_outcome, "refund");
+    assert.equal(failRes.statusCode, 400, "kegagalan upstream tetap gagal");
+    assert.deepEqual(rpcLog, [], "SISTEM LANGGANAN: tidak boleh ada RPC potong/refund kredit");
+    assert.ok(
+        insertedRows.every(row => Number(row.credit_cost) === 0),
+        "baris antrean wajib tercatat dengan credit_cost 0"
+    );
 
-    /* Skenario Cron mengeksekusi jadwal jatuh tempo & sukses */
+    /* Skenario Cron mengeksekusi jadwal jatuh tempo & sukses — tanpa potong kredit.
+       Baris lama yang masih menyimpan credit_cost > 0 pun tidak boleh dipotong. */
     const cronOut = await runSocialVideoAutopostCron(env, new Date(), {
         fetchImpl: async (url, init) => {
             if (url.includes("/rpc/claim_due_social_video_posts")) {
@@ -453,10 +461,11 @@ test("Member create_posts: potong kredit per post & auto-refund jika gagal + cro
                 ]);
             }
             if (url.includes("/rpc/charge_feature_credits")) {
+                rpcLog.push({ rpc: "charge", body: JSON.parse(init.body) });
                 return Response.json({ cost: 250, credits: 750 });
             }
             if (url.includes("/rpc/settle_feature_credits")) {
-                assert.equal(JSON.parse(init.body).p_outcome, "complete");
+                rpcLog.push({ rpc: "settle", body: JSON.parse(init.body) });
                 return Response.json({ status: "completed" });
             }
             if (url.includes("graph-video.facebook.com")) {
@@ -469,6 +478,15 @@ test("Member create_posts: potong kredit per post & auto-refund jika gagal + cro
     assert.equal(cronOut.ok, true);
     assert.equal(cronOut.claimed, 1);
     assert.equal(cronOut.published, 1);
+    assert.deepEqual(rpcLog, [], "cron terjadwal pun wajib gratis (sistem langganan)");
+
+    /* Tidak boleh menulis ke riwayat generate utama (generation_history). */
+    for (const url of writtenTables) {
+        assert.ok(
+            !url.includes("generation_history"),
+            `Studio Medsos tidak boleh menulis ke riwayat generate utama: ${url}`
+        );
+    }
 });
 
 test("UI Studio Medsos menyediakan Hubungkan YouTube/TikTok dan BLACK BOX Social OAuth Vault tetap admin-only", () => {
