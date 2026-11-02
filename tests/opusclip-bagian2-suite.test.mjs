@@ -130,6 +130,19 @@ test("Fitur 1 & 2: buildSubmitProjectPayload mematuhi skema wire resmi OpusClip"
     );
 });
 
+test("Project Clipping/Dubbing menyediakan pilihan Link Video publik atau Upload File yang terpisah", () => {
+    const html = fs.readFileSync(path.join(ROOT, "opusclip/index.html"), "utf8");
+    const app = fs.readFileSync(path.join(ROOT, "opusclip/assets/js/opusclip-app.js"), "utf8");
+
+    assert.match(html, /data-clip-source="url"[^>]*aria-pressed="true"/);
+    assert.match(html, /data-clip-source="upload"[^>]*aria-pressed="false"/);
+    assert.match(html, /id="ocClipUrlFields"/);
+    assert.match(html, /id="ocClipUploadFields" hidden/);
+    assert.match(html, /id="ocVideoUrl" class="oc-input" placeholder="Tempel link YouTube, Vimeo, Loom, atau MP4 publik"/);
+    assert.match(app, /state\.clipSource === "upload"\s*\?\s*state\.clipUploadId\s*:\s*\$\("ocVideoUrl"\)\?\.value\.trim\(\)/);
+    assert.match(app, /if \(state\.clipSource === "url"\)[\s\S]*?new URL\(videoUrl\)/);
+});
+
 test("Fitur 1, 3, 4: projectors memetakan skor viralitas, export HD/4K/XML, transkrip, & thumbnail", () => {
     assert.equal(clipSuffix("proj1.clip9", "proj1"), "clip9");
     assert.equal(buildClipFullId("proj1", "proj1.clip9"), "proj1.clip9");

@@ -17,7 +17,7 @@
     <script src="/assets/js/feature-credit.js?v=feature-history-20261028" defer></script>
 
     <link rel="stylesheet" href="../assets/css/genz-premium.css?v=navlockup-20261029">
-    <link rel="stylesheet" href="./assets/css/opusclip.css?v=20261102-mobile-fit">
+    <link rel="stylesheet" href="./assets/css/opusclip.css?v=20261102-source-choice">
     <link rel="stylesheet" href="/assets/css/genz-compact-desktop.css?v=compact-20261022">
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -112,15 +112,29 @@
                 </div>
 
                 <div class="oc-field">
-                    <label class="oc-label" for="ocVideoUrl">URL Video Publik atau Upload ID</label>
-                    <input type="text" id="ocVideoUrl" class="oc-input" placeholder="https://www.youtube.com/watch?v=... atau unggah file di bawah">
+                    <label class="oc-label">Pilih Sumber Video</label>
+                    <div class="oc-source-mode" role="group" aria-label="Pilih link video atau upload file">
+                        <button type="button" class="oc-source-btn active" data-clip-source="url" aria-pressed="true">🔗 Tempel Link Video</button>
+                        <button type="button" class="oc-source-btn" data-clip-source="upload" aria-pressed="false">📁 Upload File Video</button>
+                    </div>
                 </div>
 
-                <div class="oc-field">
-                    <label class="oc-label" for="ocLocalVideoFile">Atau Unggah File Video Lokal (MP4/MOV/WEBM langsung ke Cloud GCS)</label>
-                    <div class="oc-row-2">
-                        <input type="file" id="ocLocalVideoFile" class="oc-input" accept="video/mp4,video/quicktime,video/webm,video/x-m4v">
-                        <button type="button" id="ocUploadLocalVideoBtn" class="oc-btn">☁️ Upload Video ke OpusClip</button>
+                <div id="ocClipUrlFields">
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocVideoUrl">URL Video Publik</label>
+                        <input type="url" id="ocVideoUrl" class="oc-input" placeholder="Tempel link YouTube, Vimeo, Loom, atau MP4 publik">
+                        <p class="oc-card-sub">Link diproses langsung oleh OpusClip—tidak perlu upload dari HP. Video harus dapat diakses publik.</p>
+                    </div>
+                </div>
+
+                <div id="ocClipUploadFields" hidden>
+                    <div class="oc-field">
+                        <label class="oc-label" for="ocLocalVideoFile">File Video Lokal (MP4/MOV/WEBM)</label>
+                        <div class="oc-row-2">
+                            <input type="file" id="ocLocalVideoFile" class="oc-input" accept="video/mp4,video/quicktime,video/webm,video/x-m4v">
+                            <button type="button" id="ocUploadLocalVideoBtn" class="oc-btn">☁️ Upload Video ke OpusClip</button>
+                        </div>
+                        <p id="ocClipUploadStatus" class="oc-card-sub" hidden></p>
                     </div>
                 </div>
 
@@ -818,7 +832,7 @@
 </main>
 
 <script src="/navigation/navigation.js?v=opusclip-nav-20261101"></script>
-<script type="module" src="./assets/js/opusclip-app.js?v=20261102-social-autopost"></script>
+<script type="module" src="./assets/js/opusclip-app.js?v=20261102-source-choice"></script>
 <script src="/assets/js/support-chat.js?v=touch-close-20261029" defer></script>
 <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
 </body>
