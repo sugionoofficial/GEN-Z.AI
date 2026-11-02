@@ -20,6 +20,8 @@ import {
 
 const state = {
     clipMode: "clipping",
+    clipSource: "url",
+    clipUploadId: "",
     costs: {
         opusclip_clipping: 2500,
         opusclip_dubbing: 3500,
@@ -290,6 +292,31 @@ function getActiveProjectId() {
 ========================================================= */
 
 function bindClippingHandlers() {
+    const sourceButtons = [...document.querySelectorAll("[data-clip-source]")];
+    const setClipSource = source => {
+        state.clipSource = source === "upload" ? "upload" : "url";
+        sourceButtons.forEach(button => {
+            const active = button.getAttribute("data-clip-source") === state.clipSource;
+            button.classList.toggle("active", active);
+            button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+        if ($("ocClipUrlFields")) $("ocClipUrlFields").hidden = state.clipSource !== "url";
+        if ($("ocClipUploadFields")) $("ocClipUploadFields").hidden = state.clipSource !== "upload";
+    };
+    sourceButtons.forEach(button => {
+        button.addEventListener("click", () => setClipSource(button.getAttribute("data-clip-source")));
+    });
+    setClipSource(state.clipSource);
+
+    $("ocLocalVideoFile")?.addEventListener("change", () => {
+        state.clipUploadId = "";
+        const status = $("ocClipUploadStatus");
+        if (status) {
+            status.hidden = true;
+            status.textContent = "";
+        }
+    });
+
     $("ocUploadLocalVideoBtn")?.addEventListener("click", async () => {
         const file = $("ocLocalVideoFile")?.files?.[0];
         if (!file) return notify("Pilih file video lokal terlebih dahulu.", true);
@@ -298,12 +325,19 @@ function bindClippingHandlers() {
         try {
             notify(`Mengunggah ${file.name} ke cloud OpusClip…`);
             const upload = await uploadBrowserFileToOpusClip(file, "LocalUpload");
-            $("ocVideoUrl").value = upload.upload_id;
+            state.clipUploadId = String(upload.upload_id || "");
+            if (!state.clipUploadId) throw new Error("Upload berhasil tetapi Upload ID tidak tersedia. Coba ulangi upload.");
             if (!$("ocProjectTitle").value) {
                 $("ocProjectTitle").value = file.name.replace(/\.[^.]+$/, "");
             }
-            notify(`Upload berhasil! Upload ID siap diproses: ${upload.upload_id}`);
+            const status = $("ocClipUploadStatus");
+            if (status) {
+                status.textContent = `Siap diproses: ${file.name} telah diunggah.`;
+                status.hidden = false;
+            }
+            notify("Upload berhasil. Tekan Proses Project untuk melanjutkan.");
         } catch (err) {
+            state.clipUploadId = "";
             notify(err.message, true);
         } finally {
             btn.disabled = false;
@@ -311,9 +345,26 @@ function bindClippingHandlers() {
     });
 
     $("ocSubmitProjectBtn")?.addEventListener("click", async () => {
-        const videoUrl = $("ocVideoUrl")?.value.trim();
+        const videoUrl = state.clipSource === "upload"
+            ? state.clipUploadId
+            : $("ocVideoUrl")?.value.trim();
         const confirmCopyright = $("ocCopyrightConfirm")?.checked === true;
-        if (!videoUrl) return notify("Masukkan URL video publik atau unggah file lokal terlebih dahulu.", true);
+        if (!videoUrl) {
+            return notify(
+                state.clipSource === "upload"
+                    ? "Pilih file lalu tekan Upload Video ke OpusClip terlebih dahulu."
+                    : "Tempel URL video publik terlebih dahulu.",
+                true
+            );
+        }
+        if (state.clipSource === "url") {
+            try {
+                const parsedUrl = new URL(videoUrl);
+                if (!["http:", "https:"].includes(parsedUrl.protocol)) throw new Error("protocol");
+            } catch {
+                return notify("Masukkan URL video yang valid dan dapat diakses publik.", true);
+            }
+        }
         if (!confirmCopyright) return notify("Centang konfirmasi hak cipta terlebih dahulu.", true);
 
         const payload = {
