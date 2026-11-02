@@ -59,7 +59,7 @@ values
     ('vision_video', 'Vision Video', 0),
     ('upscale', 'Upscale Foto', 0),
     ('upscale_video', 'Upscale Video', 0),
-    ('social_video_post', 'Social Video Auto Post (FB / YouTube / TikTok)', 250)
+    ('social_video_post', 'Social Video Auto Post (FB / YouTube / TikTok)', 0)
 on conflict (feature_id) do update
 set label = excluded.label;
 

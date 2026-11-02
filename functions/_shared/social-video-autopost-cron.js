@@ -7,7 +7,7 @@
    Dipanggil setiap menit dari `scheduled()` di `functions/worker.mjs`
    saat Social Publisher utama tidak sedang sibuk, untuk mengklaim
    maks. 2 postingan video jatuh tempo (`claim_due_social_video_posts`)
-   dan mengeksekusinya lengkap dengan potong kredit + auto-refund.
+   dan mengeksekusinya. Sistem langganan: eksekusi tidak memotong kredit.
 ========================================================= */
 
 import { loadSocialVideoOAuthAppsConfig } from "../../lib/social-video/app-credentials.js";

@@ -163,7 +163,8 @@ function buildEnv({ bootstrap } = {}) {
     const payload = bootstrap ?? {
         success: true,
         viewer: { id: "user-1", credits: 50, role: "member", isAdminOrOwner: false },
-        creditCost: 5,
+        /* SISTEM LANGGANAN: biaya selalu 0. */
+        creditCost: 0,
         redirectUri: "https://situs.example/callback",
         platformsConfigured: { youtube: true, tiktok: true, facebook: true },
         accounts: [ACCOUNT_YT, ACCOUNT_TT],
@@ -323,7 +324,9 @@ test("bootstrap menampilkan akun YouTube/TikTok sebagai pilihan yang bisa dicent
     assert.equal(checkbox.value, ACCOUNT_YT.id);
     assert.equal(checkbox.dataset.svpPlatform, "youtube");
 
-    assert.match(ids["svp-credit"].textContent, /5 kredit/, "estimasi biaya per akun wajib tampil");
+    /* Sistem langganan: composer menampilkan info tanpa potong kredit. */
+    assert.match(ids["svp-credit"].textContent, /langganan/i, "info langganan wajib tampil");
+    assert.match(ids["svp-credit"].textContent, /tanpa potong kredit/);
 
     const options = ids["svp-history-select"].children;
     assert.equal(options.length, 1, "video riwayat wajib jadi pilihan sumber");
@@ -334,7 +337,7 @@ test("tanpa akun terhubung tombol mati dan muncul petunjuk hubungkan dulu", asyn
         bootstrap: {
             success: true,
             viewer: { id: "user-1", credits: 10, role: "member", isAdminOrOwner: false },
-            creditCost: 5,
+            creditCost: 0,
             platformsConfigured: { youtube: true, tiktok: true, facebook: true },
             accounts: [],
             posts: [],
@@ -378,8 +381,8 @@ test("Post sekarang mengirim create_posts publishNow ke akun terpilih + picu ref
     assert.equal(create.body.title, "Kucing astronot lucu");
     assert.equal(create.body.privacyLevel, "public");
 
-    assert.equal(confirms.length, 1, "wajib konfirmasi biaya kredit sebelum kirim");
-    assert.match(confirms[0], /5 kredit/);
+    /* Sistem langganan: tanpa potong kredit -> tanpa dialog konfirmasi biaya. */
+    assert.equal(confirms.length, 0, "tidak boleh ada dialog konfirmasi biaya saat gratis");
     assert.match(ids["svp-message"].textContent, /Berhasil diterbitkan ke 1 akun/);
     assert.ok(events.includes("genz:social-video-posts-changed"), "riwayat wajib dimuat ulang setelah posting");
 });
@@ -417,7 +420,7 @@ test("Jadwalkan autopost mengirim scheduledFor tanpa publishNow + picu refresh r
     assert.ok(Date.parse(create.body.scheduledFor) > Date.now());
     assert.deepEqual(create.body.accountIds, [ACCOUNT_TT.id]);
 
-    assert.match(confirms[0], /Jadwalkan autopost ke 1 akun/);
+    assert.equal(confirms.length, 0, "jadwal gratis tidak wajib konfirmasi biaya");
     assert.match(ids["svp-message"].textContent, /dijadwalkan/);
     assert.ok(events.includes("genz:social-video-posts-changed"), "riwayat wajib dimuat ulang setelah menjadwalkan");
 });

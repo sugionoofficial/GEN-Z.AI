@@ -166,16 +166,17 @@
         if (!els.credit) return;
         const count = selectedAccountIds().length;
         const unit = Number(state.creditCost) || 0;
-        if (!count) {
-            els.credit.textContent = unit > 0
-                ? `Biaya per posting: ${unit} kredit per akun. Pilih minimal 1 akun tujuan.`
-                : "Pilih minimal 1 akun tujuan.";
+        if (unit <= 0) {
+            /* Sistem langganan: posting manual & autopost tanpa potong kredit. */
+            els.credit.textContent = count > 0
+                ? `Termasuk langganan Studio Medsos — ${count} akun dipilih, tanpa potong kredit.`
+                : "Termasuk langganan Studio Medsos — post manual & autopost tanpa potong kredit.";
             return;
         }
         const total = unit * count;
-        els.credit.textContent = unit > 0
+        els.credit.textContent = count
             ? `Biaya: ${total} kredit (${unit} × ${count} akun). Saldo: ${state.credits} kredit.`
-            : `Gratis (${count} akun dipilih).`;
+            : `Biaya per posting: ${unit} kredit per akun. Pilih minimal 1 akun tujuan.`;
     }
 
     /* ---------------------------------------------------------
