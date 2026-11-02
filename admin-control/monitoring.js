@@ -253,7 +253,10 @@ function toast(message, tone = "ok") {
     const node = $("monToast") || (() => {
         const created = el("div", "mon-toast");
         created.id = "monToast";
-        document.getElementById("monPage").append(created);
+        /* Tempel di body, bukan di dalam #monPage — supaya selalu terlihat
+           di tengah bawah layar berapa pun panjang halaman (dulu menempel
+           di ujung bawah konten sehingga dianggap "tidak ada respon"). */
+        document.body.append(created);
         return created;
     })();
 
@@ -1440,6 +1443,9 @@ async function runScan() {
     const button = $("monScan");
     button.disabled = true;
     button.textContent = "MEMERIKSA…";
+    /* Umpan balik seketika — pemeriksaan butuh beberapa detik (banyak
+       sub-permintaan), jangan biarkan klik terasa mati sampai selesai. */
+    toast("Memeriksa semua layanan…");
 
     try {
         const result = await api("scan", { method: "POST", body: {} });
