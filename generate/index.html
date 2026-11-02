@@ -187,6 +187,11 @@
         href="./assets/css/generate-modes.css?v=20261101-bagian1"
     >
 
+    <link
+        rel="stylesheet"
+        href="./assets/css/generate-mobile-model-picker.css?v=mobile-model-picker-20261102"
+    >
+
 
     <!-- =====================================================
          SHARED NAVIGATION
@@ -555,6 +560,7 @@
                                 class="generate-model-select"
                                 disabled
                                 autocomplete="off"
+                                aria-label="Pilih model AI"
                             >
                                 <option value="">
                                     Memuat model...
@@ -991,6 +997,18 @@
     <script src="/assets/js/generated-file-name.js?v=20261101-audio-srt"></script>
     <script src="./assets/js/generate-progress-card.js?v=mobile-spinner-20261029"></script>
     <script src="../assets/js/generation-regenerate.js?v=20261016-regenerate"></script>
+
+
+    <!-- =========================================================
+         MOBILE MODEL PICKER
+         Tampilan dropdown model untuk HP. Native #modelSelect
+         tetap menjadi sumber nilai untuk parameter dan kredit.
+    ========================================================== -->
+
+    <script
+        type="module"
+        src="./assets/js/generate-mobile-model-picker.js?v=mobile-model-picker-20261102"
+    ></script>
 
 
     <!-- =========================================================
