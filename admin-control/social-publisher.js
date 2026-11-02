@@ -1138,6 +1138,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         if (manualModelWrap) manualModelWrap.hidden = isQuote;
         if (isQuote) setInlineModelDropdownOpen("manual", false);
         if (isQuote && aspectSelect) aspectSelect.value = "9:16";
+        if ($("manual-social-target-wrap")) renderSocialTargetOptions();
         updateManualCharacterPreview();
     }
 
@@ -1167,6 +1168,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         if (scheduleModelWrap) scheduleModelWrap.hidden = isQuote;
         if (isQuote) setInlineModelDropdownOpen("schedule", false);
         if (isQuote && aspectSelect) aspectSelect.value = "9:16";
+        if ($("schedule-social-target-wrap")) renderSocialTargetOptions();
         if (!preserveSongToggle && songCheck) {
             songCheck.checked = isQuote;
         }
@@ -1978,6 +1980,51 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             : "Terbitkan ke Facebook Page";
     }
 
+    /* ---------------------------------------------------------
+       ARAHKAN HASIL MANUAL/JADWAL FB KE YOUTUBE & TIKTOK
+       --------------------------------------------------------- */
+
+    function socialTargetSelects() {
+        return [
+            { select: $("manual-social-target"), wrap: $("manual-social-target-wrap") },
+            { select: $("schedule-social-target"), wrap: $("schedule-social-target-wrap") }
+        ].filter(entry => entry.select);
+    }
+
+    function renderSocialTargetOptions() {
+        const accounts = state.socialVideoAccounts.filter(item => (item.status || "active") === "active");
+        for (const { select, wrap } of socialTargetSelects()) {
+            if (!select) continue;
+            const selected = new Set(Array.from(select.selectedOptions || []).map(option => option.value));
+            select.replaceChildren();
+            for (const account of accounts) {
+                const option = document.createElement("option");
+                option.value = account.id;
+                option.textContent = `${SOCIAL_VIDEO_PLATFORM_LABEL[account.platform] || account.platform} — ${account.account_name || account.account_handle || account.external_account_id}`;
+                option.selected = selected.has(account.id);
+                select.append(option);
+            }
+            /* Tanpa akun terhubung atau mode bukan konten video: sembunyikan
+               pilihan ini supaya tidak mengganggu. Crosspost hanya untuk
+               konten video (Kata-kata Mutiara); foto karakter AI tidak
+               bisa tayang di YouTube/TikTok. */
+            const modeHidden = select.id === "manual-social-target"
+                ? $("manual-post-mode")?.value !== "quote"
+                : $("schedule-post-mode")?.value !== "quote";
+            if (wrap) wrap.hidden = accounts.length === 0 || modeHidden;
+        }
+    }
+
+    function selectedSocialAccountIds(selectId) {
+        const select = $(selectId);
+        if (!select || select.hidden) return [];
+        return Array.from(select.selectedOptions || []).map(option => option.value).filter(Boolean);
+    }
+
+    /* Crosspost manual dijalankan server-side: header berisi id akun
+       YouTube/TikTok, server mengunggah mp4 pratinjau yang sama ke bucket
+       privat lalu mengantrekannya per akun (social_video_posts). */
+
     /**
      * Membatalkan status "siap terbit" tanpa menyentuh pratinjau.
      *
@@ -2085,6 +2132,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             ? normalizeClientQuoteTarget($("manual-quote-target")?.value || state.manualPreview.quoteTarget)
             : "";
         const targetLabel = isQuoteVideo ? quoteTargetLabel(quoteTarget) : "Facebook Page";
+        const socialTargetIds = isQuoteVideo ? selectedSocialAccountIds("manual-social-target") : [];
 
         /*
          * Konfirmasi DI DALAM tombol, bukan dialog mengambang.
@@ -2130,7 +2178,8 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
                 headers: {
                     "Content-Type": state.manualPreview.blob.type,
                     "X-Manual-Run-Id": state.manualPreview.runId,
-                    ...(isQuoteVideo ? { "X-Quote-Target": quoteTarget } : {})
+                    ...(isQuoteVideo ? { "X-Quote-Target": quoteTarget } : {}),
+                    ...(isQuoteVideo && socialTargetIds.length ? { "X-Social-Video-Accounts": socialTargetIds.join(",") } : {})
                 }
             });
             const postUrl = safeExternalUrl(result.post?.permalink_url);
@@ -2141,7 +2190,20 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
                     : `Posting berhasil diterbitkan ke ${result.post?.page_name || "Facebook Page"}.${postUrl ? ` ${postUrl}` : ""}`,
                 "good"
             );
-            showNotice(pageMessage, isQuoteVideo ? `Berhasil diterbitkan ke ${targetLabel} dengan musik auto-play.` : "Posting manual berhasil diterbitkan.", "success");
+
+            /* Arahan opsional ke YouTube/TikTok sudah diproses server. */
+            const queuedSocial = Number(result.social_video_queued) || 0;
+            if (socialTargetIds.length && queuedSocial) {
+                showNotice(
+                    pageMessage,
+                    `Facebook terbit. ${queuedSocial} akun YouTube/TikTok masuk antrean crosspost (diproses cron dalam ±1 menit).${result.social_video_warning ? ` Catatan: ${result.social_video_warning}` : ""}`,
+                    result.social_video_warning ? "warn" : "success"
+                );
+            } else if (result.social_video_warning) {
+                showNotice(pageMessage, `Facebook terbit, tetapi crosspost YouTube/TikTok gagal: ${result.social_video_warning}`, "warn");
+            } else {
+                showNotice(pageMessage, isQuoteVideo ? `Berhasil diterbitkan ke ${targetLabel} dengan musik auto-play.` : "Posting manual berhasil diterbitkan.", "success");
+            }
             clearManualPreview();
             state.runsPage = 1;
             await loadDashboard();
@@ -2795,6 +2857,15 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             const title = document.createElement("p");
             title.className = "item-title";
             const isQuoteSchedule = schedule.post_mode === "quote";
+            /* Logo medsos dulu — penanda visual jaringan tiap baris jadwal.
+               Jadwal selalu Facebook; target crosspost YouTube/TikTok
+               ditambahkan sebagai logo kedua/ketiga. */
+            title.append(socialVideoPlatformLogo("facebook"));
+            const scheduleSocialPlatforms = [...new Set(
+                (Array.isArray(schedule.social_video_account_ids) ? schedule.social_video_account_ids : [])
+                    .map(id => state.socialVideoAccounts.find(account => account.id === id)?.platform)
+                    .filter(Boolean)
+            )];
             if (isQuoteSchedule) {
                 const quoteBadge = document.createElement("span");
                 quoteBadge.className = "badge quote-mode";
@@ -2804,16 +2875,24 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
                     document.createTextNode(`  ✨ Kata-kata Mutiara → ${pageName(schedule.page_connection_id)}`)
                 );
             } else {
-                title.textContent = `${characterName(schedule.character_id)} → ${pageName(schedule.page_connection_id)}`;
+                title.append(document.createTextNode(`${characterName(schedule.character_id)} → ${pageName(schedule.page_connection_id)}`));
+            }
+            for (const platform of scheduleSocialPlatforms) {
+                const extraLogo = socialVideoPlatformLogo(platform);
+                extraLogo.title = `Crosspost juga ke ${SOCIAL_VIDEO_PLATFORM_LABEL[platform] || platform}`;
+                title.append(extraLogo);
             }
             const scheduleAutopublishOn = schedule.autopublish_enabled !== false;
             const effectiveAutopublish = accountAutopublishOn && scheduleAutopublishOn;
             const scheduleModelNote = !isQuoteSchedule && (state.data?.config?.imageProvider === "opus" || Boolean(schedule.image_model))
                 ? ` · model ${opusModelLabel(schedule.image_model || defaultStudioOpusModel())}`
                 : "";
+            const crosspostNote = scheduleSocialPlatforms.length
+                ? ` · crosspost ${scheduleSocialPlatforms.map(platform => SOCIAL_VIDEO_PLATFORM_LABEL[platform] || platform).join(" & ")}`
+                : "";
             const detail = document.createElement("div");
             detail.className = "item-meta";
-            detail.textContent = `Setiap ${formatIntervalLabel(schedule.interval_minutes || schedule.interval_hours * 60)}${scheduleModelNote} · rasio ${schedule.aspect_ratio || "9:16"} · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"} · autopost ${scheduleAutopublishOn ? "ON" : "OFF"}`;
+            detail.textContent = `Setiap ${formatIntervalLabel(schedule.interval_minutes || schedule.interval_hours * 60)}${scheduleModelNote} · rasio ${schedule.aspect_ratio || "9:16"} · berikutnya ${formatDate(schedule.next_run_at)} · ${schedule.enabled ? "jadwal aktif" : "jadwal dijeda"} · autopost ${scheduleAutopublishOn ? "ON" : "OFF"}${crosspostNote}`;
             const scene = document.createElement("div");
             scene.className = "item-meta";
             scene.textContent = sceneSummary(schedule);
@@ -3023,6 +3102,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             /* Render ulang halaman riwayat sekarang supaya baris Social
                Video langsung menyatu tanpa menunggu refresh berikutnya. */
             if (!state.runsBusy) await loadRunsPage(state.runsPage, { perPage: state.runsPerPage });
+            try { window.dispatchEvent(new CustomEvent("genz:social-video-accounts-changed")); } catch {}
         } catch {
             /* Gagal memuat status Social Video tidak boleh mengganggu
                riwayat Facebook yang sudah tampil. */
@@ -3122,6 +3202,10 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
 
     window.addEventListener("genz:social-video-posts-changed", () => {
         loadSocialVideoPosts();
+    });
+
+    window.addEventListener("genz:social-video-accounts-changed", () => {
+        renderSocialTargetOptions();
     });
 
     function renderRuns(runs = [], pagination = null) {
@@ -3393,7 +3477,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             await loadFacebookSongs();
             /* Muat juga status YouTube/TikTok supaya menyatu di daftar
                riwayat ( gagalnya tidak mengganggu riwayat Facebook). */
-            loadSocialVideoPosts();
+            loadSocialVideoPosts().then(renderSocialTargetOptions);
         } catch (error) {
             showNotice(pageMessage, error.message || "Gagal memuat Social Publisher.", "error");
             configList.replaceChildren();
@@ -3735,6 +3819,15 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         });
         setInlineModelDropdownOpen("schedule", false);
         if ($("schedule-quote-target")) $("schedule-quote-target").value = normalizeClientQuoteTarget(schedule.quote_publish_target || "feed");
+        if ($("schedule-social-target")) {
+            renderSocialTargetOptions();
+            const wanted = Array.isArray(schedule.social_video_account_ids)
+                ? schedule.social_video_account_ids.map(item => String(item))
+                : [];
+            for (const option of $("schedule-social-target").options) {
+                option.selected = wanted.includes(option.value);
+            }
+        }
         if ($("schedule-quote-theme")) $("schedule-quote-theme").value = schedule.quote_theme || "";
         if ($("schedule-quote-visual")) $("schedule-quote-visual").value = schedule.quote_visual_style || "";
         if ($("schedule-random-song")) {
@@ -3781,6 +3874,9 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         $("schedule-id").value = "";
         setSchedulePostMode("character");
         if ($("schedule-quote-target")) $("schedule-quote-target").value = "feed";
+        if ($("schedule-social-target")) {
+            for (const option of $("schedule-social-target").options) option.selected = false;
+        }
         if ($("schedule-quote-theme")) $("schedule-quote-theme").value = "";
         if ($("schedule-quote-visual")) $("schedule-quote-visual").value = "";
         const { min, max } = schedulePolicy();
@@ -3859,6 +3955,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             image_model: isQuote ? "" : getSelectedScheduleOpusModel(),
             caption_template: $("default-caption-template").value,
             quote_publish_target: isQuote ? normalizeClientQuoteTarget($("schedule-quote-target")?.value) : "feed",
+            social_video_account_ids: isQuote ? selectedSocialAccountIds("schedule-social-target") : [],
             quote_theme: isQuote ? ($("schedule-quote-theme")?.value || "") : "",
             quote_visual_style: isQuote ? ($("schedule-quote-visual")?.value || "") : "",
             ...scheduleSongFields,
@@ -4231,6 +4328,11 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
     $("cancel-song-edit")?.addEventListener("click", resetSongForm);
     $("seed-default-songs")?.addEventListener("click", seedDefaultSongs);
     $("manual-post-mode")?.addEventListener("change", event => setManualPostMode(event.target.value));
+    /* Mengubah arahan YouTube/TikTok membatalkan konfirmasi terbit
+       seperti perubahan Page/target lain. */
+    $("manual-social-target")?.addEventListener("change", () => {
+        disarmManualPublish();
+    });
     $("manual-quote-target")?.addEventListener("change", event => {
         const nextTarget = normalizeClientQuoteTarget(event.target.value);
         disarmManualPublish();

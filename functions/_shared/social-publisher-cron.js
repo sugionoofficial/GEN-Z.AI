@@ -4,6 +4,7 @@ import { decryptSecret, normalizeTextProvider, generateSocialContextCaption, gen
 import { createSignedReferenceUrl, downloadModelReference, downloadReferenceObject, isPrivateReferenceBucket, resolveStorySongAudioBytes } from "../../lib/social-publisher/storage.js";
 import { encodeStoryMp4, maxQuoteVideoDurationForTarget, renderQuoteStoryCard } from "../../lib/social-publisher/story-video.js";
 import { normalizeQwenCloudImageModel, normalizeQwenCloudLlmModel, recordModelUsage } from "../../lib/social-publisher/quotas.js";
+import { queueSocialVideoCrosspost } from "../../lib/social-publisher/crosspost.js";
 import { isOpusContentPolicyError, normalizeOpusImageModel, resolveOpusAspectRatio } from "../../lib/social-publisher/opus.js";
 import { stripImageMetadataBytes } from "../../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
@@ -103,6 +104,12 @@ const SCENE_SCHEDULE_COLUMNS = `${LEGACY_SCHEDULE_COLUMNS},autopublish_enabled,s
 const QUOTE_BASE_SCHEDULE_COLUMNS = `${SCENE_SCHEDULE_COLUMNS},post_mode,quote_theme,quote_visual_style,use_random_song,song_mode,song_id,tag_name,tag_url`;
 const FULL_SCHEDULE_COLUMNS = `${QUOTE_BASE_SCHEDULE_COLUMNS},quote_publish_target`;
 const MODEL_SCHEDULE_COLUMNS = `${FULL_SCHEDULE_COLUMNS},image_model`;
+const SOCIAL_TARGET_SCHEDULE_COLUMNS = `${MODEL_SCHEDULE_COLUMNS},social_video_account_ids`;
+
+function isMissingSocialVideoTargetsColumn(error) {
+    const message = String(error?.message || "");
+    return /\bsocial_video_account_ids\b/i.test(message) && isMissingColumnError(error);
+}
 
 function isMissingColumnError(error) {
     const message = String(error?.message || "");
@@ -133,12 +140,24 @@ async function getScheduleForRun(config, scheduleId) {
     try {
         const rows = await dbRequest(config, table(
             "social_post_schedules",
-            `select=${MODEL_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+            `select=${SOCIAL_TARGET_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
         ));
         return rows?.[0] || null;
     } catch (firstError) {
         let error = firstError;
         if (!isMissingColumnError(error)) throw error;
+        if (isMissingSocialVideoTargetsColumn(error)) {
+            try {
+                const rows = await dbRequest(config, table(
+                    "social_post_schedules",
+                    `select=${MODEL_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+                ));
+                return rows?.[0] || null;
+            } catch (socialTargetError) {
+                if (!isMissingColumnError(socialTargetError)) throw socialTargetError;
+                error = socialTargetError;
+            }
+        }
         if (isMissingScheduleImageModelColumn(error)) {
             try {
                 const rows = await dbRequest(config, table(
@@ -990,6 +1009,31 @@ async function processRun(env, config, claimedRun, options = {}) {
             error_message: null
         });
         console.log(`[Social Publisher] Posted run ${runId} to Page ${page.page_id}.`);
+
+        /* Crosspost opsional: video Kata-kata Mutiara yang sama diunggah ke
+           bucket privat lalu diantrekan per akun YouTube/TikTok pilihan
+           jadwal. Kegagalan crosspost tidak menggugurkan run Facebook. */
+        const socialTargetIds = Array.isArray(schedule.social_video_account_ids)
+            ? schedule.social_video_account_ids
+            : [];
+        if (postMode === "quote" && storyMp4Bytes && socialTargetIds.length) {
+            try {
+                const crosspost = await queueSocialVideoCrosspost({
+                    config,
+                    userId: schedule.owner_id,
+                    accountIds: socialTargetIds,
+                    videoBytes: storyMp4Bytes,
+                    title: String(caption || "").split("\n")[0].trim().slice(0, 100) || "Kata-kata Mutiara",
+                    caption: caption || "",
+                    fileName: `schedule-${schedule.id}.mp4`
+                });
+                if (crosspost.queued) {
+                    console.log(`[Social Publisher] Crosspost queued for ${crosspost.queued} social video account(s) (schedule ${schedule.id}).`);
+                }
+            } catch (crosspostError) {
+                console.error(`[Social Publisher] Crosspost queue failed for schedule ${schedule.id}: ${String(crosspostError?.message || crosspostError).slice(0, 200)}`);
+            }
+        }
     } catch (error) {
         let safeMessage = cleanError(error);
         /* Pesan yang bisa ditindaklanjuti saat migration belum dijalankan. */

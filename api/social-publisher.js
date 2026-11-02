@@ -1,4 +1,8 @@
 import {
+    queueSocialVideoCrosspost,
+    sanitizeSocialVideoAccountIds
+} from "../lib/social-publisher/crosspost.js";
+import {
     applyOutfitToScene,
     buildImagePrompt,
     bytesToBase64,
@@ -146,7 +150,8 @@ const SCHEDULE_FULL_COLUMNS = [
 ].join(",");
 const SCHEDULE_MODEL_COLUMNS = [
     SCHEDULE_FULL_COLUMNS,
-    "image_model"
+    "image_model",
+    "social_video_account_ids"
 ].join(",");
 const OAUTH_STATE_COOKIE = "__Secure-social-oauth-state";
 const OAUTH_STATE_COOKIE_PATH = "/api/facebook-oauth-callback";
@@ -1585,6 +1590,11 @@ function isMissingScheduleImageModelColumn(error) {
         && message.includes("image_model");
 }
 
+function isMissingSocialVideoTargetsColumn(error) {
+    return /\bsocial_video_account_ids\b/i.test(String(error?.message || ""))
+        && /does not exist|schema cache|column|PGRST204|42703/i.test(String(error?.message || ""));
+}
+
 function isMissingQuoteTargetColumn(error) {
     const message = String(error?.message || "");
     return (error?.code === "PGRST204" || error?.code === "42703" || /does not exist|schema cache|column/i.test(message))
@@ -1612,7 +1622,7 @@ async function listSchedulesForDashboard(config, userId) {
         };
     } catch (firstError) {
         let error = firstError;
-        if (isMissingScheduleImageModelColumn(error)) {
+        if (isMissingScheduleImageModelColumn(error) || isMissingSocialVideoTargetsColumn(error)) {
             try {
                 return {
                     rows: await supabaseRequest(config, tablePath("social_post_schedules", `select=${SCHEDULE_FULL_COLUMNS},created_at,updated_at&${query}`)) || [],
@@ -2709,6 +2719,12 @@ async function saveSchedule(config, userId, body, profile) {
         throw error;
     }
 
+    /* Target crosspost YouTube/TikTok: hanya relevan untuk konten video
+       (Kata-kata Mutiara). Foto karakter AI tidak bisa tayang di sana. */
+    const socialVideoTargetIds = isQuoteMode
+        ? sanitizeSocialVideoAccountIds(body?.social_video_account_ids)
+        : [];
+
     const values = {
         owner_id: userId,
         character_id: isQuoteMode ? null : characterId,
@@ -2722,7 +2738,7 @@ async function saveSchedule(config, userId, body, profile) {
         ...sceneParams,
         tag_name: tagName,
         tag_url: tagUrl,
-        ...(hasExplicitQuoteFields ? quoteParams : {}),
+        ...(hasExplicitQuoteFields ? { ...quoteParams, social_video_account_ids: socialVideoTargetIds } : {}),
         ...(hasExplicitImageModel ? { image_model: resolvedScheduleImageModel } : {}),
         enabled: body?.enabled === true,
         updated_at: new Date().toISOString()
@@ -2736,7 +2752,14 @@ async function saveSchedule(config, userId, body, profile) {
     const baseSelectColumns = hasExplicitQuoteFields ? SCHEDULE_FULL_COLUMNS : SCHEDULE_COLUMNS;
     const selectColumns = hasExplicitImageModel ? `${baseSelectColumns},image_model` : baseSelectColumns;
 
-    async function writeScheduleRow(method, querySuffix = "") {
+    async function writeScheduleRow(method, querySuffix = "", { skipSocialTargets = false } = {}) {
+        const attemptValues = skipSocialTargets
+            ? (() => {
+                const cloned = { ...values };
+                delete cloned.social_video_account_ids;
+                return cloned;
+            })()
+            : values;
         try {
             return await supabaseRequest(
                 config,
@@ -2744,12 +2767,18 @@ async function saveSchedule(config, userId, body, profile) {
                 {
                     method,
                     headers: { Prefer: "return=representation" },
-                    body: JSON.stringify(values)
+                    body: JSON.stringify(attemptValues)
             }
             );
         } catch (firstWriteError) {
             let error = firstWriteError;
-            let workingValues = values;
+            let workingValues = attemptValues;
+            if (isMissingSocialVideoTargetsColumn(error)) {
+                /* Migration supabase/social-schedule-social-video-targets.sql
+                   belum dijalankan: simpan tanpa target crosspost, sambil
+                   tetap menjalankan tangga fallback kolom lain. */
+                return await writeScheduleRow(method, querySuffix, { skipSocialTargets: true });
+            }
             if (hasExplicitImageModel && isMissingScheduleImageModelColumn(error)) {
                 workingValues = { ...values };
                 delete workingValues.image_model;
@@ -3413,6 +3442,11 @@ function hasValidMp4Signature(bytes) {
 async function publishManualPost(req, res, config, userId, env) {
     const runId = cleanText(getHeader(req, "x-manual-run-id"), 80);
     const headerQuoteTarget = cleanText(getHeader(req, "x-quote-target"), 40);
+    /* Target crosspost opsional YouTube/TikTok (id akun, dipisah koma).
+       Hanya dipakai untuk konten video Kata-kata Mutiara. */
+    const socialVideoTargetIds = sanitizeSocialVideoAccountIds(
+        String(getHeader(req, "x-social-video-accounts") || "").split(",")
+    );
     const rawContentType = String(getHeader(req, "content-type") || "").split(";")[0].trim().toLowerCase();
     const isQuoteVideo = rawContentType === "video/mp4";
     const imageMimeType = isQuoteVideo ? "" : normalizeMimeType(rawContentType);
@@ -3500,8 +3534,32 @@ async function publishManualPost(req, res, config, userId, env) {
             finished_at: new Date().toISOString(),
             error_message: null
         });
+        /* Crosspost opsional ke YouTube/TikTok: unggah mp4 yang sama ke
+           bucket privat lalu antrekan per akun (dieksekusi cron claim).
+           Kegagalan crosspost tidak menggugurkan posting Facebook. */
+        let socialVideoQueued = 0;
+        let socialVideoWarning = "";
+        if (isQuoteVideo && socialVideoTargetIds.length) {
+            try {
+                const crosspost = await queueSocialVideoCrosspost({
+                    config,
+                    userId,
+                    accountIds: socialVideoTargetIds,
+                    videoBytes: payloadBytes,
+                    title: String(run.caption || "").split("\n")[0].trim().slice(0, 100) || "Kata-kata Mutiara",
+                    caption: run.caption || "",
+                    fileName: `quote-${run.id}.mp4`
+                });
+                socialVideoQueued = crosspost.queued;
+            } catch (crosspostError) {
+                socialVideoWarning = String(crosspostError?.message || "Gagal mengantrekan crosspost YouTube/TikTok.").slice(0, 200);
+            }
+        }
+
         return json(res, 200, {
             success: true,
+            social_video_queued: socialVideoQueued,
+            ...(socialVideoWarning ? { social_video_warning: socialVideoWarning } : {}),
             post: {
                 id: run.id,
                 status: "posted",

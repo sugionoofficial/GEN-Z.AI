@@ -117,11 +117,12 @@ class FakeEl {
         return this.children.filter(item => item.tagName === "OPTION" && item.selected);
     }
     querySelectorAll(selector) {
-        if (selector === "input[data-svp-account]:checked") {
+        if (selector === "input[data-svp-account]" || selector === "input[data-svp-account]:checked") {
+            const requireChecked = selector.endsWith(":checked");
             const found = [];
             const walk = node => {
                 for (const child of node.children || []) {
-                    if (child.tagName === "INPUT" && child.dataset.svpAccount && child.checked) {
+                    if (child.tagName === "INPUT" && child.dataset.svpAccount && (!requireChecked || child.checked)) {
                         found.push(child);
                     }
                     walk(child);
@@ -267,8 +268,8 @@ test("Studio Medsos punya blok post YouTube/TikTok dengan pilihan post manual da
     assert.match(section, /Post sekarang/, "tombol POST MANUAL wajib ada di dalam blok");
     assert.match(section, /Jadwalkan autopost/, "tombol AUTO POST wajib ada di dalam blok");
     assert.match(section, /id="svp-accounts"/, "pilihan akun YouTube/TikTok wajib ada");
-    assert.match(studioHtml, /social-video-composer\.js\?v=svp-composer-20261102d/, "script composer wajib terpasang dengan pin baru");
-    assert.match(studioHtml, /social-publisher\.js\?v=publish-confirm-inline-20261102-conn-align/, "pin publisher wajib dimutakhirkan");
+    assert.match(studioHtml, /social-video-composer\.js\?v=svp-composer-20261103/, "script composer wajib terpasang dengan pin baru");
+    assert.match(studioHtml, /social-publisher\.js\?v=crosspost-targets-20261103/, "pin publisher wajib dimutakhirkan");
 });
 
 test("riwayat TIDAK ada di kartu composer dan TANPA sub-blok terpisah — menyatu di Riwayat pembuatan & posting", () => {
@@ -439,4 +440,43 @@ test("jadwal di masa lalu ditolak tanpa mengirim apa pun", async () => {
 
     assert.equal(calls.some(call => call.url.includes("action=create_posts")), false);
     assert.match(ids["svp-message"].textContent, /masa depan/);
+});
+
+/* ---------------------------------------------------------
+   5. REGRESI: CHECKBOX AKUN TIDAK BOLEH TERKUNCI (BUG HP)
+   ---------------------------------------------------------
+   Akar bug: renderAccounts() hanya dipanggil di tengah load()
+   saat state.busy masih true, sehingga semua checkbox lahir
+   dengan disabled=true; setBusy(false) di akhir load wajib
+   melepaskannya kembali.
+   --------------------------------------------------------- */
+
+test("checkbox akun aktif kembali setelah load selesai — bisa dicentang di HP", async () => {
+    const { ids } = buildEnv();
+
+    assert.ok(await waitUntil(() => ids["svp-accounts"].children.length === 2));
+    for (const tile of ids["svp-accounts"].children) {
+        const checkbox = tile.children.find(item => item.tagName === "INPUT");
+        assert.ok(checkbox, "tile wajib memuat checkbox");
+        assert.equal(checkbox.disabled, false, "checkbox wajib terbuka setelah load selesai (setBusy(false) wajib membuka kunci)");
+    }
+    assert.equal(ids["svp-publish"].disabled, true, "belum ada akun dicentang: tombol post tetap mati");
+
+    /* Simulasi ketukan user: centang -> event change. */
+    const checkbox = ids["svp-accounts"].children[0].children.find(item => item.tagName === "INPUT");
+    checkbox.checked = true;
+    await checkbox.dispatch("change");
+    assert.equal(ids["svp-publish"].disabled, false, "centangan wajib langsung menyalakan tombol post");
+});
+
+test("tile akun: checkbox child pertama label + id + htmlFor (ketukan di mana pun mencentang)", async () => {
+    const { ids } = buildEnv();
+
+    assert.ok(await waitUntil(() => ids["svp-accounts"].children.length === 2));
+    const tile = ids["svp-accounts"].children[0];
+    assert.equal(tile.tagName, "LABEL", "tile wajib berupa <label> supaya ketukan meneruskan ke checkbox");
+    assert.equal(tile.children[0].tagName, "INPUT", "checkbox wajib child pertama (dirender lebih dulu)");
+    const checkbox = tile.children[0];
+    assert.match(checkbox.id, /^svp-account-/, "checkbox wajib punya id eksplisit");
+    assert.equal(tile.htmlFor, checkbox.id, "label.htmlFor wajib menunjuk checkbox");
 });
