@@ -3017,6 +3017,12 @@ import { describeHttpFailure, isPlatformFailure } from "./assets/js/http-failure
             label.textContent = awaitingPublish ? "pratinjau siap" : (run.status || "queued");
             const source = run.schedule_id ? "Auto" : "Manual";
             const isQuoteRun = run.post_mode === "quote" || Boolean(run.quote_text) || Boolean(run.scene_plan?.quote_mode);
+            /* Logo medsos di depan tiap baris riwayat supaya asal platform
+               langsung terbedakan (run di halaman ini semuanya Facebook). */
+            const runLogo = document.createElement("span");
+            runLogo.className = "run-logo run-logo--facebook";
+            runLogo.innerHTML = FB_LOGO_SVG;
+            title.append(runLogo);
             title.append(label);
             if (isQuoteRun) {
                 const quoteBadge = document.createElement("span");
