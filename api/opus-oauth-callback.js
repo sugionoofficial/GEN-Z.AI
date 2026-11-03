@@ -47,6 +47,12 @@ export default async function handler(req, res) {
     const url = new URL(req.url || "/api/opus-oauth-callback", "https://genzai.local");
     const origin = resolvePublicOrigin(req);
     const slotFromQuery = normalizeOpusSlot(url.searchParams.get("slot"));
+    const countFromQuery = Math.max(
+        slotFromQuery,
+        url.searchParams.has("count")
+            ? normalizeOpusSlot(url.searchParams.get("count"))
+            : slotFromQuery
+    );
 
     const providerError = url.searchParams.get("error");
     if (providerError) {
@@ -57,6 +63,7 @@ export default async function handler(req, res) {
             buildOpusLoginErrorHtml({
                 message: `Otorisasi Opus ditolak (${providerError})${description ? `: ${description}` : ""}`,
                 slot: slotFromQuery,
+                count: countFromQuery,
                 origin
             })
         );
@@ -72,6 +79,7 @@ export default async function handler(req, res) {
             buildOpusLoginErrorHtml({
                 message: "Parameter code OAuth tidak ditemukan pada URL callback.",
                 slot: slotFromQuery,
+                count: countFromQuery,
                 origin
             })
         );
@@ -85,12 +93,14 @@ export default async function handler(req, res) {
             buildOpusLoginErrorHtml({
                 message: "Sesi login OAuth kedaluwarsa atau tidak valid. Silakan ulangi login dari awal.",
                 slot: slotFromQuery,
+                count: countFromQuery,
                 origin
             })
         );
     }
 
     const slot = normalizeOpusSlot(state.sl || slotFromQuery);
+    const count = Math.max(slot, normalizeOpusSlot(state.cn || countFromQuery));
 
     try {
         const bundle = await exchangeCodeForOpusTokens({
@@ -143,6 +153,7 @@ export default async function handler(req, res) {
             buildOpusLoginErrorHtml({
                 message: error?.message || "Gagal menukar kode OAuth Opus menjadi token.",
                 slot,
+                count,
                 origin,
                 mcpUrl: state?.mu || OPUS_MCP_URL
             })

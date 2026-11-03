@@ -5,12 +5,13 @@
 // File: api/opus-oauth-login.js
 // ----------------------------------------
 // GET /api/opus-oauth-login            -> halaman pembuka: tombol login +
-//                                         pemilih slot dengan tombol +/-,
-//                                         jadi admin tidak perlu edit URL
+//                                         pemilih slot +/- berupa tautan
+//                                         (server-rendered, TANPA JavaScript)
 // GET /api/opus-oauth-login?start=1    -> daftarkan client PKCE lalu
 //                                         redirect ke halaman login Opus
-// Query opsional: &slot=1..9 (default 1), &count=1..9 (jumlah slot
-//                 yang ditampilkan; dikelola JavaScript halaman pembuka)
+// Query opsional: &slot=1..9 (default 1), &count=1..9 (jumlah slot)
+//                 Setiap klik +/- / chip navigasi ke URL baru ini,
+//                 sehingga address bar benar-benar berubah.
 // ========================================
 
 import {
@@ -60,11 +61,13 @@ export default async function handler(req, res) {
 
     const url = new URL(req.url || "/api/opus-oauth-login", "https://genzai.local");
     const slot = normalizeOpusSlot(url.searchParams.get("slot"));
+    const rawCount = url.searchParams.get("count");
+    const count = Math.max(slot, rawCount === null ? slot : normalizeOpusSlot(rawCount));
     const requestedMcpUrl = normalizeOpusMcpUrl(url.searchParams.get("mcp"));
     const origin = resolvePublicOrigin(req);
 
     if (url.searchParams.get("start") !== "1") {
-        return sendHtml(res, 200, buildLoginIntroHtml({ slot, origin, mcpUrl: requestedMcpUrl }));
+        return sendHtml(res, 200, buildLoginIntroHtml({ slot, count, origin, mcpUrl: requestedMcpUrl }));
     }
 
     let endpoints;
@@ -99,6 +102,7 @@ export default async function handler(req, res) {
                 r: endpoints.resource || "",
                 sc: effectiveScope,
                 sl: slot,
+                cn: count,
                 ru: redirectUri,
                 te: endpoints.tokenEndpoint,
                 mu: endpoints.mcpUrl || OPUS_MCP_URL
@@ -132,6 +136,7 @@ export default async function handler(req, res) {
             buildOpusLoginErrorHtml({
                 message: error?.message || "Gagal memulai login OAuth Opus.",
                 slot,
+                count,
                 origin,
                 mcpUrl: requestedMcpUrl
             })

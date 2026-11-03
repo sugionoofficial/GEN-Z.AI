@@ -3,24 +3,30 @@
    ---------------------------------------------------------
    Halaman /api/opus-oauth-login dulunya mengharuskan admin
    mengedit `?slot=2` / `?slot=3` di address bar untuk login
-   akun ke-2 / ke-3. Sekarang ada tombol + dan - yang
-   menambah/mengurangi slot auth, chip untuk memilih slot,
-   dan URL disinkronkan otomatis.
+   akun ke-2 / ke-3.
 
-   Logika transisi state ada di `applyOpusSlotAction()` dan
-   disuntikkan ke <script> inline lewat toString(), jadi
-   server dan browser memakai kode yang persis sama.
+   VERSI SEKARANG: tombol + / - dan chip adalah TAUTAN yang
+   dirender penuh di server (tanpa JavaScript). Setiap klik
+   melakukan navigasi ke `?slot=..&count=..`, sehingga URL di
+   address bar PASTI berubah. Ini penting karena halaman sering
+   dibuka di iframe preview / browser HP yang memblokir inline
+   script dan history.replaceState().
+
+   `applyOpusSlotAction()` dipakai server untuk menghitung state
+   berikutnya, jadi logikanya tetap murni & teruji.
 ========================================================= */
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import vm from "node:vm";
 
 import opusOAuthLogin from "../api/opus-oauth-login.js";
+import opusOAuthCallback from "../api/opus-oauth-callback.js";
 import {
     OPUS_MAX_SLOT,
     applyOpusSlotAction,
     buildLoginIntroHtml,
+    buildOpusLoginErrorHtml,
+    decodeOAuthState,
     normalizeOpusSlot,
     opusSecretNameForSlot
 } from "../functions/_shared/opus-oauth-web.js";
@@ -45,17 +51,70 @@ function mockRes() {
     };
 }
 
-function req(url) {
+function req(url, { env = {} } = {}) {
     return {
         method: "GET",
         url,
-        headers: { host: "genzai.genzai-f37.workers.dev" },
-        env: {}
+        env,
+        headers: {
+            host: "genzai.genzai-f37.workers.dev",
+            "x-forwarded-host": "genzai.genzai-f37.workers.dev",
+            "x-forwarded-proto": "https"
+        }
     };
 }
 
+function json(payload, status = 200) {
+    return new Response(JSON.stringify(payload), {
+        status,
+        headers: { "content-type": "application/json" }
+    });
+}
+
+function withFetch(impl, run) {
+    const original = globalThis.fetch;
+    globalThis.fetch = async (input, options = {}) => impl(String(input), options);
+    return Promise.resolve()
+        .then(run)
+        .finally(() => { globalThis.fetch = original; });
+}
+
+const START_FETCH = (url) => {
+    if (url.startsWith("https://labs.opus.pro/.well-known/oauth-protected-resource")) {
+        return json({
+            resource: "https://labs.opus.pro/opus-video-tools/mcp",
+            authorization_servers: ["https://focused-horizon-38.authkit.app"]
+        });
+    }
+    if (url === "https://focused-horizon-38.authkit.app/.well-known/oauth-authorization-server") {
+        return json({
+            authorization_endpoint: "https://focused-horizon-38.authkit.app/oauth2/authorize",
+            token_endpoint: "https://focused-horizon-38.authkit.app/oauth2/token",
+            registration_endpoint: "https://focused-horizon-38.authkit.app/oauth2/register",
+            scopes_supported: ["openid", "offline_access"],
+            token_endpoint_auth_methods_supported: ["none"]
+        });
+    }
+    if (url.endsWith("/oauth2/register")) {
+        return json({ client_id: "client_stepper_1", scope: "openid offline_access" });
+    }
+    return new Response("not found", { status: 404 });
+};
+
+function hrefFor(html, label) {
+    const pattern = new RegExp(
+        `<a class='slotbtn' href='([^']*)' aria-label='${label}'[^>]*>`
+    );
+    const match = html.match(pattern);
+    return match ? match[1] : null;
+}
+
+function chipCount(html) {
+    return (html.match(/class='chip(?: active)?'/g) || []).length;
+}
+
 /* =========================================================
-   1. LOGIKA TRANSISI SLOT (murni)
+   1. LOGIKA TRANSISI SLOT (murni, dipakai server)
    ========================================================= */
 
 test("+ menambah slot auth dan langsung memilih slot baru", () => {
@@ -66,10 +125,7 @@ test("+ menambah slot auth dan langsung memilih slot baru", () => {
 
 test("- mengurangi slot dan menurunkan pilihan bila slot terpilih ikut hilang", () => {
     assert.deepEqual(applyOpusSlotAction({ slot: 3, count: 3 }, "minus"), { slot: 2, count: 2 });
-    assert.deepEqual(
-        applyOpusSlotAction({ slot: 2, count: 5 }, "minus"),
-        { slot: 2, count: 4 }
-    );
+    assert.deepEqual(applyOpusSlotAction({ slot: 2, count: 5 }, "minus"), { slot: 2, count: 4 });
     assert.deepEqual(applyOpusSlotAction({ slot: 1, count: 1 }, "minus"), { slot: 1, count: 1 });
 });
 
@@ -93,9 +149,7 @@ test("batas 1..9 konsisten dengan normalizeOpusSlot di server", () => {
     const capped = applyOpusSlotAction({ slot: 9, count: 9 }, "plus");
     assert.deepEqual(capped, { slot: 9, count: 9 });
     assert.equal(opusSecretNameForSlot(capped.slot), "OPUS_AUTH_TOKEN_9");
-
-    const floored = applyOpusSlotAction({ slot: 1, count: 1 }, "minus");
-    assert.deepEqual(floored, { slot: 1, count: 1 });
+    assert.deepEqual(applyOpusSlotAction({ slot: 1, count: 1 }, "minus"), { slot: 1, count: 1 });
 });
 
 test("state awal dinormalisasi dan count tidak boleh lebih kecil dari slot", () => {
@@ -104,255 +158,144 @@ test("state awal dinormalisasi dan count tidak boleh lebih kecil dari slot", () 
 });
 
 /* =========================================================
-   2. HTML HALAMAN PEMBUKA
+   2. TOMBOL + / - ADALAH TAUTAN (URL PASTI BERUBAH)
    ========================================================= */
 
-test("halaman pembuka punya tombol + dan -, chip, dan tidak lagi menyuruh edit URL", () => {
+test("halaman pembuka TIDAK bergantung JavaScript: + dan - berupa <a href>", () => {
     const html = buildLoginIntroHtml({ slot: 1, origin: ORIGIN });
 
-    assert.match(html, /id='slotPlus'[^>]*>\+<\/button>/);
-    assert.match(html, /id='slotMinus'[^>]*>&minus;<\/button>/);
-    assert.match(html, /id='slotChips'/);
-    assert.match(html, /id='startBtn'/);
-    assert.match(html, /data-base=/);
-    assert.match(html, /LANJUT LOGIN KE OPUS/);
-    assert.match(html, /tidak perlu lagi mengedit \?slot=/);
+    assert.doesNotMatch(html, /<script/);
+    assert.doesNotMatch(html, /history\.replaceState/);
+    assert.doesNotMatch(html, /localStorage/);
     assert.doesNotMatch(html, /ganti angka pada URL/);
 
-    /* tautan awal tetap kompatibel dengan alur start=1 yang lama */
-    assert.match(html, /start=1&amp;slot=1/);
+    assert.match(html, /id='slotPlus'|aria-label='Tambah slot auth'/);
+    assert.match(html, /aria-label='Kurangi slot auth'/);
+    assert.match(html, /LANJUT LOGIN KE OPUS/);
+    assert.match(html, /langsung mengganti alamat URL/);
+    assert.match(html, /Alamat: <b>\?slot=1&amp;count=1<\/b>/);
 
-    /* logika murni benar-benar tersuntik, bukan duplikat tangan */
-    assert.match(html, /var applyOpusSlotAction = function applyOpusSlotAction/);
-    assert.match(html, /action === "plus"/);
-    assert.match(html, /action === "minus"/);
+    assert.equal(
+        hrefFor(html, "Tambah slot auth"),
+        `${ORIGIN}${INTRO_PATH}?slot=2&amp;count=2`
+    );
+
+    /* chip dirender server, bukan oleh JavaScript */
+    assert.match(html, /class='chip active'[^>]*>Slot 1<\/a>/);
+    assert.equal(chipCount(html), 1);
 });
 
-test("slot dari URL tetap dipakai sebagai nilai awal", () => {
-    const html = buildLoginIntroHtml({ slot: 3, origin: ORIGIN });
+test("klik + dari slot 3 / 5 slot menuju URL baru yang benar", () => {
+    const html = buildLoginIntroHtml({ slot: 3, count: 5, origin: ORIGIN });
 
+    assert.equal(
+        hrefFor(html, "Tambah slot auth"),
+        `${ORIGIN}${INTRO_PATH}?slot=6&amp;count=6`
+    );
+    assert.equal(
+        hrefFor(html, "Kurangi slot auth"),
+        `${ORIGIN}${INTRO_PATH}?slot=3&amp;count=4`
+    );
+    assert.equal(chipCount(html), 5);
+    assert.match(html, /class='chip active' href='[^']*slot=3&amp;count=5'[^>]*>Slot 3<\/a>/);
+    assert.match(html, /Slot 3 dari 5/);
     assert.match(html, /Slot: OPUS_AUTH_TOKEN_3/);
-    assert.match(html, /start=1&amp;slot=3/);
-    assert.match(html, /var INITIAL_SLOT = 3/);
-    assert.match(html, /Maksimal 9 slot/);
 });
 
-test("endpoint /api/opus-oauth-login?slot=2 merender pemilih slot yang benar", async () => {
+test("batas bawah 1 dan atas 9 memakai elemen non-tautan yang dimatikan", () => {
+    const low = buildLoginIntroHtml({ slot: 1, count: 1, origin: ORIGIN });
+    assert.match(low, /<span class='slotbtn is-disabled' aria-disabled='true' aria-label='Kurangi slot auth'>/);
+    assert.equal(hrefFor(low, "Kurangi slot auth"), null);
+    assert.ok(hrefFor(low, "Tambah slot auth"));
+
+    const high = buildLoginIntroHtml({ slot: 9, count: 9, origin: ORIGIN });
+    assert.match(high, /<span class='slotbtn is-disabled' aria-disabled='true' aria-label='Tambah slot auth'>/);
+    assert.equal(hrefFor(high, "Tambah slot auth"), null);
+    assert.ok(hrefFor(high, "Kurangi slot auth"));
+    assert.equal(chipCount(high), 9);
+    assert.match(high, /Slot: OPUS_AUTH_TOKEN_9/);
+});
+
+test("count yang lebih kecil dari slot dinormalkan agar tidak ada chip hilang", () => {
+    const html = buildLoginIntroHtml({ slot: 5, count: 2, origin: ORIGIN });
+
+    assert.equal(chipCount(html), 5);
+    assert.match(html, /Slot 5 dari 5/);
+    assert.match(html, /Alamat: <b>\?slot=5&amp;count=5<\/b>/);
+});
+
+test("tautan login membawa slot & count agar jumlah slot tidak hilang setelah OAuth", () => {
+    const html = buildLoginIntroHtml({ slot: 3, count: 5, origin: ORIGIN });
+
+    assert.match(html, /start=1&amp;slot=3&amp;count=5/);
+});
+
+test("origin di-escape pada href sehingga tidak bisa menyuntik tag", () => {
+    const hostile = buildLoginIntroHtml({
+        slot: 1,
+        origin: "https://x.example/' onmouseover='alert(1)"
+    });
+    assert.doesNotMatch(hostile, /onmouseover='alert\(1\)/);
+    assert.match(hostile, /&#39;/);
+});
+
+/* =========================================================
+   3. ENDPOINT
+   ========================================================= */
+
+test("GET /api/opus-oauth-login?slot=2 merender tautan + / - tanpa script", async () => {
     const res = mockRes();
     await opusOAuthLogin(req(`${INTRO_PATH}?slot=2`), res);
 
     assert.equal(res.statusCode, 200);
     assert.match(res.body, /OPUS_AUTH_TOKEN_2/);
-    assert.match(res.body, /id='slotPlus'/);
-    assert.match(res.body, /id='slotMinus'/);
-    assert.match(res.body, /start=1&amp;slot=2/);
+    assert.match(res.body, /aria-label='Tambah slot auth'/);
+    assert.match(res.body, /aria-label='Kurangi slot auth'/);
+    assert.match(res.body, /start=1&amp;slot=2&amp;count=2/);
+    assert.doesNotMatch(res.body, /<script/);
 });
 
-test("origin disuntikkan lewat atribut data-base yang di-escape, bukan literal JS", () => {
-    const html = buildLoginIntroHtml({ slot: 1, origin: ORIGIN });
-    assert.match(html, /data-base='https:\/\/genzai\.genzai-f37\.workers\.dev\/api\/opus-oauth-login'/);
-    assert.match(html, /getAttribute\("data-base"\)/);
+test("GET /api/opus-oauth-login?slot=3&count=7 merender 7 chip server-side", async () => {
+    const res = mockRes();
+    await opusOAuthLogin(req(`${INTRO_PATH}?slot=3&count=7`), res);
 
-    const hostile = buildLoginIntroHtml({
-        slot: 1,
-        origin: "https://x.example/</script><script>alert(1)</script>"
-    });
-    assert.doesNotMatch(hostile, /<script>alert\(1\)/);
+    assert.equal(res.statusCode, 200);
+    assert.equal(chipCount(res.body), 7);
+    assert.match(res.body, /Slot 3 dari 7/);
+    assert.match(res.body, /Alamat: <b>\?slot=3&amp;count=7<\/b>/);
 });
 
-/* =========================================================
-   3. UJI SCRIPT INLINE DENGAN FAKE DOM
-   ========================================================= */
+test("?start=1 menyimpan count ke dalam state OAuth yang ditandatangani", async () => {
+    await withFetch(START_FETCH, async () => {
+        const env = { OPUS_LOGIN_STATE_SECRET: "stepper-secret" };
+        const res = mockRes();
+        await opusOAuthLogin(req(`${INTRO_PATH}?start=1&slot=4&count=6`, { env }), res);
 
-class FakeElement {
-    constructor(id, attrs = {}) {
-        this.id = id;
-        this.attrs = { ...attrs };
-        this.textContent = "";
-        this.innerHTML = "";
-        this.href = "";
-        this.disabled = false;
-        this.parentNode = null;
-        this.handlers = Object.create(null);
-    }
-
-    getAttribute(key) {
-        return Object.prototype.hasOwnProperty.call(this.attrs, key)
-            ? this.attrs[key]
-            : null;
-    }
-
-    setAttribute(key, value) {
-        this.attrs[key] = value;
-    }
-
-    addEventListener(type, fn) {
-        (this.handlers[type] || (this.handlers[type] = [])).push(fn);
-    }
-
-    async fire(type, extra = {}) {
-        for (const fn of this.handlers[type] || []) {
-            await fn(Object.assign({ target: this }, extra));
-        }
-    }
-}
-
-function buildBrowserHarness(html, { href = `${ORIGIN}${INTRO_PATH}?slot=2`, stored = null } = {}) {
-    const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
-    assert.ok(scriptMatch, "halaman pembuka harus punya script inline");
-
-    const ids = [
-        "startBtn", "slotBadge", "slotNum", "slotChips",
-        "slotHint", "slotPlus", "slotMinus"
-    ];
-    const elements = new Map();
-    for (const id of ids) {
-        elements.set(id, new FakeElement(
-            id,
-            id === "startBtn" ? { "data-base": `${ORIGIN}${INTRO_PATH}` } : {}
-        ));
-    }
-    const chipsBox = elements.get("slotChips");
-
-    const store = new Map();
-    if (stored) store.set("genz_opus_login_slot", JSON.stringify(stored));
-
-    const location = { href };
-    const localStorage = {
-        getItem(key) { return store.has(key) ? store.get(key) : null; },
-        setItem(key, value) { store.set(key, String(value)); }
-    };
-    const history = {
-        replaceState(_state, _title, url) {
-            location.href = String(url);
-        }
-    };
-
-    const context = vm.createContext({
-        document: {
-            getElementById(id) { return elements.get(id) || null; }
-        },
-        window: { location, localStorage, history },
-        URL,
-        URLSearchParams
+        assert.equal(res.statusCode, 302);
+        const location = new URL(res.headers.location);
+        const decoded = await decodeOAuthState(location.searchParams.get("state"), { env });
+        assert.ok(decoded);
+        assert.equal(decoded.sl, 4);
+        assert.equal(decoded.cn, 6);
     });
-
-    vm.runInContext(scriptMatch[1], context);
-
-    function chip(slot) {
-        const node = new FakeElement("chip-" + slot, { "data-slot": String(slot) });
-        node.parentNode = chipsBox;
-        return node;
-    }
-
-    return { elements, chip, location, store, chipsBox };
-}
-
-test("klik + mengubah slot, tautan login, badge, chip, dan URL tanpa edit manual", async () => {
-    const html = buildLoginIntroHtml({ slot: 2, origin: ORIGIN });
-    const { elements, location } = buildBrowserHarness(html);
-
-    assert.equal(elements.get("slotBadge").textContent, "Slot: OPUS_AUTH_TOKEN_2");
-    assert.equal(
-        elements.get("startBtn").href,
-        `${ORIGIN}${INTRO_PATH}?start=1&slot=2`
-    );
-
-    await elements.get("slotPlus").fire("click");
-
-    assert.equal(elements.get("slotBadge").textContent, "Slot: OPUS_AUTH_TOKEN_3");
-    assert.equal(
-        elements.get("startBtn").href,
-        `${ORIGIN}${INTRO_PATH}?start=1&slot=3`
-    );
-    assert.match(elements.get("slotNum").innerHTML, /Slot 3 dari 3/);
-    assert.equal(
-        (elements.get("slotChips").innerHTML.match(/class='chip/g) || []).length,
-        3
-    );
-
-    const url = new URL(location.href);
-    assert.equal(url.searchParams.get("slot"), "3");
-    assert.equal(url.searchParams.get("count"), "3");
 });
 
-test("klik - mengurangi slot dan chip yang terpilih kembali ke slot terakhir", async () => {
-    const html = buildLoginIntroHtml({ slot: 1, origin: ORIGIN });
-    const { elements } = buildBrowserHarness(html, {
-        href: `${ORIGIN}${INTRO_PATH}?slot=4&count=4`
+test("halaman error COBA LAGI mengembalikan slot & count yang sama", () => {
+    const html = buildOpusLoginErrorHtml({
+        message: "Sesi kedaluwarsa",
+        slot: 4,
+        count: 6,
+        origin: ORIGIN
     });
 
-    assert.equal(elements.get("slotBadge").textContent, "Slot: OPUS_AUTH_TOKEN_4");
-    assert.equal(elements.get("slotPlus").disabled, false);
-    assert.equal(elements.get("slotMinus").disabled, false);
-
-    await elements.get("slotMinus").fire("click");
-
-    assert.equal(elements.get("slotBadge").textContent, "Slot: OPUS_AUTH_TOKEN_3");
-    assert.equal(
-        elements.get("startBtn").href,
-        `${ORIGIN}${INTRO_PATH}?start=1&slot=3`
-    );
+    assert.match(html, /COBA LAGI/);
+    assert.match(html, /\?slot=4&amp;count=6/);
 });
 
-test("chip memilih slot tanpa mengubah jumlah slot", async () => {
-    const html = buildLoginIntroHtml({ slot: 1, origin: ORIGIN });
-    const { elements, chip, chipsBox } = buildBrowserHarness(html, {
-        href: `${ORIGIN}${INTRO_PATH}?slot=5&count=5`
-    });
+test("callback error mempertahankan count dari state saat kembali ke halaman pembuka", async () => {
+    const res = mockRes();
+    await opusOAuthCallback(req("/api/opus-oauth-callback?error=access_denied&slot=4&count=6"), res);
 
-    await chipsBox.fire("click", { target: chip(2) });
-
-    assert.equal(elements.get("slotBadge").textContent, "Slot: OPUS_AUTH_TOKEN_2");
-    assert.equal(
-        elements.get("startBtn").href,
-        `${ORIGIN}${INTRO_PATH}?start=1&slot=2`
-    );
-    assert.match(elements.get("slotNum").innerHTML, /Slot 2 dari 5/);
-    assert.equal(
-        (chipsBox.innerHTML.match(/class='chip/g) || []).length,
-        5
-    );
-});
-
-test("tombol dinonaktifkan di batas bawah 1 dan batas atas 9", () => {
-    const html = buildLoginIntroHtml({ slot: 1, origin: ORIGIN });
-
-    const low = buildBrowserHarness(html, {
-        href: `${ORIGIN}${INTRO_PATH}?slot=1&count=1`
-    });
-    assert.equal(low.elements.get("slotMinus").disabled, true);
-    assert.equal(low.elements.get("slotPlus").disabled, false);
-
-    const high = buildBrowserHarness(html, {
-        href: `${ORIGIN}${INTRO_PATH}?slot=9&count=9`
-    });
-    assert.equal(high.elements.get("slotPlus").disabled, true);
-    assert.equal(high.elements.get("slotMinus").disabled, false);
-    assert.equal(high.elements.get("slotBadge").textContent, "Slot: OPUS_AUTH_TOKEN_9");
-});
-
-test("pilihan terakhir dipulihkan dari localStorage saat URL tanpa ?slot", () => {
-    const html = buildLoginIntroHtml({ slot: 1, origin: ORIGIN });
-    const { elements } = buildBrowserHarness(html, {
-        href: `${ORIGIN}${INTRO_PATH}`,
-        stored: { slot: 3, count: 5 }
-    });
-
-    assert.equal(elements.get("slotBadge").textContent, "Slot: OPUS_AUTH_TOKEN_3");
-    assert.match(elements.get("slotNum").innerHTML, /Slot 3 dari 5/);
-    assert.equal(
-        elements.get("startBtn").href,
-        `${ORIGIN}${INTRO_PATH}?start=1&slot=3`
-    );
-});
-
-test("URL menang atas localStorage agar tautan ?slot=… masih bisa dibagikan", () => {
-    const html = buildLoginIntroHtml({ slot: 1, origin: ORIGIN });
-    const { elements } = buildBrowserHarness(html, {
-        href: `${ORIGIN}${INTRO_PATH}?slot=7&count=7`,
-        stored: { slot: 2, count: 2 }
-    });
-
-    assert.equal(elements.get("slotBadge").textContent, "Slot: OPUS_AUTH_TOKEN_7");
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body, /\?slot=4&amp;count=6/);
 });
