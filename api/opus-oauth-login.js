@@ -9,7 +9,8 @@
 //                                         (server-rendered, TANPA JavaScript)
 // GET /api/opus-oauth-login?start=1    -> daftarkan client PKCE lalu
 //                                         redirect ke halaman login Opus
-// Query opsional: &slot=1..9 (default 1), &count=1..9 (jumlah slot)
+// Query opsional: &slot=<angka> (default 1), &count=<angka> (jumlah slot)
+//                 Keduanya TANPA batas atas (hanya dibatasi angka aman JS).
 //                 Setiap klik +/- / chip navigasi ke URL baru ini,
 //                 sehingga address bar benar-benar berubah.
 // ========================================

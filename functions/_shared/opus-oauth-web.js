@@ -441,19 +441,59 @@ export async function decodeOAuthState(token, { env = null, now = Date.now() } =
    SLOT SECRET & ORIGIN
    ========================================================= */
 
-/** Jumlah maksimum slot secret OPUS_AUTH_TOKEN* yang didukung. */
-export const OPUS_MAX_SLOT = 9;
+/**
+ * Nomor slot TIDAK dibatasi (1, 2, 3, ... seterusnya).
+ *
+ * `OPUS_MAX_SAFE_SLOT` BUKAN batas jumlah akun: itu cuma pengaman numerik
+ * supaya URL seperti `?slot=999999999999999999999` tidak menghasilkan
+ * angka tidak aman / Infinity. Pemindaian kredensial runtime
+ * (`DYNAMIC_OPUS_ENV_SLOT_PATTERN` di lib/social-publisher/opus.js dan
+ * provider/opus/client.js) sudah menerima suffix angka berapapun.
+ */
+export const OPUS_MIN_SLOT = 1;
+export const OPUS_MAX_SAFE_SLOT = Number.MAX_SAFE_INTEGER;
+
+/** Nama lama dipertahankan sebagai alias agar impor lama tidak rusak. */
+export const OPUS_MAX_SLOT = OPUS_MAX_SAFE_SLOT;
+
+/**
+ * Jumlah maksimum chip yang dirender per halaman. Ini HANYA pembatas
+ * tampilan supaya HTML tetap kecil kalau `count` sangat besar; jumlah
+ * slot itu sendiri tetap tanpa batas.
+ */
+export const OPUS_CHIP_WINDOW = 40;
 
 export function normalizeOpusSlot(value) {
-    const slot = Number(value) || 1;
-    if (slot < 1) return 1;
-    if (slot > OPUS_MAX_SLOT) return OPUS_MAX_SLOT;
-    return Math.floor(slot);
+    const raw = Number(value);
+    if (!Number.isFinite(raw)) return OPUS_MIN_SLOT;
+    const slot = Math.floor(raw);
+    if (slot < OPUS_MIN_SLOT) return OPUS_MIN_SLOT;
+    if (slot > OPUS_MAX_SAFE_SLOT) return OPUS_MAX_SAFE_SLOT;
+    return slot;
 }
 
 export function opusSecretNameForSlot(slot) {
     const normalized = normalizeOpusSlot(slot);
     return normalized <= 1 ? "OPUS_AUTH_TOKEN" : `OPUS_AUTH_TOKEN_${normalized}`;
+}
+
+/**
+ * Rentang chip yang ditampilkan: semua slot kalau masih sedikit, atau
+ * jendela di sekitar slot aktif kalau jumlah slot sudah besar.
+ * Fungsi murni supaya mudah diuji.
+ */
+export function getOpusChipRange(selected, total, windowSize = OPUS_CHIP_WINDOW) {
+    const safeTotal = normalizeOpusSlot(total);
+    const safeSelected = Math.min(normalizeOpusSlot(selected), safeTotal);
+    const size = Math.max(1, Math.min(windowSize, safeTotal));
+
+    if (safeTotal <= size) {
+        return { start: 1, end: safeTotal, windowed: false };
+    }
+
+    const half = Math.floor(size / 2);
+    const start = Math.max(1, Math.min(safeSelected - half, safeTotal - size + 1));
+    return { start, end: start + size - 1, windowed: true };
 }
 
 /**
@@ -466,30 +506,21 @@ export function opusSecretNameForSlot(slot) {
  * - `select` : pilih salah satu chip slot yang sudah ada.
  * - lainnya  : normalisasi state awal.
  *
- * PENTING: fungsi ini SENGAJA self-contained (angka 1 / 9 ditulis literal,
- * tanpa referensi ke konstanta modul). Sumbernya disuntikkan ke <script>
- * inline lewat `Function.prototype.toString()` supaya logika server dan
- * browser benar-benar sama, tanpa duplikasi kode.
+ * Tidak ada batas atas selain pengaman `Number.MAX_SAFE_INTEGER`.
  */
 export function applyOpusSlotAction(state, action) {
-    var clamp = function (value) {
-        var n = Math.floor(Number(value) || 1);
-        if (n < 1) return 1;
-        if (n > 9) return 9;
-        return n;
-    };
-    var slot = clamp(state && state.slot);
-    var count = clamp(state && state.count);
+    let slot = normalizeOpusSlot(state && state.slot);
+    let count = normalizeOpusSlot(state && state.count);
     if (count < slot) count = slot;
 
     if (action === "plus") {
-        count = Math.min(9, count + 1);
+        count = Math.min(OPUS_MAX_SAFE_SLOT, count + 1);
         slot = count;
     } else if (action === "minus") {
-        count = Math.max(1, count - 1);
+        count = Math.max(OPUS_MIN_SLOT, count - 1);
         if (slot > count) slot = count;
     } else if (action === "select") {
-        slot = clamp(state && state.targetSlot);
+        slot = normalizeOpusSlot(state && state.targetSlot);
         if (slot > count) slot = count;
     }
 
@@ -563,6 +594,7 @@ const INTRO_SLOT_STYLE = (
     + ".chip{display:inline-flex;align-items:center;justify-content:center;padding:8px 11px;min-height:38px;box-sizing:border-box;border:1px solid #2f466b;border-radius:10px;background:#101c30;color:#9ec5ff;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}"
     + ".chip:hover{border-color:#39ff71;color:#39ff71}"
     + ".chip.active{border-color:#39ff71;background:#12341f;color:#39ff71}"
+    + ".chip--jump{font-style:italic;opacity:.85}"
     + ".slothint{font-size:12px;color:#8fa5c0;text-align:center;margin:0 0 8px;line-height:1.5;overflow-wrap:anywhere}"
     + ".urlline{font-family:ui-monospace,monospace;font-size:11px;color:#7fd3ff;text-align:center;margin:0 0 14px;overflow-wrap:anywhere}"
 );
@@ -571,7 +603,7 @@ const INTRO_SLOT_STYLE = (
  * Halaman pembuka login OAuth Opus.
  *
  * Tombol `+` / `-` menambah / mengurangi slot auth
- * (OPUS_AUTH_TOKEN, OPUS_AUTH_TOKEN_2, ... OPUS_AUTH_TOKEN_9)
+ * (OPUS_AUTH_TOKEN, OPUS_AUTH_TOKEN_2, ... tanpa batas atas)
  * tanpa perlu mengedit `?slot=` di URL secara manual. Nomor slot,
  * tautan "LANJUT LOGIN KE OPUS", dan URL halaman selalu disinkronkan.
  */
@@ -609,8 +641,8 @@ export function buildLoginIntroHtml({ slot = 1, count = null, origin = "", mcpUr
 
     const plusState = applyOpusSlotAction(state, "plus");
     const minusState = applyOpusSlotAction(state, "minus");
-    const canPlus = total < OPUS_MAX_SLOT;
-    const canMinus = total > 1;
+    const canPlus = total < OPUS_MAX_SAFE_SLOT;
+    const canMinus = total > OPUS_MIN_SLOT;
 
     const minusHtml = canMinus
         ? `<a class='slotbtn' href='${escapeHtml(introHref(minusState.slot, minusState.count))}' aria-label='Kurangi slot auth' title='Kurangi slot'>&minus;</a>`
@@ -619,12 +651,28 @@ export function buildLoginIntroHtml({ slot = 1, count = null, origin = "", mcpUr
         ? `<a class='slotbtn' href='${escapeHtml(introHref(plusState.slot, plusState.count))}' aria-label='Tambah slot auth' title='Tambah slot'>+</a>`
         : "<span class='slotbtn is-disabled' aria-disabled='true' aria-label='Tambah slot auth'>+</span>";
 
+    const chipRange = getOpusChipRange(selected, total);
+    const chipHtml = (index, label, isJump) => {
+        const classes = "chip"
+            + (index === selected ? " active" : "")
+            + (isJump ? " chip--jump" : "");
+        return `<a class='${classes}' href='${escapeHtml(introHref(index, total))}'`
+            + ` title='${escapeHtml(opusSecretNameForSlot(index))}'>${label}</a>`;
+    };
+
     let chipsHtml = "";
-    for (let index = 1; index <= total; index += 1) {
-        const active = index === selected ? " active" : "";
-        chipsHtml += `<a class='chip${active}' href='${escapeHtml(introHref(index, total))}'`
-            + ` title='${escapeHtml(opusSecretNameForSlot(index))}'>Slot ${index}</a>`;
+    if (chipRange.start > 1) {
+        chipsHtml += chipHtml(1, "&laquo; 1", true);
     }
+    for (let index = chipRange.start; index <= chipRange.end; index += 1) {
+        chipsHtml += chipHtml(index, `Slot ${index}`, false);
+    }
+    if (chipRange.end < total) {
+        chipsHtml += chipHtml(total, `${total} &raquo;`, true);
+    }
+    const chipHint = chipRange.windowed
+        ? ` Chip ${chipRange.start}–${chipRange.end} dari ${total}.`
+        : "";
 
     const currentQuery = `?slot=${selected}&amp;count=${total}`;
 
@@ -641,7 +689,7 @@ export function buildLoginIntroHtml({ slot = 1, count = null, origin = "", mcpUr
             + plusHtml
             + "</div>"
             + `<div class='slots'>${chipsHtml}</div>`
-            + `<p class='slothint'>${total} slot auth tersedia. Login berikutnya memakai ${escapeHtml(secretName)}.</p>`
+            + `<p class='slothint'>${total} slot auth tersedia. Login berikutnya memakai ${escapeHtml(secretName)}.${chipHint}</p>`
             + `<div class='urlline'>Alamat: <b>${currentQuery}</b></div>`
             + `<a class='btn' href='${escapeHtml(startUrl)}'>LANJUT LOGIN KE OPUS</a>`
             + "<div class='steps'>"
@@ -649,7 +697,9 @@ export function buildLoginIntroHtml({ slot = 1, count = null, origin = "", mcpUr
             + "Tekan <b>+</b> untuk menambah slot akun baru, <b>&minus;</b> untuk mengurangi, atau ketuk chip <b>Slot N</b> untuk memilih slot. "
             + "Setiap klik <b>langsung mengganti alamat URL</b> (<b>?slot=…&amp;count=…</b>) dan memuat ulang halaman, "
             + "jadi <b>tidak perlu lagi mengedit URL secara manual</b> dan alamatnya bisa disalin / dibagikan.<br><br>"
-            + `Maksimal ${OPUS_MAX_SLOT} slot: <b>OPUS_AUTH_TOKEN</b> sampai <b>OPUS_AUTH_TOKEN_${OPUS_MAX_SLOT}</b>.`
+            + "Jumlah slot <b>tidak dibatasi</b>: <b>OPUS_AUTH_TOKEN</b>, <b>OPUS_AUTH_TOKEN_2</b>, "
+            + "<b>OPUS_AUTH_TOKEN_3</b>, … dan seterusnya. Kalau slot sudah sangat banyak, "
+            + "chip ditampilkan bertahap di sekitar slot yang sedang aktif."
             + "</div>"
     });
 }
