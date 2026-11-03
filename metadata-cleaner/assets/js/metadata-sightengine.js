@@ -1525,12 +1525,124 @@ function createEmptyDetection() {
 
 
 /* =========================================================
+   AUTH SESSION HELPER
+========================================================= */
+
+function readStoredAccessToken() {
+
+    try {
+
+        const storage =
+            typeof window !== "undefined" &&
+            window?.localStorage;
+
+        if (!storage) {
+
+            return "";
+
+        }
+
+        for (
+            let i = 0;
+            i < storage.length;
+            i += 1
+        ) {
+
+            const key =
+                storage.key(i);
+
+            if (
+                !key ||
+                !key.startsWith("sb-") ||
+                !key.endsWith("-auth-token")
+            ) {
+
+                continue;
+
+            }
+
+            const raw =
+                storage.getItem(key);
+
+            if (!raw) {
+
+                continue;
+
+            }
+
+            const parsed =
+                JSON.parse(raw);
+
+            const session =
+                parsed?.currentSession ||
+                parsed;
+
+            if (
+                typeof session?.access_token === "string" &&
+                session.access_token
+            ) {
+
+                return session.access_token;
+
+            }
+
+        }
+
+        const backupRaw =
+            storage.getItem("genz-auth-session-v1");
+
+        if (backupRaw) {
+
+            const backup =
+                JSON.parse(backupRaw);
+
+            if (
+                typeof backup?.access_token === "string"
+            ) {
+
+                return backup.access_token;
+
+            }
+
+        }
+
+    } catch {
+
+        /* abaikan */
+
+    }
+
+    return "";
+
+}
+
+
+/* =========================================================
    BACKEND REQUEST
 ========================================================= */
 
 async function requestSightengine(
-    image
+    image,
+    token
 ) {
+
+    const effectiveToken =
+        token ||
+        readStoredAccessToken();
+
+    const headers = {
+        "Content-Type":
+            "application/json"
+    };
+
+    if (
+        effectiveToken
+    ) {
+
+        headers["Authorization"] =
+            `Bearer ${effectiveToken}`;
+
+    }
 
     const response =
         await fetch(
@@ -1539,10 +1651,7 @@ async function requestSightengine(
                 method:
                     "POST",
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+                headers,
 
                 body:
                     JSON.stringify({
@@ -1607,7 +1716,8 @@ async function requestSightengine(
 ========================================================= */
 
 export async function detectSightengine(
-    file
+    file,
+    token
 ) {
 
     validateImage(
@@ -1623,7 +1733,8 @@ export async function detectSightengine(
 
     const response =
         await requestSightengine(
-            dataUrl
+            dataUrl,
+            token
         );
 
 
@@ -1643,11 +1754,13 @@ export async function detectSightengine(
 ========================================================= */
 
 export async function detectWithSightengine(
-    file
+    file,
+    token
 ) {
 
     return detectSightengine(
-        file
+        file,
+        token
     );
 
 }

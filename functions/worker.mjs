@@ -68,6 +68,60 @@ const handlers = new Map([
 ]);
 
 // =========================================================
+// SECURITY HEADERS & EDGE RATE LIMITING
+// =========================================================
+const SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
+};
+
+const API_RATE_WINDOW_MS = 60_000;
+const API_RATE_LIMIT_PER_WINDOW = 300;
+const apiIpBuckets = new Map();
+
+function checkApiRateLimit(ip) {
+    const now = Date.now();
+    if (apiIpBuckets.size > 5000) {
+        for (const [k, entry] of apiIpBuckets) {
+            if (now - entry.startedAt >= API_RATE_WINDOW_MS) {
+                apiIpBuckets.delete(k);
+            }
+        }
+    }
+    const entry = apiIpBuckets.get(ip);
+    if (!entry || now - entry.startedAt >= API_RATE_WINDOW_MS) {
+        apiIpBuckets.set(ip, { startedAt: now, count: 1 });
+        return true;
+    }
+    if (entry.count >= API_RATE_LIMIT_PER_WINDOW) {
+        return false;
+    }
+    entry.count += 1;
+    return true;
+}
+
+function applySecurityHeaders(response, isApi = false) {
+    if (!response || !(response instanceof Response)) return response;
+    const headers = new Headers(response.headers);
+    for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+        if (!headers.has(key)) {
+            headers.set(key, value);
+        }
+    }
+    if (isApi && !headers.has("Cache-Control")) {
+        headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    }
+    const body = [204, 205, 304].includes(response.status) ? null : response.body;
+    return new Response(body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers
+    });
+}
+
+// =========================================================
 // MAIN WORKER
 // =========================================================
 export default {
@@ -75,14 +129,39 @@ export default {
         const url = new URL(request.url);
         const pathname = url.pathname.replace(/\/+$/, "") || "/";
 
+        // Perlindungan Rate Limiting API terhadap flooding / brute-force Reqable
+        if (
+            pathname.startsWith("/api/") &&
+            pathname !== "/api/facebook-data-deletion" &&
+            pathname !== "/api/data-deletion"
+        ) {
+            const clientIp = String(
+                request.headers.get("cf-connecting-ip") ||
+                request.headers.get("x-forwarded-for") ||
+                "edge-client"
+            ).split(",")[0].trim();
+
+            if (!checkApiRateLimit(clientIp)) {
+                return applySecurityHeaders(
+                    Response.json(
+                        { error: "Too many requests. Please slow down." },
+                        { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } }
+                    ),
+                    true
+                );
+            }
+        }
+
         // Route khusus Tempmail
         if (pathname === "/api/tempmail") {
-            return handleTempmail(request, env);
+            const res = await handleTempmail(request, env);
+            return applySecurityHeaders(res, true);
         }
 
         // Route unduh & proses URL Facebook (GetMyFB) dan TikTok (SSSTik) untuk referensi media
         if (pathname === "/api/fb-media-download" || pathname === "/api/social-media-download") {
-            return handleFbMediaDownload(request, env);
+            const res = await handleFbMediaDownload(request, env);
+            return applySecurityHeaders(res, true);
         }
 
         if (
@@ -99,9 +178,12 @@ export default {
                     : action === "upload-outfit"
                         ? "File outfit"
                         : "File lagu/audio";
-                return Response.json(
-                    { success: false, error: `${label} maksimal ${action === "upload-song" ? "16" : "8"} MB.` },
-                    { status: 413, headers: { "Cache-Control": "no-store" } }
+                return applySecurityHeaders(
+                    Response.json(
+                        { success: false, error: `${label} maksimal ${action === "upload-song" ? "16" : "8"} MB.` },
+                        { status: 413, headers: { "Cache-Control": "no-store" } }
+                    ),
+                    true
                 );
             }
         }
@@ -110,21 +192,29 @@ export default {
 
         if (handler) {
             try {
-                return await runHandlerAdapter(handler, request, context, env);
+                const res = await runHandlerAdapter(handler, request, context, env);
+                return applySecurityHeaders(res, true);
             } catch (error) {
                 console.error("[Cloudflare Worker] API request failed:", error);
-                return Response.json(
-                    { error: "Internal server error" },
-                    { status: 500 }
+                return applySecurityHeaders(
+                    Response.json(
+                        { error: "Internal server error" },
+                        { status: 500 }
+                    ),
+                    true
                 );
             }
         }
 
         if (pathname.startsWith("/api/")) {
-            return Response.json({ error: "Not found" }, { status: 404 });
+            return applySecurityHeaders(
+                Response.json({ error: "Not found" }, { status: 404 }),
+                true
+            );
         }
 
-        return env.ASSETS.fetch(request);
+        const assetRes = await env.ASSETS.fetch(request);
+        return applySecurityHeaders(assetRes, false);
     },
 
     async scheduled(controller, env, context) {
