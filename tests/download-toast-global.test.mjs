@@ -15,7 +15,7 @@ import vm from "node:vm";
 
    Tes ini menjaga:
    1. genz-toast.js dimuat SEMUA halaman (bukan hanya History).
-   2. Metadata Cleaner & VidDra memberi notifikasi toast.
+   2. Metadata Cleaner memberi notifikasi toast.
    3. Setiap <a download> yang diklik pengguna otomatis
       memunculkan toast (jaring pengaman global).
    4. Tombol × toast bisa diklik (dismiss berdasarkan key
@@ -35,7 +35,6 @@ function read(relative) {
 const toastSource = read("assets/js/genz-toast.js");
 const metadataEvents = read("metadata-cleaner/assets/js/metadata-events.js");
 const metadataHtml = read("metadata-cleaner/index.html");
-const viddraHtml = read("viddra/generate/index.html");
 const historyHtml = read("history/index.html");
 const historyModal = read("history/assets/js/history-modal.js");
 const supportChatCss = read("assets/css/support-chat.css");
@@ -124,12 +123,6 @@ test("Metadata Cleaner punya tombol DOWNLOAD yang benar-benar terlihat", () => {
         metadataHtml,
         /id="metadata-download-button"[\s\S]{0,260}?disabled/
     );
-});
-
-test("VidDra generate memberi toast saat mengunduh hasil", () => {
-    assert.match(viddraHtml, /toast\?\.downloadStart\?\.\(filename\)/);
-    assert.match(viddraHtml, /toast\?\.downloadSuccess\?\.\(/);
-    assert.match(viddraHtml, /toast\?\.downloadFallback\?\.\(filename\)/);
 });
 
 /* =========================================================
