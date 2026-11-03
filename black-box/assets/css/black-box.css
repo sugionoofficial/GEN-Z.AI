@@ -1945,3 +1945,226 @@ html[data-genz-theme="light"] .bb-diag-output {
     }
 
 }
+
+/* ---------------------------------------------------------
+   JOB OPUS MENGGANTUNG — DELETE / DELETE ALL / CONFIRM
+   ---------------------------------------------------------
+   Toolbar di pojok kanan atas kartu, checkbox per baris saat
+   mode pilih, dan penanda visual untuk CONFIRM DELETE ALL.
+--------------------------------------------------------- */
+
+.bb-history-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+}
+
+.bb-history-head .bb-diag-card-title {
+    flex: 1 1 240px;
+    min-width: 0;
+}
+
+.bb-history-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+/* [hidden] harus menang atas display:inline-flex dari .bb-diag-btn */
+.bb-history-actions [hidden],
+.bb-history-hint[hidden] {
+    display: none !important;
+}
+
+.bb-history-hint {
+    margin: 0;
+    padding: 8px 10px;
+    width: 100%;
+    min-width: 0;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 178, 90, .38);
+    background: rgba(255, 178, 90, .10);
+    color: #ffd7a3;
+    font-size: 11.5px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.bb-diag-btn--danger,
+a.bb-diag-btn--danger {
+    border-color: rgba(255, 102, 124, .55);
+    background: rgba(255, 82, 108, .14);
+    color: #ff9ead;
+}
+
+.bb-diag-btn--danger:hover:not(:disabled),
+a.bb-diag-btn--danger:hover {
+    border-color: rgba(255, 102, 124, .85);
+    background: rgba(255, 82, 108, .24);
+    color: #ffd0d8;
+}
+
+.bb-history-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+}
+
+.bb-history-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    min-height: 32px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, .24);
+    background: rgba(255, 255, 255, .06);
+    color: #f5fbf7;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+}
+
+.bb-history-check__box {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    margin: 0;
+    border-radius: 4px;
+    border: 2px solid rgba(255, 255, 255, .55);
+    background: #040706;
+    cursor: pointer;
+}
+
+.bb-history-check__box:checked {
+    border-color: #ff6b83;
+    background: #ff6b83;
+}
+
+.bb-history-check__box:checked::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid #0b110e;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.bb-history-check__box:focus-visible {
+    outline: 2px solid rgba(57, 255, 113, .6);
+    outline-offset: 2px;
+}
+
+.bb-diag-row.is-selected {
+    border-color: rgba(255, 107, 131, .75);
+    background: rgba(255, 82, 108, .12);
+}
+
+.bb-diag-row.is-pending-all {
+    border-color: rgba(255, 178, 90, .6);
+    background: rgba(255, 178, 90, .09);
+}
+
+/* Mode terang */
+html[data-genz-theme="light"] .bb-history-hint {
+    background: #fff7ed;
+    border-color: rgba(194, 65, 12, .3);
+    color: #9a3412;
+}
+
+html[data-genz-theme="light"] .bb-diag-btn--danger,
+html[data-genz-theme="light"] a.bb-diag-btn--danger {
+    background: #ffe4e6;
+    border-color: #f43f5e;
+    color: #9f1239;
+}
+
+html[data-genz-theme="light"] .bb-diag-btn--danger:hover:not(:disabled),
+html[data-genz-theme="light"] a.bb-diag-btn--danger:hover {
+    background: #fecdd3;
+    color: #881337;
+}
+
+html[data-genz-theme="light"] .bb-history-check {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+html[data-genz-theme="light"] .bb-history-check__box {
+    background: #ffffff;
+    border-color: #64748b;
+}
+
+html[data-genz-theme="light"] .bb-diag-row.is-selected {
+    border-color: #f43f5e;
+    background: #fff1f2;
+}
+
+html[data-genz-theme="light"] .bb-diag-row.is-pending-all {
+    border-color: #f97316;
+    background: #fff7ed;
+}
+
+/* Mode HP: toolbar turun ke bawah judul, tap target >= 44px */
+@media (max-width: 720px) {
+    .bb-history-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .bb-history-head .bb-diag-card-title {
+        flex: 1 1 auto;
+    }
+
+    .bb-history-actions {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .bb-history-actions .bb-diag-btn {
+        flex: 1 1 auto;
+        min-height: 44px;
+    }
+
+    .bb-history-row-actions {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .bb-history-check {
+        min-height: 44px;
+        padding: 8px 12px;
+    }
+
+    .bb-history-check__box {
+        width: 20px;
+        height: 20px;
+        flex-basis: 20px;
+    }
+
+    .bb-history-check__box:checked::after {
+        left: 5px;
+        top: 2px;
+        width: 5px;
+        height: 10px;
+    }
+}
