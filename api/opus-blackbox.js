@@ -11,6 +11,9 @@
    - `action=resolve_job` : Panggil `get_status` + `resolve_job` untuk memulihkan
                             hasil job `submission_unknown`/menggantung tanpa
                             submit ulang & tanpa memotong kredit dua kali.
+   - `action=delete_jobs` : Hapus baris menggantung/gagal dari panel (pilih
+                            per-ID atau delete_all). Job yang masih berjalan
+                            dan kredit yang belum kembali sengaja dilewati.
 
    KEAMANAN:
    - Wajib JWT Supabase dengan role `owner` atau `admin`.
@@ -77,14 +80,27 @@ async function fetchOpusVaultMetadata(supabaseUrl, serviceKey, fetchImpl = globa
     }
 }
 
-async function fetchRecoverableOpusHistory(supabaseUrl, serviceKey, fetchImpl = globalThis.fetch) {
+const RECOVERABLE_HISTORY_LIMIT = 15;
+const DELETABLE_HISTORY_SCAN_LIMIT = 500;
+
+/**
+ * Daftar job Opus yang menggantung/gagal. Dipakai bersama oleh
+ * `action=status` (15 terbaru untuk panel) dan `action=delete_jobs`
+ * (scan lebih lebar supaya DELETE ALL benar-benar membersihkan).
+ */
+async function fetchRecoverableOpusHistory(
+    supabaseUrl,
+    serviceKey,
+    fetchImpl = globalThis.fetch,
+    { limit = RECOVERABLE_HISTORY_LIMIT } = {}
+) {
     try {
         const qs = new URLSearchParams({
             select: "id,user_email,model_id,model_name,status,task_id,result_url,error_message,credit_cost,credit_refunded,created_at",
             provider_id: "eq.opus",
             status: "in.(processing,queued,failed)",
             order: "created_at.desc",
-            limit: "15"
+            limit: String(limit)
         });
         const resp = await fetchImpl(`${supabaseUrl}/rest/v1/generation_history?${qs.toString()}`, {
             method: "GET",
@@ -119,6 +135,82 @@ async function fetchRecoverableOpusHistory(supabaseUrl, serviceKey, fetchImpl = 
     } catch {
         return [];
     }
+}
+
+/**
+ * Pilih baris yang AMAN dihapus.
+ *
+ * Dua kondisi sengaja dilewati:
+ * - status `processing` / `queued`  → job masih jalan; menghapusnya
+ *   akan menggagalkan worker yang sedang menulis hasil akhir, dan
+ *   kredit pengguna hilang tanpa pernah dikembalikan.
+ * - `credit_refunded = false`       → kredit masih terpotong; hapus
+ *   barisnya berarti riwayat tagihan ikut lenyap.
+ *
+ * Fungsi ini murni (tanpa I/O) supaya guard-nya bisa diuji.
+ */
+export function selectDeletableOpusHistory(
+    candidates,
+    { requestedIds = null, deleteAll = false } = {}
+) {
+    const rows = Array.isArray(candidates) ? candidates : [];
+    const wanted = !deleteAll && requestedIds instanceof Set ? requestedIds : null;
+    const deletable = [];
+    const skipped = [];
+
+    if (!deleteAll && !wanted) {
+        return { deletable, skipped };
+    }
+
+    for (const row of rows) {
+        if (!row || !row.id) continue;
+
+        const status = String(row.status || "").toLowerCase();
+        const refunded = Boolean(row.creditRefunded);
+        const creditCost = Number(row.creditCost) || 0;
+
+        if (wanted && !wanted.has(String(row.id))) continue;
+
+        if (status === "processing" || status === "queued") {
+            skipped.push({ id: row.id, reason: "masih_berjalan" });
+            continue;
+        }
+        if (!refunded && creditCost > 0) {
+            skipped.push({ id: row.id, reason: "kredit_belum_kembali" });
+            continue;
+        }
+
+        deletable.push(row);
+    }
+
+    return { deletable, skipped };
+}
+
+async function deleteOpusHistoryRows(ids, supabaseUrl, serviceKey, fetchImpl = globalThis.fetch) {
+    const qs = new URLSearchParams();
+    qs.set("id", `in.(${ids.join(",")})`);
+    qs.set("provider_id", "eq.opus");
+    qs.set("status", "in.(processing,queued,failed)");
+
+    const resp = await fetchImpl(
+        `${supabaseUrl}/rest/v1/generation_history?${qs.toString()}`,
+        {
+            method: "DELETE",
+            headers: {
+                apikey: serviceKey,
+                Authorization: `Bearer ${serviceKey}`,
+                Prefer: "return=representation"
+            }
+        }
+    );
+
+    if (!resp.ok) {
+        const detail = await resp.text().catch(() => "");
+        throw new Error(`Gagal menghapus riwayat Opus (HTTP ${resp.status}) ${detail.slice(0, 200)}`.trim());
+    }
+
+    const deleted = await resp.json().catch(() => []);
+    return Array.isArray(deleted) ? deleted.length : 0;
 }
 
 export default async function handler(req, res) {
@@ -180,6 +272,67 @@ export default async function handler(req, res) {
             },
             recoverableHistory: recentRecoverable
         });
+    }
+
+    /*
+     * Hapus baris job menggantung/gagal dari panel Black Box.
+     * Sengaja ditempatkan SEBELUM pengecekan kredensial MCP:
+     * membersihkan tabel tidak membutuhkan koneksi ke Opus Labs.
+     * Tetap wajib JWT Owner/Admin lewat authenticateSupabaseUser().
+     */
+    if (action === "delete_jobs") {
+        const rawIds = Array.isArray(req.body?.history_ids)
+            ? req.body.history_ids
+            : Array.isArray(req.body?.historyIds)
+              ? req.body.historyIds
+              : [];
+        const requestedIds = new Set(
+            rawIds.map(value => String(value || "").trim()).filter(Boolean)
+        );
+        const deleteAll = req.body?.delete_all === true || req.body?.deleteAll === true;
+
+        if (!deleteAll && requestedIds.size === 0) {
+            return sendJson(res, 400, {
+                success: false,
+                error: "Pilih minimal satu job yang akan dihapus."
+            });
+        }
+
+        try {
+            const candidates = await fetchRecoverableOpusHistory(
+                auth.supabaseUrl,
+                auth.serviceKey,
+                globalThis.fetch,
+                { limit: DELETABLE_HISTORY_SCAN_LIMIT }
+            );
+
+            const { deletable, skipped } = selectDeletableOpusHistory(
+                candidates,
+                { requestedIds, deleteAll }
+            );
+
+            const deleted = deletable.length > 0
+                ? await deleteOpusHistoryRows(
+                      deletable.map(row => row.id),
+                      auth.supabaseUrl,
+                      auth.serviceKey
+                  )
+                : 0;
+
+            return sendJson(res, 200, {
+                success: true,
+                action: "delete_jobs",
+                deleted,
+                requested: deleteAll ? candidates.length : requestedIds.size,
+                skipped: skipped.length,
+                skippedReasons: skipped.slice(0, 20)
+            });
+        } catch (err) {
+            return sendJson(res, 502, {
+                success: false,
+                error: err?.message || "Gagal menghapus job Opus."
+            });
+        }
     }
 
     if (!opusApiKey) {
@@ -280,6 +433,6 @@ export default async function handler(req, res) {
 
     return sendJson(res, 400, {
         success: false,
-        error: `Action "${action}" tidak dikenali. Gunakan status, list_jobs, atau resolve_job.`
+        error: `Action "${action}" tidak dikenali. Gunakan status, list_jobs, resolve_job, atau delete_jobs.`
     });
 }

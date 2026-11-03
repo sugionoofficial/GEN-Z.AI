@@ -64,7 +64,7 @@
 
     <link
         rel="stylesheet"
-        href="./assets/css/black-box.css?v=mobile-fit-20261102"
+        href="./assets/css/black-box.css?v=opus-history-delete-20261103"
     >
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -488,8 +488,22 @@
                 <pre id="bbOpusManualOutput" class="bb-diag-output" hidden></pre>
             </div>
 
-            <div class="bb-diag-card">
-                <h4 class="bb-diag-card-title">Job Opus Menggantung / Gagal Terbaru (1-Klik Recovery)</h4>
+            <div class="bb-diag-card" id="bbOpusHistoryCard">
+                <div class="bb-history-head">
+                    <h4 class="bb-diag-card-title">Job Opus Menggantung / Gagal Terbaru (1-Klik Recovery)</h4>
+                    <div class="bb-history-actions" role="group" aria-label="Kelola daftar job Opus">
+                        <button type="button" id="bbOpusDeleteBtn" class="bb-diag-btn bb-diag-btn--sm bb-diag-btn--danger">
+                            DELETE
+                        </button>
+                        <button type="button" id="bbOpusDeleteAllBtn" class="bb-diag-btn bb-diag-btn--sm bb-diag-btn--danger">
+                            DELETE ALL
+                        </button>
+                        <button type="button" id="bbOpusDeleteCancelBtn" class="bb-diag-btn bb-diag-btn--sm" hidden>
+                            BATAL
+                        </button>
+                    </div>
+                </div>
+                <p id="bbOpusDeleteHint" class="bb-history-hint" hidden></p>
                 <div id="bbOpusHistoryContainer" class="bb-diag-list">
                     <span class="bb-diag-empty">Belum dimuat.</span>
                 </div>
@@ -910,9 +924,167 @@
         var resolveBtn = document.getElementById("bbOpusResolveBtn");
         var listJobsBtn = document.getElementById("bbOpusListJobsBtn");
         var manualOutput = document.getElementById("bbOpusManualOutput");
+        var deleteBtn = document.getElementById("bbOpusDeleteBtn");
+        var deleteAllBtn = document.getElementById("bbOpusDeleteAllBtn");
+        var deleteCancelBtn = document.getElementById("bbOpusDeleteCancelBtn");
+        var deleteHint = document.getElementById("bbOpusDeleteHint");
         var loadedOnce = false;
 
+        /* =====================================================
+           HAPUS JOB MENGGANTUNG — STATE
+           -----------------------------------------------------
+           idle       : hanya tombol DELETE + DELETE ALL
+           select     : checkbox per baris, DELETE berubah CONFIRM
+           confirmAll : DELETE ALL berubah CONFIRM, semua baris
+                        ditandai sebagai calon hapus
+           ===================================================== */
+        var deleteMode = "idle";
+        var selectedIds = Object.create(null);
+        var historyData = [];
+        var deleteBusy = false;
+
         if (!toggleBtn || !panel) return;
+
+        function selectedIdList() {
+            return Object.keys(selectedIds).filter(function (id) {
+                return selectedIds[id];
+            });
+        }
+
+        function renderHistory() {
+            if (!historyBox) return;
+
+            if (historyData.length === 0) {
+                historyBox.innerHTML = '<span class="bb-diag-empty">Tidak ada job Opus yang menggantung/gagal saat ini.</span>';
+                return;
+            }
+
+            historyBox.innerHTML = historyData.map(function (item) {
+                var checkbox = "";
+                if (deleteMode === "select") {
+                    checkbox =
+                        '<label class="bb-history-check">' +
+                            '<input type="checkbox" class="bb-history-check__box" ' +
+                                'data-delete-id="' + escapeHtml(item.id) + '" ' +
+                                (selectedIds[item.id] ? "checked " : "") +
+                                'aria-label="Pilih job ' + escapeHtml(item.modelName) + '">' +
+                            '<span>Pilih</span>' +
+                        '</label>';
+                }
+
+                var rowClass = "bb-diag-row" +
+                    (selectedIds[item.id] ? " is-selected" : "") +
+                    (deleteMode === "confirmAll" ? " is-pending-all" : "");
+
+                return (
+                    '<div class="' + rowClass + '" data-history-id="' + escapeHtml(item.id) + '">' +
+                        '<div class="bb-diag-row-top">' +
+                            '<strong>' + escapeHtml(item.modelName) + ' (' + escapeHtml(item.status) + ')</strong>' +
+                            '<div class="bb-history-row-actions">' +
+                                checkbox +
+                                '<button type="button" class="bb-diag-btn bb-diag-btn--sm" ' +
+                                    'data-recover-task="' + escapeHtml(item.taskId) + '" ' +
+                                    'data-recover-history="' + escapeHtml(item.id) + '">' +
+                                    '⚡ Pulihkan' +
+                                '</button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="bb-diag-row-sub">' +
+                            escapeHtml(item.userEmail) + ' • Task: ' + escapeHtml(item.taskId) +
+                            (item.errorMessage ? ' • ' + escapeHtml(item.errorMessage) : '') +
+                        '</div>' +
+                    '</div>'
+                );
+            }).join("");
+        }
+
+        function updateDeleteToolbar() {
+            if (!deleteBtn || !deleteAllBtn) return;
+
+            var count = selectedIdList().length;
+
+            if (deleteMode === "select") {
+                deleteBtn.textContent = count > 0 ? "CONFIRM (" + count + ")" : "CONFIRM";
+                deleteAllBtn.textContent = "DELETE ALL";
+            } else if (deleteMode === "confirmAll") {
+                deleteBtn.textContent = "DELETE";
+                deleteAllBtn.textContent = "CONFIRM";
+            } else {
+                deleteBtn.textContent = "DELETE";
+                deleteAllBtn.textContent = "DELETE ALL";
+            }
+
+            deleteBtn.disabled = deleteBusy;
+            deleteAllBtn.disabled = deleteBusy;
+
+            if (deleteCancelBtn) {
+                deleteCancelBtn.hidden = deleteMode === "idle";
+                deleteCancelBtn.disabled = deleteBusy;
+            }
+
+            if (deleteHint) {
+                deleteHint.hidden = deleteMode === "idle";
+                if (deleteMode === "select") {
+                    deleteHint.textContent =
+                        "Centang job yang ingin dihapus, lalu tekan CONFIRM. " +
+                        count + " dipilih.";
+                } else if (deleteMode === "confirmAll") {
+                    deleteHint.textContent =
+                        "Semua job menggantung/gagal akan dihapus, termasuk yang tidak masuk " +
+                        historyData.length + " baris terbaru di atas. " +
+                        "Job yang masih berjalan atau kreditnya belum kembali dilewati otomatis.";
+                }
+            }
+        }
+
+        function setDeleteMode(mode) {
+            deleteMode = mode;
+            if (mode !== "select") selectedIds = Object.create(null);
+            renderHistory();
+            updateDeleteToolbar();
+        }
+
+        async function runDeleteJobs(payload) {
+            if (deleteBusy) return;
+
+            deleteBusy = true;
+            updateDeleteToolbar();
+
+            try {
+                var res = await callOpusBlackbox(
+                    "POST",
+                    Object.assign({ action: "delete_jobs" }, payload)
+                );
+
+                if (manualOutput) {
+                    manualOutput.hidden = false;
+                    manualOutput.textContent = JSON.stringify(res, null, 2);
+                }
+
+                setDeleteMode("idle");
+                await loadStatus();
+
+                if (deleteHint) {
+                    deleteHint.hidden = false;
+                    deleteHint.textContent =
+                        (res.deleted || 0) + " job dihapus" +
+                        (res.skipped ? " • " + res.skipped + " dilewati (masih berjalan / kredit belum kembali)" : "") + ".";
+                }
+            } catch (err) {
+                var message = err && err.message ? err.message : String(err);
+                if (manualOutput) {
+                    manualOutput.hidden = false;
+                    manualOutput.textContent = "Error: " + message;
+                }
+                if (deleteHint) {
+                    deleteHint.hidden = false;
+                    deleteHint.textContent = "Gagal menghapus: " + message;
+                }
+            } finally {
+                deleteBusy = false;
+                updateDeleteToolbar();
+            }
+        }
 
         async function callOpusBlackbox(method, bodyOrQuery) {
             var token = await readOperatorAccessToken();
@@ -1010,31 +1182,11 @@
                     }
                 }
 
-                if (historyBox) {
-                    var hist = Array.isArray(data.recoverableHistory) ? data.recoverableHistory : [];
-                    if (hist.length === 0) {
-                        historyBox.innerHTML = '<span class="bb-diag-empty">Tidak ada job Opus yang menggantung/gagal saat ini.</span>';
-                    } else {
-                        historyBox.innerHTML = hist.map(function (item) {
-                            return (
-                                '<div class="bb-diag-row">' +
-                                    '<div class="bb-diag-row-top">' +
-                                        '<strong>' + escapeHtml(item.modelName) + ' (' + escapeHtml(item.status) + ')</strong>' +
-                                        '<button type="button" class="bb-diag-btn bb-diag-btn--sm" ' +
-                                            'data-recover-task="' + escapeHtml(item.taskId) + '" ' +
-                                            'data-recover-history="' + escapeHtml(item.id) + '">' +
-                                            '⚡ Pulihkan' +
-                                        '</button>' +
-                                    '</div>' +
-                                    '<div class="bb-diag-row-sub">' +
-                                        escapeHtml(item.userEmail) + ' • Task: ' + escapeHtml(item.taskId) +
-                                        (item.errorMessage ? ' • ' + escapeHtml(item.errorMessage) : '') +
-                                    '</div>' +
-                                '</div>'
-                            );
-                        }).join("");
-                    }
-                }
+                historyData = Array.isArray(data.recoverableHistory)
+                    ? data.recoverableHistory
+                    : [];
+                renderHistory();
+                updateDeleteToolbar();
             } catch (err) {
                 if (banner) banner.textContent = "Gagal memuat status Opus: " + (err && err.message ? err.message : err);
             } finally {
@@ -1133,6 +1285,72 @@
                 } finally {
                     listJobsBtn.disabled = false;
                 }
+            });
+        }
+
+        /* =====================================================
+           HAPUS JOB MENGGANTUNG — TOMBOL & CHECKBOX
+           ===================================================== */
+
+        if (deleteBtn) {
+            deleteBtn.addEventListener("click", async function () {
+                if (deleteBusy) return;
+
+                if (deleteMode !== "select") {
+                    setDeleteMode("select");
+                    return;
+                }
+
+                var ids = selectedIdList();
+                if (ids.length === 0) {
+                    if (deleteHint) {
+                        deleteHint.hidden = false;
+                        deleteHint.textContent = "Belum ada job yang dicentang.";
+                    }
+                    return;
+                }
+
+                await runDeleteJobs({ history_ids: ids });
+            });
+        }
+
+        if (deleteAllBtn) {
+            deleteAllBtn.addEventListener("click", async function () {
+                if (deleteBusy) return;
+
+                if (deleteMode !== "confirmAll") {
+                    setDeleteMode("confirmAll");
+                    return;
+                }
+
+                await runDeleteJobs({ delete_all: true });
+            });
+        }
+
+        if (deleteCancelBtn) {
+            deleteCancelBtn.addEventListener("click", function () {
+                if (deleteBusy) return;
+                setDeleteMode("idle");
+            });
+        }
+
+        if (historyBox) {
+            historyBox.addEventListener("change", function (ev) {
+                var box = ev.target && ev.target.closest
+                    ? ev.target.closest("[data-delete-id]")
+                    : null;
+                if (!box) return;
+
+                var id = box.getAttribute("data-delete-id") || "";
+                if (!id) return;
+
+                if (box.checked) selectedIds[id] = true;
+                else delete selectedIds[id];
+
+                var row = box.closest("[data-history-id]");
+                if (row) row.classList.toggle("is-selected", box.checked);
+
+                updateDeleteToolbar();
             });
         }
 
