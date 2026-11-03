@@ -114,6 +114,26 @@ function clickSummary(section) {
     section.open = !section.open;
 }
 
+/* NodeList asli browser: punya forEach/iterasi, TIDAK punya .filter/.map.
+   Dipakai untuk menangkap regresi "field hilang" akibat `.filter()`
+   langsung pada hasil querySelectorAll(). */
+class NodeListLike {
+    constructor(items) {
+        this.length = items.length;
+        items.forEach((item, index) => { this[index] = item; });
+    }
+    item(index) {
+        return this[index] ?? null;
+    }
+    forEach(callback, thisArg) {
+        for (let i = 0; i < this.length; i += 1) callback.call(thisArg, this[i], i, this);
+    }
+    [Symbol.iterator]() {
+        let i = 0;
+        return { next: () => (i < this.length ? { value: this[i++], done: false } : { done: true }) };
+    }
+}
+
 /* =========================================================
    STRUKTUR BLOK
    ========================================================= */
@@ -311,6 +331,36 @@ test("pemulihan nilai via setFieldValue menyegarkan badge (tanpa event change)",
     });
 });
 
+test("render aman dengan NodeList asli browser (field tidak boleh hilang)", async () => {
+    const fields = await import("../generate/assets/js/generate-form-fields.js");
+    const original = FakeElement.prototype.querySelectorAll;
+    FakeElement.prototype.querySelectorAll = function (selector) {
+        return new NodeListLike(original.call(this, selector));
+    };
+
+    try {
+        const wrapper = withFakeDom(() =>
+            fields.createCheckboxGroupField(musicAdapter.parameters.prompt, "prompt")
+        );
+
+        assert.equal(wrapper.querySelectorAll("details.generate-checkbox-group__group").length, 8);
+        assert.equal(
+            wrapper.querySelector(".generate-checkbox-group__count").textContent,
+            `${MUSIC_PRESET_DEFAULT_VALUES.length} pilihan aktif`
+        );
+
+        /* Semua jalur yang memakai refresh() harus tetap aman. */
+        wrapper.dispatch("change");
+        wrapper.querySelector(".generate-checkbox-group__reset").dispatch("click");
+        assert.equal(
+            wrapper.querySelector(".generate-checkbox-group__count").textContent,
+            `${MUSIC_PRESET_DEFAULT_VALUES.length} pilihan aktif`
+        );
+    } finally {
+        FakeElement.prototype.querySelectorAll = original;
+    }
+});
+
 /* =========================================================
    SOURCE GUARDS
    ========================================================= */
@@ -328,6 +378,11 @@ test("render memakai details/summary native, bukan fieldset/legend lama", () => 
     assert.doesNotMatch(body, /createElement\(\s*"legend"/);
     assert.doesNotMatch(body, /summary\s*\.addEventListener\(\s*"click"/);
     assert.match(body, /wrapper\.addEventListener\(\s*"change"/);
+
+    /* NodeList tidak punya .filter -> wajib Array.from().
+       Guard perilakunya ada di tes "render aman dengan NodeList asli". */
+    assert.match(body, /Array\.from\(\s*wrapper\.querySelectorAll/);
+    assert.match(body, /Array\.from\(\s*grid\.querySelectorAll/);
 });
 
 test("hook refresh tersedia di kedua jalur setFieldValue", () => {
@@ -374,7 +429,7 @@ test("CSS mode HP: tap target >= 44px, toolbar bertumpuk, breakpoint 768/480/360
 });
 
 test("cache-bust aset yang diubah diperbarui dan pin modul identik", () => {
-    const TAG = "preset-accordion-20261103";
+    const TAG = "preset-accordion-20261103-nodelist-fix-20261103";
     const html = read("generate/index.html");
     assert.match(html, new RegExp(`generate-premium\\.css\\?v=music-preset-20261103-${TAG}`));
     assert.match(html, new RegExp(`generate-light\\.css\\?v=music-preset-20261103-${TAG}`));
