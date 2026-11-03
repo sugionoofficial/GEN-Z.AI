@@ -222,8 +222,11 @@
         @media(max-width:768px){.inline-model-dropdown{max-width:100%}.master-switch-card{flex-direction:column;align-items:stretch;padding:13px 14px;gap:12px}.master-switch-right{justify-content:space-between;width:100%}.master-status-pill{min-width:112px;padding:8px 13px;font-size:11px}.master-switch-controls{width:100%;justify-content:stretch}.master-mode-btn{flex:1 1 0;text-align:center;padding:6px 6px;font-size:10px}.card.studio-collapsible.is-expanded{grid-column:auto}.studio-collapse-trigger{padding:14px 14px;gap:11px}.card.studio-collapsible.is-expanded .studio-collapse-trigger{padding:15px 15px}.studio-collapse-icon{width:38px;height:38px;border-radius:11px}.studio-collapse-copy h3{font-size:14.5px}.studio-collapse-body{padding:15px 14px 17px}.studio-collapse-chip-label{display:none}}
 
 
-        .social-connections-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:12px;align-items:start}
+        /* Facebook memuat daftar Page + dua tombol per akun, jadi diberi 2 dari
+           4 kolom; YouTube & TikTok masing-masing 1 kolom. Semua tetap 1 baris. */
+        .social-connections-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:12px;align-items:start}
         .social-connection-card{border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(255,255,255,.02);display:grid;gap:10px;min-width:0}
+        .social-connection-card.is-facebook{grid-column:span 2}
         .social-connection-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
         .social-connection-head strong{font-size:14px}
         .social-account-item{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -232,6 +235,21 @@
         .status.ok{color:var(--green)}
         .status.warn{color:var(--amber)}
         .social-connection-card .notice{margin:0}.social-connection-card .status{margin:0}
+        /* Daftar Facebook Page: 2 kartu ringkas per baris, aksi pindah ke baris
+           bawah, teks dipotong rapi (tooltip tetap berisi teks lengkap), dan
+           tinggi daftar dibatasi + scroll agar blok tidak memanjang ke bawah. */
+        #page-connections{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;max-height:264px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3b4c68 transparent}
+        #page-connections::-webkit-scrollbar{width:6px}
+        #page-connections::-webkit-scrollbar-thumb{background:#3b4c68;border-radius:6px}
+        #page-connections .empty{grid-column:1/-1}
+        #page-connections .item{grid-template-columns:auto minmax(0,1fr);gap:7px 10px;padding:10px 11px;min-width:0;max-width:100%}
+        #page-connections .page-connection-info{min-width:0}
+        #page-connections .thumb.fb-logo{width:34px;height:34px;border-radius:50%}
+        #page-connections .thumb.fb-logo svg{width:100%;height:100%;display:block}
+        #page-connections .item-title{margin:0 0 2px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        #page-connections .item-meta{font-size:10px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+        #page-connections .item-actions{grid-column:1/-1;display:flex;justify-content:flex-end;flex-wrap:nowrap;gap:6px}
+        #page-connections .item-actions .btn{min-height:30px;padding:5px 9px;font-size:10.5px;white-space:nowrap}
         .dest-picker{position:relative}
         .dest-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid #35445a;border-radius:10px;background:#101c2c;color:#f4f8ff;font:inherit;font-weight:650;cursor:pointer;text-align:left}
         .dest-toggle .dest-caret{flex:0 0 auto;transition:transform .15s}
@@ -244,9 +262,10 @@
         .dest-option input{accent-color:#3f6fff;width:18px;height:18px;flex:0 0 auto}
         .dest-done{margin-top:10px;width:100%}
         @media(max-width:768px){.dest-panel{max-height:56vh}}
-        @media(max-width:960px){.social-connections-grid{grid-template-columns:1fr}}
+        @media(max-width:960px){.social-connections-grid{grid-template-columns:1fr}.social-connection-card.is-facebook{grid-column:auto}}
         #usage-tutorial{margin-top:14px}#connect-help .actions{margin-top:10px}
         @media(max-width:768px){#social-connections{padding:16px}.social-connection-card{padding:12px}.social-connection-card .actions .btn{flex:1 1 auto}}
+        @media(max-width:768px){#page-connections{grid-template-columns:1fr}#page-connections .item-actions .btn{min-height:36px;flex:1 1 auto}}
 
     </style>
     <link rel="stylesheet" href="./assets/css/social-publisher-light.css?v=light-theme-20261026f">
@@ -413,7 +432,7 @@
             </div>
             <div id="social-connections-message" class="notice" role="status" hidden></div>
             <div class="social-connections-grid">
-                <div class="social-connection-card">
+                <div class="social-connection-card is-facebook">
                     <div class="social-connection-head"><strong>Facebook Page</strong><span class="help">Meta OAuth</span></div>
                     <div id="page-connections" class="list"><div class="empty">Memuat koneksi…</div></div>
                     <div class="actions">
@@ -1108,7 +1127,7 @@
     <script src="../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=livechat-nav-20261101"></script>
     <script src="./assets/js/inline-confirm.js?v=inline-confirm-20261026"></script>
-    <script type="module" src="./social-publisher.js?v=dropdown-quotebg-20261103"></script>
+    <script type="module" src="./social-publisher.js?v=fb-connections-compact-20261103"></script>
     <script src="./social-video-connections.js?v=inline-confirm-20261103"></script>
     <script src="./social-video-composer.js?v=svp-composer-20261103"></script>
     <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>

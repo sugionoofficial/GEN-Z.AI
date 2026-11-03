@@ -76,9 +76,12 @@ test("tutorial penuh di bawah deretan kartu koneksi, tertutup secara default", (
 test("tampilan HP: kartu koneksi menumpuk 1 kolom dan tombol nyaman disentuh", () => {
     assert.match(
         html,
-        /\.social-connections-grid\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/,
-        "desktop: tiga kartu sejajar"
+        /\.social-connections-grid\{display:grid;grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/,
+        "desktop: 4 kolom, Facebook menempati 2 kolom"
     );
+    assert.match(html, /\.social-connection-card\.is-facebook\{grid-column:span 2\}/);
+    assert.match(html, /class="social-connection-card is-facebook"/);
+    assert.match(html, /@media\(max-width:960px\)\{\.social-connections-grid\{grid-template-columns:1fr\}\.social-connection-card\.is-facebook\{grid-column:auto\}\}/);
     assert.match(
         html,
         /@media\(max-width:960px\)\{\n?\s*\.social-connections-grid\{grid-template-columns:1fr\}/,
@@ -96,5 +99,35 @@ test("tombol Muat ulang blok koneksi menyegarkan Facebook juga", () => {
         /\$\("refresh-social-connections"\)\?\.addEventListener\("click"[^}]*loadDashboard/,
         "listener social-publisher.js wajib memuat ulang dashboard (Facebook)"
     );
-    assert.match(html, /social-publisher\.js\?v=dropdown-quotebg-20261103/, "pin publisher wajib dimutakhirkan");
+    assert.match(html, /social-publisher\.js\?v=fb-connections-compact-20261103/, "pin publisher wajib dimutakhirkan");
+});
+
+test("daftar Facebook Page ringkas: 2 kartu per baris, aksi di baris bawah, tinggi dibatasi", () => {
+    /* Regresi: sebelumnya tiap akun memaksa 3 kolom (logo + teks + 2 tombol)
+       di kartu selebar 1/3 blok, sehingga ID/nama pecah per huruf dan kartu
+       Facebook memanjang jauh ke bawah melewati kartu YouTube/TikTok. */
+    assert.match(
+        html,
+        /#page-connections\{display:grid;grid-template-columns:repeat\(auto-fit,minmax\(190px,1fr\)\)/,
+        "akun Facebook tersusun 2 kolom ringkas, menyesuaikan lebar kartu"
+    );
+    assert.match(html, /#page-connections\{[^}]*max-height:264px/, "tinggi daftar dibatasi");
+    assert.match(html, /#page-connections\{[^}]*overflow-y:auto/, "akun berlebih bisa digulir");
+    assert.match(
+        html,
+        /#page-connections \.item\{grid-template-columns:auto minmax\(0,1fr\)/,
+        "identitas akun memakai seluruh lebar tersisa"
+    );
+    assert.match(html, /#page-connections \.item-actions\{grid-column:1\/-1/, "dua tombol pindah ke baris bawah");
+    assert.match(html, /#page-connections \.item-title\{[^}]*text-overflow:ellipsis/, "nama tidak pecah per huruf");
+    assert.match(html, /#page-connections \.item-meta\{[^}]*-webkit-line-clamp:3/, "metadata tidak memanjang tanpa batas");
+    assert.match(html, /#page-connections \.thumb\.fb-logo svg\{width:100%/, "logo mengikuti ukuran thumbnail");
+    assert.match(html, /#page-connections \.empty\{grid-column:1\/-1/, "status kosong tetap selebar kartu");
+    assert.match(html, /@media\(max-width:768px\)\{#page-connections\{grid-template-columns:1fr\}/, "HP: satu akun per baris");
+});
+
+test("nama & metadata akun Facebook tetap bisa dibaca lewat tooltip", () => {
+    assert.match(publisherSource, /content\.className = "page-connection-info"/);
+    assert.match(publisherSource, /title\.setAttribute\("title", title\.textContent\)/);
+    assert.match(publisherSource, /detail\.setAttribute\("title", detail\.textContent\)/);
 });

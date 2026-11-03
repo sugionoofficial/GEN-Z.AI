@@ -739,15 +739,20 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             icon.style.placeItems = "center";
             icon.innerHTML = FB_LOGO_SVG;
             const content = document.createElement("div");
+            /* Kartu Page kini ringkas (2 kolom). Nama/ID dipotong rapi dengan
+               ellipsis, jadi teks lengkapnya tetap tersedia lewat tooltip. */
+            content.className = "page-connection-info";
             const title = document.createElement("p");
             title.className = "item-title";
             title.textContent = page.page_name || "Facebook Page";
+            title.setAttribute("title", title.textContent);
             const detail = document.createElement("div");
             detail.className = "item-meta";
             const checked = page.token_checked_at ? ` · diperiksa ${formatDate(page.token_checked_at)}` : "";
             detail.textContent = page.can_publish
                 ? `ID ${page.page_id} · izin posting siap${checked}`
                 : `ID ${page.page_id} · izin CREATE_CONTENT belum terdeteksi${checked}`;
+            detail.setAttribute("title", detail.textContent);
             content.append(title, detail);
             const actions = document.createElement("div");
             actions.className = "item-actions";
