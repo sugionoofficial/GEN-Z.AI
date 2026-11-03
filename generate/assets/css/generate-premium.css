@@ -4060,3 +4060,167 @@ textarea,
     font-size: 11px;
     line-height: 1.5;
 }
+
+/* =========================================================
+   CHECKBOX GROUP — PILIHAN SISTEM DESKRIPSI MUSIK
+   Dipakai oleh parameter bertype `checkbox_group`
+   (Deskripsi Musik / Lagu AI, model opus-audio-music).
+========================================================= */
+
+#dynamicFields .generate-checkbox-group {
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(183,255,0,0.14);
+    border-radius: 12px;
+    background: rgba(183,255,0,0.02);
+    box-sizing: border-box;
+}
+
+#dynamicFields .generate-checkbox-group__toolbar {
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#dynamicFields .generate-checkbox-group__count {
+
+    color: rgba(247,250,239,0.62);
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+}
+
+#dynamicFields .generate-checkbox-group__reset {
+
+    padding: 6px 11px;
+    border: 1px solid rgba(183,255,0,0.32);
+    border-radius: 8px;
+    background: rgba(183,255,0,0.08);
+    color: #d9ff55;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+#dynamicFields .generate-checkbox-group__reset:hover {
+
+    background: rgba(183,255,0,0.16);
+}
+
+#dynamicFields .generate-checkbox-group__group {
+
+    margin: 0;
+    padding: 10px 0 0;
+    border: 0;
+    border-top: 1px solid rgba(183,255,0,0.10);
+    min-width: 0;
+}
+
+#dynamicFields .generate-checkbox-group__group:first-of-type {
+
+    border-top: 0;
+    padding-top: 0;
+}
+
+#dynamicFields .generate-checkbox-group__legend {
+
+    padding: 0 0 7px;
+    color: rgba(247,250,239,0.82);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+#dynamicFields .generate-checkbox-group__options {
+
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 6px;
+}
+
+#dynamicFields .generate-checkbox-option {
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 7px 9px;
+    border: 1px solid rgba(183,255,0,0.12);
+    border-radius: 9px;
+    background: rgba(255,255,255,0.015);
+    color: rgba(247,250,239,0.74);
+    font-size: 11px;
+    font-weight: 620;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+#dynamicFields .generate-checkbox-option:hover {
+
+    border-color: rgba(183,255,0,0.30);
+}
+
+#dynamicFields .generate-checkbox-option:has(input:checked) {
+
+    border-color: rgba(183,255,0,0.48);
+    background: rgba(183,255,0,0.10);
+    color: #eaffb0;
+}
+
+#dynamicFields .generate-checkbox-option input[type="checkbox"] {
+
+    flex: 0 0 auto;
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: var(--gz-lime);
+}
+
+#dynamicFields .generate-checkbox-option span {
+
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+#dynamicFields .generate-checkbox-group__note-wrap {
+
+    display: flex;
+    flex-direction: column;
+}
+
+#dynamicFields .generate-checkbox-group__note {
+
+    width: 100%;
+    min-height: 46px;
+    padding: 9px 11px;
+    border: 1px solid rgba(183,255,0,0.16);
+    border-radius: 9px;
+    background: rgba(0,0,0,0.18);
+    color: rgba(247,250,239,0.86);
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+#dynamicFields .generate-checkbox-group__note::placeholder {
+
+    color: rgba(247,250,239,0.38);
+}
+
+@media (max-width: 640px) {
+
+    #dynamicFields .generate-checkbox-group__options {
+
+        grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    }
+}

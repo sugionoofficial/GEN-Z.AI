@@ -214,10 +214,12 @@ test("api/generate memetakan error ke pesan & code LYRIA_PROMPT_REFUSED khusus m
 
 test("UI generate dan deskripsi field memperingatkan batasan filter konten Lyria", () => {
     const html = read("generate/index.html");
-    assert.match(html, /hindari nama artis atau judul lagu berhak cipta/i);
+    /* Deskripsi Musik kini berupa pilihan sistem centang, bukan textarea bebas. */
+    assert.match(html, /Deskripsi cukup dipilih dengan centang/i);
+    assert.match(html, /plus lirik orisinal/i);
 
     const factory = read("models/opus-audio/factory.js");
-    assert.match(factory, /Filter konten Google Lyria 3\.5 menolak prompt/);
+    assert.match(factory, /Semua pilihan aman dari filter konten Lyria 3\.5/);
     assert.match(factory, /tulis lirik ORISINAL/i);
 });
 

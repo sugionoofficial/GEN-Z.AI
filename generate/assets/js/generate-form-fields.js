@@ -927,6 +927,481 @@ export function createBooleanField(
 
 
 /* =========================================================
+   CHECKBOX GROUP FIELD (PILIHAN SISTEM)
+   ---------------------------------------------------------
+   Dipakai oleh parameter bertype `checkbox_group`, mis.
+   "Deskripsi Musik / Lagu AI" pada model opus-audio-music.
+
+   - `definition.groups`: [{ id, label, options: [{value,label,text}] }]
+   - `definition.default`: array value yang tercentang awal
+   - `definition.allowNote`: sediakan catatan tambahan opsional
+   - Nilai akhir dibaca oleh generate-form-reader.js yang menyusun
+     deskripsi musikal aman lewat composeMusicDescription().
+========================================================= */
+
+export function createCheckboxGroupField(
+    definition = {},
+    name = ""
+) {
+
+    const wrapper =
+        document.createElement(
+            "div"
+        );
+
+
+    wrapper.className =
+        "generate-checkbox-group";
+
+
+    wrapper.dataset.parameter =
+        name;
+
+
+    /* Samakan dengan createFieldId() agar label field tetap terasosiasi. */
+    wrapper.id =
+        "generate-field-" +
+        String(
+            name
+        ).replace(
+            /[^a-zA-Z0-9_-]/g,
+            "-"
+        );
+
+
+    const rawDefault =
+        resolveFieldDefault(
+            definition
+        );
+
+
+    const defaults =
+        new Set(
+            (
+                Array.isArray(
+                    rawDefault
+                )
+                    ? rawDefault
+                    : []
+            )
+                .map(
+                    item =>
+                        String(
+                            item ??
+                                ""
+                        ).trim()
+                )
+                .filter(
+                    Boolean
+                )
+        );
+
+
+    let countLabel = null;
+
+
+    const updateCount = () => {
+
+        const total =
+            wrapper.querySelectorAll(
+                'input[type="checkbox"][data-preset-value]:checked'
+            ).length;
+
+
+        if (
+            countLabel
+        ) {
+
+            countLabel.textContent =
+                total +
+                " pilihan aktif";
+
+        }
+
+    };
+
+
+    /* -----------------------------------------------------
+       TOOLBAR
+    ----------------------------------------------------- */
+
+    const toolbar =
+        document.createElement(
+            "div"
+        );
+
+
+    toolbar.className =
+        "generate-checkbox-group__toolbar";
+
+
+    countLabel =
+        document.createElement(
+            "span"
+        );
+
+
+    countLabel.className =
+        "generate-checkbox-group__count";
+
+
+    toolbar.appendChild(
+        countLabel
+    );
+
+
+    const resetButton =
+        document.createElement(
+            "button"
+        );
+
+
+    resetButton.type =
+        "button";
+
+
+    resetButton.className =
+        "generate-checkbox-group__reset";
+
+
+    resetButton.textContent =
+        "Pakai rekomendasi sistem";
+
+
+    resetButton.addEventListener(
+        "click",
+        () => {
+
+            wrapper
+                .querySelectorAll(
+                    'input[type="checkbox"][data-preset-value]'
+                )
+                .forEach(
+                    input => {
+
+                        input.checked =
+                            defaults.has(
+                                String(
+                                    input.dataset.presetValue ||
+                                        ""
+                                )
+                            );
+
+                    }
+                );
+
+
+            const noteInput =
+                wrapper.querySelector(
+                    ".generate-checkbox-group__note"
+                );
+
+
+            if (
+                noteInput
+            ) {
+
+                noteInput.value =
+                    "";
+
+            }
+
+
+            updateCount();
+
+        }
+    );
+
+
+    toolbar.appendChild(
+        resetButton
+    );
+
+
+    wrapper.appendChild(
+        toolbar
+    );
+
+
+    /* -----------------------------------------------------
+       GROUPS
+    ----------------------------------------------------- */
+
+    const groups =
+        Array.isArray(
+            definition.groups
+        )
+            ? definition.groups
+            : [];
+
+
+    groups.forEach(
+        group => {
+
+            const options =
+                Array.isArray(
+                    group?.options
+                )
+                    ? group.options
+                    : [];
+
+
+            if (
+                options.length ===
+                0
+            ) {
+
+                return;
+
+            }
+
+
+            const section =
+                document.createElement(
+                    "fieldset"
+                );
+
+
+            section.className =
+                "generate-checkbox-group__group";
+
+
+            const legend =
+                document.createElement(
+                    "legend"
+                );
+
+
+            legend.className =
+                "generate-checkbox-group__legend";
+
+
+            legend.textContent =
+                String(
+                    group?.label ||
+                        ""
+                ).trim() ||
+                "Pilihan";
+
+
+            section.appendChild(
+                legend
+            );
+
+
+            const grid =
+                document.createElement(
+                    "div"
+                );
+
+
+            grid.className =
+                "generate-checkbox-group__options";
+
+
+            options.forEach(
+                option => {
+
+                    const value =
+                        String(
+                            option?.value ??
+                                ""
+                        ).trim();
+
+
+                    const text =
+                        String(
+                            option?.text ??
+                                ""
+                        ).trim();
+
+
+                    if (
+                        !value ||
+                        !text
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    const label =
+                        document.createElement(
+                            "label"
+                        );
+
+
+                    label.className =
+                        "generate-checkbox-option";
+
+
+                    const input =
+                        document.createElement(
+                            "input"
+                        );
+
+
+                    input.type =
+                        "checkbox";
+
+
+                    input.value =
+                        value;
+
+
+                    input.dataset.parameter =
+                        name;
+
+
+                    input.dataset.presetValue =
+                        value;
+
+
+                    input.dataset.presetText =
+                        text;
+
+
+                    input.checked =
+                        defaults.has(
+                            value
+                        );
+
+
+                    const caption =
+                        document.createElement(
+                            "span"
+                        );
+
+
+                    caption.textContent =
+                        String(
+                            option?.label ??
+                                value
+                        );
+
+
+                    label.appendChild(
+                        input
+                    );
+
+
+                    label.appendChild(
+                        caption
+                    );
+
+
+                    grid.appendChild(
+                        label
+                    );
+
+                }
+            );
+
+
+            section.appendChild(
+                grid
+            );
+
+
+            wrapper.appendChild(
+                section
+            );
+
+        }
+    );
+
+
+    /* -----------------------------------------------------
+       CATATAN TAMBAHAN (OPSIONAL)
+    ----------------------------------------------------- */
+
+    if (
+        definition.allowNote ===
+        true
+    ) {
+
+        const noteWrap =
+            document.createElement(
+                "div"
+            );
+
+
+        noteWrap.className =
+            "generate-checkbox-group__note-wrap";
+
+
+        const note =
+            document.createElement(
+                "textarea"
+            );
+
+
+        note.className =
+            "generate-checkbox-group__note";
+
+
+        note.dataset.parameter =
+            name;
+
+
+        note.rows =
+            2;
+
+
+        note.placeholder =
+            String(
+                definition.notePlaceholder ||
+                    ""
+            );
+
+
+        const noteMax =
+            Number(
+                definition.noteMaxLength
+            );
+
+
+        if (
+            Number.isFinite(
+                noteMax
+            ) &&
+            noteMax > 0
+        ) {
+
+            note.maxLength =
+                noteMax;
+
+        }
+
+
+        noteWrap.appendChild(
+            note
+        );
+
+
+        wrapper.appendChild(
+            noteWrap
+        );
+
+    }
+
+
+    wrapper.addEventListener(
+        "change",
+        updateCount
+    );
+
+
+    updateCount();
+
+
+    return wrapper;
+
+}
+
+
+/* =========================================================
    SELECT OPTION NORMALIZER
 ========================================================= */
 
@@ -1584,6 +2059,27 @@ export function createFieldInput(
 
 
     /* =====================================================
+       CHECKBOX GROUP (PILIHAN SISTEM)
+    ===================================================== */
+
+    if (
+        type ===
+            "checkbox_group" &&
+        Array.isArray(
+            definition?.groups
+        ) &&
+        definition.groups.length > 0
+    ) {
+
+        return createCheckboxGroupField(
+            definition,
+            name
+        );
+
+    }
+
+
+    /* =====================================================
        ENUM
     ===================================================== */
 
@@ -1744,6 +2240,8 @@ export default Object.freeze({
     createDurationField,
 
     createBooleanField,
+
+    createCheckboxGroupField,
 
     createSelectField,
 

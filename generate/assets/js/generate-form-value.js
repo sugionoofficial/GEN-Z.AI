@@ -305,6 +305,102 @@ export function setFieldValue(
 
 
     /* =====================================================
+       CHECKBOX GROUP (PILIHAN SISTEM)
+    ===================================================== */
+
+    const presetGroup =
+        field.querySelector(
+            ".generate-checkbox-group"
+        );
+
+
+    if (
+        presetGroup
+    ) {
+
+        const wantedValues =
+            new Set(
+                Array.isArray(
+                    value
+                )
+                    ? value.map(
+                        item =>
+                            String(
+                                item ??
+                                    ""
+                            ).trim()
+                    )
+                    : []
+            );
+
+
+        const composedText =
+            typeof value ===
+                "string"
+                ? value
+                : "";
+
+
+        presetGroup
+            .querySelectorAll(
+                'input[type="checkbox"][data-preset-value]'
+            )
+            .forEach(
+                input => {
+
+                    const presetValue =
+                        String(
+                            input.dataset.presetValue ||
+                                ""
+                        );
+
+
+                    const presetText =
+                        String(
+                            input.dataset.presetText ||
+                                ""
+                        );
+
+
+                    input.checked =
+                        wantedValues.has(
+                            presetValue
+                        ) ||
+                        (
+                            Boolean(
+                                presetText
+                            ) &&
+                            composedText.includes(
+                                presetText
+                            )
+                        );
+
+                }
+            );
+
+
+        const noteInput =
+            presetGroup.querySelector(
+                ".generate-checkbox-group__note"
+            );
+
+
+        if (
+            noteInput
+        ) {
+
+            noteInput.value =
+                "";
+
+        }
+
+
+        return true;
+
+    }
+
+
+    /* =====================================================
        CHECKBOX
     ===================================================== */
 
