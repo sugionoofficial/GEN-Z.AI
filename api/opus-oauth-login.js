@@ -4,10 +4,13 @@
 // OPUS OAUTH LOGIN (BROWSER SAJA — TANPA TERMUX)
 // File: api/opus-oauth-login.js
 // ----------------------------------------
-// GET /api/opus-oauth-login            -> halaman pembuka (1 tombol)
+// GET /api/opus-oauth-login            -> halaman pembuka: tombol login +
+//                                         pemilih slot dengan tombol +/-,
+//                                         jadi admin tidak perlu edit URL
 // GET /api/opus-oauth-login?start=1    -> daftarkan client PKCE lalu
 //                                         redirect ke halaman login Opus
-// Query opsional: &slot=1|2|3 (default 1)
+// Query opsional: &slot=1..9 (default 1), &count=1..9 (jumlah slot
+//                 yang ditampilkan; dikelola JavaScript halaman pembuka)
 // ========================================
 
 import {
