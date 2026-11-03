@@ -51,17 +51,30 @@ const MAX_IMAGE_SIZE =
 
 
 /* =========================================================
-   ENVIRONMENT
+   ENVIRONMENT & SECURITY
 ========================================================= */
 
-function getSightengineConfig() {
+function getSightengineConfig(req) {
+
+    const env =
+        req?.env ||
+        process.env ||
+        {};
 
     const apiUser =
-        process.env.SIGHTENGINE_API_USER;
+        String(
+            env.SIGHTENGINE_API_USER ||
+            process.env.SIGHTENGINE_API_USER ||
+            ""
+        ).trim();
 
 
     const apiSecret =
-        process.env.SIGHTENGINE_API_SECRET;
+        String(
+            env.SIGHTENGINE_API_SECRET ||
+            process.env.SIGHTENGINE_API_SECRET ||
+            ""
+        ).trim();
 
 
     if (
@@ -69,9 +82,15 @@ function getSightengineConfig() {
         !apiSecret
     ) {
 
-        throw new Error(
-            "Sightengine credentials are not configured."
-        );
+        const error =
+            new Error(
+                "Sightengine credentials are not configured."
+            );
+
+        error.status = 500;
+        error.code = "SIGHTENGINE_CREDENTIALS_MISSING";
+
+        throw error;
 
     }
 
@@ -83,6 +102,269 @@ function getSightengineConfig() {
         apiSecret
 
     };
+
+}
+
+
+function getSupabaseConfig(req) {
+
+    const env =
+        req?.env ||
+        process.env ||
+        {};
+
+    const url =
+        String(
+            env.SUPABASE_URL ||
+            process.env.SUPABASE_URL ||
+            ""
+        ).trim().replace(/\/+$/, "");
+
+    const serviceRoleKey =
+        String(
+            env.SUPABASE_SERVICE_ROLE_KEY ||
+            process.env.SUPABASE_SERVICE_ROLE_KEY ||
+            ""
+        ).trim();
+
+    const anonKey =
+        String(
+            env.SUPABASE_ANON_KEY ||
+            env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+            env.SUPABASE_KEY ||
+            process.env.SUPABASE_ANON_KEY ||
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+            process.env.SUPABASE_KEY ||
+            serviceRoleKey
+        ).trim();
+
+    return {
+
+        url,
+
+        serviceRoleKey,
+
+        anonKey
+
+    };
+
+}
+
+
+/* =========================================================
+   USER AUTHENTICATION
+========================================================= */
+
+async function authenticateUser(req) {
+
+    const authHeader =
+        String(
+            req?.headers?.authorization ||
+            req?.headers?.Authorization ||
+            ""
+        ).trim();
+
+    if (
+        !authHeader
+    ) {
+
+        const error =
+            new Error(
+                "Sesi login diperlukan untuk menggunakan deteksi AI Sightengine."
+            );
+
+        error.status = 401;
+        error.code = "AUTHORIZATION_REQUIRED";
+
+        throw error;
+
+    }
+
+    const match =
+        authHeader.match(
+            /^Bearer\s+(.+)$/i
+        );
+
+    if (
+        !match ||
+        !match[1].trim()
+    ) {
+
+        const error =
+            new Error(
+                "Format token otentikasi tidak valid."
+            );
+
+        error.status = 401;
+        error.code = "INVALID_AUTHORIZATION";
+
+        throw error;
+
+    }
+
+    const token =
+        match[1].trim();
+
+    const config =
+        getSupabaseConfig(
+            req
+        );
+
+    if (
+        !config.url ||
+        (
+            !config.anonKey &&
+            !config.serviceRoleKey
+        )
+    ) {
+
+        const error =
+            new Error(
+                "Konfigurasi otentikasi Supabase server belum lengkap."
+            );
+
+        error.status = 500;
+        error.code = "AUTH_CONFIG_MISSING";
+
+        throw error;
+
+    }
+
+    const fetchImpl =
+        req?.fetchImpl ||
+        globalThis.fetch;
+
+    const response =
+        await fetchImpl(
+            `${config.url}/auth/v1/user`,
+            {
+                method: "GET",
+                headers: {
+                    apikey:
+                        config.anonKey ||
+                        config.serviceRoleKey,
+                    Authorization:
+                        `Bearer ${token}`
+                }
+            }
+        );
+
+    if (
+        !response.ok
+    ) {
+
+        const error =
+            new Error(
+                "Sesi login kedaluwarsa atau tidak valid. Silakan login kembali."
+            );
+
+        error.status = 401;
+        error.code = "INVALID_SESSION";
+
+        throw error;
+
+    }
+
+    const user =
+        await response.json().catch(() => null);
+
+    if (
+        !user ||
+        !user.id
+    ) {
+
+        const error =
+            new Error(
+                "User Supabase tidak ditemukan."
+            );
+
+        error.status = 401;
+        error.code = "USER_NOT_FOUND";
+
+        throw error;
+
+    }
+
+    return user;
+
+}
+
+
+/* =========================================================
+   RATE LIMITING (PER USER / IP)
+========================================================= */
+
+const SIGHTENGINE_RATE_WINDOW_MS =
+    60_000;
+
+const SIGHTENGINE_MAX_REQUESTS =
+    15;
+
+const rateLimitBuckets =
+    new Map();
+
+export function resetSightengineRateLimitsForTests() {
+
+    rateLimitBuckets.clear();
+
+}
+
+function checkSightengineRateLimit(key) {
+
+    const now =
+        Date.now();
+
+    if (
+        rateLimitBuckets.size > 2000
+    ) {
+
+        for (
+            const [k, entry] of rateLimitBuckets
+        ) {
+
+            if (
+                now - entry.startedAt >= SIGHTENGINE_RATE_WINDOW_MS
+            ) {
+
+                rateLimitBuckets.delete(k);
+
+            }
+
+        }
+
+    }
+
+    const entry =
+        rateLimitBuckets.get(key);
+
+    if (
+        !entry ||
+        now - entry.startedAt >= SIGHTENGINE_RATE_WINDOW_MS
+    ) {
+
+        rateLimitBuckets.set(
+            key,
+            {
+                startedAt: now,
+                count: 1
+            }
+        );
+
+        return true;
+
+    }
+
+    if (
+        entry.count >= SIGHTENGINE_MAX_REQUESTS
+    ) {
+
+        return false;
+
+    }
+
+    entry.count += 1;
+
+    return true;
 
 }
 
@@ -885,11 +1167,12 @@ function normalizeDetectionResponse(
 ========================================================= */
 
 async function requestSightengine(
-    imageData
+    imageData,
+    req
 ) {
 
     const config =
-        getSightengineConfig();
+        getSightengineConfig(req);
 
 
     const parsed =
@@ -1040,8 +1323,12 @@ async function requestSightengine(
        REQUEST
     ===================================================== */
 
+    const fetchImpl =
+        req?.fetchImpl ||
+        globalThis.fetch;
+
     const response =
-        await fetch(
+        await fetchImpl(
             SIGHTENGINE_ENDPOINT,
             {
                 method:
@@ -1151,6 +1438,52 @@ export default async function handler(
     try {
 
         /* =================================================
+           AUTHENTICATION & RATE LIMITING
+        ================================================= */
+
+        const user =
+            await authenticateUser(
+                req
+            );
+
+        const clientIp =
+            String(
+                req?.headers?.["cf-connecting-ip"] ||
+                req?.headers?.["x-forwarded-for"] ||
+                req?.headers?.["x-real-ip"] ||
+                user.id ||
+                "unknown"
+            ).split(",")[0].trim();
+
+        const rateKey =
+            `se:${user.id}:${clientIp}`;
+
+        if (
+            !checkSightengineRateLimit(
+                rateKey
+            )
+        ) {
+
+            sendJson(
+                res,
+                429,
+                {
+                    success:
+                        false,
+
+                    error:
+                        "Terlalu banyak permintaan deteksi AI. Silakan tunggu 1 menit lalu coba lagi.",
+
+                    code:
+                        "RATE_LIMITED"
+                }
+            );
+
+            return;
+
+        }
+
+        /* =================================================
            IMAGE
         ================================================= */
 
@@ -1166,7 +1499,8 @@ export default async function handler(
 
         const sightengineResponse =
             await requestSightengine(
-                imageData
+                imageData,
+                req
             );
 
 
@@ -1233,10 +1567,22 @@ export default async function handler(
             error
         );
 
+        const statusCode =
+            Number(
+                error?.status
+            ) ||
+            (
+                error?.message?.includes("Image data is required") ||
+                error?.message?.includes("Invalid image data") ||
+                error?.message?.includes("Unsupported image type") ||
+                error?.message?.includes("exceeds the 15 MB")
+                    ? 400
+                    : 500
+            );
 
         sendJson(
             res,
-            500,
+            statusCode,
             {
 
                 success:
@@ -1245,7 +1591,11 @@ export default async function handler(
 
                 error:
                     error?.message ||
-                    "Sightengine detection failed."
+                    "Sightengine detection failed.",
+
+                code:
+                    error?.code ||
+                    "SIGHTENGINE_ERROR"
 
             }
         );
