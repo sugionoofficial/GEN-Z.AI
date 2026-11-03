@@ -58,7 +58,7 @@ import {
 import {
     renderParameter,
     forceContainerVisible
-} from "./generate-form-render.js";
+} from "./generate-form-render.js?v=preset-accordion-20261103";
 
 
 /* =========================================================
@@ -83,7 +83,7 @@ import {
     registerImageFieldFactory,
     registerAudioFieldFactory,
     registerVideoFieldFactory
-} from "./generate-form-fields.js";
+} from "./generate-form-fields.js?v=preset-accordion-20261103";
 
 
 /* =========================================================
@@ -889,6 +889,17 @@ export function setFieldValue(
 
             noteInput.value =
                 "";
+
+        }
+
+
+        /* Perubahan programatik tidak memicu "change". */
+        if (
+            typeof presetGroup.refreshPresetSummary ===
+            "function"
+        ) {
+
+            presetGroup.refreshPresetSummary();
 
         }
 

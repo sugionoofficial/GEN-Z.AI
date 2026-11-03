@@ -997,15 +997,29 @@ export function createCheckboxGroupField(
         );
 
 
+    /* -----------------------------------------------------
+       RINGKASAN PILIHAN
+       -----------------------------------------------------
+       Semua blok kategori tertutup saat awal, jadi badge per
+       kategori dipakai agar pilihan yang sudah aktif tetap
+       terlihat tanpa harus membuka bloknya.
+    ----------------------------------------------------- */
+
     let countLabel = null;
+    const groupRefs = [];
 
 
-    const updateCount = () => {
+    const refresh = () => {
 
         const total =
-            wrapper.querySelectorAll(
-                'input[type="checkbox"][data-preset-value]:checked'
-            ).length;
+            wrapper
+                .querySelectorAll(
+                    'input[type="checkbox"][data-preset-value]'
+                )
+                .filter(
+                    input =>
+                        input.checked
+                ).length;
 
 
         if (
@@ -1017,6 +1031,44 @@ export function createCheckboxGroupField(
                 " pilihan aktif";
 
         }
+
+
+        groupRefs.forEach(
+            ref => {
+
+                const selected =
+                    ref.inputs
+                        .filter(
+                            input =>
+                                input.checked
+                        ).length;
+
+
+                ref.badge.textContent =
+                    selected > 0
+                        ? (
+                            selected +
+                            " dipilih"
+                        )
+                        : (
+                            ref.total +
+                            " opsi"
+                        );
+
+
+                ref.badge.dataset.active =
+                    selected > 0
+                        ? "true"
+                        : "false";
+
+
+                ref.section.dataset.selected =
+                    selected > 0
+                        ? "true"
+                        : "false";
+
+            }
+        );
 
     };
 
@@ -1035,6 +1087,16 @@ export function createCheckboxGroupField(
         "generate-checkbox-group__toolbar";
 
 
+    const toolbarInfo =
+        document.createElement(
+            "div"
+        );
+
+
+    toolbarInfo.className =
+        "generate-checkbox-group__toolbar-info";
+
+
     countLabel =
         document.createElement(
             "span"
@@ -1045,8 +1107,35 @@ export function createCheckboxGroupField(
         "generate-checkbox-group__count";
 
 
-    toolbar.appendChild(
+    toolbarInfo.appendChild(
         countLabel
+    );
+
+
+    const hint =
+        document.createElement(
+            "span"
+        );
+
+
+    hint.className =
+        "generate-checkbox-group__hint";
+
+
+    hint.textContent =
+        String(
+            definition.accordionHint ||
+                "Ketuk kategori untuk membuka pilihan, ketuk lagi untuk menutup."
+        );
+
+
+    toolbarInfo.appendChild(
+        hint
+    );
+
+
+    toolbar.appendChild(
+        toolbarInfo
     );
 
 
@@ -1107,7 +1196,7 @@ export function createCheckboxGroupField(
             }
 
 
-            updateCount();
+            refresh();
 
         }
     );
@@ -1124,8 +1213,24 @@ export function createCheckboxGroupField(
 
 
     /* -----------------------------------------------------
-       GROUPS
+       BLOK KATEGORI (ACCORDION)
+       -----------------------------------------------------
+       <details>/<summary> dipakai supaya buka-tutup bekerja
+       native (klik judul = buka, klik lagi = mengecil lagi),
+       termasuk keyboard & screen reader, tanpa event JS
+       tambahan. Isi tetap ada di DOM sehingga pembacaan nilai
+       form tidak bergantung pada blok yang sedang terbuka.
     ----------------------------------------------------- */
+
+    const groupsWrap =
+        document.createElement(
+            "div"
+        );
+
+
+    groupsWrap.className =
+        "generate-checkbox-group__groups";
+
 
     const groups =
         Array.isArray(
@@ -1133,6 +1238,9 @@ export function createCheckboxGroupField(
         )
             ? definition.groups
             : [];
+
+
+    let groupIndex = 0;
 
 
     groups.forEach(
@@ -1156,9 +1264,12 @@ export function createCheckboxGroupField(
             }
 
 
+            groupIndex += 1;
+
+
             const section =
                 document.createElement(
-                    "fieldset"
+                    "details"
                 );
 
 
@@ -1166,17 +1277,65 @@ export function createCheckboxGroupField(
                 "generate-checkbox-group__group";
 
 
-            const legend =
-                document.createElement(
-                    "legend"
+            section.dataset.presetGroup =
+                String(
+                    group?.id ||
+                        ""
                 );
 
 
-            legend.className =
-                "generate-checkbox-group__legend";
+            /* Semua kategori mengecil saat pertama dirender. */
+            section.open =
+                false;
 
 
-            legend.textContent =
+            /* ---------- JUDUL BLOK (klik target) ---------- */
+
+            const summary =
+                document.createElement(
+                    "summary"
+                );
+
+
+            summary.className =
+                "generate-checkbox-group__summary";
+
+
+            const index =
+                document.createElement(
+                    "span"
+                );
+
+
+            index.className =
+                "generate-checkbox-group__index";
+
+
+            index.textContent =
+                String(
+                    groupIndex
+                ).padStart(
+                    2,
+                    "0"
+                );
+
+
+            summary.appendChild(
+                index
+            );
+
+
+            const title =
+                document.createElement(
+                    "span"
+                );
+
+
+            title.className =
+                "generate-checkbox-group__title";
+
+
+            title.textContent =
                 String(
                     group?.label ||
                         ""
@@ -1184,9 +1343,56 @@ export function createCheckboxGroupField(
                 "Pilihan";
 
 
-            section.appendChild(
-                legend
+            summary.appendChild(
+                title
             );
+
+
+            const badge =
+                document.createElement(
+                    "span"
+                );
+
+
+            badge.className =
+                "generate-checkbox-group__badge";
+
+
+            summary.appendChild(
+                badge
+            );
+
+
+            const chevron =
+                document.createElement(
+                    "span"
+                );
+
+
+            chevron.className =
+                "generate-checkbox-group__chevron";
+
+
+            summary.appendChild(
+                chevron
+            );
+
+
+            section.appendChild(
+                summary
+            );
+
+
+            /* ---------- ISI BLOK ---------- */
+
+            const body =
+                document.createElement(
+                    "div"
+                );
+
+
+            body.className =
+                "generate-checkbox-group__body";
 
 
             const grid =
@@ -1299,16 +1505,43 @@ export function createCheckboxGroupField(
             );
 
 
-            section.appendChild(
+            body.appendChild(
                 grid
             );
 
 
-            wrapper.appendChild(
+            section.appendChild(
+                body
+            );
+
+
+            groupsWrap.appendChild(
                 section
             );
 
+
+            const inputs =
+                grid.querySelectorAll(
+                    'input[type="checkbox"][data-preset-value]'
+                );
+
+
+            groupRefs.push(
+                {
+                    section,
+                    badge,
+                    inputs,
+                    total:
+                        inputs.length
+                }
+            );
+
         }
+    );
+
+
+    wrapper.appendChild(
+        groupsWrap
     );
 
 
@@ -1389,11 +1622,20 @@ export function createCheckboxGroupField(
 
     wrapper.addEventListener(
         "change",
-        updateCount
+        refresh
     );
 
 
-    updateCount();
+    /*
+     * setFieldValue() mengubah checkbox secara programatik (tidak
+     * memicu event "change"), jadi ringkasan perlu disegarkan lewat
+     * hook ini agar badge & total tidak basi saat form dipulihkan.
+     */
+    wrapper.refreshPresetSummary =
+        refresh;
+
+
+    refresh();
 
 
     return wrapper;
