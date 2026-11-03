@@ -57,6 +57,12 @@ import {
 } from "../lib/generate/staged-video-30s.js";
 
 
+import {
+    LYRIA_PROMPT_REFUSED_CODE,
+    LYRIA_PROMPT_REFUSED_MESSAGE,
+    isLyriaPromptRefusedError
+} from "../provider/opus/lyria-prompt-safety.js";
+
 import grokImagineImageToVideo
     from "../models/grok-imagine-image-to-video/index.js";
 
@@ -6432,12 +6438,22 @@ export default async function handler(
                 status: statusCode
             });
 
+        /* Google Lyria 3.5 menolak prompt lewat filter konten gateway.
+           Pesan mentah ("The prompt could not be processed...") tidak
+           memberi tahu pengguna apa yang harus diubah, maka dipetakan
+           ke panduan Indonesia yang actionable. */
+        const lyriaPromptRefused =
+            isLyriaPromptRefusedError(error) &&
+            String(modelConfig?.audioKind || "").trim().toLowerCase() === "music";
+
         const resolvedCreateErrorMessage = opusQueueBusy
             ? OPUS_QUEUE_WAIT_MESSAGE
-            : (
-                error?.message ||
-                "Failed to create generation task"
-            );
+            : lyriaPromptRefused
+                ? LYRIA_PROMPT_REFUSED_MESSAGE
+                : (
+                    error?.message ||
+                    "Failed to create generation task"
+                );
 
         /*
          * =================================================
@@ -6502,18 +6518,22 @@ export default async function handler(
                 code:
                     opusQueueBusy
                         ? OPUS_UPSTREAM_QUEUE_BUSY_CODE
-                        : (
-                            error?.code ||
-                            "KIE_CREATE_TASK_FAILED"
-                        ),
+                        : lyriaPromptRefused
+                            ? LYRIA_PROMPT_REFUSED_CODE
+                            : (
+                                error?.code ||
+                                "KIE_CREATE_TASK_FAILED"
+                            ),
 
                 error_code:
                     opusQueueBusy
                         ? OPUS_UPSTREAM_QUEUE_BUSY_CODE
-                        : (
-                            error?.code ||
-                            "KIE_CREATE_TASK_FAILED"
-                        ),
+                        : lyriaPromptRefused
+                            ? LYRIA_PROMPT_REFUSED_CODE
+                            : (
+                                error?.code ||
+                                "KIE_CREATE_TASK_FAILED"
+                            ),
 
                 provider:
                     providerCode,
@@ -6575,7 +6595,15 @@ export default async function handler(
                     suppressOpusBusyFailureHistory,
 
                 failure_history_recorded:
-                    shouldWriteFailureHistory
+                    shouldWriteFailureHistory,
+
+                ...(lyriaPromptRefused
+                    ? {
+                          lyria_prompt_refused: true,
+                          retried_with_cleaned_prompt: true,
+                          hint: "Ubah deskripsi/lirik: hindari nama artis, judul lagu, merek, tokoh, dan kata sensitif; gunakan deskripsi genre, instrumen, tempo, dan suasana."
+                      }
+                    : {})
 
             }
         );

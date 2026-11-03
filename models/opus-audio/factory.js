@@ -37,6 +37,12 @@ import {
     MAX_PODCAST_SCRIPT_CHARS,
     parsePodcastDialogScript
 } from "./podcast-dialog.js";
+import {
+    LYRIA_PROMPT_REFUSED_CODE,
+    LYRIA_SAFE_FALLBACK_PROMPT,
+    isLyriaPromptRefusedError,
+    sanitizeLyriaMusicText
+} from "../../provider/opus/lyria-prompt-safety.js";
 
 const PROVIDER_ID = "opus";
 const PROVIDER_NAME = "GEN-Z.AI";
@@ -174,7 +180,7 @@ function buildParametersForAudioKind(audioKind) {
                 placeholder:
                     "Contoh: Acoustic indie folk hangat dengan petikan gitar akustik, piano lembut, tempo 95 BPM, suasana pagi yang optimis...",
                 description:
-                    "Deskripsikan genre, suasana (mood), instrumen, tempo BPM, dan aransemen. Jangan menyebut nama artis atau judul lagu berhak cipta."
+                    "Deskripsikan genre, suasana (mood), instrumen, tempo BPM, dan aransemen. Filter konten Google Lyria 3.5 menolak prompt yang menyebut nama artis/figur publik, judul atau lirik lagu berhak cipta, merek, nama tokoh, atau kata sensitif — tulis sebagai deskripsi suara, bukan 'mirip/seperti <nama artis>'."
             },
             vocal_mode: {
                 type: "select",
@@ -202,7 +208,7 @@ function buildParametersForAudioKind(audioKind) {
                 placeholder:
                     "[Verse 1]\nMelangkah di bawah cahaya pagi\nMenjemput harapan yang baru\n\n[Chorus]\nKita terbang menembus batas mimpi\nBersinar terang di langit biru",
                 description:
-                    "Opsional: tulis lirik lagu (dengan tag [Verse] / [Chorus] atau baris biasa — sistem otomatis memformat struktur vokal Lyria 3.5 sesuai bahasa lirik Anda)."
+                    "Opsional: tulis lirik ORISINAL (dengan tag [Verse] / [Chorus] atau baris biasa — sistem otomatis memformat struktur vokal Lyria 3.5 sesuai bahasa lirik Anda). Jangan salin lirik lagu terkenal atau menyebut nama artis/tokoh, karena filter konten Lyria akan menolak prompt."
             }
         };
     }
@@ -580,7 +586,46 @@ export function createOpusAudioModel(spec) {
         }
 
         const payload = buildPayload(body);
-        const response = await createAudioTask(payload, apiKey, options);
+        let response;
+
+        try {
+            response = await createAudioTask(payload, apiKey, options);
+        } catch (error) {
+            /* Google Lyria 3.5 menolak prompt lewat filter konten sebelum
+               request mencapai provider (nothing was charged). Coba satu kali
+               lagi dengan deskripsi yang sudah dinetralisir dari referensi
+               artis/judul lagu/URL, tanpa mengubah niat kreatif pengguna. */
+            const canRetry = audioKind === "music"
+                && isLyriaPromptRefusedError(error)
+                && options?.lyriaSafetyRetryUsed !== true;
+
+            if (!canRetry) {
+                throw error;
+            }
+
+            const cleanPrompt = sanitizeLyriaMusicText(payload.prompt) || LYRIA_SAFE_FALLBACK_PROMPT;
+            const cleanLyrics = payload.lyrics
+                ? sanitizeLyriaMusicText(payload.lyrics, { stripArtistReferences: false })
+                : "";
+            const retryPayload = {
+                ...payload,
+                prompt: cleanPrompt,
+                ...(cleanLyrics ? { lyrics: cleanLyrics } : { lyrics: "" })
+            };
+
+            try {
+                response = await createAudioTask(retryPayload, apiKey, {
+                    ...options,
+                    lyriaSafetyRetryUsed: true
+                });
+            } catch (retryError) {
+                /* Pastikan classifier tetap konsisten walau pesan retry berbeda. */
+                if (isLyriaPromptRefusedError(retryError)) {
+                    retryError.code = LYRIA_PROMPT_REFUSED_CODE;
+                }
+                throw retryError;
+            }
+        }
 
         if (!response?.taskId) {
             const error = new Error("Opus Labs tidak mengembalikan taskId audio.");
