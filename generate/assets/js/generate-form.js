@@ -58,7 +58,7 @@ import {
 import {
     renderParameter,
     forceContainerVisible
-} from "./generate-form-render.js?v=preset-accordion-20261103";
+} from "./generate-form-render.js?v=preset-accordion-20261103-nodelist-fix-20261103";
 
 
 /* =========================================================
@@ -83,7 +83,7 @@ import {
     registerImageFieldFactory,
     registerAudioFieldFactory,
     registerVideoFieldFactory
-} from "./generate-form-fields.js?v=preset-accordion-20261103";
+} from "./generate-form-fields.js?v=preset-accordion-20261103-nodelist-fix-20261103";
 
 
 /* =========================================================

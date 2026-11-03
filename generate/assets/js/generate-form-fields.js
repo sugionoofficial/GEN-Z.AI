@@ -1011,11 +1011,14 @@ export function createCheckboxGroupField(
 
     const refresh = () => {
 
+        /* querySelectorAll() mengembalikan NodeList di browser
+           (tidak punya .filter), jadi wajib Array.from(). */
         const total =
-            wrapper
-                .querySelectorAll(
+            Array.from(
+                wrapper.querySelectorAll(
                     'input[type="checkbox"][data-preset-value]'
                 )
+            )
                 .filter(
                     input =>
                         input.checked
@@ -1521,8 +1524,10 @@ export function createCheckboxGroupField(
 
 
             const inputs =
-                grid.querySelectorAll(
-                    'input[type="checkbox"][data-preset-value]'
+                Array.from(
+                    grid.querySelectorAll(
+                        'input[type="checkbox"][data-preset-value]'
+                    )
                 );
 
 

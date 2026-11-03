@@ -49,7 +49,7 @@ import {
 
 import {
     createFieldInput
-} from "./generate-form-fields.js?v=preset-accordion-20261103";
+} from "./generate-form-fields.js?v=preset-accordion-20261103-nodelist-fix-20261103";
 
 
 /* =========================================================
