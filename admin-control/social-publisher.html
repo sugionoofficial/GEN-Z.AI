@@ -820,7 +820,7 @@
                                 </div>
                                 <div id="manual-quote-fields" class="field full subgrid-fields" hidden>
                                     <div class="field full">
-                                        <div class="quote-mode-note">Default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Facebook Page</strong> (atau pilih Reels / Cerita 24 Jam). Kartu memakai <strong>latar kosong hitam polos (#000000)</strong> agar <strong>0 kuota model gambar terpakai</strong>, kalimat kata-kata mutiara dirangkai oleh <strong>model LLM QwenCloud</strong> (dipilih di SET Studio Medsos) secara 100% tajam di tengah kartu + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, dan musik <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption tambahan, link, atau hashtag.</div>
+                                        <div class="quote-mode-note">Default terbit permanen sebagai <strong>Postingan di Beranda/Linimasa Facebook Page</strong> (atau pilih Reels / Cerita 24 Jam). Latar belakang dibuat <strong>gambar AI yang mengikuti makna kalimat mutiara</strong> memakai <strong>model gambar pilihan SET Studio Medsos</strong> (mis. <strong>OPUS</strong>) — bukan model lain. Kalimat dirangkai oleh <strong>LLM QwenCloud</strong> dan dirender tajam di tengah kartu + tanda tangan <strong><code>quote by: Nama Page FB</code></strong>, lalu musik <strong>langsung auto-play</strong> (Beranda/Reels maks. 60 detik; Cerita 25 detik). Bila generate latar gagal, kartu jatuh ke hitam polos.</div>
                                     </div>
                                     <div class="field full">
                                         <label for="manual-quote-target">Target publikasi di Facebook</label>
@@ -832,10 +832,22 @@
                                         </select>
                                     </div>
                                     <div class="field full"><label for="manual-quote-theme">Tema kata-kata mutiara</label><select id="manual-quote-theme"><option value="">Acak otomatis</option></select></div>
-                                    <div class="field" hidden><label for="manual-quote-visual">Gaya latar estetik</label><select id="manual-quote-visual"><option value="">Hitam polos</option></select></div>
+                                    <div class="field" hidden><label for="manual-quote-visual">Gaya latar estetik</label><select id="manual-quote-visual"><option value="">Acak otomatis mengikuti kalimat</option></select></div>
                                     <div class="field full">
                                         <label for="manual-custom-quote">Teks kata-kata mutiara manual (opsional)</label>
                                         <textarea id="manual-custom-quote" maxlength="220" placeholder="Kosongkan agar AI merangkai kata-kata mutiara/motivasi orisinal otomatis sesuai tema…"></textarea>
+                                    </div>
+                                    <div class="field full">
+                                        <label class="inline-check" for="manual-quote-use-character">
+                                            <input id="manual-quote-use-character" type="checkbox">
+                                            <span><strong>Generate latar belakang ini dengan foto karakter yang dipilih + outfit acak yang tersedia</strong></span>
+                                        </label>
+                                        <span class="help">Aktifkan bila latar AI harus menampilkan karakter Anda. Outfit dipilih acak dari koleksi outfit aktif karakter itu; bila belum ada outfit, pakaian mengikuti foto referensi karakter. Model gambar tetap dari SET Studio Medsos.</span>
+                                    </div>
+                                    <div class="field full" id="manual-quote-character-wrap" hidden>
+                                        <label for="manual-quote-character">Foto karakter untuk latar belakang</label>
+                                        <select id="manual-quote-character"><option value="">Pilih karakter…</option></select>
+                                        <span class="help">Karakter ditempatkan di sisi/bawah kanvas agar teks mutiara di tengah tetap mudah dibaca.</span>
                                     </div>
                                     <div class="field full">
                                         <div class="field">
@@ -961,7 +973,7 @@
                         </div>
                         <div id="schedule-quote-fields" class="field full subgrid-fields" hidden>
                             <div class="field full">
-                                <div class="quote-mode-note">Setiap jadwal eksekusi otomatis menerbitkan kartu <strong>Kata-kata Mutiara + Musik Auto-Play 9:16</strong> sesuai target pilihan (default <strong>Postingan Beranda Page permanen</strong>): memakai <strong>latar hitam polos (#000000)</strong> tanpa menghabiskan kuota gambar AI sama sekali, merangkai kalimat mutiara lewat <strong>LLM QwenCloud</strong> di tengah layar + tanda tangan <strong><code>quote by: Nama Page FB</code></strong> di pojok kanan bawah, lalu menggabungkan lagu acak agar <strong>langsung auto-play</strong> (khusus Beranda/Reels maks. <strong>60 detik</strong>; Cerita maks. 25 detik) tanpa caption/link/hashtag tambahan.</div>
+                                <div class="quote-mode-note">Setiap eksekusi jadwal menerbitkan kartu <strong>Kata-kata Mutiara + Musik Auto-Play 9:16</strong> sesuai target (default <strong>Postingan Beranda Page permanen</strong>): latar <strong>gambar AI yang mengikuti makna kalimat</strong> memakai <strong>model gambar pilihan SET Studio Medsos</strong> (mis. <strong>OPUS</strong>), kalimat dirangkai <strong>LLM QwenCloud</strong> di tengah layar + tanda tangan <strong><code>quote by: Nama Page FB</code></strong>, lalu lagu acak <strong>langsung auto-play</strong> (Beranda/Reels maks. 60 detik; Cerita 25 detik). Bila latar gagal dibuat, otomatis memakai hitam polos.</div>
                             </div>
                             <div class="field full">
                                 <label for="schedule-quote-target">Target publikasi di Facebook</label>
@@ -973,7 +985,18 @@
                                 </select>
                             </div>
                             <div class="field full"><label for="schedule-quote-theme">Tema kata-kata mutiara</label><select id="schedule-quote-theme"><option value="">Acak otomatis setiap posting</option></select></div>
-                            <div class="field" hidden><label for="schedule-quote-visual">Gaya latar estetik</label><select id="schedule-quote-visual"><option value="">Hitam polos</option></select></div>
+                            <div class="field" hidden><label for="schedule-quote-visual">Gaya latar estetik</label><select id="schedule-quote-visual"><option value="">Acak otomatis mengikuti kalimat</option></select></div>
+                            <div class="field full">
+                                <label class="inline-check" for="schedule-quote-use-character">
+                                    <input id="schedule-quote-use-character" type="checkbox">
+                                    <span><strong>Generate latar belakang ini dengan foto karakter yang dipilih + outfit acak yang tersedia</strong></span>
+                                </label>
+                                <span class="help">Berlaku untuk setiap eksekusi autopost: outfit diganti acak dari koleksi outfit aktif karakter. Model gambar tetap mengikuti SET Studio Medsos.</span>
+                            </div>
+                            <div class="field full" id="schedule-quote-character-wrap" hidden>
+                                <label for="schedule-quote-character">Foto karakter untuk latar belakang</label>
+                                <select id="schedule-quote-character"><option value="">Pilih karakter…</option></select>
+                            </div>
                         </div>
                         <div id="schedule-scene-fields-wrap" class="field full subgrid-fields">
                             <div class="field full">
