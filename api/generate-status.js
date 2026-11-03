@@ -163,6 +163,77 @@ const STALE_TASK_EXPIRED_ERROR =
 const OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS =
     24 * 60 * 60 * 1000;
 
+/*
+ * Batas waktu untuk job audio yang tidak bisa disinkronisasi dari
+ * Opus (job tidak ketemu di semua slot kunci, atau job COMPLETED
+ * tetapi URL hasilnya tidak berhasil diekstrak). Tanpa batas ini
+ * baris history menggantung di PROCESSING selamanya dan kredit
+ * tidak pernah kembali. 60 menit jauh lebih lama dari durasi
+ * produksi lagu 180 detik.
+ */
+const OPUS_AUDIO_NO_OUTPUT_DEADLINE_MS =
+    60 * 60 * 1000;
+
+const OPUS_AUDIO_NO_OUTPUT_REASON =
+    "OPUS_COMPLETED_WITHOUT_OUTPUT";
+
+const OPUS_AUDIO_JOB_NOT_FOUND_REASON =
+    "OPUS_JOB_NOT_FOUND";
+
+/*
+ * Dua kondisi yang sama-sama membuat audio menggantung: job tidak
+ * ketemu di seluruh slot kunci, atau job COMPLETED tapi URL hasil
+ * tidak berhasil diekstrak. Keduanya perlu batas waktu terminal.
+ */
+const OPUS_AUDIO_UNRESOLVED_REASONS = new Set([
+    OPUS_AUDIO_NO_OUTPUT_REASON,
+    OPUS_AUDIO_JOB_NOT_FOUND_REASON
+]);
+
+const OPUS_AUDIO_NO_OUTPUT_CODE =
+    "OPUS_AUDIO_OUTPUT_NOT_FOUND";
+
+const OPUS_AUDIO_NO_OUTPUT_MESSAGE =
+    "Status audio tidak berhasil disinkronisasi dari Opus " +
+    "(job selesai tetapi hasilnya tidak dapat diambil). " +
+    "Kredit telah dikembalikan. Gunakan menu Black Box → Resolve Job untuk memulihkan hasilnya.";
+
+/*
+ * Keputusan murni (tanpa I/O) kapan audio Opus yang tidak bisa
+ * disinkronisasi boleh dijadikan status terminal. Diekspor supaya
+ * batas waktunya bisa diuji tanpa menjalankan seluruh handler.
+ */
+export function shouldFinalizeUnresolvedOpusAudio(
+    {
+        statusReason = "",
+        completed = false,
+        failed = false,
+        createdAtMs = NaN
+    } = {},
+    nowMs = Date.now()
+) {
+    if (
+        !OPUS_AUDIO_UNRESOLVED_REASONS.has(
+            cleanString(statusReason)
+        )
+    ) {
+        return false;
+    }
+
+    if (completed || failed) {
+        return false;
+    }
+
+    if (!Number.isFinite(createdAtMs)) {
+        return false;
+    }
+
+    return (
+        nowMs - createdAtMs >=
+        OPUS_AUDIO_NO_OUTPUT_DEADLINE_MS
+    );
+}
+
 function isRecoverableHistoryFailureMessage(value) {
     const text = lower(value);
     if (!text) {
@@ -4966,6 +5037,84 @@ export default async function handler(
             }
         }
 
+        /*
+         * =================================================
+         * OPUS AUDIO: COMPLETED TANPA URL HASIL
+         * =================================================
+         * getAudioTaskForSingleKey() sengaja menurunkan status
+         * COMPLETED menjadi PROCESSING bila audioUrls kosong.
+         * Setelah key pool mencoba semua slot dan tetap tidak
+         * menemukan URL, jangan biarkan riwayat menggantung
+         * selamanya: tandai terminal + refund kredit. Pesan
+         * error sengaja dibuat informatif supaya hasil masih
+         * bisa dipulihkan lewat /black-box (resolve_job).
+         */
+        if (
+            isOpusAudioModelId(modelId) &&
+            providerRaw &&
+            typeof providerRaw === "object" &&
+            shouldFinalizeUnresolvedOpusAudio({
+                statusReason: providerRaw.statusReason,
+                completed: providerRaw.completed,
+                failed: providerRaw.failed,
+                createdAtMs: Date.parse(
+                    String(existingHistory?.created_at || "")
+                )
+            })
+        ) {
+            providerRaw = {
+                ...providerRaw,
+
+                status:
+                    "FAILED",
+
+                provider_state:
+                    "failed",
+
+                processing:
+                    false,
+
+                completed:
+                    false,
+
+                failed:
+                    true,
+
+                errorCode:
+                    OPUS_AUDIO_NO_OUTPUT_CODE,
+
+                error_code:
+                    OPUS_AUDIO_NO_OUTPUT_CODE,
+
+                errorMessage:
+                    OPUS_AUDIO_NO_OUTPUT_MESSAGE,
+
+                error_message:
+                    OPUS_AUDIO_NO_OUTPUT_MESSAGE,
+
+                raw: {
+                    ...(
+                        providerRaw.raw &&
+                        typeof providerRaw.raw === "object"
+                            ? providerRaw.raw
+                            : {}
+                    ),
+
+                    status:
+                        "FAILED",
+
+                    provider_state:
+                        "failed",
+
+                    error_code:
+                        OPUS_AUDIO_NO_OUTPUT_CODE,
+
+                    error_message:
+                        OPUS_AUDIO_NO_OUTPUT_MESSAGE
+                }
+            };
+        }
+
         const normalized =
             normalizeProviderResult(
                 providerRaw,
@@ -5243,6 +5392,9 @@ export default async function handler(
                     Number.isInteger(providerRaw?.keySlot)
                         ? providerRaw.keySlot
                         : null,
+
+                opus_status_reason:
+                    cleanString(providerRaw?.statusReason) || null,
 
                 opus_key_pool_size:
                     Number.isInteger(providerRaw?.keyPoolSize)

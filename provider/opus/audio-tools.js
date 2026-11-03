@@ -2310,6 +2310,13 @@ export function createOpusAudioTools(deps) {
                     outcome = listed.outcome;
                     if (listed.jobId) activeJobId = listed.jobId;
                 } else {
+                    /*
+                     * "job_not_found" bukan berarti job gagal. Project bisa
+                     * berada di akun/key slot lain (token OAuth berganti atau
+                     * urutan key pool bergeser). Tandai supaya
+                     * runGetWithKeyPool() mencoba slot berikutnya alih-alih
+                     * langsung mengunci status QUEUED selamanya.
+                     */
                     return {
                         status: "QUEUED",
                         providerState: "queued",
@@ -2319,6 +2326,8 @@ export function createOpusAudioTools(deps) {
                         videoUrls: [],
                         errorCode: null,
                         errorMessage: null,
+                        statusReason: "OPUS_JOB_NOT_FOUND",
+                        retryableKeySlot: true,
                         projectId: parsedId.projectId,
                         jobId: activeJobId
                     };
@@ -2384,7 +2393,34 @@ export function createOpusAudioTools(deps) {
                 }
             }
 
+            /*
+             * Setiap generate membuat project Opus baru, jadi aman mencari
+             * job lain di project yang sama. Job ID dari Egress sering beda
+             * dengan job ID internal Opus; tanpa pencarian lepas ini job yang
+             * sudah COMPLETED tidak pernah ketemu bila targetJobId dipaksa.
+             */
+            if (outcome.audioUrls.length === 0 && parsedId.projectId) {
+                const broadListed = await discoverProjectAudioJob(session, parsedId.projectId, {
+                    targetJobId: "",
+                    retries: 0
+                });
+                if (broadListed.outcome?.audioUrls?.length > 0) {
+                    outcome = {
+                        ...broadListed.outcome,
+                        status: "COMPLETED",
+                        nonTerminalDeadline: false
+                    };
+                    if (broadListed.jobId) activeJobId = broadListed.jobId;
+                }
+            }
+
             if (outcome.status === "COMPLETED" && outcome.audioUrls.length === 0) {
+                /*
+                 * Jangan mengunci "COMPLETED tanpa URL" menjadi PROCESSING
+                 * secara permanen. Beri alasan yang bisa dibaca endpoint
+                 * status, dan minta key pool mencoba slot lain sebelum
+                 * menyerah.
+                 */
                 return {
                     status: "PROCESSING",
                     providerState: "processing",
@@ -2394,6 +2430,8 @@ export function createOpusAudioTools(deps) {
                     videoUrls: [],
                     errorCode: null,
                     errorMessage: null,
+                    statusReason: "OPUS_COMPLETED_WITHOUT_OUTPUT",
+                    retryableKeySlot: true,
                     projectId: parsedId.projectId,
                     jobId: activeJobId
                 };
@@ -2421,6 +2459,7 @@ export function createOpusAudioTools(deps) {
             errorCode: outcome.errorCode,
             errorMessage: outcome.errorMessage,
             nonTerminalDeadline: Boolean(outcome.nonTerminalDeadline),
+            statusReason: outcome.statusReason || null,
             projectId: parsedId.projectId,
             jobId: activeJobId
         };
@@ -4035,6 +4074,8 @@ export function createOpusAudioTools(deps) {
         }
 
         let lastError = null;
+        let lastRetryableResult = null;
+        let lastRetryableSlot = preferredSlot;
         for (let c = 0; c < candidateSlots.length; c += 1) {
             const slotIndex = candidateSlots[c];
             try {
@@ -4042,6 +4083,19 @@ export function createOpusAudioTools(deps) {
                     ...options,
                     isolateFromDefaultRefresh: true
                 });
+
+                /*
+                 * job_not_found / COMPLETED-tanpa-URL ditandai retryable oleh
+                 * getAudioTaskForSingleKey(). Jangan kembalikan status non-
+                 * terminal dari slot pertama: project bisa berada di akun/key
+                 * slot lain. Coba semua slot sebelum menyerah.
+                 */
+                if (result?.retryableKeySlot === true && c + 1 < candidateSlots.length) {
+                    lastRetryableResult = result;
+                    lastRetryableSlot = slotIndex;
+                    continue;
+                }
+
                 if (
                     result.status === "FAILED" &&
                     isOpusCreditExhaustedError({
@@ -4066,6 +4120,20 @@ export function createOpusAudioTools(deps) {
                 if (retryableOnOtherSlot && c + 1 < candidateSlots.length) continue;
                 throw err;
             }
+        }
+
+        /*
+         * Semua slot sudah dicoba dan semuanya mengembalikan status non-
+         * terminal yang tidak punya hasil. Kembalikan hasil terakhir (bukan
+         * error 502) supaya riwayat tetap PROCESSING dan bisa dipulihkan
+         * lewat Black Box / deadline di api/generate-status.js.
+         */
+        if (lastRetryableResult) {
+            return {
+                ...lastRetryableResult,
+                keySlot: lastRetryableSlot,
+                keyPoolSize: totalKeys
+            };
         }
 
         throw lastError || createProviderError({

@@ -722,6 +722,7 @@ export function createOpusAudioModel(spec) {
             lyrics: result.lyrics || null,
             keySlot: Number.isInteger(result.keySlot) ? result.keySlot : 0,
             keyPoolSize: Number.isInteger(result.keyPoolSize) ? result.keyPoolSize : 1,
+            statusReason: result.statusReason || null,
             errorCode: result.errorCode || null,
             error_code: result.errorCode || null,
             errorMessage: result.errorMessage || null,
@@ -737,6 +738,7 @@ export function createOpusAudioModel(spec) {
                 ...(outputUrls.length ? { audio_urls: outputUrls, result_urls: outputUrls } : {}),
                 ...(result.durationSeconds ? { duration_seconds: result.durationSeconds } : {}),
                 ...(result.lyrics ? { lyrics: result.lyrics } : {}),
+                ...(result.statusReason ? { status_reason: result.statusReason } : {}),
                 ...(result.errorCode ? { error_code: result.errorCode } : {}),
                 ...(result.errorMessage ? { error_message: result.errorMessage } : {})
             }
