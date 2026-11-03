@@ -40,7 +40,6 @@ const staticDirectories = [
     "topup",
     "upscale",
     "user",
-    "viddra",
     "vision",
     "vision-video"
 ];

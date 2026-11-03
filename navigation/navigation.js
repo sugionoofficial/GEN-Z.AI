@@ -903,8 +903,6 @@
 
             upscale: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path><path d="M9 9H5v4"></path><path d="M15 15h4v-4"></path></svg>`,
 
-            viddra: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M10 9l5 3-5 3z"></path><path d="M7 2l2 2"></path><path d="M17 2l-2 2"></path></svg>`,
-
             history: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"></path><path d="M3.5 4.5v5h5"></path><path d="M12 7.5v5l3.5 2"></path></svg>`,
 
             socialStudio: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M7 9h10"></path><path d="M7 13h6"></path><path d="M16 17l3-3-3-3"></path></svg>`,
@@ -936,7 +934,6 @@
             { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
             { label: "Vision Video", href: "/vision-video/index.html", icon: ICONS.visionVideo },
             { label: "Upscale Studio", href: "/upscale/index.html", icon: ICONS.upscale },
-            { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
             { label: "History", href: "/history/index.html", icon: ICONS.history },
             { label: "Studio Medsos", href: "/admin-control/social-publisher.html", icon: ICONS.socialStudio },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
@@ -953,7 +950,6 @@
             { label: "Vision Image", href: "/vision/index.html", icon: ICONS.visionImage },
             { label: "Vision Video", href: "/vision-video/index.html", icon: ICONS.visionVideo },
             { label: "Upscale Studio", href: "/upscale/index.html", icon: ICONS.upscale },
-            { label: "VidDra FREE", href: "/viddra/index.html", icon: ICONS.viddra },
             { label: "History", href: "/history/index.html", icon: ICONS.history },
             { label: "Studio Medsos", href: "/admin-control/social-publisher.html", icon: ICONS.socialStudio },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },

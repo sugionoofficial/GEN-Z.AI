@@ -491,8 +491,8 @@ Worker `genzai` adalah target deployment production.
    `SUPABASE_KEY`), `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
    `PROVIDER_CREDENTIAL_ENCRYPTION_KEY`, `KIE_API_KEY`,
    `KIE_API_ENDPOINT` / `KIE_API_BASE_URL`, `OPENKEY_API_KEY`,
-   `OPENKEY_API_ENDPOINT` / `OPENKEY_API_BASE_URL`, `VIDDRA_API_KEY`,
-   `VIDDRA_SESSION_SECRET`, `SIGHTENGINE_API_USER`,
+   `OPENKEY_API_ENDPOINT` / `OPENKEY_API_BASE_URL`,
+   `SIGHTENGINE_API_USER`,
    `SIGHTENGINE_API_SECRET`, `GITHUB_PAT`, `GITHUB_OWNER`, `GITHUB_REPO`,
    `GITHUB_WORKFLOW_FILE`, and `GITHUB_REF`.
    For photo/video upscale, set `GITHUB_PAT` as a Worker secret with
@@ -500,7 +500,7 @@ Worker `genzai` adalah target deployment production.
    fine-grained token). The upscale handler reads Worker bindings at request
    time; `GITHUB_OWNER` and `GITHUB_REPO` default to `sugionoofficial` and
    `GEN-Z.AI`, so they only need to be overridden for another repository.
-5. Setelah deployment, uji login, generate/status, admin, Viddra, OpenKey
+5. Setelah deployment, uji login, generate/status, admin, OpenKey
    streaming, serta integrasi provider pada domain production.
 
 `wrangler.toml` menetapkan entry point Worker, kompatibilitas runtime Node, serta

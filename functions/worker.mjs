@@ -30,8 +30,6 @@ import { runSocialVideoAutopostCron } from "./_shared/social-video-autopost-cron
 import { runStorageRetentionCron } from "./_shared/storage-retention-cron.js";
 import { runSupportGuestCleanupCron } from "./_shared/support-guest-cleanup-cron.js";
 import { runMonitoringCron } from "./_shared/monitoring-cron.js";
-import viddraAccount from "../api/viddra/account.js";
-import viddraGenerate from "../api/viddra/generate.js";
 import handleTempmail from "./_shared/tempmail-handler.js";
 import handleFbMediaDownload from "./_shared/fb-media-handler.js";
 
@@ -66,9 +64,7 @@ const handlers = new Map([
     // BLACK BOX // MONITORING — log aktivitas, kesehatan web, temuan bug.
     ["/api/monitoring", monitoring],
     // Alias kept for the Deauthorize/Deletion URL field in the Meta dashboard.
-    ["/api/data-deletion", facebookDataDeletion],
-    ["/api/viddra/account", viddraAccount],
-    ["/api/viddra/generate", viddraGenerate]
+    ["/api/data-deletion", facebookDataDeletion]
 ]);
 
 // =========================================================

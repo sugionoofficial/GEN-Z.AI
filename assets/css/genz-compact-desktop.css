@@ -67,14 +67,6 @@
         margin-right: auto !important;
     }
 
-    /* VidDRA studio butuh ruang untuk panel kiri + preview */
-    html body .viddra-shell {
-        max-width: 1240px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-    }
-
-
     /* -----------------------------------------------------
        03. PADDING SAMPING
        Supaya konten tidak menempel ke tepi layar.
