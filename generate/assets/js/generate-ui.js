@@ -4131,10 +4131,12 @@ export function showError(
     );
 
 
-    showStatus(
-        message,
-        "error"
-    );
+    /*
+     * Hindari duplikasi: #pageError sudah menampilkan pesan error,
+     * jadi #status (baris di atasnya) disembunyikan, bukan diisi
+     * dengan pesan yang sama.
+     */
+    hideStatus();
 
 }
 

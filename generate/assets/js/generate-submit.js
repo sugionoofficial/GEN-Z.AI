@@ -2177,23 +2177,22 @@ async function handleGenerateSubmit(
         });
 
 
+        /*
+         * Jangan tulis ulang #status dengan prefix Generate error.
+         * showError() sudah menampilkan pesan yang sama di #pageError,
+         * sehingga #status hanya disembunyikan agar tidak dobel.
+         */
         if (
             elements.status
         ) {
 
             elements.status.textContent =
-                isOpusFinalBusy
-                    ? errorMessage
-                    : (
-                        "Generate error: " +
-                        errorMessage
-                    );
-
-            elements.status.dataset.error =
-                "true";
+                "";
 
             elements.status.hidden =
-                false;
+                true;
+
+            delete elements.status.dataset.error;
 
         }
 

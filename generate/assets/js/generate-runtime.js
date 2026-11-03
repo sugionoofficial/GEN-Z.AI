@@ -523,15 +523,16 @@ function showError(
 
     }
 
+    /* Satu notif error cukup di #pageError; #status disembunyikan. */
     if (
         elements.status
     ) {
 
         elements.status.textContent =
-            text;
+            "";
 
         elements.status.hidden =
-            false;
+            true;
 
     }
 

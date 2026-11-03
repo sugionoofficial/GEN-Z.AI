@@ -87,7 +87,7 @@ const AUTH_MODULE =
     "./generate-auth.js?v=20261013-auth-refresh";
 
 const UI_MODULE =
-    "./generate-ui.js?v=20261101-staged-20s-credit";
+    "./generate-ui.js?v=20261101-staged-20s-credit-single-error-20261103";
 
 const MODEL_MODULE =
     "./generate-model.js?v=20261101-audio-transcribe";
@@ -102,7 +102,7 @@ const RENDER_MODULE =
     "./generate-render.js";
 
 const SUBMIT_MODULE =
-    "./generate-submit.js?v=20261101-audio-transcribe";
+    "./generate-submit.js?v=20261101-audio-transcribe-single-error-20261103";
 
 const VALIDATION_MODULE =
     "./generate-validation.js?v=20261101-audio-transcribe";
@@ -1301,18 +1301,26 @@ function showError(
 
     }
 
+    /*
+     * NOTIFIKASI ERROR TUNGGAL
+     * -----------------------------------------------------
+     * #pageError (panel "Notifikasi Error") adalah satu-satunya
+     * tempat pesan error ditampilkan. #status yang ada tepat di
+     * atasnya JANGAN diisi dengan pesan yang sama, karena akan
+     * muncul dua notif identik bertumpuk di bagian atas halaman.
+     * #status tetap dipakai untuk pesan loading / sukses.
+     */
     if (
         elements.status
     ) {
 
         elements.status.textContent =
-            text;
-
-        elements.status.dataset.error =
-            "true";
+            "";
 
         elements.status.hidden =
-            false;
+            true;
+
+        delete elements.status.dataset.error;
 
     }
 
