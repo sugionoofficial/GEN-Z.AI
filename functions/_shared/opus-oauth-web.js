@@ -554,15 +554,17 @@ function htmlShell({ title, body, extraStyle = "" }) {
 const INTRO_SLOT_STYLE = (
     ".badgebox{text-align:center;margin:0 0 12px}"
     + ".slotbar{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 0 12px}"
-    + ".slotbtn{width:46px;height:46px;flex:0 0 46px;padding:0;border:1px solid #2f466b;border-radius:12px;background:#101c30;color:#9ec5ff;font-size:26px;font-weight:700;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent}"
-    + ".slotbtn:hover:not(:disabled){border-color:#39ff71;color:#39ff71}"
-    + ".slotbtn:disabled{opacity:.32;cursor:not-allowed}"
+    + ".slotbtn{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;flex:0 0 46px;padding:0;box-sizing:border-box;border:1px solid #2f466b;border-radius:12px;background:#101c30;color:#9ec5ff;font-size:26px;font-weight:700;line-height:1;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}"
+    + ".slotbtn:hover:not(.is-disabled){border-color:#39ff71;color:#39ff71}"
+    + ".slotbtn.is-disabled{opacity:.32;cursor:not-allowed}"
     + ".slotnum{min-width:132px;text-align:center;font-size:14px;font-weight:700;color:#e8f0fe}"
     + ".slotnum small{display:block;margin-top:3px;color:#7fd3ff;font-size:11px;font-weight:600;font-family:ui-monospace,monospace;word-break:break-all}"
     + ".slots{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin:0 0 10px}"
-    + ".chip{padding:8px 11px;min-height:38px;border:1px solid #2f466b;border-radius:10px;background:#101c30;color:#9ec5ff;font-size:12px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent}"
+    + ".chip{display:inline-flex;align-items:center;justify-content:center;padding:8px 11px;min-height:38px;box-sizing:border-box;border:1px solid #2f466b;border-radius:10px;background:#101c30;color:#9ec5ff;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}"
+    + ".chip:hover{border-color:#39ff71;color:#39ff71}"
     + ".chip.active{border-color:#39ff71;background:#12341f;color:#39ff71}"
-    + ".slothint{font-size:12px;color:#8fa5c0;text-align:center;margin:0 0 14px;line-height:1.5;overflow-wrap:anywhere}"
+    + ".slothint{font-size:12px;color:#8fa5c0;text-align:center;margin:0 0 8px;line-height:1.5;overflow-wrap:anywhere}"
+    + ".urlline{font-family:ui-monospace,monospace;font-size:11px;color:#7fd3ff;text-align:center;margin:0 0 14px;overflow-wrap:anywhere}"
 );
 
 /**
@@ -573,139 +575,82 @@ const INTRO_SLOT_STYLE = (
  * tanpa perlu mengedit `?slot=` di URL secara manual. Nomor slot,
  * tautan "LANJUT LOGIN KE OPUS", dan URL halaman selalu disinkronkan.
  */
-export function buildLoginIntroHtml({ slot = 1, origin = "", mcpUrl = OPUS_MCP_URL } = {}) {
-    const normalized = normalizeOpusSlot(slot);
-    const secretName = opusSecretNameForSlot(normalized);
+/**
+ * Halaman pembuka login OAuth Opus.
+ *
+ * PENTING: pemilih slot SENGAJA dirender penuh di server dan memakai
+ * tautan <a href="?slot=..&count=.."> sungguhan, TANPA JavaScript.
+ * Alasannya: halaman ini sering dibuka di dalam iframe preview / browser
+ * HP yang memblokir inline script dan `history.replaceState()`. Dengan
+ * navigasi biasa, menekan + / - / chip SELALU mengganti URL yang terlihat
+ * di address bar dan state tidak pernah bisa diam-diam gagal tersinkron.
+ *
+ * - `+`   : tambah slot auth baru dan langsung pilih slot tersebut.
+ * - `-`   : kurangi slot terakhir.
+ * - chip  : pilih slot tanpa mengubah jumlah slot.
+ */
+export function buildLoginIntroHtml({ slot = 1, count = null, origin = "", mcpUrl = OPUS_MCP_URL } = {}) {
+    const requestedSlot = normalizeOpusSlot(slot);
+    const requestedCount = count === null || count === undefined
+        ? requestedSlot
+        : normalizeOpusSlot(count);
+    const state = applyOpusSlotAction(
+        { slot: requestedSlot, count: requestedCount },
+        "init"
+    );
+    const selected = state.slot;
+    const total = state.count;
+    const secretName = opusSecretNameForSlot(selected);
+
     const startBase = `${origin}${OPUS_LOGIN_INTRO_PATH}`;
-    const startUrl = `${startBase}?start=1&slot=${normalized}`;
+    const introHref = (nextSlot, nextCount) =>
+        `${startBase}?slot=${nextSlot}&count=${nextCount}`;
+    const startUrl = `${startBase}?start=1&slot=${selected}&count=${total}`;
 
-    /* Logika transisi slot disuntikkan dari fungsi murni yang sama
-       dengan yang diuji di server (satu sumber kebenaran). */
-    const introScript = `
-(function () {
-    "use strict";
+    const plusState = applyOpusSlotAction(state, "plus");
+    const minusState = applyOpusSlotAction(state, "minus");
+    const canPlus = total < OPUS_MAX_SLOT;
+    const canMinus = total > 1;
 
-    var MAX_SLOT = ${OPUS_MAX_SLOT};
-    var INITIAL_SLOT = ${normalized};
-    var applyOpusSlotAction = ${applyOpusSlotAction.toString()};
+    const minusHtml = canMinus
+        ? `<a class='slotbtn' href='${escapeHtml(introHref(minusState.slot, minusState.count))}' aria-label='Kurangi slot auth' title='Kurangi slot'>&minus;</a>`
+        : "<span class='slotbtn is-disabled' aria-disabled='true' aria-label='Kurangi slot auth'>&minus;</span>";
+    const plusHtml = canPlus
+        ? `<a class='slotbtn' href='${escapeHtml(introHref(plusState.slot, plusState.count))}' aria-label='Tambah slot auth' title='Tambah slot'>+</a>`
+        : "<span class='slotbtn is-disabled' aria-disabled='true' aria-label='Tambah slot auth'>+</span>";
 
-    var startBtn = document.getElementById("startBtn");
-    var badge = document.getElementById("slotBadge");
-    var slotNum = document.getElementById("slotNum");
-    var chipsBox = document.getElementById("slotChips");
-    var hint = document.getElementById("slotHint");
-    var plusBtn = document.getElementById("slotPlus");
-    var minusBtn = document.getElementById("slotMinus");
-    if (!startBtn) return;
-
-    var base = startBtn.getAttribute("data-base") || "";
-    var STORE_KEY = "genz_opus_login_slot";
-
-    function secretName(n) {
-        return n <= 1 ? "OPUS_AUTH_TOKEN" : "OPUS_AUTH_TOKEN_" + n;
+    let chipsHtml = "";
+    for (let index = 1; index <= total; index += 1) {
+        const active = index === selected ? " active" : "";
+        chipsHtml += `<a class='chip${active}' href='${escapeHtml(introHref(index, total))}'`
+            + ` title='${escapeHtml(opusSecretNameForSlot(index))}'>Slot ${index}</a>`;
     }
 
-    function readNumber(value) {
-        var n = parseInt(value, 10);
-        return isFinite(n) && n > 0 ? n : 0;
-    }
-
-    var params = new URL(window.location.href).searchParams;
-    var urlSlot = readNumber(params.get("slot"));
-    var urlCount = readNumber(params.get("count"));
-    var stored = null;
-    try {
-        stored = JSON.parse(window.localStorage.getItem(STORE_KEY) || "null");
-    } catch (e) {
-        stored = null;
-    }
-    if (!stored || typeof stored !== "object") stored = null;
-
-    var state = applyOpusSlotAction({
-        slot: urlSlot || (stored && stored.slot) || INITIAL_SLOT,
-        count: urlCount || (stored && stored.count) || INITIAL_SLOT
-    }, "init");
-
-    function render() {
-        badge.textContent = "Slot: " + secretName(state.slot);
-        slotNum.innerHTML = "Slot " + state.slot + " dari " + state.count
-            + "<small>" + secretName(state.slot) + "</small>";
-        startBtn.href = base + "?start=1&slot=" + state.slot;
-        minusBtn.disabled = state.count <= 1;
-        plusBtn.disabled = state.count >= MAX_SLOT;
-
-        var chips = "";
-        for (var i = 1; i <= state.count; i += 1) {
-            chips += "<button type='button' class='chip"
-                + (i === state.slot ? " active" : "")
-                + "' data-slot='" + i + "' title='" + secretName(i) + "'>Slot " + i + "</button>";
-        }
-        chipsBox.innerHTML = chips;
-
-        hint.textContent = state.count + " slot auth tersedia. Login berikutnya memakai "
-            + secretName(state.slot) + ".";
-
-        try {
-            var url = new URL(window.location.href);
-            url.searchParams.set("slot", String(state.slot));
-            url.searchParams.set("count", String(state.count));
-            window.history.replaceState(null, "", url.toString());
-        } catch (e) {}
-
-        try {
-            window.localStorage.setItem(STORE_KEY, JSON.stringify(state));
-        } catch (e) {}
-    }
-
-    plusBtn.addEventListener("click", function () {
-        state = applyOpusSlotAction(state, "plus");
-        render();
-    });
-
-    minusBtn.addEventListener("click", function () {
-        state = applyOpusSlotAction(state, "minus");
-        render();
-    });
-
-    chipsBox.addEventListener("click", function (ev) {
-        var target = ev.target;
-        while (target && target !== chipsBox && !target.getAttribute("data-slot")) {
-            target = target.parentNode;
-        }
-        if (!target || target === chipsBox) return;
-        state = applyOpusSlotAction({
-            slot: state.slot,
-            count: state.count,
-            targetSlot: target.getAttribute("data-slot")
-        }, "select");
-        render();
-    });
-
-    render();
-})();`;
+    const currentQuery = `?slot=${selected}&amp;count=${total}`;
 
     return htmlShell({
         title: "Login Opus — GEN-Z.AI",
         extraStyle: INTRO_SLOT_STYLE,
         body:
             "<h1>Login Opus Labs</h1>"
-            + `<div class='badgebox'><span id='slotBadge' class='badge'>Slot: ${escapeHtml(secretName)}</span></div>`
+            + `<div class='badgebox'><span class='badge'>Slot: ${escapeHtml(secretName)}</span></div>`
             + "<p>Halaman ini menghubungkan akun OpusClip / Opus Labs Anda <b>langsung dari browser HP</b>. Tidak perlu Termux, tidak perlu Node.js, tidak perlu install apa pun.</p>"
             + "<div class='slotbar'>"
-            + "<button id='slotMinus' type='button' class='slotbtn' aria-label='Kurangi slot auth' title='Kurangi slot'>&minus;</button>"
-            + `<div id='slotNum' class='slotnum'>Slot ${normalized} dari ${normalized}<small>${escapeHtml(secretName)}</small></div>`
-            + "<button id='slotPlus' type='button' class='slotbtn' aria-label='Tambah slot auth' title='Tambah slot'>+</button>"
+            + minusHtml
+            + `<div class='slotnum'>Slot ${selected} dari ${total}<small>${escapeHtml(secretName)}</small></div>`
+            + plusHtml
             + "</div>"
-            + `<div id='slotChips' class='slots'></div>`
-            + `<p id='slotHint' class='slothint'>${normalized} slot auth tersedia. Login berikutnya memakai ${escapeHtml(secretName)}.</p>`
-            + `<a id='startBtn' class='btn' href='${escapeHtml(startUrl)}' data-base='${escapeHtml(startBase)}'>LANJUT LOGIN KE OPUS</a>`
+            + `<div class='slots'>${chipsHtml}</div>`
+            + `<p class='slothint'>${total} slot auth tersedia. Login berikutnya memakai ${escapeHtml(secretName)}.</p>`
+            + `<div class='urlline'>Alamat: <b>${currentQuery}</b></div>`
+            + `<a class='btn' href='${escapeHtml(startUrl)}'>LANJUT LOGIN KE OPUS</a>`
             + "<div class='steps'>"
             + "Setelah menekan tombol di atas: login ke Opus, ketuk <b>Allow</b>, lalu halaman hasil akan menampilkan token JSON yang bisa disalin 1 ketukan.<br><br>"
-            + "Gunakan <b>+</b> untuk menambah slot akun baru dan <b>&minus;</b> untuk menguranginya; ketuk chip nomor untuk memilih slot yang dipakai. "
-            + "Alamat URL otomatis menyesuaikan, jadi <b>tidak perlu lagi mengedit ?slot=… secara manual</b>.<br><br>"
-            + `Maksimal ${OPUS_MAX_SLOT} slot: <b>OPUS_AUTH_TOKEN</b> sampai <b>OPUS_AUTH_TOKEN_${OPUS_MAX_SLOT}</b>. Pilihan terakhir diingat browser ini.`
+            + "Tekan <b>+</b> untuk menambah slot akun baru, <b>&minus;</b> untuk mengurangi, atau ketuk chip <b>Slot N</b> untuk memilih slot. "
+            + "Setiap klik <b>langsung mengganti alamat URL</b> (<b>?slot=…&amp;count=…</b>) dan memuat ulang halaman, "
+            + "jadi <b>tidak perlu lagi mengedit URL secara manual</b> dan alamatnya bisa disalin / dibagikan.<br><br>"
+            + `Maksimal ${OPUS_MAX_SLOT} slot: <b>OPUS_AUTH_TOKEN</b> sampai <b>OPUS_AUTH_TOKEN_${OPUS_MAX_SLOT}</b>.`
             + "</div>"
-            + `<script>${introScript}</script>`
     });
 }
 
@@ -739,8 +684,13 @@ export function buildOpusLoginSuccessHtml({ compactJson = "", slot = 1, status =
     });
 }
 
-export function buildOpusLoginErrorHtml({ message = "", slot = 1, origin = "", mcpUrl = OPUS_MCP_URL } = {}) {
-    const retryUrl = `${origin}${OPUS_LOGIN_INTRO_PATH}?slot=${normalizeOpusSlot(slot)}`;
+export function buildOpusLoginErrorHtml({ message = "", slot = 1, count = null, origin = "", mcpUrl = OPUS_MCP_URL } = {}) {
+    const retrySlot = normalizeOpusSlot(slot);
+    const retryCount = Math.max(
+        retrySlot,
+        normalizeOpusSlot(count === null || count === undefined ? retrySlot : count)
+    );
+    const retryUrl = `${origin}${OPUS_LOGIN_INTRO_PATH}?slot=${retrySlot}&count=${retryCount}`;
     return htmlShell({
         title: "Login Opus Gagal — GEN-Z.AI",
         body:
