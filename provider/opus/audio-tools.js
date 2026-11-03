@@ -16,6 +16,7 @@
 import { inspectReferenceMediaUrl } from "../../assets/js/media-url-guard.js";
 import { normalizeTranscriptPayload } from "../../assets/js/transcript-format.js";
 import { parsePodcastDialogScript } from "../../models/opus-audio/podcast-dialog.js";
+import { sanitizeLyriaMusicText } from "./lyria-prompt-safety.js";
 
 const MAX_LYRIA_PROMPT_CHARS = 7950;
 
@@ -136,10 +137,13 @@ export function buildLyriaMusicPrompt({
     durationSeconds = null,
     includeTargetLengthInPrompt = true
 } = {}) {
-    const cleanLyrics = String(lyrics || "").trim();
+    /* Normalisasi dasar (karakter kontrol/URL/handle) selalu aman dilakukan;
+       pembersihan referensi artis hanya dipakai pada retry setelah penolakan
+       filter konten Lyria, agar prompt asli pengguna tetap dikirim utuh. */
+    const cleanLyrics = sanitizeLyriaMusicText(lyrics, { stripArtistReferences: false });
     const normalizedMode = String(vocalMode || "").trim().toLowerCase();
     const isInstrumental = !cleanLyrics && normalizedMode !== "vocal";
-    const rawStyle = String(prompt || text || "").trim();
+    const rawStyle = sanitizeLyriaMusicText(prompt || text, { stripArtistReferences: false });
     const roundedDur =
         Number.isFinite(Number(durationSeconds)) && Number(durationSeconds) > 0
             ? Math.round(Number(durationSeconds))
