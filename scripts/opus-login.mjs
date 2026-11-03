@@ -26,7 +26,7 @@
 
    TANPA Termux / tanpa Node.js (cukup browser HP):
      https://genzai.genzai-f37.workers.dev/api/opus-oauth-login
-     (?slot=2 / ?slot=3 untuk akun kedua & ketiga)
+     (?slot=2, ?slot=3, ... tanpa batas untuk akun tambahan)
      Endpoint worker: api/opus-oauth-login.js + api/opus-oauth-callback.js
    ========================================================= */
 

@@ -22,10 +22,14 @@ import test from "node:test";
 import opusOAuthLogin from "../api/opus-oauth-login.js";
 import opusOAuthCallback from "../api/opus-oauth-callback.js";
 import {
-    OPUS_MAX_SLOT,
+    OPUS_CHIP_WINDOW,
+    OPUS_MAX_SAFE_SLOT,
+    OPUS_MIN_SLOT,
     applyOpusSlotAction,
+    getOpusChipRange,
     buildLoginIntroHtml,
     buildOpusLoginErrorHtml,
+    buildOpusLoginSuccessHtml,
     decodeOAuthState,
     normalizeOpusSlot,
     opusSecretNameForSlot
@@ -140,15 +144,30 @@ test("select memilih chip yang ada, tidak bisa melewati jumlah slot", () => {
     );
 });
 
-test("batas 1..9 konsisten dengan normalizeOpusSlot di server", () => {
-    assert.equal(OPUS_MAX_SLOT, 9);
-    assert.equal(normalizeOpusSlot(99), OPUS_MAX_SLOT);
-    assert.equal(normalizeOpusSlot(-4), 1);
-    assert.equal(normalizeOpusSlot("7"), 7);
+test("nomor slot TIDAK dibatasi 9: 10, 99, 1000 dst tetap valid", () => {
+    assert.equal(OPUS_MIN_SLOT, 1);
+    assert.equal(OPUS_MAX_SAFE_SLOT, Number.MAX_SAFE_INTEGER);
+    assert.equal(normalizeOpusSlot(9), 9);
+    assert.equal(normalizeOpusSlot(10), 10);
+    assert.equal(normalizeOpusSlot(99), 99);
+    assert.equal(normalizeOpusSlot(1000), 1000);
+    assert.equal(normalizeOpusSlot("123"), 123);
+    assert.equal(opusSecretNameForSlot(12), "OPUS_AUTH_TOKEN_12");
+    assert.equal(opusSecretNameForSlot(1000), "OPUS_AUTH_TOKEN_1000");
 
-    const capped = applyOpusSlotAction({ slot: 9, count: 9 }, "plus");
-    assert.deepEqual(capped, { slot: 9, count: 9 });
-    assert.equal(opusSecretNameForSlot(capped.slot), "OPUS_AUTH_TOKEN_9");
+    assert.deepEqual(applyOpusSlotAction({ slot: 9, count: 9 }, "plus"), { slot: 10, count: 10 });
+    assert.deepEqual(applyOpusSlotAction({ slot: 99, count: 99 }, "plus"), { slot: 100, count: 100 });
+});
+
+test("input tidak valid jatuh ke 1 dan angka raksasa dibatasi pengaman numerik", () => {
+    assert.equal(normalizeOpusSlot(0), 1);
+    assert.equal(normalizeOpusSlot(-4), 1);
+    assert.equal(normalizeOpusSlot("abc"), 1);
+    assert.equal(normalizeOpusSlot(Infinity), 1);
+    assert.equal(normalizeOpusSlot(NaN), 1);
+    assert.equal(normalizeOpusSlot(1e30), OPUS_MAX_SAFE_SLOT);
+
+    /* Tetap tidak ada slot 0 / minus */
     assert.deepEqual(applyOpusSlotAction({ slot: 1, count: 1 }, "minus"), { slot: 1, count: 1 });
 });
 
@@ -173,6 +192,8 @@ test("halaman pembuka TIDAK bergantung JavaScript: + dan - berupa <a href>", () 
     assert.match(html, /aria-label='Kurangi slot auth'/);
     assert.match(html, /LANJUT LOGIN KE OPUS/);
     assert.match(html, /langsung mengganti alamat URL/);
+    assert.match(html, /Jumlah slot <b>tidak dibatasi<\/b>/);
+    assert.doesNotMatch(html, /Maksimal 9 slot/);
     assert.match(html, /Alamat: <b>\?slot=1&amp;count=1<\/b>/);
 
     assert.equal(
@@ -202,18 +223,21 @@ test("klik + dari slot 3 / 5 slot menuju URL baru yang benar", () => {
     assert.match(html, /Slot: OPUS_AUTH_TOKEN_3/);
 });
 
-test("batas bawah 1 dan atas 9 memakai elemen non-tautan yang dimatikan", () => {
+test("hanya batas bawah 1 yang dimatikan; + tetap aktif di atas 9", () => {
     const low = buildLoginIntroHtml({ slot: 1, count: 1, origin: ORIGIN });
     assert.match(low, /<span class='slotbtn is-disabled' aria-disabled='true' aria-label='Kurangi slot auth'>/);
     assert.equal(hrefFor(low, "Kurangi slot auth"), null);
     assert.ok(hrefFor(low, "Tambah slot auth"));
 
-    const high = buildLoginIntroHtml({ slot: 9, count: 9, origin: ORIGIN });
-    assert.match(high, /<span class='slotbtn is-disabled' aria-disabled='true' aria-label='Tambah slot auth'>/);
-    assert.equal(hrefFor(high, "Tambah slot auth"), null);
-    assert.ok(hrefFor(high, "Kurangi slot auth"));
-    assert.equal(chipCount(high), 9);
-    assert.match(high, /Slot: OPUS_AUTH_TOKEN_9/);
+    for (const total of [9, 10, 25, 40, 100]) {
+        const html = buildLoginIntroHtml({ slot: total, count: total, origin: ORIGIN });
+        assert.ok(
+            hrefFor(html, "Tambah slot auth"),
+            `tombol + harus tetap aktif pada ${total} slot`
+        );
+        assert.ok(hrefFor(html, "Kurangi slot auth"));
+        assert.doesNotMatch(html, /Maksimal 9 slot/);
+    }
 });
 
 test("count yang lebih kecil dari slot dinormalkan agar tidak ada chip hilang", () => {
@@ -298,4 +322,123 @@ test("callback error mempertahankan count dari state saat kembali ke halaman pem
 
     assert.equal(res.statusCode, 400);
     assert.match(res.body, /\?slot=4&amp;count=6/);
+});
+
+/* =========================================================
+   4. TANPA BATAS ATAS — SLOT DI ATAS 9
+   ========================================================= */
+
+test("halaman slot 12: + menuju slot 13, badge & tautan login ikut benar", () => {
+    const html = buildLoginIntroHtml({ slot: 12, count: 12, origin: ORIGIN });
+
+    assert.match(html, /Slot: OPUS_AUTH_TOKEN_12/);
+    assert.match(html, /Slot 12 dari 12/);
+    assert.equal(chipCount(html), 12);
+    assert.equal(
+        hrefFor(html, "Tambah slot auth"),
+        `${ORIGIN}${INTRO_PATH}?slot=13&amp;count=13`
+    );
+    assert.match(html, /start=1&amp;slot=12&amp;count=12/);
+    assert.match(html, /Alamat: <b>\?slot=12&amp;count=12<\/b>/);
+    assert.doesNotMatch(html, /Maksimal 9 slot/);
+});
+
+test("+ berulang kali bisa menembus 9, 20, 50, 100 tanpa hambatan", () => {
+    let state = { slot: 1, count: 1 };
+    for (let step = 0; step < 120; step += 1) {
+        state = applyOpusSlotAction(state, "plus");
+    }
+    assert.deepEqual(state, { slot: 121, count: 121 });
+    assert.equal(opusSecretNameForSlot(state.slot), "OPUS_AUTH_TOKEN_121");
+
+    const html = buildLoginIntroHtml({ slot: state.slot, count: state.count, origin: ORIGIN });
+    assert.match(html, /Slot: OPUS_AUTH_TOKEN_121/);
+    assert.equal(
+        hrefFor(html, "Tambah slot auth"),
+        `${ORIGIN}${INTRO_PATH}?slot=122&amp;count=122`
+    );
+});
+
+test("halaman sukses & error memakai nama secret slot besar", () => {
+    const success = buildOpusLoginSuccessHtml({ compactJson: "{}", slot: 42, status: 200 });
+    assert.match(success, /OPUS_AUTH_TOKEN_42/);
+
+    const error = buildOpusLoginErrorHtml({ message: "Gagal", slot: 42, count: 50, origin: ORIGIN });
+    assert.match(error, /\?slot=42&amp;count=50/);
+});
+
+test("endpoint menerima slot & count di atas 9", async () => {
+    const res = mockRes();
+    await opusOAuthLogin(req(`${INTRO_PATH}?slot=37&count=40`), res);
+
+    assert.equal(res.statusCode, 200);
+    assert.match(res.body, /Slot: OPUS_AUTH_TOKEN_37/);
+    assert.match(res.body, /Slot 37 dari 40/);
+    assert.match(res.body, /start=1&amp;slot=37&amp;count=40/);
+    assert.equal(chipCount(res.body), 40);
+});
+
+test("callback error mempertahankan slot besar", async () => {
+    const res = mockRes();
+    await opusOAuthCallback(req("/api/opus-oauth-callback?error=access_denied&slot=42&count=50"), res);
+
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body, /\?slot=42&amp;count=50/);
+});
+
+/* =========================================================
+   5. JENDELA CHIP (HTML tetap kecil walau slot sangat banyak)
+   ========================================================= */
+
+test("getOpusChipRange menampilkan semua slot saat jumlah masih kecil", () => {
+    assert.deepEqual(getOpusChipRange(3, 5), { start: 1, end: 5, windowed: false });
+    assert.deepEqual(getOpusChipRange(1, 1), { start: 1, end: 1, windowed: false });
+    assert.deepEqual(getOpusChipRange(20, OPUS_CHIP_WINDOW), {
+        start: 1,
+        end: OPUS_CHIP_WINDOW,
+        windowed: false
+    });
+});
+
+test("getOpusChipRange menjaga jendela tetap di dalam batas 1..total", () => {
+    const first = getOpusChipRange(1, 1000);
+    assert.equal(first.start, 1);
+    assert.equal(first.end, OPUS_CHIP_WINDOW);
+    assert.equal(first.windowed, true);
+
+    const last = getOpusChipRange(1000, 1000);
+    assert.equal(last.start, 1000 - OPUS_CHIP_WINDOW + 1);
+    assert.equal(last.end, 1000);
+
+    const middle = getOpusChipRange(500, 1000);
+    assert.ok(middle.start < 500 && middle.end > 500);
+    assert.equal(middle.end - middle.start + 1, OPUS_CHIP_WINDOW);
+});
+
+test("count sangat besar tetap menghasilkan HTML kecil dengan tautan lompat", () => {
+    const html = buildLoginIntroHtml({ slot: 500, count: 100000, origin: ORIGIN });
+
+    assert.ok(html.length < 30000, `HTML terlalu besar: ${html.length} karakter`);
+    assert.equal(chipCount(html), OPUS_CHIP_WINDOW);
+    assert.match(html, /class='chip chip--jump'/);
+    assert.match(html, /&laquo; 1/);
+    assert.match(html, /100000 &raquo;/);
+    assert.match(html, /Chip \d+–\d+ dari 100000/);
+    assert.match(html, /Slot: OPUS_AUTH_TOKEN_500/);
+    assert.equal(
+        hrefFor(html, "Tambah slot auth"),
+        `${ORIGIN}${INTRO_PATH}?slot=100001&amp;count=100001`
+    );
+});
+
+test("URL dengan angka tidak masuk akal tidak membuat server meledak", () => {
+    const html = buildLoginIntroHtml({
+        slot: "999999999999999999999999",
+        count: "999999999999999999999999",
+        origin: ORIGIN
+    });
+
+    assert.ok(Number.isFinite(html.length));
+    assert.equal(chipCount(html), OPUS_CHIP_WINDOW);
+    assert.match(html, /tidak dibatasi/);
 });
