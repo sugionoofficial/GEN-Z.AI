@@ -43,6 +43,11 @@ import {
     isLyriaPromptRefusedError,
     sanitizeLyriaMusicText
 } from "../../provider/opus/lyria-prompt-safety.js";
+import {
+    MUSIC_PRESET_DEFAULT_VALUES,
+    MUSIC_PRESET_GROUPS,
+    composeMusicDescription
+} from "./music-presets.js";
 
 const PROVIDER_ID = "opus";
 const PROVIDER_NAME = "GEN-Z.AI";
@@ -173,14 +178,22 @@ function buildParametersForAudioKind(audioKind) {
     if (audioKind === "music") {
         return {
             prompt: {
-                type: "textarea",
+                /* Pilihan sistem centang: pengguna tidak lagi mengetik
+                   deskripsi bebas. Sistem menyusun prompt musikal netral
+                   dari pilihan yang dicentang, sehingga jauh lebih aman
+                   terhadap filter konten Google Lyria 3.5. */
+                type: "checkbox_group",
                 required: true,
                 maxLength: MAX_MUSIC_PROMPT_LENGTH,
-                label: "Deskripsi Musik / Lagu AI",
-                placeholder:
-                    "Contoh: Acoustic indie folk hangat dengan petikan gitar akustik, piano lembut, tempo 95 BPM, suasana pagi yang optimis...",
+                label: "Deskripsi Musik / Lagu AI — Pilihan Sistem",
+                default: [...MUSIC_PRESET_DEFAULT_VALUES],
+                groups: MUSIC_PRESET_GROUPS,
+                allowNote: true,
+                noteMaxLength: 240,
+                notePlaceholder:
+                    "Opsional: catatan singkat tambahan (mis. 'mudah diiringi gitar'). Hindari nama artis, judul lagu, dan kata sensitif.",
                 description:
-                    "Deskripsikan genre, suasana (mood), instrumen, tempo BPM, dan aransemen. Filter konten Google Lyria 3.5 menolak prompt yang menyebut nama artis/figur publik, judul atau lirik lagu berhak cipta, merek, nama tokoh, atau kata sensitif — tulis sebagai deskripsi suara, bukan 'mirip/seperti <nama artis>'."
+                    "Centang pilihan di bawah — sistem menyusun deskripsi genre, mood, instrumen, tempo, vokal, struktur, produksi, dan tema lirik secara otomatis. Semua pilihan aman dari filter konten Lyria 3.5. Catatan tambahan opsional dan dibersihkan otomatis."
             },
             vocal_mode: {
                 type: "select",
@@ -198,7 +211,7 @@ function buildParametersForAudioKind(audioKind) {
                 label: "Durasi Target Musik",
                 options: OPUS_MUSIC_DURATIONS,
                 description:
-                    "Estimasi panjang trek musik yang ingin dihasilkan."
+                    "Estimasi panjang trek. Maksimum 180 detik (3 menit) sesuai kemampuan Lyria 3.5; durasi 5 menit tidak tersedia dalam satu kali generate."
             },
             lyrics: {
                 type: "textarea",
@@ -288,7 +301,7 @@ export function createOpusAudioModel(spec) {
         supportedResolutions: [],
         supportedDurations:
             audioKind === "music"
-                ? [15, 30, 60, 120]
+                ? [15, 30, 60, 120, 180]
                 : audioKind === "sfx"
                   ? [2, 5, 10, 15]
                   : [],
@@ -385,7 +398,7 @@ export function createOpusAudioModel(spec) {
         }
 
         if (audioKind === "music") {
-            const musicPrompt = normalizeString(source.prompt);
+            const musicPrompt = composeMusicDescription(source.prompt, { fallback: "" });
             const rawVocalMode = normalizeString(source.vocal_mode).toLowerCase();
             const rawTargetDuration = normalizeString(source.target_duration ?? source.duration ?? "30");
             const durationNum = Number(rawTargetDuration);
@@ -515,9 +528,9 @@ export function createOpusAudioModel(spec) {
                 }
             }
         } else if (audioKind === "music") {
-            const musicPrompt = normalizeString(source.prompt);
+            const musicPrompt = composeMusicDescription(source.prompt, { fallback: "" });
             if (!musicPrompt) {
-                errors.push("Deskripsi musik / lagu wajib diisi.");
+                errors.push("Centang minimal satu pilihan deskripsi musik / lagu.");
             } else if (musicPrompt.length > MAX_MUSIC_PROMPT_LENGTH) {
                 errors.push(`Deskripsi musik maksimal ${MAX_MUSIC_PROMPT_LENGTH} karakter.`);
             }

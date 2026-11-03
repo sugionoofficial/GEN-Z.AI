@@ -18,6 +18,15 @@
 
 
 /* =========================================================
+   MUSIC PRESET COMPOSER
+========================================================= */
+
+import {
+    composeMusicDescription
+} from "../../../models/opus-audio/music-presets.js";
+
+
+/* =========================================================
    FIND FIELD
 ========================================================= */
 
@@ -144,6 +153,66 @@ export function readFieldValue(
     ) {
 
         return undefined;
+
+    }
+
+
+    /* =====================================================
+       CHECKBOX GROUP (PILIHAN SISTEM)
+       -----------------------------------------------------
+       Harus didahulukan sebelum cabang checkbox tunggal,
+       karena kalau tidak nilainya akan terbaca sebagai
+       boolean dari checkbox pertama saja.
+    ===================================================== */
+
+    const presetGroup =
+        field.querySelector(
+            ".generate-checkbox-group"
+        );
+
+
+    if (
+        presetGroup
+    ) {
+
+        const values =
+            Array.from(
+                presetGroup.querySelectorAll(
+                    'input[type="checkbox"][data-preset-value]:checked'
+                )
+            )
+                .map(
+                    input =>
+                        String(
+                            input.dataset.presetValue ||
+                                input.value ||
+                                ""
+                        ).trim()
+                )
+                .filter(
+                    Boolean
+                );
+
+
+        const noteInput =
+            presetGroup.querySelector(
+                ".generate-checkbox-group__note"
+            );
+
+
+        return composeMusicDescription(
+            {
+                values,
+                note:
+                    noteInput
+                        ? String(
+                            noteInput.value ||
+                                ""
+                        )
+                        : ""
+            },
+            { fallback: "" }
+        );
 
     }
 

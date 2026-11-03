@@ -70,11 +70,26 @@ export const OPUS_MUSIC_VOCAL_MODES = Object.freeze([
     { value: "vocal", label: "Dengan Vokal / Lirik Lagu" }
 ]);
 
+/**
+ * Batas durasi satu kali generate musik.
+ *
+ * Lyria 3.5 (Pro) di dokumen Google menghasilkan lagu "a couple of
+ * minutes"; praktiknya sekitar 184 detik (3 menit). Kita batasi aman
+ * di 180 detik. Lyria 3 Clip selalu 30 detik.
+ *
+ * 5 menit (300 detik) TIDAK bisa dihasilkan dalam satu request Lyria 3.5.
+ * Untuk itu dibutuhkan orkestrasi multi-segmen + penggabungan audio
+ * (mirip alur podcast), yang belum diimplementasikan untuk musik.
+ */
+export const OPUS_MUSIC_MAX_DURATION_SECONDS = 180;
+export const LYRIA_UPSTREAM_MAX_DURATION_SECONDS = 184;
+
 export const OPUS_MUSIC_DURATIONS = Object.freeze([
     { value: "15", label: "15 Detik (Intro / Bumper)" },
     { value: "30", label: "30 Detik (Shorts / Reels / TikTok)" },
     { value: "60", label: "60 Detik (1 Menit)" },
-    { value: "120", label: "120 Detik (2 Menit Lagu Penuh)" }
+    { value: "120", label: "120 Detik (2 Menit)" },
+    { value: "180", label: "180 Detik (3 Menit · Maksimum Lyria 3.5)" }
 ]);
 
 export const OPUS_SFX_DURATIONS = Object.freeze([
