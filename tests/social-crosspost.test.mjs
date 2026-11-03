@@ -231,3 +231,46 @@ test("composer tile akun tetap render disabled mengikuti state busy", () => {
     assert.match(composerSource, /checkbox\.disabled = state\.busy/);
     assert.match(composerSource, /input\.disabled = busy/, "setBusy wajib membuka/mengunci checkbox akun");
 });
+
+/* ---------------------------------------------------------
+   REGRESI — DROPDOWN "TUJUAN POSTING" TIDAK BOLEH TERPOTONG
+   --------------------------------------------------------- */
+
+test("panel Tujuan posting tidak terpotong kartu collapsible (pilihan TikTok utuh)", () => {
+    /* Kartu collapsible punya overflow:hidden. Panel .dest-panel bersifat
+       position:absolute, jadi sebelum perbaikan panel terpotong tepat di
+       batas bawah kartu: grup TikTok hanya setengah terlihat dan tombol
+       "Selesai" tidak bisa dijangkau. */
+    assert.match(
+        studioHtml,
+        /\.card\.studio-collapsible\{padding:0;overflow:hidden;position:relative/,
+        "kartu TERTUTUP tetap memotong isinya"
+    );
+    assert.match(
+        studioHtml,
+        /\.card\.studio-collapsible\.is-expanded\{[^}]*overflow:visible;z-index:1\}/,
+        "kartu yang DIBUKA wajib membebaskan overflow agar panel bisa keluar"
+    );
+    assert.match(
+        studioHtml,
+        /\.card\.studio-collapsible\.is-expanded:has\(\.dest-panel:not\(\[hidden\]\)\)\{z-index:90\}/,
+        "kartu dengan dropdown terbuka wajib di atas kartu lain"
+    );
+    assert.match(
+        studioHtml,
+        /\.card\.studio-collapsible\.is-expanded \.studio-collapse-trigger\{[^}]*border-radius:16px 16px 0 0/,
+        "sudut atas trigger tetap mengikuti radius kartu saat overflow dibebaskan"
+    );
+    assert.match(
+        studioHtml,
+        /\.dest-panel\{position:absolute;z-index:40;top:calc\(100% \+ 6px\);left:0;right:0;max-height:min\(360px,70vh\)/,
+        "tinggi panel mengikuti viewport, bukan 300px tetap"
+    );
+    assert.doesNotMatch(studioHtml, /\.dest-panel\{[^}]*max-height:300px/);
+    assert.match(studioHtml, /\.dest-panel\[hidden\]\{display:none!important\}/);
+    assert.match(studioHtml, /@media\(max-width:768px\)\{\.dest-panel\{max-height:min\(360px,56vh\)\}\}/);
+    /* Konten panel tetap lengkap: grup FB, grup YT/TT, dan tombol Selesai. */
+    assert.match(publisherSource, /buildGroup\("Facebook Page — wajib pilih satu", "fb", "radio"\)/);
+    assert.match(publisherSource, /buildGroup\("Terbitkan juga ke — khusus video Kata-kata Mutiara", "social", "checkbox"\)/);
+    assert.match(publisherSource, /done\.textContent = "Selesai"/);
+});
