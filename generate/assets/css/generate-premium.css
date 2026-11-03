@@ -4063,6 +4063,9 @@ textarea,
 
 /* =========================================================
    CHECKBOX GROUP — PILIHAN SISTEM DESKRIPSI MUSIK
+   ---------------------------------------------------------
+   Accordion per kategori. Semua blok <details> tertutup saat
+   awal; klik <summary> membuka, klik lagi mengecil kembali.
    Dipakai oleh parameter bertype `checkbox_group`
    (Deskripsi Musik / Lagu AI, model opus-audio-music).
 ========================================================= */
@@ -4073,12 +4076,15 @@ textarea,
     flex-direction: column;
     gap: 12px;
     width: 100%;
+    min-width: 0;
     padding: 12px;
     border: 1px solid rgba(183,255,0,0.14);
     border-radius: 12px;
     background: rgba(183,255,0,0.02);
     box-sizing: border-box;
 }
+
+/* ---------- TOOLBAR ---------- */
 
 #dynamicFields .generate-checkbox-group__toolbar {
 
@@ -4089,17 +4095,33 @@ textarea,
     flex-wrap: wrap;
 }
 
+#dynamicFields .generate-checkbox-group__toolbar-info {
+
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
 #dynamicFields .generate-checkbox-group__count {
 
-    color: rgba(247,250,239,0.62);
-    font-size: 11px;
-    font-weight: 650;
+    color: rgba(247,250,239,0.82);
+    font-size: 11.5px;
+    font-weight: 750;
     letter-spacing: 0.02em;
+}
+
+#dynamicFields .generate-checkbox-group__hint {
+
+    color: rgba(247,250,239,0.46);
+    font-size: 10.5px;
+    line-height: 1.4;
 }
 
 #dynamicFields .generate-checkbox-group__reset {
 
-    padding: 6px 11px;
+    flex: 0 0 auto;
+    padding: 7px 12px;
     border: 1px solid rgba(183,255,0,0.32);
     border-radius: 8px;
     background: rgba(183,255,0,0.08);
@@ -4107,6 +4129,7 @@ textarea,
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
+    white-space: nowrap;
 }
 
 #dynamicFields .generate-checkbox-group__reset:hover {
@@ -4114,29 +4137,167 @@ textarea,
     background: rgba(183,255,0,0.16);
 }
 
-#dynamicFields .generate-checkbox-group__group {
+#dynamicFields .generate-checkbox-group__reset:focus-visible,
+#dynamicFields .generate-checkbox-group__summary:focus-visible {
 
-    margin: 0;
-    padding: 10px 0 0;
-    border: 0;
-    border-top: 1px solid rgba(183,255,0,0.10);
+    outline: 2px solid rgba(183,255,0,0.75);
+    outline-offset: -2px;
+}
+
+/* ---------- DAFTAR BLOK ---------- */
+
+#dynamicFields .generate-checkbox-group__groups {
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     min-width: 0;
 }
 
-#dynamicFields .generate-checkbox-group__group:first-of-type {
+#dynamicFields .generate-checkbox-group__group {
 
-    border-top: 0;
-    padding-top: 0;
+    min-width: 0;
+    margin: 0;
+    border: 1px solid rgba(183,255,0,0.14);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.015);
+    overflow: hidden;
+    transition: border-color 0.18s ease, background 0.18s ease;
 }
 
-#dynamicFields .generate-checkbox-group__legend {
+#dynamicFields .generate-checkbox-group__group[data-selected="true"] {
 
-    padding: 0 0 7px;
-    color: rgba(247,250,239,0.82);
-    font-size: 11px;
+    border-color: rgba(183,255,0,0.30);
+}
+
+#dynamicFields .generate-checkbox-group__group[open] {
+
+    border-color: rgba(183,255,0,0.42);
+    background: rgba(183,255,0,0.045);
+}
+
+/* ---------- JUDUL BLOK (area klik) ---------- */
+
+#dynamicFields .generate-checkbox-group__summary {
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px 12px;
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#dynamicFields .generate-checkbox-group__summary::-webkit-details-marker {
+
+    display: none;
+}
+
+#dynamicFields .generate-checkbox-group__summary:hover {
+
+    background: rgba(183,255,0,0.055);
+}
+
+#dynamicFields .generate-checkbox-group__group[open] > .generate-checkbox-group__summary {
+
+    border-bottom: 1px solid rgba(183,255,0,0.10);
+    background: rgba(183,255,0,0.05);
+}
+
+#dynamicFields .generate-checkbox-group__index {
+
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background: rgba(183,255,0,0.10);
+    color: #d9ff55;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+#dynamicFields .generate-checkbox-group__group[open] > .generate-checkbox-group__summary > .generate-checkbox-group__index {
+
+    background: rgba(183,255,0,0.22);
+}
+
+#dynamicFields .generate-checkbox-group__title {
+
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: rgba(247,250,239,0.86);
+    font-size: 12px;
     font-weight: 750;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+}
+
+#dynamicFields .generate-checkbox-group__badge {
+
+    flex: 0 0 auto;
+    padding: 3px 8px;
+    border: 1px solid rgba(183,255,0,0.16);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.03);
+    color: rgba(247,250,239,0.55);
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+#dynamicFields .generate-checkbox-group__badge[data-active="true"] {
+
+    border-color: rgba(183,255,0,0.48);
+    background: rgba(183,255,0,0.13);
+    color: #d9ff55;
+}
+
+#dynamicFields .generate-checkbox-group__chevron {
+
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    margin: -3px 3px 0 0;
+    border-right: 2px solid rgba(183,255,0,0.65);
+    border-bottom: 2px solid rgba(183,255,0,0.65);
+    transform: rotate(45deg);
+    transition: transform 0.2s ease;
+}
+
+#dynamicFields .generate-checkbox-group__group[open] .generate-checkbox-group__chevron {
+
+    transform: rotate(225deg);
+    margin-top: 3px;
+}
+
+/* ---------- ISI BLOK ---------- */
+
+#dynamicFields .generate-checkbox-group__body {
+
+    padding: 0 12px 12px;
+    box-sizing: border-box;
+    animation: genz-preset-reveal 0.18s ease-out;
+}
+
+@keyframes genz-preset-reveal {
+
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 #dynamicFields .generate-checkbox-group__options {
@@ -4144,6 +4305,7 @@ textarea,
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
     gap: 6px;
+    padding-top: 10px;
 }
 
 #dynamicFields .generate-checkbox-option {
@@ -4161,6 +4323,7 @@ textarea,
     font-weight: 620;
     line-height: 1.3;
     cursor: pointer;
+    box-sizing: border-box;
     transition: border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -4191,6 +4354,8 @@ textarea,
     overflow-wrap: anywhere;
 }
 
+/* ---------- CATATAN TAMBAHAN ---------- */
+
 #dynamicFields .generate-checkbox-group__note-wrap {
 
     display: flex;
@@ -4217,10 +4382,124 @@ textarea,
     color: rgba(247,250,239,0.38);
 }
 
-@media (max-width: 640px) {
+/* =========================================================
+   RESPONSIVE — HP & TABLET
+   Tap target >= 44px, toolbar bertumpuk, grid menyesuai lebar.
+========================================================= */
+
+@media (max-width: 768px) {
+
+    #dynamicFields .generate-checkbox-group {
+        padding: 10px;
+        gap: 10px;
+    }
+
+    #dynamicFields .generate-checkbox-group__toolbar {
+        align-items: stretch;
+    }
+
+    #dynamicFields .generate-checkbox-group__toolbar-info {
+        flex: 1 1 100%;
+    }
+
+    #dynamicFields .generate-checkbox-group__reset {
+        width: 100%;
+        min-height: 40px;
+        padding: 9px 12px;
+        font-size: 11.5px;
+    }
+
+    #dynamicFields .generate-checkbox-group__groups {
+        gap: 8px;
+    }
+
+    #dynamicFields .generate-checkbox-group__summary {
+        min-height: 48px;
+        padding: 10px 11px;
+        gap: 8px;
+    }
+
+    #dynamicFields .generate-checkbox-group__title {
+        font-size: 12.5px;
+    }
+
+    #dynamicFields .generate-checkbox-group__badge {
+        font-size: 10.5px;
+    }
+
+    #dynamicFields .generate-checkbox-group__body {
+        padding: 0 11px 11px;
+    }
 
     #dynamicFields .generate-checkbox-group__options {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 7px;
+    }
 
-        grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    #dynamicFields .generate-checkbox-option {
+        min-height: 44px;
+        padding: 9px 10px;
+        font-size: 12px;
+    }
+
+    #dynamicFields .generate-checkbox-option input[type="checkbox"] {
+        width: 17px;
+        height: 17px;
+    }
+}
+
+@media (max-width: 480px) {
+
+    #dynamicFields .generate-checkbox-group {
+        padding: 9px;
+    }
+
+    #dynamicFields .generate-checkbox-group__groups {
+        gap: 7px;
+    }
+
+    #dynamicFields .generate-checkbox-group__summary {
+        padding: 9px 10px;
+    }
+
+    #dynamicFields .generate-checkbox-group__index {
+        width: 22px;
+        height: 22px;
+        font-size: 9.5px;
+    }
+
+    #dynamicFields .generate-checkbox-group__title {
+        font-size: 12px;
+    }
+
+    #dynamicFields .generate-checkbox-group__body {
+        padding: 0 10px 10px;
+    }
+
+    #dynamicFields .generate-checkbox-group__options {
+        grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    }
+}
+
+@media (max-width: 360px) {
+
+    #dynamicFields .generate-checkbox-group__options {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #dynamicFields .generate-checkbox-group__badge {
+        padding: 3px 6px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    #dynamicFields .generate-checkbox-group__body {
+        animation: none;
+    }
+
+    #dynamicFields .generate-checkbox-group__chevron,
+    #dynamicFields .generate-checkbox-group__group {
+        transition: none;
     }
 }

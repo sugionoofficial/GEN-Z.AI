@@ -395,6 +395,17 @@ export function setFieldValue(
         }
 
 
+        /* Perubahan programatik tidak memicu "change". */
+        if (
+            typeof presetGroup.refreshPresetSummary ===
+            "function"
+        ) {
+
+            presetGroup.refreshPresetSummary();
+
+        }
+
+
         return true;
 
     }
