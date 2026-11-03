@@ -97,6 +97,9 @@ create table if not exists public.social_post_schedules (
     post_mode text not null default 'character' check (post_mode in ('character', 'quote')),
     quote_theme text not null default '' check (char_length(quote_theme) <= 120),
     quote_visual_style text not null default '' check (char_length(quote_visual_style) <= 240),
+    -- Opsi latar Kata-kata Mutiara: true = sertakan foto character_id +
+    -- outfit acak dari koleksi aktif karakter itu. Default mati.
+    quote_use_character boolean not null default false,
     quote_publish_target text not null default 'feed' check (quote_publish_target in ('feed', 'reels', 'story', 'feed_story')),
     use_random_song boolean not null default false,
     enabled boolean not null default false,
@@ -146,6 +149,14 @@ alter table public.social_post_schedules
 
 alter table public.social_post_schedules
     add column if not exists autopublish_enabled boolean not null default true;
+
+-- Idempoten untuk database lama: supabase/social-schedule-quote-character.sql
+-- adalah file migrasi mandiri yang bisa dijalankan terpisah.
+alter table public.social_post_schedules
+    add column if not exists quote_use_character boolean not null default false;
+
+comment on column public.social_post_schedules.quote_use_character is
+    'Mode Kata-kata Mutiara: true = latar AI memakai foto karakter pada character_id + outfit acak dari koleksi aktif karakter itu; false = latar pemandangan tanpa orang.';
 
 alter table public.social_post_schedules
     add column if not exists scene_location text not null default '';

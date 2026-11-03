@@ -773,9 +773,17 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         const container = $("characters-list");
         const select = $("schedule-character");
         const manualSelect = $("manual-character");
+        /* Dua pemilih tambahan khusus opsi latar Kata-kata Mutiara. */
+        const quoteSelects = [
+            $("schedule-quote-character"),
+            $("manual-quote-character")
+        ].filter(Boolean);
         container.replaceChildren();
         select.replaceChildren(new Option("Pilih karakter…", ""));
         manualSelect.replaceChildren(new Option("Pilih karakter…", ""));
+        for (const quoteSelect of quoteSelects) {
+            quoteSelect.replaceChildren(new Option("Pilih karakter…", ""));
+        }
         for (const character of characters) {
             const characterOutfits = (state.data?.outfits || []).filter(outfit => outfit.character_id === character.id);
             const activeOutfitCount = characterOutfits.filter(outfit => outfit.is_active !== false).length;
@@ -784,6 +792,9 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             const optionLabel = character.display_name;
             select.add(new Option(optionLabel, character.id));
             manualSelect.add(new Option(optionLabel, character.id));
+            for (const quoteSelect of quoteSelects) {
+                quoteSelect.add(new Option(optionLabel, character.id));
+            }
             const item = document.createElement("div");
             item.className = "item";
             const img = document.createElement("img");
@@ -1126,6 +1137,20 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         }
     }
 
+    /** Opsi "latar + foto karakter + outfit acak" untuk post manual & autopost. */
+    function syncQuoteCharacterFields(prefix, isQuote) {
+        const toggle = $(`${prefix}-quote-use-character`);
+        const wrap = $(`${prefix}-quote-character-wrap`);
+        const select = $(`${prefix}-quote-character`);
+        const enabled = isQuote && toggle?.checked === true;
+        if (wrap) wrap.hidden = !enabled;
+        if (select) {
+            select.required = enabled;
+            if (!enabled) select.value = "";
+        }
+        return enabled;
+    }
+
     function setManualPostMode(mode) {
         const nextMode = mode === "quote" ? "quote" : "character";
         const isQuote = nextMode === "quote";
@@ -1147,6 +1172,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         if (manualModelWrap) manualModelWrap.hidden = isQuote;
         if (isQuote) setInlineModelDropdownOpen("manual", false);
         if (isQuote && aspectSelect) aspectSelect.value = "9:16";
+        syncQuoteCharacterFields("manual", isQuote);
         applySocialDestinationOptions();
         updateManualCharacterPreview();
     }
@@ -1177,6 +1203,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         if (scheduleModelWrap) scheduleModelWrap.hidden = isQuote;
         if (isQuote) setInlineModelDropdownOpen("schedule", false);
         if (isQuote && aspectSelect) aspectSelect.value = "9:16";
+        syncQuoteCharacterFields("schedule", isQuote);
         applySocialDestinationOptions();
         if (!preserveSongToggle && songCheck) {
             songCheck.checked = isQuote;
@@ -1763,14 +1790,18 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         disarmManualPublish();
         const postMode = $("manual-post-mode")?.value === "quote" ? "quote" : "character";
         const isQuote = postMode === "quote";
+        const quoteUseCharacter = isQuote && $("manual-quote-use-character")?.checked === true;
+        const quoteCharacterId = quoteUseCharacter ? ($("manual-quote-character")?.value || "") : "";
         const characterId = $("manual-character").value;
         const pageConnectionId = selectedFacebookPageId("manual-page");
-        if ((!isQuote && !characterId) || !pageConnectionId) {
+        if ((!isQuote && !characterId) || (quoteUseCharacter && !quoteCharacterId) || !pageConnectionId) {
             status(
                 $("manual-post-status"),
-                isQuote
-                    ? "Pilih Facebook Page tujuan sebelum membuat poster kata-kata mutiara."
-                    : "Pilih karakter tersimpan dan Facebook Page.",
+                quoteUseCharacter && !quoteCharacterId
+                    ? "Pilih foto karakter untuk latar belakang kata-kata mutiara."
+                    : isQuote
+                        ? "Pilih Facebook Page tujuan sebelum membuat poster kata-kata mutiara."
+                        : "Pilih karakter tersimpan dan Facebook Page.",
                 "error"
             );
             return;
@@ -1782,8 +1813,8 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             stages: isQuote
                 ? [
                     { at: 0, text: "Merangkai kata mutiara via LLM…" },
-                    { at: 3, text: "Merender kartu latar hitam & tanda tangan…" },
-                    { at: 7, text: "Menggabungkan musik auto-play…" }
+                    { at: 3, text: "Menggambar latar AI sesuai kalimat (model SET Studio Medsos)…" },
+                    { at: 7, text: "Merender kartu & menggabungkan musik auto-play…" }
                 ]
                 : [
                     { at: 0, text: "Membuat gambar AI…" },
@@ -1794,7 +1825,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         status(
             $("manual-post-status"),
             isQuote
-                ? "Merangkai kata-kata mutiara lewat LLM QwenCloud di atas latar hitam polos (tanpa memakai kuota gambar) dan menyematkan lagu acak…"
+                ? "Merangkai kata-kata mutiara lewat LLM QwenCloud, menggambar latar AI sesuai kalimat memakai model SET Studio Medsos, lalu menyematkan lagu…"
                 : "Membuat satu gambar, membersihkan metadata, dan menyiapkan caption untuk pratinjau…"
         );
         try {
@@ -1811,6 +1842,9 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
                     quote_theme: $("manual-quote-theme")?.value || "",
                     quote_visual_style: $("manual-quote-visual")?.value || "",
                     custom_quote: $("manual-custom-quote")?.value?.trim() || "",
+                    /* Opsi latar + foto karakter pilihan + outfit acak tersedia. */
+                    quote_use_character: quoteUseCharacter,
+                    ...(quoteUseCharacter ? { character_id: quoteCharacterId } : {}),
                     ...songRequestFields("manual-quote")
                 }
                 : {
@@ -2967,7 +3001,9 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             const parts = [quoteTargetLabel(schedule.quote_publish_target || "feed")];
             const themeLabel = state.data?.quotePresets?.themes?.find(t => (t.value ?? t.id) === schedule.quote_theme)?.label || schedule.quote_theme;
             parts.push(themeLabel ? `tema ${themeLabel}` : "tema acak");
-            parts.push("latar hitam hemat kuota");
+            parts.push(schedule.quote_use_character
+                ? "latar AI + karakter & outfit acak"
+                : "latar AI sesuai kalimat");
             parts.push(songSummaryLabel(schedule));
             return parts.join(" · ");
         }
@@ -3987,6 +4023,13 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         setSocialDestinationSelection("schedule-page", Array.isArray(schedule.social_video_account_ids) ? schedule.social_video_account_ids : []);
         if ($("schedule-quote-theme")) $("schedule-quote-theme").value = schedule.quote_theme || "";
         if ($("schedule-quote-visual")) $("schedule-quote-visual").value = schedule.quote_visual_style || "";
+        /* Pulihkan opsi latar + karakter yang tersimpan di jadwal autopost. */
+        const quoteUseCharacter = isQuote && schedule.quote_use_character === true;
+        if ($("schedule-quote-use-character")) $("schedule-quote-use-character").checked = quoteUseCharacter;
+        syncQuoteCharacterFields("schedule", isQuote);
+        if ($("schedule-quote-character") && quoteUseCharacter) {
+            $("schedule-quote-character").value = schedule.character_id || "";
+        }
         if ($("schedule-random-song")) {
             $("schedule-random-song").checked = isQuote
                 ? schedule.use_random_song !== false
@@ -4034,6 +4077,8 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         setSocialDestinationSelection("schedule-page", []);
         if ($("schedule-quote-theme")) $("schedule-quote-theme").value = "";
         if ($("schedule-quote-visual")) $("schedule-quote-visual").value = "";
+        if ($("schedule-quote-use-character")) $("schedule-quote-use-character").checked = false;
+        if ($("schedule-quote-character")) $("schedule-quote-character").value = "";
         const { min, max } = schedulePolicy();
         $("interval-minutes").value = String(min <= 1440 && 1440 <= max ? 1440 : min);
         $("schedule-aspect-ratio").value = "9:16";
@@ -4062,6 +4107,8 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         event.preventDefault();
         const postMode = $("schedule-post-mode")?.value === "quote" ? "quote" : "character";
         const isQuote = postMode === "quote";
+        const quoteUseCharacter = isQuote && $("schedule-quote-use-character")?.checked === true;
+        const quoteCharacterId = quoteUseCharacter ? ($("schedule-quote-character")?.value || "") : "";
         const characterId = $("schedule-character").value;
         const pageConnectionId = selectedFacebookPageId("schedule-page");
         const intervalMinutes = Number($("interval-minutes").value);
@@ -4073,6 +4120,10 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         }
         if (!isQuote && !characterId) {
             status(scheduleStatus, "Pilih karakter untuk jadwal foto karakter AI, atau pindah ke mode Kata-kata Mutiara + Lagu FB.", "error");
+            return;
+        }
+        if (quoteUseCharacter && !quoteCharacterId) {
+            status(scheduleStatus, "Pilih foto karakter yang akan dipakai pada latar belakang Kata-kata Mutiara, atau matikan opsi tersebut.", "error");
             return;
         }
         if (!nextRunAt || Date.parse(nextRunAt) <= Date.now()) {
@@ -4101,7 +4152,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
         const body = {
             id: $("schedule-id").value || undefined,
             post_mode: postMode,
-            character_id: isQuote ? null : characterId,
+            character_id: quoteUseCharacter ? quoteCharacterId : (isQuote ? null : characterId),
             page_connection_id: pageConnectionId,
             interval_minutes: intervalMinutes,
             next_run_at: nextRunAt,
@@ -4113,6 +4164,8 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
             social_video_account_ids: isQuote ? selectedSocialDestinationIds("schedule-page") : [],
             quote_theme: isQuote ? ($("schedule-quote-theme")?.value || "") : "",
             quote_visual_style: isQuote ? ($("schedule-quote-visual")?.value || "") : "",
+            /* Opsi autopost: latar + karakter pilihan + outfit acak tersedia. */
+            quote_use_character: quoteUseCharacter,
             ...scheduleSongFields,
             tag_name: $("schedule-tag-name")?.value?.trim() || "",
             tag_url: $("schedule-tag-url")?.value?.trim() || "",
@@ -4483,6 +4536,12 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
     $("cancel-song-edit")?.addEventListener("click", resetSongForm);
     $("seed-default-songs")?.addEventListener("click", seedDefaultSongs);
     $("manual-post-mode")?.addEventListener("change", event => setManualPostMode(event.target.value));
+    $("manual-quote-use-character")?.addEventListener("change", () => {
+        syncQuoteCharacterFields("manual", true);
+        disarmManualPublish();
+    });
+    $("manual-quote-character")?.addEventListener("change", () => disarmManualPublish());
+    $("schedule-quote-use-character")?.addEventListener("change", () => syncQuoteCharacterFields("schedule", true));
     /* Catatan: perubahan apa pun pada pilihan tujuan terpadu
        (#manual-page, termasuk centangan YouTube/TikTok) sudah
        membatalkan konfirmasi terbit lewat listener change di atas. */

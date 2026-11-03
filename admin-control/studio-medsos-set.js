@@ -1159,7 +1159,7 @@
             );
         }
         if (test?.t2i_ready === false) {
-            lines.push("FLUX.1 schnell gagal, jadi latar Kata-kata Mutiara tidak bisa dibuat.");
+            lines.push("FLUX.1 schnell gagal, jadi latar Kata-kata Mutiara (provider Cloudflare) akan jatuh ke latar hitam polos.");
         }
         if (test?.try_on_ready === true) {
             lines.push("Try-on Pruna aktif (kredit AI Gateway tersedia).");

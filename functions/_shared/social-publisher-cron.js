@@ -105,6 +105,15 @@ const QUOTE_BASE_SCHEDULE_COLUMNS = `${SCENE_SCHEDULE_COLUMNS},post_mode,quote_t
 const FULL_SCHEDULE_COLUMNS = `${QUOTE_BASE_SCHEDULE_COLUMNS},quote_publish_target`;
 const MODEL_SCHEDULE_COLUMNS = `${FULL_SCHEDULE_COLUMNS},image_model`;
 const SOCIAL_TARGET_SCHEDULE_COLUMNS = `${MODEL_SCHEDULE_COLUMNS},social_video_account_ids`;
+/* supabase/social-schedule-quote-character.sql: opsi latar + foto karakter
+   untuk jadwal autopost. Kolom hanya diminta pada percobaan pertama; bila
+   migration belum jalan, tangga fallback memakai daftar kolom lama. */
+const QUOTE_CHARACTER_SCHEDULE_COLUMNS = `${SOCIAL_TARGET_SCHEDULE_COLUMNS},quote_use_character`;
+
+function isMissingQuoteCharacterColumn(error) {
+    const message = String(error?.message || "");
+    return /\bquote_use_character\b/i.test(message) && isMissingColumnError(error);
+}
 
 function isMissingSocialVideoTargetsColumn(error) {
     const message = String(error?.message || "");
@@ -140,12 +149,26 @@ async function getScheduleForRun(config, scheduleId) {
     try {
         const rows = await dbRequest(config, table(
             "social_post_schedules",
-            `select=${SOCIAL_TARGET_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+            `select=${QUOTE_CHARACTER_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
         ));
         return rows?.[0] || null;
     } catch (firstError) {
         let error = firstError;
         if (!isMissingColumnError(error)) throw error;
+        if (isMissingQuoteCharacterColumn(error)) {
+            /* Migration belum dijalankan: jadwal tetap diproses tanpa opsi
+               karakter, bukan menggagalkan seluruh autopost. */
+            try {
+                const rows = await dbRequest(config, table(
+                    "social_post_schedules",
+                    `select=${SOCIAL_TARGET_SCHEDULE_COLUMNS}&id=eq.${encodeURIComponent(scheduleId)}&enabled=eq.true&limit=1`
+                ));
+                return rows?.[0] || null;
+            } catch (withoutQuoteCharacterError) {
+                if (!isMissingColumnError(withoutQuoteCharacterError)) throw withoutQuoteCharacterError;
+                error = withoutQuoteCharacterError;
+            }
+        }
         if (isMissingSocialVideoTargetsColumn(error)) {
             try {
                 const rows = await dbRequest(config, table(
@@ -421,6 +444,55 @@ async function pickScheduledOutfit(
     return { outfit: chosen, ready: true, outfits };
 }
 
+/**
+ * Foto karakter + outfit acak untuk opsi latar Kata-kata Mutiara (autopost).
+ * Mengikuti jalur unduh mode Foto Karakter AI: OPUS memakai objek asli,
+ * provider lain memakai versi yang diperkecil Supabase.
+ */
+async function loadQuoteCharacterAssets({ config, character, imageProvider, garmentObjectKey, garmentMimeType }) {
+    const referenceSource = imageProvider === "opus"
+        ? {
+            bytes: await downloadReferenceObject(config, character.reference_object_key),
+            mimeType: character.reference_mime_type
+        }
+        : await downloadModelReference(
+            config,
+            character.reference_object_key,
+            { maxSide: imageProvider === "cloudflare" ? 1024 : 512 }
+        );
+    const referenceBytes = referenceSource.bytes;
+    if (!referenceBytes?.length || referenceBytes.length > 8 * 1024 * 1024) {
+        throw new Error("Ukuran foto referensi karakter tidak valid.");
+    }
+    const garmentSource = garmentObjectKey
+        ? (imageProvider === "opus"
+            ? {
+                bytes: await downloadReferenceObject(config, garmentObjectKey),
+                mimeType: garmentMimeType
+            }
+            : await downloadModelReference(config, garmentObjectKey))
+        : null;
+    const needsSignedUrl = imageProvider === "cloudflare" || imageProvider === "opus";
+    const personImageUrl = needsSignedUrl
+        ? await createSignedReferenceUrl(config, character.reference_object_key)
+        : "";
+    const garmentSignedUrl = needsSignedUrl && garmentObjectKey
+        ? await createSignedReferenceUrl(config, garmentObjectKey)
+        : "";
+    return {
+        referenceBytes,
+        referenceMimeType: referenceSource.mimeType || character.reference_mime_type,
+        garmentBytes: garmentSource?.bytes || null,
+        garmentMimeType: garmentSource?.mimeType || garmentMimeType,
+        personImageUrl,
+        garmentImageUrls: imageProvider === "cloudflare"
+            ? [garmentSignedUrl || personImageUrl].filter(Boolean)
+            : imageProvider === "opus" && garmentSignedUrl
+                ? [garmentSignedUrl]
+                : []
+    };
+}
+
 /*
  * Batas maksimum percobaan ulang beruntun ketika gambar ditolak kebijakan konten
  * / safety system Opus (0 kredit terpotong di gateway). Selama belum melampaui
@@ -640,6 +712,11 @@ async function processRun(env, config, claimedRun, options = {}) {
         }
 
         postMode = normalizeSocialPostMode(schedule.post_mode);
+        /* Opsi autopost: latar AI memakai foto karakter jadwal + outfit acak.
+           Bila kolom belum ada (migration belum jalan) nilainya undefined
+           sehingga perilaku lama tetap aman. */
+        const quoteUseCharacter = postMode === "quote" && schedule.quote_use_character === true;
+        const needsCharacter = postMode !== "quote" || quoteUseCharacter;
         /* off / fixed / random. Data lama tanpa song_mode memakai use_random_song. */
         const songMode = resolveScheduleSongMode(schedule, postMode);
         const shouldUseSong = songMode !== "off";
@@ -654,7 +731,7 @@ async function processRun(env, config, claimedRun, options = {}) {
                 prefetched.publisherConfigs
             ]
             : await Promise.all([
-                postMode === "quote"
+                !needsCharacter
                     ? Promise.resolve([])
                     : dbRequest(config, table("social_characters", `select=id,owner_id,display_name,reference_object_key,reference_mime_type,prompt_notes&id=eq.${encodeURIComponent(schedule.character_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
                 dbRequest(config, table("social_page_connections", `select=id,owner_id,page_id,page_name,can_publish,page_token_ciphertext,page_token_iv&id=eq.${encodeURIComponent(schedule.page_connection_id)}&owner_id=eq.${encodeURIComponent(schedule.owner_id)}&limit=1`)),
@@ -726,17 +803,27 @@ async function processRun(env, config, claimedRun, options = {}) {
                 ...createQuotePlan(recentPlanKeys, Math.random, quoteOverridesFromSchedule(schedule)),
                 aspect_ratio: "9:16"
             };
-            const quoteAiProvider = value(env, "QWENCLOUD_API_KEY") ? "qwencloud" : imageProvider;
+            /* QWENCLOUD_API_KEY hanya menentukan LLM penulis mutiara. Gambar
+               latar TETAP memakai provider + model dari SET Studio Medsos
+               (mis. OPUS), jangan ditimpa seperti perilaku sebelumnya. */
+            const hasQwenCloudKey = Boolean(value(env, "QWENCLOUD_API_KEY"));
+            const quoteTextProvider = hasQwenCloudKey ? "qwencloud" : textProvider;
+            const quoteTextImageProvider = hasQwenCloudKey ? "qwencloud" : imageProvider;
+            const quoteImageModel = imageProvider === "opus"
+                ? normalizeOpusImageModel(publisherConfigs?.[0]?.image_model, env)
+                : imageProvider === "qwencloud"
+                    ? normalizeQwenCloudImageModel(publisherConfigs?.[0]?.image_model)
+                    : "";
             const quoteResult = await generateSocialQuote({
                 env,
                 quotePlan,
                 recentQuotes,
-                imageProvider: quoteAiProvider,
-                textProvider: value(env, "QWENCLOUD_API_KEY") ? "qwencloud" : textProvider,
+                imageProvider: quoteTextImageProvider,
+                textProvider: quoteTextProvider,
                 llmModel: quoteLlmModel
             });
             const resolvedQuoteModel = quoteResult.model || quoteLlmModel || "solid-black";
-            if (quoteAiProvider === "qwencloud") {
+            if (hasQwenCloudKey) {
                 recordModelUsage(config, resolvedQuoteModel).catch(recordError => {
                     console.error("Could not record QwenCloud LLM usage:", recordError?.message || "unknown error");
                 });
@@ -744,24 +831,56 @@ async function processRun(env, config, claimedRun, options = {}) {
             quoteText = quoteResult.quoteText;
             quoteThemeLabel = quotePlan.themeLabel;
             generated = { model: resolvedQuoteModel };
-            /* Latar belakang Kata-kata Mutiara: gambar AI yang mengikuti
-               kalimat & tema kutipan (permintaan user). Gagal generate
+            /* Latar mengikuti MAKNA kalimat mutiara, model gambar SET Studio
+               Medsos, dan opsional foto karakter + outfit acak. Gagal generate
                jatuh kembali ke latar hitam tanpa menggagalkan jadwal. */
             let backgroundBytes = null;
             let backgroundModel = "";
+            let backgroundPrompt = "solid-black-background (#000000)";
+            let characterAssets = null;
             try {
+                if (quoteUseCharacter) {
+                    const character = characters?.[0];
+                    if (!character) throw new Error("Foto karakter untuk latar belakang tidak ditemukan.");
+                    const bucketVerified = prefetched?.bucketVerified === true
+                        || await isPrivateReferenceBucket(config);
+                    if (!bucketVerified) throw new Error("Bucket privat Storage untuk foto karakter belum tersedia.");
+                    const outfitSelection = await pickScheduledOutfit(config, schedule, previousRuns, {
+                        cachedOutfits: prefetched?.allOutfits || null,
+                        rejectedOutfitIds: imageProvider === "opus" ? (policyState?.rejectedOutfitIds || []) : []
+                    });
+                    outfit = outfitSelection.outfit;
+                    outfitLibraryReady = outfitSelection.ready;
+                    characterAssets = await loadQuoteCharacterAssets({
+                        config,
+                        character,
+                        imageProvider,
+                        garmentObjectKey: outfit?.object_key || "",
+                        garmentMimeType: outfit?.mime_type || ""
+                    });
+                }
+                backgroundPrompt = buildQuoteImagePrompt({
+                    quotePlan,
+                    quoteText,
+                    visualDirection: quoteResult.visualDirection,
+                    aspectRatio: "9:16",
+                    withCharacter: Boolean(characterAssets?.referenceBytes?.length),
+                    hasOutfitReference: Boolean(characterAssets?.garmentBytes?.length),
+                    outfitName: outfit?.name || ""
+                });
                 const background = await generateSocialQuoteImage({
                     env,
-                    prompt: buildQuoteImagePrompt({ quotePlan, aspectRatio: "9:16" }),
+                    prompt: backgroundPrompt,
                     aspectRatio: "9:16",
-                    imageProvider: quoteAiProvider,
-                    /* T2I tanpa referensi — kuota terpisah dari model gambar karakter (i2i). */
-                    imageModel: quoteAiProvider === "qwencloud" ? "wan2.6-t2i" : ""
+                    imageProvider,
+                    imageModel: quoteImageModel,
+                    ...(characterAssets || {})
                 });
                 if (background?.bytes?.length) {
                     backgroundBytes = background.bytes;
                     backgroundModel = background.model || "";
-                    if (quoteAiProvider === "qwencloud") {
+                    generated = { model: backgroundModel || resolvedQuoteModel };
+                    if (imageProvider === "qwencloud") {
                         recordModelUsage(config, backgroundModel).catch(recordError => {
                             console.error("Could not record QwenCloud quote background usage:", recordError?.message || "unknown error");
                         });
@@ -770,7 +889,7 @@ async function processRun(env, config, claimedRun, options = {}) {
             } catch (backgroundError) {
                 console.warn(`[Social Publisher] Latar kutipan gagal dibuat, memakai latar hitam: ${String(backgroundError?.message || backgroundError).slice(0, 200)}`);
             }
-            prompt = backgroundBytes ? "ai-scenic-quote-background" : "solid-black-background (#000000)";
+            prompt = backgroundPrompt;
 
             const audioBytes = await resolveStorySongAudioBytes(env, config, song);
             const storyCard = await renderQuoteStoryCard({
@@ -787,7 +906,7 @@ async function processRun(env, config, claimedRun, options = {}) {
                 maxDurationSec: maxQuoteVideoDurationForTarget(quotePublishTarget)
             });
             storyMp4Bytes = encodedStory.mp4Bytes;
-            // Kata-kata Mutiara + Musik: latar AI sesuai kalimat (1 kuota gambar per run); teks tetap bebas foto/orang.
+            // Kata-kata Mutiara + Musik: latar AI sesuai kalimat memakai model gambar SET Studio Medsos (1 kuota gambar per run).
             /* Caption mutiara = teks mutiara + tautan profil (bila diisi). */
             caption = [quoteText, formatTagBlockForCaption({
                 tag_name: schedule.tag_name || "",
@@ -795,8 +914,17 @@ async function processRun(env, config, claimedRun, options = {}) {
             })].filter(Boolean).join("\n\n");
             scenePlanRecord = {
                 ...quotePlan,
-                background_mode: backgroundBytes ? "ai_scenic" : "solid_black",
+                background_mode: !backgroundBytes
+                    ? "solid_black"
+                    : characterAssets
+                        ? "ai_character"
+                        : "ai_scenic",
                 ...(backgroundModel ? { background_model: backgroundModel } : {}),
+                ...(backgroundBytes && characterAssets ? {
+                    background_character_id: schedule.character_id || null,
+                    background_outfit_id: outfit?.id || null,
+                    background_outfit_name: outfit?.name || ""
+                } : {}),
                 post_mode: "quote",
                 quote_publish_target: quotePublishTarget,
                 quote_llm_model: resolvedQuoteModel,

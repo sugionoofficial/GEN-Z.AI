@@ -771,11 +771,11 @@
             </div>
             <div id="qwencloud-llm-options" class="qwencloud-options">
                 <div class="provider-field">
-                    <label for="qwencloud-llm-model">Model LLM QwenCloud (Khusus Kata-kata Mutiara — Latar Hitam Hemat Kuota Gambar)</label>
+                    <label for="qwencloud-llm-model">Model LLM QwenCloud (Khusus Penulis Kalimat Kata-kata Mutiara)</label>
                     <select id="qwencloud-llm-model"></select>
                     <details class="view-details">
                         <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
-                        <div class="view-body">Khusus mode Kata-kata Mutiara + Musik Auto-Play otomatis memakai latar kosong hitam polos (#000000) sehingga <strong>0 kuota model gambar terpakai</strong>, sementara kalimat mutiara dirangkai oleh model LLM QwenCloud pilihan di atas.</div>
+                        <div class="view-body">Model LLM QwenCloud di atas <strong>hanya merangkai kalimat</strong> Kata-kata Mutiara. Latar belakangnya tetap berupa gambar AI yang mengikuti makna kalimat dan <strong>dibuat oleh provider + model gambar yang Anda pilih di SET Studio Medsos ini</strong> (mis. OPUS). Latar hitam polos hanya dipakai sebagai fallback bila generate gambar gagal.</div>
                     </details>
                 </div>
                 <div id="qwencloud-llm-quota-panel" class="quota-panel" aria-live="polite"></div>
@@ -792,7 +792,7 @@
             </div>
             <details class="view-details">
                 <summary class="view-btn"><span class="view-open">View</span><span class="view-close">Tutup</span></summary>
-                <div class="view-body">Provider gambar yang dipilih digunakan untuk Foto Karakter AI &amp; caption kontekstual, sedangkan Kata-kata Mutiara memakai latar hitam polos + model LLM QwenCloud melalui QWENCLOUD_API_KEY.</div>
+                <div class="view-body">Provider &amp; model gambar yang dipilih dipakai untuk <strong>Foto Karakter AI, caption kontekstual, DAN latar belakang Kata-kata Mutiara</strong> (termasuk opsi latar + foto karakter + outfit acak), baik pada post manual maupun autopost. QWENCLOUD_API_KEY hanya dipakai LLM penulis kalimat mutiara, <strong>tidak pernah menggantikan model gambar pilihan Anda</strong>.</div>
             </details>
             <div class="price-settings-row">
                 <button id="save-image-provider" class="btn primary" type="button">Simpan Provider &amp; Model AI</button>
