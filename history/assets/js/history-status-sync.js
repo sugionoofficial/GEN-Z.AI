@@ -782,6 +782,15 @@
 
         stopHistoryAutoRefresh();
 
+        /*
+         * Refresh manual adalah perintah eksplisit pengguna.
+         * Tanpa reset ini, task yang sudah 3x gagal HTTP/network
+         * tetap di-skip oleh getActiveHistoryItems() sampai halaman
+         * di-reload — tombol Refresh tidak benar-benar menyegarkan.
+         */
+        failedSyncTracker.clear();
+        probedNonTerminalTasks.clear();
+
         try {
 
             const activeResult =
