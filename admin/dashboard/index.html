@@ -392,6 +392,90 @@
             box-shadow: 0 0 0 3px rgba(255,48,48,.12);
         }
 
+        /* =====================================================
+           ACCOUNT CONTROLS (page size + pagination)
+        ====================================================== */
+
+        .account-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 0 0 15px;
+        }
+
+        .page-size {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .page-size select {
+            min-height: 38px;
+            padding: 7px 10px;
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 10px;
+            outline: none;
+            background: rgba(255,255,255,.035);
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .page-size select:focus {
+            border-color: rgba(255,48,48,.55);
+            box-shadow: 0 0 0 3px rgba(255,48,48,.12);
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .pagination-info {
+            color: var(--muted-light);
+            font-size: 11px;
+            margin-right: 8px;
+        }
+
+        .page-btn {
+            min-width: 34px;
+            min-height: 34px;
+            padding: 6px 10px;
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 10px;
+            background: rgba(255,255,255,.035);
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            border-color: rgba(255,48,48,.55);
+            box-shadow: 0 0 8px rgba(255,23,68,.25);
+        }
+
+        .page-btn:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+
+        .page-btn.current {
+            background: rgba(255,23,68,.18);
+            border-color: var(--accent);
+            color: var(--accent-dark);
+            box-shadow: 0 0 8px rgba(255,23,68,.35);
+        }
+
         .columns {
             display: grid;
             grid-template-columns: 1.35fr .65fr;
@@ -516,6 +600,7 @@
             .hero-top { align-items: flex-start; flex-direction: column; }
             .role-badge { align-self: flex-start; }
             .info-row { gap: 10px; }
+            .account-controls { flex-direction: column; align-items: flex-start; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -558,10 +643,6 @@
 
     <!-- =========================================================
          SHARED NAVIGATION
-         ---------------------------------------------------------
-         Div id="navigation" akan otomatis di-render oleh
-         /navigation/navigation.js berdasarkan role user login
-         (admin / owner / user).
     ========================================================== -->
 
     <div id="navigation"></div>
@@ -658,6 +739,20 @@
                 autocomplete="off"
                 placeholder="Cari berdasarkan nama atau email..."
             >
+        </div>
+
+        <div class="account-controls">
+            <div class="page-size">
+                <label for="pageSizeSelect">Tampilkan</label>
+                <select id="pageSizeSelect">
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                </select>
+                <span>kartu per halaman</span>
+            </div>
+            <div class="pagination" id="paginationControls"></div>
         </div>
 
         <section class="account-activity-grid" id="accountActivityGrid">
@@ -798,7 +893,7 @@
             window.__dashboardErrors.forEach(function (err) {
                 html += "<div><strong>[" + err.time + "]</strong> " +
                     escapeHtmlDebug(err.message) +
-                    (err.source ? "<br>→ " + escapeHtmlDebug(err.source) + ":" + err.line : "") +
+                    (err.source ? " → " + escapeHtmlDebug(err.source) + ":" + err.line : "") +
                     "</div>";
             });
             content.innerHTML = html;
@@ -815,11 +910,6 @@
 
     <!-- =========================================================
          SUPABASE + CONFIG + SHARED NAVIGATION
-         ---------------------------------------------------------
-         PENTING:
-         - config.js WAJIB load sebelum navigation.js
-         - Semua pakai absolute path (dengan "/" di depan)
-         - Tidak ada admin-nav.js lagi
     ====================================================== -->
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
@@ -845,6 +935,8 @@
                 onlineUserIds: new Set(),
                 currentSessionUserId: "",
                 searchTerm: "",
+                pageSize: 50,
+                currentPage: 1,
                 refreshTimer: null
             };
 
@@ -904,6 +996,11 @@
 
             function formatCredits(value) {
                 return Number(value || 0).toLocaleString("id-ID");
+            }
+
+            function isProfileActive(profile) {
+                var userId = String(profile.id || "");
+                return state.activeUserIds.has(userId) || state.onlineUserIds.has(userId);
             }
 
             /* =====================================================
@@ -1027,7 +1124,7 @@
                         .from("profiles")
                         .select("id,name,email,role,credits,status")
                         .order("email", { ascending: true })
-                        .limit(100);
+                        .limit(5000);
 
                     if (pResult.error) throw pResult.error;
                     profiles = Array.isArray(pResult.data) ? pResult.data : [];
@@ -1118,29 +1215,58 @@
                 if (!grid) return;
 
                 var searchTerm = state.searchTerm.trim().toLocaleLowerCase();
-                var profiles = state.profiles.filter(function (profile) {
+                var filtered = state.profiles.filter(function (profile) {
                     if (!searchTerm) return true;
 
                     var name = String(profile.name || "").toLocaleLowerCase();
                     var email = String(profile.email || "").toLocaleLowerCase();
                     return name.includes(searchTerm) || email.includes(searchTerm);
                 });
+
+                /* =====================================================
+                   SORTING: akun aktif (lampu hijau berkedip) selalu
+                   di urutan paling atas, sisanya menyusul.
+                ====================================================== */
+
+                var profiles = filtered.slice().sort(function (a, b) {
+                    var aActive = isProfileActive(a);
+                    var bActive = isProfileActive(b);
+                    if (aActive !== bActive) return aActive ? -1 : 1;
+                    return 0;
+                });
+
                 var activeUserIds = state.activeUserIds;
                 var onlineUserIds = state.onlineUserIds;
 
                 if (!state.profiles.length) {
                     grid.innerHTML = '<div class="account-empty">Belum ada akun yang tersedia.</div>';
+                    renderPagination(0, 0);
                     return;
                 }
 
                 if (!profiles.length) {
                     grid.innerHTML = '<div class="account-empty">Tidak ada akun yang cocok dengan pencarian.</div>';
+                    renderPagination(0, 0);
                     return;
                 }
 
+                /* =====================================================
+                   PAGINATION
+                ====================================================== */
+
+                var pageSize = state.pageSize;
+                var totalItems = profiles.length;
+                var totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+                if (state.currentPage > totalPages) state.currentPage = totalPages;
+                if (state.currentPage < 1) state.currentPage = 1;
+
+                var startIndex = (state.currentPage - 1) * pageSize;
+                var pageProfiles = profiles.slice(startIndex, startIndex + pageSize);
+
                 var html = "";
 
-                profiles.forEach(function (profile) {
+                pageProfiles.forEach(function (profile) {
 
                     var userId = String(profile.id || "");
                     var active = activeUserIds.has(userId);
@@ -1149,14 +1275,6 @@
                     var email = escapeHtml(profile.email || "Email tidak tersedia");
                     var name = escapeHtml(profile.name || "Tanpa nama");
                     var role = escapeHtml(String(profile.role || "USER").toUpperCase());
-
-                    
-                    /* -------------------------------------------------
-                       Link ke halaman user-activity
-                       -------------------------------------------------
-                       Format: ../user-activity/?user=<uuid>
-                       File aktif ada di: admin/user-activity/index.html
-                    ------------------------------------------------- */
 
                     var link = "../user-activity/?user=" + encodeURIComponent(userId);
 
@@ -1186,6 +1304,61 @@
                 });
 
                 grid.innerHTML = html;
+
+                renderPagination(totalItems, totalPages);
+            }
+
+            function renderPagination(totalItems, totalPages) {
+
+                var container = document.getElementById("paginationControls");
+                if (!container) return;
+
+                if (!totalItems || totalPages <= 0) {
+                    container.innerHTML = "";
+                    return;
+                }
+
+                var html = '<span class="pagination-info">Halaman ' +
+                    state.currentPage + ' dari ' + totalPages +
+                    ' • ' + totalItems.toLocaleString("id-ID") + ' akun</span>';
+
+                html += '<button type="button" class="page-btn" data-page="' + (state.currentPage - 1) + '"' +
+                    (state.currentPage <= 1 ? " disabled" : "") + ' aria-label="Halaman sebelumnya">‹</button>';
+
+                /* Windowed page numbers: tampilkan maksimal 7 tombol halaman */
+                var maxButtons = 7;
+                var startPage = 1;
+                var endPage = totalPages;
+
+                if (totalPages > maxButtons) {
+                    var half = Math.floor(maxButtons / 2);
+                    startPage = Math.max(1, state.currentPage - half);
+                    endPage = Math.min(totalPages, startPage + maxButtons - 1);
+                    startPage = Math.max(1, endPage - maxButtons + 1);
+                }
+
+                if (startPage > 1) {
+                    html += '<button type="button" class="page-btn" data-page="1">1</button>';
+                    if (startPage > 2) html += '<span class="pagination-info">…</span>';
+                }
+
+                for (var p = startPage; p <= endPage; p++) {
+                    html += '<button type="button" class="page-btn' +
+                        (p === state.currentPage ? " current" : "") +
+                        '" data-page="' + p + '"' +
+                        (p === state.currentPage ? ' aria-current="page"' : "") +
+                        '>' + p + '</button>';
+                }
+
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) html += '<span class="pagination-info">…</span>';
+                    html += '<button type="button" class="page-btn" data-page="' + totalPages + '">' + totalPages + '</button>';
+                }
+
+                html += '<button type="button" class="page-btn" data-page="' + (state.currentPage + 1) + '"' +
+                    (state.currentPage >= totalPages ? " disabled" : "") + ' aria-label="Halaman berikutnya">›</button>';
+
+                container.innerHTML = html;
             }
 
             function setupAccountSearch() {
@@ -1194,8 +1367,37 @@
 
                 searchInput.addEventListener("input", function () {
                     state.searchTerm = searchInput.value;
+                    state.currentPage = 1;
                     renderAccounts();
                 });
+            }
+
+            function setupAccountControls() {
+
+                var pageSizeSelect = document.getElementById("pageSizeSelect");
+                if (pageSizeSelect) {
+                    pageSizeSelect.addEventListener("change", function () {
+                        var val = parseInt(pageSizeSelect.value, 10);
+                        if ([50, 100, 200, 500].indexOf(val) !== -1) {
+                            state.pageSize = val;
+                        }
+                        state.currentPage = 1;
+                        renderAccounts();
+                    });
+                }
+
+                var pagination = document.getElementById("paginationControls");
+                if (pagination) {
+                    pagination.addEventListener("click", function (e) {
+                        var btn = e.target.closest(".page-btn");
+                        if (!btn || btn.disabled) return;
+                        var page = parseInt(btn.getAttribute("data-page"), 10);
+                        if (!isNaN(page) && page >= 1) {
+                            state.currentPage = page;
+                            renderAccounts();
+                        }
+                    });
+                }
             }
 
             /* =====================================================
@@ -1310,12 +1512,14 @@
             if (document.readyState === "loading") {
                 document.addEventListener("DOMContentLoaded", function () {
                     setupAccountSearch();
+                    setupAccountControls();
                     loadDashboard().catch(function (e) {
                         console.error("[Dashboard] FATAL:", e);
                     });
                 });
             } else {
                 setupAccountSearch();
+                setupAccountControls();
                 loadDashboard().catch(function (e) {
                     console.error("[Dashboard] FATAL:", e);
                 });
@@ -1326,5 +1530,6 @@
 
     <script src="/assets/js/support-chat.js?v=touch-close-20261029" defer></script>
     <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a550e79ebae8ce83',t:'MTc5Mzc2Njg1MA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a550e79ebae8ce83',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
