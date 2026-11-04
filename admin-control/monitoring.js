@@ -53,7 +53,9 @@ const state = {
     serverTime: null,
     lastLogSignature: "",
     lastLogError: "",
-    pollTimer: null
+    pollTimer: null,
+    realtimeChannel: null,
+    realtimeAlarmTimer: null
 };
 
 const $ = id => document.getElementById(id);
@@ -468,7 +470,8 @@ const KIND_LABEL = {
     security: "keamanan",
     api_failure: "api gagal",
     worker: "worker",
-    activity: "aktivitas"
+    activity: "aktivitas",
+    injection_attempt: "INJECT"
 };
 
 function matchesFilter(event) {
@@ -1525,12 +1528,87 @@ function startPolling() {
     state.pollTimer = setInterval(() => {
         if (document.visibilityState === "visible") refresh({ silent: true });
     }, REFRESH_MS);
+    startRealtime();
 }
 
 function stopPolling() {
     if (state.pollTimer) {
         clearInterval(state.pollTimer);
         state.pollTimer = null;
+    }
+    stopRealtime();
+}
+
+/* ---------------------------------------------------------
+   REALTIME — event monitoring tampil live tanpa menunggu
+   polling berikutnya (Supabase Realtime / postgres_changes).
+   --------------------------------------------------------- */
+
+function flashAlarm() {
+    const node = $("monLive");
+    if (!node) return;
+    node.classList.add("mon-live--alarm");
+    if (state.realtimeAlarmTimer) clearTimeout(state.realtimeAlarmTimer);
+    state.realtimeAlarmTimer = setTimeout(() => {
+        node.classList.remove("mon-live--alarm");
+    }, 4000);
+}
+
+function handleRealtimeEvent(event) {
+    if (!event || !event.id) return;
+
+    /* Jangan dobel: kalau event sudah ada di state, lewati. */
+    if (state.events.some(e => String(e.id) === String(event.id))) return;
+
+    state.events.unshift(event);
+    const cap = Math.max(state.logLimit * 4, 200);
+    if (state.events.length > cap) state.events.length = cap;
+
+    renderLog(state.events);
+    renderAccess(state.events);
+
+    if (event.severity === "critical" || event.severity === "error") {
+        flashAlarm();
+        toast(
+            `🚨 ${KIND_LABEL[event.kind] || event.kind}: ${event.message || event.path || ""}`,
+            "error"
+        );
+    }
+}
+
+function startRealtime() {
+    stopRealtime();
+    try {
+        const client = supabaseClient();
+        state.realtimeChannel = client
+            .channel("monitoring-live")
+            .on(
+                "postgres_changes",
+                { event: "INSERT", schema: "public", table: "monitoring_events" },
+                payload => handleRealtimeEvent(payload.new)
+            )
+            .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "monitoring_findings" },
+                () => { if (document.visibilityState === "visible") refresh({ silent: true }); }
+            )
+            .subscribe(status => {
+                if (status === "SUBSCRIBED") setLive(true, "LIVE");
+                if (status === "CLOSED" || status === "CHANNEL_ERROR") setLive(false, "OFFLINE");
+            });
+    } catch (error) {
+        console.warn("[monitoring] realtime tidak aktif:", error);
+    }
+}
+
+function stopRealtime() {
+    if (state.realtimeChannel) {
+        try { state.realtimeChannel.unsubscribe(); } catch { /* abaikan */ }
+        state.realtimeChannel = null;
+    }
+    if (state.realtimeAlarmTimer) {
+        clearTimeout(state.realtimeAlarmTimer);
+        state.realtimeAlarmTimer = null;
     }
 }
 
