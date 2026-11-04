@@ -2122,6 +2122,15 @@ function findDeepValue(
 const AUDIO_COPYRIGHT_USER_ERROR_MESSAGE =
     "audio pada video/lagu yang anda upload terkena copyright, silahkan gunakan video/lagu yang lain, atau generate tanpa audio";
 
+const ASSET_PROCESSING_USER_ERROR_MESSAGE =
+    "Gagal memproses media referensi di server provider (aset ditolak oleh validasi format/resolusi atau filter keamanan potret/audio). Silakan coba lagi atau gunakan video/gambar referensi lain (MP4 H.264 720p, durasi 2–15 detik). Kredit untuk proses yang gagal otomatis dikembalikan.";
+
+const ASSET_AUDIO_FORMAT_USER_ERROR_MESSAGE =
+    "Format audio referensi tidak didukung oleh provider. Silakan gunakan file MP3 atau WAV, atau generate tanpa audio. Kredit untuk proses yang gagal otomatis dikembalikan.";
+
+const ASSET_VIDEO_FORMAT_USER_ERROR_MESSAGE =
+    "Format atau spesifikasi video/gambar referensi tidak didukung oleh provider (gunakan MP4 H.264 720p, 24–60 FPS, durasi 2–15 detik). Kredit untuk proses yang gagal otomatis dikembalikan.";
+
 function formatFriendlyProviderFailureMessage(message = "", code = "") {
     const combined = `${code || ""} ${message || ""}`;
     if (
@@ -2132,7 +2141,24 @@ function formatFriendlyProviderFailureMessage(message = "", code = "") {
     ) {
         return AUDIO_COPYRIGHT_USER_ERROR_MESSAGE;
     }
-    return message;
+    if (
+        /\bAsset\s+asset-[a-z0-9-]+\s+finished\s+as\s+Failed\b/i.test(combined) ||
+        /\bCreateAsset\s+failed\b/i.test(combined)
+    ) {
+        if (/\bUnsupported\s+audio\s+format\b/i.test(combined)) {
+            return ASSET_AUDIO_FORMAT_USER_ERROR_MESSAGE;
+        }
+        if (
+            /\bUnsupported\s+(?:video|image)\s+format\b/i.test(combined) ||
+            /\bInvalidParameter\.(?:FormatUnsupported|ResolutionUnsupported|DurationOutOfRange|FrameRateOutOfRange)\b/i.test(combined)
+        ) {
+            return ASSET_VIDEO_FORMAT_USER_ERROR_MESSAGE;
+        }
+        return ASSET_PROCESSING_USER_ERROR_MESSAGE;
+    }
+    return String(message || "")
+        .replace(/\s*A provider request may already have been submitted and charged\.?/gi, "")
+        .trim();
 }
 
 function getProviderFailureMessage(value) {
@@ -4493,7 +4519,7 @@ export default async function handler(
                     error_code: existingOpusBusy ? OPUS_UPSTREAM_QUEUE_BUSY_CODE : null,
                     error_message: existingOpusBusy
                         ? OPUS_QUEUE_FINAL_ERROR_MESSAGE
-                        : (existingHistory.error_message || null),
+                        : (formatFriendlyProviderFailureMessage(existingHistory.error_message || "") || null),
                     credit_refunded: true,
                     refunded_credit: refund?.amount ?? 0,
                     history_updated: false,
@@ -4568,7 +4594,7 @@ export default async function handler(
                         completed: false,
                         failed: true,
                         error_message:
-                            existingHistory.error_message ||
+                            formatFriendlyProviderFailureMessage(existingHistory.error_message || "") ||
                             "Pemrosesan video bertahap gagal.",
                         credit_refunded: Boolean(existingHistory.credit_refunded),
                         history_updated: false,

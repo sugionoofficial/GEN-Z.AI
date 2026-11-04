@@ -120,7 +120,15 @@
         ) {
             return "audio pada video/lagu yang anda upload terkena copyright, silahkan gunakan video/lagu yang lain, atau generate tanpa audio";
         }
-        return raw;
+        if (
+            /\bAsset\s+asset-[a-z0-9-]+\s+finished\s+as\s+Failed\b/i.test(raw) ||
+            /\bCreateAsset\s+failed\b/i.test(raw)
+        ) {
+            return "Gagal memproses media referensi di server provider (aset ditolak oleh validasi format/resolusi atau filter keamanan potret/audio). Silakan coba lagi atau gunakan video/gambar referensi lain (MP4 H.264 720p, durasi 2–15 detik). Kredit untuk proses yang gagal otomatis dikembalikan.";
+        }
+        return raw
+            .replace(/\s*A provider request may already have been submitted and charged\.?/gi, "")
+            .trim();
     }
 
     function getResultUrl(item) {

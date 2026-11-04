@@ -1845,6 +1845,15 @@
     const AUDIO_COPYRIGHT_HISTORY_MESSAGE =
         "audio pada video/lagu yang anda upload terkena copyright, silahkan gunakan video/lagu yang lain, atau generate tanpa audio";
 
+    const ASSET_PROCESSING_HISTORY_MESSAGE =
+        "Gagal memproses media referensi di server provider (aset ditolak oleh validasi format/resolusi atau filter keamanan potret/audio). Silakan coba lagi atau gunakan video/gambar referensi lain (MP4 H.264 720p, durasi 2–15 detik). Kredit untuk proses yang gagal otomatis dikembalikan.";
+
+    const ASSET_AUDIO_FORMAT_HISTORY_MESSAGE =
+        "Format audio referensi tidak didukung oleh provider. Silakan gunakan file MP3 atau WAV, atau generate tanpa audio. Kredit untuk proses yang gagal otomatis dikembalikan.";
+
+    const ASSET_VIDEO_FORMAT_HISTORY_MESSAGE =
+        "Format atau spesifikasi video/gambar referensi tidak didukung oleh provider (gunakan MP4 H.264 720p, 24–60 FPS, durasi 2–15 detik). Kredit untuk proses yang gagal otomatis dikembalikan.";
+
     function formatHistoryErrorMessage(rawText) {
         const text = String(rawText || "").trim();
         if (!text) {
@@ -1858,7 +1867,24 @@
         ) {
             return AUDIO_COPYRIGHT_HISTORY_MESSAGE;
         }
-        return text;
+        if (
+            /\bAsset\s+asset-[a-z0-9-]+\s+finished\s+as\s+Failed\b/i.test(text) ||
+            /\bCreateAsset\s+failed\b/i.test(text)
+        ) {
+            if (/\bUnsupported\s+audio\s+format\b/i.test(text)) {
+                return ASSET_AUDIO_FORMAT_HISTORY_MESSAGE;
+            }
+            if (
+                /\bUnsupported\s+(?:video|image)\s+format\b/i.test(text) ||
+                /\bInvalidParameter\.(?:FormatUnsupported|ResolutionUnsupported|DurationOutOfRange|FrameRateOutOfRange)\b/i.test(text)
+            ) {
+                return ASSET_VIDEO_FORMAT_HISTORY_MESSAGE;
+            }
+            return ASSET_PROCESSING_HISTORY_MESSAGE;
+        }
+        return text
+            .replace(/\s*A provider request may already have been submitted and charged\.?/gi, "")
+            .trim();
     }
 
     function getErrorMessage(item) {

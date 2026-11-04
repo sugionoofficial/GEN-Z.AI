@@ -41,6 +41,7 @@ import {
     buildDirectorMuxFfmpegArgs,
     buildLastFrameFfmpegArgs,
     buildReferenceAudioSliceFfmpegArgs,
+    buildReferenceImageNormalizeFfmpegArgs,
     buildReferenceVideoSliceFfmpegArgs,
     buildSeamlessMergeFfmpegArgs,
     computeStagedCreditSettlement,
@@ -88,7 +89,25 @@ function inferSafeMediaExtension(refOrUrl, fallbackExt = ".mp4") {
         ? (parsePrivateMediaRef(raw)?.objectPath || "")
         : raw.split("?")[0].split("#")[0];
     const ext = path.extname(candidatePath).toLowerCase();
-    if ([".mp4", ".mov", ".webm", ".m4v", ".mp3", ".wav", ".m4a", ".aac", ".ogg"].includes(ext)) {
+    if (
+        [
+            ".mp4",
+            ".mov",
+            ".webm",
+            ".m4v",
+            ".mp3",
+            ".wav",
+            ".m4a",
+            ".aac",
+            ".ogg",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".avif",
+            ".heic"
+        ].includes(ext)
+    ) {
         return ext;
     }
     return fallbackExt;
@@ -102,6 +121,17 @@ function isOpusClipAudioCopyrightFailure(text) {
         /\b(?:Output|Input)?AudioSensitiveContentDetected\b/i.test(combined) ||
         /\baudio[\s_-]*copyright\b/i.test(combined) ||
         (/\baudio\b/i.test(combined) && /\bcopyright\b/i.test(combined))
+    );
+}
+
+function isOpusClipAssetProcessingFailure(text) {
+    const combined = String(text || "");
+    if (!combined.trim()) return false;
+    return (
+        /\bAsset\s+asset-[a-z0-9-]+\s+finished\s+as\s+Failed\b/i.test(combined) ||
+        /\bCreateAsset\s+failed\b/i.test(combined) ||
+        /Gagal memproses media referensi di server provider/i.test(combined) ||
+        /Format (?:audio|atau spesifikasi video\/gambar) referensi tidak didukung oleh provider/i.test(combined)
     );
 }
 
@@ -775,6 +805,9 @@ export async function runStagedVideoOrchestrator({
                 clipIndex,
                 clipDurationSeconds: 10,
                 sourceDurationSeconds: Number(item.info?.duration) || 0,
+                sourceWidth: Number(item.info?.width) || 0,
+                sourceHeight: Number(item.info?.height) || 0,
+                sourceFps: Number(item.info?.fps) || 0,
                 includeAudio: !muteVideos && Boolean(item.info?.hasAudio)
             });
 
@@ -855,6 +888,58 @@ export async function runStagedVideoOrchestrator({
         return { videoSegmentRefs, audioSegmentRefs };
     }
 
+    let cachedNormalizedImageRefs = null;
+    async function ensureNormalizedReferenceImages() {
+        if (Array.isArray(cachedNormalizedImageRefs)) {
+            return cachedNormalizedImageRefs;
+        }
+        const reqPayload = job?.request_payload && typeof job.request_payload === "object"
+            ? job.request_payload
+            : {};
+        const rawImages = Array.isArray(reqPayload.image_urls)
+            ? reqPayload.image_urls.map(u => String(u || "").trim()).filter(Boolean).slice(0, 3)
+            : [];
+        if (rawImages.length === 0) {
+            cachedNormalizedImageRefs = [];
+            return cachedNormalizedImageRefs;
+        }
+
+        const normalizedRefs = [];
+        for (let i = 0; i < rawImages.length; i += 1) {
+            const srcExt = inferSafeMediaExtension(rawImages[i], ".jpg");
+            const srcPath = path.join(tempRoot, `source-ref-image-${i + 1}${srcExt}`);
+            const outPath = path.join(tempRoot, `ref-image-${i + 1}-norm.jpg`);
+            try {
+                await downloadMediaSourceToFile(rawImages[i], srcPath);
+                const normArgs = buildReferenceImageNormalizeFfmpegArgs({
+                    inputPath: srcPath,
+                    outputPath: outPath
+                });
+                await execFileImpl("ffmpeg", normArgs);
+                const outStat = await fs.stat(outPath).catch(() => null);
+                if (outStat && outStat.size >= 128) {
+                    const uploadedRef = await uploadFileToStorage(
+                        outPath,
+                        `${jobFolder}/ref-image-${i + 1}-norm.jpg`,
+                        "image/jpeg"
+                    );
+                    normalizedRefs.push(uploadedRef);
+                } else {
+                    normalizedRefs.push(rawImages[i]);
+                }
+            } catch (imgErr) {
+                console.warn(
+                    `[staged-video-30s] Gagal menormalisasi gambar referensi #${i + 1}, memakai referensi asli:`,
+                    imgErr?.message || imgErr
+                );
+                normalizedRefs.push(rawImages[i]);
+            }
+        }
+
+        cachedNormalizedImageRefs = normalizedRefs;
+        return cachedNormalizedImageRefs;
+    }
+
     async function executeAndPersistClip({
         clipIndex,
         initialTaskId = "",
@@ -864,9 +949,19 @@ export async function runStagedVideoOrchestrator({
         const excludedSlots = new Set();
         let busyWaitCycles = 0;
         let activeTaskId = String(initialTaskId || "").trim();
+        let usingInitialRawTask = Boolean(activeTaskId);
         let preparedSegmentRefs = null;
+        let normalizedImageRefs = null;
+        let retriedNormalizedFromRaw = false;
         let retriedMutedForCopyright = false;
+        let retriedMutedForAssetFailure = false;
+        let fallbackToFirstFrameOnly = false;
         let muteVideosForClip = false;
+
+        const hasJobReferenceImages = Boolean(
+            Array.isArray(job?.request_payload?.image_urls) &&
+            job.request_payload.image_urls.length > 0
+        );
 
         while (true) {
             if (await isHistoryCancelled(job.history_id)) {
@@ -876,7 +971,7 @@ export async function runStagedVideoOrchestrator({
             }
 
             if (!activeTaskId) {
-                if (!preparedSegmentRefs && referenceMedia?.hasAnyMedia) {
+                if (!fallbackToFirstFrameOnly && !preparedSegmentRefs && referenceMedia?.hasAnyMedia) {
                     try {
                         preparedSegmentRefs = await sliceAndUploadClipReferenceSegments(
                             clipIndex,
@@ -896,12 +991,16 @@ export async function runStagedVideoOrchestrator({
                     step_action: "create_clip",
                     clip_index: clipIndex,
                     first_frame_ref: firstFrameRef || undefined,
+                    image_segment_refs:
+                        !fallbackToFirstFrameOnly && Array.isArray(normalizedImageRefs) && normalizedImageRefs.length > 0
+                            ? normalizedImageRefs
+                            : undefined,
                     video_segment_refs:
-                        preparedSegmentRefs?.videoSegmentRefs?.length > 0
+                        !fallbackToFirstFrameOnly && preparedSegmentRefs?.videoSegmentRefs?.length > 0
                             ? preparedSegmentRefs.videoSegmentRefs
                             : undefined,
                     audio_segment_refs:
-                        preparedSegmentRefs?.audioSegmentRefs?.length > 0
+                        !fallbackToFirstFrameOnly && preparedSegmentRefs?.audioSegmentRefs?.length > 0
                             ? preparedSegmentRefs.audioSegmentRefs
                             : undefined,
                     generate_audio_override: muteVideosForClip ? false : undefined,
@@ -914,7 +1013,10 @@ export async function runStagedVideoOrchestrator({
                     throw cancelErr;
                 }
 
+                const combinedCreateErr = `${createRes.data?.error_code || ""} ${createRes.data?.error || ""}`;
+
                 if (createRes.ok && createRes.data?.success && createRes.data?.task_id) {
+                    usingInitialRawTask = false;
                     activeTaskId = String(createRes.data.task_id).trim();
                     await patchJobProgress({
                         [`clip_${clipIndex}_task_id`]: activeTaskId,
@@ -924,13 +1026,33 @@ export async function runStagedVideoOrchestrator({
                 } else if (
                     !retriedMutedForCopyright &&
                     Boolean(referenceMedia?.hasAnyMedia) &&
-                    isOpusClipAudioCopyrightFailure(
-                        `${createRes.data?.error_code || ""} ${createRes.data?.error || ""}`
-                    )
+                    isOpusClipAudioCopyrightFailure(combinedCreateErr)
                 ) {
                     retriedMutedForCopyright = true;
                     muteVideosForClip = true;
                     preparedSegmentRefs = null;
+                    continue;
+                } else if (
+                    !retriedMutedForAssetFailure &&
+                    !muteVideosForClip &&
+                    (Boolean(referenceMedia?.hasAnyMedia) || hasJobReferenceImages) &&
+                    isOpusClipAssetProcessingFailure(combinedCreateErr)
+                ) {
+                    retriedMutedForAssetFailure = true;
+                    muteVideosForClip = true;
+                    preparedSegmentRefs = null;
+                    if (hasJobReferenceImages && !normalizedImageRefs) {
+                        normalizedImageRefs = await ensureNormalizedReferenceImages();
+                    }
+                    continue;
+                } else if (
+                    clipIndex >= 2 &&
+                    Boolean(firstFrameRef) &&
+                    !fallbackToFirstFrameOnly &&
+                    Boolean(referenceMedia?.hasAnyMedia) &&
+                    isOpusClipAssetProcessingFailure(combinedCreateErr)
+                ) {
+                    fallbackToFirstFrameOnly = true;
                     continue;
                 } else if (createRes.data?.opus_busy) {
                     const failedSlot = createRes.data.failed_key_slot;
@@ -1014,19 +1136,68 @@ export async function runStagedVideoOrchestrator({
                 }
 
                 if (q.failed) {
+                    const combinedQueryErr = `${q.error_code || ""} ${q.error_message || ""}`;
+
                     if (
                         !retriedMutedForCopyright &&
                         Boolean(referenceMedia?.hasAnyMedia) &&
-                        isOpusClipAudioCopyrightFailure(
-                            `${q.error_code || ""} ${q.error_message || ""}`
-                        )
+                        isOpusClipAudioCopyrightFailure(combinedQueryErr)
                     ) {
                         retriedMutedForCopyright = true;
+                        usingInitialRawTask = false;
                         muteVideosForClip = true;
                         preparedSegmentRefs = null;
                         activeTaskId = "";
                         switchToAnotherKey = true;
                         break;
+                    }
+
+                    if (isOpusClipAssetProcessingFailure(combinedQueryErr)) {
+                        if (
+                            usingInitialRawTask &&
+                            !retriedNormalizedFromRaw &&
+                            (Boolean(referenceMedia?.hasAnyMedia) || hasJobReferenceImages)
+                        ) {
+                            usingInitialRawTask = false;
+                            retriedNormalizedFromRaw = true;
+                            preparedSegmentRefs = null;
+                            if (hasJobReferenceImages && !normalizedImageRefs) {
+                                normalizedImageRefs = await ensureNormalizedReferenceImages();
+                            }
+                            activeTaskId = "";
+                            switchToAnotherKey = true;
+                            break;
+                        }
+
+                        if (
+                            !retriedMutedForAssetFailure &&
+                            !muteVideosForClip &&
+                            (Boolean(referenceMedia?.hasAnyMedia) || hasJobReferenceImages)
+                        ) {
+                            usingInitialRawTask = false;
+                            retriedMutedForAssetFailure = true;
+                            muteVideosForClip = true;
+                            preparedSegmentRefs = null;
+                            if (hasJobReferenceImages && !normalizedImageRefs) {
+                                normalizedImageRefs = await ensureNormalizedReferenceImages();
+                            }
+                            activeTaskId = "";
+                            switchToAnotherKey = true;
+                            break;
+                        }
+
+                        if (
+                            clipIndex >= 2 &&
+                            Boolean(firstFrameRef) &&
+                            !fallbackToFirstFrameOnly &&
+                            Boolean(referenceMedia?.hasAnyMedia)
+                        ) {
+                            usingInitialRawTask = false;
+                            fallbackToFirstFrameOnly = true;
+                            activeTaskId = "";
+                            switchToAnotherKey = true;
+                            break;
+                        }
                     }
 
                     if (q.opus_busy) {
