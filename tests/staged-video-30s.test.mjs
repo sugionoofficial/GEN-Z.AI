@@ -13,11 +13,14 @@ import {
     STAGED_30S_MODEL_ID,
     buildLastFrameFfmpegArgs,
     buildReferenceAudioSliceFfmpegArgs,
+    buildReferenceImageNormalizeFfmpegArgs,
     buildReferenceVideoSliceFfmpegArgs,
     buildSeamlessMergeFfmpegArgs,
     buildStaged30sPrompts,
+    clampSeedanceVideoFps,
     cleanContinuationPromptForFirstFrame,
     computeLoopedSegmentTiming,
+    computeSafeSeedanceVideoDimensions,
     computeStagedCreditSettlement,
     generateStaged30sTaskId,
     isStaged30sModelId,
@@ -1753,6 +1756,264 @@ test("model clone MiniMax Hailuo 3 First & Last Frame 30s (opus-hailuo-3-i2v-30s
         else process.env.SUPABASE_URL = prevEnvUrl;
         if (prevEnvKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
         else process.env.SUPABASE_SERVICE_ROLE_KEY = prevEnvKey;
+    }
+});
+
+test("normalisasi Seedance CreateAsset: dimensi [409.600, 927.408] px, FPS [24, 60] CFR, urutan -fflags +genpts sebelum -i, dan auto-recovery dari 'Asset ... finished as Failed'", async () => {
+    // 1. Video WhatsApp/TikTok SD 480x848 (407.040 px < batas bawah Seedance 409.600 px) wajib di-upscale ke >= 409.600 px genap
+    const whatsappSd = computeSafeSeedanceVideoDimensions({ width: 480, height: 848 });
+    assert.equal(whatsappSd.targetWidth % 2, 0);
+    assert.equal(whatsappSd.targetHeight % 2, 0);
+    assert.ok(whatsappSd.targetWidth * whatsappSd.targetHeight >= 409600);
+    assert.ok(whatsappSd.targetWidth * whatsappSd.targetHeight <= 927408);
+
+    // 2. Video 360x640 (230.400 px) di-upscale aman, dan 1080x1920 (2.073.600 px) di-downscale ke 720x1280
+    const lowRes = computeSafeSeedanceVideoDimensions({ width: 360, height: 640 });
+    assert.ok(lowRes.targetWidth * lowRes.targetHeight >= 409600);
+    const fullHd = computeSafeSeedanceVideoDimensions({ width: 1080, height: 1920 });
+    assert.equal(fullHd.targetWidth, 720);
+    assert.equal(fullHd.targetHeight, 1280);
+    const hd720 = computeSafeSeedanceVideoDimensions({ width: 720, height: 1280 });
+    assert.equal(hd720.targetWidth, 720);
+    assert.equal(hd720.targetHeight, 1280);
+
+    // 3. Rasio ekstrem (300x1200 = 0.25 < 0.42) memakai padding
+    const extremeVertical = computeSafeSeedanceVideoDimensions({ width: 300, height: 1200 });
+    assert.equal(extremeVertical.needsPad, true);
+    assert.ok(extremeVertical.targetWidth / extremeVertical.targetHeight >= 0.41);
+
+    // 4. Clamp FPS ke [24, 60] (termasuk 23.976 -> 24)
+    assert.equal(clampSeedanceVideoFps(23.976), 24);
+    assert.equal(clampSeedanceVideoFps(15), 24);
+    assert.equal(clampSeedanceVideoFps(29.97), 30);
+    assert.equal(clampSeedanceVideoFps(120), 60);
+
+    // 5. -fflags +genpts wajib berada sebelum -i saat looping video/audio pendek
+    const loopedVideoArgs = buildReferenceVideoSliceFfmpegArgs({
+        inputPath: "/tmp/short-6s.mp4",
+        outputPath: "/tmp/clip-1.mp4",
+        clipIndex: 1,
+        sourceDurationSeconds: 6,
+        sourceWidth: 480,
+        sourceHeight: 848,
+        sourceFps: 23.976
+    });
+    assert.ok(loopedVideoArgs.indexOf("-fflags") > -1);
+    assert.ok(
+        loopedVideoArgs.indexOf("-fflags") < loopedVideoArgs.indexOf("-i"),
+        "-fflags +genpts wajib ditempatkan sebagai opsi input sebelum -i"
+    );
+    const vfArg = loopedVideoArgs[loopedVideoArgs.indexOf("-vf") + 1];
+    assert.match(vfArg, /fps=24/);
+    assert.match(vfArg, new RegExp(`scale=${whatsappSd.targetWidth}:${whatsappSd.targetHeight}`));
+
+    const loopedAudioArgs = buildReferenceAudioSliceFfmpegArgs({
+        inputPath: "/tmp/short-6s.mp3",
+        outputPath: "/tmp/clip-1.mp3",
+        clipIndex: 1,
+        sourceDurationSeconds: 6
+    });
+    assert.ok(loopedAudioArgs.indexOf("-fflags") < loopedAudioArgs.indexOf("-i"));
+
+    const imgNormArgs = buildReferenceImageNormalizeFfmpegArgs({
+        inputPath: "/tmp/in.heic",
+        outputPath: "/tmp/out.jpg"
+    });
+    assert.ok(imgNormArgs.includes("-frames:v"));
+
+    // 6. Pastikan frontend & Worker memiliki proteksi kompatibilitas video referensi
+    const formMediaSrc = await fs.readFile(
+        new URL("../generate/assets/js/generate-form-media.js", import.meta.url),
+        "utf8"
+    );
+    assert.match(formMediaSrc, /ensureCompatibleVideoUploadFile/);
+    const generateApiSrc = await fs.readFile(
+        new URL("../api/generate.js", import.meta.url),
+        "utf8"
+    );
+    assert.match(generateApiSrc, /hasStagedVideoOrAudioInput/);
+
+    // 7. E2E Orchestrator: pulih otomatis saat Klip 1 (deferred clip_1_task_id: null) gagal
+    //    dengan "Egress Gateway 502: Asset asset-... finished as Failed" -> retry muted + gambar ternormalisasi -> sukses 20s
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "staged30-asset-fail-recovery-"));
+    try {
+        const storageUploads = [];
+        const createClipCalls = [];
+        let clip1AssetFailedOnce = false;
+
+        const refVideoPrivateRef = `supabase-private://user-uploads/generate-input/${USER_ID}/video-sd-480x848.mp4`;
+        const refImagePrivateRef = `supabase-private://user-uploads/generate-input/${USER_ID}/char-photo.jpg`;
+
+        let jobRow = {
+            id: JOB_ID,
+            task_id: "staged30_asset_recovery_20s",
+            history_id: HISTORY_ID,
+            user_id: USER_ID,
+            model_id: STAGED_30S_MODEL_ID,
+            status: "processing",
+            current_stage: "clip_1_generating",
+            internal_token: "e".repeat(64),
+            clip_1_task_id: null,
+            credit_total: 4000,
+            request_payload: {
+                prompt: "Karakter @image1 mengikuti gerakan dari karakter @video1 secara realistis",
+                target_duration: 20,
+                total_clips: 2,
+                aspect_ratio: "9:16",
+                resolution: "720p",
+                generate_audio: true,
+                image_urls: [refImagePrivateRef],
+                video_urls: [refVideoPrivateRef],
+                audio_urls: [],
+                clip_prompts: buildStaged30sPrompts(
+                    "Karakter @image1 mengikuti gerakan dari karakter @video1 secara realistis",
+                    { preserveMediaRefs: true, targetDuration: 20 }
+                )
+            }
+        };
+
+        let historyRow = {
+            id: HISTORY_ID,
+            user_id: USER_ID,
+            status: "processing",
+            credit_cost: 4000,
+            credit_refunded: false
+        };
+
+        const mockFetch = async (url, options = {}) => {
+            const u = String(url);
+            const method = String(options.method || "GET").toUpperCase();
+
+            if (u.includes("/rest/v1/staged_generation_jobs") && method === "GET") {
+                return new Response(JSON.stringify([jobRow]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/staged_generation_jobs") && method === "PATCH") {
+                jobRow = { ...jobRow, ...JSON.parse(options.body) };
+                return new Response(JSON.stringify([jobRow]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/generation_history") && method === "GET") {
+                return new Response(JSON.stringify([historyRow]), { status: 200 });
+            }
+            if (u.includes("/rest/v1/generation_history") && method === "PATCH") {
+                historyRow = { ...historyRow, ...JSON.parse(options.body) };
+                return new Response(JSON.stringify([historyRow]), { status: 200 });
+            }
+            if (u.includes("/storage/v1/object/user-uploads/") && method === "GET") {
+                return new Response(Buffer.alloc(4096, 0x66), { status: 200 });
+            }
+            if (u.includes("/storage/v1/object/user-uploads/") && method === "POST") {
+                storageUploads.push(decodeURIComponent(u.split("/storage/v1/object/user-uploads/")[1]));
+                return new Response(JSON.stringify({ Key: "ok" }), { status: 200 });
+            }
+            if (u.endsWith("/api/generate") && method === "POST") {
+                const body = JSON.parse(options.body);
+                if (body.step_action === "create_clip") {
+                    createClipCalls.push(body);
+                    const attemptNo = createClipCalls.filter(c => c.clip_index === body.clip_index).length;
+                    return new Response(
+                        JSON.stringify({
+                            success: true,
+                            task_id: `opus-k3:proj_${body.clip_index}_${attemptNo}:job_${body.clip_index}_${attemptNo}`
+                        }),
+                        { status: 200 }
+                    );
+                }
+                if (body.step_action === "query_clip") {
+                    if (body.clip_index === 1 && !clip1AssetFailedOnce) {
+                        clip1AssetFailedOnce = true;
+                        return new Response(
+                            JSON.stringify({
+                                success: true,
+                                completed: false,
+                                failed: true,
+                                processing: false,
+                                error_code: "failed",
+                                error_message:
+                                    "Egress Gateway 502: Asset asset-20261104231820-46x66 finished as Failed. A provider request may already have been submitted and charged."
+                            }),
+                            { status: 200 }
+                        );
+                    }
+                    return new Response(
+                        JSON.stringify({
+                            success: true,
+                            completed: true,
+                            failed: false,
+                            processing: false,
+                            output_urls: [`https://cdn.opus.example/recovered-clip-${body.clip_index}.mp4`]
+                        }),
+                        { status: 200 }
+                    );
+                }
+            }
+            if (u.startsWith("https://cdn.opus.example/")) {
+                return new Response(Buffer.alloc(4096, 0x77), { status: 200 });
+            }
+            throw new Error(`Unexpected fetch URL in asset recovery test: ${u}`);
+        };
+
+        const mockExecFile = async (cmd, args) => {
+            if (cmd === "ffprobe") {
+                if (args.includes("-count_frames")) {
+                    return { stdout: "240\n", stderr: "" };
+                }
+                const targetFile = String(args[args.length - 1] || "");
+                const isRefSource = targetFile.includes("source-ref-video-1");
+                return {
+                    stdout: JSON.stringify({
+                        streams: [
+                            {
+                                codec_type: "video",
+                                width: isRefSource ? 480 : 720,
+                                height: isRefSource ? 848 : 1280,
+                                avg_frame_rate: isRefSource ? "24000/1001" : "24/1",
+                                duration: isRefSource ? "12.0" : "10.0"
+                            },
+                            {
+                                codec_type: "audio",
+                                duration: isRefSource ? "12.0" : "10.0"
+                            }
+                        ],
+                        format: { duration: isRefSource ? "12.0" : "10.0" }
+                    }),
+                    stderr: ""
+                };
+            }
+            if (cmd === "ffmpeg") {
+                const outFile = args[args.length - 1];
+                await fs.writeFile(outFile, Buffer.alloc(4096, 0x88));
+                return { stdout: "", stderr: "" };
+            }
+            throw new Error(`Unexpected exec in asset recovery test: ${cmd}`);
+        };
+
+        const outcome = await runStagedVideoOrchestrator({
+            env: {
+                SUPABASE_URL: "https://proj.supabase.co",
+                SUPABASE_SERVICE_KEY: "srv_key",
+                JOB_ID
+            },
+            fetchImpl: mockFetch,
+            execFileImpl: mockExecFile,
+            sleepImpl: async () => {},
+            workDir: tempDir,
+            pollIntervalMs: 1,
+            busyWaitMs: 1
+        });
+
+        assert.equal(outcome.outcome, "completed");
+        assert.equal(outcome.completedClips, 2);
+        assert.equal(outcome.finalDuration, 20);
+
+        const clip1Attempts = createClipCalls.filter(c => c.clip_index === 1);
+        assert.equal(clip1Attempts.length, 2, "Klip 1 harus otomatis retry setelah Asset ... finished as Failed");
+        assert.ok(clip1Attempts[0].video_segment_refs[0].endsWith("/ref-video-1-clip-1.mp4"));
+        assert.ok(clip1Attempts[1].video_segment_refs[0].endsWith("/ref-video-1-clip-1-muted.mp4"));
+        assert.equal(clip1Attempts[1].generate_audio_override, false);
+        assert.ok(clip1Attempts[1].image_segment_refs[0].endsWith("/ref-image-1-norm.jpg"));
+        assert.ok(storageUploads.some(p => p.endsWith("/ref-image-1-norm.jpg")));
+    } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
     }
 });
 

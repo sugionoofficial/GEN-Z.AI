@@ -1557,6 +1557,213 @@ async function createAudioClip(
     }
 }
 
+function computeCompatibleUploadVideoFilter(width = 0, height = 0) {
+    const rawW = Math.round(Number(width) || 0);
+    const rawH = Math.round(Number(height) || 0);
+    if (rawW > 0 && rawH > 0) {
+        const rawRatio = rawW / rawH;
+        const needsPad = rawRatio < 0.42 || rawRatio > 2.4;
+        let canvasW = rawW;
+        let canvasH = rawH;
+        if (rawRatio < 0.42) {
+            canvasW = Math.ceil(rawH * 0.42);
+        } else if (rawRatio > 2.4) {
+            canvasH = Math.ceil(rawW / 2.4);
+        }
+        const pixels = canvasW * canvasH;
+        let targetW;
+        let targetH;
+        if (pixels < 460800) {
+            const up = Math.sqrt(460800 / pixels);
+            targetW = Math.max(320, Math.ceil((canvasW * up) / 2) * 2);
+            targetH = Math.max(320, Math.ceil((canvasH * up) / 2) * 2);
+        } else if (pixels > 921600) {
+            const down = Math.sqrt(921600 / pixels);
+            targetW = Math.max(320, Math.floor((canvasW * down) / 2) * 2);
+            targetH = Math.max(320, Math.floor((canvasH * down) / 2) * 2);
+        } else {
+            targetW = Math.max(320, Math.round(canvasW / 2) * 2);
+            targetH = Math.max(320, Math.round(canvasH / 2) * 2);
+        }
+        if (needsPad) {
+            return (
+                `fps=24,` +
+                `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,` +
+                `pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:black,` +
+                `setsar=1`
+            );
+        }
+        return `fps=24,scale=${targetW}:${targetH},setsar=1`;
+    }
+
+    return (
+        "fps=24," +
+        "scale='trunc(iw*max(1\\,sqrt(470000/(iw*ih)))*min(1\\,sqrt(915000/(iw*ih)))/2)*2':" +
+        "'trunc(ih*max(1\\,sqrt(470000/(iw*ih)))*min(1\\,sqrt(915000/(iw*ih)))/2)*2'," +
+        "setsar=1"
+    );
+}
+
+function probeBrowserVideoDimensions(file, timeoutMs = 2500) {
+    if (
+        !file ||
+        typeof document === "undefined" ||
+        typeof URL === "undefined" ||
+        typeof URL.createObjectURL !== "function"
+    ) {
+        return Promise.resolve({ width: 0, height: 0, duration: 0 });
+    }
+    return new Promise(resolve => {
+        let settled = false;
+        const objectUrl = URL.createObjectURL(file);
+        const probeEl = document.createElement("video");
+        probeEl.preload = "metadata";
+        probeEl.muted = true;
+        const finish = result => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            try {
+                probeEl.removeAttribute("src");
+                probeEl.load?.();
+            } catch {
+                /* ignore */
+            }
+            try {
+                URL.revokeObjectURL(objectUrl);
+            } catch {
+                /* ignore */
+            }
+            resolve(result);
+        };
+        const timer = setTimeout(
+            () => finish({ width: 0, height: 0, duration: 0 }),
+            timeoutMs
+        );
+        probeEl.onloadedmetadata = () =>
+            finish({
+                width: Number(probeEl.videoWidth) || 0,
+                height: Number(probeEl.videoHeight) || 0,
+                duration: Number(probeEl.duration) || 0
+            });
+        probeEl.onerror = () => finish({ width: 0, height: 0, duration: 0 });
+        probeEl.src = objectUrl;
+    });
+}
+
+async function ensureCompatibleVideoUploadFile(
+    file,
+    { videoWidth = 0, videoHeight = 0, onStatus } = {}
+) {
+    if (!file || typeof WebAssembly === "undefined") {
+        return file;
+    }
+
+    const rawName = String(file.name || "").trim().toLowerCase();
+    const rawType = String(file.type || "").trim().toLowerCase();
+    const isNativeMp4 =
+        (rawType === "video/mp4" || (!rawType && rawName.endsWith(".mp4"))) &&
+        !rawName.endsWith(".mov") &&
+        !rawName.endsWith(".webm") &&
+        !rawName.endsWith(".m4v");
+
+    let width = Math.round(Number(videoWidth) || 0);
+    let height = Math.round(Number(videoHeight) || 0);
+    if (width <= 0 || height <= 0) {
+        const probed = await probeBrowserVideoDimensions(file);
+        width = probed.width;
+        height = probed.height;
+    }
+
+    const hasValidDimensions = width > 0 && height > 0;
+    const totalPixels = hasValidDimensions ? width * height : 0;
+    const ratio = hasValidDimensions ? width / height : 1;
+    const needsGeometryNormalization =
+        hasValidDimensions &&
+        (
+            totalPixels < 409600 ||
+            totalPixels > 927408 ||
+            width < 300 ||
+            height < 300 ||
+            width % 2 !== 0 ||
+            height % 2 !== 0 ||
+            ratio < 0.42 ||
+            ratio > 2.4
+        );
+
+    if (isNativeMp4 && !needsGeometryNormalization) {
+        return file;
+    }
+
+    // Hindari konversi di memori browser untuk berkas video sangat besar (> 45 MB)
+    if (Number(file.size) > 45 * 1024 * 1024) {
+        return file;
+    }
+
+    try {
+        onStatus?.("Menyesuaikan format & resolusi video referensi...");
+        const ffmpeg = await ensureFFmpeg();
+        const uniqueId =
+            globalThis.crypto?.randomUUID?.() ||
+            `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const sourceName = `generate_video_norm_src_${uniqueId}_${createFFmpegFilename(file)}`;
+        const outputName = `generate_video_norm_out_${uniqueId}.mp4`;
+        const vf = computeCompatibleUploadVideoFilter(width, height);
+
+        try {
+            await ffmpeg.writeFile(
+                sourceName,
+                new Uint8Array(await file.arrayBuffer())
+            );
+            const exitCode = await ffmpeg.exec([
+                "-i",
+                sourceName,
+                "-map",
+                "0:v:0",
+                "-map",
+                "0:a?",
+                "-vf",
+                vf,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-crf",
+                "22",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "128k",
+                "-movflags",
+                "+faststart",
+                outputName
+            ]);
+            if (exitCode !== 0) {
+                return file;
+            }
+            const output = await ffmpeg.readFile(outputName);
+            if (!output?.length) {
+                return file;
+            }
+            const baseName =
+                String(file.name || "video").replace(/\.[^.]+$/, "") || "video";
+            return new File([output], `${baseName}.mp4`, {
+                type: "video/mp4",
+                lastModified: Date.now()
+            });
+        } finally {
+            await Promise.all([
+                safeDeleteFFmpegFile(ffmpeg, sourceName),
+                safeDeleteFFmpegFile(ffmpeg, outputName)
+            ]);
+        }
+    } catch {
+        return file;
+    }
+}
+
 async function createVideoClip(
     file,
     startSeconds,
@@ -1573,6 +1780,8 @@ async function createVideoClip(
     }
 
     onProgress?.({ stage: "prepare" });
+    const probed = await probeBrowserVideoDimensions(file);
+    const vf = computeCompatibleUploadVideoFilter(probed.width, probed.height);
     const ffmpeg = await ensureFFmpeg();
     const uniqueId = globalThis.crypto?.randomUUID?.() ||
         `${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -1604,6 +1813,8 @@ async function createVideoClip(
             "0:v:0",
             "-map",
             "0:a?",
+            "-vf",
+            vf,
             "-c:v",
             "libx264",
             "-preset",
@@ -4989,7 +5200,21 @@ export function createVideoField(
 
         wrapper._videoUploadPromise = (async () => {
             try {
-                const uploaded = await uploadVideo(file);
+                const uploadCandidate = clipDuration === null
+                    ? await ensureCompatibleVideoUploadFile(file, {
+                          videoWidth: Number(video.videoWidth) || 0,
+                          videoHeight: Number(video.videoHeight) || 0,
+                          onStatus: statusMsg => {
+                              if (myToken === uploadToken) {
+                                  setUploadState(wrapper, "uploading", statusMsg);
+                                  trimStatus.textContent = statusMsg;
+                              }
+                          }
+                      })
+                    : file;
+                if (myToken !== uploadToken) return "";
+                setUploadState(wrapper, "uploading", "Mengunggah video pilihan...");
+                const uploaded = await uploadVideo(uploadCandidate);
                 const uploadedUrl = extractUploadUrl(uploaded);
                 if (!uploadedUrl) {
                     throw new Error(

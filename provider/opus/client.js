@@ -928,6 +928,15 @@ function appendSafeProviderDetail(baseMessage, code, fallbackMessage) {
 export const OPUS_AUDIO_COPYRIGHT_ERROR_MESSAGE =
     "audio pada video/lagu yang anda upload terkena copyright, silahkan gunakan video/lagu yang lain, atau generate tanpa audio";
 
+export const OPUS_ASSET_PROCESSING_ERROR_MESSAGE =
+    "Gagal memproses media referensi di server provider (aset ditolak oleh validasi format/resolusi atau filter keamanan potret/audio). Silakan coba lagi atau gunakan video/gambar referensi lain (MP4 H.264 720p, durasi 2–15 detik). Kredit untuk proses yang gagal otomatis dikembalikan.";
+
+export const OPUS_ASSET_AUDIO_FORMAT_ERROR_MESSAGE =
+    "Format audio referensi tidak didukung oleh provider. Silakan gunakan file MP3 atau WAV, atau generate tanpa audio. Kredit untuk proses yang gagal otomatis dikembalikan.";
+
+export const OPUS_ASSET_VIDEO_FORMAT_ERROR_MESSAGE =
+    "Format atau spesifikasi video/gambar referensi tidak didukung oleh provider (gunakan MP4 H.264 720p, 24–60 FPS, durasi 2–15 detik). Kredit untuk proses yang gagal otomatis dikembalikan.";
+
 export function isOpusAudioCopyrightError(code, message = "") {
     const combined = `${code || ""} ${message || ""}`;
     if (!combined.trim()) {
@@ -941,21 +950,56 @@ export function isOpusAudioCopyrightError(code, message = "") {
     );
 }
 
+export function isOpusAssetProcessingError(code, message = "") {
+    const combined = `${code || ""} ${message || ""}`;
+    if (!combined.trim()) {
+        return false;
+    }
+    return (
+        /\bAsset\s+asset-[a-z0-9-]+\s+finished\s+as\s+Failed\b/i.test(combined) ||
+        /\bCreateAsset\s+failed\b/i.test(combined)
+    );
+}
+
+export function stripOpusBoilerplateChargeWarning(text = "") {
+    return String(text || "")
+        .replace(/\s*A provider request may already have been submitted and charged\.?/gi, "")
+        .trim();
+}
+
+function translateOpusAssetProcessingError(code, fallbackMessage = "") {
+    const combined = `${code || ""} ${fallbackMessage || ""}`;
+    if (/\bUnsupported\s+audio\s+format\b/i.test(combined)) {
+        return OPUS_ASSET_AUDIO_FORMAT_ERROR_MESSAGE;
+    }
+    if (
+        /\bUnsupported\s+(?:video|image)\s+format\b/i.test(combined) ||
+        /\bInvalidParameter\.(?:FormatUnsupported|ResolutionUnsupported|DurationOutOfRange|FrameRateOutOfRange)\b/i.test(combined)
+    ) {
+        return OPUS_ASSET_VIDEO_FORMAT_ERROR_MESSAGE;
+    }
+    return OPUS_ASSET_PROCESSING_ERROR_MESSAGE;
+}
+
 function translateOpusError(code, fallbackMessage = "") {
     if (isOpusAudioCopyrightError(code, fallbackMessage)) {
         return OPUS_AUDIO_COPYRIGHT_ERROR_MESSAGE;
     }
+    if (isOpusAssetProcessingError(code, fallbackMessage)) {
+        return translateOpusAssetProcessingError(code, fallbackMessage);
+    }
+    const cleanInputFallback = stripOpusBoilerplateChargeWarning(fallbackMessage);
     const key = normalizeErrorToken(code);
     if (key && ERROR_MESSAGE_BY_CODE[key]) {
-        return appendSafeProviderDetail(ERROR_MESSAGE_BY_CODE[key], key, fallbackMessage);
+        return appendSafeProviderDetail(ERROR_MESSAGE_BY_CODE[key], key, cleanInputFallback);
     }
-    const lowerMsg = String(fallbackMessage || "").toLowerCase();
+    const lowerMsg = String(cleanInputFallback || "").toLowerCase();
     for (const [knownCode, idMessage] of Object.entries(ERROR_MESSAGE_BY_CODE)) {
         if (lowerMsg.includes(knownCode) || lowerMsg.includes(knownCode.replace(/_/g, " "))) {
-            return appendSafeProviderDetail(idMessage, knownCode, fallbackMessage);
+            return appendSafeProviderDetail(idMessage, knownCode, cleanInputFallback);
         }
     }
-    const cleanFallback = redactSecrets(String(fallbackMessage || "").trim());
+    const cleanFallback = redactSecrets(String(cleanInputFallback || "").trim());
     if (cleanFallback) {
         return cleanFallback;
     }
@@ -2384,12 +2428,44 @@ function extractStorageXmlErrorDetail(rawBody) {
     return ` — ${redactSecrets(`${rawHint}${xmlHeader ? ` [${xmlHeader}]` : ""}`).slice(0, 140)}`;
 }
 
-async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCache = null) {
+function detectVideoMimeFromBytes(bytes) {
+    if (!(bytes instanceof Uint8Array) || bytes.byteLength < 12) return "";
+    // WebM / Matroska EBML magic bytes: 1A 45 DF A3
+    if (
+        bytes[0] === 0x1a &&
+        bytes[1] === 0x45 &&
+        bytes[2] === 0xdf &&
+        bytes[3] === 0xa3
+    ) {
+        return "video/webm";
+    }
+    // ISO BMFF / QuickTime box: [size:4]['ftyp':4][major_brand:4]
+    if (
+        bytes[4] === 0x66 &&
+        bytes[5] === 0x74 &&
+        bytes[6] === 0x79 &&
+        bytes[7] === 0x70
+    ) {
+        const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+        if (brand === "qt  ") {
+            return "video/quicktime";
+        }
+        return "video/mp4";
+    }
+    return "";
+}
+
+async function downloadSourceImageBytes(
+    mediaUrl,
+    mediaType = "image",
+    mediaCache = null,
+    normalizeImageBytes = null
+) {
     const trimmedUrl = String(mediaUrl || "").trim();
     const inlineDataMatch = /^data:([a-z0-9.+-]+\/[a-z0-9.+-]+);base64,([\s\S]+)$/i.exec(trimmedUrl);
     if (inlineDataMatch) {
         const rawMime = inlineDataMatch[1].toLowerCase();
-        const bytes = base64ToBytesSafe(inlineDataMatch[2]);
+        let bytes = base64ToBytesSafe(inlineDataMatch[2]);
         if (!bytes.byteLength) {
             throw createProviderError({
                 message: "Data media referensi kosong (0 byte).",
@@ -2398,9 +2474,21 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
             });
         }
         const detected = mediaType === "image" ? detectImageMimeFromBytes(bytes) : "";
+        let finalMime = detected || rawMime;
+        if (mediaType === "image" && typeof normalizeImageBytes === "function") {
+            try {
+                const normalized = await normalizeImageBytes(bytes, finalMime);
+                if (normalized?.bytes instanceof Uint8Array && normalized.bytes.byteLength > 0) {
+                    bytes = normalized.bytes;
+                    if (normalized.mimeType) finalMime = normalized.mimeType;
+                }
+            } catch {
+                /* Gunakan byte asli bila normalisasi opsional gagal */
+            }
+        }
         return {
             bytes,
-            mimeType: detected || rawMime
+            mimeType: finalMime
         };
     }
 
@@ -2443,7 +2531,7 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
         });
     }
     const contentType = String(res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-    const bytes = new Uint8Array(await res.arrayBuffer());
+    let bytes = new Uint8Array(await res.arrayBuffer());
     if (!bytes.byteLength) {
         throw createProviderError({
             message: `${isVideo ? "Video referensi" : isAudio ? "Audio referensi" : "Gambar referensi"} kosong (0 byte).`,
@@ -2452,18 +2540,32 @@ async function downloadSourceImageBytes(mediaUrl, mediaType = "image", mediaCach
         });
     }
     const detectedImageMime = !isVideo && !isAudio ? detectImageMimeFromBytes(bytes) : "";
-    if (!detectedImageMime && isNonMediaHttpPayload(contentType, bytes)) {
+    const detectedVideoMime = isVideo ? detectVideoMimeFromBytes(bytes) : "";
+    if (!detectedImageMime && !detectedVideoMime && isNonMediaHttpPayload(contentType, bytes)) {
         throw createProviderError({
             message: `URL referensi mengarah ke halaman web (HTML), bukan file ${mediaLabel} langsung. Silakan gunakan direct link file (.jpg/.png/.mp4/.mp3) atau unduh medianya lalu gunakan menu Upload.`,
             code: "NON_DIRECT_MEDIA_URL",
             status: 422
         });
     }
-    const resolvedMime = isVideo
-        ? (contentType.startsWith("video/") ? contentType : inferVideoMimeFromUrl(mediaUrl))
+    let resolvedMime = isVideo
+        ? (detectedVideoMime || (contentType.startsWith("video/") ? contentType : inferVideoMimeFromUrl(mediaUrl)))
         : isAudio
             ? (contentType.startsWith("audio/") ? contentType : inferAudioMimeFromUrl(mediaUrl))
             : (detectedImageMime || (contentType.startsWith("image/") ? contentType : inferImageMimeFromUrl(mediaUrl)));
+
+    if (!isVideo && !isAudio && typeof normalizeImageBytes === "function") {
+        try {
+            const normalized = await normalizeImageBytes(bytes, resolvedMime);
+            if (normalized?.bytes instanceof Uint8Array && normalized.bytes.byteLength > 0) {
+                bytes = normalized.bytes;
+                if (normalized.mimeType) resolvedMime = normalized.mimeType;
+            }
+        } catch {
+            /* Gunakan byte asli bila normalisasi opsional gagal */
+        }
+    }
+
     const downloaded = {
         bytes,
         mimeType: resolvedMime
@@ -2661,7 +2763,8 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         cachedDownloaded = await downloadSourceImageBytes(
             refItem.url,
             itemMediaType,
-            refItem.mediaCache || null
+            refItem.mediaCache || null,
+            refItem.normalizeImageBytes || null
         );
         registeredMimeType = cachedDownloaded.mimeType;
         const mimeKey = pickSupportedKey(uploadItemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
@@ -2678,7 +2781,8 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
         cachedDownloaded = await downloadSourceImageBytes(
             refItem.url,
             itemMediaType,
-            refItem.mediaCache || null
+            refItem.mediaCache || null,
+            refItem.normalizeImageBytes || null
         );
         registeredMimeType = cachedDownloaded.mimeType;
         const mimeKey = pickSupportedKey(uploadItemProps, ["mimeType", "mime_type", "contentType", "content_type"], "");
@@ -2735,7 +2839,8 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
                 cachedDownloaded = await downloadSourceImageBytes(
                     refItem.url,
                     itemMediaType,
-                    refItem.mediaCache || null
+                    refItem.mediaCache || null,
+                    refItem.normalizeImageBytes || null
                 );
             }
             const syncedExt = extFromMime(cachedDownloaded.mimeType);
@@ -2867,7 +2972,8 @@ async function stageSingleReferenceImage(session, importTool, projectId, refItem
             cachedDownloaded = await downloadSourceImageBytes(
                 refItem.url,
                 itemMediaType,
-                refItem.mediaCache || null
+                refItem.mediaCache || null,
+                refItem.normalizeImageBytes || null
             );
         }
         const primaryPutMime = cachedDownloaded.mimeType || registeredMimeType || refItem.mimeType;
@@ -5350,6 +5456,10 @@ async function createVideoTaskForSingleKey(payload = {}, apiKey, options = {}) {
     let stagedFirstFrame = null;
     let stagedLastFrame = null;
     const stagedReferences = [];
+    const normalizeImageBytes =
+        typeof options?.normalizeReferenceImageBytes === "function"
+            ? options.normalizeReferenceImageBytes
+            : null;
 
     if (firstFrameUrl) {
         const mime = inferImageMimeFromUrl(firstFrameUrl);
@@ -5364,7 +5474,8 @@ async function createVideoTaskForSingleKey(payload = {}, apiKey, options = {}) {
                 mimeType: mime,
                 mediaType: "image",
                 fileName: `first-frame.${extFromMime(mime)}`,
-                mediaCache
+                mediaCache,
+                normalizeImageBytes
             },
             0
         );
@@ -5381,7 +5492,8 @@ async function createVideoTaskForSingleKey(payload = {}, apiKey, options = {}) {
                     mimeType: lastMime,
                     mediaType: "image",
                     fileName: `last-frame.${extFromMime(lastMime)}`,
-                    mediaCache
+                    mediaCache,
+                    normalizeImageBytes
                 },
                 1
             );
@@ -5402,7 +5514,8 @@ async function createVideoTaskForSingleKey(payload = {}, apiKey, options = {}) {
                     mimeType: mime,
                     mediaType: "image",
                     fileName: `reference-${i + 1}.${extFromMime(mime)}`,
-                    mediaCache
+                    mediaCache,
+                    normalizeImageBytes
                 },
                 assetOffset
             );

@@ -109,6 +109,7 @@ import {
 } from "../lib/generate/persist-generated-audio.js";
 
 import {
+    normalizeOpusReferenceImageBytes,
     resolveOpusApiKeyPoolPayload,
     resolveOpusBearerToken,
     stageOpusReferenceImageForGenerate
@@ -4825,6 +4826,9 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
         }
     }
 
+    const imageSegmentRefs = Array.isArray(body?.image_segment_refs)
+        ? body.image_segment_refs.map(v => String(v || "").trim()).filter(Boolean)
+        : [];
     const videoSegmentRefs = Array.isArray(body?.video_segment_refs)
         ? body.video_segment_refs.map(v => String(v || "").trim()).filter(Boolean)
         : [];
@@ -4915,7 +4919,7 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
                   .filter(v => Number.isInteger(v) && v >= 0 && v < 100)
             : [];
 
-        for (const segRef of [...videoSegmentRefs, ...audioSegmentRefs]) {
+        for (const segRef of [...imageSegmentRefs, ...videoSegmentRefs, ...audioSegmentRefs]) {
             if (!isRefOwnedByUser(segRef, job.user_id)) {
                 return rawJsonResponse(res, 400, {
                     success: false,
@@ -5082,7 +5086,10 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
             } else if (clipIndex === 1) {
                 const signedRefs = await signUserMediaRefsInPayload(
                     {
-                        image_urls: reqPayload.image_urls || [],
+                        image_urls:
+                            imageSegmentRefs.length > 0
+                                ? imageSegmentRefs
+                                : reqPayload.image_urls || [],
                         video_urls:
                             videoSegmentRefs.length > 0
                                 ? videoSegmentRefs
@@ -5132,9 +5139,13 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
                         : String(clipPrompts.clip3 || reqPayload.prompt || "").trim();
 
                 if (hasStepSegmentRefs) {
-                    const extraUserImages = Array.isArray(reqPayload.image_urls)
-                        ? reqPayload.image_urls.slice(1, 3)
-                        : [];
+                    const sourceExtraImages =
+                        imageSegmentRefs.length > 1
+                            ? imageSegmentRefs
+                            : Array.isArray(reqPayload.image_urls)
+                              ? reqPayload.image_urls
+                              : [];
+                    const extraUserImages = sourceExtraImages.slice(1, 3);
                     const signedContinuationRefs = await signUserMediaRefsInPayload(
                         {
                             image_urls: extraUserImages,
@@ -5191,7 +5202,8 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
             const created = await stepAdapter.createTask(createInput, opusApiKey, {
                 excludeKeySlots,
                 env: req?.env,
-                stageReferenceImage: stageOpusReferenceImageForGenerate
+                stageReferenceImage: stageOpusReferenceImageForGenerate,
+                normalizeReferenceImageBytes: normalizeOpusReferenceImageBytes
             });
 
             return rawJsonResponse(res, 200, {
@@ -6272,6 +6284,16 @@ export default async function handler(
     let task;
 
 
+    const hasStagedVideoOrAudioInput = Boolean(
+        isStaged30s &&
+        (
+            (Array.isArray(parameters?.video_urls) && parameters.video_urls.length > 0) ||
+            Boolean(String(parameters?.video_url || "").trim()) ||
+            (Array.isArray(parameters?.audio_urls) && parameters.audio_urls.length > 0) ||
+            Boolean(String(parameters?.audio_url || "").trim())
+        )
+    );
+
     try {
 
         if (isStaged30s) {
@@ -6286,33 +6308,45 @@ export default async function handler(
                 );
             }
 
-            // Pada mode First & Last Frame bertahap (20s/30s), `last_frame_url`
-            // baru dipasang pada klip penutup terakhir (Klip 2 untuk 20s atau Klip 3 untuk 30s)
-            // agar Klip 1 (0–10s) bergerak natural dari frame awal menuju tengah adegan.
-            const clip1Parameters = {
-                ...parameters,
-                prompt: stagedProfile?.isVideoDirector
-                    ? String(parameters.prompt || "").trim()
-                    : stagedPrompts.clip1,
-                duration: String(stagedTargetConfig?.clipDuration || STAGED_30S_CLIP_DURATION),
-                ...(stagedProfile?.isVideoDirector ? { generate_audio: false } : {})
-            };
-            delete clip1Parameters.last_frame_url;
-            delete clip1Parameters.lastFrameUrl;
-            delete clip1Parameters.narration_script;
-            delete clip1Parameters.bgm_prompt;
-            delete clip1Parameters.voice;
+            if (hasStagedVideoOrAudioInput) {
+                // Tunda pembuatan Klip 1 ke orchestrator GitHub Actions agar video/audio
+                // referensi selalu dipotong 0–10 detik & dinormalisasi (resolusi Seedance
+                // [460.800, 921.600] px, 24–60 FPS CFR, H.264 yuv420p, audio MP3) via FFmpeg
+                // sebelum diunggah ke CreateAsset upstream.
+                task = {
+                    deferredToStagedOrchestrator: true,
+                    status: "QUEUED"
+                };
+            } else {
+                // Pada mode First & Last Frame bertahap (20s/30s), `last_frame_url`
+                // baru dipasang pada klip penutup terakhir (Klip 2 untuk 20s atau Klip 3 untuk 30s)
+                // agar Klip 1 (0–10s) bergerak natural dari frame awal menuju tengah adegan.
+                const clip1Parameters = {
+                    ...parameters,
+                    prompt: stagedProfile?.isVideoDirector
+                        ? String(parameters.prompt || "").trim()
+                        : stagedPrompts.clip1,
+                    duration: String(stagedTargetConfig?.clipDuration || STAGED_30S_CLIP_DURATION),
+                    ...(stagedProfile?.isVideoDirector ? { generate_audio: false } : {})
+                };
+                delete clip1Parameters.last_frame_url;
+                delete clip1Parameters.lastFrameUrl;
+                delete clip1Parameters.narration_script;
+                delete clip1Parameters.bgm_prompt;
+                delete clip1Parameters.voice;
 
-            task =
-                await clip1Adapter.createTask(
-                    clip1Parameters,
-                    providerApiKey,
-                    {
-                        excludeKeySlots: opusExcludeKeySlots,
-                        env: req?.env,
-                        stageReferenceImage: stageOpusReferenceImageForGenerate
-                    }
-                );
+                task =
+                    await clip1Adapter.createTask(
+                        clip1Parameters,
+                        providerApiKey,
+                        {
+                            excludeKeySlots: opusExcludeKeySlots,
+                            env: req?.env,
+                            stageReferenceImage: stageOpusReferenceImageForGenerate,
+                            normalizeReferenceImageBytes: normalizeOpusReferenceImageBytes
+                        }
+                    );
+            }
         } else {
             task =
                 await adapter.createTask(
@@ -6321,7 +6355,8 @@ export default async function handler(
                     {
                         excludeKeySlots: opusExcludeKeySlots,
                         env: req?.env,
-                        stageReferenceImage: stageOpusReferenceImageForGenerate
+                        stageReferenceImage: stageOpusReferenceImageForGenerate,
+                        normalizeReferenceImageBytes: normalizeOpusReferenceImageBytes
                     }
                 );
         }
@@ -6656,7 +6691,7 @@ export default async function handler(
      * =====================================================
      */
 
-    if (!taskId) {
+    if (!taskId && !hasStagedVideoOrAudioInput) {
 
         console.error(
             "[generate] Provider response has no taskId:",

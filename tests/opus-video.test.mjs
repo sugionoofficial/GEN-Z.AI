@@ -7,23 +7,29 @@ import opusVideoModels, {
 } from "../models/opus-video/index.js";
 
 import {
+    OPUS_ASSET_AUDIO_FORMAT_ERROR_MESSAGE,
+    OPUS_ASSET_PROCESSING_ERROR_MESSAGE,
+    OPUS_ASSET_VIDEO_FORMAT_ERROR_MESSAGE,
     OPUS_AUDIO_COPYRIGHT_ERROR_MESSAGE,
     encodeOpusTaskId,
     extractOpusApiKeyPool,
     extractOpusEgressJobId,
     extractVideoUrls,
     getActiveOpusKeyIndex,
+    isOpusAssetProcessingError,
     isOpusAudioCopyrightError,
     isOpusCreditExhaustedError,
     isOpusNonTerminalWorkerDeadline,
     parseOpusTaskId,
     redactSecrets,
     resetOpusKeyRotation,
+    stripOpusBoilerplateChargeWarning,
     translateOpusError
 } from "../provider/opus/client.js";
 
 import {
     collectOpusCredentialEntries,
+    normalizeOpusReferenceImageBytes,
     resetOpusTokenCache,
     resolveOpusApiKeyPoolPayload,
     resolveOpusBearerToken
@@ -3434,6 +3440,70 @@ test("error copyright audio Ark/Seedance diterjemahkan tepat menjadi pesan ramah
         windowObj.GENZHistory.getErrorMessage({ error_message: "Error lain biasa" }),
         "Error lain biasa"
     );
+});
+
+test("error Asset finished as Failed / CreateAsset failed diterjemahkan ke Bahasa Indonesia tanpa kalimat 'submitted and charged' + normalisasi gambar <300px", async () => {
+    const fs = await import("node:fs");
+    const vm = await import("node:vm");
+    const { PNG } = await import("pngjs");
+
+    const rawAssetFailed =
+        "Egress Gateway 502: Asset asset-20261104231820-46x66 finished as Failed. A provider request may already have been submitted and charged.";
+    const rawAudioFmtFailed =
+        "Egress Gateway 502: CreateAsset failed (400 InvalidParameter.FormatUnsupported): Unsupported audio format: mov. Allowed formats: mp3, wav.";
+    const rawVideoFmtFailed =
+        "Egress Gateway 502: CreateAsset failed (400 InvalidParameter.ResolutionUnsupported): video pixels below minimum.";
+
+    assert.equal(isOpusAssetProcessingError("failed", rawAssetFailed), true);
+    assert.equal(isOpusAssetProcessingError("failed", rawAudioFmtFailed), true);
+    assert.equal(translateOpusError("failed", rawAssetFailed), OPUS_ASSET_PROCESSING_ERROR_MESSAGE);
+    assert.equal(translateOpusError("failed", rawAudioFmtFailed), OPUS_ASSET_AUDIO_FORMAT_ERROR_MESSAGE);
+    assert.equal(translateOpusError("failed", rawVideoFmtFailed), OPUS_ASSET_VIDEO_FORMAT_ERROR_MESSAGE);
+    assert.doesNotMatch(translateOpusError("failed", rawAssetFailed), /submitted and charged/i);
+    assert.equal(
+        stripOpusBoilerplateChargeWarning(
+            "Egress Gateway 502: upstream timeout. A provider request may already have been submitted and charged."
+        ),
+        "Egress Gateway 502: upstream timeout."
+    );
+
+    const historyDataSource = fs.readFileSync(
+        new URL("../history/assets/js/history-data.js", import.meta.url),
+        "utf8"
+    );
+    const windowObj = { GENZHistory: { state: {} } };
+    vm.runInNewContext(historyDataSource, {
+        window: windowObj,
+        console,
+        Date,
+        Map,
+        Set,
+        Promise,
+        Number,
+        String,
+        Boolean,
+        Array,
+        Object,
+        URL
+    });
+
+    assert.equal(
+        windowObj.GENZHistory.getErrorMessage({ error_message: rawAssetFailed }),
+        OPUS_ASSET_PROCESSING_ERROR_MESSAGE
+    );
+    assert.doesNotMatch(
+        windowObj.GENZHistory.getErrorMessage({ error_message: rawAssetFailed }),
+        /submitted and charged/i
+    );
+
+    // Pastikan gambar referensi kecil (<300px, mis. 180x240) otomatis diperbesar ke >=300px
+    const tinyPng = new PNG({ width: 180, height: 240 });
+    tinyPng.data.fill(200);
+    const tinyBytes = new Uint8Array(PNG.sync.write(tinyPng));
+    const normalized = normalizeOpusReferenceImageBytes(tinyBytes, "image/png");
+    assert.ok(normalized.bytes instanceof Uint8Array && normalized.bytes.byteLength > 0);
+    assert.ok(normalized.width >= 300, `width harus >= 300, dapat ${normalized.width}`);
+    assert.ok(normalized.height >= 300, `height harus >= 300, dapat ${normalized.height}`);
 });
 
 
