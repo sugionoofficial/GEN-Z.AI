@@ -125,7 +125,7 @@ Worker Cloudflare `genzai` — tiga secrets:
 ```
 SUPABASE_URL=https://rvgioyenjgkprnssfpfr.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service_role target>
-SUPABASE_ANON_KEY=<publishable key target>
+SUPABASE_ANON_KEY=sb_publishable_-Fq__LVjbaAe2e3YkhYnQg_-PLLDM1R
 ```
 
 >`tests/supabase-project-config.test.mjs` mengunci `config.js` ke project

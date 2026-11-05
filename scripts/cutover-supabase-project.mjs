@@ -42,8 +42,24 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REF_PATTERN = /^[a-z0-9]{20}$/;
 const PUBLISHABLE_PATTERN = /^sb_publishable_[A-Za-z0-9_-]+$/;
 
-/* Ref yang dianggap "sesuai kode saat ini". */
-const PREVIOUS_REF = "ycovbqmezhrvzobxqnyp";
+/**
+ * Ref yang sedang dipakai repo ini, dibaca dari config.js.
+ *
+ * JANGAN diganti dengan konstanta: setelah cutover nilainya berubah, dan
+ * konstanta yang tertinggal membuat alat (a) menolak cutover yang sah ke ref
+ * aktif, dan (b) melaporkan sukses padahal tidak ada yang perlu diubah.
+ */
+async function readActiveRef() {
+    try {
+        const source = await readFile(path.join(root, "assets/js/config.js"), "utf8");
+        const url = source.match(/SUPABASE_URL\s*:\s*\n\s*"([^"]+)"/)?.[1];
+        return url ? new URL(url).hostname.split(".")[0] : "";
+    } catch {
+        return "";
+    }
+}
+
+const PREVIOUS_REF = await readActiveRef();
 
 /* Fixture yang memang sengaja memakai host lain untuk menguji penolakan. */
 const LEGACY_FIXTURE_HOSTS = ["legacy-project.supabase.co"];
@@ -54,6 +70,8 @@ function parseArgs(argv) {
         const arg = argv[i];
         if (arg === "--dry-run") {
             args.dryRun = true;
+        } else if (arg === "--off") {
+            args.off = true;
         } else if (arg === "--ref") {
             args.ref = argv[i + 1];
             i += 1;
@@ -82,8 +100,13 @@ if (!args.ref) fail("--ref wajib (project ref baru, contoh: rvgioyenjgkprnssfpfr
 if (!REF_PATTERN.test(args.ref)) {
     fail(`--ref "${args.ref}" tidak valid. Harus 20 karakter alfanumerik huruf kecil.`);
 }
-if (args.ref === PREVIOUS_REF) {
-    fail(`--ref sama dengan project yang sekarang (${PREVIOUS_REF}) — tidak ada yang perlu diubah.`);
+/* `--off` adalah penanda yang dimengerti pengguna: memaksa jalan walau ref
+   sama dengan config.js (dipakai hanya untuk verifikasi/dry-run). */
+if (args.ref === PREVIOUS_REF && !args.off) {
+    fail(
+        `--ref sama dengan project yang sekarang (${PREVIOUS_REF}) — tidak ada yang perlu diubah.\n` +
+        "  Kalau ini disengaja (mis. hanya ingin memeriksa), tambahkan --off."
+    );
 }
 
 /* Publishable key opsional: boleh diisi belakangan, tetapi peringatkan. */

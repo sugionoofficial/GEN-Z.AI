@@ -36,22 +36,30 @@ const GENZ_CONFIG = Object.freeze({
         window.location.origin,
 
     /*
-     * Proyek Supabase aktif: `ycovbqmezhrvzobxqnyp` (ap-southeast-1, PG 17).
+     * Proyek Supabase aktif: `rvgioyenjgkprnssfpfr` (ap-southeast-1, PG 17).
      *
-     * Proyek Supabase lama sudah dipindahkan ke proyek ini (lihat
-     * migrasi/STATUS.md). Konfigurasi yang tertinggal di proyek lama
-     * membuat login/register memakai JWT proyek lama sementara Worker
-     * memakai proyek baru, sehingga semua panggilan API ditolak.
+     * Riwayat: aplikasi ini sudah dua kali pindah proyek. Proyek sebelumnya
+     * dibatasi Supabase (`exceed_egress_quota`), karena itu pindah ke proyek
+     * sekarang. Nama ref proyek lama sengaja TIDAK ditulis di file frontend
+     * apa pun (termasuk komentar) supaya tidak ada yang tersalin ulang;
+     * riwayatnya ada di migrasi/STATUS.md.
+     *
+     * Detail cutover: migrasi/CUTOVER-rvgioyenjgkprnssfpfr.md.
+     *
+     * Konfigurasi yang tertinggal di proyek lama membuat browser memakai JWT
+     * proyek lama sementara Worker memakai proyek baru, sehingga semua
+     * panggilan API ditolak. Kalau pindah proyek lagi, jalankan:
+     *   npm run cutover -- --ref <ref-baru> --publishable <kunci-baru>
      *
      * SUPABASE_KEY harus kunci publishable dari project Yang SAMA dengan
      * SUPABASE_URL. Selaraskan juga Worker secrets:
      *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY.
      */
     SUPABASE_URL:
-        "https://ycovbqmezhrvzobxqnyp.supabase.co",
+        "https://rvgioyenjgkprnssfpfr.supabase.co",
 
     SUPABASE_KEY:
-        "sb_publishable_dnOcQubqXG_iGvUMTPCuUw_fU0gkaYm"
+        "sb_publishable_-Fq__LVjbaAe2e3YkhYnQg_-PLLDM1R"
 
 });
 

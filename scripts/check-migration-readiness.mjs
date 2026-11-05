@@ -49,7 +49,7 @@ const info = (label, detail = "") => record("info", label, detail);
 if (!SRC_REF || !SRC_KEY) {
     fail(
         "Env sumber belum lengkap",
-        "Set MIGRATION_SRC_REF & MIGRATION_SRC_SERVICE_KEY (project ycovbqmezhrvzobxqnyp)"
+        "Set MIGRATION_SRC_REF & MIGRATION_SRC_SERVICE_KEY (project sumber, lihat migrasi/STATUS.md)"
     );
 } else if (!REF_PATTERN.test(SRC_REF)) {
     fail("MIGRATION_SRC_REF tidak valid", `"${SRC_REF}" bukan project ref 20 karakter`);

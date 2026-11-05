@@ -535,7 +535,7 @@ test("persistGeneratedImage uploads data:image and https image results into priv
     const storageRef = await persistGeneratedImage({
         sourceUrl: pngBase64,
         userId: "11111111-2222-3333-4444-555555555555",
-        supabaseUrl: "https://ycovbqmezhrvzobxqnyp.supabase.co",
+        supabaseUrl: "https://rvgioyenjgkprnssfpfr.supabase.co",
         serviceKey: "srv-key-test",
         fetchImpl: mockStorageFetch
     });
@@ -863,7 +863,7 @@ test("Seedream 5.0 Pro self-heals runtime invalid_arguments (Zod issues enum dis
     const payload = adapter.buildPayload({
         image_mode: "character_sheet",
         character_image_url:
-            "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/char.png?token=abc",
+            "https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/char.png?token=abc",
         aspect_ratio: "16:9"
     });
 
@@ -1371,7 +1371,7 @@ test("Regression HTTP 400: import_assets status ready dengan signedUrl CDN Opus 
         const payload = adapter.buildPayload({
             image_mode: "character_sheet",
             character_image_url:
-                "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/04adaa6e.jpg?token=jwt123",
+                "https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/04adaa6e.jpg?token=jwt123",
             aspect_ratio: "16:9"
         });
         const created = await createImageTask(payload, "tok-ready-cdn", {
@@ -1401,7 +1401,7 @@ test("Presigned PUT awaiting_upload self-heals header Content-Type HTTP 400 dan 
 
     globalThis.fetch = async (url, init = {}) => {
         const target = String(url);
-        if (target.startsWith("https://ycovbqmezhrvzobxqnyp.supabase.co/")) {
+        if (target.startsWith("https://rvgioyenjgkprnssfpfr.supabase.co/")) {
             return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
                 status: 200,
                 headers: { "content-type": "image/jpeg" }
@@ -1544,7 +1544,7 @@ test("Presigned PUT awaiting_upload self-heals header Content-Type HTTP 400 dan 
         image_mode: "standard",
         prompt: "Rubah warna outfit jadi merah",
         image_urls: [
-            "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/04adaa6e.jpg?token=jwt123"
+            "https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/04adaa6e.jpg?token=jwt123"
         ],
         aspect_ratio: "9:16"
     });
@@ -1593,7 +1593,7 @@ test("Regression MalformedSecurityHeader: GCS V4 Signed PUT meneruskan entry.hea
 
     globalThis.fetch = async (url, init = {}) => {
         const target = String(url);
-        if (target.startsWith("https://ycovbqmezhrvzobxqnyp.supabase.co/")) {
+        if (target.startsWith("https://rvgioyenjgkprnssfpfr.supabase.co/")) {
             return new Response(jpegBytes, {
                 status: 200,
                 headers: { "content-type": "application/octet-stream" }
@@ -1754,7 +1754,7 @@ test("Regression MalformedSecurityHeader: GCS V4 Signed PUT meneruskan entry.hea
                 image_mode: "standard",
                 prompt: "Potret studio sinematik @image1",
                 image_urls: [
-                    "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/94d3fe23.jpg?token=signed"
+                    "https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/94d3fe23.jpg?token=signed"
                 ],
                 aspect_ratio: "9:16"
             },
@@ -1774,7 +1774,7 @@ test("Regression MalformedSecurityHeader: GCS V4 Signed PUT meneruskan entry.hea
         {
             image_mode: "character_sheet",
             character_image_url:
-                "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/94d3fe23.jpg?token=signed",
+                "https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/94d3fe23.jpg?token=signed",
             aspect_ratio: "16:9"
         },
         "tok-gcs-standalone",
@@ -1969,9 +1969,9 @@ test("Parity Studio Medsos pada /generate/: stageOpusReferenceImageForGenerate m
         {
             image_mode: "character_sheet",
             character_image_url:
-                "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/char-large.jpg?token=1",
+                "https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/char-large.jpg?token=1",
             outfit_image_url:
-                "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/outfit-220.png?token=2",
+                "https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/object/sign/user-uploads/generate-input/u1/outfit-220.png?token=2",
             character_notes: "Sepatu sneakers putih bersih",
             aspect_ratio: "16:9"
         },

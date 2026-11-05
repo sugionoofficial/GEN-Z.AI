@@ -139,3 +139,28 @@ spend caps to restore service.
 - **Peringatan urutan:** deploy `config.js` sebelum data & storage siap membuat
   situs tampil kosong. Urutan aman: skema+data → storage → auth config →
   config.js + secrets → deploy.
+
+### Fase D selesai di repo (2026-11-05)
+
+`assets/js/config.js` + `.dev.vars.example` + seluruh fixture test sudah
+dipindahkan ke **`rvgioyenjgkprnssfpfr`** memakai
+`npm run cutover -- --ref rvgioyenjgkprnssfpfr --publishable …`.
+
+| Item | Status |
+|---|---|
+| `config.js` (URL + publishable key) | ✅ project baru |
+| `.dev.vars.example` | ✅ project baru |
+| Fixture test (11 file) | ✅ project baru |
+| `npm test` | ✅ 1370 pass |
+
+**Sisa yang hanya bisa dilakukan pemilik akun:**
+
+1. 3 secrets Worker Cloudflare `genzai` → lihat nilai di
+   `CUTOVER-rvgioyenjgkprnssfpfr.md` Fase D.
+2. Fase A (pg_dump skema + data), Fase B (storage, tunggu kuota), Fase C
+   (auth config) di project baru.
+3. **Deploy hanya setelah 1–3 selesai** — kalau tidak, situs tampil kosong.
+
+Catatan: alat `npm run cutover` kini membaca ref aktif dari `config.js`
+(bukan konstanta yang cepat usang), dan menolak jalan bila `--ref` sama
+dengan ref aktif kecuali diberi `--off`.

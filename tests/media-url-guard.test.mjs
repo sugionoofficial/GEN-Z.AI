@@ -64,7 +64,7 @@ test("inspectReferenceMediaUrl menolak link halaman medsos/share dengan pesan Ba
     const allowedSamples = [
         "https://cdn.example.com/assets/photo.jpg",
         "https://scontent.xx.fbcdn.net/v/t39.30808-6/sample_image.jpg?_nc_cat=101",
-        "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/u1/img.png?token=abc",
+        "https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/object/sign/user-uploads/u1/img.png?token=abc",
         "https://dl.dropboxusercontent.com/s/abcdef/sample.mp4",
         "https://www.dropbox.com/s/abcdef12345/sample.mp4?dl=1",
         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
