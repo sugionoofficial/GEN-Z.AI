@@ -8,13 +8,6 @@
 -- jejak project lama (ycovbqmezhrvzobxqnyp), beserta jumlah baris dan
 -- jumlah kemunculannya.
 --
--- ⚠️ REVISI PENTING
---   Versi pertama hanya memeriksa `data_type in ('text','character
---   varying','character')`. Ternyata kolom bertipe padat (`character(n)`
---   / bpchar) tidak tertangkap oleh daftar itu di beberapa konfigurasi,
---   sehingga sisa 4 baris lolos dari pemetaan. Versi ini memakai
---   `udt_name` juga, jadi SEMUA kolom berbasis teks ikut diperiksa.
---
 -- Keluaran:
 --   total_referensi   = jumlah kemunculan jejak lama di semua kolom
 --   total_baris       = jumlah BARIS yang memuat jejak lama
@@ -27,12 +20,14 @@ with kolom_teks as (
         c.table_name,
         c.column_name
     from information_schema.columns c
-    join information_schema.tables t
-      on t.table_schema = c.table_schema
-     and t.table_name = c.table_name
     where c.table_schema = 'public'
-      and t.table_type = 'BASE TABLE'
-      -- Semua bentuk kolom teks: text, varchar, character(n), citext.
+      and exists (
+            select 1
+            from information_schema.tables t
+            where t.table_schema = c.table_schema
+              and t.table_name = c.table_name
+              and t.table_type = 'BASE TABLE'
+      )
       and (
             c.data_type in ('text', 'character varying', 'character')
             or c.udt_name in ('text', 'varchar', 'bpchar', 'citext')
@@ -55,9 +50,7 @@ per_kolom as (
         (
             xpath('/row/n/text()', query_to_xml(
                 format(
-                    'select coalesce(sum((length(%I::text) - length(replace(%I::text, %L, %L))) / length(%L)), 0) as n
-                       from %I.%I
-                      where %I::text like %L',
+                    'select coalesce(sum((length(%I::text) - length(replace(%I::text, %L, %L))) / length(%L)), 0) as n from %I.%I where %I::text like %L',
                     k.column_name,
                     k.column_name,
                     'ycovbqmezhrvzobxqnyp',
