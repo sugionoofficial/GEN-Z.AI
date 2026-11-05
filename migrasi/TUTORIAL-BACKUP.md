@@ -3,6 +3,54 @@
 Ditulis untuk **yang belum pernah memakai terminal**. Tidak ada langkah yang
 dilewati. Ikuti berurutan.
 
+---
+
+## ⭐ MULAI DI SINI — 5 langkah, jangan lompat
+
+Kerjakan **satu langkah**, lalu berhenti dan laporkan. Jangan kerjakan
+semuanya sekaligus.
+
+### Langkah 1 — Pasang alat
+
+Buka **PowerShell**: tombol **Start** → ketik `powershell` → klik
+**Windows PowerShell**. Tempel, tekan Enter:
+
+```powershell
+winget install PostgreSQL.17
+```
+
+Tunggu sampai muncul `Successfully installed`.
+
+> macOS: `brew install postgresql@17`
+> Linux: `sudo apt install postgresql-client-17`
+
+### Langkah 2 — Pastikan alat terpasang
+
+**Tutup** jendela PowerShell, lalu **buka lagi** (wajib). Tempel:
+
+```powershell
+pg_dump --version
+```
+
+✅ Berhasil bila muncul: `pg_dump (PostgreSQL) 17.x`
+❌ Gagal bila muncul `tidak dikenali` → lapor ke saya, jangan lanjut.
+
+**⏸️ BERHENTI DI SINI.** Laporkan hasil Langkah 2 ke saya.
+
+---
+
+Sisanya (**Langkah 3–6**) baru dikerjakan setelah Langkah 2 berhasil:
+
+| Langkah | Yang dilakukan | Di mana |
+|---|---|---|
+| 3 | Siapkan folder kerja | terminal |
+| 4 | Ambil 2 password + 2 alamat dari dashboard | browser |
+| 5 | `bash backup-penuh.sh dump` lalu `restore` | terminal |
+| 6 | Verifikasi 60 tabel | SQL Editor (browser) |
+
+Detail setiap langkah ada di bawah, mulai dari
+[Di mana perintah ini diketik](#di-mana-perintah-ini-diketik).
+
 **Waktu:** ±15 menit (paling banyak habis di langkah install).
 **Risiko ke data lama:** nol. Proses ini hanya **membaca** project lama dan
 **menulis** ke project baru. Tidak ada yang dihapus.
