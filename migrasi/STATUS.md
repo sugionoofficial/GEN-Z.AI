@@ -274,3 +274,63 @@ pemuatan dibuat benar secara struktural, bukan dengan mematikan pengecekan FK.
 
 **Sisa pekerjaan:** Fase B (file storage 112 objek, tunggu kuota), Fase C
 (auth config target), Fase D (3 secrets Worker + verifikasi akhir).
+
+### ✅ VERIFIKASI FASE A: 60/60 tabel, 0 gagal (2026-11-05)
+
+Hasil `migrasi/verify-restore.sql` di project `rvgioyenjgkprnssfpfr` —
+**15 cek, semuanya OK**:
+
+| cek | hasil | target |
+|---|---|---|
+| tabel_pass | **60** | 60 |
+| tabel_gagal | **0** | 0 |
+| tabel_bermasalah | - | - |
+| auth.users / auth.identities | 25 / 25 | 25 / 25 |
+| public.profiles | 25 | 25 |
+| public.generation_history | 502 | 502 |
+| public.social_post_runs | 941 | 941 |
+| storage.objects | 112 | 112 |
+| tabel_rls_aktif | 60 | 60 |
+| policy | 53 | 53 |
+| trigger_public | 9 | 9 |
+| sequence_public | 5 | 5 |
+| fungsi_public | 66 | >=60 |
+| owner_ada | 1 | >=1 |
+
+Struktur dan isi terbukti utuh: bukan hanya jumlah baris, tetapi RLS aktif di
+seluruh 60 tabel, 53 policy, 9 trigger, 5 sequence, dan 66 fungsi. Akun OWNER
+ada, sehingga panel admin bisa dimasuki.
+
+**Fase A resmi SELESAI.** Lanjut Fase C (auth config) yang tidak butuh kuota,
+lalu Fase B (storage) saat kuota pulih.
+
+### ✅ APLIKASI HIDUP — login berhasil (2026-11-05)
+
+Situs produksi `https://genzai.genzai-f37.workers.dev` sudah bisa login memakai
+akun hasil migrasi. Rantai yang harus benar seluruhnya:
+
+| Lapisan | Status | Bukti |
+|---|---|---|
+| Worker secrets (3) | OK | tidak ada lagi `InvalidKey` |
+| Auth project baru | OK | `POST /auth/v1/token?grant_type=password` sukses |
+| 25 akun hasil restore | OK | login diterima, bukan "user not found" |
+| GRANT ke anon/authenticated | OK | setelah `perbaiki-grant.sql` |
+| Cache skema PostgREST | OK | setelah `notify pgrst, 'reload schema'` |
+| Profil terbaca | OK | nama/kredit/role muncul |
+
+**Tiga bug berurutan yang terbongkar di tahap ini** (semua sudah diperbaiki,
+1418 test pass):
+
+| # | Gejala | Sebab | Perbaikan |
+|---|---|---|---|
+| 1 | `InvalidKey: ""` | secret Worker kosong | isi 3 secret di Cloudflare |
+| 2 | 404 `profiles` | `pg_dump --no-privileges` membuang GRANT | hapus flag itu; `perbaiki-grant.sql` |
+| 3 | `PGRST205` schema cache | `session_replication_role = replica` mematikan trigger DDL Supabase (`pgrst_ddl_watch`) | hapus `replica`; `notify pgrst` |
+
+Pelajaran: bug #1 di daftar ini (FK `credit_transactions`) "diperbaiki" dengan
+mematikan trigger, dan justru itulah penyebab bug #3. Menambal gejala tanpa
+memeriksa apa lagi yang ikut dimatikan.
+
+**Sisa:** Fase B (112 file storage, menunggu kuota) — fitur yang butuh file
+(thumbnail, preview video, hasil generasi) belum normal. Fase D sudah beres
+karena build/deploy hijau.
