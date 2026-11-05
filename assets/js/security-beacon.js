@@ -62,6 +62,26 @@
     var sessionId = readSessionId();
 
     /* Status verifikasi role & pengaturan lockdown dari server. */
+    /*
+     * SAKLAR DARURAT: `localStorage.setItem("genz-devtools-unlock", "1")`
+     * mematikan penguncian di browser ini saja, tanpa mengubah apa pun di
+     * server dan tanpa melonggarkan hak pengguna lain.
+     *
+     * Ini dibutuhkan karena layar kunci memutus seluruh koneksi halaman:
+     * kalau penguncian salah picu, pemilik perangkat tidak punya jalan keluar
+     * lain selain menghapus data situs. Bisa dimatikan lagi dengan
+     * `localStorage.removeItem("genz-devtools-unlock")`.
+     */
+    var LOCAL_UNLOCK_KEY = "genz-devtools-unlock";
+
+    function localUnlockActive() {
+        try {
+            return window.localStorage.getItem(LOCAL_UNLOCK_KEY) === "1";
+        } catch (error) {
+            return false;
+        }
+    }
+
     var lockdownSettingEnabled = CONFIG.devtoolsLockdown !== false;
     var serverRoleResolved = false;
     var serverVerifiedOwner = false;
@@ -290,23 +310,49 @@
         return PRIVILEGED_ROLES.indexOf(String(value || "").trim().toLowerCase()) !== -1;
     }
 
+    /*
+     * Apakah pengunjung ini pengelola (OWNER/ADMIN)?
+     *
+     * PENTING — jangan menebak "tidak berhak" sebelum server menjawab.
+     * Versi sebelumnya jatuh ke petunjuk lokal, dan petunjuk itu kosong pada
+     * beberapa kondisi nyata: profil belum selesai dimuat (navigation.js
+     * memakai `defer`, sedangkan beacon juga `defer` sehingga urutannya bisa
+     * terbalik), atau cache profil tidak pernah ditulis. Hasilnya OWNER asli
+     * dianggap tamu dan langsung dikunci pada pemeriksaan pertama.
+     *
+     * Aturan sekarang:
+     *   - server sudah menjawab  -> jawaban server adalah kebenaran tunggal
+     *   - belum menjawab         -> hanya diloloskan bila ada petunjuk lokal
+     *                               yang jelas; bila tidak ada petunjuk sama
+     *                               sekali, TAHAN keputusan (lihat
+     *                               isLockdownApplicable) dan tunggu server.
+     */
     function isOwnerViewer() {
         if (CONFIG.forceNonOwner === true) return false;
         if (serverRoleResolved) {
-            /*
-             * Utamakan role hasil verifikasi server. `is_owner` dipertahankan
-             * sebagai cadangan bila server belum mengirim role lengkap
-             * (mis. respons lama yang di-cache sessionStorage).
-             */
             if (isPrivilegedRole(serverViewer.role)) return true;
             return Boolean(serverVerifiedOwner);
         }
         return isPrivilegedRole(readLocalRoleHint());
     }
 
+    /** Ada petunjuk lokal yang bisa dipakai sebelum server menjawab? */
+    function hasLocalRoleHint() {
+        if (CONFIG.forceNonOwner === true) return false;
+        return Boolean(String(readLocalRoleHint() || "").trim());
+    }
+
     function isLockdownApplicable() {
+        if (localUnlockActive()) return false;
         if (!lockdownSettingEnabled) return false;
         if (isOwnerViewer()) return false;
+        /*
+         * Belum ada petunjuk lokal DAN server belum menjawab: jangan kunci.
+         * Menahan beberapa detik jauh lebih baik daripada mengunci pengelola
+         * yang sah; penguncian tetap terjadi begitu server menyatakan
+         * pengunjung bukan pengelola.
+         */
+        if (!serverRoleResolved && !hasLocalRoleHint()) return false;
         return true;
     }
 
@@ -463,9 +509,24 @@
                 get: function () {
                     consoleOpened = true;
                     consoleProbeAt = Date.now();
-                    if (!lockdownActive) {
-                        scheduleLockdownCheck("Console Inspector Probe");
-                    }
+                    /*
+                     * Probe TIDAK boleh memicu penguncian.
+                     *
+                     * `console.log(objek)` terjadi di lingkungan yang sangat
+                     * umum dan tidak berbahaya:
+                     *   - DevTools bawaan aplikasi dalam (Instagram, Facebook,
+                     *     TikTok, Threads) saat halaman dibuka dari dalam app;
+                     *   - panel Console pada browser seluler;
+                     *   - ekstensi dan alat bantu pengembang.
+                     * Dulu getter ini memanggil scheduleLockdownCheck(),
+                     * sehingga pengunjung terkunci hanya karena membuka
+                     * halaman dari dalam aplikasi — tanpa pesan sebabnya.
+                     *
+                     * Sekarang probe hanya dicatat sebagai sinyal lemah.
+                     * Penguncian hanya dipicu tindakan yang jelas disengaja
+                     * (menekan pintasan inspeksi) atau DevTools dock yang
+                     * benar-benar menyusutkan viewport.
+                     */
                     return "genz-probe";
                 }
             });
