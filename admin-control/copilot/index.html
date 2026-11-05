@@ -34,6 +34,24 @@
             </div>
         </header>
 
+        <!-- ============ CONNECTORS BAR ============ -->
+        <div class="connectors-bar" id="connectorsBar" role="group" aria-label="Konektor">
+            <button class="connector-card" id="supabaseConnector" type="button" title="Klik untuk detail Supabase">
+                <span class="connector-icon" aria-hidden="true">⬢</span>
+                <span class="connector-label">Supabase</span>
+                <span class="connector-status"><span class="pill-dot" id="supabaseStatusDot"></span><span id="supabaseStatusText">mengecek…</span></span>
+                <span class="connector-chevron" aria-hidden="true">▸</span>
+            </button>
+            <button class="connector-card" id="cloudflareConnector" type="button" title="Klik untuk detail Cloudflare">
+                <span class="connector-icon" aria-hidden="true">⬣</span>
+                <span class="connector-label">Cloudflare</span>
+                <span class="connector-status"><span class="pill-dot" id="cloudflareStatusDot"></span><span id="cloudflareStatusText">mengecek…</span></span>
+                <span class="connector-chevron" aria-hidden="true">▸</span>
+            </button>
+            <div class="connector-detail" id="supabaseDetail" hidden></div>
+            <div class="connector-detail" id="cloudflareDetail" hidden></div>
+        </div>
+
         <!-- ============ NOTICE ============ -->
         <div class="notice" id="notice" role="status" aria-live="polite" hidden>
             <span id="noticeText"></span>
@@ -41,12 +59,6 @@
         </div>
 
         <!-- ============ BARIS KONTROL GIT ============ -->
-        <!--
-            Kontrol git berada di SATU baris di bawah topbar, bukan di dalam
-            panel editor. Tujuannya: panel editor tetap penuh untuk kode,
-            dan tombol aksi tidak pernah terdorong ke bawah saat pesan
-            commit panjang atau layar pendek.
-        -->
         <div class="gitbar" role="group" aria-label="Kontrol git">
             <div class="gitbar-seg">
                 <span class="gitbar-label">File</span>
@@ -138,6 +150,18 @@
                 </div>
 
                 <div class="assistant-body">
+                    <!-- SESI -->
+                    <div class="session-bar" id="sessionBar">
+                        <select id="sessionSelect" class="field session-select" aria-label="Pilih sesi percakapan">
+                            <option value="">Memuat sesi…</option>
+                        </select>
+                        <div class="session-actions">
+                            <button class="icon-button" id="newSessionButton" type="button" title="Sesi baru" aria-label="Buat sesi baru">＋</button>
+                            <button class="icon-button" id="renameSessionButton" type="button" title="Ganti nama sesi" aria-label="Ganti nama sesi">✎</button>
+                            <button class="icon-button" id="deleteSessionButton" type="button" title="Hapus sesi" aria-label="Hapus sesi">🗑</button>
+                        </div>
+                    </div>
+
                     <div class="model-bar">
                         <label for="modelSelect">Model</label>
                         <select id="modelSelect" class="field model-select">
@@ -151,13 +175,25 @@
 
                     <div class="chat-messages" id="chatMessages" aria-live="polite" aria-label="Percakapan dengan AI"></div>
 
+                    <!-- UPLOAD PREVIEW -->
+                    <div class="upload-preview" id="uploadPreview" hidden></div>
+                    <div class="attachments-bar" id="attachmentsBar" hidden>
+                        <span class="attachments-count" id="attachmentsCount">0 file</span>
+                        <label class="attachments-toggle"><input type="checkbox" id="saveToStorageToggle"> simpan ke Storage</label>
+                        <button type="button" class="button button-secondary" id="clearAttachmentsButton" style="min-height:26px;padding:0 8px;font-size:10px">Hapus</button>
+                    </div>
+
                     <form class="chat-form" id="chatForm">
                         <label class="sr-only" for="chatInput">Instruksi untuk Copilot</label>
                         <div class="chat-input-wrap">
                             <textarea id="chatInput" rows="2" maxlength="12000" placeholder="Jelaskan perubahan / tempel URL https:// untuk cek error halaman + kata cari/telusuri untuk live search…" required></textarea>
+                            <div class="chat-input-actions">
+                                <input type="file" id="fileInput" hidden multiple accept="image/*,.pdf,.txt,.js,.ts,.json,.md,.html,.css">
+                                <button type="button" class="icon-button attach-button" id="attachButton" title="Upload gambar/file" aria-label="Upload gambar/file">📎</button>
+                            </div>
                         </div>
                         <div class="chat-form-foot">
-                            <span>AI mengusulkan kode. Tinjau sebelum commit.</span>
+                            <span>AI mengusulkan kode. Tinjau sebelum commit. • Drag & drop file ke sini</span>
                             <button class="button button-primary" id="sendChatButton" type="submit">Kirim <span aria-hidden="true">↑</span></button>
                         </div>
                     </form>
