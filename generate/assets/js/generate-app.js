@@ -87,7 +87,7 @@ const AUTH_MODULE =
     "./generate-auth.js?v=20261013-auth-refresh";
 
 const UI_MODULE =
-    "./generate-ui.js?v=20261101-staged-20s-credit-single-error-20261103";
+    "./generate-ui.js?v=20261101-staged-20s-credit-single-error-20261103-generate-pill-credit-20261105";
 
 const MODEL_MODULE =
     "./generate-model.js?v=20261101-audio-transcribe";
@@ -1494,7 +1494,7 @@ function syncGenerateButtonLoading(
 
             label.dataset.originalText =
                 (label.textContent || "").trim() ||
-                "Generate Video";
+                "Generate";
 
         }
 
@@ -1515,7 +1515,7 @@ function syncGenerateButtonLoading(
 
             label.textContent =
                 label.dataset.originalText ||
-                "Generate Video";
+                "Generate";
 
         }
 
@@ -2888,6 +2888,57 @@ function getModelCredit(
 
 
 /* =========================================================
+   LABEL TOMBOL GENERATE
+   ---------------------------------------------------------
+   Satu sumber kebenaran untuk teks tombol utama: selalu
+   "Generate". Dipakai saat mode berganti & saat pulih dari
+   status loading, supaya tidak ada jalur yang mengembalikan
+   label lama per mode (video / gambar / audio / transcribe).
+========================================================= */
+
+const GENERATE_BUTTON_LABEL =
+    "Generate";
+
+
+function syncGenerateButtonLabel(
+    button = null
+) {
+
+    const target =
+        button ||
+        document.getElementById(
+            "generateButton"
+        );
+
+    const label =
+        target
+            ? target.querySelector(
+                  ".generate-button-label"
+              )
+            : document.querySelector(
+                  "#generateButton .generate-button-label"
+              );
+
+    if (
+        !label
+    ) {
+
+        return null;
+
+    }
+
+    label.textContent =
+        GENERATE_BUTTON_LABEL;
+
+    label.dataset.originalText =
+        GENERATE_BUTTON_LABEL;
+
+    return label;
+
+}
+
+
+/* =========================================================
    FORMAT CREDIT
 ========================================================= */
 
@@ -2902,7 +2953,7 @@ function formatCredit(
             undefined
     ) {
 
-        return "-- Credit";
+        return "-- credit";
 
     }
 
@@ -2917,7 +2968,7 @@ function formatCredit(
         )
     ) {
 
-        return "-- Credit";
+        return "-- credit";
 
     }
 
@@ -2936,12 +2987,13 @@ function formatCredit(
         );
 
     /*
-     * Tampilkan label "Credit" agar user jelas
-     * bahwa angka ini adalah biaya yang akan
-     * memotong saldo credit per generate.
+     * Badge di dalam tombol dibaca sebagai satu kalimat:
+     *   [◆ 1.500 credit]
+     * Tooltip & aria-label menjelaskan bahwa angka ini
+     * AKAN DIPOTONG dari saldo saat Generate ditekan.
      */
 
-    return `${formatted} Credit`;
+    return `${formatted} credit`;
 
 }
 
@@ -3214,7 +3266,7 @@ function renderModelCredit(
         ) {
 
             creditElement.title =
-                `Biaya generate: ${formatted}` +
+                `Kredit yang akan dipotong saat Generate: ${formatted}` +
                 (
                     selectedResolution
                         ? ` (${selectedResolution})`
@@ -3224,7 +3276,7 @@ function renderModelCredit(
 
             creditElement.setAttribute(
                 "aria-label",
-                `Biaya generate ${formatted}`
+                `Kredit yang akan dipotong ${formatted}`
             );
 
         }
@@ -3232,11 +3284,11 @@ function renderModelCredit(
         else {
 
             creditElement.title =
-                "Credit model belum dikonfigurasi di halaman edit model.";
+                "Kredit model belum dikonfigurasi di halaman edit model.";
 
             creditElement.setAttribute(
                 "aria-label",
-                "Credit belum tersedia"
+                "Kredit yang akan dipotong belum tersedia"
             );
 
         }
@@ -6409,26 +6461,20 @@ function syncModeSwitcherUI() {
                     : "AI VIDEO GENERATOR";
     }
 
-    const buttonLabel = document.querySelector("#generateButton .generate-button-label");
-    if (buttonLabel) {
-        if (isImg) {
-            buttonLabel.textContent =
-                subMode === IMAGE_SUBMODE_CHARACTER_SHEET ? "Generate Karakter Sheet" : "Generate Gambar";
-        } else if (isAud) {
-            buttonLabel.textContent =
-                currentModelId === "opus-audio-music"
-                    ? "Generate Musik AI"
-                    : currentModelId === "opus-audio-sfx"
-                        ? "Generate Sound Effect"
-                        : currentModelId === "opus-audio-podcast"
-                            ? "Generate Podcast AI"
-                            : "Generate Voiceover";
-        } else if (isTrx) {
-            buttonLabel.textContent = "Transcribe Audio";
-        } else {
-            buttonLabel.textContent = "Generate Video";
-        }
-    }
+    /*
+     * LABEL TOMBOL UTAMA = "GENERATE"
+     * ---------------------------------------------------------
+     * Satu label untuk semua mode (video, gambar/karakter sheet,
+     * audio, transcribe). Konteks mode sudah terlihat dari tab
+     * aktif, judul section, dan badge kredit di dalam tombol,
+     * jadi label tidak perlu berubah-ubah per mode.
+     *
+     * `dataset.originalText` ikut disetel agar pemulihan setelah
+     * loading (Memproses... -> semula) tetap kembali ke "Generate".
+     */
+    /* Label + badge kredit tombol utama — satu sumber kebenaran. */
+    syncGenerateButtonLabel();
+    syncModelCreditForResolution();
 }
 
 async function switchMainMode(nextMode) {

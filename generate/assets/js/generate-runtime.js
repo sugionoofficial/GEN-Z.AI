@@ -659,7 +659,7 @@ function syncRuntimeButtonLoading(
 
             label.dataset.originalText =
                 (label.textContent || "").trim() ||
-                "Generate Video";
+                "Generate";
 
         }
 
@@ -676,7 +676,7 @@ function syncRuntimeButtonLoading(
                 )
                 : (
                     label.dataset.originalText ||
-                    "Generate Video"
+                    "Generate"
                 );
 
     }
