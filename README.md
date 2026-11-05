@@ -280,8 +280,10 @@ GEN-Z.AI/
 
 ## Environment Variables
 
-Buat file `.dev.vars` untuk pengembangan lokal. Untuk production, atur
-variables dan secrets di Cloudflare Worker → Settings → Variables and Secrets.
+Buat file `.dev.vars` untuk pengembangan lokal — salin dari
+`.dev.vars.example` (`cp .dev.vars.example .dev.vars`), lalu isi nilainya.
+Untuk production, atur variables dan secrets di Cloudflare Worker →
+Settings → Variables and Secrets.
 
 ```env
 # Supabase
@@ -521,13 +523,29 @@ GitHub Actions untuk build dan deploy Worker.
 git clone https://github.com/sugionoofficial/GEN-Z.AI.git
 cd GEN-Z.AI
 
-# Buat .dev.vars berisi konfigurasi Supabase dan provider untuk development.
-# Jangan commit file ini; gunakan nilai development, bukan production secrets.
+# 1. Wajib — tanpa node_modules build/deploy gagal
+npm install            # atau: npm ci
 
-# Build aset statis dan jalankan Worker lokal
-node scripts/build-cloudflare-pages.mjs
-npx wrangler@4 dev
+# 2. Buat .dev.vars dari template, lalu isi nilainya.
+#    Tanpa file ini halaman statis tetap terbuka, TETAPI semua /api/*
+#    (login, generate, credit) membalas 500 karena Worker tidak punya
+#    kredensial Supabase.
+cp .dev.vars.example .dev.vars
+
+# 3. Cek konfigurasi lokal (opsional, dijalankan otomatis oleh npm run dev)
+npm run check:dev
+
+# 4. Jalankan Worker lokal: cek .dev.vars -> build dist/ -> wrangler dev
+npm run dev
 ```
+
+Worker lokal berjalan di `http://localhost:8787` dan menyajikan aset dari
+`dist/` sekaligus rute `/api/*`. Halaman statis **harus** dibuka lewat alamat
+itu, bukan lewat `file://` atau `python -m http.server`, karena path di repo ini
+absolut (`/assets/js/config.js`) dan tidak ada `/api/*` pada server statis biasa.
+
+Jangan commit `.dev.vars`; `SUPABASE_SERVICE_ROLE_KEY` wajib disimpan sebagai
+secret dan tidak boleh dikirim ke browser atau repository.
 
 Live Chat AI mengambil maksimal 30 cuplikan video (satu per detik) untuk analisis
 gerakan, lingkungan yang terlihat, sudut kamera, dan pencahayaan. Video di atas
@@ -620,3 +638,14 @@ Lihat file [LICENSE](LICENSE) untuk detail.
 
 > Built for creators who want to turn ideas into visual experiences — without the complexity.
 ```
+### Troubleshooting Lokal
+
+| Gejala | Penyebab | Solusi |
+|--------|----------|--------|
+| `Missing script: "dev"` | `package.json` versi lama belum punya script dev | `git pull`, lalu `npm run dev` |
+| `Could not resolve "jpeg-js"` / `"pngjs"` saat build/deploy | `node_modules` belum ada | `npm install` lalu ulangi |
+| Halaman terbuka, tetapi login/generate gagal dan `/api/*` membalas **500** `SUPABASE_URL belum dikonfigurasi di server` / `Konfigurasi Supabase server belum lengkap` | `.dev.vars` belum ada atau variabelnya kosong | `cp .dev.vars.example .dev.vars`, isi `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` |
+| `/api/generate` membalas `Server configuration is incomplete` | secret Supabase server tidak terbaca | sama seperti di atas |
+| Halaman tanpa CSS/JS, gambar 404 | dibuka lewat `file://` atau static server biasa, bukan Worker | buka lewat `http://localhost:8787` (`npm run dev`) |
+| `wrangler preview` gagal / menanyakan login | perintah itu membuat Preview deployment di Cloudflare, bukan server lokal | pakai `npm run dev` |
+| Aset `/assets/...` 404 padahal file ada di repo | `dist/` belum dibangun | `npm run build` (sudah otomatis di `npm run dev`) |
