@@ -27,7 +27,8 @@ test("peta-url-lama.sql hanya membaca, tidak pernah mengubah data", () => {
 
 test("rewrite-url-lama.sql hanya menulis ke schema public dan kolom teks", () => {
     assert.match(REWRITE, /where c\.table_schema = 'public'/, "batasi ke schema public");
-    assert.match(REWRITE, /data_type in \('text', 'character varying', 'character'\)/, "hanya kolom teks");
+    assert.match(REWRITE, /c\.data_type in \('text', 'character varying', 'character'\)/, "kolom teks");
+    assert.match(REWRITE, /c\.udt_name in \('text', 'varchar', 'bpchar', 'citext'\)/, "termasuk bpchar");
     assert.match(REWRITE, /c\.column_name not like 'encrypted\\_%'/, "kolom terenkripsi tidak disentuh");
 
     const tanpaKomentar = REWRITE.replace(/--[^\n]*/g, "");
@@ -37,13 +38,24 @@ test("rewrite-url-lama.sql hanya menulis ke schema public dan kolom teks", () =>
     assert.match(tanpaKomentar, /replace\(/, "perubahan harus lewat replace, bukan menimpa nilai");
 });
 
-test("rewrite-url-lama.sql mengganti alamat lama ke alamat baru, bukan sebaliknya", () => {
-    assert.match(REWRITE, new RegExp(`alamat_lama constant text := 'https://${LAMA}\\.supabase\\.co'`));
-    assert.match(REWRITE, new RegExp(`alamat_baru constant text := 'https://${BARU}\\.supabase\\.co'`));
+test("rewrite-url-lama.sql mengganti jejak lama ke jejak baru, bukan sebaliknya", () => {
+    assert.match(REWRITE, new RegExp(`jejak_lama constant text := '${LAMA}'`));
+    assert.match(REWRITE, new RegExp(`jejak_baru constant text := '${BARU}'`));
 
-    /* Arah terbalik akan merusak data: alamat baru ditimpa alamat lama. */
-    const barisAlamatLama = REWRITE.split("\n").find(baris => baris.includes("alamat_lama constant"));
-    assert.ok(!barisAlamatLama.includes(BARU), "alamat_lama tidak boleh berisi alamat baru");
+    /* Arah terbalik akan merusak data: project baru ditimpa project lama. */
+    const barisLama = REWRITE.split("\n").find(baris => baris.includes("jejak_lama constant"));
+    assert.ok(!barisLama.includes(BARU), "jejak_lama tidak boleh berisi nama project baru");
+});
+
+test("rewrite-url-lama.sql menangani kolom padat character(n) / bpchar", () => {
+    /*
+     * Regresi nyata: versi pertama hanya memeriksa text & varchar sehingga
+     * kolom bpchar tidak pernah di-rewrite, dan `replace()` tanpa cast akan
+     * gagal pada tipe itu. Sisa 4 baris di produksi berasal dari celah ini.
+     */
+    assert.match(REWRITE, /udt_name in \('text', 'varchar', 'bpchar', 'citext'\)/);
+    assert.match(REWRITE, /format_type\(/, "cast balik harus memakai tipe asli kolom");
+    assert.match(REWRITE, /::%s where/, "nilai harus di-cast ke tipe aslinya");
 });
 
 test("rewrite-url-lama.sql aman dijalankan ulang", () => {
@@ -84,5 +96,14 @@ test("verifikasi-url-baru.sql melaporkan sisa alamat lama DAN alamat baru terpas
 test("skrip migrasi tidak memuat rahasia apa pun", () => {
     for (const [nama, isi] of [["peta", PETA], ["rewrite", REWRITE], ["verifikasi", VERIFIKASI]]) {
         assert.ok(!/service_role|sb_secret|eyJhbGciOi|password\s*=/i.test(isi), `${nama} tidak boleh memuat kredensial`);
+    }
+});
+
+test("ketiga berkas memakai cakupan tipe kolom yang sama", () => {
+    /* Kalau pemetaan, rewrite, dan verifikasi memakai daftar tipe berbeda,
+       hasil "BERSIH" tidak bisa dipercaya. */
+    const pola = /udt_name in \('text', 'varchar', 'bpchar', 'citext'\)/;
+    for (const [nama, isi] of [["peta", PETA], ["rewrite", REWRITE], ["verifikasi", VERIFIKASI]]) {
+        assert.match(isi, pola, `${nama} harus memeriksa bpchar juga`);
     }
 });
