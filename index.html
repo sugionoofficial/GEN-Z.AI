@@ -27,6 +27,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
 
     <script src="/assets/js/theme.js?v=navlockup-20261029" defer></script>
+    <script src="/assets/js/config.js?v=20261105-supabase-migration"></script>
     <script>
         /* =========================================================
            GEN-Z.AI PERSISTENT SESSION AUTO-RESUME (ROOT / PWA / APK)
@@ -39,35 +40,51 @@
         (function () {
             "use strict";
 
-            var SUPABASE_URL = "https://ycovbqmezhrvzobxqnyp.supabase.co";
-            var SUPABASE_KEY = "sb_publishable_dnOcQubqXG_iGvUMTPCuUw_fU0gkaYm";
-            var AUTH_KEY = "sb-ycovbqmezhrvzobxqnyp-auth-token";
+            var config = window.GENZ_CONFIG || {};
+            var SUPABASE_URL = String(config.SUPABASE_URL || "").replace(/\/+$/, "");
+            var SUPABASE_KEY = config.SUPABASE_KEY || config.SUPABASE_ANON_KEY || "";
+            var projectRef = (SUPABASE_URL.match(/^https:\/\/([^.]+)/) || [])[1];
+            var AUTH_KEY = projectRef ? "sb-" + projectRef + "-auth-token" : "";
             var BACKUP_KEY = "genz-auth-session-v1";
             var PROFILE_CACHE_KEY = "genz-auth-profile-cache-v1";
             var REFRESH_BUFFER_SEC = 300;
 
-            function decodeExp(token) {
+            function decodePayload(token) {
                 try {
-                    if (typeof token !== "string") return 0;
+                    if (typeof token !== "string") return null;
                     var parts = token.split(".");
-                    if (parts.length !== 3) return 0;
+                    if (parts.length !== 3) return null;
                     var b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
                     var pad = b64.length % 4;
                     if (pad) b64 += "=".repeat(4 - pad);
-                    var payload = JSON.parse(atob(b64));
-                    var exp = Number(payload && payload.exp);
-                    return Number.isFinite(exp) && exp > 0 ? exp : 0;
+                    return JSON.parse(atob(b64));
                 } catch (_e) {
-                    return 0;
+                    return null;
                 }
+            }
+
+            function decodeExp(token) {
+                var exp = Number((decodePayload(token) || {}).exp);
+                return Number.isFinite(exp) && exp > 0 ? exp : 0;
+            }
+
+            function isSessionForCurrentProject(value) {
+                var issuer = (decodePayload(value && value.access_token) || {}).iss;
+                return Boolean(
+                    SUPABASE_URL &&
+                    typeof issuer === "string" &&
+                    issuer.replace(/\/+$/, "") === SUPABASE_URL + "/auth/v1"
+                );
             }
 
             function clearAllStorage() {
                 try {
                     localStorage.removeItem(BACKUP_KEY);
                     localStorage.removeItem(PROFILE_CACHE_KEY);
-                    localStorage.removeItem(AUTH_KEY);
-                    localStorage.removeItem(AUTH_KEY + "-user");
+                    if (AUTH_KEY) {
+                        localStorage.removeItem(AUTH_KEY);
+                        localStorage.removeItem(AUTH_KEY + "-user");
+                    }
                 } catch (_e) { /* ignore */ }
             }
 
@@ -93,6 +110,11 @@
                 session = JSON.parse(raw);
                 if (!session || !session.access_token) return;
             } catch (_e) {
+                return;
+            }
+
+            if (!isSessionForCurrentProject(session)) {
+                clearAllStorage();
                 return;
             }
 

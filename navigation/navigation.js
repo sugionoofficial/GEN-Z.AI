@@ -123,19 +123,53 @@
     }
 
 
-    function decodeJwtExp(token) {
+    function decodeJwtPayload(token) {
         try {
-            if (typeof token !== "string") return 0;
+            if (typeof token !== "string") return null;
             const parts = token.split(".");
-            if (parts.length !== 3) return 0;
+            if (parts.length !== 3) return null;
             let base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
             const mod = base64.length % 4;
             if (mod) base64 += "=".repeat(4 - mod);
-            const payload = JSON.parse(atob(base64));
-            const exp = Number(payload && payload.exp);
-            return Number.isFinite(exp) && exp > 0 ? exp : 0;
+            return JSON.parse(atob(base64));
         } catch (error) {
-            return 0;
+            return null;
+        }
+    }
+
+
+    function decodeJwtExp(token) {
+        const exp = Number(decodeJwtPayload(token)?.exp);
+        return Number.isFinite(exp) && exp > 0 ? exp : 0;
+    }
+
+
+    function isSessionForCurrentProject(session) {
+        const configuredUrl = String(
+            window.GENZ_CONFIG?.SUPABASE_URL || ""
+        ).replace(/\/+$/, "");
+        const issuer = decodeJwtPayload(session?.access_token)?.iss;
+
+        return Boolean(
+            configuredUrl &&
+            typeof issuer === "string" &&
+            issuer.replace(/\/+$/, "") === `${configuredUrl}/auth/v1`
+        );
+    }
+
+
+    function clearSessionStorage() {
+        try {
+            localStorage.removeItem(SESSION_BACKUP_STORAGE_KEY);
+            localStorage.removeItem(PROFILE_CACHE_STORAGE_KEY);
+
+            const key = getAuthStorageKey();
+            if (!key) return;
+
+            localStorage.removeItem(key);
+            localStorage.removeItem(key + "-user");
+        } catch (error) {
+            /* ignore */
         }
     }
 
@@ -363,6 +397,11 @@
             const parsed = JSON.parse(raw);
             if (!parsed || !parsed.access_token) return null;
 
+            if (!isSessionForCurrentProject(parsed)) {
+                clearSessionStorage();
+                return null;
+            }
+
             const needsRepair =
                 !Number.isFinite(Number(parsed.expires_at)) ||
                 Number(parsed.expires_at) <= 0;
@@ -382,23 +421,6 @@
             return normalized;
         } catch (error) {
             return null;
-        }
-    }
-
-
-    function clearSessionStorage() {
-
-        try {
-            localStorage.removeItem(SESSION_BACKUP_STORAGE_KEY);
-            localStorage.removeItem(PROFILE_CACHE_STORAGE_KEY);
-
-            const key = getAuthStorageKey();
-            if (!key) return;
-
-            localStorage.removeItem(key);
-            localStorage.removeItem(key + "-user");
-        } catch (error) {
-            /* ignore */
         }
     }
 

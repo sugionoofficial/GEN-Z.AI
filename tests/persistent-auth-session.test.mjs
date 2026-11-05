@@ -5,9 +5,17 @@ import test from "node:test";
 import vm from "node:vm";
 
 const ROOT = process.cwd();
-const SUPABASE_URL = "https://ycovbqmezhrvzobxqnyp.supabase.co";
-const SUPABASE_KEY = "sb_publishable_dnOcQubqXG_iGvUMTPCuUw_fU0gkaYm";
-const AUTH_STORAGE_KEY = "sb-ycovbqmezhrvzobxqnyp-auth-token";
+const configSource = fs.readFileSync(
+    path.join(ROOT, "assets/js/config.js"),
+    "utf8"
+);
+const SUPABASE_URL = configSource.match(
+    /SUPABASE_URL\s*:\s*["'`]([^"'`]+)/
+)?.[1];
+if (!SUPABASE_URL) throw new Error("SUPABASE_URL is missing from frontend config");
+const SUPABASE_KEY = "sb_publishable_test_key";
+const projectRef = new URL(SUPABASE_URL).hostname.split(".")[0];
+const AUTH_STORAGE_KEY = `sb-${projectRef}-auth-token`;
 const BACKUP_STORAGE_KEY = "genz-auth-session-v1";
 const PROFILE_CACHE_KEY = "genz-auth-profile-cache-v1";
 
@@ -15,7 +23,10 @@ function makeJwt(payloadObj) {
     const header = Buffer.from(
         JSON.stringify({ alg: "HS256", typ: "JWT" })
     ).toString("base64url");
-    const payload = Buffer.from(JSON.stringify(payloadObj)).toString(
+    const payload = Buffer.from(JSON.stringify({
+        iss: `${SUPABASE_URL}/auth/v1`,
+        ...payloadObj
+    })).toString(
         "base64url"
     );
     return `${header}.${payload}.signature`;
@@ -382,6 +393,54 @@ test("navigation.js refreshes expired access_token (secondsUntilExpiry < 0) with
     assert.deepEqual(env.redirects, ["/index.html"]);
 });
 
+test("navigation.js clears a legacy session from a different Supabase project", async () => {
+    const navCode = fs.readFileSync(
+        path.join(ROOT, "navigation/navigation.js"),
+        "utf8"
+    );
+    const nowSec = Math.floor(Date.now() / 1000);
+    const legacyJwt = makeJwt({
+        iss: "https://legacy-project.supabase.co/auth/v1",
+        sub: "admin-001",
+        exp: nowSec + 604800
+    });
+    const env = createDomSandbox({
+        pathname: "/admin-control/copilot/index.html",
+        storageSeed: {
+            [BACKUP_STORAGE_KEY]: JSON.stringify({
+                access_token: legacyJwt,
+                refresh_token: "legacy-refresh-token",
+                expires_at: nowSec + 604800,
+                user: { id: "admin-001", email: "admin@genz.ai" }
+            }),
+            [PROFILE_CACHE_KEY]: JSON.stringify({
+                id: "admin-001",
+                role: "ADMIN",
+                status: "active"
+            })
+        },
+        supabaseProfile: {
+            id: "admin-001",
+            email: "admin@genz.ai",
+            role: "ADMIN",
+            status: "active"
+        },
+        fetchImpl: async () => {
+            throw new Error("A legacy refresh token must not be sent to the new project");
+        }
+    });
+
+    vm.runInContext(navCode, env.context);
+    const ready = await env.windowObj.GENZNavigationReady;
+
+    assert.equal(ready, false);
+    assert.equal(env.setSessionCalls.length, 0);
+    assert.equal(env.localStorage.getItem(AUTH_STORAGE_KEY), null);
+    assert.equal(env.localStorage.getItem(BACKUP_STORAGE_KEY), null);
+    assert.equal(env.localStorage.getItem(PROFILE_CACHE_KEY), null);
+    assert.deepEqual(env.redirects, ["/index.html"]);
+});
+
 test("assets/js/auth.js automatically resumes refreshable session on /login.html and redirects directly to dashboard without asking email & password", async () => {
     const authCode = fs.readFileSync(
         path.join(ROOT, "assets/js/auth.js"),
@@ -446,6 +505,12 @@ test("index.html auto-resume script immediately redirects returning logged-in us
         /<script>\s*(\/\* =========================================================\s*GEN-Z\.AI PERSISTENT SESSION AUTO-RESUME[\s\S]*?)<\/script>/
     );
     assert.ok(match, "Auto-resume script must exist in index.html <head>");
+    const configScriptIndex = indexHtml.indexOf("/assets/js/config.js");
+    const autoResumeScriptIndex = indexHtml.indexOf(match[0]);
+    assert.ok(
+        configScriptIndex >= 0 && configScriptIndex < autoResumeScriptIndex,
+        "Shared Supabase config must load before auto-resume"
+    );
     const headScript = match[1];
 
     const nowSec = Math.floor(Date.now() / 1000);
@@ -511,6 +576,36 @@ test("index.html auto-resume script immediately redirects returning logged-in us
     });
     vm.runInContext(headScript, loggedOutEnv.context);
     assert.deepEqual(loggedOutEnv.redirects, []);
+
+    const legacySessionEnv = createDomSandbox({
+        pathname: "/",
+        storageSeed: {
+            [BACKUP_STORAGE_KEY]: JSON.stringify({
+                access_token: makeJwt({
+                    iss: "https://legacy-project.supabase.co/auth/v1",
+                    sub: "old-user",
+                    exp: nowSec + 604800
+                }),
+                expires_at: nowSec + 604800,
+                refresh_token: "legacy-refresh-token",
+                user: { id: "old-user" }
+            }),
+            [PROFILE_CACHE_KEY]: JSON.stringify({
+                id: "old-user",
+                role: "ADMIN",
+                status: "active"
+            })
+        },
+        fetchImpl: async () => {
+            throw new Error("A legacy session must not be used by root auto-resume");
+        }
+    });
+    vm.runInContext(headScript, legacySessionEnv.context);
+    await new Promise(r => setTimeout(r, 10));
+    assert.deepEqual(legacySessionEnv.redirects, []);
+    assert.equal(legacySessionEnv.localStorage.getItem(AUTH_STORAGE_KEY), null);
+    assert.equal(legacySessionEnv.localStorage.getItem(BACKUP_STORAGE_KEY), null);
+    assert.equal(legacySessionEnv.localStorage.getItem(PROFILE_CACHE_KEY), null);
 });
 
 test("transient network/503 failure never wipes refresh_token, whereas explicit HTTP 401 invalid_grant cleans session cleanly", async () => {
@@ -592,4 +687,3 @@ test("transient network/503 failure never wipes refresh_token, whereas explicit 
     assert.equal(revokedEnv.localStorage.getItem(BACKUP_STORAGE_KEY), null);
     assert.deepEqual(revokedEnv.redirects, ["/index.html"]);
 });
-
