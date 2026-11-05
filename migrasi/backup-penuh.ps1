@@ -1,37 +1,40 @@
 <#
 =====================================================================
-backup-penuh.ps1 — versi PowerShell dari migrasi/backup-penuh.sh
+backup-penuh.ps1 - versi PowerShell dari migrasi/backup-penuh.sh
 =====================================================================
-Untuk pengguna Windows. Hasilnya IDENTIK dengan versi .sh: 60 tabel,
-4.449 baris, data auth 25 user, metadata storage 112 objek.
+Untuk pengguna Windows. Hasilnya identik dengan versi .sh: 60 tabel,
+4449 baris, data auth 25 user, metadata storage 112 objek.
 
 Pakai (di PowerShell, dari folder kerja):
 
-    # 1) isi dulu dua variabel ini (salin dari Notepad, jangan diketik ulang)
-    $SRC = 'postgresql://postgres.ycovbqmezhrvzobxqnyp:PASSWORD@aws-0-...:5432/postgres'
-    $DST = 'postgresql://postgres.rvgioyenjgkprnssfpfr:PASSWORD@aws-0-...:5432/postgres'
-
-    # 2) jalankan
-    .\backup-penuh.ps1 dump
-    .\backup-penuh.ps1 restore
-
-Kalau muncul "running scripts is disabled on this system", jalankan sekali:
-
+    $SRC = 'postgresql://postgres.ycovbqmezhrvzobxqnyp:PASSWORD@...:5432/postgres'
+    $DST = 'postgresql://postgres.rvgioyenjgkprnssfpfr:PASSWORD@...:5432/postgres'
     powershell -ExecutionPolicy Bypass -File .\backup-penuh.ps1 dump
+    powershell -ExecutionPolicy Bypass -File .\backup-penuh.ps1 restore
 
-Tiga keputusan teknis yang penting (jangan diubah):
+Tiga aturan yang menjaga skrip ini tetap jalan di Windows PowerShell 5.1
+(dan sengaja dikunci oleh tests/backup-toolkit.test.mjs):
 
-1. `pg_dump` dicari lewat `Get-Command`, lalu lewat lokasi default
-   C:\Program Files\PostgreSQL\*\bin. Alasan: `$env:Path += ...` hanya
-   berlaku di jendela PowerShell tempat ia diketik.
-2. Password di dalam connection string di-URL-encode otomatis. Alasannya:
-   karakter seperti @ : / # memutus parsing URL. Skrip .sh gagal di kasus ini,
-   di sini tidak.
-3. Restore dijalankan lewat SATU berkas gabungan dalam SATU pemanggilan psql
-   dengan --single-transaction. Alasannya: `set session_replication_role =
-   replica` hanya berlaku untuk sesi berjalan; kalau tiap berkas dijalankan
-   sendiri-sendiri, setting itu hilang lebih dulu dan FK
-   public.profiles -> auth.users menolak 2_auth.sql.
+1. SELURUH berkas hanya berisi karakter ASCII. PowerShell 5.1 membaca .ps1
+   sebagai ANSI, sehingga tanda seperti em-dash atau panah rusak menjadi
+   karakter lain dan memutus string.
+2. TIDAK memakai here-string (@' ... '@). Penutup here-string WAJIB berada di
+   kolom 0; kalau ter-indentasi, seluruh berkas gagal di-parse.
+3. Berkas SQL ditulis sebagai UTF-8 TANPA BOM. BOM di awal berkas membuat
+   psql menolak baris pertama.
+
+Keputusan teknis lain:
+
+4. pg_dump/psql dicari lewat Get-Command, lalu lokasi default
+   C:\Program Files\PostgreSQL\*\bin, karena $env:Path hanya berlaku di
+   jendela tempat ia diketik.
+5. Password di dalam connection string di-URL-encode otomatis, sehingga
+   karakter @ : / # tidak memutus parsing URL.
+6. Restore memakai SATU berkas gabungan dalam SATU pemanggilan psql dengan
+   --single-transaction. set session_replication_role = replica hanya
+   berlaku untuk sesi berjalan; kalau tiap berkas dipanggil terpisah, setting
+   itu hilang lebih dulu dan FK public.profiles -> auth.users menolak
+   2_auth.sql.
 =====================================================================
 #>
 
@@ -54,21 +57,28 @@ $FPost     = Join-Path $Dir '9_post.sql'
 $FGabung   = Join-Path $Dir 'restore_all.sql'
 $FErr      = Join-Path $Dir 'restore.err'
 
-function Say  ($m) { Write-Host "`n== $m" -ForegroundColor Cyan }
+function Say  ($m) { Write-Host ""; Write-Host "== $m" -ForegroundColor Cyan }
 function Ok   ($m) { Write-Host "  OK   $m" -ForegroundColor Green }
 function Warn ($m) { Write-Host "  !    $m" -ForegroundColor Yellow }
-function Die  ($m) { Write-Host "`nGAGAL: $m" -ForegroundColor Red; exit 1 }
+function Die  ($m) { Write-Host ""; Write-Host "GAGAL: $m" -ForegroundColor Red; exit 1 }
+
+# Tulis berkas sebagai UTF-8 tanpa BOM. Set-Content -Encoding utf8 pada
+# PowerShell 5.1 menambahkan BOM, dan BOM di awal berkas .sql membuat psql
+# menolak baris pertama dengan pesan syntax error.
+function Write-Utf8NoBom([string]$path, [string]$isi) {
+    $enc = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($path, $isi, $enc)
+}
 
 function Find-PgTool([string]$nama) {
     $cmd = Get-Command $nama -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
 
-    # Tidak ada di PATH: cari di lokasi instalasi default, versi TERBARU dulu.
     $kandidat = Get-ChildItem 'C:\Program Files\PostgreSQL\*\bin\' -Filter "$nama.exe" -ErrorAction SilentlyContinue |
         Sort-Object FullName -Descending
     if ($kandidat) {
         Warn "$nama tidak ada di PATH; memakai $($kandidat[0].FullName)"
-        Warn 'Untuk permanen, lihat migrasi/TUTORIAL-BACKUP.md bagian PATH.'
+        Warn 'Untuk permanen: lihat migrasi/TUTORIAL-BACKUP.md bagian PATH.'
         return $kandidat[0].FullName
     }
     Die "$nama tidak ditemukan. Install PostgreSQL client (TUTORIAL-BACKUP.md Langkah 1)."
@@ -85,7 +95,6 @@ function Assert-Env {
 }
 
 function Encode-Url([string]$url) {
-    # Encode password saja, bukan seluruh URL.
     if ($url -notmatch '^(?<pre>postgresql://[^:/@]+:)(?<pw>[^@]*)(?<post>@.*)$') { return $url }
     $pw = [uri]::EscapeDataString($Matches.pw)
     return $Matches.pre + $pw + $Matches.post
@@ -106,46 +115,54 @@ function Invoke-Dump {
     if ($LASTEXITCODE -ne 0) { Die 'pg_dump public gagal. Salin 10 baris error di atas.' }
 
     # Buang dua baris yang PASTI error di target (skema public sudah ada).
-    Get-Content $FPub | Where-Object {
+    # -Encoding UTF8 wajib: PowerShell 5.1 default ANSI akan merusak teks
+    # non-ASCII (mis. emoji) di dalam data.
+    $bersih = Get-Content $FPub -Encoding UTF8 | Where-Object {
         $_ -notmatch '^CREATE SCHEMA public;' -and $_ -notmatch '^ALTER SCHEMA public OWNER TO '
-    } | Set-Content $FPubClean -Encoding utf8
-    Ok "$((Get-Content $FPubClean).Count) baris -> $FPubClean"
+    }
+    $enc = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllLines($FPubClean, $bersih, $enc)
+    Ok ("{0} baris -> {1}" -f $bersih.Count, $FPubClean)
 
-    Say '2/5 DATA auth.users + auth.identities (WAJIB — tanpa ini akun hilang)'
+    Say '2/5 DATA auth.users + auth.identities (WAJIB, tanpa ini akun hilang)'
     & $pgDump $src --data-only --no-owner --table=auth.users --table=auth.identities -f $FAuth
-    if ($LASTEXITCODE -ne 0) { Die 'pg_dump auth gagal — JANGAN lanjut restore.' }
+    if ($LASTEXITCODE -ne 0) { Die 'pg_dump auth gagal. JANGAN lanjut restore.' }
     $ukuranAuth = (Get-Item $FAuth).Length
     if ($ukuranAuth -lt 2000) {
         Die "berkas auth hanya $ukuranAuth byte. Kemungkinan 25 akun tidak ikut. Jangan lanjut."
     }
-    Ok "$([math]::Round($ukuranAuth/1KB,1)) KB — berisi data auth"
+    Ok ("{0} KB, berisi data auth" -f [int]($ukuranAuth / 1KB))
 
     Say '3/5 metadata storage.buckets + storage.objects (file menyusul di Fase B)'
     & $pgDump $src --data-only --no-owner --table=storage.buckets --table=storage.objects -f $FStorage
-    if ($LASTEXITCODE -ne 0) { Warn 'metadata storage gagal — tidak fatal untuk Fase A' }
-    else { Ok "$([math]::Round((Get-Item $FStorage).Length/1KB,1)) KB" }
+    if ($LASTEXITCODE -ne 0) { Warn 'metadata storage gagal, tidak fatal untuk Fase A' }
+    else { Ok ("{0} KB" -f [int]((Get-Item $FStorage).Length / 1KB)) }
 
-    # Tanpa begin/commit: --single-transaction sudah membungkus semuanya.
     Say 'Menyiapkan pembungkus restore'
-    @'
--- dijalankan SEBELUM restore: matikan trigger & cek FK agar urutan INSERT bebas.
-set session_replication_role = replica;
-'@ | Set-Content $FPre -Encoding utf8
+    # TANPA begin/commit: --single-transaction sudah membungkus seluruh
+    # restore. commit; akan MENUTUP transaksi lebih awal sehingga kegagalan
+    # berikutnya tidak membatalkan apa pun.
+    $preSql = (@(
+        '-- dijalankan SEBELUM restore: matikan trigger dan cek FK agar urutan INSERT bebas.',
+        'set session_replication_role = replica;'
+    ) -join [Environment]::NewLine)
+    Write-Utf8NoBom $FPre $preSql
 
-    @'
--- dijalankan SESUDAH restore: kembalikan trigger, sinkronkan sequence.
-set session_replication_role = origin;
-select setval(pg_get_serial_sequence('public.credit_change_audit', 'id'),
-              coalesce((select max(id) from public.credit_change_audit), 1), true)
-  where to_regclass('public.credit_change_audit') is not null;
-'@ | Set-Content $FPost -Encoding utf8
+    $postSql = (@(
+        '-- dijalankan SESUDAH restore: kembalikan trigger, sinkronkan sequence.',
+        'set session_replication_role = origin;',
+        "select setval(pg_get_serial_sequence('public.credit_change_audit', 'id'),",
+        '              coalesce((select max(id) from public.credit_change_audit), 1), true)',
+        "  where to_regclass('public.credit_change_audit') is not null;"
+    ) -join [Environment]::NewLine)
+    Write-Utf8NoBom $FPost $postSql
 
     Say 'SELESAI'
     foreach ($f in @($FPre, $FPubClean, $FAuth, $FStorage, $FPost)) {
-        if (Test-Path $f) { Ok ("{0,8:N1} KB  {1}" -f ((Get-Item $f).Length/1KB), $f) }
+        if (Test-Path $f) { Ok ("{0,8} KB  {1}" -f [int]((Get-Item $f).Length / 1KB), $f) }
     }
-    Warn "Folder $Dir berisi PII (hash password + API key). Jangan di-commit/di-upload."
-    Warn 'Lanjut:  .\backup-penuh.ps1 restore'
+    Warn "Folder $Dir berisi PII (hash password + API key). Jangan di-commit atau di-upload."
+    Warn 'Lanjut: powershell -ExecutionPolicy Bypass -File .\backup-penuh.ps1 restore'
 }
 
 function Invoke-Restore {
@@ -153,23 +170,21 @@ function Invoke-Restore {
     Assert-Env
     foreach ($f in @($FPubClean, $FAuth)) {
         if (-not (Test-Path $f) -or (Get-Item $f).Length -eq 0) {
-            Die "$f tidak ada/kosong. Jalankan '.\backup-penuh.ps1 dump' dulu."
+            Die "$f tidak ada atau kosong. Jalankan 'dump' dulu."
         }
     }
     $dst = Encode-Url $DST
 
-    # Gabungkan semua berkas menjadi satu, lalu SATU pemanggilan psql.
-    # Dua perintah kontrol sesi (replica/origin) TIDAK boleh berada di berkas
-    # terpisah — lihat catatan di kepala skrip ini.
     Say 'Menggabungkan berkas restore'
     $bagian = @($FPre, $FPubClean, $FAuth, $FStorage, $FPost) | Where-Object {
         (Test-Path $_) -and (Get-Item $_).Length -gt 0
     }
-    $stream = New-Object System.IO.StreamWriter($FGabung, $false, (New-Object System.Text.UTF8Encoding($false)))
+    $enc = New-Object System.Text.UTF8Encoding($false)
+    $stream = New-Object System.IO.StreamWriter($FGabung, $false, $enc)
     try {
         foreach ($f in $bagian) {
             $stream.WriteLine("-- ===== $(Split-Path $f -Leaf) =====")
-            $stream.Write((Get-Content $f -Raw))
+            $stream.Write((Get-Content $f -Raw -Encoding UTF8))
             $stream.WriteLine()
             Ok (Split-Path $f -Leaf)
         }
@@ -180,10 +195,12 @@ function Invoke-Restore {
     $kode = $LASTEXITCODE
     if ($kode -ne 0) {
         Write-Host '  GAGAL' -ForegroundColor Red
-        if (Test-Path $FErr) { Get-Content $FErr | Select-Object -First 25 | ForEach-Object { Write-Host "  $_" } }
-        Die 'restore dibatalkan. Satu transaksi => TARGET kembali seperti sebelum restore. Perbaiki lalu ulangi.'
+        if (Test-Path $FErr) {
+            Get-Content $FErr -Encoding UTF8 | Select-Object -First 25 | ForEach-Object { Write-Host "  $_" }
+        }
+        Die 'restore dibatalkan. Satu transaksi berarti TARGET kembali seperti sebelum restore. Perbaiki lalu ulangi.'
     }
-    Ok 'restore selesai — semua berkas masuk'
+    Ok 'restore selesai, semua berkas masuk'
     Invoke-Verify
 }
 
@@ -191,25 +208,25 @@ function Invoke-Verify {
     $psql = Find-PgTool 'psql'
     Assert-Env
     $dst = Encode-Url $DST
-    Say 'Verifikasi angka kunci (target)'
-    $sql = @'
-select 'auth.users' as cek, (select count(*)::text from auth.users) as hasil, '25' as harus
-union all select 'auth.identities', (select count(*)::text from auth.identities), '25'
-union all select 'profiles', coalesce((select count(*)::text from public.profiles),'(belum ada)'), '25'
-union all select 'models', coalesce((select count(*)::text from public.models),'(belum ada)'), '45'
-union all select 'generation_history', coalesce((select count(*)::text from public.generation_history),'(belum ada)'), '502'
-union all select 'social_post_runs', coalesce((select count(*)::text from public.social_post_runs),'(belum ada)'), '941'
-union all select 'storage.objects', (select count(*)::text from storage.objects), '112'
-union all select 'owner_ada', (select count(*)::text from public.profiles where role='OWNER'), '>=1';
-'@
-    & $psql $dst -c $sql
-    Write-Host @'
 
-  Semua baris harus cocok di kolom hasil vs harus.
-  Verifikasi struktur (60 tabel, RLS, policy, trigger):
-    buka migrasi/verify-restore.sql di SQL Editor project BARU.
-    Target: tabel_pass 60, tabel_gagal 0.
-'@
+    $sql = (@(
+        "select 'auth.users' as cek, (select count(*)::text from auth.users) as hasil, '25' as harus",
+        "union all select 'auth.identities', (select count(*)::text from auth.identities), '25'",
+        "union all select 'profiles', coalesce((select count(*)::text from public.profiles), '(belum ada)'), '25'",
+        "union all select 'models', coalesce((select count(*)::text from public.models), '(belum ada)'), '45'",
+        "union all select 'generation_history', coalesce((select count(*)::text from public.generation_history), '(belum ada)'), '502'",
+        "union all select 'social_post_runs', coalesce((select count(*)::text from public.social_post_runs), '(belum ada)'), '941'",
+        "union all select 'storage.objects', (select count(*)::text from storage.objects), '112'",
+        "union all select 'owner_ada', (select count(*)::text from public.profiles where role = 'OWNER'), '>=1';"
+    ) -join [Environment]::NewLine)
+
+    Say 'Verifikasi angka kunci (target)'
+    & $psql $dst -c $sql
+    Write-Host ''
+    Write-Host '  Semua baris: kolom hasil harus sama dengan kolom harus.'
+    Write-Host '  Verifikasi struktur (60 tabel, RLS, policy, trigger):'
+    Write-Host '    buka migrasi/verify-restore.sql di SQL Editor project BARU.'
+    Write-Host '    Target: tabel_pass 60, tabel_gagal 0.'
 }
 
 switch ($Mode) {
@@ -217,8 +234,8 @@ switch ($Mode) {
     'restore' { Invoke-Restore }
     'verify'  { Invoke-Verify }
     'help'    {
-        Get-Content $PSCommandPath | Select-Object -First 40 |
-            ForEach-Object { $_ -replace '^<#\s?', '' -replace '\s?#>\s?$', '' }
+        Get-Content $PSCommandPath | Select-Object -First 46 |
+            ForEach-Object { $_ -replace '^<#\s?', '' -replace '\s?#>', '' }
         exit 1
     }
 }

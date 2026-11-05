@@ -586,6 +586,16 @@ paste di terminal bermasalah.
 
    ```powershell
    Invoke-WebRequest -Uri https://raw.githubusercontent.com/sugionoofficial/GEN-Z.AI/main/migrasi/backup-penuh.ps1 -OutFile backup-penuh.ps1
+
+   Ukuran berkas harus **11.005 byte** (10,7 KB). Kalau berbeda, unduhan
+   tidak lengkap atau berkas lama masih ada.
+
+   **Sudah pernah mengunduh versi sebelumnya?** Hapus dulu, karena versi itu
+   gagal di-parse:
+
+   ```powershell
+   Remove-Item backup-penuh.ps1
+   ```
    ```
 
 3. Isi dua alamat (tempel di dalam tanda kutip tunggal — aman dari karakter
