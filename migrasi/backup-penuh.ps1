@@ -280,6 +280,10 @@ function Invoke-Dump {
     if ($barisCopy -lt 1) { Die 'berkas auth tidak memuat satu pun blok COPY. Jangan lanjut restore.' }
 
     Say '3/5 metadata storage.buckets + storage.objects (file menyusul di Fase B)'
+    # Isi tabel storage. RLS/KEBIJAKAN storage.objects TIDAK ikut di sini
+    # (pg_dump --schema=public tidak menyertakan skema storage), sehingga
+    # project tujuan tidak punya satu pun policy dan berkas privat tidak
+    # terbaca. Setelah restore, WAJIB jalankan migrasi/perbaiki-storage-rls.sql.
     & $pgDump $src --data-only --no-owner --table=storage.buckets --table=storage.objects -f $FStorage
     if ($LASTEXITCODE -ne 0) { Warn 'metadata storage gagal, tidak fatal untuk Fase A' }
     else { Ok ("{0} KB" -f [int]((Get-Item $FStorage).Length / 1KB)) }
