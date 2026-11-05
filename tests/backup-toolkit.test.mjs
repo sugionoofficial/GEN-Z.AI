@@ -227,3 +227,48 @@ test("versi bash tidak lagi menulis begin;/commit; di berkas restore", () => {
     assert.doesNotMatch(isiPre, /^begin;/m, "F_PRE tidak boleh punya begin;");
     assert.doesNotMatch(isiPost, /^commit;/m, "F_POST tidak boleh punya commit;");
 });
+
+/* ---- Kekakuan yang mencegah skrip .ps1 gagal di-parse di Windows ----
+   Percobaan pertama gagal di PowerShell 5.1 karena here-string ter-indentasi
+   (penutup '@ wajib di kolom 0) dan karakter non-ASCII (5.1 membaca .ps1
+   sebagai ANSI, sehingga em-dash/panah rusak). Test di bawah menutup kedua
+   kelas kesalahan itu, plus BOM yang membuat psql menolak baris pertama. */
+
+function tanpaKomentar(teks) {
+    return teks
+        .replace(/<#[\s\S]*?#>/g, "")   // komentar blok
+        .replace(/^\s*#.*$/gm, "");     // komentar baris
+}
+
+test("skrip .ps1 hanya berisi ASCII (PowerShell 5.1 membaca sebagai ANSI)", () => {
+    const isi = baca(PS1);
+    const bukanAscii = [...isi].filter((c) => c.charCodeAt(0) > 127);
+    assert.deepEqual(bukanAscii, [],
+        `karakter non-ASCII membuat skrip rusak di PS 5.1: ${JSON.stringify(bukanAscii.join(""))}`);
+});
+
+test("skrip .ps1 tidak memakai here-string (penutup wajib kolom 0)", () => {
+    const kode = tanpaKomentar(baca(PS1));
+    assert.doesNotMatch(kode, /@'\s*$/m, "here-string @' tidak boleh dipakai");
+    assert.doesNotMatch(kode, /^'@/m, "penutup here-string '@ tidak boleh dipakai");
+});
+
+test("skrip .ps1 tidak diawali BOM (psql menolak baris pertama)", () => {
+    const buf = fs.readFileSync(PS1);
+    assert.notDeepEqual([...buf.subarray(0, 3)], [0xef, 0xbb, 0xbf], "berkas tidak boleh berawalan BOM");
+});
+
+test("skrip .ps1 menyeimbangkan kurung kurawal dan kurung biasa", () => {
+    const kode = tanpaKomentar(baca(PS1));
+    const hitung = (c) => (kode.match(new RegExp(`\\${c}`, "g")) || []).length;
+    assert.equal(hitung("{"), hitung("}"), "kurung kurawal tidak seimbang");
+    assert.equal(hitung("("), hitung(")"), "kurung biasa tidak seimbang");
+});
+
+test("skrip .ps1 menulis SQL sebagai UTF-8 tanpa BOM", () => {
+    const ps = baca(PS1);
+    assert.match(ps, /New-Object System\.Text\.UTF8Encoding\(\$false\)/, "harus UTF8Encoding($false)");
+    /* Set-Content -Encoding utf8 pada PS 5.1 menambahkan BOM. */
+    assert.doesNotMatch(tanpaKomentar(ps), /Set-Content[^\n]*-Encoding\s+utf8/i,
+        "jangan pakai Set-Content -Encoding utf8 untuk berkas .sql");
+});
