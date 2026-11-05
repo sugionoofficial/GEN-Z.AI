@@ -449,6 +449,19 @@ function buildEventFilter(query) {
     const ip = String(query.ip || "").trim();
     if (ip) filters.push(`ip=eq.${encodeURIComponent(ip)}`);
 
+    // Fast polling: hanya ambil event baru sejak ID terakhir — respon <500ms
+    const sinceId = String(query.since_id || query.sinceId || "").trim();
+    if (sinceId && /^\d+$/.test(sinceId)) {
+        filters.push(`id=gt.${encodeURIComponent(sinceId)}`);
+        // untuk delta, urutkan naik supaya yang baru di akhir, lalu dibalik di handler jika perlu
+        // tapi kita tetap desc agar konsisten, limit kecil saja
+    }
+
+    // Filter khusus pergerakan akun: hanya event yang punya user_id
+    if (String(query.account || "") === "1" || String(query.account_only || "") === "1") {
+        filters.push("user_id=not.is.null");
+    }
+
     const minutes = Number(query.minutes || 0);
     if (Number.isFinite(minutes) && minutes > 0) {
         const since = new Date(Date.now() - minutes * 60 * 1000).toISOString();

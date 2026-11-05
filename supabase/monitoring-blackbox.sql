@@ -176,6 +176,68 @@ grant all on public.monitoring_settings to service_role;
 grant all on sequence public.monitoring_events_id_seq to service_role;
 grant all on sequence public.monitoring_health_checks_id_seq to service_role;
 
+-- ---------------------------------------------------------
+-- Realtime: agar halaman monitoring bisa menerima event baru
+-- dalam <1 detik tanpa polling berat.
+-- ---------------------------------------------------------
+
+-- Tambahkan monitoring_events ke publication realtime (idempoten)
+do $$
+begin
+    if not exists (
+        select 1 from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+          and tablename = 'monitoring_events'
+    ) then
+        alter publication supabase_realtime add table public.monitoring_events;
+    end if;
+    if not exists (
+        select 1 from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+          and tablename = 'monitoring_findings'
+    ) then
+        alter publication supabase_realtime add table public.monitoring_findings;
+    end if;
+end $$;
+
+-- RLS policy untuk realtime: admin/owner boleh baca live
+-- (anon tetap tidak bisa, service_role bypass RLS)
+do $$
+begin
+    if not exists (
+        select 1 from pg_policies
+        where schemaname='public' and tablename='monitoring_events' and policyname='monitoring_events_realtime_admin'
+    ) then
+        create policy monitoring_events_realtime_admin
+            on public.monitoring_events for select
+            to authenticated
+            using (
+                exists (
+                    select 1 from public.profiles p
+                    where p.id = auth.uid()
+                      and lower(p.role) in ('admin','owner')
+                )
+            );
+    end if;
+    if not exists (
+        select 1 from pg_policies
+        where schemaname='public' and tablename='monitoring_findings' and policyname='monitoring_findings_realtime_admin'
+    ) then
+        create policy monitoring_findings_realtime_admin
+            on public.monitoring_findings for select
+            to authenticated
+            using (
+                exists (
+                    select 1 from public.profiles p
+                    where p.id = auth.uid()
+                      and lower(p.role) in ('admin','owner')
+                )
+            );
+    end if;
+end $$;
+
 comment on table public.monitoring_events is
     'Log aktivitas live BLACK BOX: kunjungan, error klien, pembukaan DevTools, kegagalan API.';
 comment on table public.monitoring_health_checks is

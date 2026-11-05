@@ -615,6 +615,10 @@
                     Semua
                 </button>
 
+                <button type="button" class="mon-filter mon-filter--account" data-filter="account" aria-pressed="false">
+                    <span class="mon-filter-dot" aria-hidden="true"></span> Akun
+                </button>
+
                 <button type="button" class="mon-filter" data-filter="devtools" aria-pressed="false">
                     DevTools
                 </button>
@@ -631,6 +635,11 @@
                     API gagal
                 </button>
 
+            </div>
+
+            <div class="mon-account-bar" id="monAccountBar" aria-live="polite">
+                <span class="mon-account-badge" id="monAccountLiveBadge" hidden>0 AKTIFITAS AKUN BARU</span>
+                <span class="mon-account-hint">Pergerakan akun (login, kredit, generate) muncul dalam 2 detik — realtime + polling cepat</span>
             </div>
 
             <p class="mon-note">
