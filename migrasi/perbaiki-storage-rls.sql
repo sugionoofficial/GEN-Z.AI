@@ -224,7 +224,9 @@ with cek(no, cek, hasil, target) as (
           where schemaname = 'storage' and tablename = 'objects'
             and policyname = 'Users read own media uploads'), '1'
     union all select 3, 'bucket_publik',
-        (select count(*)::text from storage.buckets where public), '3'
+        -- 4 di proyek sumber: dashboard-upscales, dashboard-videos,
+        -- site-announcements, topup-payment-assets. Jangan diturunkan ke 3.
+        (select count(*)::text from storage.buckets where public), '4'
     union all select 4, 'jumlah_bucket',
         (select count(*)::text from storage.buckets), '8'
 )

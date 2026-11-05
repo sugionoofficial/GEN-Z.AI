@@ -548,3 +548,14 @@ test("migrate_bulk.mjs menelusuri subfolder (object/list tidak rekursif)", () =>
     assert.match(isi, /FOLDER/, "folder ditandai id nol");
     assert.match(isi, /manifest\.length === 0/, "harus berhenti bila tidak ada objek");
 });
+
+test("target verifikasi storage cocok dengan proyek sumber (4 bucket publik)", () => {
+    /* Sumber punya 4 bucket publik: dashboard-upscales, dashboard-videos,
+       site-announcements, topup-payment-assets. Target lama saya menulis 3,
+       sehingga pengguna melihat PERIKSA padahal datanya benar. Verifikasi yang
+       salah lebih berbahaya daripada tidak ada verifikasi: ia membuat orang
+       mengejar masalah yang tidak ada. */
+    const sql = baca(PERBAIKI_STORAGE);
+    assert.match(sql, /from storage\.buckets where public\), '4'/, "target bucket_publik harus 4");
+    assert.doesNotMatch(sql, /from storage\.buckets where public\), '3'/);
+});

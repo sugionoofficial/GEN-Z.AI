@@ -906,7 +906,7 @@ Verifikasinya (bagian 6):
 |---|---|
 | jumlah_kebijakan_storage_objects | 18 |
 | kebijakan_baca_user_uploads | 1 |
-| bucket_publik | 3 |
+| bucket_publik | 4 |
 | jumlah_bucket | 8 |
 
 ---
