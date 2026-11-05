@@ -24,6 +24,77 @@ data, dan 25 akun pengguna — persis seperti project lama.
 
 ---
 
+## Di mana perintah ini diketik?
+
+Ada **dua tempat** yang berbeda, dan tidak boleh tertukar:
+
+```
+┌─────────────────────────────┐      ┌──────────────────────────────┐
+│  1. JENDELA TERMINAL        │      │  2. BROWSER (dashboard)      │
+│     di komputer Anda        │      │     SQL Editor               │
+├─────────────────────────────┤      ├──────────────────────────────┤
+│ Langkah 1  pasang alat      │      │ Langkah 6  verifikasi         │
+│ Langkah 4  dump (backup)    │      │ tempel verify-restore.sql     │
+│ Langkah 5  restore          │      │                              │
+└─────────────────────────────┘      └──────────────────────────────┘
+        perintah pg_dump/psql              perintah SQL (SELECT ...)
+```
+
+**Aturan sederhana:** kalau perintahnya diawali `pg_dump`, `psql`, `cd`,
+`mkdir`, `export`, atau `bash` → **terminal**. Kalau diawali `select`,
+`with`, atau `create` → **SQL Editor**.
+
+### Cara membuka terminal
+
+| Sistem | Caranya | Yang Anda lihat |
+|---|---|---|
+| **Windows** | Tekan tombol **Start**, ketik `powershell`, klik **Windows PowerShell** | Jendela biru/hitam, teks berakhiran `>` |
+| **Windows** (untuk Langkah 4–5) | Start, ketik `git bash`, klik **Git Bash** | Jendela hitam, teks berakhiran `$` |
+| **macOS** | Tekan `⌘ + Space`, ketik `terminal`, tekan Enter | Jendela putih/hitam, teks berakhiran `%` atau `$` |
+| **Linux** | `Ctrl + Alt + T` | Jendela terminal, teks berakhiran `$` |
+
+> Tidak yakin sistem Anda apa? Windows punya tombol **Start** di kiri bawah dan
+> jendela dengan tombol ✕ di kanan atas. macOS punya menu **Apple** (🍎) di
+> kiri atas layar dan tidak punya tombol Start. Selain keduanya → Linux.
+
+### Cara membuka SQL Editor
+
+Browser → https://supabase.com/dashboard → pilih project → menu kiri
+**SQL Editor** → tombol **New query** → tempel → **Run**.
+
+### Tiga aturan supaya tidak bingung
+
+1. **Jangan mengetik perintah terminal di SQL Editor.** `pg_dump` di sana akan
+   dijawab `syntax error`.
+2. **Jangan mengetik SQL di terminal.** `select …` di sana akan dijawab
+   `command not found`.
+3. **Setiap kali membuka terminal baru, Anda kembali ke folder awal.**
+   Jalankan `cd` ke folder kerja dulu — lihat Langkah 3.
+
+### Semua berkas yang dipakai
+
+| Berkas | Dari repo | Dipakai di | Cara pakainya |
+|---|---|---|---|
+| `backup-penuh.sh` | `migrasi/backup-penuh.sh` | terminal | disimpan di folder kerja, dijalankan dengan `bash` |
+| `verify-restore.sql` | `migrasi/verify-restore.sql` | browser | **disalin-tempel**, tidak disimpan |
+
+Folder kerja (tempat `backup-penuh.sh` diletakkan dan tempat hasil backup
+muncul):
+
+```
+Windows : C:\Users\<nama-anda>\Desktop\genz-migrasi
+macOS   : /Users/<nama-anda>/Desktop/genz-migrasi
+```
+
+Anda tahu sudah berada di folder yang benar kalau baris terakhir sebelum tanda
+`>` atau `$` menampilkan `genz-migrasi`, misalnya:
+
+```
+PS C:\Users\sugiono\Desktop\genz-migrasi>
+```
+
+---
+
 ## Langkah 1 — Pasang alat (sekali seumur hidup)
 
 Anda butuh **PostgreSQL client**. Ini paket resmi PostgreSQL yang berisi dua
