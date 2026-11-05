@@ -310,8 +310,9 @@ test("toolbar DELETE, DELETE ALL, BATAL dan checkbox ada di panel", () => {
 test("pin CSS black-box dibump supaya gaya baru benar-benar termuat", () => {
     const html = source("black-box/index.html");
 
-    assert.match(html, /black-box\.css\?v=opus-history-delete-20261103/);
+    assert.match(html, /black-box\.css\?v=opus-credits-20261105/);
     assert.doesNotMatch(html, /black-box\.css\?v=mobile-fit-20261102/);
+    assert.doesNotMatch(html, /black-box\.css\?v=opus-history-delete-20261103/);
 });
 
 test("CSS menyediakan toolbar kanan-atas, checkbox, dan mode HP", () => {
@@ -414,7 +415,7 @@ const OPUS_IDS = [
     "bbOpusHistoryContainer", "bbOpusTaskInput", "bbOpusProjectInput",
     "bbOpusResolveBtn", "bbOpusListJobsBtn", "bbOpusManualOutput",
     "bbOpusDeleteBtn", "bbOpusDeleteAllBtn", "bbOpusDeleteCancelBtn",
-    "bbOpusDeleteHint"
+    "bbOpusDeleteHint", "bbOpusCreditContainer", "bbOpusCreditTotal"
 ];
 
 function buildUiHarness(candidates) {

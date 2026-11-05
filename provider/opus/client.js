@@ -9009,6 +9009,165 @@ function parseLooseMcpJson(rawData, rawText = "") {
     return null;
 }
 
+/* =========================================================
+   KREDIT & LABEL KEY PER SLOT (BLACK BOX)
+   ---------------------------------------------------------
+   Panel Black Box menampilkan sisa kredit tiap API key Opus.
+   Dua hal yang dijaga ketat:
+
+   1. TOKEN TIDAK BOLEH BOCOR. Label slot hanya berisi sidik
+      jari pendek (hash FNV-1a) + awalan/akhiran masker, jadi
+      admin bisa membedakan key tanpa pernah melihat isinya.
+   2. ANGKA KREDIT TIDAK BOLEH DITEBAK. Nilai diambil dari
+      `whoami` / tool saldo bawaan Opus apa adanya; bila tidak
+      ada, tampil "tidak dilaporkan" — bukan 0 (0 berarti habis).
+   ========================================================= */
+
+const OPUS_CREDIT_KEYS = [
+    "credits",
+    "credit",
+    "remainingCredits",
+    "remaining_credits",
+    "creditBalance",
+    "credit_balance",
+    "creditsBalance",
+    "credits_balance",
+    "balance",
+    "availableCredits",
+    "available_credits",
+    "remaining",
+    "credit_remaining",
+    "totalCredits",
+    "total_credits"
+];
+
+const OPUS_CREDIT_NESTED_KEYS = [
+    "account",
+    "organization",
+    "org",
+    "workspace",
+    "quota",
+    "usage",
+    "billing",
+    "subscription",
+    "limits",
+    "wallet"
+];
+
+/** Ubah nilai apa pun menjadi angka kredit, atau null bila bukan angka. */
+function parseOpusCreditValue(raw) {
+    if (raw === null || raw === undefined) return null;
+    if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+    if (typeof raw === "object") {
+        /* bentuk umum: { amount, remaining, value, total } */
+        for (const key of ["amount", "remaining", "value", "total", "available", "balance", "credits"]) {
+            if (raw[key] !== undefined) {
+                const nested = parseOpusCreditValue(raw[key]);
+                if (nested !== null) return nested;
+            }
+        }
+        return null;
+    }
+    const text = String(raw).trim().replace(/,/g, "");
+    if (!text) return null;
+    const match = text.match(/-?\d+(?:\.\d+)?/);
+    if (!match) return null;
+    const numeric = Number(match[0]);
+    return Number.isFinite(numeric) ? numeric : null;
+}
+
+function findOpusCreditNumber(source, depth = 0) {
+    if (!source || typeof source !== "object" || Array.isArray(source) || depth > 2) return null;
+    for (const key of OPUS_CREDIT_KEYS) {
+        if (source[key] !== undefined) {
+            const value = parseOpusCreditValue(source[key]);
+            if (value !== null) return value;
+        }
+    }
+    for (const nestedKey of OPUS_CREDIT_NESTED_KEYS) {
+        const nested = source[nestedKey];
+        if (nested && typeof nested === "object") {
+            const value = findOpusCreditNumber(nested, depth + 1);
+            if (value !== null) return value;
+        }
+    }
+    return null;
+}
+
+function parseOpusCreditInfo(payload) {
+    const root = payload && typeof payload === "object" ? unwrapEnvelope(payload) : null;
+    let credits = findOpusCreditNumber(root);
+    if (credits === null && payload && typeof payload === "object" && payload !== root) {
+        credits = findOpusCreditNumber(payload);
+    }
+
+    const pick = (...keys) => {
+        for (const key of keys) {
+            const value = root?.[key] ?? payload?.[key];
+            if (value !== undefined && value !== null && String(value).trim() !== "") {
+                return String(value).trim();
+            }
+        }
+        return null;
+    };
+
+    return {
+        credits,
+        plan: pick("plan", "tier", "subscriptionPlan", "subscription_plan", "planName"),
+        hasApiAccess:
+            root?.has_api_access ?? root?.hasApiAccess ?? payload?.has_api_access ?? null,
+        note: credits === null
+            ? "Akun ini tidak melaporkan angka kredit lewat MCP (whoami)."
+            : null
+    };
+}
+
+/** Hash pendek non-reversibel, hanya untuk membedakan key di UI. */
+function shortKeyFingerprint(raw) {
+    const text = String(raw || "").trim();
+    if (!text) return "----";
+    let hash = 0x811c9dc5;
+    for (let idx = 0; idx < text.length; idx += 1) {
+        hash ^= text.charCodeAt(idx);
+        hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    return hash.toString(16).padStart(8, "0");
+}
+
+/**
+ * Label aman untuk sebuah kredensial: tipe + sidik jari + potongan
+ * termasker yang TIDAK memberi cukup informasi untuk menebak token.
+ */
+function describeOpusCredential(raw) {
+    const text = String(raw || "").trim();
+    let parsed = null;
+    try {
+        parsed = parseApiKeyInput(text, null, { isolateFromDefaultRefresh: true });
+    } catch {
+        parsed = null;
+    }
+
+    const type = parsed?.refreshToken
+        ? "OAuth refresh token"
+        : parsed?.accessToken
+          ? "OAuth access token"
+          : "API key";
+
+    const secret = String(parsed?.refreshToken || parsed?.accessToken || text || "").trim();
+    let masked = "-";
+    if (secret.length >= 16) {
+        masked = `${secret.slice(0, 4)}…${secret.slice(-4)}`;
+    } else if (secret.length > 0) {
+        masked = "…";
+    }
+
+    return {
+        fingerprint: shortKeyFingerprint(secret || text),
+        type,
+        masked
+    };
+}
+
 async function inspectOpusMcpAccountStatus(apiKey, options = {}) {
     const endpoint = getMcpEndpoint(options);
     const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
@@ -9020,6 +9179,8 @@ async function inspectOpusMcpAccountStatus(apiKey, options = {}) {
             endpoint,
             activeSlot,
             totalSlots: 0,
+            totalCredits: null,
+            reportedSlots: 0,
             slots: []
         };
     }
@@ -9027,6 +9188,7 @@ async function inspectOpusMcpAccountStatus(apiKey, options = {}) {
     const slots = [];
     for (let idx = 0; idx < keyPool.length; idx += 1) {
         const candidateKey = keyPool[idx];
+        const keyInfo = describeOpusCredential(candidateKey);
         const startedAt = Date.now();
         try {
             const session = await openMcpSession({
@@ -9048,11 +9210,16 @@ async function inspectOpusMcpAccountStatus(apiKey, options = {}) {
                 findMcpTool(session.tools, "whoami");
 
             let accountInfo = null;
+            let creditInfo = null;
             if (whoamiTool) {
                 const whoRes = await session.callTool(whoamiTool.name, {}).catch(() => null);
                 if (whoRes) {
                     const parsed = parseLooseMcpJson(whoRes.data, whoRes.text);
                     if (parsed && typeof parsed === "object") {
+                        /* Kredit dibaca lewat helper supaya bentuk nested
+                           (`account.credits`, `quota.remaining`, dst.) ikut
+                           terbaca dan nilai non-angka tidak berubah jadi 0. */
+                        creditInfo = parseOpusCreditInfo(parsed);
                         accountInfo = {
                             userId: String(parsed.userId || parsed.user_id || parsed.id || parsed.sub || "").trim() || null,
                             email: String(parsed.email || parsed.user?.email || "").trim() || null,
@@ -9065,13 +9232,11 @@ async function inspectOpusMcpAccountStatus(apiKey, options = {}) {
                                     parsed.workspaceName ||
                                     ""
                                 ).trim() || null,
-                            plan: String(parsed.plan || parsed.tier || parsed.subscriptionPlan || "").trim() || null,
-                            credits:
-                                parsed.credits ??
-                                parsed.remainingCredits ??
-                                parsed.creditBalance ??
-                                parsed.balance ??
-                                null
+                            plan: creditInfo.plan,
+                            credits: creditInfo.credits,
+                            /* Boolean eksplisit: nilai mentah dari MCP bisa
+                               berupa string/objek, jangan diteruskan apa adanya. */
+                            hasApiAccess: Boolean(creditInfo.hasApiAccess)
                         };
                     } else if (whoRes.text) {
                         accountInfo = { summary: redactSecrets(String(whoRes.text).slice(0, 280)) };
@@ -9087,6 +9252,12 @@ async function inspectOpusMcpAccountStatus(apiKey, options = {}) {
                 latencyMs: Date.now() - startedAt,
                 toolCount: toolNames.length,
                 tools: toolNames,
+                keyFingerprint: keyInfo.fingerprint,
+                keyType: keyInfo.type,
+                keyMasked: keyInfo.masked,
+                credits: creditInfo ? creditInfo.credits : null,
+                plan: creditInfo?.plan ?? accountInfo?.plan ?? null,
+                creditsNote: creditInfo?.note ?? null,
                 account: accountInfo
             });
         } catch (err) {
@@ -9098,6 +9269,12 @@ async function inspectOpusMcpAccountStatus(apiKey, options = {}) {
                 latencyMs: Date.now() - startedAt,
                 toolCount: 0,
                 tools: [],
+                keyFingerprint: keyInfo.fingerprint,
+                keyType: keyInfo.type,
+                keyMasked: keyInfo.masked,
+                credits: null,
+                plan: null,
+                creditsNote: null,
                 account: null,
                 errorCode: err?.code || "MCP_CONNECT_FAILED",
                 errorMessage: redactSecrets(err?.message || "Gagal terhubung ke MCP Opus Labs.")
@@ -9105,11 +9282,18 @@ async function inspectOpusMcpAccountStatus(apiKey, options = {}) {
         }
     }
 
+    const reported = slots.filter(s => typeof s.credits === "number");
+    const totalCredits = reported.length > 0
+        ? reported.reduce((sum, s) => sum + s.credits, 0)
+        : null;
+
     return {
         configured: true,
         endpoint,
         activeSlot,
         totalSlots: keyPool.length,
+        reportedSlots: reported.length,
+        totalCredits,
         slots
     };
 }
@@ -9345,6 +9529,9 @@ export {
     listOpusProjectJobs,
     normalizeStatus,
     parseOpusTaskId,
+    parseOpusCreditInfo,
+    parseOpusCreditValue,
+    describeOpusCredential,
     redactSecrets,
     resetOpusKeyRotation,
     resolveBearerToken,
@@ -9375,6 +9562,7 @@ export default {
     isLikelyAudioOutputUrl,
     isOpusCreditExhaustedError,
     isOpusNonTerminalWorkerDeadline,
+    parseOpusCreditInfo,
     parseOpusTaskId,
     resetOpusKeyRotation,
     normalizeStatus,
