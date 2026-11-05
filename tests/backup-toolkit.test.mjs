@@ -454,3 +454,38 @@ test("verify-restore.sql memberi status OK / PERIKSA per baris", () => {
     assert.match(sql, /'PERIKSA'/);
     assert.match(sql, /tabel_bermasalah/, "harus menyebut nama tabel yang gagal");
 });
+
+const PERBAIKI_GRANT = path.join(ROOT, "migrasi", "perbaiki-grant.sql");
+
+test("dump TIDAK membuang GRANT (--no-privileges dilarang)", () => {
+    /* Dengan --no-privileges, role anon/authenticated/service_role kehilangan
+       hak akses di project tujuan. PostgREST lalu menjawab 404
+       "Could not find the table in the schema cache" walau tabelnya ada dan
+       berisi. Ini terjadi pada pengguna: login sukses, tetapi profil gagal
+       dibaca. --no-owner tetap dipakai (kepemilikan objek tidak boleh ikut). */
+    for (const [nama, berkas] of [["ps1", PS1], ["sh", SKRIP]]) {
+        const isi = baca(berkas);
+        // Larangan hanya untuk dump schema=public, yaitu satu-satunya dump yang
+        // di-restore. Dump referensi auth boleh memakai apa pun (tidak dipakai).
+        const barisPublic = isi.split("\n").filter((l) => /schema=public/.test(l) && /pg_dump|\$pgDump/.test(l));
+        assert.ok(barisPublic.length > 0, `${nama}: harus ada dump schema=public`);
+        for (const baris of barisPublic) {
+            assert.doesNotMatch(baris, /--no-privileges/,
+                `${nama}: dump public tidak boleh memakai --no-privileges -> ${baris.trim()}`);
+            assert.match(baris, /--no-owner/, `${nama}: harus tetap --no-owner`);
+        }
+    }
+});
+
+test("perbaiki-grant.sql memberi hak ke ketiga role + default privileges", () => {
+    const sql = baca(PERBAIKI_GRANT);
+    for (const role of ["anon", "authenticated", "service_role"]) {
+        assert.match(sql, new RegExp(role), `harus menyebut role ${role}`);
+    }
+    assert.match(sql, /grant usage on schema public/i);
+    assert.match(sql, /on all tables in schema public/i);
+    assert.match(sql, /on all sequences in schema public/i);
+    assert.match(sql, /on all functions in schema public/i);
+    assert.match(sql, /alter default privileges/i, "tabel baru harus mewarisi hak");
+    assert.match(sql, /has_table_privilege/, "harus bisa diverifikasi");
+});

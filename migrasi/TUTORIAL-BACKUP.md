@@ -791,6 +791,56 @@ Lalu lanjut ke **Langkah 6** untuk verifikasi penuh.
 
 ---
 
+## ⚠️ WAJIB setelah restore: `perbaiki-grant.sql`
+
+Ini **bukan** opsional. Tanpa langkah ini situs akan menampilkan error meski
+seluruh data sudah masuk.
+
+### Gejalanya
+
+```
+GET /rest/v1/profiles?... 404 (Not Found)
+"Could not find the table 'public.profiles' in the schema cache"
+GEN-Z.AI login error: Gagal mengambil profile
+```
+
+Login berhasil, tetapi profil tidak bisa dibaca. Terlihat seperti tabel hilang,
+padahal tabelnya ada dan berisi 25 baris.
+
+### Penyebabnya
+
+Skrip backup memakai `pg_dump --no-privileges`, sehingga **GRANT untuk role
+`anon`, `authenticated`, dan `service_role` tidak ikut tersalin**. Data API
+Supabase (PostgREST) berjalan sebagai role `anon`/`authenticated`; kalau ketiga
+role itu tidak punya hak, PostgREST menjawab **404** — bukan 403 — karena dari
+sudut pandangnya tabel itu tidak ada.
+
+> Inilah sebabnya `verify-restore.sql` bisa melaporkan 60/60 tabel PASS
+> sementara situs tetap error: berkas itu memeriksa jumlah baris lewat koneksi
+> admin, bukan lewat peran aplikasi.
+
+### Perbaikannya
+
+**Di SQL Editor project TARGET**, jalankan **`migrasi/perbaiki-grant.sql`**
+(bagian 1–5, sebelum bagian verifikasi).
+
+Setelah itu jalankan bagian 6 untuk memastikan:
+
+| cek | hasil | target |
+|---|---|---|
+| tabel_tanpa_grant_anon | 0 | 0 |
+| tabel_tanpa_grant_authenticated | 0 | 0 |
+| tabel_tanpa_grant_service_role | 0 | 0 |
+| profiles_select_anon | ya | ya |
+| jumlah_tabel_public | 60 | 60 |
+
+Semua harus `OK`. Lalu **refresh halaman dengan Ctrl + Shift + R**.
+
+> Skrip versi terbaru sudah **tidak** memakai `--no-privileges`, jadi pada
+> migrasi berikutnya langkah ini otomatis beres.
+
+---
+
 ## Kalau restore berhenti: `already exists`
 
 Pesan seperti ini **bukan** tanda data rusak:

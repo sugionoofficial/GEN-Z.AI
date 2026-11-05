@@ -231,7 +231,12 @@ function Invoke-Dump {
     Ok 'pg_dump ditemukan'
 
     Say '1/5 skema + data public (60 tabel)'
-    & $pgDump $src --no-owner --no-privileges --schema=public -f $FPub
+    # TANPA --no-privileges. GRANT untuk anon/authenticated/service_role harus
+    # ikut, kalau tidak Data API (PostgREST) tidak bisa membaca apa pun dan
+    # menjawab 404 "Could not find the table in the schema cache" walau
+    # tabelnya ada dan berisi. --no-owner tetap dipakai: kepemilikan objek
+    # tidak boleh ikut karena role pemilik project berbeda.
+    & $pgDump $src --no-owner --schema=public -f $FPub
     if ($LASTEXITCODE -ne 0) { Die 'pg_dump public gagal. Salin 10 baris error di atas.' }
 
     # Buang dua baris yang PASTI error di target (skema public sudah ada).

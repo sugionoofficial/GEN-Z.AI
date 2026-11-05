@@ -108,7 +108,10 @@ do_dump() {
     say "Versi client"; pg_dump --version | tee -a "$F_LOG"
 
     say "1/5 skema + data public (60 tabel)"
-    pg_dump "$SRC" --no-owner --no-privileges --schema=public -f "$F_PUBLIC" 2>&1 | tee -a "$F_LOG"
+    # TANPA --no-privileges: GRANT untuk anon/authenticated/service_role wajib
+    # ikut. Tanpa itu PostgREST menjawab 404 "Could not find the table in the
+    # schema cache" walau tabelnya ada. --no-owner tetap dipakai.
+    pg_dump "$SRC" --no-owner --schema=public -f "$F_PUBLIC" 2>&1 | tee -a "$F_LOG"
     # `pg_dump` selalu menulis CREATE SCHEMA public; dan ALTER ... OWNER TO.
     # Di project target skema public SUDAH ada, sehingga dua baris itu pasti
     # error saat restore. Dibuang di sini, bukan diabaikan saat restore,
