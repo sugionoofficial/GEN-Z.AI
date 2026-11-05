@@ -42,7 +42,7 @@ test("menolak kunci publishable dan JWT non-service_role", () => {
         encoding: "utf8",
         env: {
             ...process.env,
-            MIGRATION_SRC_REF: "ycovbqmezhrvzobxqnyp",
+            MIGRATION_SRC_REF: "rvgioyenjgkprnssfpfr",
             MIGRATION_SRC_SERVICE_KEY: "sb_publishable_aaaaaaaaaaaaaaaaaaaaaaaa",
             MIGRATION_DST_REF: "abcdefghijabcdefghij",
             MIGRATION_DST_SERVICE_KEY: anonJwt
@@ -61,9 +61,9 @@ test("menolak target yang sama dengan sumber", () => {
         encoding: "utf8",
         env: {
             ...process.env,
-            MIGRATION_SRC_REF: "ycovbqmezhrvzobxqnyp",
+            MIGRATION_SRC_REF: "rvgioyenjgkprnssfpfr",
             MIGRATION_SRC_SERVICE_KEY: "sb_secret_aaaaaaaaaaaaaaaaaaaaaaaa",
-            MIGRATION_DST_REF: "ycovbqmezhrvzobxqnyp",
+            MIGRATION_DST_REF: "rvgioyenjgkprnssfpfr",
             MIGRATION_DST_SERVICE_KEY: "sb_secret_bbbbbbbbbbbbbbbbbbbbbbbb"
         }
     });

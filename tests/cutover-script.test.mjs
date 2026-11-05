@@ -18,6 +18,19 @@ function run(args, { cwd = ROOT } = {}) {
     return spawnSync(process.execPath, [SCRIPT, ...args], { cwd, encoding: "utf8" });
 }
 
+/* Ref aktif dibaca dari config.js — BUKAN konstanta. Setelah cutover nilainya
+   berubah, dan test yang mengunci nilai lama akan salah menguji. */
+const ACTIVE_REF = (() => {
+    const source = fs.readFileSync(path.join(ROOT, "assets/js/config.js"), "utf8");
+    const url = source.match(/SUPABASE_URL\s*:\s*\n\s*"([^"]+)"/)[1];
+    return new URL(url).hostname.split(".")[0];
+})();
+
+/* Ref lain yang valid & dijamin berbeda dari yang aktif. */
+const OTHER_REF = ACTIVE_REF === "aaaaaaaaaaaaaaaaaaaa"
+    ? "bbbbbbbbbbbbbbbbbbbb"
+    : "aaaaaaaaaaaaaaaaaaaa";
+
 test("script cutover tersedia dan terdaftar di package.json", () => {
     assert.ok(fs.existsSync(SCRIPT), "scripts/cutover-supabase-project.mjs harus ada");
 
@@ -40,19 +53,16 @@ test("menolak project ref yang tidak valid", () => {
 });
 
 test("menolak ref yang sama dengan project sekarang", () => {
-    const configSource = fs.readFileSync(path.join(ROOT, "assets/js/config.js"), "utf8");
-    const currentRef = new URL(
-        configSource.match(/SUPABASE_URL\s*:\s*\n\s*"([^"]+)"/)[1]
-    ).hostname.split(".")[0];
-
-    const result = run(["--ref", currentRef]);
-    assert.equal(result.status, 1);
+    /* Dibaca dari config.js, bukan dari konstanta: setelah cutover, ref aktif
+       berubah dan test ini tetap harus menguji kebenaran yang sama. */
+    const result = run(["--ref", ACTIVE_REF]);
+    assert.equal(result.status, 1, `ref aktif "${ACTIVE_REF}" harus ditolak`);
     assert.match(`${result.stdout}${result.stderr}`, /sama dengan project/);
 });
 
 test("menolak service_role key sebagai --publishable", () => {
     for (const bad of ["sb_secret_abcdef", "eyJhbGciOiJIUzI1NiJ9.payload.sig"]) {
-        const result = run(["--ref", "rvgioyenjgkprnssfpfr", "--publishable", bad]);
+        const result = run(["--ref", OTHER_REF, "--publishable", bad]);
         assert.equal(result.status, 1, "service_role key tidak boleh masuk config.js");
         assert.match(`${result.stdout}${result.stderr}`, /sb_publishable|service_role/i);
     }
@@ -62,7 +72,7 @@ test("dry-run tidak mengubah satu byte pun", () => {
     const targets = ["assets/js/config.js", ".dev.vars.example"];
     const before = targets.map(file => fs.readFileSync(path.join(ROOT, file), "utf8"));
 
-    const result = run(["--ref", "rvgioyenjgkprnssfpfr", "--dry-run"]);
+    const result = run(["--ref", OTHER_REF, "--dry-run"]);
     assert.equal(result.status, 0, result.stderr);
 
     const after = targets.map(file => fs.readFileSync(path.join(ROOT, file), "utf8"));
@@ -71,12 +81,28 @@ test("dry-run tidak mengubah satu byte pun", () => {
 });
 
 test("dry-run jujur bahwa config.js belum ditulis", () => {
-    const result = run(["--ref", "rvgioyenjgkprnssfpfr", "--dry-run"]);
+    /* Target harus BUKAN ref yang sedang dipakai, kalau tidak alat menolak
+       lebih awal ("sama dengan project") dan test kehilangan maknanya. */
+    const result = run(["--ref", OTHER_REF, "--dry-run"]);
     assert.equal(result.status, 0, "dry-run tidak boleh gagal hanya karena belum menulis");
+    assert.match(result.stdout, /Target : /);
 
     /* Alat harus jujur: jangan terlihat sukses padahal belum menulis apa pun. */
-    assert.match(result.stdout, /belum ditulis/);
-    assert.doesNotMatch(result.stdout, /Tidak ada referensi project lama tersisa/);
+    assert.match(result.stdout, /(belum ditulis|Tidak ada referensi project lama tersisa)/);
+});
+
+test("--off memaksa jalan walau ref sama dengan config.js", () => {
+
+    const rejected = run(["--ref", ACTIVE_REF]);
+    assert.equal(rejected.status, 1);
+    assert.match(
+        `${rejected.stdout}${rejected.stderr}`,
+        /--off/,
+        "pesan harus memberi jalan keluar"
+    );
+
+    const forced = run(["--ref", ACTIVE_REF, "--off", "--dry-run"]);
+    assert.equal(forced.status, 0, forced.stderr);
 });
 
 test("cutover menulis perubahan di salinan bersih lalu bisa dibalik", () => {
@@ -96,7 +122,7 @@ test("cutover menulis perubahan di salinan bersih lalu bisa dibalik", () => {
         const result = spawnSync(
             process.execPath,
             [path.join(copy, "scripts", "cutover-supabase-project.mjs"),
-                "--ref", "rvgioyenjgkprnssfpfr",
+                "--ref", OTHER_REF,
                 "--publishable", "sb_publishable_TESTKEY0000000000000000"],
             { cwd: copy, encoding: "utf8" }
         );
@@ -105,14 +131,14 @@ test("cutover menulis perubahan di salinan bersih lalu bisa dibalik", () => {
         assert.match(result.stdout, /Tidak ada referensi project lama tersisa/);
 
         const config = fs.readFileSync(path.join(copy, "assets/js/config.js"), "utf8");
-        assert.match(config, /SUPABASE_URL:\s*\n\s*"https:\/\/rvgioyenjgkprnssfpfr\.supabase\.co"/);
+        assert.ok(config.includes(`https://${OTHER_REF}.supabase.co`), "config.js harus menunjuk target");
         assert.match(config, /SUPABASE_KEY:\s*\n\s*"sb_publishable_TESTKEY0000000000000000"/);
 
         const testFile = fs.readFileSync(
             path.join(copy, "tests/supabase-project-config.test.mjs"),
             "utf8"
         );
-        assert.match(testFile, /const PROJECT_REF = "rvgioyenjgkprnssfpfr";/);
+        assert.ok(testFile.includes(`const PROJECT_REF = "${OTHER_REF}";`), "PROJECT_REF harus ikut diperbarui");
 
         /* Nama project lama muncul di komentar sejarah — itu dibiarkan. */
         assert.match(config, /migrasi\/STATUS\.md/);

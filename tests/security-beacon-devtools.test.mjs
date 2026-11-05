@@ -361,7 +361,7 @@ function loadLockdownBeacon(options = {}) {
     }
     if (hasAccessToken) {
         store.set(
-            "sb-ycovbqmezhrvzobxqnyp-auth-token",
+            "sb-rvgioyenjgkprnssfpfr-auth-token",
             JSON.stringify({
                 access_token: "jwt-token-uji",
                 user: {

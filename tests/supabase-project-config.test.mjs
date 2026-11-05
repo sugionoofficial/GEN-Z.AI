@@ -8,12 +8,12 @@ const CONFIG_PATH = path.join(ROOT, "assets/js/config.js");
 const configSource = fs.readFileSync(CONFIG_PATH, "utf8");
 
 /* Regresi: proyek Supabase aplikasi dipindahkan dari `boeamhglmvkatnycluaa`
-   (lama, Storage terblokir 402) ke `ycovbqmezhrvzobxqnyp` (baru). Lihat
+   (lama, Storage terblokir 402) ke `rvgioyenjgkprnssfpfr` (baru). Lihat
    migrasi/STATUS.md. `config.js` sempat tertinggal di proyek lama, sehingga
    browser memakai JWT proyek lama sementara Worker memakai proyek baru dan
    seluruh panggilan API ditolak. */
 
-const PROJECT_REF = "ycovbqmezhrvzobxqnyp";
+const PROJECT_REF = "rvgioyenjgkprnssfpfr";
 const LEGACY_PROJECT_REF = "boeamhglmvkatnycluaa";
 
 const supabaseUrl = configSource.match(

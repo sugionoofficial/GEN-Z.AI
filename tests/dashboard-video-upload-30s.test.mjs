@@ -143,7 +143,7 @@ test("uploadFile me-refresh sesi GENZSession, mengunggah video 30 detik per-chun
     }
 
     const ctx = vm.createContext({
-        SUPABASE_URL: "https://ycovbqmezhrvzobxqnyp.supabase.co",
+        SUPABASE_URL: "https://rvgioyenjgkprnssfpfr.supabase.co",
         SUPABASE_KEY: "anon-key-test",
         STORAGE_BUCKET: "dashboard-videos",
         currentUser: { id: "owner-123" },
@@ -167,7 +167,7 @@ test("uploadFile me-refresh sesi GENZSession, mengunggah video 30 detik per-chun
         console,
         XMLHttpRequest: MockXHR,
         fetch: async (url, init) => {
-            assert.equal(url, "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/upload/resumable");
+            assert.equal(url, "https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/upload/resumable");
             assert.equal(init.method, "POST");
             assert.equal(init.headers["Tus-Resumable"], "1.0.0");
             return {

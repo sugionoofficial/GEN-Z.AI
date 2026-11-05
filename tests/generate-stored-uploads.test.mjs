@@ -722,7 +722,7 @@ test("membaca file langsung di generate-input/<userId>/<file> (format uploadImag
     ];
 
     const supabase = {
-        supabaseUrl: "https://ycovbqmezhrvzobxqnyp.supabase.co",
+        supabaseUrl: "https://rvgioyenjgkprnssfpfr.supabase.co",
         storage: {
             from: () => ({
                 list: async prefix => {
@@ -752,7 +752,7 @@ test("membaca file langsung di generate-input/<userId>/<file> (format uploadImag
     );
     assert.equal(
         images[0].url,
-        `https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/sign/user-uploads/${ROOT_PATH}/f93340db-402a-4f5a-9228-6032d7c01798.png?token=abc`
+        `https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/object/sign/user-uploads/${ROOT_PATH}/f93340db-402a-4f5a-9228-6032d7c01798.png?token=abc`
     );
 
     const videos = await listStoredUploads({

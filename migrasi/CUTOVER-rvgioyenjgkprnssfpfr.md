@@ -41,17 +41,28 @@ npm run check:migration
 `pg_dump` memakai koneksi DB yang **tidak** terkena 402, jadi fase ini jalan
 walau Storage sumber masih dibatasi.
 
-```bash
-# sumber (Singapore) dan target (Singapore) — port 5432, session pooler
-SRC=postgresql://postgres.ycovbqmezhrvzobxqnyp:PASS_SRC@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
-DST=postgresql://postgres.rvgioyenjgkprnssfpfr:PASS_DST@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
+**Pakai `migrasi/backup-penuh.sh`** — jangan menyalin perintah `pg_dump` manual
+di bawah.
 
-pg_dump "$SRC" --no-owner --no-acl --schema=public -f genz_public.sql
-pg_dump "$SRC" --no-owner --no-acl --schema=auth --schema-only -f genz_auth_schema.sql
+```bash
+export SRC='postgresql://postgres.ycovbqmezhrvzobxqnyp:PASS_SRC@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres'
+export DST='postgresql://postgres.rvgioyenjgkprnssfpfr:PASS_DST@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres'
+
+./backup-penuh.sh dump      # skema+data public, DATA auth.users, metadata storage
+./backup-penuh.sh restore   # pre → public → auth → storage → post
+./backup-penuh.sh verify    # angka kunci + arahkan ke cek checksum
 ```
 
-Ekspor auth (wajib — tanpa ini semua akun hilang), lalu restore ke target.
-Perintah lengkap: `MIGRASI-MANUAL.md` bagian 1–2.
+> ⚠️ **Jangan** memakai `pg_dump --schema=public` saja. Percobaan sebelumnya
+> hanya men-dump `public` (dengan asumsi skema auth "dikelola Supabase"),
+> sehingga **25 akun pengguna hilang** setelah restore. `backup-penuh.sh`
+> menjadikan `auth.users` + `auth.identities` sebagai bagian wajib dan
+> menghentikan proses bila berkas auth kosong.
+
+Verifikasi akhir fase ini bukan hanya jumlah baris, tetapi **checksum 60
+tabel**: jalankan `migrasi/verify-restore.sql` di SQL Editor target.
+Target: `tabel_pass` 60, `tabel_gagal` 0. Panduan lengkap:
+`migrasi/BACKUP-PENUH.md`.
 
 Titik henti yang harus hijau sebelum lanjut:
 
@@ -59,7 +70,10 @@ Titik henti yang harus hijau sebelum lanjut:
 select count(*) from auth.users;               -- 25
 select count(*) from public.profiles;          -- 25
 select count(*) from public.generation_history;-- 502
+select count(*) from public.social_post_runs;  -- 941
 ```
+
+Lalu jalankan `migrasi/verify-restore.sql` (checksum 60 tabel).
 
 ### Fase B — Storage (TUNGGU kuota pulih)
 
@@ -125,7 +139,7 @@ Worker Cloudflare `genzai` — tiga secrets:
 ```
 SUPABASE_URL=https://rvgioyenjgkprnssfpfr.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service_role target>
-SUPABASE_ANON_KEY=<publishable key target>
+SUPABASE_ANON_KEY=sb_publishable_-Fq__LVjbaAe2e3YkhYnQg_-PLLDM1R
 ```
 
 >`tests/supabase-project-config.test.mjs` mengunci `config.js` ke project

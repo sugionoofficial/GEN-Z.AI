@@ -139,3 +139,100 @@ spend caps to restore service.
 - **Peringatan urutan:** deploy `config.js` sebelum data & storage siap membuat
   situs tampil kosong. Urutan aman: skema+data → storage → auth config →
   config.js + secrets → deploy.
+
+### Fase D selesai di repo (2026-11-05)
+
+`assets/js/config.js` + `.dev.vars.example` + seluruh fixture test sudah
+dipindahkan ke **`rvgioyenjgkprnssfpfr`** memakai
+`npm run cutover -- --ref rvgioyenjgkprnssfpfr --publishable …`.
+
+| Item | Status |
+|---|---|
+| `config.js` (URL + publishable key) | ✅ project baru |
+| `.dev.vars.example` | ✅ project baru |
+| Fixture test (11 file) | ✅ project baru |
+| `npm test` | ✅ 1370 pass |
+
+**Sisa yang hanya bisa dilakukan pemilik akun:**
+
+1. 3 secrets Worker Cloudflare `genzai` → lihat nilai di
+   `CUTOVER-rvgioyenjgkprnssfpfr.md` Fase D.
+2. Fase A (pg_dump skema + data), Fase B (storage, tunggu kuota), Fase C
+   (auth config) di project baru.
+3. **Deploy hanya setelah 1–3 selesai** — kalau tidak, situs tampil kosong.
+
+Catatan: alat `npm run cutover` kini membaca ref aktif dari `config.js`
+(bukan konstanta yang cepat usang), dan menolak jalan bila `--ref` sama
+dengan ref aktif kecuali diberi `--off`.
+
+### Backup penuh siap + lubang Fase A ditutup (2026-11-05)
+
+Percobaan menyalin data lewat kanal tool/konektor **dihentikan** — volume
+±11 MB dengan `jsonb` + kolom array terpotong oleh kanal, sehingga salinan
+tidak bisa dibuktikan utuh. Penggantinya: toolkit yang dijalankan sekali dari
+komputer sendiri, lengkap dengan bukti verifikasi.
+
+| Berkas | Fungsi |
+|---|---|
+| `migrasi/backup-penuh.sh` | `dump` / `restore` / `verify` dalam satu skrip |
+| `migrasi/BACKUP-PENUH.md` | panduan langkah demi langkah |
+| `migrasi/verify-restore.sql` | 60 tabel + struktur, PASS/GAGAL otomatis (aman di-commit) |
+| `migrasi/export-fingerprint.sql` | checksum isi baris (**rahasia**, simpan di luar repo) |
+| `tests/backup-toolkit.test.mjs` | 14 test mengunci perilaku di atas |
+
+**Lubang yang ditemukan & ditutup.** Fase A sebelumnya menganjurkan
+`pg_dump --schema=public` saja dengan alasan skema `auth` "dikelola Supabase".
+Kalau dijalankan apa adanya, hasilnya **60 tabel utuh tetapi 25 akun pengguna
+hilang**, tanpa satu pun error saat restore. Sekarang:
+
+- data `auth.users` + `auth.identities` di-dump sebagai langkah **wajib**
+  (bukan opsional) dan prosesnya **berhenti** bila berkas itu kosong;
+- restore memakai `ON_ERROR_STOP=1` + `session_replication_role = replica`
+  sehingga berhenti pada error pertama, bukan gagal senyap;
+- urutan restore dikunci: pre → public → auth → storage → post
+  (`profiles` ber-FK ke `auth.users`, jadi auth tidak boleh didahulukan);
+- dua baris `CREATE SCHEMA public` / `ALTER SCHEMA public OWNER TO` dibuang
+  dari dump, karena skema `public` sudah ada di target (sebelumnya ini membuat
+  restore selalu gagal di baris pertama).
+
+**Inventaris sumber yang diverifikasi langsung dari DB** (bukan perkiraan):
+60 tabel / 4.449 baris, 25 user, 25 identitas, 8 bucket / 112 objek,
+60 tabel RLS aktif, 53 policy, 9 trigger public + 2 trigger auth,
+66 fungsi public, 5 sequence, PostgreSQL 17.11.
+
+**Temuan kecil:** `profiles.role` berisi `'OWNER'`/`'USER'` (huruf besar),
+bukan `'admin'`. Pemeriksaan awal memakai `role = 'admin'` dan menghasilkan 0 —
+alarm palsu. `verify-restore.sql` kini memeriksa `role = 'OWNER'` (nilai
+sebenarnya 1) karena akun itulah yang harus selamat agar panel admin tetap bisa
+dimasukki.
+
+**Keputusan keamanan:** repo ini **publik**. Checksum md5 atas isi baris
+`provider_credentials` dan `free_credit_secret_config` (API key provider +
+password pepper) setara membocorkan verifier yang bisa di-brute-force offline,
+jadi checksum itu **tidak** masuk git — hanya di `supabase/backup/`
+(di-.gitignore). Berkas yang di-commit hanya berisi jumlah baris + struktur.
+Test `tests/backup-toolkit.test.mjs` menolak commit bila ada md5 32-hex di
+berkas migrasi.
+
+Fungsi bantu sementara `_bk_*` di project sumber **sudah dihapus** (diverifikasi
+0 sisa).
+
+### Keputusan: konektor Supabase TETAP di akun lama (2026-11-05)
+
+Sempat dipertimbangkan memindahkan konektor Supabase ke akun pemilik
+`rvgioyenjgkprnssfpfr` agar agen bisa mengerjakan Fase A/C langsung.
+**Diputuskan: tidak sekarang.** Alasan:
+
+1. Pekerjaan yang menahan semuanya (`pg_dump` + `restore` Fase A) tetap harus
+   berjalan dari komputer pemilik — sandbox agen tidak punya `pg_dump`/`psql`
+   dan koneksi TLS ke `*.supabase.co` diblokir, terlepas dari konektor mana
+   yang terpasang.
+2. Konektor kemungkinan memegang **satu akun pada satu waktu**. Berpindah ke
+   akun baru berisiko menghilangkan akses ke project LAMA — padahal project
+   lama masih dibutuhkan untuk **Fase B** (112 objek storage / ±265 MB diambil
+   dari sana) dan sebagai pembanding verifikasi.
+3. Nilai tambah konektor baru hanya Fase C (Site URL + redirect allow-list),
+   yang bisa diselesaikan pemilik di dashboard dalam hitungan menit.
+
+Konektor baru dipertimbangkan **setelah Fase B selesai**, saat akses ke project
+lama tidak lagi diperlukan.

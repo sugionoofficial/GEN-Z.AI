@@ -14,7 +14,7 @@ lengkap (termasuk 2 tabel besar), dan hasilnya tersimpan permanen di disk Anda.
 ## 0. Persiapan (sekali saja)
 
 1. **Install PostgreSQL 17 client** (menyediakan `pg_dump` & `psql`):
-   - Windows: `winget install PostgreSQL.17` — atau installer dari enterprisedb.com (cukup centang *Command Line Tools*). Jika perintah tidak dikenal, pakai path penuh: `"C:\Program Files\PostgreSQL\17\bin\pg_dump.exe"` dst.
+   - Windows: `winget install --id PostgreSQL.PostgreSQL.17 -e` — atau installer dari enterprisedb.com (cukup centang *Command Line Tools*). Jika perintah tidak dikenal, pakai path penuh: `"C:\Program Files\PostgreSQL\17\bin\pg_dump.exe"` dst.
    - macOS: `brew install postgresql@17` lalu `export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"`
    - Linux: `sudo apt install postgresql-client-17`
 2. **Node.js ≥ 18** (cek: `node -v`) — untuk skrip storage.

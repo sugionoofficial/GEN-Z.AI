@@ -55,7 +55,7 @@ const VALID_UA =
     "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
 
 const TEST_ENV = {
-    SUPABASE_URL: "https://ycovbqmezhrvzobxqnyp.supabase.co",
+    SUPABASE_URL: "https://rvgioyenjgkprnssfpfr.supabase.co",
     SUPABASE_SERVICE_ROLE_KEY: "service_role_secret_test_key",
     SUPABASE_ANON_KEY: "anon_public_test_key"
 };
@@ -340,7 +340,7 @@ test("On/Off Monitoring & upload gambar banner 16:9 bekerja penuh dari Admin hin
 
     // Validasi URL banner 16:9
     const validBanner = validateBannerImageUrl(
-        "https://ycovbqmezhrvzobxqnyp.supabase.co/storage/v1/object/public/site-announcements/free-credit-banner/banner_16x9_abcd1234.webp",
+        "https://rvgioyenjgkprnssfpfr.supabase.co/storage/v1/object/public/site-announcements/free-credit-banner/banner_16x9_abcd1234.webp",
         TEST_ENV.SUPABASE_URL
     );
     assert.equal(validBanner.ok, true);
@@ -457,7 +457,7 @@ test("On/Off Monitoring & upload gambar banner 16:9 bekerja penuh dari Admin hin
     assert.equal(uploadRes.body.ok, true);
     assert.match(
         uploadRes.body.banner_image_url,
-        /^https:\/\/ycovbqmezhrvzobxqnyp\.supabase\.co\/storage\/v1\/object\/public\/site-announcements\/free-credit-banner\/.+\.webp$/
+        /^https:\/\/rvgioyenjgkprnssfpfr\.supabase\.co\/storage\/v1\/object\/public\/site-announcements\/free-credit-banner\/.+\.webp$/
     );
     const firstBannerUrl = uploadRes.body.banner_image_url;
 

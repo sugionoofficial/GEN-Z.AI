@@ -98,7 +98,7 @@ Keluar dengan kode 1 bila ada penghalang. Jangan lanjut sebelum hijau.
 ## 0. Yang harus disiapkan
 
 1. **PostgreSQL 17 client** (`pg_dump`, `psql`) di komputer Anda:
-   - Windows: `winget install PostgreSQL.17`
+   - Windows: `winget install --id PostgreSQL.PostgreSQL.17 -e`
    - macOS: `brew install postgresql@17`
    - Linux: `sudo apt install postgresql-client-17`
 2. **Node.js ≥ 20** (`scripts/*.mjs`).
