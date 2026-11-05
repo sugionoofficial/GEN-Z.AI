@@ -589,9 +589,10 @@ html[data-genz-theme="light"][data-genz-theme="light"] body #generateButton:disa
 html[data-genz-theme="light"][data-genz-theme="light"] body .generate-button-credit,
 html[data-genz-theme="light"][data-genz-theme="light"] body #generateCreditCost {
 
-    border: 1px solid rgba(10, 20, 0, 0.22);
-    background: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(10, 20, 0, 0.28);
+    background: rgba(255, 255, 255, 0.62);
     color: #1c2b00;
+    font-weight: 900;
 }
 
 html[data-genz-theme="light"][data-genz-theme="light"] body .loading {

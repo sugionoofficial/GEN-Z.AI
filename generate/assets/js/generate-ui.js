@@ -2988,7 +2988,7 @@ function syncGenerateButtonCredit(
 
 
         canonicalValue.textContent =
-            "-- Credit";
+            "-- credit";
 
 
         canonicalValue.dataset.credit =
@@ -3048,7 +3048,7 @@ function syncGenerateButtonCredit(
     canonicalValue.textContent =
         `${formatNumber(
             numericCredit
-        )} Credit`;
+        )} credit`;
 
 
     canonicalValue.dataset.credit =
@@ -3168,7 +3168,7 @@ export function renderModelCredit(
     ) {
 
         canonicalValue.textContent =
-            "-- Credit";
+            "-- credit";
 
 
         canonicalValue.dataset.credit =
@@ -3244,7 +3244,7 @@ export function renderModelCredit(
     ) {
 
         canonicalValue.textContent =
-            "-- Credit";
+            "-- credit";
 
 
         canonicalValue.dataset.credit =
@@ -3325,7 +3325,7 @@ export function renderModelCredit(
     ) {
 
         canonicalValue.textContent =
-            "-- Credit";
+            "-- credit";
 
 
         canonicalValue.dataset.credit =
@@ -3361,7 +3361,7 @@ export function renderModelCredit(
     const targetText =
         `${formatNumber(
             credit
-        )} Credit`;
+        )} credit`;
 
     const currentCreditData =
         canonicalValue.dataset.credit;
@@ -4315,7 +4315,7 @@ export function setLoading(
                     )
                     : (
                         label.dataset.originalText ||
-                        "Generate Video"
+                        "Generate"
                     );
 
         }

@@ -2381,29 +2381,78 @@ textarea,
         8px;
 
     padding:
-        4px 7px;
+        4px 9px;
 
     border:
         1px solid
-        rgba(0,25,0,0.24);
+        rgba(0,25,0,0.30);
 
     border-radius:
-        7px;
+        999px;
 
     background:
-        rgba(0,25,0,0.17);
+        rgba(0,25,0,0.20);
 
     color:
-        rgba(4,18,0,0.88);
+        rgba(4,18,0,0.92);
 
     font-size:
-        10px;
+        10.5px;
 
     font-weight:
-        800;
+        900;
+
+    letter-spacing:
+        0.02em;
 
     white-space:
         nowrap;
+}
+
+
+/*
+ * Ikon ▼ menegaskan arah: kredit AKAN DIPOTONG dari saldo
+ * saat tombol Generate ditekan.
+ */
+
+.generate-button-credit-icon {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    font-size:
+        8px;
+
+    line-height:
+        1;
+
+    opacity:
+        0.85;
+}
+
+
+/*
+ * Label tombol utama: "GENERATE" kapital, satu gaya untuk
+ * semua mode (video, gambar, audio, transcribe).
+ */
+
+#generateButton
+.generate-button-label {
+
+    text-transform:
+        uppercase;
+
+    letter-spacing:
+        0.06em;
+
+    font-weight:
+        900;
 }
 
 
