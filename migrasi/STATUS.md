@@ -109,3 +109,18 @@ spend caps to restore service.
 | 1 | Upload memakai `cacheControl: "3600"` | 47 objek `user-uploads` tercatat `no-cache` di `storage.objects` | `"31536000, immutable"` |
 | 2 | `voice-previews` & `social-video` tanpa aturan retensi | 16 file umur 3h15j, 4 file umur 3h3j | TTL 30 hari & 7 hari |
 | 3 | Signed URL selalu berubah → browser tidak pernah cache | video 10–14 MB diunduh ulang penuh | (dokumentasi; lihat STORAGE-RETENTION.md) |
+
+### Target migrasi final: project baru di akun/org berbeda, region ap-southeast-2
+
+- Project target dibuat di **organisasi baru pada akun Supabase berbeda** →
+  konektor/agen **tidak bisa melihat** project tersebut. Seluruh langkah
+  dijalankan pemilik akun memakai `migrasi/MIGRASI-MANUAL.md`.
+- Region target **`ap-southeast-2` (Sydney)**, bukan Singapore. Latensi DB
+  tidak terasa (API di Cloudflare Worker) tetapi Storage terasa: unduhan video
+  10–14 MB ke pengguna Indonesia lebih lambat.
+- Alat bantu baru: `scripts/check-migration-readiness.mjs`
+  (`npm run check:migration`) — memeriksa env, jenis kunci (menolak
+  publishable/anon), status 402 sumber, schema target kosong, dan versi
+  `pg_dump` **sebelum** ada data disentuh.
+- Syarat yang masih menahan: Storage sumber masih 402, sehingga langkah pindah
+  file harus menunggu kuota pulih (upgrade Pro atau reset siklus billing).

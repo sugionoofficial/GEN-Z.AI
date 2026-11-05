@@ -9,8 +9,24 @@ karena `exceed_egress_quota`).
 > sekali. Lihat bagian "Kenapa transfer lebih baik" di bawah.
 
 - Project SUMBER: `ycovbqmezhrvzobxqnyp` (ap-southeast-1, PG 17)
-- Project TARGET: `<project-ref-baru>` (region **harus** ap-southeast-1 agar
-  latensi Storage/DB tidak memburuk)
+- Project TARGET: `<project-ref-baru>`
+
+### Region target
+
+Region **tidak bisa** diubah setelah project dibuat (juga tidak ikut saat
+transfer). Pilih dengan sadar:
+
+| Region | Lokasi | Untuk pengguna |
+|---|---|---|
+| `ap-southeast-1` | Singapore | Indonesia / Asia Tenggara — **disarankan** |
+| `ap-southeast-2` | Sydney | Australia / NZ — menambah ±60–100 ms per round-trip dari Indonesia |
+
+Latensi DB tidak terasa (API berjalan di Cloudflare Worker), tetapi **Storage**
+terasa: unduhan video 10–14 MB ke browser pengguna Indonesia jadi lebih lambat,
+dan itu area yang paling banyak memakan egress.
+
+> Target saat ini: **`ap-southeast-2` (Sydney)**. Semua perintah di dokumen ini
+> sudah memakai host pooler Sydney untuk project tujuan.
 
 ---
 
@@ -27,6 +43,51 @@ karena `exceed_egress_quota`).
 | Risiko | sangat rendah | sedang (auth + storage) |
 
 Transfer hanya diblokir selama organisasi asal berstatus *restricted*.
+
+---
+
+## Akun Supabase berbeda
+
+Bila organisasi baru berada di **akun Supabase lain** (bukan akun yang sama
+dengan project sumber), beberapa hal berubah:
+
+| Hal | Akun sama | Akun berbeda |
+|---|---|---|
+| Konektor/agen bisa melihat project target | ya | **tidak** |
+| Yang menjalankan `pg_dump` / `psql` | agen | **Anda sendiri** |
+| `service_role` key | agen bisa ambil | **Anda** salin dari dashboard |
+| Yang mengubah Worker secrets | Anda | Anda |
+
+Yang tetap berlaku: repo ini sudah menyimpan **semua** yang dibutuhkan
+(`scripts/check-migration-readiness.mjs`, `migrasi/migrate_bulk.mjs`, dokumen
+ini), jadi tidak ada langkah yang bergantung pada akses agen.
+
+---
+
+## Cek kesiapan sebelum mulai
+
+Jalankan ini lebih dulu — hanya membaca, tidak mengubah apa pun:
+
+```bash
+export MIGRATION_SRC_REF=ycovbqmezhrvzobxqnyp
+export MIGRATION_SRC_SERVICE_KEY='<service_role proyek sumber>'
+export MIGRATION_DST_REF='<ref proyek baru>'
+export MIGRATION_DST_SERVICE_KEY='<service_role proyek baru>'
+
+node scripts/check-migration-readiness.mjs
+```
+
+Yang diperiksa:
+
+- kelengkapan & format env, serta memastikan kunci memang `service_role`
+  (kunci publishable akan ditolak),
+- apakah project sumber masih **402** — ini penentu apakah langkah Storage bisa
+  jalan sekarang atau harus ditunda,
+- apakah schema `public` project target masih kosong (aman untuk restore),
+- `pg_dump` tersedia dan versinya cukup (harus 17, sama dengan project sumber),
+- target bukan project yang sama dengan sumber.
+
+Keluar dengan kode 1 bila ada penghalang. Jangan lanjut sebelum hijau.
 
 ---
 
@@ -48,7 +109,7 @@ URL koneksi (session pooler, port **5432** — jangan 6543):
 
 ```
 SRC=postgresql://postgres.ycovbqmezhrvzobxqnyp:PASS_SRC@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
-DST=postgresql://postgres.<REF_BARU>:PASS_DST@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
+DST=postgresql://postgres.<REF_BARU>:PASS_DST@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres   # Sydney
 ```
 
 ---
