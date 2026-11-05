@@ -8,9 +8,9 @@
 # ---------------------------------------------------------
 # Wajib — tanpa ini setiap /api/* membalas 500
 # ---------------------------------------------------------
-SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_URL=https://ycovbqmezhrvzobxqnyp.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
-SUPABASE_ANON_KEY=<publishable-atau-anon-key>
+SUPABASE_ANON_KEY=sb_publishable_dnOcQubqXG_iGvUMTPCuUw_fU0gkaYm
 
 # ---------------------------------------------------------
 # Disarankan

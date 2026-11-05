@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
@@ -51,15 +52,55 @@ test("check-local-dev-vars memberi instruksi jelas tanpa menghentikan dev server
     const script = path.join(ROOT, "scripts", "check-local-dev-vars.mjs");
     assert.ok(fs.existsSync(script), "scripts/check-local-dev-vars.mjs harus ada");
 
-    const result = spawnSync(process.execPath, [script], {
-        cwd: ROOT,
-        encoding: "utf8",
+    /* Skrip mencari .dev.vars relatif terhadap lokasinya sendiri, jadi salin ke
+       folder sementara: hasilnya deterministik walau developer sudah punya
+       .dev.vars di repo. */
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "genz-devvars-"));
+    const tmpScripts = path.join(tmp, "scripts");
+    fs.mkdirSync(tmpScripts, { recursive: true });
+    const copied = path.join(tmpScripts, "check-local-dev-vars.mjs");
+    fs.copyFileSync(script, copied);
+
+    try {
+        const result = spawnSync(process.execPath, [copied], { encoding: "utf8" });
+
         /* Tanpa .dev.vars skrip tetap harus lulus (exit 0) agar halaman statis
            masih bisa dibuka; hanya memberi peringatan. */
-        env: { ...process.env, GENZ_CHECK_DEV_NO_FILE: "1" }
-    });
+        assert.equal(result.status, 0, "skrip tidak boleh memblokir dev server");
 
-    assert.equal(result.status, 0, "skrip tidak boleh memblokir dev server");
-    assert.match(`${result.stdout}${result.stderr}`, /SUPABASE_URL/);
-    assert.match(`${result.stdout}${result.stderr}`, /dev\.vars/);
+        const output = `${result.stdout}${result.stderr}`;
+        assert.match(output, /SUPABASE_URL/);
+        assert.match(output, /dev\.vars/);
+        assert.match(output, /500/, "harus menjelaskan dampaknya pada /api/*");
+    } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+    }
+});
+
+test("check-local-dev-vars melaporkan variabel wajib yang kosong", () => {
+    const script = path.join(ROOT, "scripts", "check-local-dev-vars.mjs");
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "genz-devvars-"));
+    const tmpScripts = path.join(tmp, "scripts");
+    fs.mkdirSync(tmpScripts, { recursive: true });
+    fs.copyFileSync(script, path.join(tmpScripts, "check-local-dev-vars.mjs"));
+    fs.writeFileSync(
+        path.join(tmp, ".dev.vars"),
+        "SUPABASE_URL=https://example.supabase.co\n",
+        "utf8"
+    );
+
+    try {
+        const result = spawnSync(
+            process.execPath,
+            [path.join(tmpScripts, "check-local-dev-vars.mjs")],
+            { encoding: "utf8" }
+        );
+
+        assert.equal(result.status, 0);
+        const output = `${result.stdout}${result.stderr}`;
+        assert.match(output, /SUPABASE_SERVICE_ROLE_KEY/);
+        assert.match(output, /masih kosong/);
+    } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+    }
 });
