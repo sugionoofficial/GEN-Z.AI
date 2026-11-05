@@ -183,3 +183,47 @@ test("tutorial memberi jalan keluar bila pg_dump tidak dikenali (PATH)", () => {
     assert.ok(t.includes("C:\\Program Files\\PostgreSQL\\17\\bin"), "harus menyebut lokasi bin");
     assert.ok(t.includes("Get-ChildItem"), "harus menyuruh mencari versi yang benar");
 });
+
+const PS1 = path.join(ROOT, "migrasi", "backup-penuh.ps1");
+
+test("versi PowerShell tersedia dan setara fungsinya dengan versi bash", () => {
+    assert.ok(fs.existsSync(PS1), "migrasi/backup-penuh.ps1 harus ada");
+    const ps = baca(PS1);
+    for (const mode of ["dump", "restore", "verify"]) {
+        assert.match(ps, new RegExp(`'${mode}'`), `mode ${mode} harus ada`);
+    }
+    // Auth tetap wajib, dengan ambang ukuran sebagai pengaman.
+    assert.match(ps, /--table=auth\.users/);
+    assert.match(ps, /--table=auth\.identities/);
+    assert.match(ps, /ukuranAuth -lt 2000/);
+    // Satu sesi + satu transaksi, dan begin/commit TIDAK boleh ada.
+    assert.match(ps, /--single-transaction/);
+    assert.match(ps, /ON_ERROR_STOP=1/);
+    assert.doesNotMatch(ps, /^begin;$/m, "jangan pakai begin; di berkas restore");
+    assert.doesNotMatch(ps, /^commit;$/m, "jangan pakai commit; di berkas restore");
+});
+
+test("versi PowerShell meng-encode password di connection string", () => {
+    /* Password dengan @ : / # memutus parsing URL. Versi bash gagal di kasus
+       ini; versi PowerShell menutupnya, dan itu harus tetap begitu. */
+    const ps = baca(PS1);
+    assert.match(ps, /EscapeDataString/);
+    assert.ok(ps.includes("[YOUR-PASSWORD]"), "harus menolak placeholder yang belum diganti");
+});
+
+test("versi PowerShell mencari pg_dump/psql sendiri (PATH tidak diwarisi)", () => {
+    const ps = baca(PS1);
+    assert.match(ps, /Get-Command \$nama/);
+    assert.match(ps, /Program Files\\PostgreSQL/);
+});
+
+test("versi bash tidak lagi menulis begin;/commit; di berkas restore", () => {
+    /* begin; hanya menghasilkan WARNING di dalam --single-transaction, tetapi
+       commit; MENUTUP transaksi lebih awal sehingga kegagalan berikutnya tidak
+       membatalkan apa pun — janji "gagal = target kosong" jadi bohong. */
+    const sh = baca(SKRIP);
+    const isiPre = (sh.match(/cat > "\$F_PRE" <<'SQL'\n([\s\S]*?)\nSQL/) || [])[1] || "";
+    const isiPost = (sh.match(/cat > "\$F_POST" <<'SQL'\n([\s\S]*?)\nSQL/) || [])[1] || "";
+    assert.doesNotMatch(isiPre, /^begin;/m, "F_PRE tidak boleh punya begin;");
+    assert.doesNotMatch(isiPost, /^commit;/m, "F_POST tidak boleh punya commit;");
+});
