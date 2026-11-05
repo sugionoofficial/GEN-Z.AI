@@ -371,6 +371,35 @@ Sekarang unduh berkas `backup-penuh.sh` dari repo
 - Pastikan namanya **tidak** berubah jadi `backup-penuh.sh.txt`. Kalau hal itu
   terjadi, rename dan hapus `.txt`-nya.
 
+**Pengguna Windows — WAJIB lebih dulu:** `$env:Path += ...` hanya berlaku di
+jendela PowerShell tempat ia diketik. **Git Bash tidak mewarisinya**, sehingga
+di sana `pg_dump` akan kembali "command not found". Jadikan PATH permanen
+**sebelum** pindah ke Git Bash:
+
+```powershell
+$p = [Environment]::GetEnvironmentVariable("Path","User")
+[Environment]::SetEnvironmentVariable("Path", $p + ";C:\Program Files\PostgreSQL\17\bin", "User")
+```
+
+Tutup PowerShell, buka **Git Bash**, lalu pastikan:
+
+```bash
+pg_dump --version
+psql --version
+```
+
+Keduanya harus menjawab `17.x`. Kalau tidak, jangan lanjut — ulangi tiga baris di
+atas dan pastikan tidak ada salah ketik pada nama folder.
+
+**Cara mengunduh berkasnya tanpa klik:** di Git Bash, dari dalam folder kerja:
+
+```bash
+curl -L -o backup-penuh.sh https://raw.githubusercontent.com/sugionoofficial/GEN-Z.AI/main/migrasi/backup-penuh.sh
+```
+
+Lebih aman daripada *Save as…* karena nama berkasnya tidak mungkin berubah
+menjadi `.sh.txt`.
+
 **Pengguna Windows:** berkas `.sh` dijalankan lewat **Git Bash**, bukan
 PowerShell. Git Bash biasanya sudah terpasang bersama Git — cari *Git Bash* di
 menu Start. Kalau tidak ada, install dari https://git-scm.com/downloads
