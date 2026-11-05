@@ -303,3 +303,34 @@ ada, sehingga panel admin bisa dimasuki.
 
 **Fase A resmi SELESAI.** Lanjut Fase C (auth config) yang tidak butuh kuota,
 lalu Fase B (storage) saat kuota pulih.
+
+### ✅ APLIKASI HIDUP — login berhasil (2026-11-05)
+
+Situs produksi `https://genzai.genzai-f37.workers.dev` sudah bisa login memakai
+akun hasil migrasi. Rantai yang harus benar seluruhnya:
+
+| Lapisan | Status | Bukti |
+|---|---|---|
+| Worker secrets (3) | OK | tidak ada lagi `InvalidKey` |
+| Auth project baru | OK | `POST /auth/v1/token?grant_type=password` sukses |
+| 25 akun hasil restore | OK | login diterima, bukan "user not found" |
+| GRANT ke anon/authenticated | OK | setelah `perbaiki-grant.sql` |
+| Cache skema PostgREST | OK | setelah `notify pgrst, 'reload schema'` |
+| Profil terbaca | OK | nama/kredit/role muncul |
+
+**Tiga bug berurutan yang terbongkar di tahap ini** (semua sudah diperbaiki,
+1418 test pass):
+
+| # | Gejala | Sebab | Perbaikan |
+|---|---|---|---|
+| 1 | `InvalidKey: ""` | secret Worker kosong | isi 3 secret di Cloudflare |
+| 2 | 404 `profiles` | `pg_dump --no-privileges` membuang GRANT | hapus flag itu; `perbaiki-grant.sql` |
+| 3 | `PGRST205` schema cache | `session_replication_role = replica` mematikan trigger DDL Supabase (`pgrst_ddl_watch`) | hapus `replica`; `notify pgrst` |
+
+Pelajaran: bug #1 di daftar ini (FK `credit_transactions`) "diperbaiki" dengan
+mematikan trigger, dan justru itulah penyebab bug #3. Menambal gejala tanpa
+memeriksa apa lagi yang ikut dimatikan.
+
+**Sisa:** Fase B (112 file storage, menunggu kuota) — fitur yang butuh file
+(thumbnail, preview video, hasil generasi) belum normal. Fase D sudah beres
+karena build/deploy hijau.
