@@ -91,10 +91,14 @@ do_dump() {
                       where n.nspname = 'auth' and not t.tgisinternal" \
         -o "$F_TRIGGER_REF" 2>>"$F_LOG" || warn "trigger auth tidak terbaca (tidak fatal)"
 
+    # TANPA begin/commit: `psql --single-transaction` sudah membungkus seluruh
+    # restore. `begin;` di dalamnya hanya menghasilkan WARNING, tetapi
+    # `commit;` akan MENUTUP transaksi lebih awal — sehingga kegagalan pada
+    # berkas berikutnya tidak lagi membatalkan apa pun dan janji "gagal =
+    # target kembali kosong" jadi bohong.
     cat > "$F_PRE" <<'SQL'
 -- dijalankan SEBELUM restore: matikan trigger & cek FK agar urutan INSERT
 -- bebas. Ini yang membuat data auth + tabel ber-FK bisa masuk tanpa gagal.
-begin;
 set session_replication_role = replica;
 SQL
 
@@ -104,7 +108,6 @@ set session_replication_role = origin;
 select setval(pg_get_serial_sequence('public.credit_change_audit', 'id'),
               coalesce((select max(id) from public.credit_change_audit), 1), true)
   where to_regclass('public.credit_change_audit') is not null;
-commit;
 SQL
 
     say "5/5 ringkasan berkas"

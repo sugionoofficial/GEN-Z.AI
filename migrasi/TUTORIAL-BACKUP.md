@@ -371,6 +371,35 @@ Sekarang unduh berkas `backup-penuh.sh` dari repo
 - Pastikan namanya **tidak** berubah jadi `backup-penuh.sh.txt`. Kalau hal itu
   terjadi, rename dan hapus `.txt`-nya.
 
+**Pengguna Windows — WAJIB lebih dulu:** `$env:Path += ...` hanya berlaku di
+jendela PowerShell tempat ia diketik. **Git Bash tidak mewarisinya**, sehingga
+di sana `pg_dump` akan kembali "command not found". Jadikan PATH permanen
+**sebelum** pindah ke Git Bash:
+
+```powershell
+$p = [Environment]::GetEnvironmentVariable("Path","User")
+[Environment]::SetEnvironmentVariable("Path", $p + ";C:\Program Files\PostgreSQL\17\bin", "User")
+```
+
+Tutup PowerShell, buka **Git Bash**, lalu pastikan:
+
+```bash
+pg_dump --version
+psql --version
+```
+
+Keduanya harus menjawab `17.x`. Kalau tidak, jangan lanjut — ulangi tiga baris di
+atas dan pastikan tidak ada salah ketik pada nama folder.
+
+**Cara mengunduh berkasnya tanpa klik:** di Git Bash, dari dalam folder kerja:
+
+```bash
+curl -L -o backup-penuh.sh https://raw.githubusercontent.com/sugionoofficial/GEN-Z.AI/main/migrasi/backup-penuh.sh
+```
+
+Lebih aman daripada *Save as…* karena nama berkasnya tidak mungkin berubah
+menjadi `.sh.txt`.
+
 **Pengguna Windows:** berkas `.sh` dijalankan lewat **Git Bash**, bukan
 PowerShell. Git Bash biasanya sudah terpasang bersama Git — cari *Git Bash* di
 menu Start. Kalau tidak ada, install dari https://git-scm.com/downloads
@@ -514,6 +543,97 @@ saya.
 
 **Kalau `tabel_gagal` bukan 0**, kolom `gagal` berisi nama tabel yang
 bermasalah. Kirimkan daftar itu ke saya.
+
+---
+
+## Kalau Git Bash tidak mau paste
+
+Beberapa jendela terminal memblokir paste, atau mem-paste perintah panjang
+menjadi berantakan. Anda **tidak wajib** memakai Git Bash. Ada tiga jalan
+keluar, urut dari yang paling mudah.
+
+### Jalan 1 — aktifkan paste (coba ini dulu)
+
+| Terminal | Caranya |
+|---|---|
+| Git Bash | **Klik kanan** di dalam jendela → **Paste** (Ctrl+V sering tidak jalan) |
+| Git Bash | Atau `Shift + Insert` |
+| Git Bash | Untuk menyalin **dari** terminal: **blok teks** → klik kanan → Copy |
+| Windows Terminal | **Ctrl + Shift + V** |
+| PowerShell | **Klik kanan** juga bisa |
+
+Kalau tombol kanan tidak memunculkan menu, kemungkinan *QuickEdit* mati:
+
+1. Klik ikon Git Bash di **judul jendela** (kiri atas) → **Options**
+2. **Keys** → centang **Ctrl+Shift+letter shortcuts**
+3. **Window** → centang **QuickEdit Mode** → **OK**
+4. Buka Git Bash baru
+
+### Jalan 2 — pakai versi PowerShell (tanpa Git Bash sama sekali)
+
+Skrip sudah disiapkan dalam versi PowerShell: `migrasi/backup-penuh.ps1`.
+Isinya sama, hasilnya sama. **Ini jalur yang paling sedikit gesekan** kalau
+paste di terminal bermasalah.
+
+1. Di PowerShell, buat folder kerja dan masuk ke sana:
+
+   ```powershell
+   mkdir $HOME\Desktop\genz-migrasi
+   cd $HOME\Desktop\genz-migrasi
+   ```
+
+2. Unduh skripnya:
+
+   ```powershell
+   Invoke-WebRequest -Uri https://raw.githubusercontent.com/sugionoofficial/GEN-Z.AI/main/migrasi/backup-penuh.ps1 -OutFile backup-penuh.ps1
+   ```
+
+3. Isi dua alamat (tempel di dalam tanda kutip tunggal — aman dari karakter
+   khusus):
+
+   ```powershell
+   $SRC = 'postgresql://postgres.ycovbqmezhrvzobxqnyp:PASSWORD@...:5432/postgres'
+   $DST = 'postgresql://postgres.rvgioyenjgkprnssfpfr:PASSWORD@...:5432/postgres'
+   ```
+
+4. Jalankan backup:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .ackup-penuh.ps1 dump
+   ```
+
+5. Kalau Langkah 4 sukses, lanjut:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .ackup-penuh.ps1 restore
+   ```
+
+> `-ExecutionPolicy Bypass` hanya berlaku untuk satu perintah itu. Tanpa itu
+> Windows bisa menolak menjalankan skrip dengan pesan
+> `running scripts is disabled on this system`.
+
+> **Kabar baik:** versi PowerShell justru lebih tahan terhadap password yang
+> mengandung simbol (`@ : / #`), karena password di-encode otomatis. Kalau
+> password Anda ada simbolnya, jalur ini lebih aman daripada versi bash.
+
+### Jalan 3 — pecah perintahnya jadi potongan pendek
+
+Kalau Anda tetap ingin Git Bash dan paste tetap gagal, ketik manual dalam
+potongan kecil, satu baris sekali, tekan Enter tiap baris:
+
+```bash
+cd ~/Desktop/genz-migrasi
+```
+
+```bash
+export SRC='postgresql://...'
+```
+
+```bash
+bash backup-penuh.sh dump
+```
+
+Satu baris pendek jauh lebih jarang bermasalah daripada satu blok panjang.
 
 ---
 
