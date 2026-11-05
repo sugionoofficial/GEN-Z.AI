@@ -33,6 +33,7 @@ DIR="${DIR:-./genz-backup}"
 F_PRE="$DIR/0_pre.sql"
 F_PUBLIC="$DIR/1_public.sql"
 F_PUBLIC_CLEAN="$DIR/1_public_clean.sql"
+F_PUBLIC_DATA="$DIR/1b_public_data.sql"
 F_AUTH="$DIR/2_auth.sql"
 F_STORAGE="$DIR/3_storage_meta.sql"
 F_AUTH_REF="$DIR/4_auth_skema_referensi.sql"
@@ -75,6 +76,19 @@ strip_ddl_platform() {
     '
 }
 
+# Pisahkan dump public menjadi SKEMA dan DATA.
+# Alasan: FK dari tabel public ke auth.users (credit_transactions.created_by_fkey)
+# diperiksa saat INSERT. Kalau seluruh public dimuat sebelum auth, baris pertama
+# yang mereferensikan user ditolak. Urutan benar: skema public -> auth -> data public.
+split_schema_data() {
+    awk -v fskema="$1" -v fdata="$2" '
+        BEGIN { copy = 0 }
+        copy == 1 { print > fdata; if ($0 == "\\.") copy = 0; next }
+        /^COPY .* FROM stdin;$/ { copy = 1; print > fdata; next }
+        { print > fskema }
+    '
+}
+
 need_bin() {
     command -v "$1" >/dev/null 2>&1 || die "$1 tidak ditemukan. Install PostgreSQL client (lihat BACKUP-PENUH.md bagian 0)."
 }
@@ -102,6 +116,11 @@ do_dump() {
     grep -v -E '^(CREATE SCHEMA public;|ALTER SCHEMA public OWNER TO )' "$F_PUBLIC" \
         | strip_ddl_platform > "$F_PUBLIC_CLEAN"
     ok "$(wc -l < "$F_PUBLIC_CLEAN") baris"
+
+    # Pisahkan skema vs data (lihat catatan di split_schema_data).
+    split_schema_data "$F_PUBLIC_CLEAN.tmp" "$F_PUBLIC_DATA"
+    mv "$F_PUBLIC_CLEAN.tmp" "$F_PUBLIC_CLEAN"
+    ok "$(grep -c '^COPY ' "$F_PUBLIC_DATA") blok COPY data dipisah -> $(basename "$F_PUBLIC_DATA")"
 
     say "2/5 DATA auth.users + auth.identities (WAJIB — tanpa ini akun hilang)"
     pg_dump "$SRC" --data-only --no-owner --table=auth.users --table=auth.identities \
@@ -154,6 +173,7 @@ do_restore() {
     need_bin psql
     [ -s "$F_PUBLIC_CLEAN" ] || die "$F_PUBLIC_CLEAN tidak ada. Jalankan './backup-penuh.sh dump' dulu."
     [ -s "$F_AUTH" ]         || die "$F_AUTH tidak ada. Jalankan 'dump' dulu (bagian auth wajib)."
+    [ -s "$F_PUBLIC_DATA" ]  || die "$F_PUBLIC_DATA tidak ada. Dump versi lama; jalankan 'dump' ulang."
 
     # SEMUA berkas dijalankan dalam SATU sesi psql dan SATU transaksi.
     # Alasannya bukan kerapian: `set session_replication_role = replica` hanya
@@ -165,7 +185,8 @@ do_restore() {
     # Satu transaksi juga membuat restore bersifat semua-atau-tidak-sama-sekali:
     # gagal di tengah = target kembali kosong, aman untuk diulang.
     local args=(-v ON_ERROR_STOP=1 --single-transaction -q)
-    for f in "$F_PRE" "$F_PUBLIC_CLEAN" "$F_AUTH" "$F_STORAGE" "$F_POST"; do
+    # URUTAN PENTING: skema public -> DATA auth -> DATA public.
+    for f in "$F_PRE" "$F_PUBLIC_CLEAN" "$F_AUTH" "$F_PUBLIC_DATA" "$F_STORAGE" "$F_POST"; do
         [ -s "$f" ] || { warn "lewati $f (kosong)"; continue; }
         args+=(-f "$f")
     done

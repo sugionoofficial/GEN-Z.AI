@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -382,4 +382,56 @@ test("path folder ditampilkan (operator + hanya menggabung string, bukan interpo
     const ps = baca(PS1);
     assert.match(ps, /Ok "Isi folder: \$Dir"/, "harus memakai string ber-interpolasi");
     assert.doesNotMatch(ps, /Ok 'Isi folder: ' \+ \$Dir/, "jangan pakai operator + di dalam Ok(...)");
+});
+
+test("dump memisahkan skema public dari datanya", () => {
+    /* Restore berhenti dengan:
+         ERROR: insert or update on table "credit_transactions" violates
+                foreign key constraint "credit_transactions_created_by_fkey"
+       Sebabnya FK public -> auth.users diperiksa saat INSERT, sementara data
+       public dimuat sebelum auth.users ada. Solusinya memisahkan data. */
+    for (const [nama, berkas] of [["ps1", PS1], ["sh", SKRIP]]) {
+        const isi = baca(berkas);
+        assert.ok(isi.includes("1b_public_data.sql"), `${nama} harus punya berkas data public`);
+    }
+    assert.match(baca(PS1), /Split-SchemaData/);
+    assert.match(baca(SKRIP), /split_schema_data/);
+});
+
+test("urutan restore: skema public -> auth -> data public", () => {
+    /* Inilah inti perbaikan. Kalau urutan ini berubah, FK akan menolak lagi. */
+    const ps = baca(PS1);
+    assert.match(ps, /\$FPre, \$FPubClean, \$FAuth, \$FPubData, \$FStorage, \$FPost/,
+        "urutan ps1 salah");
+    const sh = baca(SKRIP);
+    assert.match(sh, /"\$F_PRE" "\$F_PUBLIC_CLEAN" "\$F_AUTH" "\$F_PUBLIC_DATA" "\$F_STORAGE" "\$F_POST"/,
+        "urutan sh salah");
+});
+
+test("pemisah data menangani blok COPY beserta penutupnya", () => {
+    /* Diuji langsung dengan dump sintetis: DDL tetap di skema, blok COPY
+       beserta semua barisnya pindah ke data, dan baris penutup \\. ikut. */
+    const tmp = fs.mkdtempSync(path.join(process.env.TMPDIR || "/tmp", "split-"));
+    const src = path.join(tmp, "in.sql");
+    fs.writeFileSync(src, [
+        "SET statement_timeout = 0;",
+        "CREATE TABLE public.t (id int);",
+        "COPY public.t (id) FROM stdin;",
+        "1", "2", "\\.",
+        "CREATE INDEX i ON public.t (id);",
+    ].join("\n"));
+    const fn = execFileSync("bash", ["-c",
+        `source <(sed -n '/^split_schema_data()/,/^}/p' "${SKRIP}"); ` +
+        `cd "${tmp}"; split_schema_data skema.sql data.sql < in.sql; ` +
+        `echo "---SKEMA---"; cat skema.sql; echo "---DATA---"; cat data.sql`
+    ], { encoding: "utf8" });
+
+    assert.match(fn, /CREATE TABLE public\.t \(id int\);/);
+    assert.match(fn, /CREATE INDEX i ON public\.t \(id\);/);
+    const skema = fn.split("---SKEMA---")[1].split("---DATA---")[0];
+    const data = fn.split("---DATA---")[1];
+    assert.doesNotMatch(skema, /^COPY /m, "COPY tidak boleh tertinggal di skema");
+    assert.match(data, /^COPY public\.t \(id\) FROM stdin;$/m);
+    assert.match(data, /^\\\.$/m, "baris penutup COPY harus ikut");
+    assert.match(data, /^2$/m, "isi baris harus ikut");
 });

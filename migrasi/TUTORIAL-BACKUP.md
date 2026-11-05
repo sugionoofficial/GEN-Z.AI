@@ -782,6 +782,31 @@ Skrip versi terbaru sudah membuang DDL fungsi platform (dan seluruh
 `CREATE EVENT TRIGGER`) dari dump, jadi restore bisa jalan. Kalau Anda masih
 melihat error ini, berkas skrip Anda versi lama.
 
+### Kalau restore berhenti: `violates foreign key constraint`
+
+```
+ERROR: insert or update on table "credit_transactions" violates
+       foreign key constraint "credit_transactions_created_by_fkey"
+```
+
+Ini **bukan** data rusak, dan bukan data hilang. Penyebabnya urutan pemuatan:
+tabel `credit_transactions` punya kolom `created_by` yang menunjuk ke
+`auth.users`. Kalau baris tabel itu dimuat **sebelum** akun penggunanya ada,
+PostgreSQL menolak — persis seperti yang seharusnya.
+
+Solusinya bukan mematikan pengecekan, melainkan memuat dengan urutan benar:
+
+```
+1. skema public  (tabel, index, constraint)
+2. DATA auth     (25 akun)
+3. DATA public   (4.449 baris)
+```
+
+Skrip versi terbaru memisahkan dump menjadi `1_public_clean.sql` (skema) dan
+`1b_public_data.sql` (data), lalu memuatnya dalam urutan di atas. Kalau Anda
+masih melihat error ini, folder `genz-backup` Anda hasil dump versi lama —
+**jalankan `dump` ulang**.
+
 ### Kalau restore gagal, apa yang terjadi pada project baru?
 
 **Tidak ada data separuh.** Seluruh restore berjalan dalam satu transaksi

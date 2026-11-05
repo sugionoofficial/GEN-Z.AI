@@ -63,6 +63,7 @@ $SrcUrl = if ($Src) { $Src } elseif ($SRC) { $SRC } else { $env:SRC }
 $DstUrl = if ($Dst) { $Dst } elseif ($DST) { $DST } else { $env:DST }
 $FPub      = Join-Path $Dir '1_public.sql'
 $FPubClean = Join-Path $Dir '1_public_clean.sql'
+$FPubData  = Join-Path $Dir '1b_public_data.sql'
 $FAuth     = Join-Path $Dir '2_auth.sql'
 $FStorage  = Join-Path $Dir '3_storage_meta.sql'
 $FPre      = Join-Path $Dir '0_pre.sql'
@@ -103,6 +104,53 @@ function Write-Utf8NoBom([string]$path, [string]$isi) {
 # Cukup jangan disalin.
 # ---------------------------------------------------------------------
 $FungsiPlatform = @('rls_auto_enable')
+
+# ---------------------------------------------------------------------
+# Pisahkan dump public menjadi SKEMA dan DATA.
+#
+# Kenapa perlu: foreign key dari tabel public ke auth.users
+# (mis. credit_transactions.created_by_fkey) diperiksa saat INSERT. Kalau
+# seluruh dump public dimuat lebih dulu sementara auth.users masih kosong,
+# baris pertama yang mereferensikan user akan ditolak:
+#   ERROR: insert or update on table "credit_transactions" violates foreign
+#          key constraint "credit_transactions_created_by_fkey"
+#
+# Urutan yang benar: SKEMA public -> DATA auth -> DATA public.
+# Dengan pemisahan ini, tidak ada lagi ketergantungan pada trik mematikan
+# trigger per sesi (session_replication_role), yang rapuh di pooler.
+#
+# Baris COPY pada dump pg_dump selalu diakhiri satu baris berisi "\.".
+# ---------------------------------------------------------------------
+function Split-SchemaData([string]$pathSumber, [string]$pathSkema, [string]$pathData) {
+    $skema = New-Object System.Collections.Generic.List[string]
+    $data  = New-Object System.Collections.Generic.List[string]
+    $dalamCopy = $false
+    $jumlahCopy = 0
+
+    foreach ($b in (Get-Content $pathSumber -Encoding UTF8)) {
+        if ($dalamCopy) {
+            $data.Add($b)
+            if ($b -eq '\.') { $dalamCopy = $false }
+            continue
+        }
+
+        if ($b -match '^COPY .* FROM stdin;$') {
+            $dalamCopy = $true
+            $jumlahCopy++
+            $data.Add($b)
+            continue
+        }
+
+        # Baris non-COPY selalu bagian skema. Setelan SET/set_config tidak perlu
+        # disalin ke bagian data karena preamble sudah mengirimkannya sendiri.
+        $skema.Add($b)
+    }
+
+    $enc = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllLines($pathSkema, $skema, $enc)
+    [System.IO.File]::WriteAllLines($pathData, $data, $enc)
+    return $jumlahCopy
+}
 
 function Remove-DdlPlatform([string]$pathSumber, [string]$pathTujuan) {
     # Buang blok CREATE [OR REPLACE] FUNCTION public.<nama platform> ...
@@ -202,6 +250,13 @@ function Invoke-Dump {
     $dibuang = Remove-DdlPlatform $sementara $FPubClean
     Remove-Item $sementara -ErrorAction SilentlyContinue
     Ok ("{0} baris -> {1}" -f (Get-Content $FPubClean).Count, $FPubClean)
+
+    # Pisahkan: skema dimuat lebih dulu, data public dimuat SETELAH auth
+    # (lihat catatan di Split-SchemaData).
+    $skemaSaja = Join-Path $Dir '1_public_schema.sql'
+    $jumlahCopy = Split-SchemaData $FPubClean $skemaSaja $FPubData
+    Move-Item -Force $skemaSaja $FPubClean
+    Ok ("{0} blok COPY data dipisah -> {1}" -f $jumlahCopy, (Split-Path $FPubData -Leaf))
     if ($dibuang -gt 0) {
         Ok ("{0} blok DDL fungsi platform dibuang (sudah ada di project baru): {1}" -f $dibuang, ($FungsiPlatform -join ', '))
     }
@@ -244,7 +299,7 @@ function Invoke-Dump {
     Say 'SELESAI'
     # [int] membulatkan ke bawah, sehingga berkas 700 byte tampil "0 KB" dan
     # terlihat seperti gagal. Pakai satu desimal + tandai berkas kosong.
-    foreach ($f in @($FPre, $FPubClean, $FAuth, $FStorage, $FPost)) {
+    foreach ($f in @($FPre, $FPubClean, $FAuth, $FPubData, $FStorage, $FPost)) {
         if (-not (Test-Path $f)) { continue }
         $kb = (Get-Item $f).Length / 1KB
         if ((Get-Item $f).Length -eq 0) {
@@ -261,16 +316,21 @@ function Invoke-Dump {
 function Invoke-Restore {
     $psql = Find-PgTool 'psql'
     Assert-Env
-    foreach ($f in @($FPubClean, $FAuth)) {
+    foreach ($f in @($FPubClean, $FAuth, $FPubData)) {
         if (-not (Test-Path $f) -or (Get-Item $f).Length -eq 0) {
-            Die "$f tidak ada atau kosong. Jalankan 'dump' dulu."
+            Die ("$f tidak ada atau kosong. Jalankan 'dump' dulu." +
+                 " Kalau folder ini hasil dump versi lama, dump perlu diulang" +
+                 " agar bagian data public terbentuk.")
         }
     }
     $dst = Encode-Url $DstUrl
 
     Say 'Menggabungkan berkas restore'
-    $bagian = @($FPre, $FPubClean, $FAuth, $FStorage, $FPost) | Where-Object {
-        (Test-Path $_) -and (Get-Item $_).Length -gt 0
+    # URUTAN INI YANG PENTING: skema public -> DATA auth -> DATA public.
+    # Data public harus setelah auth.users, karena FK credit_transactions ->
+    # auth.users diperiksa saat INSERT.
+    $bagian = @($FPre, $FPubClean, $FAuth, $FPubData, $FStorage, $FPost) | Where-Object {
+        $_ -and (Test-Path $_) -and (Get-Item $_).Length -gt 0
     }
     $enc = New-Object System.Text.UTF8Encoding($false)
     $stream = New-Object System.IO.StreamWriter($FGabung, $false, $enc)
