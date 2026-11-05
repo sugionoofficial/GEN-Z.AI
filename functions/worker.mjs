@@ -31,12 +31,14 @@ import { runSocialVideoAutopostCron } from "./_shared/social-video-autopost-cron
 import { runStorageRetentionCron } from "./_shared/storage-retention-cron.js";
 import { runSupportGuestCleanupCron } from "./_shared/support-guest-cleanup-cron.js";
 import { runMonitoringCron } from "./_shared/monitoring-cron.js";
+import { buildProxyResponse, detectProxy } from "../lib/anti-proxy/detect.js";
 import copilotSupabase from "../api/copilot-supabase.js";
 import copilotCloudflare from "../api/copilot-cloudflare.js";
 import copilotSession from "../api/copilot-session.js";
 import copilotUpload from "../api/copilot-upload.js";
 import handleTempmail from "./_shared/tempmail-handler.js";
 import handleFbMediaDownload from "./_shared/fb-media-handler.js";
+import antiProxyCheck from "../api/anti-proxy-check.js";
 
 const handlers = new Map([
     ["/api/admin-credit", adminCredit],
@@ -73,6 +75,7 @@ const handlers = new Map([
     ["/api/copilot-session", copilotSession],
     ["/api/copilot-upload", copilotUpload],
     ["/api/monitoring", monitoring],
+    ["/api/anti-proxy-check", antiProxyCheck],
     // Alias kept for the Deauthorize/Deletion URL field in the Meta dashboard.
     ["/api/data-deletion", facebookDataDeletion]
 ]);
@@ -138,6 +141,34 @@ export default {
     async fetch(request, env, context) {
         const url = new URL(request.url);
         const pathname = url.pathname.replace(/\/+$/, "") || "/";
+
+        // =====================================================
+        // ANTI-PROXY / MITM (Reqable, Charles, Fiddler)
+        // Putus koneksi bila API di-capture lewat proxy debugging.
+        // =====================================================
+        if (pathname.startsWith("/api/") && pathname !== "/api/anti-proxy-check") {
+            const probe = detectProxy(request);
+            if (probe.blocked) {
+                // log ke monitoring (fire-and-forget) agar admin lihat di BLACK BOX
+                try {
+                    const ip = String(request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+                    const logHeaders = Object.fromEntries([...request.headers.entries()].slice(0, 12).map(([k,v])=>[k,String(v).slice(0,120)]));
+                    context.waitUntil && context.waitUntil((async()=>{
+                        try {
+                            const envCfg = env || {};
+                            if (!envCfg.SUPABASE_URL || !envCfg.SUPABASE_SERVICE_ROLE_KEY) return;
+                            await fetch(`${String(envCfg.SUPABASE_URL).replace(/\/+$/,"")}/rest/v1/monitoring_events`, {
+                                method:"POST",
+                                headers:{ apikey: envCfg.SUPABASE_SERVICE_ROLE_KEY, Authorization:`Bearer ${envCfg.SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type":"application/json", Prefer:"return=minimal" },
+                                body: JSON.stringify({ kind:"security", severity:"critical", path: pathname, message:`Proxy/MITM terdeteksi: ${probe.reasonText.slice(0,300)}`, detail:{ reason: probe.reasonText, severity: probe.severity, headers: logHeaders, ip }, ip, user_agent: String(request.headers.get("user-agent")||"").slice(0,400) })
+                            });
+                        } catch{}
+                    })());
+                } catch{}
+                const built = buildProxyResponse(probe.reasonText);
+                return applySecurityHeaders(new Response(built.body, { status: built.status, headers: built.headers }), true);
+            }
+        }
 
         // Perlindungan Rate Limiting API terhadap flooding / brute-force Reqable
         if (
@@ -223,7 +254,19 @@ export default {
             );
         }
 
+        // Inject anti-proxy guard ke halaman HTML (client-side lockdown)
         const assetRes = await env.ASSETS.fetch(request);
+        const ct = assetRes.headers.get("content-type") || "";
+        if (ct.includes("text/html")) {
+            try {
+                const html = await assetRes.text();
+                if (html.includes("</head>") && !html.includes("anti-proxy-guard.js")) {
+                    const injected = html.replace("</head>", '<script src="/assets/js/anti-proxy-guard.js?v=20261107a"></script></head>');
+                    return applySecurityHeaders(new Response(injected, { status: assetRes.status, headers: assetRes.headers }), false);
+                }
+                return applySecurityHeaders(new Response(html, { status: assetRes.status, headers: assetRes.headers }), false);
+            } catch {}
+        }
         return applySecurityHeaders(assetRes, false);
     },
 
