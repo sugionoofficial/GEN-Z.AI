@@ -435,3 +435,22 @@ test("pemisah data menangani blok COPY beserta penutupnya", () => {
     assert.match(data, /^\\\.$/m, "baris penutup COPY harus ikut");
     assert.match(data, /^2$/m, "isi baris harus ikut");
 });
+
+test("verify-restore.sql hanya berisi SATU statement", () => {
+    /* SQL Editor Supabase hanya menampilkan hasil query TERAKHIR. Versi
+       sebelumnya memakai tiga query terpisah; pengguna hanya melihat hasil
+       3/3 (jumlah fungsi) dan mengira 60 tabel tidak terperiksa. */
+    const sql = baca(VERIFIKASI);
+    const titikKoma = (sql.match(/;/g) || []).length;
+    assert.equal(titikKoma, 1, `harus tepat satu statement, dapat ${titikKoma} titik koma`);
+    assert.match(sql, /order by no;\s*$/);
+});
+
+test("verify-restore.sql memberi status OK / PERIKSA per baris", () => {
+    /* Pengguna tidak perlu mencocokkan angka dengan mata; setiap baris
+       menilai dirinya sendiri. */
+    const sql = baca(VERIFIKASI);
+    assert.match(sql, /'OK'/);
+    assert.match(sql, /'PERIKSA'/);
+    assert.match(sql, /tabel_bermasalah/, "harus menyebut nama tabel yang gagal");
+});
