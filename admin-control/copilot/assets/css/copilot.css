@@ -933,6 +933,47 @@ select.field { font-size: 10.5px; }
     .workspace { padding-top: 10px; }
 }
 
+
+ /* ---------------------------------------------------------------------
+    CONNECTORS BAR — Supabase + Cloudflare
+    --------------------------------------------------------------------- */
+ .connectors-bar { flex: 0 0 auto; display:flex; gap:8px; padding:6px var(--gutter); border-bottom:1px solid var(--line); background: rgba(255,255,255,.018); flex-wrap:wrap; }
+ .connector-card { flex:1 1 180px; display:flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; background: rgba(255,255,255,.03); color:var(--soft); font-size:10px; font-weight:700; white-space:nowrap; cursor:pointer; transition:.15s ease; }
+ .connector-card:hover { border-color: var(--line-strong); background: rgba(255,255,255,.06); }
+ .connector-card.is-connected { border-color: rgba(95,216,160,.35); background: rgba(95,216,160,.08); }
+ .connector-card.is-error { border-color: rgba(255,107,122,.35); background: rgba(255,107,122,.07); }
+ .connector-icon { font-size:12px; }
+ .connector-label { font-weight:800; letter-spacing:.4px; }
+ .connector-status { display:flex; align-items:center; gap:5px; margin-left:auto; font: 10px ui-monospace, monospace; color:var(--muted); }
+ .connector-chevron { opacity:.5; }
+ .connector-detail { flex:1 1 100%; padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius-md); background:#0a0c10; font-size:10.5px; line-height:1.6; max-height:180px; overflow:auto; white-space:pre-wrap; }
+ /* ---------------------------------------------------------------------
+    SESSION BAR
+    --------------------------------------------------------------------- */
+ .session-bar { flex:0 0 auto; display:flex; gap:6px; padding:8px 12px 0; align-items:center; }
+ .session-select { flex:1 1 auto; min-width:0; height:30px; font-size:11px; }
+ .session-actions { display:flex; gap:4px; }
+ .session-actions .icon-button { width:26px; height:26px; font-size:11px; }
+ /* ---------------------------------------------------------------------
+    UPLOAD & ATTACHMENTS
+    --------------------------------------------------------------------- */
+ .upload-preview { display:flex; gap:6px; flex-wrap:wrap; padding:8px 12px 0; }
+ .upload-preview img { width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
+ .upload-file-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 8px; border:1px solid var(--line); border-radius:999px; background: rgba(255,255,255,.04); font-size:10px; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+ .attachments-bar { display:flex; align-items:center; gap:8px; padding:4px 12px; font-size:10px; color:var(--muted); }
+ .attachments-toggle { display:flex; align-items:center; gap:4px; cursor:pointer; }
+ .chat-input-wrap { position:relative; }
+ .chat-input-actions { position:absolute; right:6px; bottom:6px; display:flex; gap:4px; }
+ .attach-button { width:28px; height:28px; border-radius:8px; background: rgba(255,255,255,.06); }
+ /* ---------------------------------------------------------------------
+    COPY BUTTONS
+    --------------------------------------------------------------------- */
+ .message-tools { display:flex; gap:6px; margin-top:6px; }
+ .copy-btn { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border:1px solid var(--line); border-radius:6px; background: rgba(255,255,255,.04); color:var(--muted); font-size:9.5px; cursor:pointer; }
+ .copy-btn:hover { color:var(--text); border-color: var(--line-strong); background: rgba(255,255,255,.08); }
+ .copy-btn.copied { color:var(--green); border-color: rgba(95,216,160,.4); }
+ .chat-message .chat-body { position:relative; }
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: .01ms !important;
