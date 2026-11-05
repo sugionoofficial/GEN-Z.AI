@@ -31,6 +31,10 @@ import { runSocialVideoAutopostCron } from "./_shared/social-video-autopost-cron
 import { runStorageRetentionCron } from "./_shared/storage-retention-cron.js";
 import { runSupportGuestCleanupCron } from "./_shared/support-guest-cleanup-cron.js";
 import { runMonitoringCron } from "./_shared/monitoring-cron.js";
+import copilotSupabase from "../api/copilot-supabase.js";
+import copilotCloudflare from "../api/copilot-cloudflare.js";
+import copilotSession from "../api/copilot-session.js";
+import copilotUpload from "../api/copilot-upload.js";
 import handleTempmail from "./_shared/tempmail-handler.js";
 import handleFbMediaDownload from "./_shared/fb-media-handler.js";
 
@@ -64,6 +68,10 @@ const handlers = new Map([
     ["/api/facebook-oauth-callback", socialPublisher],
     ["/api/facebook-data-deletion", facebookDataDeletion],
     // BLACK BOX // MONITORING — log aktivitas, kesehatan web, temuan bug.
+    ["/api/copilot-supabase", copilotSupabase],
+    ["/api/copilot-cloudflare", copilotCloudflare],
+    ["/api/copilot-session", copilotSession],
+    ["/api/copilot-upload", copilotUpload],
     ["/api/monitoring", monitoring],
     // Alias kept for the Deauthorize/Deletion URL field in the Meta dashboard.
     ["/api/data-deletion", facebookDataDeletion]

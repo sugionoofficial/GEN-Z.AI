@@ -437,26 +437,66 @@
             if(els.cloudflareDetail){ els.cloudflareDetail.textContent = msg; els.cloudflareDetail.dataset.payload = msg; }
         }
     }
+    function renderConnectorGuide(detailEl, kind, data){
+        if(detailEl.queryRendered) return;
+        // clear raw JSON text first and build friendly UI
+        const raw = detailEl.dataset.payload || "";
+        detailEl.textContent = "";
+        const wrap = document.createElement("div");
+        wrap.style.lineHeight = "1.6";
+        try{
+            const j = JSON.parse(raw);
+            if(kind==="supabase"){
+                const url = j.url || "-";
+                const ref = j.projectRef || (url.match(/https:\/\/([^.]+)\.supabase\.co/)||[])[1]||"-";
+                const buckets = (j.buckets||[]).map(b=>b.name).join(", ") || "-";
+                wrap.innerHTML = `<div style="font-weight:700;color:var(--amber-bright)">⬢ Supabase — ${j.storageOk? "terhubung" : "terhubung"}</div>
+                <div>Project: <b>${ref}</b></div><div style="font:10px ui-monospace,monospace;opacity:.8;word-break:break-all">${url}</div>
+                <div>Buckets: ${buckets}</div>
+                <div style="margin-top:6px;opacity:.9">Sudah terhubung otomatis via Worker secrets <code>SUPABASE_URL</code> + <code>SUPABASE_SERVICE_ROLE_KEY</code> (tidak perlu konek manual).<br>
+                Untuk ganti project: Cloudflare Dashboard → Workers & Pages → <b>genzai</b> → Settings → Variables → Edit <code>SUPABASE_URL</code> / <code>SUPABASE_SERVICE_ROLE_KEY</code> lalu Redeploy.</div>`;
+                const probe = j.probeResults||[];
+                if(probe.length){
+                    const p = document.createElement("div"); p.style.marginTop="6px"; p.style.fontSize="10px";
+                    p.innerHTML = "<b>Probe:</b> " + probe.map(r=> r.ok? `${r.table}✓` : `${r.table}✗`).join(" · ");
+                    wrap.append(p);
+                }
+            } else {
+                const cfg = j.configured;
+                wrap.innerHTML = `<div style="font-weight:700;color:var(--amber-bright)">⬣ Cloudflare — ${cfg? "terhubung" : "belum set"}</div>
+                <div>${j.note || ""}</div>
+                <div style="margin-top:6px">Token: <code>${j.envHint?.CLOUDFLARE_API_TOKEN||"-"}</code> · Account: <code>${j.envHint?.CLOUDFLARE_ACCOUNT_ID||"-"}</code></div>
+                <div style="margin-top:6px;opacity:.9">${cfg? `Workers: ${(j.workers||[]).map(w=>w.name).join(", ")||"-"}` : `Cara koneksikan:<br>1. Buat API Token: Cloudflare Dashboard → My Profile → API Tokens → Create Token → Edit Cloudflare Workers (Account.Resources:Include)<br>2. Salin <code>Account ID</code> dari Workers → Overview (kanan)<br>3. Workers → <b>genzai</b> → Settings → Variables → Add variable → <code>CLOUDFLARE_API_TOKEN</code> (Encrypt) + <code>CLOUDFLARE_ACCOUNT_ID</code><br>4. Save & Deploy`}</div>`;
+                if(j.error) { const e=document.createElement("div"); e.style.color="#ff9ca7"; e.style.marginTop="6px"; e.textContent="Error: "+j.error; wrap.append(e); }
+            }
+        }catch{
+            wrap.textContent = raw || "Memuat…";
+        }
+        detailEl.append(wrap);
+        if(kind==="supabase"){
+            const bar = document.createElement("div"); bar.style.display="flex"; bar.style.gap="6px"; bar.style.marginTop="8px";
+            const inp = document.createElement("input"); inp.placeholder="tabel (mis: profiles)"; inp.className="field"; inp.style.flex="1"; inp.style.height="28px";
+            const btn = document.createElement("button"); btn.textContent="Query 10"; btn.className="button button-secondary"; btn.style.minHeight="28px";
+            const pre = document.createElement("pre"); pre.style.marginTop="8px"; pre.style.maxHeight="120px"; pre.style.overflow="auto"; pre.style.fontSize="10px"; pre.style.whiteSpace="pre-wrap";
+            btn.onclick = async ()=>{ if(!inp.value.trim()) return; btn.disabled=true; pre.textContent="loading…"; try{ const j=await apiRequest("/api/copilot-supabase?action=query",{method:"POST", body:JSON.stringify({table:inp.value.trim(), limit:10})}); pre.textContent = JSON.stringify(j.rows,null,2); }catch(e){ pre.textContent=e.message; } btn.disabled=false; };
+            bar.append(inp,btn); detailEl.append(bar,pre);
+        }
+        // raw JSON collapsible
+        const rawToggle = document.createElement("details"); rawToggle.style.marginTop="8px";
+        const sum = document.createElement("summary"); sum.textContent="Lihat JSON mentah"; sum.style.cursor="pointer"; sum.style.fontSize="10px"; sum.style.opacity=".7";
+        const preRaw = document.createElement("pre"); preRaw.textContent = raw; preRaw.style.fontSize="9px"; preRaw.style.maxHeight="160px"; preRaw.style.overflow="auto"; preRaw.style.whiteSpace="pre-wrap";
+        rawToggle.append(sum, preRaw); detailEl.append(rawToggle);
+        detailEl.queryRendered = true;
+    }
     function toggleConnectorDetail(detailEl){
         if(!detailEl) return;
         const isHidden = detailEl.hidden;
-        // hide both first
         if(els.supabaseDetail) els.supabaseDetail.hidden = true;
         if(els.cloudflareDetail) els.cloudflareDetail.hidden = true;
         if(isHidden){
-            // render payload if not yet
-            if(detailEl.dataset.payload && !detailEl.textContent) detailEl.textContent = detailEl.dataset.payload;
-            if(!detailEl.textContent) detailEl.textContent = "Memuat…";
+            const kind = detailEl===els.supabaseDetail ? "supabase" : "cloudflare";
+            if(!detailEl.queryRendered) renderConnectorGuide(detailEl, kind);
             detailEl.hidden = false;
-            // simple explorer for supabase: allow query
-            if(detailEl===els.supabaseDetail && !detailEl.queryRendered){
-                const bar = document.createElement("div"); bar.style.display="flex"; bar.style.gap="6px"; bar.style.marginTop="8px";
-                const inp = document.createElement("input"); inp.placeholder="tabel (mis: profiles)"; inp.className="field"; inp.style.flex="1"; inp.style.height="28px";
-                const btn = document.createElement("button"); btn.textContent="Query 10"; btn.className="button button-secondary"; btn.style.minHeight="28px";
-                const pre = document.createElement("pre"); pre.style.marginTop="8px"; pre.style.maxHeight="120px"; pre.style.overflow="auto"; pre.style.fontSize="10px";
-                btn.onclick = async ()=>{ if(!inp.value.trim()) return; btn.disabled=true; pre.textContent="loading…"; try{ const j=await apiRequest("/api/copilot-supabase?action=query",{method:"POST", body:JSON.stringify({table:inp.value.trim(), limit:10})}); pre.textContent = JSON.stringify(j.rows,null,2); }catch(e){ pre.textContent=e.message; } btn.disabled=false; };
-                bar.append(inp,btn); detailEl.append(bar,pre); detailEl.queryRendered=true;
-            }
         }
     }
 
