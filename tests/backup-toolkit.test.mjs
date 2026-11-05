@@ -286,3 +286,38 @@ test("skrip .ps1 menerima alamat lewat $env:SRC (variabel tidak diwarisi -File)"
     // Tidak boleh lagi hanya bergantung pada $SRC/$DST.
     assert.doesNotMatch(tanpaKomentar(ps), /if \(-not \$SRC\)/, "jangan hanya cek $SRC");
 });
+
+test("ringkasan ukuran tidak menampilkan berkas kecil sebagai 0 KB", () => {
+    /* [int] membulatkan ke bawah: berkas 700 byte tampil "0 KB" dan terlihat
+       gagal padahal normal (pembungkus restore memang kecil). */
+    const ps = baca(PS1);
+    assert.doesNotMatch(ps, /\[int\]\(\(Get-Item \$f\)\.Length \/ 1KB\)/,
+        "jangan membulatkan ukuran dengan [int]");
+    assert.match(ps, /N1/, "pakai satu angka desimal");
+    assert.match(ps, /\(kosong, normal untuk pembungkus\)/, "tandai berkas kosong secara eksplisit");
+});
+
+test("dump memverifikasi blok COPY di berkas auth", () => {
+    /* Ukuran saja tidak cukup: berkas bisa besar tetapi berisi komentar saja
+       (COPY tidak ada) ketika tidak ada user. Hitung blok COPY langsung. */
+    const ps = baca(PS1);
+    assert.match(ps, /Select-String -Pattern '\^COPY '/);
+    assert.match(ps, /barisCopy -lt 1/, "harus berhenti bila tidak ada blok COPY");
+});
+
+test("tutorial memberi tahu bedanya error SQL Editor vs terminal", () => {
+    /* Pengguna menempelkan `cd $HOME\Desktop\genz-migrasi` ke SQL Editor dan
+       mendapat `ERROR: 42601: syntax error at or near "cd"`. Panduan harus
+       menautkan gejala itu ke penyebabnya, bukan hanya melarang. */
+    const t = baca(path.join(ROOT, "migrasi", "TUTORIAL-BACKUP.md"));
+    assert.match(t, /syntax error at or near/);
+    assert.ok(t.includes("cd $HOME"), "harus memakai contoh nyata yang dilaporkan");
+    assert.match(t, /Kesalahan yang paling sering terjadi/);
+});
+
+test("tutorial memisahkan cek pra-restore (SQL) dari restore (terminal)", () => {
+    const t = baca(path.join(ROOT, "migrasi", "TUTORIAL-BACKUP.md"));
+    assert.match(t, /select count\(\*\) as jumlah_tabel from pg_tables/);
+    assert.match(t, /### 5a\./);
+    assert.match(t, /### 5b\./);
+});

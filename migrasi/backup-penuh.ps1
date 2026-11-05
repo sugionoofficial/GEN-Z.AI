@@ -144,7 +144,9 @@ function Invoke-Dump {
     if ($ukuranAuth -lt 2000) {
         Die "berkas auth hanya $ukuranAuth byte. Kemungkinan 25 akun tidak ikut. Jangan lanjut."
     }
-    Ok ("{0} KB, berisi data auth" -f [int]($ukuranAuth / 1KB))
+    $barisCopy = (Get-Content $FAuth -Encoding UTF8 | Select-String -Pattern '^COPY ' | Measure-Object).Count
+    Ok ("{0:N1} KB, {1} blok COPY (harus 2: auth.users + auth.identities)" -f ($ukuranAuth / 1KB), $barisCopy)
+    if ($barisCopy -lt 1) { Die 'berkas auth tidak memuat satu pun blok COPY. Jangan lanjut restore.' }
 
     Say '3/5 metadata storage.buckets + storage.objects (file menyusul di Fase B)'
     & $pgDump $src --data-only --no-owner --table=storage.buckets --table=storage.objects -f $FStorage
@@ -171,9 +173,18 @@ function Invoke-Dump {
     Write-Utf8NoBom $FPost $postSql
 
     Say 'SELESAI'
+    # [int] membulatkan ke bawah, sehingga berkas 700 byte tampil "0 KB" dan
+    # terlihat seperti gagal. Pakai satu desimal + tandai berkas kosong.
     foreach ($f in @($FPre, $FPubClean, $FAuth, $FStorage, $FPost)) {
-        if (Test-Path $f) { Ok ("{0,8} KB  {1}" -f [int]((Get-Item $f).Length / 1KB), $f) }
+        if (-not (Test-Path $f)) { continue }
+        $kb = (Get-Item $f).Length / 1KB
+        if ((Get-Item $f).Length -eq 0) {
+            Warn ("{0,9}  {1} (kosong, normal untuk pembungkus)" -f '0 KB', (Split-Path $f -Leaf))
+        } else {
+            Ok ("{0,9}  {1}" -f ("{0:N1} KB" -f $kb), (Split-Path $f -Leaf))
+        }
     }
+    Ok 'Isi folder: ' + $Dir
     Warn "Folder $Dir berisi PII (hash password + API key). Jangan di-commit atau di-upload."
     Warn 'Lanjut: powershell -ExecutionPolicy Bypass -File .\backup-penuh.ps1 restore'
 }
