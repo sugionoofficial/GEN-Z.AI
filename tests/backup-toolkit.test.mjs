@@ -375,3 +375,11 @@ test("versi bash ikut membersihkan DDL platform", () => {
     assert.match(sh, /FUNGSI_PLATFORM='rls_auto_enable'/);
     assert.match(sh, /strip_ddl_platform > "\$F_PUBLIC_CLEAN"/);
 });
+
+test("path folder ditampilkan (operator + hanya menggabung string, bukan interpolasi)", () => {
+    /* 'Isi folder: ' + $Dir di dalam Ok(...) mencetak kosong: yang sampai ke
+       Ok hanyalah argumen kedua, karena + dianggap parameter tambahan. */
+    const ps = baca(PS1);
+    assert.match(ps, /Ok "Isi folder: \$Dir"/, "harus memakai string ber-interpolasi");
+    assert.doesNotMatch(ps, /Ok 'Isi folder: ' \+ \$Dir/, "jangan pakai operator + di dalam Ok(...)");
+});

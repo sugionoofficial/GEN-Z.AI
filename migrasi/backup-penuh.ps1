@@ -253,7 +253,7 @@ function Invoke-Dump {
             Ok ("{0,9}  {1}" -f ("{0:N1} KB" -f $kb), (Split-Path $f -Leaf))
         }
     }
-    Ok 'Isi folder: ' + $Dir
+    Ok "Isi folder: $Dir"
     Warn "Folder $Dir berisi PII (hash password + API key). Jangan di-commit atau di-upload."
     Warn 'Lanjut: powershell -ExecutionPolicy Bypass -File .\backup-penuh.ps1 restore'
 }
