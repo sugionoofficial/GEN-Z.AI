@@ -45,6 +45,36 @@ ok()   { printf '  \033[32mOK\033[0m   %s\n' "$*"; }
 warn() { printf '  \033[33m!\033[0m    %s\n' "$*"; }
 die()  { printf '\n\033[31mGAGAL:\033[0m %s\n' "$*" >&2; exit 1; }
 
+# Project Supabase selalu sudah punya fungsi public.rls_auto_enable() (dipakai
+# event trigger `ensure_rls`). Dump ikut membawanya, lalu restore berhenti:
+#   ERROR: function "rls_auto_enable" already exists with same argument types
+# Fungsi itu milik platform, bukan aplikasi, jadi aman dibuang dari dump.
+# JANGAN men-drop-nya di target: baris ALTER FUNCTION dari dump akan gagal
+# dengan 'function does not exist'. Cukup jangan disalin.
+FUNGSI_PLATFORM='rls_auto_enable'
+
+strip_ddl_platform() {
+    awk -v nama="$FUNGSI_PLATFORM" '
+        BEGIN { lewati = 0; n = 0 }
+        lewati == 0 {
+            pola = "^CREATE (OR REPLACE )?FUNCTION public\\.(" nama ")\\("
+            if ($0 ~ pola) { lewati = 1; n = 0; next }
+            # Event trigger di project Supabase (ensure_rls, pgrst_*, issue_*)
+            # semuanya milik platform dan sudah ada di target; menyalinnya
+            # hanya menghasilkan galat event trigger already exists.
+            # CATATAN: jangan menulis tanda kutip tunggal di komentar awk ini,
+            # karena akan menutup string shell pemanggilnya.
+            if ($0 ~ "^CREATE EVENT TRIGGER ") { next }
+            print; next
+        }
+        lewati == 1 {
+            n++
+            if (n > 400) { print "PENUTUP FUNGSI TIDAK DITEMUKAN" > "/dev/stderr"; exit 3 }
+            if ($0 ~ /\$\$;[[:space:]]*$/) { lewati = 0 }
+        }
+    '
+}
+
 need_bin() {
     command -v "$1" >/dev/null 2>&1 || die "$1 tidak ditemukan. Install PostgreSQL client (lihat BACKUP-PENUH.md bagian 0)."
 }
@@ -69,7 +99,8 @@ do_dump() {
     # Di project target skema public SUDAH ada, sehingga dua baris itu pasti
     # error saat restore. Dibuang di sini, bukan diabaikan saat restore,
     # supaya restore tetap bisa memakai ON_ERROR_STOP=1.
-    grep -v -E '^(CREATE SCHEMA public;|ALTER SCHEMA public OWNER TO )' "$F_PUBLIC" > "$F_PUBLIC_CLEAN"
+    grep -v -E '^(CREATE SCHEMA public;|ALTER SCHEMA public OWNER TO )' "$F_PUBLIC" \
+        | strip_ddl_platform > "$F_PUBLIC_CLEAN"
     ok "$(wc -l < "$F_PUBLIC_CLEAN") baris"
 
     say "2/5 DATA auth.users + auth.identities (WAJIB — tanpa ini akun hilang)"

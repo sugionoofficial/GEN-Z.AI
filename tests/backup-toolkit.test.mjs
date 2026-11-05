@@ -259,7 +259,11 @@ test("skrip .ps1 tidak diawali BOM (psql menolak baris pertama)", () => {
 });
 
 test("skrip .ps1 menyeimbangkan kurung kurawal dan kurung biasa", () => {
-    const kode = tanpaKomentar(baca(PS1));
+    /* Isi string harus dibuang dulu: format string seperti "{0} baris" dan
+       regex '\$\$;' memuat kurung yang bukan penanda blok. */
+    const kode = tanpaKomentar(baca(PS1))
+        .replace(/'[^'\n]*'/g, "''")
+        .replace(/"[^"\n]*"/g, '""');
     const hitung = (c) => (kode.match(new RegExp(`\\${c}`, "g")) || []).length;
     assert.equal(hitung("{"), hitung("}"), "kurung kurawal tidak seimbang");
     assert.equal(hitung("("), hitung(")"), "kurung biasa tidak seimbang");
@@ -320,4 +324,54 @@ test("tutorial memisahkan cek pra-restore (SQL) dari restore (terminal)", () => 
     assert.match(t, /select count\(\*\) as jumlah_tabel from pg_tables/);
     assert.match(t, /### 5a\./);
     assert.match(t, /### 5b\./);
+});
+
+test("skrip .ps1 menetralkan fungsi platform Supabase sebelum restore", () => {
+    /* Restore berhenti dengan:
+         ERROR: function "rls_auto_enable" already exists with same argument types
+       Penyebabnya fungsi public.rls_auto_enable() milik Supabase (event trigger
+       ensure_rls) yang SELALU ada di project baru, sementara dump ikut
+       membawanya. Ini bukan data pengguna, jadi aman dinetralkan. */
+    const ps = baca(PS1);
+    assert.ok(ps.includes("rls_auto_enable"), "harus mengenali nama fungsi platform");
+    assert.match(ps, /Remove-DdlPlatform/, "dump harus dibersihkan dari DDL fungsi platform");
+    /* Strategi yang BENAR adalah tidak menyalin, bukan men-drop di target.
+       Men-drop lebih dulu membuat baris ALTER FUNCTION dari dump gagal dengan
+       'function does not exist'. */
+    assert.doesNotMatch(ps, /drop function if exists/i,
+        "jangan drop fungsi platform: ALTER FUNCTION dari dump akan gagal");
+});
+
+test("pembersihan DDL platform berhenti bila pola tidak cocok", () => {
+    /* Kalau penutup $$; tidak ditemukan, skrip berisiko memotong sisa berkas
+       secara diam-diam dan menghasilkan dump cacat yang tetap 'berhasil'.
+       Harus berhenti terang-terangan. */
+    const ps = baca(PS1);
+    assert.match(ps, /dilewati -gt 400/);
+    assert.match(ps, /jangan restore dump ini/);
+});
+
+test("skrip .ps1 tetap ASCII murni setelah penambahan preamble", () => {
+    const isi = baca(PS1);
+    const bukanAscii = [...isi].filter((c) => c.charCodeAt(0) > 127);
+    assert.deepEqual(bukanAscii, [], `non-ASCII: ${JSON.stringify(bukanAscii.join(""))}`);
+    const buf = fs.readFileSync(PS1);
+    assert.notDeepEqual([...buf.subarray(0, 3)], [0xef, 0xbb, 0xbf], "tidak boleh berawalan BOM");
+});
+
+test("DDL platform yang dibuang mencakup event trigger", () => {
+    /* Event trigger Supabase (ensure_rls, pgrst_ddl_watch, issue_*) semuanya
+       milik platform dan sudah ada di target. Sumbernya memuat 7 event
+       trigger; menyalinnya hanya menghasilkan 'already exists'. */
+    for (const [nama, berkas] of [["ps1", PS1], ["sh", SKRIP]]) {
+        const isi = baca(berkas);
+        assert.match(isi, /EVENT TRIGGER/, `${nama} harus membuang CREATE EVENT TRIGGER`);
+    }
+});
+
+test("versi bash ikut membersihkan DDL platform", () => {
+    const sh = baca(SKRIP);
+    assert.match(sh, /strip_ddl_platform/);
+    assert.match(sh, /FUNGSI_PLATFORM='rls_auto_enable'/);
+    assert.match(sh, /strip_ddl_platform > "\$F_PUBLIC_CLEAN"/);
 });
