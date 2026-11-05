@@ -347,7 +347,12 @@ function loadLockdownBeacon(options = {}) {
         serverEmail = null,
         devtoolsLockdown = true,
         localSpoofRole = "",
-        hasAccessToken = false
+        hasAccessToken = false,
+        /* Biarkan fetch menggantung: meniru kondisi nyata saat server belum
+           sempat menjawab ketika pemeriksaan pertama berjalan. */
+        skipServerResponse = false,
+        /* Nilai awal localStorage, mis. saklar darurat. */
+        localStorageSeed = null
     } = options;
 
     const source = read("assets/js/security-beacon.js");
@@ -358,6 +363,9 @@ function loadLockdownBeacon(options = {}) {
 
     if (localSpoofRole) {
         store.set("genz-auth-profile-cache-v1", JSON.stringify({ role: localSpoofRole }));
+    }
+    if (localStorageSeed) {
+        for (const [k, v] of Object.entries(localStorageSeed)) store.set(k, String(v));
     }
     if (hasAccessToken) {
         store.set(
@@ -423,6 +431,9 @@ function loadLockdownBeacon(options = {}) {
     }
 
     const initialFetch = async (_url, reqOpts = {}) => {
+        if (skipServerResponse) {
+            return new Promise(() => {});
+        }
         sent.push({
             headers: reqOpts.headers || {},
             body: JSON.parse(reqOpts.body || "{}")
@@ -839,4 +850,84 @@ test("layar lockdown memberi tombol keluar yang berfungsi untuk pengelola", () =
     // Handler harus terpasang, bukan sekadar tombol hiasan.
     const blok = src.slice(src.indexOf("genz-lockdown-exit-btn"));
     assert.match(blok, /exitBtn\.onclick/, "tombol keluar harus punya handler");
+});
+
+test("sebelum server menjawab dan tanpa petunjuk lokal, penguncian DITAHAN (fail-safe)", async () => {
+    /*
+     * Versi sebelumnya langsung mengunci bila petunjuk lokal kosong. Petunjuk
+     * itu kosong pada kondisi nyata: navigation.js dan security-beacon.js dua-
+     * duanya `defer`, urutannya bisa terbalik sehingga profil belum siap.
+     * Hasilnya OWNER asli terkunci pada pemeriksaan pertama dan tidak pernah
+     * bisa masuk kembali.
+     */
+    const env = loadLockdownBeacon({
+        navRole: "",
+        localSpoofRole: "",
+        hasAccessToken: false,
+        serverIsOwner: false,
+        serverRole: "",
+        skipServerResponse: true
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    let prevented = false;
+    env.dispatchWindow("keydown", {
+        key: "F12",
+        keyCode: 123,
+        preventDefault: () => { prevented = true; }
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    assert.equal(prevented, false, "tanpa bukti apa pun, pintasan tidak boleh diblokir");
+    assert.equal(env.window.GENZMonitor.isLockedDown(), false, "jangan menebak; tunggu server");
+});
+
+test("probe console tidak memicu penguncian (aplikasi dalam & DevTools bawaan)", async () => {
+    /*
+     * console.log(objek) terjadi saat halaman dibuka dari dalam Instagram/
+     * Facebook/TikTok, pada panel Console browser seluler, dan oleh ekstensi.
+     * Dulu getter probe memanggil scheduleLockdownCheck(), sehingga orang
+     * terkunci hanya karena membuka halaman dari dalam aplikasi.
+     */
+    const env = loadLockdownBeacon({
+        serverIsOwner: false,
+        serverRole: "guest",
+        ns: "probe-no-lock"
+    });
+
+    // Pemicu getter probe seperti DevTools memformat objek.
+    const probeObj = env.window.__GENZ_PROBE__;
+    void probeObj;
+    await new Promise(resolve => setTimeout(resolve, 15));
+
+    assert.equal(
+        env.window.GENZMonitor.isLockedDown(),
+        false,
+        "probe console bukan bukti yang cukup untuk memutus halaman"
+    );
+});
+
+test("saklar darurat localStorage mematikan penguncian di browser itu saja", async () => {
+    /*
+     * Layar kunci memutus semua koneksi halaman, jadi bila salah picu pemilik
+     * perangkat tidak punya jalan keluar lain. Saklar ini lokal: tidak
+     * mengubah server, tidak melonggarkan pengguna lain.
+     */
+    const env = loadLockdownBeacon({
+        serverIsOwner: false,
+        serverRole: "guest",
+        localStorageSeed: { "genz-devtools-unlock": "1" },
+        ns: "unlock"
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    let prevented = false;
+    env.dispatchWindow("keydown", {
+        key: "F12",
+        keyCode: 123,
+        preventDefault: () => { prevented = true; }
+    });
+
+    assert.equal(prevented, false, "saklar darurat harus meloloskan pintasan");
+    assert.equal(env.window.GENZMonitor.isLockedDown(), false);
 });
