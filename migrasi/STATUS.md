@@ -409,3 +409,36 @@ Semua file lama utuh 112/112; nol objek 0 byte; semua punya metadata ukuran.
 yang sudah hidup. Yang berbahaya adalah **KURANG** dari jumlah sumber; **LEBIH**
 adalah aktivitas baru. Verifikasi dan diagnostik sekarang membedakan keduanya
 secara eksplisit.
+
+### Kenapa hasil generate lama "EXPIRED" — bukan akibat migrasi
+
+Pemeriksaan langsung ke proyek lama (5 Nov 2026) untuk seluruh hasil
+`supabase-private://` tanggal 1 Nov: **32 rujukan, 0 file ada di storage**.
+Berkasnya sudah dihapus di proyek LAMA pada 2 Nov, tiga hari sebelum migrasi
+dijalankan. Migrasi tidak menghilangkan satu berkas pun.
+
+Penyebabnya aturan retensi di `lib/storage-retention/cleanup.js`:
+
+| Prefix | Umur berkas |
+|---|---|
+| `user-uploads/generate-input/**` | **1 jam** (`UPLOAD_TTL_MS`) |
+| `user-uploads/upscale-videos/**` | 24 jam (`HISTORY_MEDIA_TTL_MS`) |
+| `user-uploads/upscale-photos/**` | 24 jam |
+| `user-uploads/social-video/**` | 7 hari |
+| `user-uploads/voice-previews/**` | 30 hari |
+| `dashboard-videos/...` (konten admin) | tidak pernah disentuh |
+
+Karena itu `dashboard-videos` masih berisi 19 berkas (konten situs), sedangkan
+`user-uploads/generate-input` kosong sama sekali padahal ada 155 rujukan di
+`generation_history`.
+
+**Konsekuensi yang perlu diketahui pengguna:** cron retensi kini aktif lagi di
+proyek baru. Tujuh berkas `upscale-videos/outputs/staged30-...` yang dibuat
+2026-11-05 13:01 UTC akan dihapus sekitar 24 jam kemudian. Hasil generate
+memang hanya bertahan sehari — itu perilaku yang sudah ada sejak sebelum
+migrasi, bukan efek cutover.
+
+Kalau umur simpan ingin diperpanjang (mis. 30 hari), yang diubah hanya
+`HISTORY_MEDIA_TTL_MS` di `lib/storage-retention/cleanup.js`. **Belum diubah** —
+menunggu keputusan pemilik produk, karena berpengaruh langsung ke pemakaian
+kuota Storage.
