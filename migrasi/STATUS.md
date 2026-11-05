@@ -216,3 +216,23 @@ berkas migrasi.
 
 Fungsi bantu sementara `_bk_*` di project sumber **sudah dihapus** (diverifikasi
 0 sisa).
+
+### Keputusan: konektor Supabase TETAP di akun lama (2026-11-05)
+
+Sempat dipertimbangkan memindahkan konektor Supabase ke akun pemilik
+`rvgioyenjgkprnssfpfr` agar agen bisa mengerjakan Fase A/C langsung.
+**Diputuskan: tidak sekarang.** Alasan:
+
+1. Pekerjaan yang menahan semuanya (`pg_dump` + `restore` Fase A) tetap harus
+   berjalan dari komputer pemilik — sandbox agen tidak punya `pg_dump`/`psql`
+   dan koneksi TLS ke `*.supabase.co` diblokir, terlepas dari konektor mana
+   yang terpasang.
+2. Konektor kemungkinan memegang **satu akun pada satu waktu**. Berpindah ke
+   akun baru berisiko menghilangkan akses ke project LAMA — padahal project
+   lama masih dibutuhkan untuk **Fase B** (112 objek storage / ±265 MB diambil
+   dari sana) dan sebagai pembanding verifikasi.
+3. Nilai tambah konektor baru hanya Fase C (Site URL + redirect allow-list),
+   yang bisa diselesaikan pemilik di dashboard dalam hitungan menit.
+
+Konektor baru dipertimbangkan **setelah Fase B selesai**, saat akses ke project
+lama tidak lagi diperlukan.
