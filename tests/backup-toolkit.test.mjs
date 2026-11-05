@@ -1,0 +1,143 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+
+const ROOT = process.cwd();
+const SKRIP = path.join(ROOT, "migrasi", "backup-penuh.sh");
+const DOKUMEN = path.join(ROOT, "migrasi", "BACKUP-PENUH.md");
+const VERIFIKASI = path.join(ROOT, "migrasi", "verify-restore.sql");
+const FINGERPRINT = path.join(ROOT, "migrasi", "export-fingerprint.sql");
+
+const baca = (p) => fs.readFileSync(p, "utf8");
+
+/* Backup migrasi pernah dibuat dengan `pg_dump --schema=public` saja.
+   Hasilnya: 60 tabel utuh tetapi SELURUH 25 akun pengguna hilang, dan tidak
+   ada satu pun error yang muncul saat restore. Test di bawah mengunci dua
+   hal: (1) auth wajib ikut, (2) restore berhenti pada error pertama.
+   Ditambah satu hal ketiga: checksum isi baris TIDAK boleh masuk repo,
+   karena repo ini publik dan baris `provider_credentials` memuat API key. */
+
+const JENIS = [
+    "tests/backup-toolkit.test.mjs",
+    "migrasi/BACKUP-PENUH.md",
+    "migrasi/CUTOVER-rvgioyenjgkprnssfpfr.md",
+];
+
+test("skrip backup ada dan bisa dieksekusi", () => {
+    assert.ok(fs.existsSync(SKRIP), "migrasi/backup-penuh.sh harus ada");
+    assert.ok(fs.statSync(SKRIP).mode & 0o100, "harus executable (chmod +x)");
+});
+
+test("sintaks bash valid", () => {
+    const r = spawnSync("bash", ["-n", SKRIP], { encoding: "utf8" });
+    assert.equal(r.status, 0, `bash -n gagal: ${r.stderr}`);
+});
+
+test("menolak jalan tanpa SRC/DST", () => {
+    const r = spawnSync("bash", [SKRIP, "dump"], {
+        encoding: "utf8",
+        env: { ...process.env, SRC: "", DST: "" },
+    });
+    assert.equal(r.status, 1);
+    assert.match(`${r.stdout}${r.stderr}`, /SRC belum diisi/);
+});
+
+test("menolak transaction pooler (port 6543)", () => {
+    const r = spawnSync("bash", [SKRIP, "dump"], {
+        encoding: "utf8",
+        env: {
+            ...process.env,
+            SRC: "postgresql://postgres.x:p@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres",
+            DST: "postgresql://postgres.y:p@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres",
+        },
+    });
+    assert.equal(r.status, 1);
+    assert.match(`${r.stdout}${r.stderr}`, /port 6543/);
+});
+
+test("menolak restore bila berkas auth belum ada", () => {
+    const tmp = fs.mkdtempSync(path.join(process.env.TMPDIR || "/tmp", "genz-"));
+    const r = spawnSync("bash", [SKRIP, "restore"], {
+        encoding: "utf8",
+        env: {
+            ...process.env,
+            SRC: "postgresql://postgres.x:p@h:5432/postgres",
+            DST: "postgresql://postgres.y:p@h:5432/postgres",
+            DIR: tmp,
+        },
+    });
+    assert.equal(r.status, 1);
+    // Boleh berhenti lebih awal karena psql tidak tersedia; yang penting TIDAK
+    // lanjut diam-diam ketika dump public/auth tidak ditemukan.
+    assert.match(`${r.stdout}${r.stderr}`, /tidak ditemukan|tidak ada/);
+});
+
+test("dump auth diwajibkan, bukan opsional", () => {
+    const isi = baca(SKRIP);
+    assert.match(isi, /--table=auth\.users/, "harus men-dump auth.users");
+    assert.match(isi, /--table=auth\.identities/, "harus men-dump auth.identities");
+    assert.match(isi, /2_auth\.sql/);
+    assert.match(isi, /\[ -s "\$F_AUTH" \]\s*\|\|\s*die/, "auth harus diperiksa sebelum restore");
+});
+
+test("restore berhenti pada error pertama (ON_ERROR_STOP)", () => {
+    assert.match(baca(SKRIP), /ON_ERROR_STOP=1/);
+});
+
+test("urutan restore: pre → public → auth → storage → post", () => {
+    const isi = baca(SKRIP);
+    assert.match(isi, /\$F_PRE" "\$F_PUBLIC_CLEAN" "\$F_AUTH" "\$F_STORAGE" "\$F_POST/,
+        "auth harus setelah public (FK profiles → auth.users)");
+});
+
+test("dump dibersihkan dari CREATE SCHEMA public", () => {
+    // Tanpa ini restore selalu gagal di baris pertama: skema public sudah ada
+    // di project target.
+    assert.match(baca(SKRIP), /grep -v -E .*CREATE SCHEMA public/);
+});
+
+test("verify-restore.sql mencakup 60 tabel dengan total 4449 baris", () => {
+    const sql = baca(VERIFIKASI);
+    // Ambil hanya blok harapan pertama (baris per tabel), bukan blok ringkasan.
+    const blok = [...sql.matchAll(/\('([a-z_]+)',(\d+)\)/g)].map((m) => [m[1], Number(m[2])]);
+    const unik = new Map(blok);
+    assert.equal(unik.size, 60, `harus 60 tabel unik, dapat ${unik.size}`);
+    const total = [...unik.values()].reduce((a, b) => a + b, 0);
+    assert.equal(total, 4449, "total baris public harus 4449");
+    assert.match(sql, /tabel_pass/, "harus ada ringkasan");
+    assert.match(sql, /'60'/);
+});
+
+test("berkas ter-commit TIDAK memuat checksum isi baris (repo publik)", () => {
+    /* md5 isi baris dari provider_credentials / free_credit_secret_config
+       setara membocorkan verifier kredensial yang bisa di-brute-force
+       offline. Checksum itu hanya boleh hidup di supabase/backup/. */
+    for (const rel of JENIS) {
+        const isi = baca(path.join(ROOT, rel));
+        const md5 = isi.match(/\b[0-9a-f]{32}\b/g) || [];
+        assert.deepEqual(md5, [], `${rel} memuat md5 checksum: ${md5.join(", ")}`);
+    }
+});
+
+test("supabase/backup/ tetap di .gitignore (menampung checksum + PII)", () => {
+    const gi = baca(path.join(ROOT, ".gitignore"));
+    assert.match(gi, /^supabase\/backup\/$/m);
+});
+
+test("export-fingerprint.sql memperingatkan hasilnya rahasia", () => {
+    const sql = baca(FINGERPRINT);
+    assert.match(sql, /RAHASIA/i);
+    assert.match(sql, /provider_credentials/);
+    assert.match(sql, /JANGAN/);
+});
+
+test("dokumen menjelaskan auth wajib, port pooler, dan urutan deploy", () => {
+    const d = baca(DOKUMEN);
+    assert.match(d, /auth\.users/);
+    assert.match(d, /akun pengguna hilang|tanpa akun/);
+    assert.match(d, /5432/);
+    assert.match(d, /6543/);
+    assert.match(d, /merge PR #330|Deploy sebelum A–D/i);
+});

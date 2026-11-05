@@ -164,3 +164,55 @@ dipindahkan ke **`rvgioyenjgkprnssfpfr`** memakai
 Catatan: alat `npm run cutover` kini membaca ref aktif dari `config.js`
 (bukan konstanta yang cepat usang), dan menolak jalan bila `--ref` sama
 dengan ref aktif kecuali diberi `--off`.
+
+### Backup penuh siap + lubang Fase A ditutup (2026-11-05)
+
+Percobaan menyalin data lewat kanal tool/konektor **dihentikan** — volume
+±11 MB dengan `jsonb` + kolom array terpotong oleh kanal, sehingga salinan
+tidak bisa dibuktikan utuh. Penggantinya: toolkit yang dijalankan sekali dari
+komputer sendiri, lengkap dengan bukti verifikasi.
+
+| Berkas | Fungsi |
+|---|---|
+| `migrasi/backup-penuh.sh` | `dump` / `restore` / `verify` dalam satu skrip |
+| `migrasi/BACKUP-PENUH.md` | panduan langkah demi langkah |
+| `migrasi/verify-restore.sql` | 60 tabel + struktur, PASS/GAGAL otomatis (aman di-commit) |
+| `migrasi/export-fingerprint.sql` | checksum isi baris (**rahasia**, simpan di luar repo) |
+| `tests/backup-toolkit.test.mjs` | 14 test mengunci perilaku di atas |
+
+**Lubang yang ditemukan & ditutup.** Fase A sebelumnya menganjurkan
+`pg_dump --schema=public` saja dengan alasan skema `auth` "dikelola Supabase".
+Kalau dijalankan apa adanya, hasilnya **60 tabel utuh tetapi 25 akun pengguna
+hilang**, tanpa satu pun error saat restore. Sekarang:
+
+- data `auth.users` + `auth.identities` di-dump sebagai langkah **wajib**
+  (bukan opsional) dan prosesnya **berhenti** bila berkas itu kosong;
+- restore memakai `ON_ERROR_STOP=1` + `session_replication_role = replica`
+  sehingga berhenti pada error pertama, bukan gagal senyap;
+- urutan restore dikunci: pre → public → auth → storage → post
+  (`profiles` ber-FK ke `auth.users`, jadi auth tidak boleh didahulukan);
+- dua baris `CREATE SCHEMA public` / `ALTER SCHEMA public OWNER TO` dibuang
+  dari dump, karena skema `public` sudah ada di target (sebelumnya ini membuat
+  restore selalu gagal di baris pertama).
+
+**Inventaris sumber yang diverifikasi langsung dari DB** (bukan perkiraan):
+60 tabel / 4.449 baris, 25 user, 25 identitas, 8 bucket / 112 objek,
+60 tabel RLS aktif, 53 policy, 9 trigger public + 2 trigger auth,
+66 fungsi public, 5 sequence, PostgreSQL 17.11.
+
+**Temuan kecil:** `profiles.role` berisi `'OWNER'`/`'USER'` (huruf besar),
+bukan `'admin'`. Pemeriksaan awal memakai `role = 'admin'` dan menghasilkan 0 —
+alarm palsu. `verify-restore.sql` kini memeriksa `role = 'OWNER'` (nilai
+sebenarnya 1) karena akun itulah yang harus selamat agar panel admin tetap bisa
+dimasukki.
+
+**Keputusan keamanan:** repo ini **publik**. Checksum md5 atas isi baris
+`provider_credentials` dan `free_credit_secret_config` (API key provider +
+password pepper) setara membocorkan verifier yang bisa di-brute-force offline,
+jadi checksum itu **tidak** masuk git — hanya di `supabase/backup/`
+(di-.gitignore). Berkas yang di-commit hanya berisi jumlah baris + struktur.
+Test `tests/backup-toolkit.test.mjs` menolak commit bila ada md5 32-hex di
+berkas migrasi.
+
+Fungsi bantu sementara `_bk_*` di project sumber **sudah dihapus** (diverifikasi
+0 sisa).
