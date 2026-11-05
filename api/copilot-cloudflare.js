@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   const config = getSupabaseConfig();
   try { const a = await verifyAdmin(req, config); if (!a.ok) return json(res,a.status,{success:false,error:a.error}); } catch(e){ return json(res,500,{success:false,error:"Verifikasi gagal"}); }
 
-  const cfToken = String(req.env?.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN || "").trim();
+  const cfToken = String(req?.env?.CLOUDFLARE_API_TOKEN || req?.env?.CF_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN || process.env.CF_API_TOKEN || "").trim();
   const cfAccount = String(req.env?.CLOUDFLARE_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID || "").trim();
   const cfZone = String(req.env?.CLOUDFLARE_ZONE_ID || process.env.CLOUDFLARE_ZONE_ID || "").trim();
   const hasToken = !!cfToken;
@@ -48,6 +48,6 @@ export default async function handler(req, res) {
       CLOUDFLARE_API_TOKEN: hasToken ? "set (hidden)" : "missing",
       CLOUDFLARE_ACCOUNT_ID: cfAccount ? cfAccount.slice(0,8)+"..." : "missing",
     },
-    note: !hasToken ? "Set CLOUDFLARE_API_TOKEN & CLOUDFLARE_ACCOUNT_ID di Worker secrets untuk enable konektor" : null
+    note: !hasToken ? "Konektor siap — set CLOUDFLARE_API_TOKEN & CLOUDFLARE_ACCOUNT_ID di Worker secrets untuk lihat workers" : (error ? error : "Konektor aktif")
   });
 }
