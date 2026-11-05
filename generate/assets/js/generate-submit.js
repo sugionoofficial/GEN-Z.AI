@@ -1679,8 +1679,9 @@ async function handleGenerateSubmit(
                     const currentTaskId = extractTaskId(response);
 
                     if (!currentTaskId) {
+                        const providerLabel = getProviderName(model) || "GEN-Z.AI";
                         const error = new Error(
-                            "KIE.AI tidak mengembalikan task ID."
+                            `${providerLabel} tidak mengembalikan task ID.`
                         );
                         error.code = "TASK_ID_MISSING";
                         error.details = response;
@@ -1759,11 +1760,13 @@ async function handleGenerateSubmit(
                                             update?.data?.error ||
                                             "Generate gagal diproses.";
 
-                                        showLoading("KIE.AI melaporkan generate gagal.");
+                                        const providerLabelFail = getProviderName(model) || "GEN-Z.AI";
+                                        showLoading(`${providerLabelFail} melaporkan generate gagal.`);
                                         setGenerateStatus("failed", failedMessage);
                                         progressFail({ message: failedMessage });
                                     } else if (completed) {
-                                        showLoading("KIE.AI selesai. Memverifikasi hasil...");
+                                        const providerLabelDone = getProviderName(model) || "GEN-Z.AI";
+                                        showLoading(`${providerLabelDone} selesai. Memverifikasi hasil...`);
                                         setGenerateStatus(
                                             "processing",
                                             "Generate selesai. Sedang memverifikasi hasil..."
@@ -1779,9 +1782,10 @@ async function handleGenerateSubmit(
                                             ""
                                         ).trim();
 
+                                        const providerLabelLive = getProviderName(model) || "GEN-Z.AI";
                                         showLoading(
                                             liveStageMessage ||
-                                            `KIE.AI sedang memproses task ${currentTaskId}...`
+                                            `${providerLabelLive} sedang memproses task ${currentTaskId}...`
                                         );
                                         const progressState = String(
                                             update?.state ||
@@ -1825,11 +1829,12 @@ async function handleGenerateSubmit(
                     }
 
                     if (isPollingFailed(currentResult)) {
+                        const providerLabelErr = getProviderName(model) || "GEN-Z.AI";
                         const error = new Error(
                             currentResult?.message ||
                             currentResult?.msg ||
                             currentResult?.error ||
-                            "KIE.AI melaporkan task gagal."
+                            `${providerLabelErr} melaporkan task gagal.`
                         );
                         error.code =
                             currentResult?.code ||
