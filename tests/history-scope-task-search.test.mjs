@@ -449,8 +449,17 @@ test("event scope/search terhubung dan auth menyinkronkan kontrol", () => {
 });
 
 test("cache-bust modul berubah tanpa merusak pin versi lama", () => {
-    assert.match(historyHtml, /history-data\.js\?v=20261026-expiry-result-only[^"']*scope-task-search/);
-    assert.match(historyHtml, /history-render\.js\?v=20261026-expiry-result-only[^"']*scope-task-search/);
+    /*
+     * Yang harus dijaga: setiap modul punya parameter `?v=` yang berubah saat
+     * isinya berubah. Dulu test ini mengunci string penuh
+     * "20261026-expiry-result-only...scope-task-search", sehingga setiap
+     * penanda BARU (mis. 20261105-expired-reason-tooltip) memerahkan test dan
+     * mendorong orang menghapus cache-bust alih-alih menambahkannya. Sekarang
+     * yang diuji: ada `?v=` berisi tanggal, dan penanda scope-task-search
+     * masih terbawa di modul yang sama.
+     */
+    assert.match(historyHtml, /history-data\.js\?v=\d{8}-[^"']*scope-task-search/);
+    assert.match(historyHtml, /history-render\.js\?v=\d{8}-/);
     assert.match(historyHtml, /history-events\.js\?v=[^"']*scope-task-search/);
     assert.match(historyHtml, /history-state\.js\?v=[^"']*scope-task-search/);
     assert.match(historyHtml, /history-auth\.js\?v=[^"']*scope-task-search/);

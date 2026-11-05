@@ -302,16 +302,21 @@ test("UI: info 1 jam di Generate & History, 24 jam di Upscale", () => {
 
     const history = read("history/index.html");
     assert.match(history, /id="historyRetentionNotice"/);
+    /*
+     * Hasil generate & upscale disimpan 24 jam (HISTORY_MEDIA_TTL_MS).
+     * Banner pernah menulis "1 jam" — angka UPLOAD_TTL_MS yang berlaku untuk
+     * input, bukan hasil. Itu membuat user menyimpulkan hasilnya hilang
+     * secepat 1 jam, dan mengira migrasi kehilangan data.
+     */
     assert.match(
         history,
-        /Media hasil generate &amp; upscale disimpan <strong>maksimal 1 jam<\/strong>\./
+        /Media hasil generate &amp; upscale disimpan <strong>maksimal 24 jam<\/strong>\./
     );
     assert.match(
         history,
         /Setelah itu file dihapus otomatis dan riwayatnya ditandai[\s\S]*?<strong>EXPIRED<\/strong>\./
     );
     assert.doesNotMatch(history, /<strong>KEDALUWARSA<\/strong>/i);
-    assert.doesNotMatch(history, /maksimal 24 jam/);
     assert.match(history, /thumbnail-expired/);
 
     const upscale = read("upscale/index.html");

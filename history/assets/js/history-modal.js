@@ -579,9 +579,17 @@
             };
         }
 
+        /*
+         * Batas simpan hasil generate & upscale adalah 24 jam
+         * (HISTORY_MEDIA_TTL_MS di lib/storage-retention/cleanup.js).
+         * Sebelumnya teks di sini menulis "maksimal 1 jam" — angka yang
+         * berlaku untuk UPLOAD INPUT (UPLOAD_TTL_MS), bukan hasil. Akibatnya
+         * user mengira hasilnya hilang lebih cepat daripada kenyataan, dan
+         * menyimpulkan migrasi/backup kehilangan data.
+         */
         return {
-            title: "Media sudah kedaluwarsa",
-            body: "Berkas hasil sudah tidak tersedia di penyimpanan. Media riwayat disimpan maksimal 1 jam, jadi file tidak bisa dibuka atau diunduh lagi. Riwayat dan detail generation tetap tersimpan."
+            title: "Hasil sudah dihapus otomatis setelah 24 jam",
+            body: "Berkas hasil disimpan maksimal 24 jam setelah generation selesai, lalu dihapus otomatis untuk menghemat penyimpanan. Karena itu berkasnya tidak bisa dibuka atau diunduh lagi. Riwayat dan detail generation tetap tersimpan. Simpan hasil ke perangkat Anda sebelum 24 jam bila ingin menyimpannya."
         };
     }
 
