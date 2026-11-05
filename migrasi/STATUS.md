@@ -124,3 +124,18 @@ spend caps to restore service.
   `pg_dump` **sebelum** ada data disentuh.
 - Syarat yang masih menahan: Storage sumber masih 402, sehingga langkah pindah
   file harus menunggu kuota pulih (upgrade Pro atau reset siklus billing).
+
+### Target final (2026-11-05): `rvgioyenjgkprnssfpfr` — ap-southeast-1
+
+- Project dibuat ulang di **Singapore** (bukan Sydney) → region sama dengan
+  sumber, latensi tidak berubah untuk pengguna Indonesia.
+- Berada di **akun Supabase berbeda**: `get_project` lewat konektor ditolak
+  (403 "The app denied access for this call"), jadi seluruh langkah dijalankan
+  pemilik akun.
+- Nilai & urutan final: `migrasi/CUTOVER-rvgioyenjgkprnssfpfr.md`.
+- `migrasi/migrate_bulk.mjs` naik ke **v3**: menyalin `Cache-Control` dari
+  sumber (dulu dipaksa `max-age=3600` sehingga objek hasil migrasi tercatat
+  cache pendek → memicu egress).
+- **Peringatan urutan:** deploy `config.js` sebelum data & storage siap membuat
+  situs tampil kosong. Urutan aman: skema+data → storage → auth config →
+  config.js + secrets → deploy.

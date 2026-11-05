@@ -72,11 +72,31 @@ test("menolak target yang sama dengan sumber", () => {
     assert.equal(result.status, 1);
 });
 
-test("runbook migrasi memakai host pooler Sydney untuk target", () => {
+test("runbook memakai host pooler sesuai region target yang aktif", () => {
     const runbook = fs.readFileSync(path.join(ROOT, "migrasi", "MIGRASI-MANUAL.md"), "utf8");
+    const cutover = fs.readFileSync(
+        path.join(ROOT, "migrasi", "CUTOVER-rvgioyenjgkprnssfpfr.md"),
+        "utf8"
+    );
 
-    assert.match(runbook, /ap-southeast-2\.pooler\.supabase\.com/, "target ap-southeast-2 harus pakai host Sydney");
-    assert.doesNotMatch(runbook, /DST=.*ap-southeast-1\.pooler/, "target tidak boleh masih memakai host Singapore");
-    assert.match(runbook, /ap-southeast-1\.pooler\.supabase\.com/, "sumber tetap Singapore");
-    assert.match(runbook, /check-migration-readiness\.mjs/);
+    /* Target aktif: rvgioyenjgkprnssfpfr di ap-southeast-1 (Singapore). */
+    assert.match(runbook, /DST=.*rvgioyenjgkprnssfpfr.*ap-southeast-1\.pooler/, "target harus di Singapore");
+    assert.doesNotMatch(runbook, /DST=.*ap-southeast-2\.pooler/, "target tidak boleh memakai host Sydney");
+
+    assert.match(cutover, /rvgioyenjgkprnssfpfr\.supabase\.co/);
+    assert.match(cutover, /ap-southeast-1\.pooler\.supabase\.com/);
+    assert.match(cutover, /check-migration-readiness\.mjs|check:migration/);
+    /* Peringatan wajib: deploy config.js sebelum data siap = situs kosong. */
+    assert.match(cutover, /situs tampil kosong/i);
+});
+
+test("migrate_bulk menyalin cacheControl sumber, bukan max-age=3600", () => {
+    const script = fs.readFileSync(path.join(ROOT, "migrasi", "migrate_bulk.mjs"), "utf8");
+
+    assert.doesNotMatch(
+        script,
+        /'Cache-Control':\s*o\.cacheControl\s*\|\|\s*'max-age=3600'/,
+        "default max-age=3600 membuat objek hasil migrasi memicu egress"
+    );
+    assert.match(script, /'Cache-Control':\s*o\.cacheControl\s*\|\|\s*'31536000, immutable'/);
 });

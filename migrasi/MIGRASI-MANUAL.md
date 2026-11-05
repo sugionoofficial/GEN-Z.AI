@@ -25,8 +25,12 @@ Latensi DB tidak terasa (API berjalan di Cloudflare Worker), tetapi **Storage**
 terasa: unduhan video 10–14 MB ke browser pengguna Indonesia jadi lebih lambat,
 dan itu area yang paling banyak memakan egress.
 
-> Target saat ini: **`ap-southeast-2` (Sydney)**. Semua perintah di dokumen ini
-> sudah memakai host pooler Sydney untuk project tujuan.
+> Target saat ini: **`rvgioyenjgkprnssfpfr` — ap-southeast-1 (Singapore)**,
+> sama dengan region sumber sehingga latensi tidak berubah. Semua perintah di
+> dokumen ini memakai host pooler Singapore (`aws-0-ap-southeast-1`).
+>
+> Nilai akhir, urutan cutover, dan pemeriksaan akhir ada di
+> **`migrasi/CUTOVER-rvgioyenjgkprnssfpfr.md`**.
 
 ---
 
@@ -109,7 +113,7 @@ URL koneksi (session pooler, port **5432** — jangan 6543):
 
 ```
 SRC=postgresql://postgres.ycovbqmezhrvzobxqnyp:PASS_SRC@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
-DST=postgresql://postgres.<REF_BARU>:PASS_DST@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres   # Sydney
+DST=postgresql://postgres.rvgioyenjgkprnssfpfr:PASS_DST@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
 ```
 
 ---
