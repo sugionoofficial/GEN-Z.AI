@@ -167,3 +167,19 @@ test("dokumen menjelaskan auth wajib, port pooler, dan urutan deploy", () => {
     assert.match(d, /6543/);
     assert.match(d, /merge PR #330|Deploy sebelum A–D/i);
 });
+
+test("perintah winget memakai ID paket lengkap", () => {
+    /* `winget install PostgreSQL.17` dijawab "No package found matching input
+       criteria" karena winget butuh ID penuh PostgreSQL.PostgreSQL.17.
+       Kesalahan satu kata ini sempat dikirim ke pengguna. */
+    const t = baca(path.join(ROOT, "migrasi", "TUTORIAL-BACKUP.md"));
+    assert.match(t, /winget install --id PostgreSQL\.PostgreSQL\.17 -e/);
+    assert.doesNotMatch(t, /winget install PostgreSQL\.17(?!\S)/, "jangan pakai nama paket pendek");
+});
+
+test("tutorial memberi jalan keluar bila pg_dump tidak dikenali (PATH)", () => {
+    const t = baca(path.join(ROOT, "migrasi", "TUTORIAL-BACKUP.md"));
+    assert.match(t, /tidak dikenali padahal instalasi berhasil/);
+    assert.ok(t.includes("C:\\Program Files\\PostgreSQL\\17\\bin"), "harus menyebut lokasi bin");
+    assert.ok(t.includes("Get-ChildItem"), "harus menyuruh mencari versi yang benar");
+});

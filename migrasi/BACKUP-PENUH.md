@@ -74,7 +74,7 @@ restore benar). Checksum mentahnya disimpan di `supabase/backup/fingerprint-sour
    `psql` (dua alat di kamus bagian 0). Ukurannya ±50 MB, bukan aplikasi
    berjalan di latar belakang — hanya dua program yang dipanggil saat Anda
    mengetik perintah.
-   - Windows: `winget install PostgreSQL.17` (atau installer enterprisedb.com,
+   - Windows: `winget install --id PostgreSQL.PostgreSQL.17 -e` (atau installer enterprisedb.com,
      cukup centang *Command Line Tools*).
    - macOS: `brew install postgresql@17` lalu
      `export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"`

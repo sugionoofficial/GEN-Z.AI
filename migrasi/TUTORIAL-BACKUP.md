@@ -16,8 +16,12 @@ Buka **PowerShell**: tombol **Start** → ketik `powershell` → klik
 **Windows PowerShell**. Tempel, tekan Enter:
 
 ```powershell
-winget install PostgreSQL.17
+winget install --id PostgreSQL.PostgreSQL.17 -e
 ```
+
+**Nama paketnya harus persis seperti di atas.** `winget install PostgreSQL.17`
+akan dijawab `No package found matching input criteria` — itu bukan tanda
+komputer Anda bermasalah, hanya nama paketnya kurang lengkap.
 
 Tunggu sampai muncul `Successfully installed`.
 
@@ -157,12 +161,76 @@ baru). Gratis, ±50 MB, tidak berjalan di latar belakang.
 2. Salin baris ini, tempel ke jendela itu, tekan Enter:
 
    ```powershell
-   winget install PostgreSQL.17
+   winget install --id PostgreSQL.PostgreSQL.17 -e
    ```
 
 3. Tunggu sampai muncul tulisan `Successfully installed`.
 4. **Tutup** jendela PowerShell, lalu **buka lagi** (wajib — agar perintah baru
    terbaca).
+
+### Kalau `pg_dump` tidak dikenali padahal instalasi berhasil
+
+Instalasi sukses tetapi `pg_dump --version` dijawab
+`The term 'pg_dump' is not recognized`? **Instalasi tidak gagal** — Windows
+hanya belum tahu di mana programnya. Ini kasus paling sering, dan ada 3 jalan
+keluar.
+
+**Jalan 1 — panggil dengan alamat lengkap (paling cepat, tanpa mengubah apa pun)**
+
+Ganti setiap `pg_dump` dan `psql` di tutorial ini dengan alamat lengkapnya.
+Tempel ini dulu untuk memastikan file-nya ada:
+
+```powershell
+dir "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe"
+```
+
+Kalau file-nya muncul, berarti tinggal pakai alamat lengkap:
+
+```powershell
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" --version
+```
+
+> Tanda `&` di depan **wajib** di PowerShell bila alamat berisi spasi
+> (`Program Files`). Tanpa `&` akan muncul error aneh soal string.
+
+**Jalan 2 — tambahkan ke PATH sekali saja (sekalian permanen)**
+
+```powershell
+$env:Path += ";C:\Program Files\PostgreSQL\17\bin"
+pg_dump --version
+```
+
+Berlaku sampai jendela ditutup. Untuk permanen:
+
+```powershell
+[Environment]::SetEnvironmentVariable(
+  "Path",
+  [Environment]::GetEnvironmentVariable("Path","Machine") + ";C:\Program Files\PostgreSQL\17\bin",
+  "Machine"
+)
+```
+
+Lalu **tutup dan buka lagi** PowerShell.
+
+**Jalan 3 — pakai Git Bash**
+
+Git Bash biasanya sudah menemukan PostgreSQL tanpa pengaturan tambahan:
+
+```bash
+pg_dump --version
+```
+
+**Kalau `dir` di Jalan 1 bilang `File Not Found`:**
+
+Instalasinya memang belum berhasil, atau versinya bukan 17. Cari di mana:
+
+```powershell
+Get-ChildItem "C:\Program Files\PostgreSQL" -Directory
+```
+
+Kalau muncul nama lain (mis. `18`), ganti angka `17` di semua perintah dengan
+angka itu. Kalau folder `PostgreSQL` tidak ada sama sekali, ulangi instalasi
+lewat installer grafis di bawah.
 
 **Kalau `winget` tidak tersedia:**
 
