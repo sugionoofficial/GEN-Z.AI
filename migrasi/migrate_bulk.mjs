@@ -99,17 +99,51 @@ async function main() {
   console.log(`Bucket: ${oldBuckets.length} di lama, ${newBuckets.size} sudah ada di baru.`);
 
   // 2) daftar objek per bucket (dari API lama)
+  //
+  // PENTING: `object/list` HANYA mengembalikan isi satu tingkat. Semua file
+  // GEN-Z.AI tersimpan di dalam folder (mis. user-uploads/generate-input/<uuid>/x.jpg),
+  // jadi tanpa rekursi skrip ini akan melaporkan "0 objek" untuk setiap bucket
+  // dan Fase B selesai tanpa memindahkan satu berkas pun. Versi sebelumnya
+  // memang punya bug itu. Fungsi listDeep di bawah menelusuri subfolder.
+  const FOLDER = '00000000-0000-0000-0000-000000000000';
+
+  async function listDeep(bucketId, prefix) {
+    const out = [];
+    // Batas aman supaya tidak berputar tanpa henti bila respons aneh.
+    for (let page = 0; page < 500; page += 1) {
+      const body = { prefix, limit: 1000, offset: page * 1000, sortBy: { column: 'name', order: 'asc' } };
+      const res = await fetchRetry(`${OLD_URL}/storage/v1/object/list/${encodeURIComponent(bucketId)}`, {
+        method: 'POST',
+        headers: authHeaders(OLD_KEY, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify(body)
+      });
+      const entries = await res.json();
+      if (!Array.isArray(entries)) throw new Error(`list ${bucketId}/${prefix} gagal: ` + JSON.stringify(entries).slice(0, 200));
+
+      for (const e of entries) {
+        const full = prefix ? `${prefix}/${e.name}` : e.name;
+        // Folder ditandai id nol oleh Storage API; tanpa metadata berarti folder.
+        const isFolder = e.id === FOLDER || e.id === null || !e.metadata;
+        if (isFolder) {
+          out.push(...await listDeep(bucketId, full));
+        } else {
+          out.push({ ...e, name: full });
+        }
+      }
+      if (entries.length < 1000) break;
+    }
+    return out;
+  }
+
   const manifest = [];
   for (const b of oldBuckets) {
-    const res = await fetchRetry(`${OLD_URL}/storage/v1/object/list/${encodeURIComponent(b.id)}`, { method: 'POST', headers: authHeaders(OLD_KEY, { 'Content-Type': 'application/json' }), body: JSON.stringify({ prefix: '', limit: 1000, sortBy: { column: 'name', order: 'asc' } }) });
-    const entries = await res.json();
-    if (!Array.isArray(entries)) throw new Error(`list ${b.id} gagal: ` + JSON.stringify(entries).slice(0, 200));
-    if (entries.length >= 1000) warn(`bucket ${b.id}: >=1000 objek — skrip ini hanya mengambil 1000 pertama (hubungi agen)`);
+    const entries = await listDeep(b.id, '');
     for (const o of entries) manifest.push({ bucket_id: b.id, name: o.name, size: o.metadata?.size, mimetype: o.metadata?.mimetype, cacheControl: o.metadata?.cacheControl, created_at: o.created_at, updated_at: o.updated_at });
     console.log(`  ${b.id}: ${entries.length} objek`);
   }
   const totalBytes = manifest.reduce((s, o) => s + (o.size || 0), 0);
   console.log(`Total: ${manifest.length} objek, ±${(totalBytes / 1e6).toFixed(1)} MB`);
+  if (manifest.length === 0) die('Tidak ada objek yang ditemukan. Kalau bucket di dashboard memang berisi file, hubungi agen — jangan lanjut.');
 
   // 3) unduh dari lama -> upload ke baru (resume-able)
   const progress = loadProgress();

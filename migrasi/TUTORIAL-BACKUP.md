@@ -873,6 +873,44 @@ koneksi sebentar, jadi lakukan paling akhir).
 
 ---
 
+## ⚠️ WAJIB juga: `perbaiki-storage-rls.sql`
+
+Sama seperti GRANT, ini **bukan** opsional.
+
+### Gejalanya
+
+```
+Video di dashboard/riwayat tidak bisa diputar (spinner terus / layar hitam)
+Foto hasil generate 400 / 403
+Upload ke bucket privat gagal
+```
+
+### Penyebabnya
+
+`pg_dump --schema=public` **tidak menyertakan skema `storage`**. Skrip backup
+memang memindahkan *isi* tabel `storage.buckets` dan `storage.objects`, tetapi
+**kebijakan aksesnya (RLS) tidak ikut**. Di project baru tidak ada satu pun
+policy untuk `storage.objects`.
+
+Di project lama ada **18 kebijakan**. Tanpa kebijakan itu:
+- berkas di bucket privat `user-uploads` tidak bisa dibuatkan signed URL;
+- video hasil generate tidak bisa dibuka pemiliknya.
+
+### Perbaikannya
+
+**Di SQL Editor project TARGET**, jalankan **`migrasi/perbaiki-storage-rls.sql`**.
+
+Verifikasinya (bagian 6):
+
+| cek | target |
+|---|---|
+| jumlah_kebijakan_storage_objects | 18 |
+| kebijakan_baca_user_uploads | 1 |
+| bucket_publik | 3 |
+| jumlah_bucket | 8 |
+
+---
+
 ## Kalau restore berhenti: `already exists`
 
 Pesan seperti ini **bukan** tanda data rusak:

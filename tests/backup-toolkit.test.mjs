@@ -467,7 +467,11 @@ test("dump TIDAK membuang GRANT (--no-privileges dilarang)", () => {
         const isi = baca(berkas);
         // Larangan hanya untuk dump schema=public, yaitu satu-satunya dump yang
         // di-restore. Dump referensi auth boleh memakai apa pun (tidak dipakai).
-        const barisPublic = isi.split("\n").filter((l) => /schema=public/.test(l) && /pg_dump|\$pgDump/.test(l));
+        const barisPublic = isi.split("\n").filter((l) => {
+            const t = l.trim();
+            if (t.startsWith("#")) return false; // komentar bukan perintah
+            return /schema=public/.test(t) && /pg_dump|\$pgDump/.test(t);
+        });
         assert.ok(barisPublic.length > 0, `${nama}: harus ada dump schema=public`);
         for (const baris of barisPublic) {
             assert.doesNotMatch(baris, /--no-privileges/,
@@ -517,4 +521,30 @@ test("perbaiki-grant.sql juga menyegarkan cache PostgREST", () => {
     assert.match(sql, /notify pgrst, 'reload schema'/);
     assert.match(sql, /notify pgrst, 'reload config'/);
     assert.match(sql, /PGRST205/, "harus menyebut gejala yang ditangani");
+});
+
+const PERBAIKI_STORAGE = path.join(ROOT, "migrasi", "perbaiki-storage-rls.sql");
+const MIGRATE_BULK = path.join(ROOT, "migrasi", "migrate_bulk.mjs");
+
+test("perbaiki-storage-rls.sql mengembalikan 18 kebijakan storage.objects", () => {
+    const sql = baca(PERBAIKI_STORAGE);
+    const dibuat = sql.match(/create policy /gi) || [];
+    assert.equal(dibuat.length, 18, "harus ada 18 create policy, sama dengan proyek sumber");
+    // Kebijakan paling penting: tanpa ini berkas privat user tidak terbaca.
+    assert.match(sql, /Users read own media uploads/);
+    assert.match(sql, /Users read own media uploads"\s+on storage\.objects for select\s+to authenticated\s+using \(\(bucket_id = 'user-uploads'::text\) AND user_owns_media_path\(name\)\)/);
+    assert.match(sql, /dashboard videos public read/);
+    // Semua drop-if-exists supaya aman dijalankan berulang.
+    const drop = sql.match(/drop policy if exists/gi) || [];
+    assert.equal(drop.length, dibuat.length, "setiap create policy harus didahului drop if exists");
+});
+
+test("migrate_bulk.mjs menelusuri subfolder (object/list tidak rekursif)", () => {
+    /* Semua berkas GEN-Z.AI ada di dalam folder. `object/list` hanya
+       mengembalikan satu tingkat, sehingga versi lama melaporkan "0 objek"
+       dan Fase B selesai tanpa memindahkan apa pun. */
+    const isi = baca(MIGRATE_BULK);
+    assert.match(isi, /listDeep/, "harus ada penelusuran folder rekursif");
+    assert.match(isi, /FOLDER/, "folder ditandai id nol");
+    assert.match(isi, /manifest\.length === 0/, "harus berhenti bila tidak ada objek");
 });
