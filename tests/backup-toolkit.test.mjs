@@ -588,3 +588,22 @@ test("tutorial Fase B menjelaskan cara mengenali skrip lama (Total: 0 objek)", (
     assert.doesNotMatch(md, /kirim.*kunci.*chat/i);
     assert.match(md, /jangan kirim lewat chat/i);
 });
+
+const VERIFIKASI_STORAGE = path.join(ROOT, "migrasi", "verifikasi-storage.sql");
+
+test("verifikasi-storage.sql satu statement & mengunci 112 objek", () => {
+    /* SQL Editor Supabase hanya menampilkan hasil query TERAKHIR. Skrip
+       verifikasi multi-statement pernah menampilkan satu baris JSON saja dan
+       membuat pengguna bingung. */
+    const sql = baca(VERIFIKASI_STORAGE);
+    const tanpaKomentar = sql.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+    assert.equal((tanpaKomentar.match(/;/g) || []).length, 1, "harus tepat SATU titik koma");
+
+    // Angka harapan harus sama dengan isi proyek sumber.
+    const harapan = { "user-uploads": 47, "social-character-references": 45, "dashboard-videos": 19, "social-story-audio": 1 };
+    for (const [bucket, jumlah] of Object.entries(harapan)) {
+        assert.match(sql, new RegExp(`'${bucket}', ${jumlah}`), `${bucket} harus ${jumlah}`);
+    }
+    assert.match(VERIFIKASI_STORAGE ? sql : sql, /total_objek_semua_bucket/);
+    assert.match(sql, /objek_berukuran_nol/, "file 0 byte berarti unggahan rusak");
+});

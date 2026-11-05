@@ -356,3 +356,30 @@ Panduan pengguna: `migrasi/TUTORIAL-FASE-B.md`.
 > Catatan: tutorial menyuruh pengguna mengunduh skrip dari branch `main`, jadi
 > skrip harus di-merge lebih dulu — kalau tidak, yang terunduh versi lama yang
 > tetap menyalin 0 file.
+
+### ✅ FASE B SELESAI — 112/112 file, 0 gagal (2026-11-05)
+
+```
+Total: 112 objek, ±287.7 MB
+Ringkasan: 112 diupload, 0 dilewati, 0 gagal.
+```
+
+| Bucket | File |
+|---|---|
+| user-uploads | 47 |
+| social-character-references | 45 |
+| dashboard-videos | 19 |
+| social-story-audio | 1 |
+
+Dua bug skrip yang tertangkap sebelum dijalankan: `object/list` tidak rekursif
+(melaporkan 0 objek) dan default env menunjuk migrasi 2026-10.
+
+**Peringatan `META_CSV tidak ditemukan` bukan kegagalan.** Berkas itu opsional
+dan hanya memulihkan `owner` + timestamp asli objek. Kolom `owner` legacy sudah
+tidak dipakai; hak akses Storage sepenuhnya lewat 18 RLS policy yang dipulihkan
+`perbaiki-storage-rls.sql`. Kesalahan sesungguhnya adalah pesan skrip itu
+menyuruh pengguna menjalankan `psql` + RECOVERY.md, jalur yang sudah ditinggalkan
+— pengguna bukan pengguna terminal.
+
+**Verifikasi:** `migrasi/verifikasi-storage.sql` (satu statement) untuk memastikan
+angka di layar benar-benar mendarat jadi baris di `storage.objects`.
