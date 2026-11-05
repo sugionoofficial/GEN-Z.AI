@@ -2678,56 +2678,15 @@ tbody tr {
 <script src="../assets/js/generation-regenerate.js?v=20261016-regenerate"></script>
 <script src="/navigation/navigation.js?v=livechat-nav-20261101"></script>
 <script src="./assets/js/history-config.js"></script>
-<script src="./assets/js/history-state.js?v=20261102-scope-task-search"></script>
+<script src="./assets/js/history-state.js?v=20261102-scope-task-search-history-stats-20261105"></script>
 <script src="./assets/js/history-auth.js?v=persistent-auth-20261022-scope-task-search-20261102"></script>
-<script src="./assets/js/history-data.js?v=20261026-expiry-result-only-audio-copyright-scope-task-search-20261102-signed-url-flood-20261102-private-src-guard-20261102"></script>
+<script src="./assets/js/history-data.js?v=20261026-expiry-result-only-audio-copyright-scope-task-search-20261102-signed-url-flood-20261102-private-src-guard-20261102-history-stats-20261105"></script>
 <script src="./assets/js/history-status-sync.js?v=20261103-audio-status-recovery"></script>
-<script src="./assets/js/history-render.js?v=20261026-expiry-result-only-opus20261029-audio-copyright-expired-label-audio-transcribe-scope-task-search-20261102-private-src-guard-20261102"></script>
+<script src="./assets/js/history-render.js?v=20261026-expiry-result-only-opus20261029-audio-copyright-expired-label-audio-transcribe-scope-task-search-20261102-private-src-guard-20261102-history-stats-20261105"></script>
 <script src="./assets/js/history-runtime.js"></script>
 <script src="./assets/js/history-modal.js?v=20261029-close-fix-opus-1h-audio-copyright-audio-transcribe-private-src-guard-20261102"></script>
 <script src="./assets/js/history-events.js?v=20261028-feature-credit-scope-task-search-20261102"></script>
 <script src="./assets/js/history-app.js"></script>
-
-<script>
-(function () {
-    "use strict";
-
-    function updateStats() {
-        var body = document.getElementById("historyBody");
-        if (!body) return;
-
-        var rows = body.querySelectorAll("tr");
-        var total = 0, success = 0, processing = 0, failed = 0;
-
-        rows.forEach(function (row) {
-            if (row.style.display === "none") return;
-
-            var statusEl = row.querySelector(".status");
-            if (!statusEl) return;
-
-            total++;
-            var cls = statusEl.classList;
-
-            if (cls.contains("success") || cls.contains("completed")) success++;
-            else if (cls.contains("processing")) processing++;
-            else if (cls.contains("failed")) failed++;
-        });
-
-        var setText = function (id, val) {
-            var el = document.getElementById(id);
-            if (el) el.textContent = val;
-        };
-
-        setText("statTotal", total);
-        setText("statSuccess", success);
-        setText("statProcessing", processing);
-        setText("statFailed", failed);
-    }
-
-    setInterval(updateStats, 600);
-    setTimeout(updateStats, 300);
-})();
-</script>
 
 <!-- =========================================================
      PAGINATION

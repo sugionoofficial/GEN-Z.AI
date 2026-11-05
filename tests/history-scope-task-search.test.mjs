@@ -81,11 +81,21 @@ function makeFakeClient(rows = [], { deferred } = {}) {
     const calls = [];
 
     function makeQuery(table) {
-        const call = { table, filters: [], ilike: [], limit: null, order: null };
+        const call = {
+            table,
+            filters: [],
+            ilike: [],
+            limit: null,
+            order: null,
+            countOptions: null
+        };
         calls.push(call);
 
         const query = {
-            select() { return query; },
+            select(_columns, options) {
+                call.countOptions = options || null;
+                return query;
+            },
             order(column, options) {
                 call.order = { column, options };
                 return query;
@@ -98,14 +108,39 @@ function makeFakeClient(rows = [], { deferred } = {}) {
                 call.filters.push({ column, value });
                 return query;
             },
+            in(column, values) {
+                call.filters.push({ column, values });
+                return query;
+            },
             ilike(column, pattern) {
                 call.ilike.push({ column, pattern });
                 return query;
             },
             then(resolve, reject) {
+                const matchingRows = rows.filter(row =>
+                    call.filters.every(filter =>
+                        Array.isArray(filter.values)
+                            ? filter.values.includes(row[filter.column])
+                            : row[filter.column] === filter.value
+                    )
+                );
+
+                if (call.countOptions?.head) {
+                    return Promise.resolve({
+                        count: matchingRows.length,
+                        data: null,
+                        error: null
+                    }).then(resolve, reject);
+                }
+
                 const promise = deferred
                     ? deferred.promise
-                    : Promise.resolve({ data: rows, error: null });
+                    : Promise.resolve({
+                        data: call.limit === null
+                            ? matchingRows
+                            : matchingRows.slice(0, call.limit),
+                        error: null
+                    });
                 return promise.then(resolve, reject);
             }
         };
@@ -191,11 +226,48 @@ test("query user selalu memakai user_id walaupun state mencoba global", async ()
 
     await App.loadHistory({ silent: true });
 
-    assert.equal(client.calls.length, 1);
+    assert.equal(client.calls.length, 7);
     assert.deepEqual(client.calls[0].filters, [
         { column: "user_id", value: "user-123" }
     ]);
     assert.equal(client.calls[0].limit, 200);
+    assert(
+        client.calls.slice(1).every(call =>
+            call.filters.some(filter =>
+                filter.column === "user_id" &&
+                filter.value === "user-123"
+            )
+        )
+    );
+});
+
+test("kartu statistik menghitung seluruh riwayat melewati batas 200 baris", async () => {
+    const statuses = [
+        "completed",
+        "processing",
+        "failed",
+        "queued",
+        "cancelled"
+    ];
+    const rows = Array.from({ length: 2505 }, (_, id) => ({
+        id: String(id),
+        user_id: "user-123",
+        status: statuses[id % statuses.length]
+    }));
+    const client = makeFakeClient(rows);
+    const App = loadDataModule({ role: "USER", client });
+
+    await App.loadHistory({ silent: true });
+
+    assert.equal(App.state.historyData.length, 200);
+    assert.deepEqual({ ...App.getStatusCounts() }, {
+        all: 2505,
+        success: 501,
+        processing: 501,
+        pending: 501,
+        failed: 501,
+        cancelled: 501
+    });
 });
 
 test("admin scope own memfilter user_id, scope global tidak", async () => {
@@ -247,16 +319,32 @@ test("respons lama tidak menimpa hasil scope/pencarian terbaru", async () => {
     const client = {
         calls: [],
         from() {
-            const deferred = responses[index++];
-            const call = { filters: [], ilike: [] };
+            const call = {
+                filters: [],
+                ilike: [],
+                countOptions: null
+            };
             this.calls.push(call);
             const query = {
-                select() { return query; },
+                select(_columns, options) {
+                    call.countOptions = options || null;
+                    return query;
+                },
                 order() { return query; },
                 limit() { return query; },
                 eq(column, value) { call.filters.push({ column, value }); return query; },
+                in(column, values) { call.filters.push({ column, values }); return query; },
                 ilike(column, pattern) { call.ilike.push({ column, pattern }); return query; },
                 then(resolve, reject) {
+                    if (call.countOptions?.head) {
+                        return Promise.resolve({
+                            count: 0,
+                            data: null,
+                            error: null
+                        }).then(resolve, reject);
+                    }
+
+                    const deferred = responses[index++];
                     return deferred.promise.then(resolve, reject);
                 }
             };

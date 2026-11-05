@@ -69,6 +69,14 @@
         historyData:
             [],
 
+        /*
+         * Counts cover the full selected history scope, not the
+         * 200-row table preview.
+         */
+
+        statusCounts:
+            null,
+
 
         /*
          * Filter aktif.
@@ -221,6 +229,29 @@
             elements.historyCount =
                 document.getElementById(
                     "historyCount"
+                );
+
+            elements.statTotal =
+                document.getElementById(
+                    "statTotal"
+                );
+
+
+            elements.statSuccess =
+                document.getElementById(
+                    "statSuccess"
+                );
+
+
+            elements.statProcessing =
+                document.getElementById(
+                    "statProcessing"
+                );
+
+
+            elements.statFailed =
+                document.getElementById(
+                    "statFailed"
                 );
 
 

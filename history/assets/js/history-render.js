@@ -2636,6 +2636,36 @@
                 : `${total} riwayat`;
     }
 
+    function updateStatusStats() {
+
+        if (typeof App.getStatusCounts !== "function") {
+            return;
+        }
+
+        const counts = App.getStatusCounts();
+        const elements = getElements();
+
+        if (elements.statTotal) {
+            elements.statTotal.textContent =
+                String(counts.all);
+        }
+
+        if (elements.statSuccess) {
+            elements.statSuccess.textContent =
+                String(counts.success);
+        }
+
+        if (elements.statProcessing) {
+            elements.statProcessing.textContent =
+                String(counts.processing);
+        }
+
+        if (elements.statFailed) {
+            elements.statFailed.textContent =
+                String(counts.failed);
+        }
+    }
+
 
     function getScopeLabel() {
 
@@ -2764,6 +2794,8 @@
 
         const allData =
             getHistoryData();
+
+        updateStatusStats();
 
 
         const filteredData =

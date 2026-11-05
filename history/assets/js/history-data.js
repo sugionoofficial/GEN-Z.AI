@@ -163,6 +163,62 @@
     App.escapeLikePattern = escapeLikePattern;
     App.getHistoryQueryLimit = getHistoryQueryLimit;
 
+    async function loadStatusCounts(client, currentUser, scope) {
+        async function countRows(statuses) {
+            let query = client
+                .from(App.config.historyTable)
+                .select("id", {
+                    count: "exact",
+                    head: true
+                });
+
+            if (scope !== "global") {
+                query = query.eq("user_id", currentUser.id);
+            }
+
+            if (Array.isArray(statuses)) {
+                query = query.in("status", statuses);
+            } else if (statuses) {
+                query = query.eq("status", statuses);
+            }
+
+            const { count, error } = await query;
+
+            if (error) {
+                console.error(
+                    "History status count query error:",
+                    error
+                );
+
+                throw new Error(
+                    "Gagal menghitung status generation history: " +
+                    error.message
+                );
+            }
+
+            return Number(count) || 0;
+        }
+
+        const [all, success, processing, pending, failed, cancelled] =
+            await Promise.all([
+                countRows(),
+                countRows(["success", "completed"]),
+                countRows("processing"),
+                countRows(["pending", "queued"]),
+                countRows("failed"),
+                countRows("cancelled")
+            ]);
+
+        return {
+            all,
+            success,
+            processing,
+            pending,
+            failed,
+            cancelled
+        };
+    }
+
     /* =====================================================
        STATUS
     ===================================================== */
@@ -1475,10 +1531,20 @@
                 );
             }
 
+            const [historyResult, statusCounts] =
+                await Promise.all([
+                    query,
+                    loadStatusCounts(
+                        client,
+                        currentUser,
+                        scope
+                    )
+                ]);
+
             const {
                 data,
                 error
-            } = await query;
+            } = historyResult;
 
             /*
              * Abaikan respons lama bila pengguna sudah mengganti
@@ -1508,6 +1574,9 @@
                 Array.isArray(data)
                     ? data
                     : [];
+
+            state.statusCounts =
+                statusCounts;
 
             state.historySearchTruncated =
                 Boolean(taskIdSearch) &&
@@ -2013,6 +2082,13 @@
     ===================================================== */
 
     function getStatusCounts() {
+
+        const loadedCounts =
+            getState().statusCounts;
+
+        if (loadedCounts) {
+            return loadedCounts;
+        }
 
         const counts = {
             all: 0,
