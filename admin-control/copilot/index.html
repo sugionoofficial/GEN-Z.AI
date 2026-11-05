@@ -2,114 +2,176 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#000000">
+    <meta name="color-scheme" content="dark">
     <title>Admin Copilot • GEN-Z.AI</title>
-    <link rel="stylesheet" href="./assets/css/copilot.css?v=20261105">
+    <link rel="stylesheet" href="./assets/css/copilot.css?v=20261105-shell-v2">
 </head>
 <body>
     <div id="navigation"></div>
 
-    <main class="copilot-page" id="copilotPage" hidden>
+    <div class="copilot-shell" id="copilotPage" hidden>
+
+        <!-- ============ TOPBAR ============ -->
         <header class="topbar">
             <div class="brand">
                 <div class="terminal-mark" aria-hidden="true">&gt;_</div>
-                <div>
-                    <p class="eyebrow">GEN-Z.AI / ADMIN WORKSPACE</p>
+                <div class="brand-copy">
+                    <p class="eyebrow">GEN-Z.AI / Admin Workspace</p>
                     <h1>Copilot <span>Terminal</span></h1>
                 </div>
             </div>
             <div class="topbar-meta">
-                <span class="secure-pill"><i></i> ADMIN / OWNER</span>
-                <a class="repo-link" href="https://github.com/sugionoofficial/GEN-Z.AI" target="_blank" rel="noopener noreferrer">
-                    sugionoofficial / GEN-Z.AI <span aria-hidden="true">↗</span>
+                <span class="pill pill-role"><span class="pill-dot"></span> ADMIN / OWNER</span>
+                <span class="pill pill-mono" id="repoStatePill" title="Status repository">
+                    <span class="pill-dot" id="repoStateDot"></span>
+                    <span id="repoStateText">menghubungkan…</span>
+                </span>
+                <a class="pill" href="https://github.com/sugionoofficial/GEN-Z.AI" target="_blank" rel="noopener noreferrer" title="Buka repository di GitHub">
+                    GitHub <span aria-hidden="true">↗</span>
                 </a>
             </div>
         </header>
 
-        <section class="intro">
-            <div>
-                <p class="eyebrow">AI-POWERED REPOSITORY WORKSPACE</p>
-                <h2>Bangun dengan <span>kendali penuh.</span></h2>
-                <p class="intro-copy">Pilih model OpenKey, baca dan ubah file repository, lalu kirim perubahan melalui branch dan pull request.</p>
-            </div>
-            <div class="repo-status">
-                <span class="status-light"></span>
-                <div><strong>Repository terhubung</strong><small>Branch dasar: main</small></div>
-            </div>
-        </section>
+        <!-- ============ NOTICE ============ -->
+        <div class="notice" id="notice" role="status" aria-live="polite" hidden>
+            <span id="noticeText"></span>
+            <button class="notice-close" id="noticeClose" type="button" aria-label="Tutup pemberitahuan">&times;</button>
+        </div>
 
-        <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
+        <!-- ============ BARIS KONTROL GIT ============ -->
+        <!--
+            Kontrol git berada di SATU baris di bawah topbar, bukan di dalam
+            panel editor. Tujuannya: panel editor tetap penuh untuk kode,
+            dan tombol aksi tidak pernah terdorong ke bawah saat pesan
+            commit panjang atau layar pendek.
+        -->
+        <div class="gitbar" role="group" aria-label="Kontrol git">
+            <div class="gitbar-seg">
+                <span class="gitbar-label">File</span>
+                <span class="gitbar-value" id="editorPath">Belum ada file</span>
+                <span class="editor-flag" id="editorState">Tidak ada perubahan</span>
+            </div>
 
-        <section class="workspace" aria-label="Admin Copilot workspace">
-            <aside class="panel explorer">
-                <div class="panel-heading">
-                    <div><p class="eyebrow">SOURCE CONTROL</p><h2>Explorer</h2></div>
+            <div class="gitbar-seg gitbar-commit">
+                <label class="sr-only" for="commitMessage">Pesan commit</label>
+                <input id="commitMessage" class="field" type="text" maxlength="200" placeholder="Pesan commit…">
+                <button class="button button-primary" id="saveFileButton" type="button" disabled>Commit</button>
+            </div>
+
+            <div class="gitbar-seg gitbar-pr">
+                <span class="branch-chip" id="branchHint">main · read only</span>
+                <select id="pullRequestSelect" class="field" aria-label="Pull request terbuka">
+                    <option value="">Muat daftar PR…</option>
+                </select>
+                <button class="button button-secondary" id="createPrButton" type="button" disabled>Buat PR</button>
+                <button class="button button-danger" id="mergePrButton" type="button" disabled>Merge</button>
+            </div>
+        </div>
+
+        <!-- ============ WORKSPACE ============ -->
+        <main class="workspace" aria-label="Admin Copilot workspace">
+
+            <!-- ---- EXPLORER ---- -->
+            <aside class="panel explorer" aria-label="Explorer repository">
+                <div class="panel-head">
+                    <div>
+                        <p class="panel-sub">Source control</p>
+                        <h2 class="panel-title">Explorer</h2>
+                    </div>
                     <button class="icon-button" id="refreshTreeButton" type="button" aria-label="Muat ulang daftar file" title="Muat ulang">↻</button>
                 </div>
-                <div class="path-bar"><span class="path-root">GEN-Z.AI</span><span id="currentFolder">/</span></div>
-                <div class="file-list" id="fileList" aria-live="polite">
-                    <p class="muted empty-hint">Memuat repository…</p>
+
+                <div class="path-bar">
+                    <span class="path-root">GEN-Z.AI</span>
+                    <span class="path-current" id="currentFolder">/</span>
                 </div>
-                <div class="explorer-footer"><span class="status-light"></span> Read-only pada main</div>
+
+                <div class="file-filter">
+                    <label class="sr-only" for="fileFilterInput">Saring file</label>
+                    <input id="fileFilterInput" type="search" placeholder="Saring nama file…" autocomplete="off" spellcheck="false">
+                </div>
+
+                <div class="file-list" id="fileList" aria-live="polite">
+                    <p class="chat-placeholder">Memuat repository…</p>
+                </div>
+
+                <div class="explorer-foot">
+                    <span class="pill-dot"></span>
+                    <span id="explorerFootText">Read-only pada main</span>
+                </div>
             </aside>
 
-            <section class="panel editor-panel">
-                <div class="panel-heading editor-heading">
-                    <div><p class="eyebrow">WORKING COPY</p><h2 id="editorTitle">Pilih file untuk mulai</h2></div>
-                    <span class="branch-badge" id="branchBadge">main · read only</span>
+            <!-- ---- EDITOR ---- -->
+            <section class="panel editor-panel" aria-label="Editor file">
+                <div class="panel-head editor-head">
+                    <div style="min-width:0">
+                        <p class="panel-sub">Working copy</p>
+                        <h2 class="panel-title" id="editorTitle">Pilih file untuk mulai</h2>
+                    </div>
+                    <span class="branch-badge is-main" id="branchBadge">main · read only</span>
                 </div>
-                <div class="editor-toolbar">
-                    <span class="file-path" id="editorPath">Belum ada file dipilih</span>
-                    <span class="editor-state" id="editorState">Tidak ada perubahan</span>
+
+                <div class="code-wrap">
+                    <div class="code-gutter" id="codeGutter" aria-hidden="true">1</div>
+                    <textarea
+                        id="fileEditor"
+                        class="code-editor"
+                        aria-label="Editor file repository"
+                        spellcheck="false"
+                        disabled
+                        placeholder="Pilih file teks dari Explorer. Perubahan hanya masuk ke branch Copilot baru, tidak langsung ke main."
+                    ></textarea>
                 </div>
-                <textarea id="fileEditor" class="code-editor" aria-label="Editor file repository" spellcheck="false" disabled placeholder="Pilih file teks dari Explorer. Perubahan hanya akan masuk ke branch Copilot baru, tidak langsung ke main."></textarea>
-                <div class="commit-controls">
-                    <label class="sr-only" for="commitMessage">Pesan commit</label>
-                    <input id="commitMessage" type="text" maxlength="200" placeholder="Pesan commit, contoh: Update admin dashboard">
-                    <button class="button button-primary" id="saveFileButton" type="button" disabled>Simpan ke branch</button>
-                </div>
-                <div class="branch-controls">
-                    <span class="branch-label" id="workingBranchLabel">Belum ada branch Copilot</span>
-                    <button class="button button-secondary" id="createPrButton" type="button" disabled>Buat pull request</button>
-                </div>
-                <div class="pr-controls">
-                    <label for="pullRequestSelect">PR Copilot terbuka</label>
-                    <select id="pullRequestSelect">
-                        <option value="">Muat daftar PR…</option>
-                    </select>
-                    <button class="button button-danger" id="mergePrButton" type="button" disabled>Merge PR</button>
-                </div>
+
             </section>
 
-            <aside class="panel assistant">
-                <div class="panel-heading">
-                    <div><p class="eyebrow">OPENKEY INTELLIGENCE</p><h2>AI Assistant</h2></div>
-                    <span class="online-badge"><i></i> ONLINE</span>
-                </div>
-                <label class="field-label" for="modelSelect">Model OpenKey</label>
-                <select id="modelSelect" class="model-select">
-                    <option value="">Memuat model…</option>
-                </select>
-                <div class="chat-context" id="chatContext">Pilih file untuk mengikutsertakan konteks kode ke percakapan. Instruksi dan isi file aktif diproses oleh OpenKey.</div>
-                <div class="chat-messages" id="chatMessages" aria-live="polite" aria-label="Percakapan dengan AI"></div>
-                <form class="chat-form" id="chatForm">
-                    <label class="sr-only" for="chatInput">Instruksi untuk Copilot</label>
-                    <textarea id="chatInput" rows="3" maxlength="12000" placeholder="Jelaskan perubahan yang kamu inginkan…" required></textarea>
-                    <div class="chat-form-footer">
-                        <span>AI mengusulkan kode. Tinjau sebelum menyimpan.</span>
-                        <button class="button button-primary" id="sendChatButton" type="submit">Kirim <span aria-hidden="true">↑</span></button>
+            <!-- ---- ASSISTANT ---- -->
+            <aside class="panel assistant" aria-label="Asisten AI">
+                <div class="panel-head assistant-head">
+                    <div>
+                        <p class="panel-sub">OpenKey</p>
+                        <h2 class="panel-title">AI Assistant</h2>
                     </div>
-                </form>
-            </aside>
-        </section>
+                    <span class="badge-live"><i></i> ONLINE</span>
+                </div>
 
-        <footer class="safety-footer">
-            <span>🔒 GitHub token tetap di server.</span>
-            <span>Perubahan hanya pada branch <code>copilot/*</code>.</span>
-            <span>Merge memerlukan CI lulus dan konfirmasi eksplisit.</span>
+                <div class="assistant-body">
+                    <div class="model-bar">
+                        <label for="modelSelect">Model</label>
+                        <select id="modelSelect" class="field model-select">
+                            <option value="">Memuat model…</option>
+                        </select>
+                    </div>
+
+                    <div class="chat-context" id="chatContext">
+                        Pilih file untuk mengikutsertakan konteks kode ke percakapan.
+                    </div>
+
+                    <div class="chat-messages" id="chatMessages" aria-live="polite" aria-label="Percakapan dengan AI"></div>
+
+                    <form class="chat-form" id="chatForm">
+                        <label class="sr-only" for="chatInput">Instruksi untuk Copilot</label>
+                        <div class="chat-input-wrap">
+                            <textarea id="chatInput" rows="2" maxlength="12000" placeholder="Jelaskan perubahan yang kamu inginkan…" required></textarea>
+                        </div>
+                        <div class="chat-form-foot">
+                            <span>AI mengusulkan kode. Tinjau sebelum commit.</span>
+                            <button class="button button-primary" id="sendChatButton" type="submit">Kirim <span aria-hidden="true">↑</span></button>
+                        </div>
+                    </form>
+                </div>
+            </aside>
+        </main>
+
+        <!-- ============ FOOTER ============ -->
+        <footer class="shell-foot">
+            <span>🔒 Token GitHub tetap di server</span>
+            <span>Commit hanya ke <code>copilot/*</code></span>
+            <span>Merge butuh CI lulus + konfirmasi</span>
         </footer>
-    </main>
+    </div>
 
     <div class="page-loading" id="pageLoading">
         <span class="loading-orb"></span>
@@ -120,6 +182,6 @@
     <script src="../../assets/js/config.js"></script>
     <script src="/navigation/navigation.js?v=admin-copilot-20261105"></script>
     <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
-    <script src="./assets/js/copilot.js?v=20261105"></script>
+    <script src="./assets/js/copilot.js?v=20261105-shell-v2"></script>
 </body>
 </html>
