@@ -554,7 +554,33 @@ Angka di atas hanya jumlah baris. Langkah ini memastikan **isinya** benar.
 2. Buka berkas `migrasi/verify-restore.sql` dari repo, salin **seluruh
    isinya**.
 3. Tempel ke SQL Editor, klik **Run**.
-4. Hasil terakhir harus seperti ini:
+4. Muncul **satu tabel dengan 15 baris**. Setiap baris menilai dirinya sendiri
+   di kolom `status`:
+
+| cek | hasil | target | status |
+|---|---|---|---|
+| `tabel_pass` | 60 | 60 | **OK** |
+| `tabel_gagal` | 0 | 0 | **OK** |
+| `tabel_bermasalah` | - | - | - |
+| `auth.users` | 25 | 25 | **OK** |
+| `auth.identities` | 25 | 25 | **OK** |
+| `public.profiles` | 25 | 25 | **OK** |
+| `public.generation_history` | 502 | 502 | **OK** |
+| `public.social_post_runs` | 941 | 941 | **OK** |
+| `storage.objects` | 112 | 112 | **OK** |
+| `tabel_rls_aktif` | 60 | 60 | **OK** |
+| `policy` | 53 | 53 | **OK** |
+| `trigger_public` | 9 | 9 | **OK** |
+| `sequence_public` | 5 | 5 | **OK** |
+| `fungsi_public` | 66 | >=60 | **OK** |
+| `owner_ada` | 1 | >=1 | **OK** |
+
+> **Kalau Anda hanya melihat satu baris** (mis. `jumlah_fungsi_public`), berarti
+> Anda memakai berkas verifikasi versi lama yang berisi tiga query terpisah.
+> SQL Editor hanya menampilkan hasil query **terakhir**. Unduh ulang
+> `migrasi/verify-restore.sql` — versi terbaru hanya berisi **satu** query.
+
+5. Patokan lama (jumlah baris saja) ada di bawah, untuk pembanding:
 
    | cek | hasil | target |
    |---|---|---|
