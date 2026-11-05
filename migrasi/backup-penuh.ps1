@@ -42,12 +42,25 @@ Keputusan teknis lain:
 param(
     [Parameter(Position = 0)]
     [ValidateSet('dump', 'restore', 'verify', 'help')]
-    [string]$Mode = 'help'
+    [string]$Mode = 'help',
+
+    # Opsional: alamat bisa diberikan langsung, melewati variabel/env.
+    [string]$Src,
+    [string]$Dst
 )
 
 $ErrorActionPreference = 'Stop'
 
 $Dir = if ($env:DIR) { $env:DIR } else { Join-Path (Get-Location) 'genz-backup' }
+
+# PENTING soal variabel $SRC / $DST.
+# Kalau skrip dijalankan lewat `powershell -File`, PowerShell membuat proses
+# BARU dengan sesi bersih: variabel yang Anda isi di jendela sebelah TIDAK
+# ikut. Karena itu skrip ini menerima alamat lewat environment variable juga
+# (mis. `$env:SRC = '...'`), yang memang diwarisi proses anak. Urutan
+# pemeriksaan: parameter -Src/-Dst, lalu $SRC/$DST di sesi ini, lalu $env:SRC.
+$SrcUrl = if ($Src) { $Src } elseif ($SRC) { $SRC } else { $env:SRC }
+$DstUrl = if ($Dst) { $Dst } elseif ($DST) { $DST } else { $env:DST }
 $FPub      = Join-Path $Dir '1_public.sql'
 $FPubClean = Join-Path $Dir '1_public_clean.sql'
 $FAuth     = Join-Path $Dir '2_auth.sql'
@@ -85,11 +98,11 @@ function Find-PgTool([string]$nama) {
 }
 
 function Assert-Env {
-    if (-not $SRC) { Die 'variabel $SRC belum diisi (connection string project LAMA)' }
-    if (-not $DST) { Die 'variabel $DST belum diisi (connection string project BARU)' }
-    if ($SRC -match ':6543') { Die '$SRC memakai port 6543 (transaction pooler). Pakai 5432 (session pooler).' }
-    if ($DST -match ':6543') { Die '$DST memakai port 6543 (transaction pooler). Pakai 5432 (session pooler).' }
-    if ($SRC -match '\[YOUR-PASSWORD\]' -or $DST -match '\[YOUR-PASSWORD\]') {
+    if (-not $SrcUrl) { Die 'alamat project LAMA belum diisi. Isi $env:SRC (lihat TUTORIAL-BACKUP.md).' }
+    if (-not $DstUrl) { Die 'alamat project BARU belum diisi. Isi $env:DST (lihat TUTORIAL-BACKUP.md).' }
+    if ($SrcUrl -match ':6543') { Die 'alamat LAMA memakai port 6543 (transaction pooler). Pakai 5432 (session pooler).' }
+    if ($DstUrl -match ':6543') { Die 'alamat BARU memakai port 6543 (transaction pooler). Pakai 5432 (session pooler).' }
+    if ($SrcUrl -match '\[YOUR-PASSWORD\]' -or $DstUrl -match '\[YOUR-PASSWORD\]') {
         Die 'masih ada teks [YOUR-PASSWORD]. Ganti dengan password asli (tanpa tanda kurung).'
     }
 }
@@ -104,7 +117,7 @@ function Invoke-Dump {
     $pgDump = Find-PgTool 'pg_dump'
     Assert-Env
     New-Item -ItemType Directory -Force -Path $Dir | Out-Null
-    $src = Encode-Url $SRC
+    $src = Encode-Url $SrcUrl
 
     Say 'Versi client'
     & $pgDump --version
@@ -173,7 +186,7 @@ function Invoke-Restore {
             Die "$f tidak ada atau kosong. Jalankan 'dump' dulu."
         }
     }
-    $dst = Encode-Url $DST
+    $dst = Encode-Url $DstUrl
 
     Say 'Menggabungkan berkas restore'
     $bagian = @($FPre, $FPubClean, $FAuth, $FStorage, $FPost) | Where-Object {
@@ -207,7 +220,7 @@ function Invoke-Restore {
 function Invoke-Verify {
     $psql = Find-PgTool 'psql'
     Assert-Env
-    $dst = Encode-Url $DST
+    $dst = Encode-Url $DstUrl
 
     $sql = (@(
         "select 'auth.users' as cek, (select count(*)::text from auth.users) as hasil, '25' as harus",
