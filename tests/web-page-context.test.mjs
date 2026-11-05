@@ -280,10 +280,14 @@ test("limits URLs per message and fetched page size", async () => {
         }], async () => response("unused")),
         /Maksimal 3 URL/
     );
-    await assert.rejects(
-        buildWebPageContext([{ role: "user", content: "https://example.org/large" }], async () =>
-            response("x".repeat(41 * 1024), { contentType: "text/plain" })
-        ),
-        /melebihi batas 40 KB/
+    // 41 KB sekarang tidak error — dipotong otomatis, tetap berhasil (batas baru 150 KB)
+    const ctx = await buildWebPageContext([{ role: "user", content: "https://example.org/large" }], async () =>
+        response("x".repeat(41 * 1024), { contentType: "text/plain" })
     );
+    assert.ok(ctx.content.includes("x".repeat(10)));
+    // halaman sangat besar 200 KB dipotong, tidak throw
+    const big = await buildWebPageContext([{ role: "user", content: "https://example.org/huge" }], async () =>
+        response("y".repeat(200 * 1024), { contentType: "text/plain" })
+    );
+    assert.match(big.content, /dipotong karena melebihi batas/);
 });
