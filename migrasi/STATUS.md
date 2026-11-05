@@ -236,3 +236,41 @@ Sempat dipertimbangkan memindahkan konektor Supabase ke akun pemilik
 
 Konektor baru dipertimbangkan **setelah Fase B selesai**, saat akses ke project
 lama tidak lagi diperlukan.
+
+### ✅ FASE A SELESAI — data sudah di project baru (2026-11-05)
+
+Dijalankan pemilik akun dari Windows memakai `migrasi/backup-penuh.ps1`.
+Hasil terverifikasi di project `rvgioyenjgkprnssfpfr`:
+
+| Cek | Target | Hasil |
+|---|---|---|
+| auth.users | 25 | **25** |
+| auth.identities | 25 | **25** |
+| profiles | 25 | **25** |
+| models | 45 | **45** |
+| generation_history | 502 | **502** |
+| social_post_runs | 941 | **941** |
+| storage.objects | 112 | **112** |
+| profiles role OWNER | >=1 | **1** |
+| blok COPY data public | 60 | **60** |
+
+Berkas dump (di komputer pemilik, **jangan** di-commit — berisi PII):
+`1_public_clean.sql` 265 KB, `1b_public_data.sql` 10.887 KB,
+`2_auth.sql` 24 KB, `3_storage_meta.sql` 58,8 KB.
+
+**Empat kegagalan berurutan yang harus dilalui** (semua sudah diperbaiki di
+repo; dicatat agar tidak terulang):
+
+| # | Gejala | Sebab | Perbaikan |
+|---|---|---|---|
+| 1 | `ParserError`, `Missing closing '}'` | here-string ter-indentasi + byte non-ASCII | ASCII murni, tanpa here-string |
+| 2 | `variabel $SRC belum diisi` | `-File` membuat sesi baru | `$env:SRC` (diwarisi) |
+| 3 | `function "rls_auto_enable" already exists` | fungsi milik platform Supabase ikut dump | buang DDL fungsi platform + event trigger saat dump |
+| 4 | `violates foreign key constraint ... created_by_fkey` | data public dimuat sebelum `auth.users` | pisah skema vs data; urutan skema -> auth -> data |
+
+Pelajaran utama: tambalan `session_replication_role = replica` **tidak**
+bisa diandalkan (terbukti gagal di lingkungan pemilik), sehingga urutan
+pemuatan dibuat benar secara struktural, bukan dengan mematikan pengecekan FK.
+
+**Sisa pekerjaan:** Fase B (file storage 112 objek, tunggu kuota), Fase C
+(auth config target), Fase D (3 secrets Worker + verifikasi akhir).
