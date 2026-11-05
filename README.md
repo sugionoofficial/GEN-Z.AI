@@ -22,6 +22,7 @@
 | **Studio Medsos** | Social Publisher dengan akses langganan, pengaturan harga, dan autopost Facebook Page |
 | **NSFW Filter** | Server-side content moderation (SightEngine) |
 | **Admin Panel** | Kelola user, model, kredit, dan provider credentials |
+| **Admin Copilot** | Asisten OpenKey untuk membaca dan mengubah repo melalui branch, PR, dan merge ber-CI |
 
 ---
 
@@ -500,6 +501,11 @@ Worker `genzai` adalah target deployment production.
    fine-grained token). The upscale handler reads Worker bindings at request
    time; `GITHUB_OWNER` and `GITHUB_REPO` default to `sugionoofficial` and
    `GEN-Z.AI`, so they only need to be overridden for another repository.
+   Admin Copilot also needs `GITHUB_PAT` configured as a Worker secret. Its
+   fine-grained token needs repository access with Contents read/write, Pull
+   requests read/write, Checks read, and Commit statuses read. It can only
+   create commits on `copilot/*` branches; merging requires completed CI checks
+   and explicit confirmation in the admin page.
 5. Setelah deployment, uji login, generate/status, admin, OpenKey
    streaming, serta integrasi provider pada domain production.
 
