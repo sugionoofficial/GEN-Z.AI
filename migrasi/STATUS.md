@@ -78,3 +78,64 @@ Secret Worker `genzai` harus memakai nilai proyek baru
 
 Tanpa ini, API production tetap membalas 500 / "Server configuration is
 incomplete" walaupun frontend sudah benar.
+
+---
+
+## Pembatasan egress 2026-11-05 — project TERKENA 402
+
+Project `ycovbqmezhrvzobxqnyp` dibatasi Supabase dengan pesan:
+
+```
+Service for this project is restricted due to the following violations:
+exceed_egress_quota. The project owner must upgrade their plan or remove
+spend caps to restore service.
+```
+
+- Management API tetap `ACTIVE_HEALTHY`; database masih bisa di-query lewat
+  konektor. Yang dibatasi adalah REST/Storage/Auth untuk client (HTTP 402).
+- **Transfer ke organisasi baru DITOLAK** dengan dua alasan:
+  1. `can't be transferred to a Free organization while the source
+     organization is in an active grace period or under service restrictions`
+  2. `Project is currently connected to GitHub` — integrasi harus diputus dulu.
+- Karena transfer tertutup, jalur yang dipakai: **migrasi manual**.
+  Panduan lengkap: `migrasi/MIGRASI-MANUAL.md`.
+- Data saat migrasi: auth.users 25, profiles 25, generation_history 502,
+  social_post_runs 941, models 45, providers 9, storage 8 bucket / 112 objek.
+
+### Penyebab egress (sudah diperbaiki di kode)
+
+| # | Penyebab | Bukti | Perbaikan |
+|---|---|---|---|
+| 1 | Upload memakai `cacheControl: "3600"` | 47 objek `user-uploads` tercatat `no-cache` di `storage.objects` | `"31536000, immutable"` |
+| 2 | `voice-previews` & `social-video` tanpa aturan retensi | 16 file umur 3h15j, 4 file umur 3h3j | TTL 30 hari & 7 hari |
+| 3 | Signed URL selalu berubah → browser tidak pernah cache | video 10–14 MB diunduh ulang penuh | (dokumentasi; lihat STORAGE-RETENTION.md) |
+
+### Target migrasi final: project baru di akun/org berbeda, region ap-southeast-2
+
+- Project target dibuat di **organisasi baru pada akun Supabase berbeda** →
+  konektor/agen **tidak bisa melihat** project tersebut. Seluruh langkah
+  dijalankan pemilik akun memakai `migrasi/MIGRASI-MANUAL.md`.
+- Region target **`ap-southeast-2` (Sydney)**, bukan Singapore. Latensi DB
+  tidak terasa (API di Cloudflare Worker) tetapi Storage terasa: unduhan video
+  10–14 MB ke pengguna Indonesia lebih lambat.
+- Alat bantu baru: `scripts/check-migration-readiness.mjs`
+  (`npm run check:migration`) — memeriksa env, jenis kunci (menolak
+  publishable/anon), status 402 sumber, schema target kosong, dan versi
+  `pg_dump` **sebelum** ada data disentuh.
+- Syarat yang masih menahan: Storage sumber masih 402, sehingga langkah pindah
+  file harus menunggu kuota pulih (upgrade Pro atau reset siklus billing).
+
+### Target final (2026-11-05): `rvgioyenjgkprnssfpfr` — ap-southeast-1
+
+- Project dibuat ulang di **Singapore** (bukan Sydney) → region sama dengan
+  sumber, latensi tidak berubah untuk pengguna Indonesia.
+- Berada di **akun Supabase berbeda**: `get_project` lewat konektor ditolak
+  (403 "The app denied access for this call"), jadi seluruh langkah dijalankan
+  pemilik akun.
+- Nilai & urutan final: `migrasi/CUTOVER-rvgioyenjgkprnssfpfr.md`.
+- `migrasi/migrate_bulk.mjs` naik ke **v3**: menyalin `Cache-Control` dari
+  sumber (dulu dipaksa `max-age=3600` sehingga objek hasil migrasi tercatat
+  cache pendek → memicu egress).
+- **Peringatan urutan:** deploy `config.js` sebelum data & storage siap membuat
+  situs tampil kosong. Urutan aman: skema+data → storage → auth config →
+  config.js + secrets → deploy.

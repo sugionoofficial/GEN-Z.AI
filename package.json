@@ -14,7 +14,8 @@
     "check:deps": "node scripts/check-dependencies.mjs",
     "check:dev": "node scripts/check-local-dev-vars.mjs",
     "prebuild": "node scripts/check-dependencies.mjs",
-    "deploy": "node scripts/check-dependencies.mjs && npm run build && npx wrangler deploy"
+    "deploy": "node scripts/check-dependencies.mjs && npm run build && npx wrangler deploy",
+    "check:migration": "node scripts/check-migration-readiness.mjs"
   },
   "engines": {
     "node": ">=20"

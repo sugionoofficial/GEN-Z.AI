@@ -12,12 +12,30 @@ Cloudflare Worker; tidak ada langkah manual yang dibutuhkan setelah deploy.
 | Input **Upscale** (foto & video) | `user-uploads/upscale-photos/inputs/…`, `user-uploads/upscale-videos/inputs/…` (**privat**) | **24 jam** | File dihapus |
 | Output **Upscale** | `user-uploads/upscale-photos/outputs/<user-id>/…`, `user-uploads/upscale-videos/outputs/<user-id>/…` (**privat**) — sisa file lama masih di `dashboard-videos/upscale-photos/outputs/…` dan `dashboard-upscales/outputs/…` (publik) | **24 jam** | File dihapus, baris History ditandai **KEDALUWARSA** |
 | Konten situs (video & thumbnail dashboard yang diunggah admin) | `dashboard-videos/videos/…`, `dashboard-videos/thumbnails/…` | permanen | **Tidak pernah disentuh cron** |
+| Media video Studio Medsos | `user-uploads/social-video/…` (privat) | **7 hari** | File dihapus |
+| Cache sampel suara Opus | `user-uploads/voice-previews/…` (privat) | **30 hari** | File dihapus |
 | Referensi / outfit Studio Medsos | `social-character-references/…` (privat) | permanen | Tidak disentuh cron |
 | Pengumuman & bukti topup | `site-announcements/…`, `topup-proofs/…`, `topup-payment-assets/…` | permanen | Tidak disentuh cron |
 
 > Hasil generate video dari provider **tidak** disimpan di Supabase Storage:
 > yang disimpan hanya URL milik provider. Retensi file di sisi provider
 > sepenuhnya diatur provider tersebut.
+
+## Catatan egress (kuota bandwidth)
+
+Supabase membatasi **egress** (byte yang dikirim ke client), bukan sekadar
+kapasitas. Karena itu:
+
+1. Upload media memakai `cacheControl: "31536000, immutable"`. Sebelumnya
+   nilainya `"3600"`, dan Supabase mencatat objek sebagai `no-cache` — artinya
+   setiap tampilan media mengunduh ulang file penuh dari Storage, dan byte itu
+   masuk kuota **uncached egress** yang paling ketat.
+2. Retensi wajib mencakup **semua** prefix bucket `user-uploads`. Prefix yang
+   tidak punya aturan akan menumpuk selamanya (pernah terjadi pada
+   `voice-previews` dan `social-video`).
+3. Video 10–14 MB di bucket privat disajikan lewat signed URL yang **berubah
+   setiap permintaan**, sehingga browser tidak pernah memakai cache. Hindari
+   memuat file video penuh hanya untuk thumbnail.
 
 ## Bucket privat & signed URL
 

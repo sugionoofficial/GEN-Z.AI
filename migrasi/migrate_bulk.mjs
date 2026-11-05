@@ -1,8 +1,17 @@
 #!/usr/bin/env node
 // =====================================================================
-// migrate_bulk.mjs (v2 — mandiri) — migrasi file STORAGE GEN-Z.AI
-// Proyek LAMA : boeamhglmvkatnycluaa (ap-southeast-2)
-// Proyek BARU : ycovbqmezhrvzobxqnyp (ap-southeast-1)
+// migrate_bulk.mjs (v3 — mandiri) — migrasi file STORAGE GEN-Z.AI
+// Proyek LAMA : boeamhglmvkatnycluaa (ap-southeast-2)  [migrasi 2026-10]
+// Proyek BARU : ycovbqmezhrvzobxqnyp (ap-southeast-1)  [migrasi 2026-10]
+//
+// Untuk migrasi 2026-11 ke project rvgioyenjgkprnssfpfr (ap-southeast-1):
+//   OLD_URL=https://ycovbqmezhrvzobxqnyp.supabase.co \
+//   NEW_URL=https://rvgioyenjgkprnssfpfr.supabase.co \
+//   OLD_SERVICE_KEY=<service_role sumber> NEW_SERVICE_KEY=<service_role target> \
+//   node migrate_bulk.mjs
+//
+// v3: Cache-Control ikut disalin dari sumber (dulu dipaksa 'max-age=3600'
+//     sehingga objek hasil migrasi tercatat cache pendek dan memicu egress).
 //
 // Skema + data tabel sudah dipindah dengan pg_dump/psql (lihat RECOVERY.md).
 // Skrip ini HANYA memindah storage: 7 bucket + semua objek (±380 MB),
@@ -114,7 +123,10 @@ async function main() {
       const dl = await fetchRetry(`${OLD_URL}/storage/v1/object/${encPath(o.bucket_id, o.name)}`, { headers: authHeaders(OLD_KEY) });
       const buf = Buffer.from(await dl.arrayBuffer());
       if (typeof o.size === 'number' && buf.length !== o.size) throw new Error(`ukuran ${buf.length} != metadata ${o.size}`);
-      await fetchRetry(`${NEW_URL}/storage/v1/object/${encPath(o.bucket_id, o.name)}`, { method: 'POST', headers: authHeaders(NEW_KEY, { 'Content-Type': o.mimetype || 'application/octet-stream', 'Cache-Control': o.cacheControl || 'max-age=3600', 'x-upsert': 'true' }), body: buf });
+      /* Cache-Control WAJIB dibawa dari sumber. Default lama 'max-age=3600'
+         membuat objek tersimpan dengan cache pendek, sehingga setiap tampilan
+         mengunduh ulang penuh dari Storage dan menghabiskan kuota egress. */
+      await fetchRetry(`${NEW_URL}/storage/v1/object/${encPath(o.bucket_id, o.name)}`, { method: 'POST', headers: authHeaders(NEW_KEY, { 'Content-Type': o.mimetype || 'application/octet-stream', 'Cache-Control': o.cacheControl || '31536000, immutable', 'x-upsert': 'true' }), body: buf });
       progress.uploaded[key] = buf.length; saveProgress(progress); ok++;
       console.log(`  [OK] ${label} (${buf.length} B)`);
     } catch (e) { failures.push({ key, err: String(e.message || e).slice(0, 180) }); console.error(`  [GAGAL] ${label}: ${String(e.message || e).slice(0, 180)}`); }
