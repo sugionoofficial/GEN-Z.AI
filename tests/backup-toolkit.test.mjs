@@ -272,3 +272,17 @@ test("skrip .ps1 menulis SQL sebagai UTF-8 tanpa BOM", () => {
     assert.doesNotMatch(tanpaKomentar(ps), /Set-Content[^\n]*-Encoding\s+utf8/i,
         "jangan pakai Set-Content -Encoding utf8 untuk berkas .sql");
 });
+
+test("skrip .ps1 menerima alamat lewat $env:SRC (variabel tidak diwarisi -File)", () => {
+    /* `powershell -File` membuat proses BARU dengan sesi bersih: $SRC yang
+       diisi di jendela sebelah tidak ikut. Kalau skrip hanya membaca $SRC,
+       pengguna selalu mendapat "variabel belum diisi" padahal sudah mengisi.
+       Environment variable diwarisi proses anak, jadi harus didukung. */
+    const ps = baca(PS1);
+    assert.match(ps, /\$env:SRC/, "harus membaca $env:SRC");
+    assert.match(ps, /\$env:DST/, "harus membaca $env:DST");
+    assert.match(ps, /\[string\]\$Src/, "harus punya parameter -Src");
+    assert.match(ps, /\[string\]\$Dst/, "harus punya parameter -Dst");
+    // Tidak boleh lagi hanya bergantung pada $SRC/$DST.
+    assert.doesNotMatch(tanpaKomentar(ps), /if \(-not \$SRC\)/, "jangan hanya cek $SRC");
+});

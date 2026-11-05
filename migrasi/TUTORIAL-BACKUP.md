@@ -598,13 +598,18 @@ paste di terminal bermasalah.
    ```
    ```
 
-3. Isi dua alamat (tempel di dalam tanda kutip tunggal — aman dari karakter
-   khusus):
+3. Isi dua alamat. **Wajib memakai `$env:SRC` / `$env:DST`, bukan `$SRC`:**
 
    ```powershell
-   $SRC = 'postgresql://postgres.ycovbqmezhrvzobxqnyp:PASSWORD@...:5432/postgres'
-   $DST = 'postgresql://postgres.rvgioyenjgkprnssfpfr:PASSWORD@...:5432/postgres'
+   $env:SRC = 'postgresql://postgres.ycovbqmezhrvzobxqnyp:PASSWORD@...:5432/postgres'
+   $env:DST = 'postgresql://postgres.rvgioyenjgkprnssfpfr:PASSWORD@...:5432/postgres'
    ```
+
+   > **Kenapa `$env:` dan bukan `$SRC`?** Perintah di Langkah 4 memakai
+   > `powershell -File`, yang membuat **proses baru dengan sesi bersih**.
+   > Variabel biasa (`$SRC`) tidak ikut ke proses itu, tetapi *environment
+   > variable* (`$env:SRC`) ikut diwarisi. Kalau memakai `$SRC`, Anda akan
+   > mendapat pesan `alamat project LAMA belum diisi` padahal sudah mengisi.
 
 4. Jalankan backup:
 
