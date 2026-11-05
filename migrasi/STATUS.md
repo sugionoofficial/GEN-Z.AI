@@ -334,3 +334,25 @@ memeriksa apa lagi yang ikut dimatikan.
 **Sisa:** Fase B (112 file storage, menunggu kuota) — fitur yang butuh file
 (thumbnail, preview video, hasil generasi) belum normal. Fase D sudah beres
 karena build/deploy hijau.
+
+### Fase B siap dijalankan
+
+Skrip `migrate_bulk.mjs` punya **dua bug** yang membuatnya menyalin 0 file:
+
+| Bug | Akibat |
+|---|---|
+| `object/list` hanya satu tingkat | semua berkas GEN-Z.AI ada di dalam folder (47/47, 45/45, 19/19, 1/1 bersarang) → "0 objek" |
+| default env menunjuk migrasi 2026-10 | tanpa env: `boeamhglmvkatnycluaa` → `ycovbqmezhrvzobxqnyp` (lama ke lama), mencetak SELESAI |
+
+Keduanya sudah diperbaiki: `listDeep()` menelusuri folder, default env diganti ke
+pasangan sekarang, dan skrip berhenti keras bila `OLD_URL === NEW_URL` atau bila
+manifest kosong.
+
+**Prasyarat Fase B yang sudah terpenuhi:** login ✅, 18 kebijakan storage ✅,
+8 bucket / 4 publik ✅.
+
+Panduan pengguna: `migrasi/TUTORIAL-FASE-B.md`.
+
+> Catatan: tutorial menyuruh pengguna mengunduh skrip dari branch `main`, jadi
+> skrip harus di-merge lebih dulu — kalau tidak, yang terunduh versi lama yang
+> tetap menyalin 0 file.

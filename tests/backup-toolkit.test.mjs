@@ -559,3 +559,32 @@ test("target verifikasi storage cocok dengan proyek sumber (4 bucket publik)", (
     assert.match(sql, /from storage\.buckets where public\), '4'/, "target bucket_publik harus 4");
     assert.doesNotMatch(sql, /from storage\.buckets where public\), '3'/);
 });
+
+test("migrate_bulk.mjs default-nya pasangan migrasi SEKARANG, bukan 2026-10", () => {
+    /* Default lama (boeamhglmvkatnycluaa -> ycovbqmezhrvzobxqnyp) adalah
+       migrasi yang sudah lewat. Kalau pengguna menjalankan tanpa env, skrip
+       menyalin project lama ke dirinya sendiri, mencetak SELESAI, dan Fase B
+       tampak beres tanpa memindahkan apa pun. */
+    const isi = baca(MIGRATE_BULK);
+    assert.match(isi, /OLD_URL \|\| 'https:\/\/ycovbqmezhrvzobxqnyp\.supabase\.co'/);
+    assert.match(isi, /NEW_URL \|\| 'https:\/\/rvgioyenjgkprnssfpfr\.supabase\.co'/);
+    assert.match(isi, /OLD_URL === NEW_URL/, "harus menolak bila sumber = tujuan");
+});
+
+const TUTORIAL_B = path.join(ROOT, "migrasi", "TUTORIAL-FASE-B.md");
+
+test("tutorial Fase B menjelaskan cara mengenali skrip lama (Total: 0 objek)", () => {
+    /* Pengguna bukan pengguna terminal. Kalau skrip lama terpakai, ia mencetak
+       "Total: 0 objek" lalu SELESAI. Tanpa peringatan eksplisit, itu terlihat
+       seperti keberhasilan. */
+    const md = baca(TUTORIAL_B);
+    assert.match(md, /Total: 112 objek/);
+    assert.match(md, /Total: 0 objek/);
+    assert.match(md, /DARI \(lama\)/);
+    assert.match(md, /KE   \(baru\)/);
+    // Harus memperingatkan bahwa skrip bisa dilanjutkan, bukan diulang dari nol.
+    assert.match(md, /\.bulk_progress\.json/);
+    // Jangan pernah meminta kunci rahasia dikirim lewat chat.
+    assert.doesNotMatch(md, /kirim.*kunci.*chat/i);
+    assert.match(md, /jangan kirim lewat chat/i);
+});

@@ -29,8 +29,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const OLD_URL = (process.env.OLD_URL || 'https://boeamhglmvkatnycluaa.supabase.co').replace(/\/+$/, '');
-const NEW_URL = (process.env.NEW_URL || 'https://ycovbqmezhrvzobxqnyp.supabase.co').replace(/\/+$/, '');
+/* BUG YANG PERNAH TERJADI: default di sini masih menunjuk pasangan migrasi
+   2026-10 (boeamhglmvkatnycluaa -> ycovbqmezhrvzobxqnyp). Kalau pengguna lupa
+   menyetel OLD_URL/NEW_URL, skrip akan menyalin dari project lama ke project
+   lama juga, melaporkan "SELESAI", dan Fase B tampak beres padahal tidak ada
+   yang berpindah. Selalu periksa OLD != NEW dan cetak tujuannya. */
+const OLD_URL = (process.env.OLD_URL || 'https://ycovbqmezhrvzobxqnyp.supabase.co').replace(/\/+$/, '');
+const NEW_URL = (process.env.NEW_URL || 'https://rvgioyenjgkprnssfpfr.supabase.co').replace(/\/+$/, '');
 const OLD_KEY = process.env.OLD_SERVICE_KEY || '';
 const NEW_KEY = process.env.NEW_SERVICE_KEY || '';
 const META_CSV = process.env.META_CSV || path.join(process.cwd(), 'storage_objects_meta.csv');
@@ -85,7 +90,9 @@ function saveProgress(p) { fs.writeFileSync(PROGRESS_FILE, JSON.stringify(p, nul
 async function main() {
   if (!OLD_KEY) die('OLD_SERVICE_KEY wajib (dashboard LAMA > Project Settings > API Keys > secret/service_role).');
   if (!NEW_KEY) die('NEW_SERVICE_KEY wajib (dashboard BARU > Project Settings > API Keys > secret).');
-  console.log('OLD_URL = ' + OLD_URL); console.log('NEW_URL = ' + NEW_URL);
+  if (OLD_URL === NEW_URL) die('OLD_URL dan NEW_URL sama (' + OLD_URL + '). Skrip akan menyalin project ke dirinya sendiri lalu melaporkan sukses tanpa memindahkan apa pun. Setel NEW_URL ke project tujuan.');
+  console.log('DARI (lama) = ' + OLD_URL);
+  console.log('KE   (baru) = ' + NEW_URL);
 
   // 1) bucket: daftar dari lama, pastikan ada di baru
   const oldBuckets = await (await fetchRetry(`${OLD_URL}/storage/v1/bucket`, { headers: authHeaders(OLD_KEY) })).json();
