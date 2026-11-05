@@ -35,11 +35,23 @@ const GENZ_CONFIG = Object.freeze({
     SITE_URL:
         window.location.origin,
 
+    /*
+     * Proyek Supabase aktif: `ycovbqmezhrvzobxqnyp` (ap-southeast-1, PG 17).
+     *
+     * Proyek Supabase lama sudah dipindahkan ke proyek ini (lihat
+     * migrasi/STATUS.md). Konfigurasi yang tertinggal di proyek lama
+     * membuat login/register memakai JWT proyek lama sementara Worker
+     * memakai proyek baru, sehingga semua panggilan API ditolak.
+     *
+     * SUPABASE_KEY harus kunci publishable dari project Yang SAMA dengan
+     * SUPABASE_URL. Selaraskan juga Worker secrets:
+     *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY.
+     */
     SUPABASE_URL:
-        "https://boeamhglmvkatnycluaa.supabase.co",
+        "https://ycovbqmezhrvzobxqnyp.supabase.co",
 
     SUPABASE_KEY:
-        "sb_publishable_blGIFRNPbB2qAa1vXQBXcw_txqDQldb"
+        "sb_publishable_dnOcQubqXG_iGvUMTPCuUw_fU0gkaYm"
 
 });
 

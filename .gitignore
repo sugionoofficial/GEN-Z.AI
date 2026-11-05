@@ -431,6 +431,13 @@ FodyWeavers.xsd
 /dist/
 .wrangler/
 
+# Secret lokal Wrangler (`npm run dev` / `npx wrangler dev`).
+# Pola `.env*` di atas TIDAK menangkap nama ini, sehingga tanpa entri ini
+# `SUPABASE_SERVICE_ROLE_KEY` di .dev.vars berisiko ikut ter-commit.
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
 # Backup lokal Supabase (berisi PII & hash password — JANGAN di-commit)
 supabase/backup/
 

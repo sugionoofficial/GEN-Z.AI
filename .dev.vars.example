@@ -1,0 +1,27 @@
+# .dev.vars.example — salin menjadi .dev.vars lalu isi nilainya.
+#
+#   cp .dev.vars.example .dev.vars
+#
+# File .dev.vars TIDAK boleh di-commit (sudah masuk .gitignore).
+# Gunakan nilai development, jangan pakai secret production.
+
+# ---------------------------------------------------------
+# Wajib — tanpa ini setiap /api/* membalas 500
+# ---------------------------------------------------------
+SUPABASE_URL=https://ycovbqmezhrvzobxqnyp.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+SUPABASE_ANON_KEY=sb_publishable_dnOcQubqXG_iGvUMTPCuUw_fU0gkaYm
+
+# ---------------------------------------------------------
+# Disarankan
+# ---------------------------------------------------------
+# 32-byte key untuk mengenkripsi credential provider di database
+PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
+
+# ---------------------------------------------------------
+# Opsional
+# ---------------------------------------------------------
+# SIGHTENGINE_API_USER=<user>
+# SIGHTENGINE_API_SECRET=<secret>
+# OPENKEY_API_KEY=<key>
+# GITHUB_PAT=<token: untuk upscale Actions & Admin Copilot>
