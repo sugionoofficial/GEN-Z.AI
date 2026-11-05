@@ -878,8 +878,9 @@ async function uploadFile(
                 path,
                 file,
                 {
+                    /* immutable: file tidak pernah berubah, cegah unduh ulang (egress per-byte) */
                     cacheControl:
-                        "3600",
+                        "31536000, immutable",
 
                     upsert:
                         false,

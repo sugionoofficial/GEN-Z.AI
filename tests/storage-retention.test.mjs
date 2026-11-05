@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 import {
     HISTORY_MEDIA_TTL_MS,
     RETENTION_RULES,
+    SOCIAL_MEDIA_TTL_MS,
     UPLOAD_TTL_MS,
+    VOICE_PREVIEW_TTL_MS,
     cleanupRule,
     collectExpiredPaths,
     createStorageApi,
@@ -78,7 +80,7 @@ test("TTL: upload 1 jam, media riwayat 24 jam", () => {
 
 test("upload baru memakai bucket privat + signed URL", () => {
     const uploadRules = RETENTION_RULES.filter(rule => rule.bucket === "user-uploads");
-    assert.equal(uploadRules.length, 3);
+    assert.equal(uploadRules.length, 5);
 
     const inputRule = uploadRules.find(rule => rule.prefix === "generate-input");
     assert.equal(inputRule.ttlMs, UPLOAD_TTL_MS);
@@ -395,4 +397,73 @@ test("history menandai media yang sudah kedaluwarsa", () => {
     const modal = read("history/assets/js/history-modal.js");
     assert.match(modal, /detail-expired-notice/);
     assert.match(modal, /isMediaExpired/);
+});
+
+/*
+ * EGRESS: prefix `social-video` dan `voice-previews` sebelumnya tidak
+ * punya aturan retensi sehingga menumpuk selamanya (ditemukan di
+ * produksi: 4 file berumur 3 hari dan 16 file berumur 3 hari 15 jam).
+ */
+test("prefix media sosial dan sampel suara kini punya aturan retensi", () => {
+    const socialRule = RETENTION_RULES.find(rule => rule.prefix === "social-video");
+    const voiceRule = RETENTION_RULES.find(rule => rule.prefix === "voice-previews");
+
+    assert.ok(socialRule, "social-video harus punya aturan retensi");
+    assert.ok(voiceRule, "voice-previews harus punya aturan retensi");
+
+    assert.equal(socialRule.bucket, "user-uploads");
+    assert.equal(voiceRule.bucket, "user-uploads");
+    assert.equal(socialRule.ttlMs, SOCIAL_MEDIA_TTL_MS);
+    assert.equal(voiceRule.ttlMs, VOICE_PREVIEW_TTL_MS);
+
+    /* Sampel suara adalah cache bersama: jangan dibuang secepat media user. */
+    assert.ok(voiceRule.ttlMs > HISTORY_MEDIA_TTL_MS);
+    assert.ok(socialRule.ttlMs > UPLOAD_TTL_MS);
+});
+
+test("setiap prefix di bucket user-uploads punya aturan retensi", () => {
+    /* Daftar prefix yang benar-benar dipakai kode produksi. */
+    const usedPrefixes = [
+        "generate-input",
+        "upscale-photos",
+        "upscale-videos",
+        "social-video",
+        "voice-previews"
+    ];
+    const covered = new Set(
+        RETENTION_RULES
+            .filter(rule => rule.bucket === "user-uploads")
+            .map(rule => rule.prefix)
+    );
+
+    for (const prefix of usedPrefixes) {
+        assert.ok(covered.has(prefix), `prefix ${prefix} belum punya aturan retensi`);
+    }
+});
+
+/*
+ * EGRESS: upload sempat memakai cacheControl "3600" sehingga Supabase
+ * mencatat objek dengan `no-cache`. Setiap tampilan media = unduh penuh
+ * dari Storage, dan bandwidth itu masuk kuota egress yang ketat.
+ */
+test("upload media memakai cache-control immutable, bukan 3600", () => {
+    const uploaders = [
+        "generate/assets/js/generate-form-upload.js",
+        "generate/assets/js/generate-media.js",
+        "user/dashboard/dashboard-data.js"
+    ];
+
+    for (const file of uploaders) {
+        const source = read(file);
+        assert.match(
+            source,
+            /cacheControl:\s*\n?\s*(?:options\.cacheControl \|\|\s*\n?\s*)?"31536000, immutable"/,
+            `${file} harus memakai cacheControl immutable`
+        );
+        assert.doesNotMatch(
+            source,
+            /cacheControl:\s*\n?\s*(?:options\.cacheControl \|\|\s*\n?\s*)?"3600"/,
+            `${file} masih memakai cacheControl 3600 (menyebabkan no-cache)`
+        );
+    }
 });

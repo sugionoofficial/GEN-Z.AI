@@ -78,3 +78,34 @@ Secret Worker `genzai` harus memakai nilai proyek baru
 
 Tanpa ini, API production tetap membalas 500 / "Server configuration is
 incomplete" walaupun frontend sudah benar.
+
+---
+
+## Pembatasan egress 2026-11-05 — project TERKENA 402
+
+Project `ycovbqmezhrvzobxqnyp` dibatasi Supabase dengan pesan:
+
+```
+Service for this project is restricted due to the following violations:
+exceed_egress_quota. The project owner must upgrade their plan or remove
+spend caps to restore service.
+```
+
+- Management API tetap `ACTIVE_HEALTHY`; database masih bisa di-query lewat
+  konektor. Yang dibatasi adalah REST/Storage/Auth untuk client (HTTP 402).
+- **Transfer ke organisasi baru DITOLAK** dengan dua alasan:
+  1. `can't be transferred to a Free organization while the source
+     organization is in an active grace period or under service restrictions`
+  2. `Project is currently connected to GitHub` — integrasi harus diputus dulu.
+- Karena transfer tertutup, jalur yang dipakai: **migrasi manual**.
+  Panduan lengkap: `migrasi/MIGRASI-MANUAL.md`.
+- Data saat migrasi: auth.users 25, profiles 25, generation_history 502,
+  social_post_runs 941, models 45, providers 9, storage 8 bucket / 112 objek.
+
+### Penyebab egress (sudah diperbaiki di kode)
+
+| # | Penyebab | Bukti | Perbaikan |
+|---|---|---|---|
+| 1 | Upload memakai `cacheControl: "3600"` | 47 objek `user-uploads` tercatat `no-cache` di `storage.objects` | `"31536000, immutable"` |
+| 2 | `voice-previews` & `social-video` tanpa aturan retensi | 16 file umur 3h15j, 4 file umur 3h3j | TTL 30 hari & 7 hari |
+| 3 | Signed URL selalu berubah → browser tidak pernah cache | video 10–14 MB diunduh ulang penuh | (dokumentasi; lihat STORAGE-RETENTION.md) |
