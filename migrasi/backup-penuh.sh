@@ -21,7 +21,7 @@
 #   export SRC='postgresql://postgres.ycovbqmezhrvzobxqnyp:PASS@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres'
 #   export DST='postgresql://postgres.rvgioyenjgkprnssfpfr:PASS@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres'
 #   ./backup-penuh.sh dump      # hanya backup ke folder ./genz-backup
-#   ./backup-penuh.sh restore   # restore dump ke target
+#   ./backup-penuh.sh restore   # restore ke target (1 sesi, 1 transaksi)
 #   ./backup-penuh.sh verify    # bandingkan jumlah baris
 #
 # Port WAJIB 5432 (session pooler). Port 6543 (transaction pooler) akan
@@ -121,16 +121,33 @@ do_restore() {
     [ -s "$F_PUBLIC_CLEAN" ] || die "$F_PUBLIC_CLEAN tidak ada. Jalankan './backup-penuh.sh dump' dulu."
     [ -s "$F_AUTH" ]         || die "$F_AUTH tidak ada. Jalankan 'dump' dulu (bagian auth wajib)."
 
-    say "Restore ke TARGET (berurutan, berhenti di error pertama)"
+    # SEMUA berkas dijalankan dalam SATU sesi psql dan SATU transaksi.
+    # Alasannya bukan kerapian: `set session_replication_role = replica` hanya
+    # berlaku untuk sesi berjalan. Kalau setiap berkas dijalankan sebagai sesi
+    # terpisah, setting itu hilang sebelum data dimuat, trigger dan cek foreign
+    # key menyala lagi, lalu `2_auth.sql` ditolak oleh FK
+    # `public.profiles -> auth.users` — restore berhenti dengan pesan yang
+    # menyesatkan (terlihat seolah datanya rusak).
+    # Satu transaksi juga membuat restore bersifat semua-atau-tidak-sama-sekali:
+    # gagal di tengah = target kembali kosong, aman untuk diulang.
+    local args=(-v ON_ERROR_STOP=1 --single-transaction -q)
     for f in "$F_PRE" "$F_PUBLIC_CLEAN" "$F_AUTH" "$F_STORAGE" "$F_POST"; do
         [ -s "$f" ] || { warn "lewati $f (kosong)"; continue; }
-        printf '  -> %s ... ' "$f"
-        psql "$DST" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$DIR/restore.err" \
-            && printf 'OK\n' \
-            || { printf 'GAGAL\n'; sed -n '1,20p' "$DIR/restore.err" >&2; \
-                 die "restore berhenti di $f. Data yang sudah masuk tetap ada; perbaiki lalu ulangi dari berkas ini."; }
+        args+=(-f "$f")
     done
-    ok "restore selesai"
+
+    say "Restore ke TARGET (satu sesi, satu transaksi, berhenti di error pertama)"
+    for f in "$F_PRE" "$F_PUBLIC_CLEAN" "$F_AUTH" "$F_STORAGE" "$F_POST"; do
+        [ -s "$f" ] && printf '     %s\n' "$f"
+    done
+
+    if psql "$DST" "${args[@]}" >/dev/null 2>"$DIR/restore.err"; then
+        ok "restore selesai — semua berkas masuk"
+    else
+        printf '  GAGAL\n' >&2
+        sed -n '1,25p' "$DIR/restore.err" >&2
+        die "restore dibatalkan. Karena memakai satu transaksi, TARGET kembali seperti sebelum restore (tidak ada data separuh). Perbaiki penyebabnya lalu jalankan ulang 'restore'."
+    fi
     do_verify
 }
 
@@ -154,7 +171,7 @@ do_verify() {
     generation_history 502 | social_post_runs 941 | storage.objects 112
 
   Verifikasi lengkap 60 tabel + struktur (otomatis PASS/GAGAL):
-    buka migrasi/verify-restore.sql di SQL Editor project TARGET.
+    buka migrasi/verify-restore.sql di SQL Editor project TARGET\n    (60 tabel + struktur, otomatis PASS/GAGAL).
 EXP
 }
 

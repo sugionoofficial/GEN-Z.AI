@@ -88,8 +88,34 @@ test("restore berhenti pada error pertama (ON_ERROR_STOP)", () => {
 
 test("urutan restore: pre → public → auth → storage → post", () => {
     const isi = baca(SKRIP);
-    assert.match(isi, /\$F_PRE" "\$F_PUBLIC_CLEAN" "\$F_AUTH" "\$F_STORAGE" "\$F_POST/,
+    assert.match(isi, /for f in "\$F_PRE" "\$F_PUBLIC_CLEAN" "\$F_AUTH" "\$F_STORAGE" "\$F_POST"/,
         "auth harus setelah public (FK profiles → auth.users)");
+});
+
+test("restore memakai SATU sesi psql, bukan satu sesi per berkas", () => {
+    /* `set session_replication_role = replica` hanya berlaku untuk sesi
+       berjalan. Versi pertama skrip menjalankan psql per berkas, sehingga
+       setting itu hilang sebelum data dimuat — trigger dan cek foreign key
+       kembali aktif dan `2_auth.sql` ditolak oleh FK profiles -> auth.users.
+       Kunci di sini: semua -f harus berada di satu pemanggilan psql. */
+    const isi = baca(SKRIP);
+    assert.match(isi, /args\+=\(-f "\$f"\)/, "berkas harus dikumpulkan ke satu array -f");
+    assert.match(isi, /psql "\$DST" "\$\{args\[@\]\}"/, "psql dipanggil sekali dengan semua berkas");
+    assert.match(isi, /--single-transaction/, "restore harus atomik");
+
+    // Tidak boleh ada pemanggilan psql per-berkas di dalam loop restore.
+    const blokRestore = isi.slice(isi.indexOf("do_restore()"), isi.indexOf("do_verify()"));
+    const psqlPerBerkas = blokRestore.match(/psql "\$DST"\s+-v ON_ERROR_STOP=1\s+-q\s+-f/g) || [];
+    assert.equal(psqlPerBerkas.length, 0, "jangan panggil psql terpisah per berkas");
+});
+
+test("dokumen Windows memakai satu perintah psql (bukan terpisah)", () => {
+    /* Jalur PowerShell tanpa Git Bash menjelaskan hal yang sama: `-c "set ..."`
+       yang berdiri sendiri tidak berpengaruh ke perintah berikutnya. */
+    const t = baca(path.join(ROOT, "migrasi", "TUTORIAL-BACKUP.md"));
+    assert.match(t, /psql \$DST -c "set session_replication_role = replica;".*-f 1_public\.sql/,
+        "harus satu baris: -c replica + semua -f dalam satu pemanggilan");
+    assert.match(t, /satu sesi/i);
 });
 
 test("dump dibersihkan dari CREATE SCHEMA public", () => {

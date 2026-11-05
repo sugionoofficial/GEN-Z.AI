@@ -141,6 +141,16 @@ menghasilkan situs tanpa akun.
 ./backup-penuh.sh restore
 ```
 
+Seluruh berkas dijalankan **dalam satu sesi `psql` dan satu transaksi**
+(`--single-transaction`). Dua akibat yang penting untuk Anda:
+
+- `set session_replication_role = replica` benar-benar berlaku saat data
+  dimuat. Kalau setiap berkas dijalankan sebagai sesi terpisah, setting itu
+  hilang lebih dulu, trigger dan cek foreign key menyala kembali, lalu
+  `2_auth.sql` ditolak FK `public.profiles → auth.users`.
+- Restore bersifat **semua-atau-tidak-sama-sekali**. Gagal di tengah = target
+  kembali seperti sebelum restore, jadi aman diulang tanpa risiko baris dobel.
+
 Urutan yang dijalankan skrip (jangan diacak):
 
 1. `0_pre.sql` — `session_replication_role = replica` → trigger & cek FK mati
@@ -156,11 +166,10 @@ Dua baris dibuang dari dump (`CREATE SCHEMA public;` dan
 Sisanya dijalankan dengan `ON_ERROR_STOP=1`, jadi **error pertama langsung
 menghentikan** restore — tidak ada kegagalan senyap.
 
-Kalau restore berhenti di tengah: data yang sudah masuk tetap ada, perbaiki
-penyebabnya, lalu jalankan ulang perintah yang sama. Tabel dibuat dengan
-`IF NOT EXISTS` sehingga aman diulang, tetapi **baris bisa dobel** — bila
-berhenti setelah sebagian baris masuk, kosongkan dulu tabel itu
-(`truncate public.<tabel> cascade;`) sebelum mengulang.
+Kalau restore berhenti di tengah: karena satu transaksi, **tidak ada data
+separuh** — target otomatis kembali seperti sebelum perintah dijalankan.
+Baca pesan error yang dicetak, perbaiki penyebabnya, lalu jalankan ulang
+perintah yang sama. Tidak perlu `truncate`.
 
 ---
 
