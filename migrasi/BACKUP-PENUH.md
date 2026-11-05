@@ -16,7 +16,40 @@ proyek baru, dengan bukti bahwa pemindahannya utuh.
 
 ---
 
-## 0. Kenapa harus lewat komputer Anda, bukan lewat chat
+## 0. Kamus singkat (baca ini kalau istilahnya asing)
+
+Dua alat ini bukan aplikasi yang perlu dipelajari. Keduanya **hanya jalan
+sekali**, lalu selesai.
+
+| Nama | Analogi | Tugasnya |
+|---|---|---|
+| `pg_dump` | **mesin fotokopi** | Memfoto seluruh database menjadi **satu berkas** (`1_public.sql` + `2_auth.sql`) |
+| `psql` | **pipa penyalur** | Menuangkan isi berkas itu ke database baru |
+
+Keduanya bagian dari **PostgreSQL** — bukan dari Supabase, bukan dari repo ini.
+Supabase memakai PostgreSQL di dalamnya, jadi alat resmi PostgreSQL bisa
+membaca datanya langsung. Keduanya berupa program tanpa tampilan (hitam-putih
+di terminal), dijalankan dengan mengetik satu baris perintah.
+
+**Yang perlu Anda pahami hanya 3 hal:**
+
+1. Pasang sekali → dapat dua alat itu.
+2. Ketik 2 perintah → backup jadi.
+3. Ketik 1 perintah → data masuk ke project baru.
+
+Anda **tidak** perlu memahami isi perintahnya. Cukup salin-tempel.
+
+**Kalau tidak ingin memasang apa pun:** bagian skema (60 tabel) bisa saya
+kerjakan untuk Anda — saya punya akses ke database project lama, jadi saya bisa
+membangkitkan satu berkas SQL berisi seluruh struktur tabel, lalu **Anda tinggal
+menempelkannya ke SQL Editor** di dashboard project baru (tanpa install).
+Yang tetap butuh `pg_dump` hanyalah **isinya** (4.449 baris data), karena
+volumenya terlalu besar untuk ditempel lewat chat. Bilang saja kalau mau jalur
+ini.
+
+---
+
+## 0b. Kenapa harus lewat komputer Anda, bukan lewat chat
 
 Percobaan menyalin data lewat chat/konektor **dihentikan**. Alasannya konkret:
 
@@ -37,7 +70,10 @@ restore benar). Checksum mentahnya disimpan di `supabase/backup/fingerprint-sour
 
 ## 1. Persiapan (sekali saja)
 
-1. **Install PostgreSQL 17 client** — ini yang menyediakan `pg_dump` & `psql`.
+1. **Install PostgreSQL 17 client** — inilah yang memberi Anda `pg_dump` &
+   `psql` (dua alat di kamus bagian 0). Ukurannya ±50 MB, bukan aplikasi
+   berjalan di latar belakang — hanya dua program yang dipanggil saat Anda
+   mengetik perintah.
    - Windows: `winget install PostgreSQL.17` (atau installer enterprisedb.com,
      cukup centang *Command Line Tools*).
    - macOS: `brew install postgresql@17` lalu
