@@ -149,18 +149,26 @@ do_dump() {
     # `commit;` akan MENUTUP transaksi lebih awal — sehingga kegagalan pada
     # berkas berikutnya tidak lagi membatalkan apa pun dan janji "gagal =
     # target kembali kosong" jadi bohong.
+    # JANGAN memakai session_replication_role = replica: setelan itu mematikan
+    # SEMUA trigger pengguna, termasuk trigger DDL milik Supabase yang
+    # menyegarkan cache skema PostgREST. Akibatnya Data API menjawab
+    # PGRST205 "Could not find the table in the schema cache" walau tabelnya
+    # ada. Urutan skema -> auth -> data sudah benar, jadi tidak perlu.
     cat > "$F_PRE" <<'SQL'
--- dijalankan SEBELUM restore: matikan trigger & cek FK agar urutan INSERT
--- bebas. Ini yang membuat data auth + tabel ber-FK bisa masuk tanpa gagal.
-set session_replication_role = replica;
+-- dijalankan SEBELUM restore.
+-- Sengaja tidak memakai session_replication_role = replica (lihat catatan di
+-- backup-penuh.sh): setelan itu mematikan trigger penyegar skema PostgREST.
+select 1;
 SQL
 
     cat > "$F_POST" <<'SQL'
--- dijalankan SESUDAH restore: kembalikan trigger, sinkronkan sequence.
-set session_replication_role = origin;
+-- dijalankan SESUDAH restore: sinkronkan sequence dan segarkan cache skema
+-- PostgREST supaya tabel baru langsung terlihat oleh Data API.
 select setval(pg_get_serial_sequence('public.credit_change_audit', 'id'),
               coalesce((select max(id) from public.credit_change_audit), 1), true)
   where to_regclass('public.credit_change_audit') is not null;
+notify pgrst, 'reload schema';
+notify pgrst, 'reload config';
 SQL
 
     say "5/5 ringkasan berkas"
@@ -179,12 +187,10 @@ do_restore() {
     [ -s "$F_PUBLIC_DATA" ]  || die "$F_PUBLIC_DATA tidak ada. Dump versi lama; jalankan 'dump' ulang."
 
     # SEMUA berkas dijalankan dalam SATU sesi psql dan SATU transaksi.
-    # Alasannya bukan kerapian: `set session_replication_role = replica` hanya
-    # berlaku untuk sesi berjalan. Kalau setiap berkas dijalankan sebagai sesi
-    # terpisah, setting itu hilang sebelum data dimuat, trigger dan cek foreign
-    # key menyala lagi, lalu `2_auth.sql` ditolak oleh FK
-    # `public.profiles -> auth.users` — restore berhenti dengan pesan yang
-    # menyesatkan (terlihat seolah datanya rusak).
+    # Urutan skema -> auth -> data membuat FK `public.profiles -> auth.users`
+    # terpenuhi secara alami. Tidak ada trik mematikan trigger: selain tidak
+    # diperlukan, `session_replication_role = replica` juga mematikan trigger
+    # DDL Supabase yang menyegarkan cache skema PostgREST.
     # Satu transaksi juga membuat restore bersifat semua-atau-tidak-sama-sekali:
     # gagal di tengah = target kembali kosong, aman untuk diulang.
     local args=(-v ON_ERROR_STOP=1 --single-transaction -q)

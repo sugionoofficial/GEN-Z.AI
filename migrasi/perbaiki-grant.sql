@@ -17,6 +17,14 @@
 -- jumlah baris lewat koneksi admin, bukan lewat peran aplikasi.
 --
 -- Aman dijalankan berulang: GRANT bersifat idempoten.
+--
+-- BAGIAN 7 menangani masalah berikutnya: PGRST205 "Could not find the table
+-- in the schema cache". Itu BUKAN masalah hak akses, melainkan cache skema
+-- PostgREST yang basi. Penyebabnya `session_replication_role = replica` pada
+-- restore: setelan itu mematikan SEMUA trigger pengguna tanpa kecuali,
+-- termasuk trigger DDL milik Supabase (pgrst_ddl_watch) yang memberi tahu
+-- PostgREST bahwa skema berubah. Tanpa pemberitahuan itu, PostgREST tetap
+-- memakai daftar tabel lamanya (kosong).
 -- =====================================================================
 
 -- 1. Hak pakai skema.
@@ -79,3 +87,22 @@ select cek, hasil, target,
        case when hasil = target then 'OK' else 'PERIKSA' end as status
 from cek
 order by no;
+
+-- =====================================================================
+-- 7. SEGARKAN CACHE SKEMA POSTGREST
+--    Jalankan ini kalau masih muncul PGRST205 walau hak akses sudah benar.
+--    Ini yang memberi tahu Data API bahwa tabel-tabel baru sudah ada.
+-- =====================================================================
+notify pgrst, 'reload schema';
+notify pgrst, 'reload config';
+
+-- Kalau NOTIFY di atas belum cukup (PostgREST kadang perlu waktu beberapa
+-- detik), ada dua cara lain:
+--
+-- a) Tunggu 5-10 detik lalu refresh halaman dengan Ctrl + Shift + R.
+--
+-- b) Paksa lewat dashboard: Project Settings -> API -> tombol "Reload schema"
+--    (kalau tersedia di versi dashboard Anda).
+--
+-- c) Terakhir: restart project (Settings -> General -> Restart project).
+--    Ini mematikan koneksi sebentar, jadi lakukan hanya bila a dan b gagal.

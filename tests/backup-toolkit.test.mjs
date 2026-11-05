@@ -489,3 +489,32 @@ test("perbaiki-grant.sql memberi hak ke ketiga role + default privileges", () =>
     assert.match(sql, /alter default privileges/i, "tabel baru harus mewarisi hak");
     assert.match(sql, /has_table_privilege/, "harus bisa diverifikasi");
 });
+
+test("restore TIDAK memakai session_replication_role = replica", () => {
+    /* replica mematikan SEMUA trigger pengguna, termasuk trigger DDL Supabase
+       (pgrst_ddl_watch) yang menyegarkan cache skema PostgREST. Akibatnya
+       Data API menjawab PGRST205 "Could not find the table in the schema
+       cache" walau tabelnya ada dan GRANT-nya benar. Urutan skema -> auth ->
+       data sudah membuat FK terpenuhi tanpa trik ini. */
+    for (const [nama, berkas] of [["ps1", PS1], ["sh", SKRIP]]) {
+        const isi = baca(berkas);
+        const barisSet = isi.split("\n").filter((l) =>
+            /^\s*('|")?\s*set session_replication_role\s*=\s*(replica|origin)/i.test(l)
+            || /^\s*set session_replication_role\s*=\s*(replica|origin)/i.test(l.replace(/^'/g, "")));
+        assert.deepEqual(barisSet, [], `${nama}: tidak boleh menyetel session_replication_role -> ${barisSet.join(" | ")}`);
+    }
+});
+
+test("restore menyegarkan cache skema PostgREST (notify pgrst)", () => {
+    for (const [nama, berkas] of [["ps1", PS1], ["sh", SKRIP]]) {
+        const isi = baca(berkas);
+        assert.match(isi, /notify pgrst, 'reload schema'/, `${nama} harus notify reload schema`);
+    }
+});
+
+test("perbaiki-grant.sql juga menyegarkan cache PostgREST", () => {
+    const sql = baca(PERBAIKI_GRANT);
+    assert.match(sql, /notify pgrst, 'reload schema'/);
+    assert.match(sql, /notify pgrst, 'reload config'/);
+    assert.match(sql, /PGRST205/, "harus menyebut gejala yang ditangani");
+});

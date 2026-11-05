@@ -839,6 +839,38 @@ Semua harus `OK`. Lalu **refresh halaman dengan Ctrl + Shift + R**.
 > Skrip versi terbaru sudah **tidak** memakai `--no-privileges`, jadi pada
 > migrasi berikutnya langkah ini otomatis beres.
 
+### Kalau masih muncul `PGRST205`
+
+```json
+{ "code": "PGRST205",
+  "message": "Could not find the table 'public.profiles' in the schema cache" }
+```
+
+Ini **bukan** masalah hak akses. Ini **cache skema PostgREST yang basi**:
+Data API masih memakai daftar tabel lamanya (kosong), jadi tabel yang sudah ada
+dianggap tidak ada.
+
+Penyebabnya `set session_replication_role = replica` pada restore. Setelan itu
+mematikan **semua** trigger pengguna tanpa kecuali — termasuk trigger DDL milik
+Supabase (`pgrst_ddl_watch`) yang tugasnya memberi tahu PostgREST bahwa skema
+berubah. Tanpa pemberitahuan itu, cache tidak pernah diperbarui.
+
+**Perbaikan** — di SQL Editor project target:
+
+```sql
+notify pgrst, 'reload schema';
+notify pgrst, 'reload config';
+```
+
+Lalu tunggu 5–10 detik dan refresh dengan **Ctrl + Shift + R**.
+
+Kalau masih belum: **Project Settings → General → Restart project** (memutus
+koneksi sebentar, jadi lakukan paling akhir).
+
+> Skrip versi terbaru **tidak lagi** memakai `replica` — urutan pemuatan
+> skema → auth → data sudah membuat FK terpenuhi tanpa mematikan trigger — dan
+> sudah mengirim `notify pgrst` di akhir restore.
+
 ---
 
 ## Kalau restore berhenti: `already exists`

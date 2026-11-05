@@ -31,10 +31,11 @@ Keputusan teknis lain:
 5. Password di dalam connection string di-URL-encode otomatis, sehingga
    karakter @ : / # tidak memutus parsing URL.
 6. Restore memakai SATU berkas gabungan dalam SATU pemanggilan psql dengan
-   --single-transaction. set session_replication_role = replica hanya
-   berlaku untuk sesi berjalan; kalau tiap berkas dipanggil terpisah, setting
-   itu hilang lebih dulu dan FK public.profiles -> auth.users menolak
-   2_auth.sql.
+   --single-transaction. Urutan pemuatan skema -> auth -> data membuat FK
+   public.profiles -> auth.users terpenuhi secara alami. JANGAN memakai
+   session_replication_role = replica: setelan itu mematikan trigger DDL
+   Supabase yang menyegarkan cache skema PostgREST, sehingga Data API
+   menjawab PGRST205 'Could not find the table in the schema cache'.
 =====================================================================
 #>
 
@@ -117,7 +118,8 @@ $FungsiPlatform = @('rls_auto_enable')
 #
 # Urutan yang benar: SKEMA public -> DATA auth -> DATA public.
 # Dengan pemisahan ini, tidak ada lagi ketergantungan pada trik mematikan
-# trigger per sesi (session_replication_role), yang rapuh di pooler.
+# Dimuat berurutan sehingga FK terpenuhi secara alami; tidak ada trik
+# mematikan trigger per sesi (yang juga mematikan penyegar skema PostgREST).
 #
 # Baris COPY pada dump pg_dump selalu diakhiri satu baris berisi "\.".
 # ---------------------------------------------------------------------
@@ -286,18 +288,30 @@ function Invoke-Dump {
     # TANPA begin/commit: --single-transaction sudah membungkus seluruh
     # restore. commit; akan MENUTUP transaksi lebih awal sehingga kegagalan
     # berikutnya tidak membatalkan apa pun.
+    # JANGAN memakai session_replication_role = replica. Dengan replica,
+    # seluruh trigger pengguna dimatikan TANPA kecuali, termasuk trigger DDL
+    # milik Supabase yang memberi tahu PostgREST untuk memuat ulang cache
+    # skemanya (pgrst_ddl_watch -> ddl_command_end). Akibatnya PostgREST tidak
+    # pernah tahu tabel baru sudah ada, dan Data API menjawab 404/PGRST205
+    # "Could not find the table in the schema cache" meskipun tabelnya ada dan
+    # hak aksesnya benar. Urutan pemuatan sudah benar (skema -> auth -> data),
+    # jadi penonaktifan trigger memang tidak diperlukan lagi.
     $preSql = (@(
-        '-- dijalankan SEBELUM restore: matikan trigger dan cek FK agar urutan INSERT bebas.',
-        'set session_replication_role = replica;'
+        '-- dijalankan SEBELUM restore.',
+        '-- Sengaja TIDAK memakai session_replication_role = replica: setelan itu',
+        '-- mematikan trigger DDL milik Supabase yang menyegarkan skema PostgREST.',
+        'select 1;'
     ) -join [Environment]::NewLine)
     Write-Utf8NoBom $FPre $preSql
 
     $postSql = (@(
-        '-- dijalankan SESUDAH restore: kembalikan trigger, sinkronkan sequence.',
-        'set session_replication_role = origin;',
+        '-- dijalankan SESUDAH restore: sinkronkan sequence dan segarkan skema',
+        '-- PostgREST agar tabel baru langsung terlihat oleh Data API.',
         "select setval(pg_get_serial_sequence('public.credit_change_audit', 'id'),",
         '              coalesce((select max(id) from public.credit_change_audit), 1), true)',
-        "  where to_regclass('public.credit_change_audit') is not null;"
+        "  where to_regclass('public.credit_change_audit') is not null;",
+        "notify pgrst, 'reload schema';",
+        "notify pgrst, 'reload config';"
     ) -join [Environment]::NewLine)
     Write-Utf8NoBom $FPost $postSql
 
