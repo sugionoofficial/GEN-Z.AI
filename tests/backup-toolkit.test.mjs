@@ -607,3 +607,26 @@ test("verifikasi-storage.sql satu statement & mengunci 112 objek", () => {
     assert.match(VERIFIKASI_STORAGE ? sql : sql, /total_objek_semua_bucket/);
     assert.match(sql, /objek_berukuran_nol/, "file 0 byte berarti unggahan rusak");
 });
+
+const CEK_STORAGE = path.join(ROOT, "migrasi", "cek-storage-detail.sql");
+
+test("cek-storage-detail.sql satu statement & menandai selisih arah", () => {
+    const sql = baca(CEK_STORAGE);
+    const tanpaKomentar = sql.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+    assert.equal((tanpaKomentar.match(/;/g) || []).length, 1, "harus tepat SATU titik koma");
+    // Selisih harus dibedakan arahnya: LEBIH (file baru) vs KURANG (file gagal).
+    assert.match(sql, /'LEBIH '/);
+    assert.match(sql, /'KURANG '/);
+    assert.match(sql, /objek_5_terbaru/);
+});
+
+test("artefak diagnostik memakai angka harapan yang sama", () => {
+    /* Kalau angka di verifikasi dan diagnostik berbeda, pengguna melihat dua
+       kebenaran yang bertentangan — persis kesalahan bucket_publik 3 vs 4. */
+    const v = baca(VERIFIKASI_STORAGE);
+    const c = baca(CEK_STORAGE);
+    for (const [bucket, jumlah] of [["user-uploads", 47], ["social-character-references", 45], ["dashboard-videos", 19], ["social-story-audio", 1]]) {
+        assert.match(v, new RegExp(`'${bucket}', ${jumlah}`), `verifikasi: ${bucket}`);
+        assert.match(c, new RegExp(`'${bucket}', ${jumlah}`), `diagnostik: ${bucket}`);
+    }
+});
