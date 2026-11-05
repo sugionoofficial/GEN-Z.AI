@@ -765,6 +765,44 @@ Lalu lanjut ke **Langkah 6** untuk verifikasi penuh.
 
 ---
 
+## Kalau restore berhenti: `already exists`
+
+Pesan seperti ini **bukan** tanda data rusak:
+
+```
+ERROR:  function "rls_auto_enable" already exists with same argument types
+```
+
+`rls_auto_enable` adalah fungsi **milik Supabase**, bukan milik aplikasi Anda.
+Fungsi itu dipakai event trigger `ensure_rls` yang **selalu** ada di setiap
+project Supabase, termasuk project baru yang masih kosong. Dump ikut
+membawanya, lalu bentrok.
+
+Skrip versi terbaru sudah membuang DDL fungsi platform (dan seluruh
+`CREATE EVENT TRIGGER`) dari dump, jadi restore bisa jalan. Kalau Anda masih
+melihat error ini, berkas skrip Anda versi lama.
+
+### Kalau restore gagal, apa yang terjadi pada project baru?
+
+**Tidak ada data separuh.** Seluruh restore berjalan dalam satu transaksi
+(`--single-transaction`). Gagal di mana pun = target kembali seperti sebelum
+restore. Anda bisa mengulang tanpa risiko baris dobel.
+
+Itu artinya: kalau Anda sudah mencoba restore 3 kali dan semuanya gagal,
+project baru **tetap kosong**. Tidak ada yang perlu dibersihkan.
+
+### Cara memastikan project baru masih kosong
+
+**Di SQL Editor** (browser), project **BARU**:
+
+```sql
+select count(*) as jumlah_tabel from pg_tables where schemaname = 'public';
+```
+
+`0` = kosong, aman mengulang. `60` = restore terakhir berhasil.
+
+---
+
 ## Kalau ada error
 
 | Pesan error | Artinya | Perbaikan |

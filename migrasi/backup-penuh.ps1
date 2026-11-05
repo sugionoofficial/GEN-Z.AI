@@ -83,6 +83,65 @@ function Write-Utf8NoBom([string]$path, [string]$isi) {
     [System.IO.File]::WriteAllText($path, $isi, $enc)
 }
 
+# ---------------------------------------------------------------------
+# Preamble idempoten: menetralkan objek milik Supabase yang SELALU sudah ada
+# di project baru, sehingga dump project lama tidak bentrok.
+#
+# Kasus nyata: project Supabase memiliki fungsi public.rls_auto_enable() plus
+# event trigger `ensure_rls`. Dump ikut membawa CREATE FUNCTION itu, lalu
+# restore berhenti dengan:
+#   ERROR: function "rls_auto_enable" already exists with same argument types
+# Padahal fungsi itu milik platform, bukan aplikasi.
+#
+# Strategi: sebelum dump dijalankan, buang CREATE FUNCTION untuk fungsi yang
+# di project tujuan dimiliki platform (daftar di $FungsiPlatform), plus seluruh
+# CREATE EVENT TRIGGER. Fungsi platform tidak perlu disalin ulang; fungsi milik
+# aplikasi tidak disentuh.
+#
+# JANGAN men-drop fungsi platform di target sebagai "solusi": baris
+# ALTER FUNCTION dari dump akan gagal dengan 'function does not exist'.
+# Cukup jangan disalin.
+# ---------------------------------------------------------------------
+$FungsiPlatform = @('rls_auto_enable')
+
+function Remove-DdlPlatform([string]$pathSumber, [string]$pathTujuan) {
+    # Buang blok CREATE [OR REPLACE] FUNCTION public.<nama platform> ...
+    # sampai penutup $$; pertama setelahnya. Juga buang ALTER/COMMENT yang
+    # menempel padanya agar tidak ada perintah yatim.
+    $baris = Get-Content $pathSumber -Encoding UTF8
+    $keluar = New-Object System.Collections.Generic.List[string]
+    $lewati = $false
+    $dilewati = 0
+    $jumlahBuang = 0
+    foreach ($b in $baris) {
+        if (-not $lewati) {
+            $cocok = $false
+            foreach ($nama in $FungsiPlatform) {
+                if ($b -match ("^CREATE (OR REPLACE )?FUNCTION public\." + [regex]::Escape($nama) + "\s*\(")) { $cocok = $true }
+            }
+            if ($cocok) { $lewati = $true; $jumlahBuang++; continue }
+            # Event trigger di project Supabase (ensure_rls, pgrst_*, issue_*)
+            # semuanya milik platform dan sudah ada di target.
+            if ($b -match '^CREATE EVENT TRIGGER ') { $jumlahBuang++; continue }
+            $keluar.Add($b)
+        } else {
+            $dilewati = $dilewati + 1
+            # Pengaman: kalau penutup $$; tidak ditemukan dalam 400 baris,
+            # berarti pola tidak cocok dan kita berisiko memotong sisa berkas.
+            # Lebih baik berhenti terang-terangan daripada menghasilkan dump
+            # cacat yang tetap "berhasil" di-restore.
+            if ($dilewati -gt 400) {
+                Die 'gagal membuang DDL fungsi platform (penutup tidak ditemukan). Lapor ke agen; jangan restore dump ini.'
+            }
+            # Blok fungsi berakhir pada baris yang mengandung $$; di akhir.
+            if ($b -match '\$\$;\s*$') { $lewati = $false; $dilewati = 0 }
+        }
+    }
+    $enc = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllLines($pathTujuan, $keluar, $enc)
+    return $jumlahBuang
+}
+
 function Find-PgTool([string]$nama) {
     $cmd = Get-Command $nama -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
@@ -130,12 +189,22 @@ function Invoke-Dump {
     # Buang dua baris yang PASTI error di target (skema public sudah ada).
     # -Encoding UTF8 wajib: PowerShell 5.1 default ANSI akan merusak teks
     # non-ASCII (mis. emoji) di dalam data.
+    # Langkah 1: buang dua baris yang pasti error di target, dan buang DDL
+    # fungsi milik platform Supabase dan seluruh event trigger platform
+    # (lihat catatan di Remove-DdlPlatform).
+    $sementara = Join-Path $Dir '1_public_tmp.sql'
     $bersih = Get-Content $FPub -Encoding UTF8 | Where-Object {
         $_ -notmatch '^CREATE SCHEMA public;' -and $_ -notmatch '^ALTER SCHEMA public OWNER TO '
     }
     $enc = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllLines($FPubClean, $bersih, $enc)
-    Ok ("{0} baris -> {1}" -f $bersih.Count, $FPubClean)
+    [System.IO.File]::WriteAllLines($sementara, $bersih, $enc)
+
+    $dibuang = Remove-DdlPlatform $sementara $FPubClean
+    Remove-Item $sementara -ErrorAction SilentlyContinue
+    Ok ("{0} baris -> {1}" -f (Get-Content $FPubClean).Count, $FPubClean)
+    if ($dibuang -gt 0) {
+        Ok ("{0} blok DDL fungsi platform dibuang (sudah ada di project baru): {1}" -f $dibuang, ($FungsiPlatform -join ', '))
+    }
 
     Say '2/5 DATA auth.users + auth.identities (WAJIB, tanpa ini akun hilang)'
     & $pgDump $src --data-only --no-owner --table=auth.users --table=auth.identities -f $FAuth
