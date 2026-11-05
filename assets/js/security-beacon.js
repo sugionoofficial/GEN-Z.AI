@@ -1292,6 +1292,63 @@
 
     watchDevtools();
 
+    // Laporkan pergerakan akun (auth) secara instan agar monitoring <2 detik
+    // Hook ke Supabase auth state change: login / logout / token refresh
+    try {
+        var authHookReady = false;
+        function attachAuthHook() {
+            if (authHookReady) return;
+            var client = (window.GENZ_SUPABASE || window.supabaseClient);
+            if (!client || !client.auth || typeof client.auth.onAuthStateChange !== "function") return;
+            authHookReady = true;
+            client.auth.onAuthStateChange(function(ev, sess){
+                if (ev === "SIGNED_IN") report("auth", { throttle:false, severity:"info", message: "Akun login: " + (sess && sess.user && sess.user.email ? sess.user.email : currentUserId()||"anon") });
+                if (ev === "SIGNED_OUT") report("auth", { throttle:false, severity:"info", message: "Akun logout" });
+                if (ev === "TOKEN_REFRESHED") report("activity", { throttle:true, severity:"info", message: "Sesi diperbarui" });
+                if (ev === "USER_UPDATED") report("account", { throttle:false, severity:"info", message: "Profil akun diperbarui" });
+            });
+        }
+        // coba langsung + tunda untuk navigation.js yang load defer
+        attachAuthHook();
+        setTimeout(attachAuthHook, 800);
+        setTimeout(attachAuthHook, 2500);
+        window.addEventListener("genz:auth-ready", attachAuthHook);
+
+        // Hook global untuk aksi kredit / generate di situs — dipanggil manual dari feature-credit.js dsb
+        window.addEventListener("genz:credits-updated", function(e){
+            var c = e && e.detail && e.detail.credits;
+            if (c !== undefined) report("credit", { throttle:false, severity:"info", message: "Saldo kredit berubah: " + String(c) + " CR" });
+        });
+        // fallback: tangkap fetch ke /api/* yang mengembalikan kredit baru
+        var origFetch2 = window.fetch;
+        if (typeof origFetch2 === "function" && !window.__GENZ_MONITOR_FETCH_PATCHED) {
+            window.__GENZ_MONITOR_FETCH_PATCHED = true;
+            window.fetch = function(input, init){
+                var url = typeof input === "string" ? input : (input && input.url ? input.url : "");
+                var p = origFetch2.apply(this, arguments);
+                if (url && (url.includes("/api/feature-credits") || url.includes("/api/free-credit") || url.includes("/api/generate"))) {
+                    p.then(function(r){
+                        if (!r || !r.clone) return;
+                        try {
+                            var ct = r.headers && r.headers.get ? r.headers.get("content-type") : "";
+                            if (ct && ct.includes("application/json")) {
+                                r.clone().json().then(function(j){
+                                    if (j && (j.credits !== undefined || j.remaining_credits !== undefined)) {
+                                        var v = j.credits !== undefined ? j.credits : j.remaining_credits;
+                                        report("account", { throttle:false, severity:"info", message: "Aktivitas akun: " + url.split("?")[0] + " → " + String(v) + " CR" });
+                                    } else if (url.includes("/api/free-credit") && j && j.ok) {
+                                        report("account", { throttle:false, severity:"info", message: "Klaim free credit via " + url.split("?")[0] });
+                                    }
+                                }).catch(function(){});
+                            }
+                        } catch(e){}
+                    }).catch(function(){});
+                }
+                return p;
+            };
+        }
+    } catch(e) {}
+
     window.GENZMonitor = {
         report: report,
         devtoolsState: devtoolsState,

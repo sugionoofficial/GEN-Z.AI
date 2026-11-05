@@ -13,7 +13,10 @@
 
 const ENDPOINT = "/api/monitoring";
 const FREE_CREDIT_ENDPOINT = "/api/free-credit";
-const REFRESH_MS = 10000;
+const FAST_POLL_MS = 2200;
+const OVERVIEW_POLL_MS = 14000;
+const FAST_POLL_HIDDEN_MS = 6000;
+const REFRESH_MS = FAST_POLL_MS;
 
 const LOG_LIMIT_OPTIONS = [50, 100, 500];
 const LOG_LIMIT_STORAGE_KEY = "genz-monitoring-log-limit";
@@ -53,9 +56,16 @@ const state = {
     serverTime: null,
     lastLogSignature: "",
     lastLogError: "",
+    lastLogErrorCount: 0,
+    lastEventId: 0,
+    lastOverviewAt: 0,
+    newAccountCount: 0,
     pollTimer: null,
+    overviewTimer: null,
     realtimeChannel: null,
-    realtimeAlarmTimer: null
+    realtimeAlarmTimer: null,
+    fastPollActive: false,
+    lastDeltaAt: 0
 };
 
 const $ = id => document.getElementById(id);
@@ -471,11 +481,16 @@ const KIND_LABEL = {
     api_failure: "api gagal",
     worker: "worker",
     activity: "aktivitas",
+    auth: "akun",
+    account: "akun",
+    credit: "kredit",
     injection_attempt: "INJECT"
 };
+function isAccountEvent(e){ return Boolean(e.user_id) || e.kind==="auth"||e.kind==="account"||e.kind==="credit"; }
 
 function matchesFilter(event) {
     if (state.filter === "all") return true;
+    if (state.filter === "account") return isAccountEvent(event);
     if (state.filter === "devtools") return Boolean(event.devtools_open) || event.kind === "devtools";
     if (state.filter === "error") return event.kind === "error" || event.severity === "error" || event.severity === "critical";
     return event.kind === state.filter;
@@ -521,11 +536,12 @@ function renderLog(events) {
 
         row.append(el("td", "mon-log-msg", event.message || "—"));
 
-        row.className = "mon-log-row" + (isNew && index === 0 ? " mon-log-new" : "");
+        const isAccount = isAccountEvent(event);
+        row.className = "mon-log-row" + (isAccount ? " mon-log-row--account" : "") + (isNew && index < 3 ? " mon-log-new" : "");
         row.dataset.eventId = String(event.id);
         row.tabIndex = 0;
         row.setAttribute("role", "button");
-        row.setAttribute("aria-label", "Lihat detail log");
+        row.setAttribute("aria-label", "Lihat detail log" + (isAccount ? " — pergerakan akun" : ""));
         body.append(row);
     });
 }
@@ -1219,77 +1235,176 @@ async function handleRemoveBanner() {
 }
 
 /* ---------------------------------------------------------
-   MUAT DATA
+   MUAT DATA — FAST RESPONSE (<2.5s)
    --------------------------------------------------------- */
 
 function setLive(active, text) {
     const node = $("monLive");
+    if (!node) return;
     node.className = `mon-live${active ? "" : " mon-live--paused"}`;
-    $("monLiveText").textContent = text;
+    const txt = $("monLiveText");
+    if (txt) txt.textContent = text;
+    // titik hijau berkedip lebih cepat saat LIVE
+    if (active && text.includes("LIVE")) {
+        node.classList.add("mon-live--fast");
+    } else {
+        node.classList.remove("mon-live--fast");
+    }
+}
+
+function updateAccountBadge() {
+    const badge = $("monAccountLiveBadge");
+    if (!badge) return;
+    const n = state.newAccountCount || 0;
+    if (n > 0) {
+        badge.textContent = `${n} AKTIFITAS AKUN BARU`;
+        badge.hidden = false;
+        badge.classList.add("mon-account-badge--pulse");
+    } else {
+        badge.hidden = true;
+        badge.classList.remove("mon-account-badge--pulse");
+    }
+}
+
+function bumpAccountPulse(count) {
+    if (!count) return;
+    state.newAccountCount = (state.newAccountCount || 0) + count;
+    updateAccountBadge();
+    // kedip live dot
+    flashAlarm();
+    // auto-reset badge setelah 12 detik tanpa aktivitas baru
+    clearTimeout(state._accountBadgeTimer);
+    state._accountBadgeTimer = setTimeout(() => {
+        state.newAccountCount = 0;
+        updateAccountBadge();
+    }, 12000);
+}
+
+function ingestNewEvents(newRows, opts = {}) {
+    if (!newRows || !newRows.length) return 0;
+    // newRows dari API: urut desc (terbaru pertama). Kita sisipkan di depan.
+    // Filter duplikat by id
+    const existingIds = new Set(state.events.map(e => String(e.id)));
+    const fresh = newRows.filter(r => !existingIds.has(String(r.id)));
+    if (!fresh.length) return 0;
+    // urutkan fresh desc sudah, langsung unshift
+    // tapi fresh dari since_id mungkin asc? API desc, jadi fresh sudah desc
+    // kita perlu pertahankan urutan kronologis desc
+    fresh.reverse().forEach(ev => state.events.unshift(ev));
+    // potong agar tidak membengkak
+    const cap = Math.max(state.logLimit * 4, 300);
+    if (state.events.length > cap) state.events.length = cap;
+    // update lastEventId ke max id
+    const maxId = Math.max(...fresh.map(r => Number(r.id) || 0), state.lastEventId || 0);
+    if (maxId) state.lastEventId = maxId;
+
+    renderLog(state.events);
+    renderAccess(state.events);
+
+    const accountMoves = fresh.filter(isAccountEvent).length;
+    if (accountMoves) bumpAccountPulse(accountMoves);
+
+    // sorot 3 teratas sebagai baru
+    if (!opts.silent) {
+        const firstKind = fresh[0].kind;
+        const msg = accountMoves
+            ? `📡 ${accountMoves} pergerakan akun: ${KIND_LABEL[firstKind]||firstKind} — ${fresh[0].message||fresh[0].path||""}`.slice(0,120)
+            : `● ${fresh.length} aktivitas baru`;
+        // jangan spam toast untuk setiap delta kecil, hanya bila ada akun atau >2 baris
+        if (accountMoves || fresh.length >= 2) {
+            if (fresh.some(e=>e.severity==="critical"||e.severity==="error")) toast(msg, "error");
+        }
+    }
+    return fresh.length;
+}
+
+async function fetchOverview() {
+    const data = await api("overview");
+    if (data.available === false) {
+        $("monHealthGrid").replaceChildren(el("div","mon-empty", data.message || "Tabel monitoring belum tersedia."));
+        $("monFindings").replaceChildren(el("div","mon-empty","Menunggu tabel monitoring."));
+        setLive(false, "OFFLINE");
+        return null;
+    }
+    state.serverTime = data.server_time;
+    state.lastOverviewAt = Date.now();
+    renderSummary(data);
+    renderHealth(data.health);
+    renderFindings(data.findings);
+    renderSettings(data.settings);
+    if (data.free_credit) renderFreeCredit(data.free_credit);
+    // sinkronkan events awal
+    if (Array.isArray(data.events) && data.events.length) {
+        const maxId = Math.max(...data.events.map(r=>Number(r.id)||0));
+        if (maxId) state.lastEventId = maxId;
+    }
+    return data;
+}
+
+async function fetchDelta() {
+    if (!state.lastEventId) return 0;
+    try {
+        const res = await api("events", { query: { since_id: state.lastEventId, limit: 50 } });
+        const rows = Array.isArray(res.rows) ? res.rows : [];
+        if (!rows.length) return 0;
+        return ingestNewEvents(rows);
+    } catch (e) {
+        // fail silent untuk delta, akan dicoba lagi next tick
+        return 0;
+    }
 }
 
 async function refresh(options = {}) {
     if (state.busy) return;
     state.busy = true;
-
     const refreshButton = $("monRefresh");
-    if (!options.silent) refreshButton.disabled = true;
-
+    if (!options.silent && refreshButton) refreshButton.disabled = true;
     try {
-        const data = await api("overview");
-
-        if (data.available === false) {
-            $("monHealthGrid").replaceChildren(el(
-                "div",
-                "mon-empty",
-                data.message || "Tabel monitoring belum tersedia."
-            ));
-            $("monFindings").replaceChildren(el("div", "mon-empty", "Menunggu tabel monitoring."));
-            setLive(false, "OFFLINE");
-            return;
-        }
-
-        state.serverTime = data.server_time;
-        renderSummary(data);
-        renderHealth(data.health);
-        renderFindings(data.findings);
-        renderSettings(data.settings);
-        if (data.free_credit) {
-            renderFreeCredit(data.free_credit);
-        }
-
-        /* Kegagalan di sini tidak boleh ditelan diam-diam: dulu
-           `.catch(() => ({ rows: [] }))` membuat panel log kosong
-           tanpa penjelasan saat endpoint menolak permintaan. */
+        const data = await fetchOverview();
+        if (!data) return;
         let eventData = { rows: [] };
         try {
             eventData = await api("events", { query: { limit: state.logLimit } });
         } catch (error) {
             eventData = { rows: [], error: error.message };
         }
-
         const limitSelect = $("monLogLimit");
         if (limitSelect) limitSelect.value = String(state.logLimit);
+        // gabungkan: utamakan eventData.rows
         state.events = (eventData.rows || []).length ? eventData.rows : data.events;
-
+        if (state.events && state.events.length) {
+            const maxId = Math.max(...state.events.map(r=>Number(r.id)||0));
+            if (maxId) state.lastEventId = maxId;
+        }
         if (eventData.error && state.lastLogError !== eventData.error) {
             state.lastLogError = eventData.error;
             toast(`Log lengkap gagal dimuat: ${eventData.error}`, "error");
         } else if (!eventData.error) {
             state.lastLogError = "";
         }
-
         renderLog(state.events);
         renderAccess(state.events);
-
-        setLive(true, "LIVE");
+        setLive(true, "LIVE 2.2s");
+        state.newAccountCount = 0;
+        updateAccountBadge();
     } catch (error) {
         setLive(false, "PAUSED");
-        toast(error.message, "error");
+        if (!options.silent) toast(error.message, "error");
+        // jangan spam saat delta gagal
+        state.lastLogErrorCount = (state.lastLogErrorCount||0)+1;
     } finally {
         state.busy = false;
-        refreshButton.disabled = false;
+        if (refreshButton) refreshButton.disabled = false;
     }
+}
+
+async function refreshOverviewIfDue() {
+    const age = Date.now() - (state.lastOverviewAt || 0);
+    if (age < OVERVIEW_POLL_MS) return;
+    try {
+        const data = await fetchOverview();
+        if (data) setLive(true, "LIVE 2.2s");
+    } catch {}
 }
 
 /* ---------------------------------------------------------
@@ -1514,34 +1629,9 @@ async function purgeOldLogs() {
 }
 
 /* ---------------------------------------------------------
-   POLLING
-   --------------------------------------------------------- */
-
-function startPolling() {
-    stopPolling();
-    if (!$("monAuto").checked) {
-        setLive(false, "PAUSED");
-        return;
-    }
-
-    setLive(true, "LIVE");
-    state.pollTimer = setInterval(() => {
-        if (document.visibilityState === "visible") refresh({ silent: true });
-    }, REFRESH_MS);
-    startRealtime();
-}
-
-function stopPolling() {
-    if (state.pollTimer) {
-        clearInterval(state.pollTimer);
-        state.pollTimer = null;
-    }
-    stopRealtime();
-}
-
-/* ---------------------------------------------------------
-   REALTIME — event monitoring tampil live tanpa menunggu
-   polling berikutnya (Supabase Realtime / postgres_changes).
+   POLLING — FAST RESPONSE 2.2s + OVERVIEW 14s
+   + REALTIME postgres_changes (fallback ke fast polling bila
+   realtime tertunda / RLS belum aktif)
    --------------------------------------------------------- */
 
 function flashAlarm() {
@@ -1551,29 +1641,70 @@ function flashAlarm() {
     if (state.realtimeAlarmTimer) clearTimeout(state.realtimeAlarmTimer);
     state.realtimeAlarmTimer = setTimeout(() => {
         node.classList.remove("mon-live--alarm");
-    }, 4000);
+    }, 3500);
 }
 
 function handleRealtimeEvent(event) {
     if (!event || !event.id) return;
-
-    /* Jangan dobel: kalau event sudah ada di state, lewati. */
     if (state.events.some(e => String(e.id) === String(event.id))) return;
-
-    state.events.unshift(event);
-    const cap = Math.max(state.logLimit * 4, 200);
-    if (state.events.length > cap) state.events.length = cap;
-
-    renderLog(state.events);
-    renderAccess(state.events);
-
-    if (event.severity === "critical" || event.severity === "error") {
+    const added = ingestNewEvents([event]);
+    if (added && (event.severity === "critical" || event.severity === "error" || isAccountEvent(event))) {
         flashAlarm();
-        toast(
-            `🚨 ${KIND_LABEL[event.kind] || event.kind}: ${event.message || event.path || ""}`,
-            "error"
-        );
+        if (event.severity === "critical" || event.severity === "error") {
+            toast(`🚨 ${KIND_LABEL[event.kind]||event.kind}: ${event.message||event.path||""}`.slice(0,140), "error");
+        }
     }
+    // sinkronkan lastEventId
+    const nid = Number(event.id)||0;
+    if (nid && nid > (state.lastEventId||0)) state.lastEventId = nid;
+}
+
+function startPolling() {
+    stopPolling();
+    const auto = $("monAuto");
+    if (auto && !auto.checked) {
+        setLive(false, "PAUSED");
+        return;
+    }
+    setLive(true, "LIVE 2.2s");
+    state.fastPollActive = true;
+
+    // fast delta polling 2.2s — ini yang bikin pergerakan akun terasa instan
+    state.pollTimer = setInterval(async () => {
+        if (document.visibilityState !== "visible") return;
+        if (!state.lastEventId) {
+            // belum punya baseline, refresh ringan saja
+            await fetchDelta();
+            return;
+        }
+        const n = await fetchDelta();
+        // tiap 6x delta (~13 detik) segarkan overview (health/findings/summary)
+        if (Date.now() - (state.lastOverviewAt||0) > OVERVIEW_POLL_MS) {
+            refreshOverviewIfDue();
+        }
+        if (n) state.lastDeltaAt = Date.now();
+    }, FAST_POLL_MS);
+
+    // overview terpisah 14s agar tidak berat
+    state.overviewTimer = setInterval(() => {
+        if (document.visibilityState === "visible") refreshOverviewIfDue();
+    }, OVERVIEW_POLL_MS);
+
+    startRealtime();
+
+    // safety: bila realtime tidak SUBSCRIBED dalam 3 detik, tetap fast polling
+    state._realtimeWait = setTimeout(() => {
+        const liveTxt = $("monLiveText")?.textContent || "";
+        if (!liveTxt.includes("LIVE")) setLive(true, "LIVE 2.2s");
+    }, 3000);
+}
+
+function stopPolling() {
+    state.fastPollActive = false;
+    if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+    if (state.overviewTimer) { clearInterval(state.overviewTimer); state.overviewTimer = null; }
+    if (state._realtimeWait) { clearTimeout(state._realtimeWait); state._realtimeWait = null; }
+    stopRealtime();
 }
 
 function startRealtime() {
@@ -1581,35 +1712,35 @@ function startRealtime() {
     try {
         const client = supabaseClient();
         state.realtimeChannel = client
-            .channel("monitoring-live")
-            .on(
-                "postgres_changes",
-                { event: "INSERT", schema: "public", table: "monitoring_events" },
-                payload => handleRealtimeEvent(payload.new)
-            )
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "monitoring_findings" },
-                () => { if (document.visibilityState === "visible") refresh({ silent: true }); }
-            )
+            .channel("monitoring-live-v2")
+            .on("postgres_changes", { event: "INSERT", schema: "public", table: "monitoring_events" }, payload => handleRealtimeEvent(payload.new))
+            .on("postgres_changes", { event: "*", schema: "public", table: "monitoring_findings" }, () => { if (document.visibilityState === "visible") refreshOverviewIfDue(); })
             .subscribe(status => {
-                if (status === "SUBSCRIBED") setLive(true, "LIVE");
-                if (status === "CLOSED" || status === "CHANNEL_ERROR") setLive(false, "OFFLINE");
+                if (status === "SUBSCRIBED") {
+                    setLive(true, "LIVE 2.2s • RT");
+                }
+                if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                    // fallback: fast polling sudah aktif, jadi tidak OFFLINE
+                    console.warn("[monitoring] realtime channel error, fallback ke polling 2.2s");
+                    setLive(true, "LIVE 2.2s");
+                }
+                if (status === "CLOSED") {
+                    // coba reconnect sekali setelah 4 detik
+                    setTimeout(() => { if (state.fastPollActive) startRealtime(); }, 4000);
+                }
             });
     } catch (error) {
         console.warn("[monitoring] realtime tidak aktif:", error);
+        setLive(true, "LIVE 2.2s");
     }
 }
 
 function stopRealtime() {
     if (state.realtimeChannel) {
-        try { state.realtimeChannel.unsubscribe(); } catch { /* abaikan */ }
+        try { state.realtimeChannel.unsubscribe(); } catch {}
         state.realtimeChannel = null;
     }
-    if (state.realtimeAlarmTimer) {
-        clearTimeout(state.realtimeAlarmTimer);
-        state.realtimeAlarmTimer = null;
-    }
+    if (state.realtimeAlarmTimer) { clearTimeout(state.realtimeAlarmTimer); state.realtimeAlarmTimer = null; }
 }
 
 function bindEvents() {
@@ -1735,14 +1866,49 @@ function bindEvents() {
         for (const item of $("monFilterRow").querySelectorAll("[data-filter]")) {
             item.setAttribute("aria-pressed", String(item === button));
         }
-
+        // bila klik Akun, reset badge hitung
+        if (state.filter === "account") {
+            state.newAccountCount = 0;
+            updateAccountBadge();
+        }
         renderLog(state.events);
     });
 
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible" && $("monAuto").checked) {
-            refresh({ silent: true });
+        if (document.visibilityState === "visible") {
+            if ($("monAuto").checked) {
+                // langsung kejar ketinggalan + resume fast polling
+                fetchDelta().then(()=> refreshOverviewIfDue());
+                // bila polling mati karena hidden, hidupkan lagi
+                if (!state.pollTimer) startPolling();
+            }
+        } else {
+            // tab hidden: perlambat polling agar hemat, tetap jalan 6 detik
+            if (state.pollTimer && state.fastPollActive) {
+                clearInterval(state.pollTimer);
+                state.pollTimer = setInterval(async () => {
+                    await fetchDelta();
+                }, FAST_POLL_HIDDEN_MS);
+            }
         }
+    });
+
+    // klik badge untuk filter akun
+    const accBadge = $("monAccountLiveBadge");
+    if (accBadge) accBadge.addEventListener("click", () => {
+        state.filter = "account";
+        for (const item of $("monFilterRow").querySelectorAll("[data-filter]")) {
+            item.setAttribute("aria-pressed", String(item.dataset.filter==="account"));
+        }
+        state.newAccountCount = 0;
+        updateAccountBadge();
+        renderLog(state.events);
+        document.getElementById("monLogTitle")?.scrollIntoView({behavior:"smooth", block:"start"});
+    });
+
+    // focus window = langsung refresh delta
+    window.addEventListener("focus", () => {
+        if ($("monAuto").checked) fetchDelta();
     });
 }
 

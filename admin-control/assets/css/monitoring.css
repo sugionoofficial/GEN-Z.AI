@@ -168,6 +168,79 @@
     100% { box-shadow: 0 0 0 0 rgba(57, 255, 113, 0); }
 }
 
+/* Fast polling — LIVE 2.2s berkedip lebih cepat */
+.mon-live--fast .mon-live-dot {
+    animation: mon-pulse-fast 0.85s infinite;
+}
+@keyframes mon-pulse-fast {
+    0% { box-shadow: 0 0 0 0 rgba(57, 255, 113, .7); }
+    60% { box-shadow: 0 0 0 7px rgba(57, 255, 113, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(57, 255, 113, 0); }
+}
+
+/* Filter akun — titik hijau + badge */
+.mon-filter--account {
+    border-color: rgba(57, 255, 113, .35);
+}
+.mon-filter--account .mon-filter-dot {
+    display: inline-block;
+    width: 7px; height: 7px; border-radius: 999px;
+    background: var(--bb-green);
+    box-shadow: 0 0 8px rgba(57,255,113,.6);
+    vertical-align: middle;
+}
+.mon-filter[aria-pressed="true"].mon-filter--account {
+    background: rgba(57,255,113,.18);
+    border-color: var(--bb-green);
+    color: var(--bb-green);
+    box-shadow: 0 0 0 3px rgba(57,255,113,.12);
+}
+
+.mon-account-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 12px;
+    border: 1px solid rgba(57,255,113,.18);
+    border-radius: 10px;
+    background: rgba(57,255,113,.04);
+}
+.mon-account-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 800; letter-spacing: .08em;
+    background: #0f2b18; color: var(--bb-green);
+    border: 1px solid var(--bb-green-line);
+}
+.mon-account-badge--pulse {
+    animation: mon-account-pulse 0.9s ease-in-out 4;
+}
+@keyframes mon-account-pulse {
+    0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(57,255,113,.5); }
+    50% { transform: scale(1.04); box-shadow: 0 0 0 8px rgba(57,255,113,0); }
+}
+.mon-account-hint {
+    font-size: 11px; color: var(--bb-muted); letter-spacing: .03em;
+}
+
+/* Baris log yang merupakan pergerakan akun — border kiri hijau */
+.mon-log-row--account td:first-child {
+    border-left: 3px solid var(--bb-green);
+}
+.mon-log-row--account {
+    background: rgba(57,255,113,.03);
+}
+.mon-log-row--account:hover td {
+    background: rgba(57,255,113,.08) !important;
+}
+
+/* Animasi masuk baris baru — lebih tegas */
+.mon-log-new {
+    animation: mon-flash 1.4s ease, mon-slide-down 0.35s ease;
+}
+@keyframes mon-slide-down {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+}
+
 /* ---------------------------------------------------------
    RINGKASAN
    --------------------------------------------------------- */
