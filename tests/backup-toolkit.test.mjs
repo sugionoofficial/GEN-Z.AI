@@ -304,3 +304,20 @@ test("dump memverifikasi blok COPY di berkas auth", () => {
     assert.match(ps, /Select-String -Pattern '\^COPY '/);
     assert.match(ps, /barisCopy -lt 1/, "harus berhenti bila tidak ada blok COPY");
 });
+
+test("tutorial memberi tahu bedanya error SQL Editor vs terminal", () => {
+    /* Pengguna menempelkan `cd $HOME\Desktop\genz-migrasi` ke SQL Editor dan
+       mendapat `ERROR: 42601: syntax error at or near "cd"`. Panduan harus
+       menautkan gejala itu ke penyebabnya, bukan hanya melarang. */
+    const t = baca(path.join(ROOT, "migrasi", "TUTORIAL-BACKUP.md"));
+    assert.match(t, /syntax error at or near/);
+    assert.ok(t.includes("cd $HOME"), "harus memakai contoh nyata yang dilaporkan");
+    assert.match(t, /Kesalahan yang paling sering terjadi/);
+});
+
+test("tutorial memisahkan cek pra-restore (SQL) dari restore (terminal)", () => {
+    const t = baca(path.join(ROOT, "migrasi", "TUTORIAL-BACKUP.md"));
+    assert.match(t, /select count\(\*\) as jumlah_tabel from pg_tables/);
+    assert.match(t, /### 5a\./);
+    assert.match(t, /### 5b\./);
+});

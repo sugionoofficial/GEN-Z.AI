@@ -114,6 +114,19 @@ Ada **dua tempat** yang berbeda, dan tidak boleh tertukar:
 Browser → https://supabase.com/dashboard → pilih project → menu kiri
 **SQL Editor** → tombol **New query** → tempel → **Run**.
 
+### Kesalahan yang paling sering terjadi
+
+Menempelkan perintah terminal ke SQL Editor (atau sebaliknya). Contoh nyata:
+
+| Perintah | Ditempel ke | Pesan yang muncul |
+|---|---|---|
+| `cd $HOME\Desktop\genz-migrasi` | SQL Editor | `ERROR: 42601: syntax error at or near "cd"` |
+| `select count(*) ...` | PowerShell | `The term 'select' is not recognized` |
+
+Kalau pesan error menyebut `syntax error at or near` diikuti kata seperti
+`cd`, `export`, atau `powershell` — **Anda di SQL Editor, perintah itu milik
+terminal.**
+
 ### Tiga aturan supaya tidak bingung
 
 1. **Jangan mengetik perintah terminal di SQL Editor.** `pg_dump` di sana akan
@@ -480,6 +493,24 @@ pg_dump (PostgreSQL) 17.6
 ---
 
 ## Langkah 5 — Restore (menuangkan ke project baru)
+
+### 5a. Cek dulu: project baru harus masih kosong
+
+**Di SQL Editor** (browser), jendela project **BARU**:
+
+```sql
+select count(*) as jumlah_tabel from pg_tables where schemaname = 'public';
+```
+
+| hasil | artinya |
+|---|---|
+| **0** | aman, lanjut ke 5b |
+| 60 atau lebih | sudah pernah di-restore. **Jangan ulangi** — baris bisa dobel |
+
+### 5b. Jalankan restore
+
+**Di terminal** (PowerShell), bukan di SQL Editor:
+
 
 Masih di Git Bash, folder yang sama:
 
