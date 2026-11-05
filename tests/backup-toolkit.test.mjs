@@ -588,3 +588,58 @@ test("tutorial Fase B menjelaskan cara mengenali skrip lama (Total: 0 objek)", (
     assert.doesNotMatch(md, /kirim.*kunci.*chat/i);
     assert.match(md, /jangan kirim lewat chat/i);
 });
+
+const VERIFIKASI_STORAGE = path.join(ROOT, "migrasi", "verifikasi-storage.sql");
+
+test("verifikasi-storage.sql satu statement & mengunci 112 objek", () => {
+    /* SQL Editor Supabase hanya menampilkan hasil query TERAKHIR. Skrip
+       verifikasi multi-statement pernah menampilkan satu baris JSON saja dan
+       membuat pengguna bingung. */
+    const sql = baca(VERIFIKASI_STORAGE);
+    const tanpaKomentar = sql.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+    assert.equal((tanpaKomentar.match(/;/g) || []).length, 1, "harus tepat SATU titik koma");
+
+    // Angka harapan harus sama dengan isi proyek sumber.
+    const harapan = { "user-uploads": 47, "social-character-references": 45, "dashboard-videos": 19, "social-story-audio": 1 };
+    for (const [bucket, jumlah] of Object.entries(harapan)) {
+        assert.match(sql, new RegExp(`'${bucket}', ${jumlah}`), `${bucket} harus ${jumlah}`);
+    }
+    assert.match(VERIFIKASI_STORAGE ? sql : sql, /total_objek_semua_bucket/);
+    assert.match(sql, /objek_berukuran_nol/, "file 0 byte berarti unggahan rusak");
+});
+
+const CEK_STORAGE = path.join(ROOT, "migrasi", "cek-storage-detail.sql");
+
+test("cek-storage-detail.sql satu statement & menandai selisih arah", () => {
+    const sql = baca(CEK_STORAGE);
+    const tanpaKomentar = sql.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+    assert.equal((tanpaKomentar.match(/;/g) || []).length, 1, "harus tepat SATU titik koma");
+    // Selisih harus dibedakan arahnya: LEBIH (file baru) vs KURANG (file gagal).
+    assert.match(sql, /'LEBIH '/);
+    assert.match(sql, /'KURANG '/);
+    assert.match(sql, /objek_5_terbaru/);
+});
+
+test("artefak diagnostik memakai angka harapan yang sama", () => {
+    /* Kalau angka di verifikasi dan diagnostik berbeda, pengguna melihat dua
+       kebenaran yang bertentangan — persis kesalahan bucket_publik 3 vs 4. */
+    const v = baca(VERIFIKASI_STORAGE);
+    const c = baca(CEK_STORAGE);
+    for (const [bucket, jumlah] of [["user-uploads", 47], ["social-character-references", 45], ["dashboard-videos", 19], ["social-story-audio", 1]]) {
+        assert.match(v, new RegExp(`'${bucket}', ${jumlah}`), `verifikasi: ${bucket}`);
+        assert.match(c, new RegExp(`'${bucket}', ${jumlah}`), `diagnostik: ${bucket}`);
+    }
+});
+
+test("verifikasi storage membedakan KURANG (masalah) dari LEBIH (aktivitas baru)", () => {
+    /* Situs sudah dipakai: 5 clip.mp4 + 2 frame diunggah 2026-11-05 13:01,
+       setelah migrasi selesai. Angka 113 bukan kegagalan. Yang berbahaya
+       adalah KURANG dari 112 — berkas proyek lama tidak ikut pindah. */
+    const v = baca(VERIFIKASI_STORAGE);
+    assert.match(v, /OK \(bertambah\)/, "kelebihan harus dianggap wajar");
+    assert.match(v, /kelebihan_objek_adalah_aktivitas_baru/);
+
+    const c = baca(CEK_STORAGE);
+    assert.match(c, /\(aktivitas baru\)/);
+    assert.match(c, /\(PERIKSA\)/, "kekurangan harus ditandai tegas");
+});

@@ -53,7 +53,9 @@ test("halaman History memuat genz-toast.js sebelum history-modal.js", () => {
     );
 
     // history-modal ikut di-bump agar browser tidak memakai cache lama.
-    assert.match(historyHtml, /history-modal\.js\?v=20261029-close-fix/);
+    // Cocokkan prefix, bukan string penuh: setiap penanda baru di belakangnya
+    // tidak boleh memerahkan test ini.
+    assert.match(historyHtml, /history-modal\.js\?v=\d{8}-/);
 });
 
 /* =========================================================

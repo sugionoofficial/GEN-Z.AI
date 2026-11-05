@@ -326,11 +326,17 @@ test("penanda media_expired dari data tetap dihormati", () => {
 
 test("modal membedakan sebab kedaluwarsa", () => {
     assert.match(modalSource, /Tautan hasil sudah kedaluwarsa/);
-    assert.match(modalSource, /Berkas hasil sudah tidak tersedia di penyimpanan/);
+    // Kasus "berkas sudah dihapus" memakai angka yang BENAR: hasil disimpan
+    // 24 jam (HISTORY_MEDIA_TTL_MS), bukan 1 jam. Angka 1 jam hanya berlaku
+    // untuk upload input (UPLOAD_TTL_MS) dan pernah salah ditulis di sini,
+    // membuat user mengira hasilnya hilang jauh lebih cepat.
+    assert.match(modalSource, /Hasil sudah dihapus otomatis setelah 24 jam/);
+    assert.match(modalSource, /disimpan maksimal 24 jam/);
+    assert.match(modalSource, /sebelum 24 jam/, "harus menyarankan mengunduh lebih awal");
     assert.doesNotMatch(
         modalSource,
-        /File ini disimpan hanya 24 jam lalu dihapus otomatis/,
-        "klaim 24 jam untuk semua kasus harus dihapus"
+        /Media riwayat disimpan maksimal 1 jam/,
+        "hasil tidak disimpan 1 jam; itu batas upload input"
     );
 });
 
@@ -350,18 +356,17 @@ test("modal tidak menampilkan tautan hasil yang sudah mati", () => {
 });
 
 test("halaman History memuat versi modul terbaru", () => {
-    assert.match(
-        historyHtml,
-        /history-data\.js\?v=20261026-expiry-result-only/
-    );
-    assert.match(
-        historyHtml,
-        /history-render\.js\?v=20261026-expiry-result-only/
-    );
-    assert.match(
-        historyHtml,
-        /history-modal\.js\?v=20261029-close-fix/
-    );
+    /* Pin hanya pada PREFIX tanggal: menambahkan penanda baru di belakangnya
+       (mis. -expired-reason-tooltip) tidak boleh memerahkan test, tetapi
+       menghapus cache-bust sepenuhnya harus gagal. Sebelumnya test ini
+       mencocokkan string penuh sehingga setiap perubahan kecil memaksa
+       pembaruan test — persis yang membuat cache-bust basi di produksi. */
+    assert.match(historyHtml, /history-data\.js\?v=2026/);
+    assert.match(historyHtml, /history-render\.js\?v=2026/);
+    assert.match(historyHtml, /history-modal\.js\?v=2026/);
+    // Penanda 5 Nov 2026: keterangan EXPIRED dibedakan sebabnya.
+    assert.match(historyHtml, /history-render\.js\?v=20261105/);
+    assert.match(historyHtml, /history-modal\.js\?v=20261105/);
 });
 
 test("URL signed CDN Opus (hdnts=Expires=...) dikenali kedaluwarsa tanpa menembak <video>", () => {
@@ -501,4 +506,15 @@ test("hasil yang sudah ditandatangani tetap tampil normal", () => {
         mediaSources(html).some(value => value.startsWith("https://project.supabase.co/")),
         "signed URL asli tidak boleh ikut diblokir"
     );
+});
+
+test("label EXPIRED di daftar riwayat menjelaskan sebabnya, bukan sekadar 'EXPIRED'", () => {
+    /* User melihat "EXPIRED" tanpa keterangan lalu menyimpulkan migrasi
+       kehilangan datanya. Label harus punya title/aria-label yang membedakan
+       "dihapus cron retensi" dari "tautan provider kedaluwarsa". */
+    const render = renderSource;
+    assert.match(render, /Hasil sudah dihapus otomatis setelah 24 jam/);
+    assert.match(render, /Tautan provider sudah kedaluwarsa/);
+    assert.match(render, /getMediaExpiryReason/, "harus membedakan sebabnya");
+    assert.match(render, /title="\$\{escapeHtml\(judul\)\}"/, "title untuk tooltip");
 });

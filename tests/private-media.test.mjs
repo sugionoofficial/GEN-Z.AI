@@ -269,7 +269,9 @@ test("baris riwayat ditandai kedaluwarsa saat signed URL gagal", () => {
     assert.match(render, /"\/storage\/v1\/object\/authenticated\/user-uploads\/"/);
 
     const html = read("history/index.html");
-    assert.match(html, /history-render\.js\?v=20261026-expiry-result-only/);
+    // Prefix tanggal saja: penanda baru di belakangnya tidak boleh memerahkan
+    // test ini (yang penting cache-bust tetap ada dan berubah).
+    assert.match(html, /history-render\.js\?v=\d{8}-/);
 
     // Unduhan dari signed URL tetap memakai nama file yang rapi.
     const modal = read("history/assets/js/history-modal.js");

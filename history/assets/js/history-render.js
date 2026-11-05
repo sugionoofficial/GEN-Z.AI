@@ -1254,10 +1254,32 @@
 
         if (isExpiredMedia(item)) {
 
+            /*
+             * Alasan kedaluwarsa dibedakan supaya user tahu apa yang
+             * sebenarnya terjadi:
+             *   "deleted" - berkas sudah dihapus cron retensi dari storage
+             *               kita (tidak ada yang bisa dipulihkan).
+             *   "link"    - berkas mungkin masih ada, hanya tautan provider
+             *               yang lewat masa berlaku. User masih bisa
+             *               membukanya dari dashboard provider.
+             * Sebelumnya keduanya hanya menulis "EXPIRED" tanpa keterangan,
+             * sehingga user mengira migrasi/backup kehilangan datanya.
+             */
+            const reason =
+                typeof App.getMediaExpiryReason === "function"
+                    ? App.getMediaExpiryReason(item)
+                    : "deleted";
+
+            const judul =
+                reason === "link"
+                    ? "Tautan provider sudah kedaluwarsa"
+                    : "Hasil sudah dihapus otomatis setelah 24 jam";
+
             return `
                 <div
                     class="history-thumbnail thumbnail-expired"
-                    aria-label="Media expired"
+                    aria-label="${escapeHtml(judul)}"
+                    title="${escapeHtml(judul)}"
                 >
 
                     <span class="thumbnail-expired-icon">
@@ -3049,7 +3071,8 @@
                     if (!wrap) return;
                     wrap.className = "history-thumbnail thumbnail-expired";
                     wrap.removeAttribute("data-video-url");
-                    wrap.setAttribute("aria-label", "Media expired");
+                    wrap.setAttribute("aria-label", "Hasil sudah dihapus otomatis setelah 24 jam");
+                    wrap.setAttribute("title", "Hasil sudah dihapus otomatis setelah 24 jam. Unduh sebelum kedaluwarsa.");
                     wrap.innerHTML =
                         '<span class="thumbnail-expired-icon">⏳</span>' +
                         '<span class="thumbnail-expired-label">EXPIRED</span>';

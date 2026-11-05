@@ -356,3 +356,89 @@ Panduan pengguna: `migrasi/TUTORIAL-FASE-B.md`.
 > Catatan: tutorial menyuruh pengguna mengunduh skrip dari branch `main`, jadi
 > skrip harus di-merge lebih dulu — kalau tidak, yang terunduh versi lama yang
 > tetap menyalin 0 file.
+
+### ✅ FASE B SELESAI — 112/112 file, 0 gagal (2026-11-05)
+
+```
+Total: 112 objek, ±287.7 MB
+Ringkasan: 112 diupload, 0 dilewati, 0 gagal.
+```
+
+| Bucket | File |
+|---|---|
+| user-uploads | 47 |
+| social-character-references | 45 |
+| dashboard-videos | 19 |
+| social-story-audio | 1 |
+
+Dua bug skrip yang tertangkap sebelum dijalankan: `object/list` tidak rekursif
+(melaporkan 0 objek) dan default env menunjuk migrasi 2026-10.
+
+**Peringatan `META_CSV tidak ditemukan` bukan kegagalan.** Berkas itu opsional
+dan hanya memulihkan `owner` + timestamp asli objek. Kolom `owner` legacy sudah
+tidak dipakai; hak akses Storage sepenuhnya lewat 18 RLS policy yang dipulihkan
+`perbaiki-storage-rls.sql`. Kesalahan sesungguhnya adalah pesan skrip itu
+menyuruh pengguna menjalankan `psql` + RECOVERY.md, jalur yang sudah ditinggalkan
+— pengguna bukan pengguna terminal.
+
+**Verifikasi:** `migrasi/verifikasi-storage.sql` (satu statement) untuk memastikan
+angka di layar benar-benar mendarat jadi baris di `storage.objects`.
+
+### ✅ MIGRASI SELESAI — diverifikasi 2026-11-05
+
+Verifikasi per bucket di project baru:
+
+| Bucket | Hasil | Target |
+|---|---|---|
+| dashboard-videos | 19 | 19 |
+| social-character-references | 45 | 45 |
+| social-story-audio | 1 | 1 |
+| user-uploads | 48 | 47 |
+| 4 bucket lain | 0 | 0 |
+
+**Kelebihan 1 di user-uploads bukan kegagalan.** `objek_5_terbaru` menunjukkan
+7 berkas `upscale-videos/outputs/staged30-.../` (clip-1..3.mp4, frame-1/2-end.png,
+clip-4, clip-5) dibuat **2026-11-05 13:01 UTC** — sesudah migrasi. Artinya
+**pipeline generate berjalan penuh di project baru**: unduh sumber, proses,
+unggah ke bucket privat `user-uploads`. Itu bukti yang jauh lebih kuat daripada
+hitungan jumlah.
+
+Semua file lama utuh 112/112; nol objek 0 byte; semua punya metadata ukuran.
+
+**Pelajaran verifikasi:** angka target yang absolut akan selalu usang pada sistem
+yang sudah hidup. Yang berbahaya adalah **KURANG** dari jumlah sumber; **LEBIH**
+adalah aktivitas baru. Verifikasi dan diagnostik sekarang membedakan keduanya
+secara eksplisit.
+
+### Kenapa hasil generate lama "EXPIRED" — bukan akibat migrasi
+
+Pemeriksaan langsung ke proyek lama (5 Nov 2026) untuk seluruh hasil
+`supabase-private://` tanggal 1 Nov: **32 rujukan, 0 file ada di storage**.
+Berkasnya sudah dihapus di proyek LAMA pada 2 Nov, tiga hari sebelum migrasi
+dijalankan. Migrasi tidak menghilangkan satu berkas pun.
+
+Penyebabnya aturan retensi di `lib/storage-retention/cleanup.js`:
+
+| Prefix | Umur berkas |
+|---|---|
+| `user-uploads/generate-input/**` | **1 jam** (`UPLOAD_TTL_MS`) |
+| `user-uploads/upscale-videos/**` | 24 jam (`HISTORY_MEDIA_TTL_MS`) |
+| `user-uploads/upscale-photos/**` | 24 jam |
+| `user-uploads/social-video/**` | 7 hari |
+| `user-uploads/voice-previews/**` | 30 hari |
+| `dashboard-videos/...` (konten admin) | tidak pernah disentuh |
+
+Karena itu `dashboard-videos` masih berisi 19 berkas (konten situs), sedangkan
+`user-uploads/generate-input` kosong sama sekali padahal ada 155 rujukan di
+`generation_history`.
+
+**Konsekuensi yang perlu diketahui pengguna:** cron retensi kini aktif lagi di
+proyek baru. Tujuh berkas `upscale-videos/outputs/staged30-...` yang dibuat
+2026-11-05 13:01 UTC akan dihapus sekitar 24 jam kemudian. Hasil generate
+memang hanya bertahan sehari — itu perilaku yang sudah ada sejak sebelum
+migrasi, bukan efek cutover.
+
+Kalau umur simpan ingin diperpanjang (mis. 30 hari), yang diubah hanya
+`HISTORY_MEDIA_TTL_MS` di `lib/storage-retention/cleanup.js`. **Belum diubah** —
+menunggu keputusan pemilik produk, karena berpengaruh langsung ke pemakaian
+kuota Storage.
