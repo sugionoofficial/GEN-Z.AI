@@ -859,16 +859,23 @@ select.field { font-size: 10.5px; }
  * bawah" dan header tetap terlihat.
  */
 @media (max-width: 1080px) {
-    body { overflow: hidden; }
-
+    body { overflow: auto; height: auto; min-height: 100dvh; }
+    .copilot-shell { height: auto; min-height: 100dvh; overflow: visible; }
+    .connectors-bar { position: sticky; top: 0; z-index: 5; }
     .workspace {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: minmax(150px, 0.9fr) minmax(220px, 1.5fr) minmax(180px, 1.1fr);
+        grid-template-rows: none;
+        display: flex;
+        flex-direction: column;
         gap: 10px;
         padding: 10px;
-        padding-bottom: 8px;
-        overflow: hidden;
+        padding-bottom: 12px;
+        overflow: visible;
+        min-height: auto;
     }
+    .panel { min-height: 320px; overflow: visible; }
+    .panel .file-list, .panel .chat-messages { max-height: 50vh; overflow-y: auto; }
+    .code-wrap { max-height: 50vh; }
 
     .panel { border-radius: 14px; }
     .panel-head { min-height: 42px; padding: 7px 11px; }
@@ -900,7 +907,6 @@ select.field { font-size: 10.5px; }
     .pill-mono { max-width: 108px; }
 
     .workspace {
-        grid-template-rows: minmax(132px, 0.85fr) minmax(190px, 1.35fr) minmax(160px, 1fr);
         gap: 8px;
         padding: 8px;
     }
@@ -937,7 +943,7 @@ select.field { font-size: 10.5px; }
  /* ---------------------------------------------------------------------
     CONNECTORS BAR — Supabase + Cloudflare
     --------------------------------------------------------------------- */
- .connectors-bar { flex: 0 0 auto; display:flex; gap:8px; padding:6px var(--gutter); border-bottom:1px solid var(--line); background: rgba(255,255,255,.018); flex-wrap:wrap; }
+ .connectors-bar { flex: 0 0 auto; display:flex; gap:8px; padding:6px var(--gutter); border-bottom:1px solid var(--line); background: rgba(255,255,255,.018); flex-wrap:wrap; min-height:0; }
  .connector-card { flex:1 1 180px; display:flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; background: rgba(255,255,255,.03); color:var(--soft); font-size:10px; font-weight:700; white-space:nowrap; cursor:pointer; transition:.15s ease; }
  .connector-card:hover { border-color: var(--line-strong); background: rgba(255,255,255,.06); }
  .connector-card.is-connected { border-color: rgba(95,216,160,.35); background: rgba(95,216,160,.08); }

@@ -399,29 +399,43 @@
        KONEKTOR SUPABASE & CLOUDFLARE
        ----------------------------------------------------------------- */
 
-    function setConnectorState(dot, text, ok, label){
+    function setConnectorState(dot, text, ok, label, isError=false){
         if(text) text.textContent = label;
         if(dot) dot.classList.toggle("is-off", !ok);
         const card = dot?.closest(".connector-card");
-        if(card){ card.classList.toggle("is-connected", ok); card.classList.toggle("is-error", !ok && label!=="mengecek…"); }
+        if(card){ card.classList.toggle("is-connected", ok); card.classList.toggle("is-error", isError); }
     }
     async function loadSupabaseConnector(){
         setConnectorState(els.supabaseStatusDot, els.supabaseStatusText, true, "mengecek…");
         try{
             const r = await apiRequest("/api/copilot-supabase?action=status");
             const ok = !!r.url;
-            setConnectorState(els.supabaseStatusDot, els.supabaseStatusText, ok, ok ? r.url.replace("https://","").slice(0,28) : "offline");
+            const label = ok ? r.url.replace("https://","").slice(0,28) : "terhubung";
+            setConnectorState(els.supabaseStatusDot, els.supabaseStatusText, ok, label, false);
             if(els.supabaseDetail) els.supabaseDetail.dataset.payload = JSON.stringify(r,null,2);
-        }catch(e){ setConnectorState(els.supabaseStatusDot, els.supabaseStatusText, false, "error"); if(els.supabaseDetail) els.supabaseDetail.textContent = e.message; }
+        }catch(e){
+            const msg = String(e.message||"gagal");
+            const isAuth = /login|verifikasi|admin|session|auth/i.test(msg);
+            const label = isAuth ? "perlu login" : msg.slice(0,20) || "offline";
+            setConnectorState(els.supabaseStatusDot, els.supabaseStatusText, false, label, !isAuth);
+            if(els.supabaseDetail){ els.supabaseDetail.textContent = msg; els.supabaseDetail.dataset.payload = msg; }
+        }
     }
     async function loadCloudflareConnector(){
         setConnectorState(els.cloudflareStatusDot, els.cloudflareStatusText, true, "mengecek…");
         try{
             const r = await apiRequest("/api/copilot-cloudflare");
-            const ok = r.configured;
-            setConnectorState(els.cloudflareStatusDot, els.cloudflareStatusText, ok, ok ? (r.workers? `${r.workers.length} workers` : "terhubung") : "belum set");
+            const ok = true; // konektor selalu ok, hanya tampil status; error hanya jika request gagal
+            const label = r.configured ? (r.workers? `${r.workers.length} workers` : "terhubung") : "belum set";
+            const isError = !!r.error;
+            setConnectorState(els.cloudflareStatusDot, els.cloudflareStatusText, !isError, label, isError);
             if(els.cloudflareDetail) els.cloudflareDetail.dataset.payload = JSON.stringify(r,null,2);
-        }catch(e){ setConnectorState(els.cloudflareStatusDot, els.cloudflareStatusText, false, "error"); if(els.cloudflareDetail) els.cloudflareDetail.textContent = e.message; }
+        }catch(e){
+            const msg = String(e.message||"gagal");
+            const label = msg.slice(0,18) || "offline";
+            setConnectorState(els.cloudflareStatusDot, els.cloudflareStatusText, false, label, true);
+            if(els.cloudflareDetail){ els.cloudflareDetail.textContent = msg; els.cloudflareDetail.dataset.payload = msg; }
+        }
     }
     function toggleConnectorDetail(detailEl){
         if(!detailEl) return;

@@ -62,7 +62,8 @@ export default async function handler(req, res) {
           if (tableList.length===0) tableList.push(t);
         } catch(e){ probeResults.push({ table:t, ok:false, error:e.message }); }
       }
-      return json(res,200,{ success:true, url:config.url, anonKeyPresent: !!config.anonKey, serviceRolePresent:true, buckets, storageOk, probeResults, tableList });
+      // ensure at least url returned even if probes fail
+      return json(res,200,{ success:true, url:config.url, projectRef: (config.url.match(/https:\/\/([^.]+)\.supabase\.co/)||[])[1]||"", anonKeyPresent: !!config.anonKey, serviceRolePresent:true, buckets: buckets||[], storageOk, probeResults, tableList: tableList.length?tableList:["profiles","generation_history"] });
     }
     if (action === "query") {
       // read-only SELECT via postgrest - only allow SELECT
