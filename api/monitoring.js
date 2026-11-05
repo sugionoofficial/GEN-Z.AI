@@ -268,7 +268,14 @@ async function handleIngest(req, res, config, fetchImpl) {
         success: true,
         devtools_lockdown: devtoolsLockdown,
         viewer: {
-            is_owner: verifiedRole === "owner",
+            /*
+             * `is_owner` dipertahankan demi kompatibilitas nama, tetapi artinya
+             * "peran istimewa yang boleh memakai DevTools": OWNER *atau* ADMIN.
+             * Sebelumnya hanya OWNER sehingga admin resmi ikut terkunci dari
+             * halaman Monitoring, tidak konsisten dengan is_dashboard_admin()
+             * dan is_media_admin() yang menerima keduanya.
+             */
+            is_owner: verifiedRole === "owner" || verifiedRole === "admin",
             role: verifiedRole || (verifiedUserId ? "user" : "guest"),
             email: verifiedEmail,
             ip: network.ip || "",

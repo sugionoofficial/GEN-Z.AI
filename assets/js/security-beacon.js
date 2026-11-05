@@ -273,14 +273,35 @@
     }
 
     /*
-     * Hanya role OWNER yang tetap diizinkan membuka / memakai DevTools.
+     * Role yang DIPERBOLEHKAN memakai DevTools: OWNER dan ADMIN.
+     *
+     * Sebelumnya hanya OWNER. Itu tidak konsisten dengan seluruh bagian lain
+     * aplikasi: is_dashboard_admin() dan is_media_admin() di database, serta
+     * penjagaan halaman admin, semuanya menerima ADMIN dan OWNER. Akibatnya
+     * administrator resmi terkunci dari halaman Monitoring-nya sendiri dan
+     * mengira akunnya rusak.
+     *
      * Begitu server selesai memverifikasi sesi, hasil server menjadi
      * satu-satunya acuan sehingga manipulasi localStorage tidak mempan.
      */
+    var PRIVILEGED_ROLES = ["owner", "admin"];
+
+    function isPrivilegedRole(value) {
+        return PRIVILEGED_ROLES.indexOf(String(value || "").trim().toLowerCase()) !== -1;
+    }
+
     function isOwnerViewer() {
         if (CONFIG.forceNonOwner === true) return false;
-        if (serverRoleResolved) return Boolean(serverVerifiedOwner);
-        return readLocalRoleHint() === "owner";
+        if (serverRoleResolved) {
+            /*
+             * Utamakan role hasil verifikasi server. `is_owner` dipertahankan
+             * sebagai cadangan bila server belum mengirim role lengkap
+             * (mis. respons lama yang di-cache sessionStorage).
+             */
+            if (isPrivilegedRole(serverViewer.role)) return true;
+            return Boolean(serverVerifiedOwner);
+        }
+        return isPrivilegedRole(readLocalRoleHint());
     }
 
     function isLockdownApplicable() {
@@ -763,9 +784,20 @@
             "</div>" +
             tableHtml +
             "</div>" +
-            '<div style="margin-top:18px;">' +
+            '<div style="margin-top:18px;display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">' +
             '<button id="genz-lockdown-reload-btn" type="button" style="cursor:pointer;padding:10px 20px;border-radius:10px;border:1px solid #0f172a;background:#0f172a;color:#ffffff;font-size:13px;font-weight:700;">' +
             "Tutup DevTools &amp; Muat Ulang Halaman" +
+            "</button>" +
+            /*
+             * Jalan keluar untuk akun pengelola. Sebelumnya layar ini menahan
+             * halaman tanpa tombol yang berfungsi karena akses ke halaman itu
+             * sendiri sudah dicabut, sehingga OWNER/ADMIN hanya bisa keluar
+             * dengan menutup tab. Tombol ini hanya MERESTART
+             * pemeriksaan (muat ulang), tidak melonggarkan apa pun: verifikasi
+             * peran tetap dilakukan server, dan hanya OWNER/ADMIN yang lolos.
+             */
+            '<button id="genz-lockdown-exit-btn" type="button" style="cursor:pointer;padding:10px 20px;border-radius:10px;border:1px solid #cbd5e1;background:#ffffff;color:#0f172a;font-size:13px;font-weight:700;">' +
+            "Saya pengelola — muat ulang setelah menutup DevTools" +
             "</button>" +
             "</div>" +
             "</div>" +
@@ -849,6 +881,23 @@
                 var reloadBtn = document.getElementById("genz-lockdown-reload-btn");
                 if (reloadBtn) {
                     reloadBtn.onclick = function () {
+                        if (window.location && typeof window.location.reload === "function") {
+                            window.location.reload();
+                        }
+                    };
+                }
+
+                /*
+                 * Tombol kedua untuk akun pengelola. Fungsinya sama dengan
+                 * memuat ulang, tetapi memberi jalan keluar yang jelas: layar
+                 * ini memutus semua koneksi halaman, jadi tanpa tombol yang
+                 * berfungsi satu-satunya cara keluar adalah menutup tab.
+                 * Tidak ada pelonggaran hak di sini — server tetap memverifikasi
+                 * peran pada permintaan berikutnya.
+                 */
+                var exitBtn = document.getElementById("genz-lockdown-exit-btn");
+                if (exitBtn) {
+                    exitBtn.onclick = function () {
                         if (window.location && typeof window.location.reload === "function") {
                             window.location.reload();
                         }

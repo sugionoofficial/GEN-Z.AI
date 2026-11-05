@@ -1450,7 +1450,7 @@ test("kendali Claim 5.000 Credit Gratis & kalkulasi crop 16:9 di halaman Monitor
     assert.equal(Date.parse(roundtripIso), Date.parse(sampleIso));
 });
 
-test("ingest mengembalikan devtools_lockdown serta viewer IP/jaringan & verifikasi is_owner hanya untuk OWNER", async () => {
+test("ingest mengembalikan devtools_lockdown serta viewer IP/jaringan & verifikasi peran pengelola", async () => {
     const original = globalThis.fetch;
     let currentRole = "owner";
     let currentLockdown = true;
@@ -1510,7 +1510,14 @@ test("ingest mengembalikan devtools_lockdown serta viewer IP/jaringan & verifika
         );
         assert.equal(adminRes.status, 202);
         assert.equal(adminRes.json.devtools_lockdown, false);
-        assert.equal(adminRes.json.viewer.is_owner, false, "ADMIN bukan OWNER untuk pengecualian DevTools");
+        /*
+         * `is_owner` di respons ini artinya "peran pengelola yang boleh memakai
+         * DevTools". ADMIN ikut diizinkan karena is_dashboard_admin() dan
+         * is_media_admin() di database juga menerima ADMIN. Sebelumnya hanya
+         * OWNER, sehingga administrator resmi terkunci dari halaman
+         * Monitoring-nya sendiri.
+         */
+        assert.equal(adminRes.json.viewer.is_owner, true, "ADMIN termasuk peran pengelola");
         assert.equal(adminRes.json.viewer.role, "admin");
     } finally {
         globalThis.fetch = original;

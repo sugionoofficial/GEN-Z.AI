@@ -596,7 +596,14 @@ test("pengunjung non-OWNER yang menekan F12 langsung putus koneksi dan melihat l
     assert.match(env.getElement("genz-lockdown-system")?.textContent || "", /Chrome • Windows • Desktop/);
 });
 
-test("role ADMIN dan USER tetap kena penguncian DevTools — hanya role OWNER yang bebas", async () => {
+test("role ADMIN dan OWNER bebas DevTools; USER dan tamu tetap dikunci", async () => {
+    /*
+     * Sebelumnya hanya OWNER yang bebas. Itu tidak konsisten dengan
+     * is_dashboard_admin() dan is_media_admin() di database, serta penjagaan
+     * halaman admin, yang semuanya menerima ADMIN dan OWNER. Akibatnya
+     * administrator resmi terkunci dari halaman Monitoring-nya sendiri dan
+     * mengira akunnya rusak.
+     */
     const adminEnv = loadLockdownBeacon({
         navRole: "admin",
         serverIsOwner: false,
@@ -606,7 +613,30 @@ test("role ADMIN dan USER tetap kena penguncian DevTools — hanya role OWNER ya
     });
     await new Promise(resolve => setTimeout(resolve, 10));
 
+    let adminBlocked = false;
     adminEnv.dispatchWindow("keydown", {
+        key: "I",
+        keyCode: 73,
+        ctrlKey: true,
+        shiftKey: true,
+        preventDefault: () => { adminBlocked = true; }
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(adminEnv.window.GENZMonitor.isLockedDown(), false, "ADMIN tidak boleh kena lockdown");
+    assert.equal(adminBlocked, false, "ADMIN bebas memakai pintasan inspeksi");
+    assert.match(adminEnv.document.body.innerHTML, /Konten Rahasia Aplikasi/);
+
+    /* USER biasa tetap dikunci — kelonggaran ini hanya untuk peran pengelola. */
+    const userEnv = loadLockdownBeacon({
+        navRole: "user",
+        serverIsOwner: false,
+        serverRole: "user",
+        serverEmail: "user@genz.ai",
+        hasAccessToken: true
+    });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    userEnv.dispatchWindow("keydown", {
         key: "I",
         keyCode: 73,
         ctrlKey: true,
@@ -614,8 +644,7 @@ test("role ADMIN dan USER tetap kena penguncian DevTools — hanya role OWNER ya
         preventDefault: () => {}
     });
     await new Promise(resolve => setTimeout(resolve, 10));
-    assert.equal(adminEnv.window.GENZMonitor.isLockedDown(), true, "ADMIN tetap harus dikunci saat membuka DevTools");
-    assert.match(adminEnv.getElement("genz-lockdown-account")?.textContent || "", /admin@genz\.ai \(Role: ADMIN\)/);
+    assert.equal(userEnv.window.GENZMonitor.isLockedDown(), true, "USER tetap harus dikunci");
 
     const ownerEnv = loadLockdownBeacon({
         navRole: "owner",
@@ -794,4 +823,20 @@ test("skrip CDN situs memakai crossorigin agar error asli terbaca", async () => 
             );
         });
     }
+});
+
+test("layar lockdown memberi tombol keluar yang berfungsi untuk pengelola", () => {
+    /* Layar ini memutus seluruh koneksi halaman, jadi tanpa tombol yang
+       berfungsi satu-satunya cara keluar adalah menutup tab — dan pengguna
+       non-teknis tidak tahu itu. Tombol kedua hanya memuat ulang; hak akses
+       tetap diputuskan server. */
+    const src = readFileSync(
+        path.join(root, "assets/js/security-beacon.js"),
+        "utf8"
+    );
+    assert.match(src, /genz-lockdown-exit-btn/);
+    assert.match(src, /Saya pengelola/);
+    // Handler harus terpasang, bukan sekadar tombol hiasan.
+    const blok = src.slice(src.indexOf("genz-lockdown-exit-btn"));
+    assert.match(blok, /exitBtn\.onclick/, "tombol keluar harus punya handler");
 });
