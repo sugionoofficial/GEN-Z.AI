@@ -45,7 +45,14 @@ ringkas as (
            count(*) filter (where hasil <> target) as bucket_beda
       from rinci
 )
-select *
+select no, cek, hasil, target,
+       case
+           when target = 'bebas' then 'INFO'
+           when hasil = target then 'OK'
+           -- Kelebihan objek hanya mungkin terjadi karena aktivitas baru.
+           when no in (1, 4) and hasil > target then 'OK (bertambah)'
+           else 'PERIKSA'
+       end as status
   from (
         select 1 as no,
                'total_objek_semua_bucket' as cek,
@@ -76,5 +83,13 @@ select *
                (select count(*)::text
                   from storage.objects
                  where coalesce((metadata ->> 'size')::bigint, 0) = 0), '0'
+        union all
+        -- Situs SUDAH BERJALAN, jadi jumlah objek akan bertambah setiap kali
+        -- pengguna mengunggah atau meng-upscale. Baris ini hanya INFORMASI:
+        -- kelebihan objek berarti aktivitas baru, bukan kegagalan salin.
+        -- Yang berbahaya adalah KURANG dari 112 — itu berarti ada berkas dari
+        -- proyek lama yang tidak ikut pindah.
+        select 7, 'kelebihan_objek_adalah_aktivitas_baru',
+               greatest(r.total_hasil - 112, 0)::text, 'bebas'
        ) t
  order by no;

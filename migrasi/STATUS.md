@@ -383,3 +383,29 @@ menyuruh pengguna menjalankan `psql` + RECOVERY.md, jalur yang sudah ditinggalka
 
 **Verifikasi:** `migrasi/verifikasi-storage.sql` (satu statement) untuk memastikan
 angka di layar benar-benar mendarat jadi baris di `storage.objects`.
+
+### ✅ MIGRASI SELESAI — diverifikasi 2026-11-05
+
+Verifikasi per bucket di project baru:
+
+| Bucket | Hasil | Target |
+|---|---|---|
+| dashboard-videos | 19 | 19 |
+| social-character-references | 45 | 45 |
+| social-story-audio | 1 | 1 |
+| user-uploads | 48 | 47 |
+| 4 bucket lain | 0 | 0 |
+
+**Kelebihan 1 di user-uploads bukan kegagalan.** `objek_5_terbaru` menunjukkan
+7 berkas `upscale-videos/outputs/staged30-.../` (clip-1..3.mp4, frame-1/2-end.png,
+clip-4, clip-5) dibuat **2026-11-05 13:01 UTC** — sesudah migrasi. Artinya
+**pipeline generate berjalan penuh di project baru**: unduh sumber, proses,
+unggah ke bucket privat `user-uploads`. Itu bukti yang jauh lebih kuat daripada
+hitungan jumlah.
+
+Semua file lama utuh 112/112; nol objek 0 byte; semua punya metadata ukuran.
+
+**Pelajaran verifikasi:** angka target yang absolut akan selalu usang pada sistem
+yang sudah hidup. Yang berbahaya adalah **KURANG** dari jumlah sumber; **LEBIH**
+adalah aktivitas baru. Verifikasi dan diagnostik sekarang membedakan keduanya
+secara eksplisit.

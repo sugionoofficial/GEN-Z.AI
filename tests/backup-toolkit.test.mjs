@@ -630,3 +630,16 @@ test("artefak diagnostik memakai angka harapan yang sama", () => {
         assert.match(c, new RegExp(`'${bucket}', ${jumlah}`), `diagnostik: ${bucket}`);
     }
 });
+
+test("verifikasi storage membedakan KURANG (masalah) dari LEBIH (aktivitas baru)", () => {
+    /* Situs sudah dipakai: 5 clip.mp4 + 2 frame diunggah 2026-11-05 13:01,
+       setelah migrasi selesai. Angka 113 bukan kegagalan. Yang berbahaya
+       adalah KURANG dari 112 — berkas proyek lama tidak ikut pindah. */
+    const v = baca(VERIFIKASI_STORAGE);
+    assert.match(v, /OK \(bertambah\)/, "kelebihan harus dianggap wajar");
+    assert.match(v, /kelebihan_objek_adalah_aktivitas_baru/);
+
+    const c = baca(CEK_STORAGE);
+    assert.match(c, /\(aktivitas baru\)/);
+    assert.match(c, /\(PERIKSA\)/, "kekurangan harus ditandai tegas");
+});

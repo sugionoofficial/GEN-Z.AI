@@ -46,8 +46,11 @@ select 'bucket: ' || bucket_id as cek,
        hasil::text as hasil,
        target::text as target,
        case when hasil = target then 'OK'
-            when hasil > target then 'LEBIH ' || (hasil - target)
-            else 'KURANG ' || (target - hasil)
+            -- LEBIH = berkas baru sejak migrasi. Situs sudah berjalan, jadi ini
+            -- wajar dan bukan tanda kegagalan.
+            when hasil > target then 'LEBIH ' || (hasil - target) || ' (aktivitas baru)'
+            -- KURANG = berkas proyek lama tidak ikut pindah. INI masalah.
+            else 'KURANG ' || (target - hasil) || ' (PERIKSA)'
        end as status
   from baris
 union all
