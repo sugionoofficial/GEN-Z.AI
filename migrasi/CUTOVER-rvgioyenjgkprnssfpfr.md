@@ -93,12 +93,32 @@ Skrip ini otomatis:
 
 ### Fase D — ubah aplikasi (paling akhir)
 
-`assets/js/config.js` — ganti dua nilai:
+Jalankan alat cutover (mengganti **semua** referensi sekaligus):
 
-```js
-SUPABASE_URL: "https://rvgioyenjgkprnssfpfr.supabase.co",
-SUPABASE_KEY: "<publishable key target>"
+```bash
+npm run cutover -- --ref rvgioyenjgkprnssfpfr \
+                  --publishable sb_publishable_xxxxxxxx --dry-run
 ```
+
+Lihat rencananya dulu, lalu jalankan tanpa `--dry-run`.
+
+Yang diubah otomatis:
+
+| File | Perubahan |
+|---|---|
+| `assets/js/config.js` | `SUPABASE_URL` + `SUPABASE_KEY` |
+| `.dev.vars.example` | `SUPABASE_URL` + `SUPABASE_ANON_KEY` |
+| `tests/supabase-project-config.test.mjs` | konstanta `PROJECT_REF` |
+| `tests/*.test.mjs` | fixture URL & nama token sesi |
+| `migrasi/*.md` | tidak diubah otomatis (ditulis manual) |
+
+Yang **tidak** diubah (sengaja): komentar sejarah, dan fixture
+`tests/persistent-auth-session.test.mjs` yang memang menguji penolakan
+sesi dari host lain.
+
+Alat ini menolak `--publishable` berisi `sb_secret_*` atau JWT, karena kunci
+itu tidak boleh ada di browser. Setelah selesai ia memverifikasi ulang dan
+gagal bila masih ada referensi project lama di kode frontend.
 
 Worker Cloudflare `genzai` — tiga secrets:
 
@@ -108,9 +128,10 @@ SUPABASE_SERVICE_ROLE_KEY=<service_role target>
 SUPABASE_ANON_KEY=<publishable key target>
 ```
 
->`tests/supabase-project-config.test.mjs` mengunci `config.js` ke
->`ycovbqmezhrvzobxqnyp`. **Ubah test itu bersamaan** dengan `config.js`,
->kalau tidak `npm test` gagal dan CI memblokir PR.
+>`tests/supabase-project-config.test.mjs` mengunci `config.js` ke project
+>aktif. Alat cutover di atas sudah menyesuaikannya — jangan mengubah
+>`config.js` manual tanpa ikut mengubah test itu, kalau tidak `npm test`
+>gagal dan CI memblokir PR.
 
 ---
 
