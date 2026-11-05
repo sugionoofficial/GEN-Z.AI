@@ -22,7 +22,10 @@ with kolom_teks as (
      and t.table_name = c.table_name
     where c.table_schema = 'public'
       and t.table_type = 'BASE TABLE'
-      and c.data_type in ('text', 'character varying', 'character')
+      and (
+            c.data_type in ('text', 'character varying', 'character')
+            or c.udt_name in ('text', 'varchar', 'bpchar', 'citext')
+          )
       and c.column_name not like 'encrypted\_%'
 ),
 hitung as (
