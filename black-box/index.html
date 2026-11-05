@@ -64,7 +64,7 @@
 
     <link
         rel="stylesheet"
-        href="./assets/css/black-box.css?v=opus-history-delete-20261103"
+        href="./assets/css/black-box.css?v=opus-credits-20261105"
     >
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -444,6 +444,21 @@
             <p id="bbOpusStatusBanner" class="bb-diag-banner">
                 Klik "Cek Status Sekarang" untuk memeriksa kesehatan slot akun MCP Opus &amp; antrean job.
             </p>
+
+            <div class="bb-diag-card bb-credit-card">
+                <div class="bb-diag-row-top bb-credit-head">
+                    <h4 class="bb-diag-card-title">💳 Kredit per API Key Provider Opus</h4>
+                    <span id="bbOpusCreditTotal" class="bb-credit-total">TOTAL: —</span>
+                </div>
+                <div id="bbOpusCreditContainer" class="bb-diag-list">
+                    <span class="bb-diag-empty">Belum dimuat.</span>
+                </div>
+                <p class="bb-credit-note">
+                    Angka kredit dibaca langsung dari <code>whoami</code> Opus Labs untuk tiap slot
+                    key. Token tidak pernah ditampilkan — hanya sidik jari &amp; potongan termasker.
+                    "Tidak dilaporkan" berarti akun tidak mengirim angka kredit, bukan berarti 0.
+                </p>
+            </div>
 
             <div class="bb-diag-grid">
                 <div class="bb-diag-card">
@@ -928,6 +943,8 @@
         var deleteAllBtn = document.getElementById("bbOpusDeleteAllBtn");
         var deleteCancelBtn = document.getElementById("bbOpusDeleteCancelBtn");
         var deleteHint = document.getElementById("bbOpusDeleteHint");
+        var creditBox = document.getElementById("bbOpusCreditContainer");
+        var creditTotal = document.getElementById("bbOpusCreditTotal");
         var loadedOnce = false;
 
         /* =====================================================
@@ -1112,6 +1129,86 @@
             return data;
         }
 
+        /* =====================================================
+           KREDIT PER API KEY — FORMATTER & RENDER
+           -----------------------------------------------------
+           Server sudah mengirim `credits` per slot (angka atau
+           null). Di sini null TIDAK boleh tampil sebagai 0:
+           "Tidak dilaporkan" berbeda artinya dari "habis".
+           ===================================================== */
+        function formatCredits(value) {
+            if (value === null || value === undefined || value === "") return null;
+            var numeric = typeof value === "number" ? value : Number(String(value).replace(/,/g, ""));
+            if (!isFinite(numeric)) return null;
+            try {
+                return numeric.toLocaleString("id-ID");
+            } catch (err) {
+                return String(numeric);
+            }
+        }
+
+        function creditPill(slot) {
+            /* Slot yang MCP-nya gagal dihubungi tidak punya angka kredit;
+               jangan tampilkan "tidak dilaporkan" karena itu menyiratkan
+               koneksi sehat yang kebetulan tanpa data saldo. */
+            if (!slot.ok) {
+                return '<span class="bb-diag-pill bb-diag-pill--err">GAGAL CEK</span>';
+            }
+            var txt = formatCredits(slot.credits);
+            if (txt === null) {
+                return '<span class="bb-diag-pill bb-credit-pill--unknown">TIDAK DILAPORKAN</span>';
+            }
+            var cls = slot.credits <= 0
+                ? "bb-credit-pill--empty"
+                : (slot.credits < 500 ? "bb-credit-pill--low" : "bb-credit-pill--ok");
+            return '<span class="bb-diag-pill ' + cls + '">' + escapeHtml(txt) + ' KREDIT</span>';
+        }
+
+        function renderCredits(mcp) {
+            if (!creditBox) return;
+
+            var slots = Array.isArray(mcp && mcp.slots) ? mcp.slots : [];
+
+            if (creditTotal) {
+                var totalTxt = formatCredits(mcp && mcp.totalCredits);
+                var reported = (mcp && mcp.reportedSlots) || 0;
+                var ratioTxt = reported + "/" + slots.length + " KEY MELAPOR";
+                creditTotal.textContent = totalTxt === null
+                    ? "TOTAL: — ⏐ " + ratioTxt
+                    : "TOTAL: " + totalTxt + " KREDIT ⏐ " + ratioTxt;
+            }
+
+            if (slots.length === 0) {
+                creditBox.innerHTML = '<span class="bb-diag-empty">Belum ada API key Opus yang terkonfigurasi.</span>';
+                return;
+            }
+
+            creditBox.innerHTML = slots.map(function (s) {
+                var identity = (s.account && (s.account.email || s.account.name || s.account.organization)) || null;
+                var meta = (s.keyType || "API key") +
+                    " • fp " + (s.keyFingerprint || "----") +
+                    (s.keyMasked && s.keyMasked !== "-" ? " • " + s.keyMasked : "") +
+                    (s.plan ? " • Plan " + s.plan : "");
+                var notes = [];
+                if (!s.ok) notes.push("Gagal cek: " + (s.errorMessage || "tidak diketahui"));
+                else if (s.creditsNote) notes.push(s.creditsNote);
+                if (!s.ok) notes.push("Key tetap terdaftar di pool rotasi.");
+
+                return (
+                    '<div class="bb-diag-row bb-credit-row">' +
+                        '<div class="bb-diag-row-top">' +
+                            '<strong>Slot #' + (Number(s.slot) + 1) + (s.isActive ? " (Aktif)" : "") + '</strong>' +
+                            creditPill(s) +
+                        '</div>' +
+                        '<div class="bb-diag-row-sub">' + escapeHtml(meta) + '</div>' +
+                        (identity ? '<div class="bb-diag-row-sub">Akun: ' + escapeHtml(identity) + '</div>' : '') +
+                        (s.isActive ? '<div class="bb-diag-pill bb-credit-pill--active">DIPAKAI BERIKUTNYA</div>' : '') +
+                        (notes.length > 0 ? '<div class="bb-diag-row-sub bb-credit-warn">' + escapeHtml(notes.join(" • ")) + '</div>' : '') +
+                    '</div>'
+                );
+            }).join("");
+        }
+
         async function loadStatus() {
             if (refreshBtn) refreshBtn.disabled = true;
             if (banner) banner.textContent = "Memeriksa status akun MCP Opus Labs & OAuth Vault…";
@@ -1159,6 +1256,8 @@
                     }
                 }
 
+                renderCredits(mcp);
+
                 if (vaultBox) {
                     var entries = (data.vault && Array.isArray(data.vault.entries)) ? data.vault.entries : [];
                     if (entries.length === 0) {
@@ -1189,6 +1288,11 @@
                 updateDeleteToolbar();
             } catch (err) {
                 if (banner) banner.textContent = "Gagal memuat status Opus: " + (err && err.message ? err.message : err);
+                if (creditBox) {
+                    creditBox.innerHTML = '<span class="bb-diag-empty">Gagal memuat kredit: ' +
+                        escapeHtml(err && err.message ? err.message : err) + '</span>';
+                }
+                if (creditTotal) creditTotal.textContent = "TOTAL: —";
             } finally {
                 if (refreshBtn) refreshBtn.disabled = false;
             }

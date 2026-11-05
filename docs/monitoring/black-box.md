@@ -71,6 +71,41 @@ pengunjung yang belum login, bagian identitas menampilkan
 Panel detail hanya bisa dibuka ADMIN/OWNER karena action `event` melewati
 pemeriksaan role yang sama dengan seluruh aksi monitoring lain.
 
+## Kredit per API key Opus (MODUL 02)
+
+Panel **Kredit per API Key Provider Opus** menampilkan sisa kredit **tiap** key
+di pool Opus, bukan hanya akun yang sedang aktif:
+
+| Elemen | Arti |
+| --- | --- |
+| `Slot #n (Aktif)` | Urutan key di pool rotasi; `(Aktif)` = key yang dipakai berikutnya |
+| Pill angka | Sisa kredit: hijau ≥ 500, kuning < 500, merah jika `0`/minus |
+| `TIDAK DILAPORKAN` | Akun tidak mengirim angka kredit lewat `whoami` — **bukan** berarti habis |
+| `TOTAL: … KREDIT` | Jumlah kredit semua key **yang melapor**, plus rasio `melapor/total key` |
+| `fp abcd1234` | Sidik jari FNV-1a 8 karakter — cara membedakan key tanpa melihat isinya |
+| `opus…9f2a` | Potongan termasker (4 karakter awal + 4 akhir) |
+
+Sumber angka adalah hasil `tools/call` ke `opus_video_tools_whoami` untuk setiap
+slot (`inspectOpusMcpAccountStatus()` di `provider/opus/client.js`). Parser
+menerima bentuk datar (`credits`, `remainingCredits`, `creditBalance`,
+`balance`), bentuk bersarang (`account.credits.amount`, `quota.remaining`,
+`organization.credits`), envelope `data/result`, maupun string berformat
+(`"1.200 kredit"`).
+
+**Aturan keras yang dipegang:**
+
+1. **Token tidak pernah dikirim ke browser.** Payload `action=status` hanya
+   memuat `keyFingerprint`, `keyType`, dan `keyMasked`; token mentah, ciphertext,
+   dan refresh token tidak ikut.
+2. **`null` ≠ `0`.** Key yang tidak melaporkan angka kredit tampil sebagai
+   "TIDAK DILAPORKAN" dan tidak dijumlahkan, supaya akun sehat tidak terlihat
+   kehabisan saldo.
+3. **Slot gagal tetap tampil.** Key yang MCP-nya gagal dihubungi tetap muncul
+   dengan label "Gagal cek", agar admin tahu key itu masih ada di pool rotasi.
+
+Bila ingin melihat angka kredit, buka halaman ini dengan role **owner/admin**,
+tekan **BUKA PANEL → 🔄 Cek Status Sekarang**.
+
 ## Penyimpanan & batas log
 
 Semua event disimpan di **Supabase**, tabel `public.monitoring_events` (bukan di
