@@ -116,6 +116,9 @@ import opusAudioModels
 import opusTranscribeModels
     from "../models/opus-transcribe/index.js";
 
+import openClipsModels
+    from "../models/openclips/index.js";
+
 
 /* =========================================================
    MODEL REGISTRY
@@ -144,7 +147,10 @@ const MODEL_REGISTRY = Object.freeze([
    ...opusAudioModels,
 
    /* Opus Labs Audio/Video Transcription (transcribe_audio) */
-   ...opusTranscribeModels
+   ...opusTranscribeModels,
+
+   /* OpenClips Marketplace (image + video via OpenClips MCP) */
+   ...openClipsModels
 
 ]);
 

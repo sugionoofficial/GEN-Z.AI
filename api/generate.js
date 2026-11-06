@@ -99,6 +99,9 @@ import opusAudioModels
 import opusTranscribeModels
     from "../models/opus-transcribe/index.js";
 
+import openClipsModels
+    from "../models/openclips/index.js";
+
 import { persistGeneratedImage }
     from "../lib/generate/persist-generated-image.js";
 
@@ -114,6 +117,10 @@ import {
     resolveOpusBearerToken,
     stageOpusReferenceImageForGenerate
 } from "../lib/social-publisher/opus.js";
+
+import {
+    resolveOpenClipsApiKeyPoolPayload
+} from "../provider/openclips/credentials.js";
 
 import {
     resolveBillableCredit,
@@ -192,7 +199,10 @@ const MODEL_REGISTRY = Object.freeze([
     ...opusAudioModels,
 
     /* Opus Labs Audio/Video Transcription (transcribe_audio) */
-    ...opusTranscribeModels
+    ...opusTranscribeModels,
+
+    /* OpenClips Marketplace (image + video via OpenClips MCP) */
+    ...openClipsModels
 ]);
 
 
@@ -2684,6 +2694,18 @@ async function loadProviderApiKey(
             }
         }
 
+        if (
+            normalizedProviderCode.toLowerCase() === "openclips"
+        ) {
+            const poolPayload =
+                await resolveOpenClipsApiKeyPoolPayload(
+                    runtimeEnv || process.env
+                );
+            if (poolPayload) {
+                return poolPayload;
+            }
+        }
+
         throw new Error(
             `No provider credential found for ${normalizedProviderCode}`
         );
@@ -2869,6 +2891,19 @@ async function loadProviderApiKey(
     ) {
         const mergedPoolPayload =
             await resolveOpusApiKeyPoolPayload(
+                runtimeEnv || process.env,
+                normalizedApiKey
+            );
+        if (mergedPoolPayload) {
+            return mergedPoolPayload;
+        }
+    }
+
+    if (
+        normalizedProviderCode.toLowerCase() === "openclips"
+    ) {
+        const mergedPoolPayload =
+            await resolveOpenClipsApiKeyPoolPayload(
                 runtimeEnv || process.env,
                 normalizedApiKey
             );

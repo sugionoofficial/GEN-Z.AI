@@ -714,6 +714,11 @@
                 "API Key wajib diisi saat menambahkan provider baru.";
         }
 
+        const apiKeyInput = document.getElementById("providerApiKey");
+        if (apiKeyInput) {
+            apiKeyInput.placeholder = "Masukkan API key provider";
+        }
+
         if (modal) {
             modal.classList.add(
                 "show"
@@ -862,6 +867,19 @@
         if (apiKeyHint) {
             apiKeyHint.textContent =
                 "Kosongkan jika tidak ingin mengganti API Key yang tersimpan.";
+
+            if (normalizeProviderId(provider.provider_id) === "openclips") {
+                apiKeyHint.innerHTML =
+                    "API key/Bearer token atau JSON OAuth + refresh token. " +
+                    "<a href=\"/api/openclips-oauth-login\" target=\"_blank\" rel=\"noopener\">Login OpenClips untuk membuat JSON credential</a>. " +
+                    "Kosongkan jika credential tersimpan tidak ingin diganti.";
+            }
+        }
+
+        if (apiKey) {
+            apiKey.placeholder = normalizeProviderId(provider.provider_id) === "openclips"
+                ? "Tempel API key atau JSON OAuth OpenClips"
+                : "Masukkan API key provider";
         }
 
         hideMessage();
