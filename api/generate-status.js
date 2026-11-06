@@ -5083,10 +5083,10 @@ export default async function handler(
          */
         if (
             providerRaw &&
-            typeof providerRaw === \"object\" &&
+            typeof providerRaw === "object" &&
             providerRaw.completed !== true &&
             providerRaw.failed !== true &&
-            String(taskId || \"\").toLowerCase().startsWith(\"opus\") &&
+            String(taskId || "").toLowerCase().startsWith("opus") &&
             !providerRaw.nonTerminalDeadline
         ) {
             let opusHistoryForTimeout = existingHistory;
@@ -5095,15 +5095,15 @@ export default async function handler(
                     opusHistoryForTimeout = await findGenerationHistory(user.id, taskId);
                 } catch {}
             }
-            const createdAtMsForTimeout = Date.parse(String(opusHistoryForTimeout?.created_at || \"\"));
+            const createdAtMsForTimeout = Date.parse(String(opusHistoryForTimeout?.created_at || ""));
             if (
                 Number.isFinite(createdAtMsForTimeout) &&
                 Date.now() - createdAtMsForTimeout >= OPUS_PROCESSING_MAX_AGE_MS
             ) {
                 providerRaw = {
                     ...providerRaw,
-                    status: \"FAILED\",
-                    provider_state: \"failed\",
+                    status: "FAILED",
+                    provider_state: "failed",
                     processing: false,
                     completed: false,
                     failed: true,
@@ -5112,9 +5112,9 @@ export default async function handler(
                     errorMessage: OPUS_PROCESSING_TIMEOUT_MESSAGE,
                     error_message: OPUS_PROCESSING_TIMEOUT_MESSAGE,
                     raw: {
-                        ...(providerRaw.raw && typeof providerRaw.raw === \"object\" ? providerRaw.raw : {}),
-                        status: \"FAILED\",
-                        provider_state: \"failed\",
+                        ...(providerRaw.raw && typeof providerRaw.raw === "object" ? providerRaw.raw : {}),
+                        status: "FAILED",
+                        provider_state: "failed",
                         error_code: OPUS_PROCESSING_TIMEOUT_CODE,
                         error_message: OPUS_PROCESSING_TIMEOUT_MESSAGE
                     }
