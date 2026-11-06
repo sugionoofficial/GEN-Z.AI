@@ -7,7 +7,7 @@ import {
     parseOpenClipsTaskId,
     normalizeOpenClipsStatus
 } from "../provider/openclips/client.js";
-import { parseOpenClipsMcpResponse } from "../provider/openclips/mcp-client.js";
+import { OpenClipsMcpClient, parseOpenClipsMcpResponse } from "../provider/openclips/mcp-client.js";
 
 function rpcResponse(id, result) {
     return new Response(JSON.stringify({ jsonrpc: "2.0", id, result }), {
@@ -274,4 +274,26 @@ test("SSE JSON-RPC parser membaca event data", () => {
         "text/event-stream"
     );
     assert.deepEqual(parsed, { jsonrpc: "2.0", id: 1, result: { ok: true } });
+});
+
+
+test("MCP fetch uses the global receiver required by Cloudflare Workers", async () => {
+    const methods = [];
+    const client = new OpenClipsMcpClient({
+        accessToken: "test-key",
+        fetchImpl: async function (url, options) {
+            assert.equal(this, globalThis, "native Workers fetch rejects a client instance receiver");
+            assert.equal(url, "https://mcp.openclips.ai");
+            assert.equal(options.headers.Authorization, "Bearer test-key");
+            const message = JSON.parse(options.body);
+            methods.push(message.method);
+            if (!message.id) return new Response(null, { status: 202 });
+            return rpcResponse(message.id, message.method === "initialize"
+                ? { protocolVersion: "2025-03-26", capabilities: {}, serverInfo: { name: "test", version: "1" } }
+                : { tools: [] });
+        }
+    });
+    await client.initialize();
+    await client.listTools();
+    assert.deepEqual(methods, ["initialize", "notifications/initialized", "tools/list"]);
 });
