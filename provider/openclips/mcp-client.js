@@ -114,7 +114,9 @@ export class OpenClipsMcpClient {
         }
         this.baseUrl = normalizeOpenClipsMcpUrl(url);
         this.accessToken = cleanString(accessToken).replace(/^Bearer\s+/i, "");
-        this.fetchImpl = fetchImpl;
+        // Workers requires the native fetch receiver to be the global scope,
+        // not this MCP client (as happens with this.fetchImpl(...)).
+        this.fetchImpl = fetchImpl.bind(globalThis);
         this.timeoutMs = Math.max(1_000, Number(timeoutMs) || DEFAULT_TIMEOUT_MS);
         this.protocolVersion = protocolVersion;
         this.sessionId = "";
