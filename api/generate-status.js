@@ -156,12 +156,21 @@ const STALE_TASK_EXPIRED_ERROR =
  * Batas waktu tunggu maksimum ketika worker internal MCP Opus sudah melewati
  * polling deadline (~12 menit) sementara Egress video job di Opus Web masih
  * berstatus non-terminal ("still non-terminal after the worker polling deadline").
- * Di Opus Web, antrean Seedance 2.5 dapat tetap "Processing" lebih dari 1-3 jam
- * saat antrean padat. Selama usia task masih di bawah 24 jam, status dipertahankan
- * PROCESSING sambil merekonsiliasi via resolve_job/list_jobs agar sinkron dengan Opus Web.
+ * Di Opus Web, antrean Seedance 2.5 dapat tetap "Processing" lebih dari 1 jam
+ * saat antrean padat. Sesuai permintaan user: Opus bisa >1 jam, jadi maksimal
+ * 2 jam agar benar-benar terhenti.
  */
 const OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS =
-    24 * 60 * 60 * 1000;
+    2 * 60 * 60 * 1000;
+
+const OPUS_PROCESSING_MAX_AGE_MS =
+    2 * 60 * 60 * 1000;
+
+const OPUS_PROCESSING_TIMEOUT_MESSAGE =
+    "Batas waktu pemrosesan Opus terlampaui (lebih dari 2 jam tanpa hasil). Kredit telah dikembalikan. Silakan coba generate ulang.";
+
+const OPUS_PROCESSING_TIMEOUT_CODE =
+    "OPUS_PROCESSING_TIMEOUT";
 
 /*
  * Batas waktu untuk job audio yang tidak bisa disinkronisasi dari
@@ -5058,6 +5067,56 @@ export default async function handler(
                         provider_state: "failed",
                         error_code: finalDeadlineCode,
                         error_message: finalDeadlineMessage
+                    }
+                };
+            }
+        }
+
+        /*
+         * =================================================
+         * OPUS: GENERAL PROCESSING TIMEOUT 2 JAM
+         * =================================================
+         * Opus bisa >1 jam (user request). Agar benar-benar
+         * terhenti, semua task Opus yang masih PROCESSING
+         * setelah 2 jam sejak created_at akan di-FAILED +
+         * refund, termasuk yang bukan nonTerminalDeadline.
+         */
+        if (
+            providerRaw &&
+            typeof providerRaw === \"object\" &&
+            providerRaw.completed !== true &&
+            providerRaw.failed !== true &&
+            String(taskId || \"\").toLowerCase().startsWith(\"opus\") &&
+            !providerRaw.nonTerminalDeadline
+        ) {
+            let opusHistoryForTimeout = existingHistory;
+            if (!opusHistoryForTimeout) {
+                try {
+                    opusHistoryForTimeout = await findGenerationHistory(user.id, taskId);
+                } catch {}
+            }
+            const createdAtMsForTimeout = Date.parse(String(opusHistoryForTimeout?.created_at || \"\"));
+            if (
+                Number.isFinite(createdAtMsForTimeout) &&
+                Date.now() - createdAtMsForTimeout >= OPUS_PROCESSING_MAX_AGE_MS
+            ) {
+                providerRaw = {
+                    ...providerRaw,
+                    status: \"FAILED\",
+                    provider_state: \"failed\",
+                    processing: false,
+                    completed: false,
+                    failed: true,
+                    errorCode: OPUS_PROCESSING_TIMEOUT_CODE,
+                    error_code: OPUS_PROCESSING_TIMEOUT_CODE,
+                    errorMessage: OPUS_PROCESSING_TIMEOUT_MESSAGE,
+                    error_message: OPUS_PROCESSING_TIMEOUT_MESSAGE,
+                    raw: {
+                        ...(providerRaw.raw && typeof providerRaw.raw === \"object\" ? providerRaw.raw : {}),
+                        status: \"FAILED\",
+                        provider_state: \"failed\",
+                        error_code: OPUS_PROCESSING_TIMEOUT_CODE,
+                        error_message: OPUS_PROCESSING_TIMEOUT_MESSAGE
                     }
                 };
             }
