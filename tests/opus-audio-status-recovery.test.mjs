@@ -377,12 +377,12 @@ test("generate-status punya batas terminal + refund untuk audio tanpa hasil", ()
     assert.match(text, /shouldFinalizeUnresolvedOpusAudio\(\{/);
 });
 
-test("konstanta baru tidak mengubah deadline video 24 jam", () => {
+test("deadline video Opus dibatasi maksimal 2 jam agar benar-benar terhenti", () => {
     const text = source("api/generate-status.js");
 
     assert.match(
         text,
-        /OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS =\s*\n\s*24 \* 60 \* 60 \* 1000/
+        /OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS =\s*\n\s*2 \* 60 \* 60 \* 1000/
     );
 });
 

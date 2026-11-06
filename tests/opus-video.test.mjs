@@ -3311,7 +3311,7 @@ test("history-status-sync memulihkan item failed 'still non-terminal after the w
 
     assert.match(
         generateStatusSource,
-        /const OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS\s*=\s*24 \* 60 \* 60 \* 1000/
+        /const OPUS_NON_TERMINAL_DEADLINE_MAX_AGE_MS\s*=\s*2 \* 60 \* 60 \* 1000/
     );
     assert.match(generateStatusSource, /isRecoverableHistoryFailureMessage/);
 
