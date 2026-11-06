@@ -25,3 +25,10 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 # SIGHTENGINE_API_SECRET=<secret>
 # OPENKEY_API_KEY=<key>
 # GITHUB_PAT=<token: untuk upscale Actions & Admin Copilot>
+#
+# OpenClips — lihat OPENCLIPS-SETUP.md
+# OPENCLIPS_AUTH_TOKEN=<api-key-bearer-atau-json-oauth>
+# OPENCLIPS_WORKSPACE_ID=<workspace-integer-id-bila-akun-memiliki-beberapa-workspace>
+# OPENCLIPS_MCP_URL=https://mcp.openclips.ai
+# OPENCLIPS_LOGIN_STATE_SECRET=<random-long-secret>
+# OPENCLIPS_DISABLE_SUPABASE_VAULT=1  # hanya untuk test/lokal

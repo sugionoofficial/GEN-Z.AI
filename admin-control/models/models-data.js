@@ -117,6 +117,9 @@ import opusAudioModels
 import opusTranscribeModels
     from "../../models/opus-transcribe/index.js?v=models-registry-opus-transcribe-20261101";
 
+import openClipsModels
+    from "../../models/openclips/index.js?v=models-registry-openclips-20261106";
+
 
 /* =========================================================
    CONSTANT
@@ -291,6 +294,20 @@ const MODEL_REGISTRY = [
         model => ({
             folder:
                 "models/opus-transcribe",
+
+            config:
+                model.config,
+
+            parameters:
+                model.parameters
+        })
+    ),
+
+    /* OpenClips Marketplace (image + video via OpenClips MCP) */
+    ...openClipsModels.map(
+        model => ({
+            folder:
+                "models/openclips",
 
             config:
                 model.config,

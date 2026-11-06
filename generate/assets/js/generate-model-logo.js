@@ -176,7 +176,23 @@ const LOGO_MAP = Object.freeze({
         "seedance.svg",
 
     "opus-transcribe-audio":
-        "gemini.svg"
+        "gemini.svg",
+
+    /* OpenClips marketplace: gunakan logo model upstream. */
+    openclips:
+        "seedance.svg",
+
+    "openclips-seedance-2.5":
+        "seedance.svg",
+
+    "openclips-seedance-2.0":
+        "seedance.svg",
+
+    "openclips-seedream-5.0-pro":
+        "seedance.svg",
+
+    "openclips-seedream-5.0-flash":
+        "seedance.svg"
 
 });
 

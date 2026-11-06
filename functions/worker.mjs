@@ -17,6 +17,8 @@ import modelConfig from "../api/model-config.js";
 import openkeyChat from "../api/openkey-chat.js";
 import opusOAuthLogin from "../api/opus-oauth-login.js";
 import opusOAuthCallback from "../api/opus-oauth-callback.js";
+import openClipsOAuthLogin from "../api/openclips-oauth-login.js";
+import openClipsOAuthCallback from "../api/openclips-oauth-callback.js";
 import opusVoicePreview from "../api/opus-voice-preview.js";
 import opusBlackbox from "../api/opus-blackbox.js";
 import socialVideoAdmin from "../api/social-video-admin.js";
@@ -60,6 +62,8 @@ const handlers = new Map([
     // Login OAuth Opus lewat browser (tanpa Termux / Node.js).
     ["/api/opus-oauth-login", opusOAuthLogin],
     ["/api/opus-oauth-callback", opusOAuthCallback],
+    ["/api/openclips-oauth-login", openClipsOAuthLogin],
+    ["/api/openclips-oauth-callback", openClipsOAuthCallback],
     ["/api/opus-voice-preview", opusVoicePreview],
     ["/api/opus-blackbox", opusBlackbox],
     ["/api/social-video-admin", socialVideoAdmin],
