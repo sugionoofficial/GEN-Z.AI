@@ -18,12 +18,14 @@ Tabel `public.openclips_oauth_tokens` adalah vault refresh token rotating. Tabel
 1. Pastikan Worker dan kedua route berikut telah dideploy:
    - `/api/openclips-oauth-login`
    - `/api/openclips-oauth-callback`
-2. Buka `/api/openclips-oauth-login` pada origin production GEN-Z.AI.
+2. Buka **Black Box → AUTH OPENCLIPS LOGIN**, lalu pilih **Login akun 1**. Tombol **+ / −** menambah/mengurangi pintasan slot akun; tidak menghapus credential tersimpan. Alternatif: buka `/api/openclips-oauth-login` pada origin production GEN-Z.AI.
 3. Pilih **Lanjut login ke OpenClips**, lalu izinkan akses pada halaman resmi OpenClips.
 4. Setelah callback berhasil, salin seluruh JSON credential.
 5. Buka **Admin → Providers → OpenClips**, tempel JSON pada field credential/API key, lalu simpan.
 
 Flow memakai discovery OAuth resmi, Dynamic Client Registration, authorization code, PKCE S256, state HMAC, dan verifikasi token ke MCP. Callback tidak menyimpan atau mencetak token ke log; admin memilih sendiri credential yang akan disimpan melalui form provider yang sudah terenkripsi.
+
+Untuk beberapa akun di Admin Providers, simpan array JSON berisi seluruh bundle credential (`[bundle1, bundle2]`), bukan menimpa akun pertama dengan bundle terakhir. Kontrol slot Black Box bukan daftar akun tersimpan dan tidak menyimpan token di browser.
 
 Untuk slot secret tambahan, gunakan `/api/openclips-oauth-login?slot=2`, `?slot=3`, dan seterusnya. Slot 1 memakai `OPENCLIPS_AUTH_TOKEN`; slot 2 memakai `OPENCLIPS_AUTH_TOKEN_2`, dan seterusnya.
 

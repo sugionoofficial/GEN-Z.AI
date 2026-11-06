@@ -64,7 +64,7 @@
 
     <link
         rel="stylesheet"
-        href="./assets/css/black-box.css?v=opus-credits-20261105"
+        href="./assets/css/black-box.css?v=openclips-oauth-20261106"
     >
 
     <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
@@ -131,7 +131,7 @@
                 TOMBOL PINTAS
             </h2>
 
-            <span class="bb-deck-count">03 / 09</span>
+            <span class="bb-deck-count">04 / 09</span>
 
         </div>
 
@@ -394,6 +394,24 @@
 
             </button>
 
+            <section class="bb-tile bb-tile--opus bb-openclips" aria-labelledby="bbOpenClipsTitle">
+                <span class="bb-tile-head">
+                    <span class="bb-tile-index">MODUL 04</span>
+                    <span class="bb-tile-tag">MULTI-AKUN OAUTH</span>
+                </span>
+                <h3 id="bbOpenClipsTitle" class="bb-tile-label">AUTH OPENCLIPS LOGIN</h3>
+                <p class="bb-tile-desc">Login OpenClips dari browser. Gunakan + untuk menambahkan slot akun lain.</p>
+                <div id="bbOpenClipsAccounts" class="bb-openclips-accounts" aria-label="Slot akun OpenClips">
+                    <a class="bb-diag-btn bb-diag-btn--primary" href="/api/openclips-oauth-login?slot=1" target="_blank" rel="noopener noreferrer">Login akun 1</a>
+                </div>
+                <div class="bb-openclips-controls" role="group" aria-label="Kelola slot OAuth OpenClips">
+                    <button type="button" id="bbOpenClipsRemove" class="bb-diag-btn" aria-label="Kurangi slot akun OpenClips" disabled>−</button>
+                    <span id="bbOpenClipsCount" role="status" aria-live="polite">1 slot akun</span>
+                    <button type="button" id="bbOpenClipsAdd" class="bb-diag-btn" aria-label="Tambah slot akun OpenClips">+</button>
+                </div>
+                <p class="bb-tile-desc">Slot hanya pintasan login, bukan daftar akun tersimpan. Tombol − tidak menghapus credential. Setelah login, simpan JSON di Admin → Providers → OpenClips, atau secret Worker sesuai nama slot. Untuk beberapa akun di Admin, gunakan array JSON credential agar akun sebelumnya tidak tertimpa.</p>
+            </section>
+
             <!--
                 ============================================
                 SLOT KOSONG — penanda tombol berikutnya
@@ -413,6 +431,7 @@
                 </span>
 
             </div>
+
 
         </div>
 
@@ -1707,6 +1726,8 @@
 })();
 
 </script>
+
+<script type="module" src="./assets/js/openclips-oauth.js?v=20261106"></script>
 
 <script src="/assets/js/support-chat.js?v=touch-close-20261029" defer></script>
 

@@ -2323,3 +2323,11 @@ html[data-genz-theme="light"] .bb-credit-note code {
         font-size: 10.5px;
     }
 }
+
+/* OpenClips uses the same black/green OAuth tile as Opus. */
+.bb-openclips { cursor: default; }
+.bb-openclips-accounts { display: flex; flex-wrap: wrap; gap: 10px; max-height: 240px; overflow-y: auto; }
+.bb-openclips-accounts a { text-decoration: none; }
+.bb-openclips-controls { display: flex; align-items: center; gap: 14px; margin: 16px 0; color: var(--bb-green); }
+.bb-openclips-controls button { min-width: 44px; min-height: 44px; font-size: 22px; }
+.bb-openclips-controls button:disabled { opacity: .4; cursor: not-allowed; }
