@@ -177,6 +177,7 @@ test("create menjalankan workspace → contract → preview → generate dengan 
     const created = await createOpenClipsMarketplaceTask(PAYLOAD, "test-key", {
         env: ENV,
         fetchImpl: fake.fetchImpl,
+        transport: "mcp",
         mediaType: "video"
     });
 
@@ -201,11 +202,13 @@ test("query get_creative menormalisasi success dan hanya mengeluarkan URL saat s
     const created = await createOpenClipsMarketplaceTask(PAYLOAD, "test-key", {
         env: ENV,
         fetchImpl: fake.fetchImpl,
+        transport: "mcp",
         mediaType: "video"
     });
     const result = await getOpenClipsMarketplaceTask(created.taskId, "test-key", {
         env: ENV,
         fetchImpl: fake.fetchImpl,
+        transport: "mcp",
         mediaType: "video"
     });
     assert.equal(result.status, "COMPLETED");
@@ -220,6 +223,7 @@ test("preview insufficient menghentikan dispatch sebelum generation", async () =
         createOpenClipsMarketplaceTask(PAYLOAD, "test-key", {
             env: ENV,
             fetchImpl: fake.fetchImpl,
+        transport: "mcp",
             mediaType: "video"
         }),
         error => {
@@ -237,6 +241,7 @@ test("401 di dalam MCP tool error tetap dikenali sebagai kegagalan autentikasi",
         createOpenClipsMarketplaceTask(PAYLOAD, "test-key", {
             env: ENV,
             fetchImpl: fake.fetchImpl,
+        transport: "mcp",
             mediaType: "video"
         }),
         error => {

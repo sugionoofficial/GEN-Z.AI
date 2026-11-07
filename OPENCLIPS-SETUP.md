@@ -1,6 +1,19 @@
 # OpenClips Setup — GEN-Z.AI
 
-Integrasi ini menghubungkan empat model Marketplace OpenClips ke registry, Admin, kredit, History, dan polling GEN-Z.AI. Semua operasi OpenClips dilakukan melalui **MCP Streamable HTTP** di `https://mcp.openclips.ai` (fallback resmi: `https://mcp.openclips.ai/mcp`). Generation tidak dikirim langsung dari GEN-Z.AI ke `api.openclips.ai`; route OpenAPI dipanggil melalui tool MCP `call_api` bila diperlukan.
+Integrasi menghubungkan empat model Marketplace OpenClips ke registry, Admin, kredit, History, dan polling GEN-Z.AI.
+
+**Token API mentah menggunakan REST** `https://api.openclips.ai`, dengan header `X-Auth-Token`, sesuai [dokumentasi autentikasi resmi](https://api.openclips.ai/docs#description/introduction). Token ini tidak dikirim sebagai Bearer ke MCP. Bundle OAuth (access token/client ID/refresh token) tetap menggunakan MCP di `https://mcp.openclips.ai`.
+
+### Jalur yang disarankan: token API
+
+1. Simpan token API resmi melalui **Admin → Providers → OpenClips → Edit → API Key / Credential**. Token disimpan terenkripsi di Supabase; tidak perlu mengatur secret Cloudflare jika sudah disimpan melalui Admin.
+2. Untuk beberapa akun, simpan array JSON token: `["token-akun-1", "token-akun-2"]`.
+3. Untuk workspace tertentu, gunakan bundle `{"api_key":"token","workspace_id":10}` atau environment `OPENCLIPS_WORKSPACE_ID`. Bila akun memiliki beberapa workspace dan tidak ada pilihan eksplisit, request ditolak sebelum preview/generation.
+4. Alur REST: `GET /api/workspaces/` → `POST /api/workspaces/{id}/generated_creatives/generate/marketplace_proxy/preview_cost/` → `POST /api/workspaces/{id}/generated_creatives/generate/marketplace_proxy/` → `GET /api/workspaces/{id}/generated_creatives/{creative_id}/`.
+5. Preview dan generation memakai body identik. REST wajib menerima `sufficient: true` sebelum dispatch. Preview gagal/saldo kurang menghentikan generation. Auth 401 atau saldo 402 dapat mencoba akun pool berikutnya; timeout dan 5xx tidak otomatis mengulang generation.
+6. Task REST baru memakai `openclips:v2:<workspace>:<creative>:<key-slot>`. Task lama `openclips:v1` tetap dipoll melalui MCP, termasuk bila credential aslinya berupa token mentah.
+
+Koneksi REST dengan token production belum diverifikasi. Test otomatis memakai respons simulasi; jangan menganggapnya bukti token diterima upstream atau generation berbayar berhasil.
 
 ## 1. Database
 
@@ -13,9 +26,11 @@ SQL bersifat idempoten. Seed model mempertahankan credit dan status yang telah d
 
 Tabel `public.openclips_oauth_tokens` adalah vault refresh token rotating. Tabel ini terpisah dari vault Opus, menggunakan RLS tanpa akses browser, dan hanya dapat diakses service role. Isi token dienkripsi AES-256-GCM oleh Worker sebelum disimpan.
 
-## 2. Credential melalui OAuth browser (disarankan)
+## 2. Alternatif: credential OAuth MCP
 
-1. Pastikan Worker dan kedua route berikut telah dideploy:
+**Batasan live:** OpenClips menolak callback HTTPS dari host yang belum masuk `MCP_OAUTH_ADDITIONAL_REDIRECT_HOSTS` di server mereka. Tombol OAuth Black Box tidak bisa menyelesaikan login sampai pihak OpenClips mengizinkan domain callback kita; ini bukan konfigurasi Cloudflare kita. Token API REST di atas tidak membutuhkan OAuth.
+
+1. Pastikan domain callback telah diizinkan pihak OpenClips, serta Worker dan kedua route berikut telah dideploy:
    - `/api/openclips-oauth-login`
    - `/api/openclips-oauth-callback`
 2. Buka **Black Box → AUTH OPENCLIPS LOGIN**, lalu pilih **Login akun 1**. Tombol **+ / −** menambah/mengurangi pintasan slot akun; tidak menghapus credential tersimpan. Alternatif: buka `/api/openclips-oauth-login` pada origin production GEN-Z.AI.
@@ -83,7 +98,7 @@ Rasio Seedance yang dibuka: `9:16`, `16:9`, `1:1`, `4:3`, `3:4`, `21:9`. Rasio S
 
 Nilai `credit_*` pada seed adalah harga jual internal GEN-Z.AI yang dapat diedit admin, bukan tarif upstream OpenClips. Sebelum dispatch, adapter selalu meminta `preview_cost` dengan body yang sama persis seperti body generation. Jika saldo upstream tidak cukup, generation tidak dikirim; bila ada credential pool, credential berikutnya dapat dicoba.
 
-## 5. Alur generation dan polling
+## 5. Alur generation dan polling MCP (khusus OAuth)
 
 Urutan create adalah:
 
