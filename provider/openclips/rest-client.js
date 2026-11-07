@@ -19,8 +19,16 @@ export class OpenClipsRestClient {
                 headers: { Accept: "application/json", "Content-Type": "application/json", "X-Auth-Token": this.accessToken },
                 ...(body === undefined ? {} : { body: JSON.stringify(body) }),
                 signal: controller.signal,
-                redirect: "error"
+                // Workers supports manual/follow only. Never forward API tokens on redirects.
+                redirect: "manual"
             });
+            if (response.status >= 300 && response.status < 400) {
+                // Reject before reading the body or Location, which could contain secrets.
+                const error = new Error(`OpenClips REST HTTP ${response.status}: redirect ditolak demi keamanan token API.`);
+                error.status = response.status;
+                error.code = "OPENCLIPS_REDIRECT_REJECTED";
+                throw error;
+            }
             const text = await response.text();
             let payload;
             try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
