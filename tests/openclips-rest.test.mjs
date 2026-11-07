@@ -11,7 +11,7 @@ function server({ preview = { sufficient: true, tokenCost: 4 }, workspaceStatus 
         assert.equal(this, globalThis);
         assert.ok(url.startsWith("https://api.openclips.ai/api/"));
         assert.equal(options.headers.Authorization, undefined);
-        assert.equal(options.redirect, "error");
+        assert.equal(options.redirect, "manual");
         calls.push({ url, ...options });
         if (url.endsWith("/api/workspaces/")) return json([{ id: 10, name: "Main" }], workspaceStatus);
         if (url.endsWith("/preview_cost/")) return json(preview);
@@ -106,4 +106,42 @@ test("API-key JSON bundle selects its configured workspace and stays on REST", a
     const fake = server();
     const created = await createOpenClipsMarketplaceTask(payload, '{"api_key":"key","workspace_id":10}', { env: {}, fetchImpl: fake.fetchImpl });
     assert.equal(created.taskId, "openclips:v2:10:55:0");
+});
+
+
+for (const status of [301, 302, 303, 307, 308]) {
+    test(`REST rejects HTTP ${status} without following or reading redirect content`, async () => {
+        let calls = 0;
+        const client = new OpenClipsRestClient({
+            accessToken: "test-secret",
+            fetchImpl: async function (url, options) {
+                calls++;
+                assert.equal(this, globalThis);
+                assert.equal(url, "https://api.openclips.ai/api/workspaces/");
+                assert.equal(options.redirect, "manual");
+                return {
+                    status,
+                    get headers() { throw new Error("must not read redirect headers"); },
+                    text() { throw new Error("must not read redirect body"); }
+                };
+            }
+        });
+        await assert.rejects(client.request("GET", "/api/workspaces/"), error =>
+            error.status === status && error.code === "OPENCLIPS_REDIRECT_REJECTED" && !error.message.includes("test-secret"));
+        assert.equal(calls, 1);
+    });
+}
+
+test("redirect during REST preview stops dispatch without retrying another account", async () => {
+    const calls = [];
+    await assert.rejects(createOpenClipsMarketplaceTask(payload, '["key1","key2"]', {
+        env: {}, fetchImpl: async (url, options) => {
+            assert.equal(options.redirect, "manual");
+            calls.push(url);
+            if (url.endsWith("/api/workspaces/")) return json([{ id: 10 }]);
+            assert.ok(url.endsWith("/preview_cost/"));
+            return new Response(null, { status: 307, headers: { Location: "https://other.example/" } });
+        }
+    }), error => error.code === "OPENCLIPS_REDIRECT_REJECTED");
+    assert.equal(calls.length, 2);
 });
