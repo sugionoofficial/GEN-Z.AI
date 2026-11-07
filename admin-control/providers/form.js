@@ -870,15 +870,15 @@
 
             if (normalizeProviderId(provider.provider_id) === "openclips") {
                 apiKeyHint.innerHTML =
-                    "API key/Bearer token atau JSON OAuth + refresh token. " +
-                    "<a href=\"/api/openclips-oauth-login\" target=\"_blank\" rel=\"noopener\">Login OpenClips untuk membuat JSON credential</a>. " +
+                    "Token API menggunakan REST X-Auth-Token (tanpa login OAuth). Untuk beberapa akun, gunakan array JSON token. " +
+                    "<a href=\"/api/openclips-oauth-login\" target=\"_blank\" rel=\"noopener\">OAuth MCP alternatif (memerlukan izin domain OpenClips)</a>. " +
                     "Kosongkan jika credential tersimpan tidak ingin diganti.";
             }
         }
 
         if (apiKey) {
             apiKey.placeholder = normalizeProviderId(provider.provider_id) === "openclips"
-                ? "Tempel API key atau JSON OAuth OpenClips"
+                ? "Tempel token API OpenClips atau array JSON token"
                 : "Masukkan API key provider";
         }
 

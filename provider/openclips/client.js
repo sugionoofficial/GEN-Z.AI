@@ -1,10 +1,6 @@
-/*
- * GEN-Z.AI — OpenClips marketplace generation through MCP.
- *
- * No generation request is sent directly to api.openclips.ai. Even the
- * OpenAPI preview route is invoked through the MCP `call_api` tool.
- */
+/* OpenClips marketplace: REST for API keys, MCP for OAuth bundles. */
 
+import { OpenClipsRestClient } from "./rest-client.js";
 import {
     DEFAULT_OPENCLIPS_MCP_URL,
     OpenClipsMcpClient,
@@ -117,6 +113,16 @@ function isInsufficientBalanceError(error) {
 async function withOpenClipsClient(entry, options, operation) {
     const env = options.env || null;
     const description = describeOpenClipsCredential(entry, env);
+    const transport = options.transport || (description.refreshToken || description.clientId || entry.bundle?.access_token || entry.bundle?.accessToken ? "mcp" : "rest");
+    if (transport === "rest") {
+        if (!description.accessToken) throw new Error("Token API OpenClips kosong.");
+        const client = new OpenClipsRestClient({
+            accessToken: description.accessToken,
+            fetchImpl: options.fetchImpl || globalThis.fetch,
+            timeoutMs: options.timeoutMs
+        });
+        return await operation(client, description);
+    }
     const mcpUrl = normalizeOpenClipsMcpUrl(options.mcpUrl || description.mcpUrl || DEFAULT_OPENCLIPS_MCP_URL);
     let lastError = null;
 
@@ -143,6 +149,10 @@ async function withOpenClipsClient(entry, options, operation) {
 }
 
 async function listWorkspaces(client, tools) {
+    if (client.transport === "rest") {
+        const payload = await client.request("GET", "/api/workspaces/");
+        return (findArray(payload, ["workspaces", "items", "results", "data"]) || []).map(normalizeWorkspace).filter(Boolean);
+    }
     const tool = findOpenClipsTool(tools, LIST_WORKSPACES_TOOL);
     if (!tool) {
         const error = new Error("Tool OpenClips list_my_workspaces tidak tersedia pada server MCP.");
@@ -187,20 +197,20 @@ async function readModelContract(client, tools, { workspaceId, model, mediaType 
 }
 
 async function previewMarketplaceCost(client, tools, workspaceId, body) {
-    const tool = findOpenClipsTool(tools, CALL_API_TOOL);
-    if (!tool) {
+    const tool = client.transport === "rest" ? null : findOpenClipsTool(tools, CALL_API_TOOL);
+    if (!tool && client.transport !== "rest") {
         const error = new Error("Tool OpenClips call_api diperlukan untuk preview_cost sebelum generation.");
         error.code = "OPENCLIPS_PREVIEW_UNAVAILABLE";
         throw error;
     }
     const path = marketplacePath(workspaceId, "preview_cost/");
-    const args = buildOpenClipsCallApiArgs(tool, {
+    const args = client.transport === "rest" ? null : buildOpenClipsCallApiArgs(tool, {
         method: "POST",
         path,
         body,
         workspaceId
     });
-    const preview = await client.callTool(tool.name, args);
+    const preview = client.transport === "rest" ? await client.request("POST", path, body) : await client.callTool(tool.name, args);
     const data = asObject(unwrapData(preview));
     if (data.sufficient === false || data.sufficient === "false") {
         const error = new Error("Saldo credit OpenClips tidak cukup untuk request ini. Generation tidak dikirim.");
@@ -209,10 +219,16 @@ async function previewMarketplaceCost(client, tools, workspaceId, body) {
         error.data = preview;
         throw error;
     }
+    if (client.transport === "rest" && data.sufficient !== true) {
+        const error = new Error("Preview biaya REST OpenClips tidak memberikan konfirmasi saldo cukup. Generation tidak dikirim.");
+        error.code = "OPENCLIPS_PREVIEW_INVALID";
+        throw error;
+    }
     return preview;
 }
 
 async function generateMarketplace(client, tools, workspaceId, body) {
+    if (client.transport === "rest") return await client.request("POST", marketplacePath(workspaceId), body);
     const directTool = findOpenClipsTool(tools, MARKETPLACE_GENERATE_TOOL);
     if (directTool) {
         if (!openClipsSchemaAcceptsModel(directTool, body.model)) {
@@ -263,14 +279,14 @@ function extractCreativeId(payload) {
     return "";
 }
 
-export function createOpenClipsTaskId({ workspaceId, creativeId, keySlot = 0 }) {
-    return `${TASK_PREFIX}:${encodeURIComponent(workspaceId)}:${encodeURIComponent(creativeId)}:${Number(keySlot) || 0}`;
+export function createOpenClipsTaskId({ workspaceId, creativeId, keySlot = 0, transport = "mcp" }) {
+    return `${transport === "rest" ? "openclips:v2" : TASK_PREFIX}:${encodeURIComponent(workspaceId)}:${encodeURIComponent(creativeId)}:${Number(keySlot) || 0}`;
 }
 
 export function parseOpenClipsTaskId(taskId) {
     const raw = cleanString(taskId);
     const parts = raw.split(":");
-    if (parts.length !== 5 || parts[0] !== "openclips" || parts[1] !== "v1") {
+    if (parts.length !== 5 || parts[0] !== "openclips" || !["v1", "v2"].includes(parts[1])) {
         const error = new Error("Task ID OpenClips tidak valid.");
         error.code = "OPENCLIPS_TASK_ID_INVALID";
         throw error;
@@ -283,7 +299,7 @@ export function parseOpenClipsTaskId(taskId) {
         error.code = "OPENCLIPS_TASK_ID_INVALID";
         throw error;
     }
-    return { workspaceId, creativeId, keySlot };
+    return { workspaceId, creativeId, keySlot, ...(parts[1] === "v2" ? { transport: "rest" } : {}) };
 }
 
 function findMediaUrl(payload, mediaType) {
@@ -400,7 +416,7 @@ export async function createOpenClipsMarketplaceTask(payload, credential, option
         const entry = initial.entries[index];
         try {
             return await withOpenClipsClient(entry, options, async (client, resolvedCredential) => {
-                const tools = await client.listTools();
+                const tools = client.transport === "rest" ? [] : await client.listTools();
                 const workspace = await resolveWorkspace(client, tools, options.workspaceId || resolvedCredential.workspaceId);
                 const modelContract = await readModelContract(client, tools, {
                     workspaceId: workspace.id,
@@ -416,7 +432,7 @@ export async function createOpenClipsMarketplaceTask(payload, credential, option
                     error.data = generated;
                     throw error;
                 }
-                const taskId = createOpenClipsTaskId({ workspaceId: workspace.id, creativeId, keySlot: index });
+                const taskId = createOpenClipsTaskId({ workspaceId: workspace.id, creativeId, keySlot: index, transport: client.transport });
                 return {
                     ...normalizeTaskResult(generated, {
                         taskId,
@@ -446,11 +462,13 @@ export async function createOpenClipsMarketplaceTask(payload, credential, option
 export async function getOpenClipsMarketplaceTask(taskId, credential, options = {}) {
     const parsedId = parseOpenClipsTaskId(taskId);
     const selection = selectOpenClipsCredential(credential, parsedId.keySlot, options.env || null);
-    return await withOpenClipsClient(selection.entry, options, async client => {
-        const tools = await client.listTools();
+    return await withOpenClipsClient(selection.entry, { ...options, transport: parsedId.transport || "mcp" }, async client => {
+        const tools = client.transport === "rest" ? [] : await client.listTools();
         const getTool = findOpenClipsTool(tools, GET_CREATIVE_TOOL);
         let payload;
-        if (getTool) {
+        if (client.transport === "rest") {
+            payload = await client.request("GET", creativePath(parsedId.workspaceId, parsedId.creativeId));
+        } else if (getTool) {
             const args = buildOpenClipsCreativeArgs(getTool, parsedId);
             payload = await client.callTool(getTool.name, args);
         } else {
