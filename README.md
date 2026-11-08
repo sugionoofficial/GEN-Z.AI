@@ -23,6 +23,7 @@
 | **NSFW Filter** | Server-side content moderation (SightEngine) |
 | **Admin Panel** | Kelola user, model, kredit, dan provider credentials |
 | **Admin Copilot** | Asisten OpenKey untuk membaca dan mengubah repo melalui branch, PR, dan merge ber-CI |
+| **TempMail** | Email @gmail.com sementara untuk verifikasi akun (khusus admin/owner), alias tersimpan per user |
 
 ---
 
@@ -301,6 +302,10 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-secret-key
 # Optional: QwenCloud (DashScope) base URL override
 # Default: https://dashscope-intl.aliyuncs.com/api/v1
 # DASHSCOPE_BASE_URL=https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/api/v1
+
+# Optional: TempMail (menu admin "TempMail") — lihat TEMPMAIL-SETUP.md
+# TEMPMAIL_API_URL=https://tempmail.example.com
+# TEMPMAIL_PROVIDER=gmail
 ```
 
 > **Penting**: Jangan pernah commit `.env` atau service role key ke repository.
@@ -563,6 +568,7 @@ lainnya tetap dipertahankan.
 | `GET/POST` | `/api/generate-status` | Cek status generation |
 | `GET` | `/api/model-config` | Ambil konfigurasi model |
 | `POST` | `/api/sightengine-detect` | NSFW detection |
+| `GET/POST` | `/api/tempmail` | TempMail admin (`alias`, `status`, `diagnostics`, `create`, `messages`, `message`) |
 | Admin | `/api/admin-*` | User, model, credit, provider management |
 
 ### Contoh Request Generate

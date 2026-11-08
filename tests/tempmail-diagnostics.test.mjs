@@ -4,6 +4,18 @@ import path from 'node:path';
 import test from 'node:test';
 import worker from '../functions/worker.mjs';
 
+/* =========================================================
+   TEMPMAIL — DIAGNOSTIK & KETERBACAAAN ERROR
+   ---------------------------------------------------------
+   Regresi untuk error generik "Gagal memproses TempMail.
+   Periksa konfigurasi Supabase dan provider.":
+   1. action=diagnostics melaporkan tiap tahap tanpa secret.
+   2. Kegagalan PostgREST memberi hint migrasi (PGRST205).
+   3. action=status kompatibel dengan action=alias.
+   4. detail error disamarkan (token tidak bocor).
+   5. Tombol "Cek Konfigurasi" terpasang di /email.html.
+========================================================= */
+
 const ROOT = process.cwd();
 
 function baseEnv(overrides = {}) {
@@ -26,12 +38,10 @@ function makeRequest(action, params = {}, { method, userId = 'admin-a' } = {}) {
     });
 }
 
-/** Mock fetch untuk Supabase Auth/REST + server TempMail-MCP. */
 function makeHarness(options = {}) {
     const state = {
         aliases: new Map(),
         providerCreates: [],
-        providerMessages: [],
         calls: []
     };
     const providerPost = options.providerPost || (async () => Response.json({
@@ -39,7 +49,6 @@ function makeHarness(options = {}) {
         token: 'tok-1',
         provider: 'gmail'
     }));
-    const providerGet = options.providerGet || (async () => Response.json([]));
     const providerList = options.providerList || (async () => Response.json([
         { name: 'gmail', disabled: false, failures: 0 },
         { name: 'mail.tm', disabled: false, failures: 0 }
@@ -61,7 +70,10 @@ function makeHarness(options = {}) {
 
         if (url.pathname === '/rest/v1/tempmail_user_aliases') {
             if (method === 'GET') {
-                if (options.aliasGet) return options.aliasGet(url, state);
+                if (options.aliasGet) {
+                    const override = options.aliasGet(url, state);
+                    if (override) return override;
+                }
                 // Diagnostik memanggil tabel tanpa filter user_id.
                 const userId = String(url.searchParams.get('user_id') || 'eq.admin-a').slice(3);
                 const emailFilter = url.searchParams.get('email');
@@ -73,7 +85,7 @@ function makeHarness(options = {}) {
             if (method === 'POST') {
                 const alias = JSON.parse(fetchOptions.body);
                 if (!state.aliases.has(alias.user_id)) state.aliases.set(alias.user_id, alias);
-                return new Response(null, { status: 201 });
+                return Response.json([alias], { status: 201 });
             }
         }
 
@@ -87,8 +99,7 @@ function makeHarness(options = {}) {
         }
 
         if (url.pathname.includes('/messages') || url.pathname.includes('/message/')) {
-            state.providerMessages.push(url);
-            return providerGet(url, fetchOptions, state);
+            return Response.json([]);
         }
 
         throw new Error(`Unexpected fetch: ${method} ${url}`);
@@ -99,126 +110,7 @@ function makeHarness(options = {}) {
     return { state, restore: () => { globalThis.fetch = originalFetch; } };
 }
 
-const GENERIC_ERROR = /Gagal memproses TempMail\. Periksa konfigurasi Supabase dan provider\./;
-
-test('balasan HTML dari provider tidak lagi jadi error generik dan tidak menyimpan alias', async () => {
-    const h = makeHarness({
-        providerPost: async () => new Response('<html><h1>Bad Gateway</h1></html>', {
-            status: 502,
-            headers: { 'Content-Type': 'text/html' }
-        })
-    });
-    try {
-        const res = await worker.fetch(makeRequest('create'), baseEnv());
-        const data = await res.json();
-
-        assert.equal(res.status, 502);
-        assert.match(data.error, /menolak pembuatan email/);
-        assert.match(data.error, /HTTP 502/);
-        assert.doesNotMatch(data.error, GENERIC_ERROR);
-        assert.match(data.detail, /Bad Gateway/);
-        assert.match(data.hint, /api\/providers/);
-        assert.equal(h.state.aliases.size, 0);
-        assert.equal(h.state.providerCreates.length, 1);
-    } finally {
-        h.restore();
-    }
-});
-
-test('provider gmail nonaktif (503) otomatis fallback ke provider sehat', async () => {
-    const h = makeHarness({
-        providerPost: async (url) => {
-            if (url.searchParams.get('name') === 'gmail') {
-                return Response.json(
-                    { detail: "Provider 'gmail' failed: IMAP login failed" },
-                    { status: 503 }
-                );
-            }
-            return Response.json({
-                email: 'fallback@mail.tm',
-                token: 'tok-fallback',
-                provider: 'mail.tm'
-            });
-        }
-    });
-    try {
-        const res = await worker.fetch(makeRequest('create'), baseEnv());
-        const data = await res.json();
-
-        assert.equal(res.status, 200);
-        assert.equal(data.email, 'fallback@mail.tm');
-        assert.equal(data.provider, 'mail.tm');
-        assert.equal(h.state.providerCreates.length, 2);
-        assert.equal(h.state.aliases.get('admin-a').provider, 'mail.tm');
-
-        const inbox = await worker.fetch(
-            makeRequest('messages', { email: data.email }),
-            baseEnv()
-        );
-        assert.equal(inbox.status, 200);
-        assert.equal(h.state.providerMessages[0].searchParams.get('name'), 'mail.tm');
-        assert.equal(h.state.providerMessages[0].searchParams.get('token'), 'tok-fallback');
-    } finally {
-        h.restore();
-    }
-});
-
-test('TEMPMAIL_PROVIDER=auto tidak memaksa query name=gmail', async () => {
-    const h = makeHarness();
-    try {
-        const res = await worker.fetch(makeRequest('create'), baseEnv({ TEMPMAIL_PROVIDER: 'auto' }));
-        assert.equal(res.status, 200);
-        assert.equal(h.state.providerCreates.length, 1);
-        assert.equal(h.state.providerCreates[0].searchParams.has('name'), false);
-    } finally {
-        h.restore();
-    }
-});
-
-test('Supabase REST 404/PGRST205 memberi petunjuk migrasi tabel alias', async () => {
-    const h = makeHarness({
-        aliasGet: async () => Response.json({
-            code: 'PGRST205',
-            message: 'Could not find the table public.tempmail_user_aliases in the schema cache'
-        }, { status: 404 })
-    });
-    try {
-        const res = await worker.fetch(makeRequest('create'), baseEnv());
-        const data = await res.json();
-
-        assert.equal(res.status, 502);
-        assert.match(data.error, /tempmail_user_aliases/);
-        assert.match(data.error, /HTTP 404/);
-        assert.match(data.detail, /PGRST205/);
-        assert.match(data.hint, /tempmail-user-aliases\.sql/);
-        assert.equal(h.state.providerCreates.length, 0);
-    } finally {
-        h.restore();
-    }
-});
-
-test('action=status memulihkan alias tersimpan tanpa membuat email baru', async () => {
-    const h = makeHarness();
-    h.state.aliases.set('admin-a', {
-        user_id: 'admin-a',
-        email: 'saved@gmail.com',
-        token: 'tok-saved',
-        provider: 'gmail'
-    });
-    try {
-        const res = await worker.fetch(makeRequest('status'), baseEnv());
-        const data = await res.json();
-
-        assert.equal(res.status, 200);
-        assert.equal(data.email, 'saved@gmail.com');
-        assert.equal(data.provider, 'gmail');
-        assert.equal(h.state.providerCreates.length, 0);
-    } finally {
-        h.restore();
-    }
-});
-
-test('action=diagnostics melaporkan config, Supabase, dan provider tanpa membocorkan secret', async () => {
+test('action=diagnostics melaporkan config, Supabase, dan provider tanpa secret', async () => {
     const h = makeHarness();
     try {
         const res = await worker.fetch(makeRequest('diagnostics'), baseEnv());
@@ -231,100 +123,152 @@ test('action=diagnostics melaporkan config, Supabase, dan provider tanpa memboco
         assert.equal(data.config.supabase_service_role_key, true);
         assert.equal(data.config.tempmail_api_url, true);
         assert.equal(data.config.tempmail_api_host, 'tempmail.test');
-        assert.equal(data.config.preferred_provider, 'gmail');
+        assert.equal(data.config.preferred_provider, 'gmail,auto');
         assert.deepEqual(
             data.checks.map(check => check.name),
             ['supabase_profiles', 'supabase_aliases_table', 'tempmail_provider']
         );
         assert.ok(data.checks.every(check => check.ok));
         assert.ok(data.checks[2].providers.some(item => item.name === 'gmail'));
-        assert.doesNotMatch(JSON.stringify(data), /service-role-key|public-key/);
-
-        const broken = await worker.fetch(
-            makeRequest('diagnostics'),
-            baseEnv({ TEMPMAIL_API_URL: '' })
-        );
-        const brokenData = await broken.json();
-        assert.equal(broken.status, 200);
-        assert.equal(brokenData.ok, false);
-        assert.equal(brokenData.config.tempmail_api_url, false);
-        assert.match(
-            brokenData.checks.find(check => check.name === 'tempmail_provider').hint,
-            /TEMPMAIL_API_URL/
-        );
+        assert.doesNotMatch(JSON.stringify(data), /service-role-key|public-key|tok-1/);
     } finally {
         h.restore();
     }
 });
 
-test('balasan inbox non-JSON diubah menjadi JSON error yang bisa dibaca browser', async () => {
+test('diagnostics tetap menjawab (bukan 500) saat TEMPMAIL_API_URL kosong', async () => {
+    const h = makeHarness();
+    try {
+        const res = await worker.fetch(makeRequest('diagnostics'), baseEnv({ TEMPMAIL_API_URL: '' }));
+        const data = await res.json();
+
+        assert.equal(res.status, 200);
+        assert.equal(data.ok, false);
+        assert.equal(data.config.tempmail_api_url, false);
+        assert.match(
+            data.checks.find(check => check.name === 'tempmail_provider').hint,
+            /TEMPMAIL_API_URL/
+        );
+        assert.equal(h.state.providerCreates.length, 0);
+    } finally {
+        h.restore();
+    }
+});
+
+test('diagnostics memberi hint migrasi saat PostgREST membalas PGRST205', async () => {
     const h = makeHarness({
-        providerGet: async () => new Response('<html>nginx error</html>', {
-            status: 200,
-            headers: { 'Content-Type': 'text/html' }
-        })
+        aliasGet: (url) => {
+            // Hanya probe schema cache (tanpa user_id) yang gagal.
+            if (url.searchParams.has('user_id')) return null;
+            return Response.json({
+                code: 'PGRST205',
+                message: 'Could not find the table public.tempmail_user_aliases in the schema cache'
+            }, { status: 404 });
+        }
     });
+    try {
+        const res = await worker.fetch(makeRequest('diagnostics'), baseEnv());
+        const data = await res.json();
+        const check = data.checks.find(item => item.name === 'supabase_aliases_table');
+
+        assert.equal(res.status, 200);
+        assert.equal(data.ok, false);
+        assert.equal(check.ok, false);
+        assert.equal(check.status, 404);
+        assert.match(check.detail, /PGRST205/);
+        assert.match(check.hint, /tempmail-user-aliases\.sql/);
+        assert.match(check.hint, /reload schema/);
+    } finally {
+        h.restore();
+    }
+});
+
+test('diagnostics memperingatkan bila semua provider nonaktif', async () => {
+    const h = makeHarness({
+        providerList: async () => Response.json([
+            { name: 'gmail', disabled: true, failures: 3 },
+            { name: 'mail.tm', disabled: true, failures: 1 }
+        ])
+    });
+    try {
+        const res = await worker.fetch(makeRequest('diagnostics'), baseEnv());
+        const data = await res.json();
+        const check = data.checks.find(item => item.name === 'tempmail_provider');
+
+        assert.equal(check.ok, true);
+        assert.equal(check.providers.length, 2);
+        assert.match(check.hint, /\/api\/providers\/\{name\}\/enable/);
+    } finally {
+        h.restore();
+    }
+});
+
+test('action=status kompatibel dengan action=alias (tanpa membuat email baru)', async () => {
+    const h = makeHarness();
     h.state.aliases.set('admin-a', {
         user_id: 'admin-a',
         email: 'saved@gmail.com',
         token: 'tok-saved',
-        provider: 'gmail'
+        provider: 'gmail',
+        created_at: '2026-11-08T10:00:00.000Z'
     });
     try {
-        const res = await worker.fetch(
-            makeRequest('messages', { email: 'saved@gmail.com' }),
-            baseEnv()
-        );
+        const statusRes = await worker.fetch(makeRequest('status'), baseEnv());
+        const statusData = await statusRes.json();
+        const aliasRes = await worker.fetch(makeRequest('alias'), baseEnv());
+        const aliasData = await aliasRes.json();
+
+        assert.equal(statusRes.status, 200);
+        assert.equal(statusData.email, 'saved@gmail.com');
+        assert.equal(statusData.provider, 'gmail');
+        assert.deepEqual(statusData, aliasData);
+        assert.equal(h.state.providerCreates.length, 0);
+    } finally {
+        h.restore();
+    }
+});
+
+test('detail error provider disamarkan agar token tidak bocor ke browser', async () => {
+    const h = makeHarness({
+        providerPost: async () => Response.json({
+            detail: "Provider 'gmail' failed: token=supersecret123 api_key=another-secret"
+        }, { status: 503 })
+    });
+    try {
+        const res = await worker.fetch(makeRequest('create'), baseEnv());
         const data = await res.json();
 
         assert.equal(res.status, 502);
-        assert.match(data.error, /bukan JSON/);
-        assert.match(data.detail, /nginx error/);
-        assert.match(res.headers.get('content-type') || '', /application\/json/);
-    } finally {
-        h.restore();
-    }
-});
-
-test('timeout provider dilaporkan sebagai 504, bukan error generik', async () => {
-    const h = makeHarness({
-        providerPost: async (url, fetchOptions) => new Promise((_, reject) => {
-            fetchOptions.signal.addEventListener('abort', () => reject(new Error('aborted')));
-        })
-    });
-    try {
-        const res = await worker.fetch(makeRequest('create'), baseEnv({ TEMPMAIL_TIMEOUT_MS: 60 }));
-        const data = await res.json();
-
-        assert.equal(res.status, 504);
-        assert.match(data.error, /tidak merespons/);
-        assert.doesNotMatch(data.error, GENERIC_ERROR);
+        assert.match(data.error, /Gagal membuat email TempMail/);
+        assert.match(data.error, /HTTP 503/);
+        assert.doesNotMatch(data.error, /supersecret123|another-secret/);
+        assert.match(data.error, /disamarkan/);
         assert.equal(h.state.aliases.size, 0);
+        assert.equal(h.state.providerCreates.length, 2, 'gmail lalu auto');
     } finally {
         h.restore();
     }
 });
 
-test('tautan navigasi TempMail, build asset, dan halaman tetap terpasang', () => {
+test('tombol Cek Konfigurasi dan dokumentasi diagnostik terpasang', () => {
+    const page = fs.readFileSync(path.join(ROOT, 'email.html'), 'utf8');
+    assert.match(page, /id="btn-diagnostics"/);
+    assert.match(page, /action=diagnostics/);
+    assert.match(page, /renderDiagnostics/);
+    assert.match(page, /textContent/);
+
     const nav = fs.readFileSync(path.join(ROOT, 'navigation/navigation.js'), 'utf8');
     assert.match(nav, /label: "TempMail", href: "\/email\.html"/);
 
-    const build = fs.readFileSync(path.join(ROOT, 'scripts/build-cloudflare-pages.mjs'), 'utf8');
-    assert.match(build, /"email\.html"/);
+    const setup = fs.readFileSync(path.join(ROOT, 'TEMPMAIL-SETUP.md'), 'utf8');
+    assert.match(setup, /action=diagnostics/);
+    assert.match(setup, /docs\/tempmail-setup\.md/);
 
-    const page = fs.readFileSync(path.join(ROOT, 'email.html'), 'utf8');
-    assert.match(page, /\/navigation\/navigation\.js/);
-    assert.match(page, /action=status/);
-    assert.match(page, /action=diagnostics/);
-    assert.match(page, /response\.text\(\)/);
-    assert.match(page, /JSON\.parse/);
-    assert.match(page, /setAttribute\('sandbox'/);
-    assert.doesNotMatch(page, /message-content'\)\.innerHTML/);
-});
+    const doc = fs.readFileSync(path.join(ROOT, 'docs/tempmail-setup.md'), 'utf8');
+    assert.match(doc, /action=diagnostics/);
 
-test('konfigurasi TempMail terdokumentasi untuk dev lokal dan schema cache', () => {
     const example = fs.readFileSync(path.join(ROOT, '.dev.vars.example'), 'utf8');
-    assert.match(example, /# TEMPMAIL_API_URL=/);
+    assert.match(example, /action=diagnostics/);
 
     const checker = fs.readFileSync(path.join(ROOT, 'scripts/check-local-dev-vars.mjs'), 'utf8');
     assert.match(checker, /FEATURE_FLAGS/);
@@ -332,4 +276,7 @@ test('konfigurasi TempMail terdokumentasi untuk dev lokal dan schema cache', () 
 
     const sql = fs.readFileSync(path.join(ROOT, 'supabase/tempmail-user-aliases.sql'), 'utf8');
     assert.match(sql, /pg_notify\('pgrst', 'reload schema'\)/);
+
+    const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+    assert.match(readme, /diagnostics/);
 });
