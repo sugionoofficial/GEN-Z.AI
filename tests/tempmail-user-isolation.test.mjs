@@ -19,7 +19,13 @@ test('TempMail is restricted to admins and owners while aliases stay user-isolat
 
     if (url.pathname === '/rest/v1/profiles') {
       const userId = url.searchParams.get('id').slice(3);
-      const role = userId === 'admin-a' ? 'admin' : userId === 'owner-b' ? 'owner' : 'user';
+      const role = userId === 'admin-a'
+        ? 'admin'
+        : userId === 'owner-b'
+          ? 'owner'
+          : userId === 'administrator-d'
+            ? '  Administrator  '
+            : 'user';
       return Response.json([{ role }]);
     }
 
@@ -106,6 +112,15 @@ test('TempMail is restricted to admins and owners while aliases stay user-isolat
     );
     assert.equal(ownerRead.status, 200);
     assert.equal(providerRequests[0].searchParams.get('token'), 'tag1');
+
+    // Role "Administrator" (dengan spasi/ kapital) harus diperlakukan
+    // sama seperti "admin" — navigation.js juga menormalkannya begitu.
+    const administratorAlias = await worker.fetch(request('administrator-d', 'create'), env);
+    const administratorAliasData = await administratorAlias.json();
+    assert.equal(administratorAlias.status, 200);
+    assert.ok(administratorAliasData.email);
+    assert.notEqual(administratorAliasData.email, firstData.email);
+    assert.notEqual(administratorAliasData.email, secondData.email);
   } finally {
     globalThis.fetch = originalFetch;
   }
