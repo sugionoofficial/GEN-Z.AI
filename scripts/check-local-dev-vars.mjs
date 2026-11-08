@@ -31,6 +31,13 @@ const RECOMMENDED = [
     { name: "PROVIDER_CREDENTIAL_ENCRYPTION_KEY", hint: "wajib untuk membuka credential provider yang tersimpan" }
 ];
 
+/* Fitur opsional yang punya halaman sendiri di navigasi. Kalau variabel ini
+   kosong, halaman tetap terbuka tetapi API-nya gagal — lebih baik diperingatkan
+   sejak awal daripada admin melihat error generik di browser. */
+const FEATURE_FLAGS = [
+    { name: "TEMPMAIL_API_URL", hint: "URL server TempMail-MCP; tanpa ini menu TempMail (/email.html) gagal" }
+];
+
 const TEMPLATE = `# .dev.vars — secret lokal untuk \`npm run dev\` (JANGAN di-commit)
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
@@ -42,6 +49,7 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 # SIGHTENGINE_API_SECRET=<secret>
 # OPENKEY_API_KEY=<key>
 # GITHUB_PAT=<token-untuk-upscale-dan-admin-copilot>
+# TEMPMAIL_API_URL=<https://host-tempmail-mcp>
 `;
 
 function parseDevVars(text) {
@@ -109,6 +117,15 @@ if (missingRequired.length) {
 if (missingRecommended.length) {
     console.warn("   Variabel yang disarankan belum diisi:");
     for (const item of missingRecommended) {
+        console.warn(`   - ${item.name}   (${item.hint})`);
+    }
+    console.warn("");
+}
+
+const missingFeatures = FEATURE_FLAGS.filter(item => !values.get(item.name));
+if (missingFeatures.length) {
+    console.warn("   Fitur berikut belum dikonfigurasi (halaman bisa dibuka, API akan gagal):");
+    for (const item of missingFeatures) {
         console.warn(`   - ${item.name}   (${item.hint})`);
     }
     console.warn("");
