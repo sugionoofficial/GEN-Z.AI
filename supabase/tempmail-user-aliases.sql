@@ -9,3 +9,8 @@ create table if not exists public.tempmail_user_aliases (
 alter table public.tempmail_user_aliases enable row level security;
 revoke all on public.tempmail_user_aliases from public, anon, authenticated;
 grant all on public.tempmail_user_aliases to service_role;
+
+-- PostgREST menyimpan schema cache. Tanpa reload, tabel yang baru dibuat
+-- membalas 404/PGRST205 pada /rest/v1/tempmail_user_aliases dan handler
+-- TempMail gagal membaca alias walaupun tabel sudah ada di database.
+select pg_notify('pgrst', 'reload schema');

@@ -246,9 +246,15 @@
     <div>
       <button id="btn-generate" type="button">📧 Buat Email</button>
       <button id="btn-refresh" type="button" class="secondary hidden">🔄 Refresh Inbox</button>
+      <button id="btn-diagnostics" type="button" class="secondary">🔍 Cek Konfigurasi</button>
     </div>
 
     <div id="status" class="status" role="status" aria-live="polite"></div>
+
+    <div id="diagnostics" class="box hidden">
+      <h3>🔍 Diagnostik TempMail</h3>
+      <div id="diagnostics-list"></div>
+    </div>
 
     <div id="email-display" class="box hidden">
       <div class="email-display">
@@ -339,6 +345,9 @@
       const msgAttachments = document.getElementById("msg-attachments");
       const messageFrame = document.getElementById("message-frame");
       const messageText = document.getElementById("message-text");
+      const btnDiagnostics = document.getElementById("btn-diagnostics");
+      const diagnosticsBox = document.getElementById("diagnostics");
+      const diagnosticsList = document.getElementById("diagnostics-list");
 
       const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -486,9 +495,12 @@
         }
 
         if (!response.ok) {
-          throw new Error(
-            payload?.error || `Permintaan TempMail gagal (HTTP ${response.status}).`
-          );
+          const parts = [
+            String(payload?.error || payload?.detail || `Permintaan TempMail gagal (HTTP ${response.status}).`)
+          ];
+          if (payload?.error && payload?.detail) parts.push("Detail: " + String(payload.detail));
+          if (payload?.hint) parts.push("Hint: " + String(payload.hint));
+          throw new Error(parts.join(" "));
         }
 
         if (payload === null) {
@@ -729,6 +741,75 @@
           setStatus("❌ " + error.message, "error");
         }
       }
+
+      /* ===================== DIAGNOSTIK KONFIGURASI =====================
+         Menjawab error "Periksa konfigurasi Supabase dan provider":
+         action=diagnostics melaporkan tiap tahap tanpa membocorkan secret. */
+      function appendDiagnosticsLine(parent, text, className) {
+        const line = document.createElement("div");
+        line.className = className;
+        line.textContent = text;
+        parent.appendChild(line);
+      }
+
+      function renderDiagnostics(data) {
+        diagnosticsList.replaceChildren();
+        appendDiagnosticsLine(
+          diagnosticsList,
+          data?.ok ? "✅ Semua pemeriksaan lulus." : "❌ Ada konfigurasi yang belum siap.",
+          "msg-subject"
+        );
+
+        const config = data?.config || {};
+        appendDiagnosticsLine(
+          diagnosticsList,
+          "SUPABASE_URL=" + Boolean(config.supabase_url) +
+            " · ANON_KEY=" + Boolean(config.supabase_anon_key) +
+            " · SERVICE_ROLE_KEY=" + Boolean(config.supabase_service_role_key) +
+            " · TEMPMAIL_API_URL=" + Boolean(config.tempmail_api_url) +
+            (config.tempmail_api_host ? " (" + config.tempmail_api_host + ")" : "") +
+            " · provider=" + (config.preferred_provider || "gmail"),
+          "msg-meta"
+        );
+
+        for (const check of Array.isArray(data?.checks) ? data.checks : []) {
+          const item = document.createElement("div");
+          item.className = "msg-item";
+          appendDiagnosticsLine(
+            item,
+            (check.ok ? "✅ " : "❌ ") + check.name + " · HTTP " + (check.status ?? "-"),
+            "msg-subject"
+          );
+          if (check.detail) appendDiagnosticsLine(item, "Detail: " + String(check.detail), "msg-meta");
+          if (check.hint) appendDiagnosticsLine(item, "Hint: " + String(check.hint), "msg-meta");
+          if (Array.isArray(check.providers)) {
+            const list = check.providers.length
+              ? check.providers.map(entry => entry.name + (entry.disabled ? " (nonaktif)" : " (aktif)")).join(", ")
+              : "tidak ada data provider";
+            appendDiagnosticsLine(item, "Provider: " + list, "msg-meta");
+          }
+          diagnosticsList.appendChild(item);
+        }
+        diagnosticsBox.classList.remove("hidden");
+      }
+
+      btnDiagnostics.addEventListener("click", async () => {
+        setLoading(btnDiagnostics, true, "Memeriksa...");
+        try {
+          const data = await tempmailRequest("/api/tempmail?action=diagnostics");
+          renderDiagnostics(data);
+          setStatus(
+            data?.ok
+              ? "✅ Konfigurasi TempMail siap."
+              : "⚠️ Ada pemeriksaan yang gagal — lihat detail diagnostik di bawah.",
+            data?.ok ? "success" : "error"
+          );
+        } catch (error) {
+          setStatus("❌ Error diagnostik: " + error.message, "error");
+        } finally {
+          setLoading(btnDiagnostics, false);
+        }
+      });
 
       btnGenerate.addEventListener("click", async () => {
         setLoading(btnGenerate, true, "Menghubungi server...");

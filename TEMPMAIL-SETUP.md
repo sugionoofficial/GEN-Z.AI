@@ -125,11 +125,27 @@ Respons sukses `create`:
 
 ---
 
+## 4a. Cek konfigurasi dari browser (`diagnostics`)
+
+Klik **🔍 Cek Konfigurasi** di `/email.html` (atau panggil
+`GET /api/tempmail?action=diagnostics` sebagai admin/owner). Responsnya
+berisi boolean konfigurasi (tanpa nilai secret), hasil
+`/rest/v1/profiles`, `/rest/v1/tempmail_user_aliases`, dan
+`GET /api/providers` pada server Tempmail-MCP — lengkap dengan `status`,
+`detail` yang disamarkan, dan `hint` perbaikannya. Action `status` adalah
+alias untuk `action=alias` (baca alias tanpa membuat email baru).
+
+Lihat juga [`docs/tempmail-setup.md`](docs/tempmail-setup.md) untuk peta
+error → tindakan.
+
+---
+
 ## 5. Troubleshooting
 
 | Gejala | Penyebab umum | Perbaikan |
 |---|---|---|
 | `TEMPMAIL_API_URL belum di-set` | Secret belum dibuat di Worker | Tambahkan `TEMPMAIL_API_URL`, lalu redeploy |
+| `Gagal membaca pemetaan alias TempMail (HTTP 404). ... PGRST205` | Tabel belum ada / schema cache PostgREST basi | Jalankan `supabase/tempmail-user-aliases.sql` (sudah ada `pg_notify('pgrst', 'reload schema')`) |
 | `Konfigurasi database TempMail belum lengkap` | `SUPABASE_SERVICE_ROLE_KEY` kosong | Isi secret tersebut |
 | `Konfigurasi autentikasi Supabase belum lengkap` | `SUPABASE_ANON_KEY` kosong | Isi secret tersebut |
 | `Session tidak valid atau sudah kedaluwarsa` | Access token kedaluwarsa / project Supabase berbeda | Login ulang; pastikan `SUPABASE_URL` Worker = project di `assets/js/config.js` |

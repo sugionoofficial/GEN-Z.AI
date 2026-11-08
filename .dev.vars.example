@@ -33,6 +33,11 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 # Provider yang dicoba lebih dulu (default: gmail). Boleh daftar dipisah koma;
 # "auto" selalu ditambahkan sebagai fallback provider sehat lain.
 # TEMPMAIL_PROVIDER=gmail
+#
+# Cek konfigurasi tanpa membocorkan secret:
+#   GET /api/tempmail?action=diagnostics (atau tombol "Cek Konfigurasi" di /email.html)
+# Endpoint provider yang dipakai: POST /api/email, GET /api/email/{email}/messages,
+# GET /api/email/{email}/message/{id}, GET /api/providers.
 
 # OpenClips — lihat OPENCLIPS-SETUP.md
 # OPENCLIPS_AUTH_TOKEN=<api-key-bearer-atau-json-oauth>

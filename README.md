@@ -568,7 +568,7 @@ lainnya tetap dipertahankan.
 | `GET/POST` | `/api/generate-status` | Cek status generation |
 | `GET` | `/api/model-config` | Ambil konfigurasi model |
 | `POST` | `/api/sightengine-detect` | NSFW detection |
-| `GET/POST` | `/api/tempmail` | TempMail admin (`alias`, `create`, `messages`, `message`) |
+| `GET/POST` | `/api/tempmail` | TempMail admin (`alias`, `status`, `diagnostics`, `create`, `messages`, `message`) |
 | Admin | `/api/admin-*` | User, model, credit, provider management |
 
 ### Contoh Request Generate

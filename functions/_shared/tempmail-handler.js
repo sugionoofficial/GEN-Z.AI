@@ -6,6 +6,8 @@
 
    Action yang didukung:
    - GET  action=alias     -> alias milik user (tanpa membuat baru)
+   - GET  action=status    -> alias (nama alternatif untuk `alias`)
+   - GET  action=diagnostics -> cek konfigurasi Supabase & provider
    - POST action=create    -> pakai alias yang ada / buat baru
    - GET  action=messages  -> daftar pesan pada alias
    - GET  action=message   -> isi satu pesan (body)
@@ -65,17 +67,26 @@ async function readJsonSafe(response) {
     }
 }
 
+function safeSnippet(value, max = 300) {
+    return String(value ?? "")
+        .replace(/(token|api[_-]?key|password|secret)\s*["']?\s*[:=]\s*["']?[^"'\s&,}]+/gi, "$1=<disamarkan>")
+        .replace(/[\r\n\t]+/g, " ")
+        .replace(/\s{2,}/g, " ")
+        .trim()
+        .slice(0, max);
+}
+
 function describeErrorPayload(payload) {
     if (!payload) return "";
-    if (typeof payload === "string") return payload.slice(0, 300);
+    if (typeof payload === "string") return safeSnippet(payload);
     if (typeof payload !== "object") return "";
 
     const detail = payload.detail;
-    if (typeof detail === "string") return detail.slice(0, 300);
+    if (typeof detail === "string") return safeSnippet(detail);
     if (detail && typeof detail === "object") {
-        if (typeof detail.message === "string") return detail.message.slice(0, 300);
+        if (typeof detail.message === "string") return safeSnippet(detail.message);
         try {
-            return JSON.stringify(detail).slice(0, 300);
+            return safeSnippet(JSON.stringify(detail));
         } catch {
             return "";
         }
@@ -83,11 +94,23 @@ function describeErrorPayload(payload) {
 
     for (const key of ["error", "message", "reason"]) {
         if (typeof payload[key] === "string" && payload[key].trim()) {
-            return payload[key].trim().slice(0, 300);
+            return safeSnippet(payload[key].trim());
         }
     }
 
     return "";
+}
+
+/* Petunjuk perbaikan untuk kegagalan PostgREST (dipakai error & diagnostics). */
+function supabaseRestHint(response, payload, resource) {
+    const code = String(payload?.code || "");
+    if (response.status === 401 || response.status === 403) {
+        return "SUPABASE_SERVICE_ROLE_KEY ditolak Supabase. Ganti dengan secret key project yang aktif / sama dengan SUPABASE_URL.";
+    }
+    if (code === "PGRST205" || (resource === "tempmail_user_aliases" && response.status === 404)) {
+        return "Tabel public.tempmail_user_aliases belum dikenal PostgREST. Jalankan supabase/tempmail-user-aliases.sql lalu NOTIFY pgrst, 'reload schema'.";
+    }
+    return "Periksa SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY pada Cloudflare Worker (project yang sama dengan frontend).";
 }
 
 function providerErrorMessage(response, payload, fallback) {
@@ -211,7 +234,16 @@ async function getTempmailUserRole(env, userId) {
         SUPABASE_TIMEOUT_MS
     );
 
-    if (!response.ok) throw new Error("Gagal memeriksa role akun TempMail.");
+    if (!response.ok) {
+        const payload = await readJsonSafe(response);
+        const error = new Error(
+            `Gagal memeriksa role akun TempMail (HTTP ${response.status}). ${describeErrorPayload(payload)}`.trim()
+        );
+        error.status = 502;
+        error.detail = describeErrorPayload(payload);
+        error.hint = supabaseRestHint(response, payload, "profiles");
+        throw error;
+    }
     const profiles = await readJsonSafe(response);
     return Array.isArray(profiles) ? profiles[0]?.role || null : null;
 }
@@ -244,7 +276,16 @@ async function getUserTempmailAlias(env, userId, email) {
         SUPABASE_TIMEOUT_MS
     );
 
-    if (!response.ok) throw new Error("Gagal membaca pemetaan alias TempMail.");
+    if (!response.ok) {
+        const payload = await readJsonSafe(response);
+        const error = new Error(
+            `Gagal membaca pemetaan alias TempMail (HTTP ${response.status}). ${describeErrorPayload(payload)}`.trim()
+        );
+        error.status = 502;
+        error.detail = describeErrorPayload(payload);
+        error.hint = supabaseRestHint(response, payload, "tempmail_user_aliases");
+        throw error;
+    }
     const rows = await readJsonSafe(response);
     return Array.isArray(rows) ? rows[0] || null : null;
 }
@@ -288,9 +329,13 @@ async function saveUserTempmailAlias(env, userId, alias) {
 
     if (!response.ok) {
         const payload = await readJsonSafe(response);
-        throw new Error(
+        const error = new Error(
             describeErrorPayload(payload) || "Gagal menyimpan alias TempMail."
         );
+        error.status = 502;
+        error.detail = describeErrorPayload(payload);
+        error.hint = supabaseRestHint(response, payload, "tempmail_user_aliases");
+        throw error;
     }
 
     const rows = await readJsonSafe(response);
@@ -481,6 +526,142 @@ async function requestProviderTempmail(env, alias, action, messageId) {
     return message;
 }
 
+
+/* =========================================================
+   DIAGNOSTIK KONFIGURASI (action=diagnostics)
+   ---------------------------------------------------------
+   Menjawab "Periksa konfigurasi Supabase dan provider" tanpa
+   membocorkan nilai secret: hanya boolean, host, HTTP status,
+   dan petunjuk perbaikan. Tetap khusus admin/owner.
+========================================================= */
+function getDiagnosticsConfig(env) {
+    const { supabaseUrl, anonKey, serviceRoleKey } = getSupabaseConfig(env);
+    const tempmailUrl = getTempmailProviderUrl(env);
+    let host = null;
+    try {
+        host = tempmailUrl ? new URL(tempmailUrl).host : null;
+    } catch {
+        host = null;
+    }
+    return {
+        supabase_url: Boolean(supabaseUrl),
+        supabase_anon_key: Boolean(anonKey),
+        supabase_service_role_key: Boolean(serviceRoleKey),
+        tempmail_api_url: Boolean(tempmailUrl),
+        tempmail_api_host: host,
+        preferred_provider: getProviderCandidates(env).join(",")
+    };
+}
+
+async function checkSupabaseRest(env, resource) {
+    const { supabaseUrl, serviceRoleKey } = getTempmailDatabaseConfig(env);
+    const url = new URL(`${supabaseUrl}/rest/v1/${resource}`);
+    url.searchParams.set("select", resource === "profiles" ? "role" : "email");
+    url.searchParams.set("limit", "1");
+
+    const response = await fetchWithTimeout(
+        url,
+        {
+            headers: {
+                "apikey": serviceRoleKey,
+                "Authorization": `Bearer ${serviceRoleKey}`
+            }
+        },
+        SUPABASE_TIMEOUT_MS
+    );
+    const payload = await readJsonSafe(response);
+    const ok = response.ok && Array.isArray(payload);
+    const code = String(payload?.code || "");
+    return {
+        ok,
+        status: response.status,
+        detail: ok ? "" : `HTTP ${response.status}: ${code ? `${code}: ` : ""}${describeErrorPayload(payload)}`,
+        hint: ok ? "" : supabaseRestHint(response, payload, resource)
+    };
+}
+
+function diagnosticsFailure(error) {
+    return {
+        ok: false,
+        status: Number(error?.status) || 502,
+        detail: safeSnippet(error?.message || String(error)),
+        hint: error?.hint || ""
+    };
+}
+
+async function runDiagnostics(env) {
+    const config = getDiagnosticsConfig(env);
+    const checks = [];
+    const record = (name, result) => checks.push({ name, ...result });
+
+    for (const [name, resource] of [
+        ["supabase_profiles", "profiles"],
+        ["supabase_aliases_table", "tempmail_user_aliases"]
+    ]) {
+        try {
+            record(name, await checkSupabaseRest(env, resource));
+        } catch (error) {
+            record(name, diagnosticsFailure(error));
+        }
+    }
+
+    const tempmailUrl = getTempmailProviderUrl(env);
+    if (!tempmailUrl) {
+        record("tempmail_provider", {
+            ok: false,
+            status: 0,
+            detail: "",
+            hint: "TEMPMAIL_API_URL belum di-set (atau bukan URL yang valid). Isi secret Cloudflare Worker / .dev.vars dengan URL API TempMail-MCP."
+        });
+    } else {
+        try {
+            const response = await fetchWithTimeout(
+                `${tempmailUrl}/api/providers`,
+                { headers: { "Accept": "application/json" } },
+                PROVIDER_TIMEOUT_MS
+            );
+            const payload = await readJsonSafe(response);
+            const providers = Array.isArray(payload)
+                ? payload.map(item => ({
+                    name: String(item?.name || ""),
+                    disabled: Boolean(item?.disabled),
+                    failures: Number(item?.failures || 0)
+                }))
+                : [];
+            const ok = response.ok && Array.isArray(payload);
+            let hint = "";
+            if (!ok) {
+                hint = "Endpoint /api/providers tidak membalas JSON. Pastikan TEMPMAIL_API_URL menunjuk ke server TempMail-MCP, bukan halaman HTML.";
+            } else if (providers.length && providers.every(item => item.disabled)) {
+                hint = "Semua provider sedang nonaktif (circuit breaker). Aktifkan lewat POST /api/providers/{name}/enable pada server TempMail-MCP.";
+            } else {
+                const preferred = getProviderCandidates(env)[0];
+                if (preferred !== "auto" && !providers.some(item => item.name === preferred)) {
+                    hint = `Provider '${preferred}' tidak terdaftar di server. Set TEMPMAIL_PROVIDER=auto untuk memakai fallback otomatis.`;
+                }
+            }
+            record("tempmail_provider", {
+                ok,
+                status: response.status,
+                detail: ok ? "" : `HTTP ${response.status}: ${describeErrorPayload(payload)}`,
+                providers,
+                hint
+            });
+        } catch (error) {
+            record("tempmail_provider", diagnosticsFailure(error));
+        }
+    }
+
+    const configOk = config.supabase_url && config.supabase_anon_key &&
+        config.supabase_service_role_key && config.tempmail_api_url;
+    return {
+        ok: Boolean(configOk) && checks.every(check => check.ok),
+        checkedAt: new Date().toISOString(),
+        config,
+        checks
+    };
+}
+
 export default async function handleTempmail(request, env) {
     if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -491,9 +672,9 @@ export default async function handleTempmail(request, env) {
     const email = url.searchParams.get("email");
     const messageId = url.searchParams.get("messageId");
 
-    if (!["alias", "create", "messages", "message"].includes(action)) {
+    if (!["alias", "status", "diagnostics", "create", "messages", "message"].includes(action)) {
         return jsonResponse(
-            { error: "Action tidak dikenal. Gunakan: alias, create, messages, atau message." },
+            { error: "Action tidak dikenal. Gunakan: alias, status, diagnostics, create, messages, atau message." },
             400
         );
     }
@@ -531,7 +712,11 @@ export default async function handleTempmail(request, env) {
     }
 
     try {
-        if (action === "alias") {
+        if (action === "diagnostics") {
+            return jsonResponse(await runDiagnostics(env));
+        }
+
+        if (action === "alias" || action === "status") {
             const existing = await getUserTempmailAlias(env, auth.user.id);
             return jsonResponse({
                 email: existing?.email || null,
@@ -572,6 +757,9 @@ export default async function handleTempmail(request, env) {
             ? error.message
             : "Gagal memproses TempMail. Periksa konfigurasi Supabase dan provider.";
         const status = Number(error?.status) || 502;
-        return jsonResponse({ error: message }, status);
+        const payload = { error: message };
+        if (error?.detail) payload.detail = safeSnippet(error.detail);
+        if (error?.hint) payload.hint = error.hint;
+        return jsonResponse(payload, status);
     }
 }
