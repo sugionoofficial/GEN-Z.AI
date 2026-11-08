@@ -26,6 +26,14 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 # OPENKEY_API_KEY=<key>
 # GITHUB_PAT=<token: untuk upscale Actions & Admin Copilot>
 #
+# TempMail (menu admin "TempMail" -> /email.html) — lihat TEMPMAIL-SETUP.md
+# URL API Tempmail-MCP yang sudah di-deploy (tanpa garis miring di akhir).
+# Tanpa nilai ini /api/tempmail membalas error konfigurasi.
+# TEMPMAIL_API_URL=https://tempmail.example.com
+# Provider yang dicoba lebih dulu (default: gmail). Boleh daftar dipisah koma;
+# "auto" selalu ditambahkan sebagai fallback provider sehat lain.
+# TEMPMAIL_PROVIDER=gmail
+
 # OpenClips — lihat OPENCLIPS-SETUP.md
 # OPENCLIPS_AUTH_TOKEN=<api-key-bearer-atau-json-oauth>
 # OPENCLIPS_WORKSPACE_ID=<workspace-integer-id-bila-akun-memiliki-beberapa-workspace>

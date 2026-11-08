@@ -183,9 +183,28 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .msg-meta span {
 }
 
 /* Body email tetap berlatar putih agar konten HTML dari pengirim
-   (logo, tabel, warna brand) tidak berubah tampilannya. */
-html[data-genz-theme="light"][data-genz-theme="light"] body .msg-body {
+   (logo, tabel, warna brand) tidak berubah tampilannya.
+   Sejak perbaikan TempMail, isi pesan dirender di dalam iframe
+   sandbox (#message-frame), bukan lagi innerHTML di halaman ini. */
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-frame {
+    border: 1px solid #dbe3ee !important;
+    background: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-text {
     border: 1px solid #dbe3ee !important;
     background: #ffffff !important;
     color: #101a2e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-attachment {
+    border: 1px solid #d3dde9 !important;
+    background: #f2f6fc !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inbox-meta,
+html[data-genz-theme="light"][data-genz-theme="light"] body .empty-state,
+html[data-genz-theme="light"][data-genz-theme="light"] body #message-list .msg-preview {
+    color: #58657b !important;
 }
