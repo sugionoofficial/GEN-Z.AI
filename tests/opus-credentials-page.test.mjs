@@ -13,7 +13,7 @@ function setup() {
         setAttribute(name, value) { this[name] = value; }
         focus() { this.focused = true; }
     }
-    const ids = ['status','credential-form','credential','slot-title','slot-state','previous-slot','next-slot','save','saved-slots'];
+    const ids = ['status','credential-form','credential','slot-title','slot-state','previous-slot','next-slot','save','saved-slots','last-slot','slot-number'];
     const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
     const document = {getElementById: id => elements[id], createElement: () => new Element()};
     let rows = [{slot: 1, id: 'one'}, {slot: 2, id: 'two'}], post;
@@ -64,4 +64,27 @@ test('minus only changes selection; deleting a saved slot requires confirmation'
     setConfirm(true); await el['saved-slots'].children[0].children[1].children[1].onclick();
     assert.equal(el['saved-slots'].children.length, 1);
     assert.equal(el.credential.disabled, false);
+});
+
+
+test('highest saved slot is shown and numeric entry selects the matching slot safely', async () => {
+    const {elements: el, getPost, setConfirm} = setup(); await tick();
+    assert.equal(el['last-slot'].textContent, 'Terakhir: _2');
+    el['slot-number'].value = '7'; el['slot-number'].oninput();
+    assert.equal(el['slot-title'].textContent, 'OPUS_AUTH_TOKEN_7');
+    assert.equal(el.credential.disabled, false);
+    el.credential.value = 'secret';
+    el['slot-number'].value = 'abc'; el['slot-number'].oninput();
+    assert.equal(el.save.disabled, true);
+    await el['credential-form'].onsubmit({preventDefault() {}});
+    assert.equal(getPost(), undefined);
+    setConfirm(false); el['slot-number'].value = '8'; el['slot-number'].oninput();
+    assert.equal(el['slot-number'].value, '7'); assert.equal(el.credential.value, 'secret');
+    await el['credential-form'].onsubmit({preventDefault() {}});
+    assert.equal(getPost().slot, 7); assert.equal(el['last-slot'].textContent, 'Terakhir: _7');
+    el['slot-number'].value = '2'; el['slot-number'].oninput();
+    assert.equal(el.credential.disabled, true); // Existing slots still require explicit Edit.
+    setConfirm(true); el['saved-slots'].children[2].children[1].children[1].onclick();
+    await tick();
+    assert.equal(el['last-slot'].textContent, 'Terakhir: _2');
 });
