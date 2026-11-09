@@ -23,7 +23,7 @@
 | **NSFW Filter** | Server-side content moderation (SightEngine) |
 | **Admin Panel** | Kelola user, model, kredit, dan provider credentials |
 | **Admin Copilot** | Asisten OpenKey untuk membaca dan mengubah repo melalui branch, PR, dan merge ber-CI |
-| **TempMail** | Email @gmail.com sementara untuk verifikasi akun (khusus admin/owner), alias tersimpan per user |
+| **TempMail** | Email sementara untuk verifikasi akun (khusus admin/owner), alias tersimpan per user. Untuk `@gmail.com`, `TEMPMAIL_API_URL` wajib menunjuk ke Tempmail-MCP di host persisten (bukan Codespace). Mode **built-in mail.tm** opsional lewat `TEMPMAIL_PROVIDER=mailtm` bila domain Gmail tidak wajib |
 
 ---
 
@@ -303,9 +303,13 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-secret-key
 # Default: https://dashscope-intl.aliyuncs.com/api/v1
 # DASHSCOPE_BASE_URL=https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/api/v1
 
-# Optional: TempMail (menu admin "TempMail") — lihat TEMPMAIL-SETUP.md
+# TempMail (menu admin "TempMail") — lihat TEMPMAIL-SETUP.md
+# WAJIB untuk alamat @gmail.com: deploy Tempmail-MCP ke host HTTPS persisten
+# (VPS / Cloudflare Tunnel / Render / Railway), BUKAN Codespaces *.app.github.dev.
 # TEMPMAIL_API_URL=https://tempmail.example.com
 # TEMPMAIL_PROVIDER=gmail
+# Opsi non-Gmail tanpa service luar: built-in mail.tm
+# TEMPMAIL_PROVIDER=mailtm
 ```
 
 > **Penting**: Jangan pernah commit `.env` atau service role key ke repository.

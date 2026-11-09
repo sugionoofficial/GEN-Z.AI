@@ -27,17 +27,26 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 # GITHUB_PAT=<token: untuk upscale Actions & Admin Copilot>
 #
 # TempMail (menu admin "TempMail" -> /email.html) — lihat TEMPMAIL-SETUP.md
-# URL API Tempmail-MCP yang sudah di-deploy (tanpa garis miring di akhir).
-# Tanpa nilai ini /api/tempmail membalas error konfigurasi.
+# WAJIB untuk alamat @gmail.com. Deploy Tempmail-MCP ke host HTTPS
+# persisten (VPS / Cloudflare Tunnel / Render / Railway), BUKAN repo GitHub
+# dan BUKAN port-forward Codespaces *.app.github.dev.
 # TEMPMAIL_API_URL=https://tempmail.example.com
+# Opsi non-Gmail tanpa service luar: TEMPMAIL_PROVIDER=mailtm memakai
+# built-in mail.tm langsung dari Worker (alamat bukan @gmail.com).
 # Provider yang dicoba lebih dulu (default: gmail). Boleh daftar dipisah koma;
 # "auto" selalu ditambahkan sebagai fallback provider sehat lain.
 # TEMPMAIL_PROVIDER=gmail
+# Paksa mode bawaan walaupun secret diisi: TEMPMAIL_PROVIDER=mailtm
 #
 # Cek konfigurasi tanpa membocorkan secret:
 #   GET /api/tempmail?action=diagnostics (atau tombol "Cek Konfigurasi" di /email.html)
 # Diagnostik memprobe /api/health, /api/providers (opsional), /openapi.json.
 # 404 pada /api/providers TIDAK berarti rusak bila endpoint inti terdeteksi.
+# Bila KETIGA probe 404 non-JSON: host-nya mati/salah. Cek dulu:
+#   curl -i https://<host>/api/health   (harus 200 JSON, bukan HTML 404)
+# Jangan isi dengan domain aplikasi / Worker genzai.genzai-f37.workers.dev.
+# Jangan pula memakai URL Codespaces *.app.github.dev untuk produksi:
+# ephemeral, port default Private, dan berubah saat Codespace dibuat ulang.
 # Endpoint provider yang dipakai: POST /api/email, GET /api/email/{email}/messages,
 # GET /api/email/{email}/message/{id}, GET /api/providers.
 

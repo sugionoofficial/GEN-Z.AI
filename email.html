@@ -240,8 +240,8 @@
   <!-- Container konten -->
   <div class="email-container">
 
-    <h1>GEN-Z.AI — Temp Gmail</h1>
-    <div class="subtitle">Generate email @gmail.com sementara untuk verifikasi &amp; testing.</div>
+    <h1>GEN-Z.AI — TempMail</h1>
+    <div class="subtitle">Generate email sementara untuk verifikasi &amp; testing.</div>
 
     <div>
       <button id="btn-generate" type="button">📧 Buat Email</button>
@@ -253,6 +253,7 @@
 
     <div id="diagnostics" class="box hidden">
       <h3>🔍 Diagnostik TempMail</h3>
+      <button id="btn-copy-probe" type="button" class="secondary">📋 Salin perintah cek</button>
       <div id="diagnostics-list"></div>
     </div>
 
@@ -323,6 +324,7 @@
       const BODY_CSP = "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; font-src https: data:; form-action 'none'; base-uri 'none'";
 
       let currentEmail = "";
+      let lastDiagnosticsConfig = null;
       let autoRefreshTimer = null;
       let refreshInFlight = null;
       let lastMessageCount = -1;
@@ -346,6 +348,7 @@
       const messageFrame = document.getElementById("message-frame");
       const messageText = document.getElementById("message-text");
       const btnDiagnostics = document.getElementById("btn-diagnostics");
+      const btnCopyProbe = document.getElementById("btn-copy-probe");
       const diagnosticsBox = document.getElementById("diagnostics");
       const diagnosticsList = document.getElementById("diagnostics-list");
 
@@ -753,6 +756,7 @@
       }
 
       function renderDiagnostics(data) {
+        lastDiagnosticsConfig = data?.config || null;
         diagnosticsList.replaceChildren();
         appendDiagnosticsLine(
           diagnosticsList,
@@ -767,9 +771,24 @@
             " · ANON_KEY=" + Boolean(config.supabase_anon_key) +
             " · SERVICE_ROLE_KEY=" + Boolean(config.supabase_service_role_key) +
             " · TEMPMAIL_API_URL=" + Boolean(config.tempmail_api_url) +
+            (config.builtin_mailtm ? " · mode=built-in mail.tm (tanpa secret)" : "") +
             (config.tempmail_api_host ? " (" + config.tempmail_api_host + ")" : "") +
             (config.tempmail_api_self_reference ? " ⚠️ self-reference" : "") +
+            (config.tempmail_api_repository_url ? " ⚠️ URL repo, bukan host API" : "") +
+            (config.tempmail_api_codespaces_url ? " ⚠️ Codespaces/ephemeral" : "") +
+            (config.tempmail_api_scheme === "http" ? " ⚠️ pakai https" : "") +
+            " · app=" + (config.app_host || "-") +
             " · provider=" + (config.preferred_provider || "gmail"),
+          "msg-meta"
+        );
+
+        appendDiagnosticsLine(
+          diagnosticsList,
+          "Perintah cek: " + (config.tempmail_api_base_url
+            ? "curl -i " + config.tempmail_api_base_url + "/api/health"
+            : config.builtin_mailtm
+              ? "curl -i https://api.mail.tm/domains"
+              : "curl -i https://<host-tempmail>/api/health"),
           "msg-meta"
         );
 
@@ -789,6 +808,20 @@
               (entry.json ? " (JSON)" : " (non-JSON)")
             ).join(", ");
             appendDiagnosticsLine(item, "Probe: " + probeLine, "msg-meta");
+            const failedProbe = check.endpoints.find(entry => !entry.json && (entry.sample || entry.error || entry.content_type));
+            if (failedProbe) {
+              appendDiagnosticsLine(
+                item,
+                "Balasan: " + (failedProbe.content_type || "tanpa Content-Type") +
+                  " · Cuplikan: " + String(failedProbe.sample || failedProbe.error || "(body kosong)"),
+                "msg-meta"
+              );
+            }
+          }
+          if (Array.isArray(check.steps)) {
+            for (const step of check.steps) {
+              appendDiagnosticsLine(item, "→ " + String(step), "msg-meta");
+            }
           }
           if (check.capabilities && Object.keys(check.capabilities).length) {
             const caps = check.capabilities;
@@ -804,17 +837,39 @@
           if (Array.isArray(check.providers)) {
             const providersMissing = Array.isArray(check.endpoints) &&
               check.endpoints.some(entry => entry.path === "/api/providers" && entry.status === 404);
+            const caps = check.capabilities || {};
+            const apiDetected = Boolean(check.ok) ||
+              (Array.isArray(check.endpoints) && check.endpoints.some(entry =>
+                entry.json && entry.status >= 200 && entry.status < 300)) ||
+              Boolean(caps.create_email || caps.messages || caps.health);
             const list = check.providers.length
               ? check.providers.map(entry => entry.name + (entry.disabled ? " (nonaktif)" : " (aktif)")).join(", ")
-              : (providersMissing
+              : (providersMissing && apiDetected
                   ? "/api/providers tidak tersedia (endpoint opsional, bukan kerusakan)"
-                  : "tidak ada data provider");
+                  : config.builtin_mailtm
+                    ? "tidak ada data provider — periksa koneksi mail.tm dan langkah di atas"
+                    : "tidak ada data provider — periksa TEMPMAIL_API_URL dan langkah di atas");
             appendDiagnosticsLine(item, "Provider: " + list, "msg-meta");
           }
           diagnosticsList.appendChild(item);
         }
         diagnosticsBox.classList.remove("hidden");
       }
+
+      btnCopyProbe.addEventListener("click", async () => {
+        const baseUrl = lastDiagnosticsConfig?.tempmail_api_base_url;
+        const command = baseUrl
+          ? "curl -i " + baseUrl + "/api/health"
+          : lastDiagnosticsConfig?.builtin_mailtm
+            ? "curl -i https://api.mail.tm/domains"
+            : "npx wrangler@4 secret put TEMPMAIL_API_URL";
+        try {
+          await navigator.clipboard.writeText(command);
+          setStatus("✅ Perintah disalin: " + command, "success");
+        } catch {
+          setStatus("Perintah cek: " + command, "success");
+        }
+      });
 
       btnDiagnostics.addEventListener("click", async () => {
         setLoading(btnDiagnostics, true, "Memeriksa...");

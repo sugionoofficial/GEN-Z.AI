@@ -35,7 +35,7 @@ const RECOMMENDED = [
    kosong, halaman tetap terbuka tetapi API-nya gagal — lebih baik diperingatkan
    sejak awal daripada admin melihat error generik di browser. */
 const FEATURE_FLAGS = [
-    { name: "TEMPMAIL_API_URL", hint: "URL server TempMail-MCP; tanpa ini menu TempMail (/email.html) gagal" }
+    { name: "TEMPMAIL_API_URL", hint: "wajib untuk @gmail.com: URL Tempmail-MCP persisten (bukan Codespaces). Tanpa ini, set TEMPMAIL_PROVIDER=mailtm bila cukup built-in mail.tm non-Gmail" }
 ];
 
 const TEMPLATE = `# .dev.vars — secret lokal untuk \`npm run dev\` (JANGAN di-commit)
@@ -49,7 +49,7 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 # SIGHTENGINE_API_SECRET=<secret>
 # OPENKEY_API_KEY=<key>
 # GITHUB_PAT=<token-untuk-upscale-dan-admin-copilot>
-# TEMPMAIL_API_URL=<https://host-tempmail-mcp>
+# TEMPMAIL_API_URL=<https://host-tempmail-mcp>   # opsional; kosong = built-in mail.tm
 `;
 
 function parseDevVars(text) {
@@ -124,7 +124,7 @@ if (missingRecommended.length) {
 
 const missingFeatures = FEATURE_FLAGS.filter(item => !values.get(item.name));
 if (missingFeatures.length) {
-    console.warn("   Fitur berikut belum dikonfigurasi (halaman bisa dibuka, API akan gagal):");
+    console.warn("   Variabel berikut belum diisi (perlu dicek sesuai mode provider):");
     for (const item of missingFeatures) {
         console.warn(`   - ${item.name}   (${item.hint})`);
     }

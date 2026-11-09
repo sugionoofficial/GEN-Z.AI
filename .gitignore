@@ -443,3 +443,7 @@ supabase/backup/
 
 # Token OAuth lokal Opus Labs hasil `npm run opus:login` (JANGAN di-commit)
 .opus-auth-token.json
+
+# Deploy Tempmail-MCP lokal: jangan commit .env maupun hasil clone upstream
+deploy/tempmail-mcp/.env
+deploy/tempmail-mcp/Tempmail-MCP/

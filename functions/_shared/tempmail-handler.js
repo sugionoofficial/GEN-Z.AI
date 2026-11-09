@@ -2,7 +2,8 @@
    GEN-Z.AI — TEMPMAIL HANDLER
    ---------------------------------------------------------
    Endpoint: /api/tempmail
-   Provider: Tempmail-MCP (self-hosted REST API)
+   Provider: built-in mail.tm (default, tanpa secret) atau
+             Tempmail-MCP (opsional lewat TEMPMAIL_API_URL)
 
    Action yang didukung:
    - GET  action=alias     -> alias milik user (tanpa membuat baru)
@@ -15,18 +16,32 @@
    Prinsip:
    1. Hanya role admin/owner (diverifikasi ulang di server).
    2. Alias selalu terikat user_id -> tidak bisa saling intip.
-   3. Provider dipilih dari TEMPMAIL_PROVIDER (default: gmail),
-      dengan fallback otomatis ke provider sehat lain bila
-      provider utama sedang down/disabled.
+   3. Bila TEMPMAIL_API_URL kosong, Worker memakai provider bawaan
+      mail.tm secara server-side (tidak perlu Codespace/service luar).
+      Bila secret diisi, kandidat TEMPMAIL_PROVIDER dipakai seperti
+      sebelumnya dengan fallback ke provider sehat lain.
    4. Semua request keluar memakai timeout agar Worker tidak
       menggantung saat provider/Supabase lambat.
 ========================================================= */
+
+import {
+    MAILTM_PROVIDER,
+    createMailtmAlias,
+    refreshMailtmToken,
+    serializeMailtmCredentials,
+    parseMailtmCredentials,
+    checkMailtmHealth,
+    fetchMailtmMessages,
+    fetchMailtmMessage
+} from "./mailtm-provider.js";
 
 const SUPABASE_TIMEOUT_MS = 12000;
 const PROVIDER_TIMEOUT_MS = 20000;
 const DIAGNOSTICS_TIMEOUT_MS = 8000;
 const ALIAS_SAVE_ATTEMPTS = 3;
 const TEMPMAIL_PROVIDER_DEFAULT = "gmail";
+const MISSING_TEMPMAIL_URL_HINT =
+    "TEMPMAIL_API_URL belum di-set. Untuk alamat @gmail.com, deploy Tempmail-MCP ke host HTTPS persisten (VPS / Cloudflare Tunnel / Render / Railway), lalu set secret ini. Jangan pakai URL repo GitHub atau port-forward Codespaces *.app.github.dev. Bila @gmail.com tidak wajib, set TEMPMAIL_PROVIDER=mailtm untuk memakai provider bawaan mail.tm.";
 
 const CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
@@ -75,6 +90,17 @@ function safeSnippet(value, max = 300) {
         .replace(/\s{2,}/g, " ")
         .trim()
         .slice(0, max);
+}
+
+function safePublicBaseUrl(rawUrl) {
+    try {
+        const url = new URL(String(rawUrl || ""));
+        if (!url.protocol || !url.host) return "";
+        const path = url.pathname.replace(/\/+$/, "");
+        return `${url.protocol}//${url.host}${path}`;
+    } catch {
+        return "";
+    }
 }
 
 function describeErrorPayload(payload) {
@@ -163,6 +189,26 @@ function getProviderCandidates(env) {
     if (!configured.includes("auto")) configured.push("auto");
 
     return [...new Set(configured)];
+}
+
+function hasExternalTempmailProvider(env) {
+    return Boolean(getTempmailProviderUrl(env));
+}
+
+function isBuiltinMailtmEnabled(env) {
+    /* OPSIONAL: jangan otomatis mengganti @gmail.com ke mail.tm.
+       Admin yang butuh @gmail.com wajib memakai Mode B Tempmail-MCP. */
+    return String(env.TEMPMAIL_PROVIDER ?? "")
+        .split(",")
+        .map(item => item.trim().toLowerCase())
+        .filter(Boolean)
+        .includes(MAILTM_PROVIDER);
+}
+
+function getAliasProviderCandidates(env) {
+    const external = getProviderCandidates(env);
+    if (!isBuiltinMailtmEnabled(env)) return external;
+    return [MAILTM_PROVIDER, ...external.filter(item => item !== MAILTM_PROVIDER)];
 }
 
 async function getTempmailUser(request, env) {
@@ -351,10 +397,44 @@ async function saveUserTempmailAlias(env, userId, alias) {
     return normalizeAlias(await getUserTempmailAlias(env, userId));
 }
 
+async function updateUserTempmailToken(env, email, token) {
+    const { supabaseUrl, serviceRoleKey } = getTempmailDatabaseConfig(env);
+    const url = new URL(`${supabaseUrl}/rest/v1/tempmail_user_aliases`);
+    url.searchParams.set("email", `eq.${email}`);
+
+    const response = await fetchWithTimeout(
+        url,
+        {
+            method: "PATCH",
+            headers: {
+                "apikey": serviceRoleKey,
+                "Authorization": `Bearer ${serviceRoleKey}`,
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal"
+            },
+            body: JSON.stringify({ token })
+        },
+        SUPABASE_TIMEOUT_MS
+    );
+
+    if (!response.ok) {
+        const payload = await readJsonSafe(response);
+        const error = new Error("Gagal memperbarui token mail.tm di database TempMail.");
+        error.status = 502;
+        error.detail = describeErrorPayload(payload);
+        error.hint = supabaseRestHint(response, payload, "tempmail_user_aliases");
+        throw error;
+    }
+}
+
 async function createProviderAlias(env, providerName) {
+    if (providerName === MAILTM_PROVIDER) {
+        return createMailtmAlias();
+    }
+
     const tempmailUrl = getTempmailProviderUrl(env);
     if (!tempmailUrl) {
-        throw configError("TEMPMAIL_API_URL belum di-set. Hubungi admin untuk konfigurasi provider TempMail.");
+        throw configError(MISSING_TEMPMAIL_URL_HINT);
     }
 
     const target = providerName === "auto"
@@ -383,7 +463,7 @@ async function createProviderAlias(env, providerName) {
 }
 
 async function createUserAlias(env, userId) {
-    const candidates = getProviderCandidates(env);
+    const candidates = getAliasProviderCandidates(env);
     const failures = [];
 
     for (const providerName of candidates) {
@@ -484,10 +564,40 @@ function mapProviderStatus(status) {
     return 502;
 }
 
+async function requestBuiltinMailtm(env, alias, action, messageId) {
+    const credentials = parseMailtmCredentials(alias.token);
+    if (!credentials.token) {
+        throw configError("Kredensial mail.tm untuk alias ini tidak lengkap. Buat ulang email TempMail.");
+    }
+
+    const read = token => action === "messages"
+        ? fetchMailtmMessages(token)
+        : fetchMailtmMessage(token, messageId);
+
+    try {
+        return await read(credentials.token);
+    } catch (error) {
+        if (credentials.password && error?.providerStatus === 401) {
+            const freshToken = await refreshMailtmToken(alias.email, credentials.password);
+            await updateUserTempmailToken(
+                env,
+                alias.email,
+                serializeMailtmCredentials(freshToken, credentials.password)
+            );
+            return await read(freshToken);
+        }
+        throw error;
+    }
+}
+
 async function requestProviderTempmail(env, alias, action, messageId) {
+    if (alias.provider === MAILTM_PROVIDER) {
+        return requestBuiltinMailtm(env, alias, action, messageId);
+    }
+
     const tempmailUrl = getTempmailProviderUrl(env);
     if (!tempmailUrl) {
-        throw configError("TEMPMAIL_API_URL belum di-set. Hubungi admin untuk konfigurasi provider TempMail.");
+        throw configError(MISSING_TEMPMAIL_URL_HINT);
     }
 
     const provider = encodeURIComponent(alias.provider || TEMPMAIL_PROVIDER_DEFAULT);
@@ -539,21 +649,71 @@ function getDiagnosticsConfig(env, requestUrl) {
     const { supabaseUrl, anonKey, serviceRoleKey } = getSupabaseConfig(env);
     const tempmailUrl = getTempmailProviderUrl(env);
     let host = null;
-    let selfReference = false;
+    let publicBaseUrl = "";
+    let scheme = null;
+    let port = null;
+    let codespacesUrl = false;
+    let appHost = null;
+    const knownAppHosts = new Set();
+
     try {
-        host = tempmailUrl ? new URL(tempmailUrl).host : null;
-        const appHost = new URL(requestUrl).host;
-        selfReference = Boolean(host && host === appHost);
+        appHost = new URL(requestUrl).host;
+        knownAppHosts.add(appHost);
     } catch {
-        /* URL tidak valid / request URL tidak tersedia */
+        /* request URL tidak tersedia */
     }
+    /* Domain Worker sendiri / site URL sering dipakai keliru sebagai
+       TEMPMAIL_API_URL. `META_REDIRECT_URI` ada di wrangler.toml [vars]. */
+    for (const key of ["META_REDIRECT_URI", "SITE_URL", "PUBLIC_SITE_URL", "APP_URL"]) {
+        try {
+            const candidate = new URL(String(env[key] || "")).host;
+            if (candidate) knownAppHosts.add(candidate);
+        } catch {
+            /* variabel kosong / bukan URL */
+        }
+    }
+    try {
+        if (tempmailUrl) {
+            const parsed = new URL(tempmailUrl);
+            host = parsed.host;
+            publicBaseUrl = safePublicBaseUrl(parsed.toString());
+            scheme = parsed.protocol.replace(/:$/, "") || null;
+            /* Port Codespaces ada di hostname (-8000), bukan di URL.port. */
+            const codespacePort = parsed.hostname.match(
+                /-(\d+)\.(?:app\.github\.dev|githubpreview\.dev)$/
+            );
+            port = parsed.port || (codespacePort ? codespacePort[1] : null);
+            /* <codespace>-<port>.app.github.dev = port-forward GitHub
+               Codespaces. Ephemeral, sering privat, dan berubah saat
+               Codespace dibuat ulang — tidak cocok untuk Worker produksi. */
+            codespacesUrl = /\.(app\.github\.dev|githubpreview\.dev)$/.test(parsed.hostname);
+        }
+    } catch {
+        /* TEMPMAIL_API_URL bukan URL valid */
+    }
+    /* URL repo kode (github.com / raw / gist / GitLab / Bitbucket) sering
+       keliru diisi sebagai TEMPMAIL_API_URL. Repo bukan server HTTP API. */
+    const sourceRepoHosts = new Set([
+        "github.com", "www.github.com", "raw.githubusercontent.com",
+        "gist.github.com", "gitlab.com", "bitbucket.org"
+    ]);
+
     return {
         supabase_url: Boolean(supabaseUrl),
         supabase_anon_key: Boolean(anonKey),
         supabase_service_role_key: Boolean(serviceRoleKey),
         tempmail_api_url: Boolean(tempmailUrl),
+        builtin_mailtm: isBuiltinMailtmEnabled(env),
         tempmail_api_host: host,
-        tempmail_api_self_reference: selfReference,
+        tempmail_api_base_url: publicBaseUrl || null,
+        tempmail_api_scheme: scheme,
+        tempmail_api_port: port,
+        tempmail_api_codespaces_url: codespacesUrl,
+        tempmail_api_repository_url: Boolean(
+            host && (sourceRepoHosts.has(host) || host.endsWith(".github.io"))
+        ),
+        app_host: appHost,
+        tempmail_api_self_reference: Boolean(host && knownAppHosts.has(host)),
         preferred_provider: getProviderCandidates(env).join(",")
     };
 }
@@ -593,7 +753,15 @@ async function checkSupabaseRest(env, resource) {
  * menyatakan konfigurasi rusak hanya karena satu endpoint 404.
  */
 async function probeProviderEndpoint(target, path) {
-    const result = { path, status: 0, json: false, payload: null, error: "" };
+    const result = {
+        path,
+        status: 0,
+        json: false,
+        payload: null,
+        contentType: "",
+        sample: "",
+        error: ""
+    };
     try {
         const response = await fetchWithTimeout(
             target,
@@ -601,10 +769,23 @@ async function probeProviderEndpoint(target, path) {
             DIAGNOSTICS_TIMEOUT_MS
         );
         result.status = response.status;
-        const payload = await readJsonSafe(response);
+        result.contentType = String(response.headers.get("Content-Type") || "").slice(0, 120);
+        const text = await response.text();
+        let payload = null;
+        if (text && text.trim()) {
+            try {
+                payload = JSON.parse(text);
+            } catch {
+                /* halaman HTML / plain text 404 */
+            }
+        }
         if (payload !== null && payload !== undefined) {
             result.json = true;
             result.payload = payload;
+        } else {
+            /* Cuplikan body sudah dibuang tag HTML-nya dan disamarkan,
+               supaya admin bisa melihat "nginx 404", "Vercel", dll. */
+            result.sample = safeSnippet(String(text || "").replace(/<[^>]*>/g, " "), 180);
         }
     } catch (error) {
         result.error = safeSnippet(error?.message || String(error), 160);
@@ -637,7 +818,7 @@ async function checkTempmailProvider(env, config) {
 
     if (!tempmailUrl) {
         return emptyResult(
-            "TEMPMAIL_API_URL belum di-set (atau bukan URL yang valid). Isi secret Cloudflare Worker / .dev.vars dengan URL API TempMail-MCP."
+            MISSING_TEMPMAIL_URL_HINT
         );
     }
 
@@ -655,6 +836,10 @@ async function checkTempmailProvider(env, config) {
             path: probe.path,
             status: probe.status,
             json: probe.json,
+            ...(probe.json ? {} : {
+                content_type: probe.contentType,
+                sample: probe.sample
+            }),
             ...(probe.error ? { error: probe.error } : {})
         });
     }
@@ -682,15 +867,57 @@ async function checkTempmailProvider(env, config) {
     const anyJson = probes.some(probe => probe.json);
     const apiRecognized = successful.length > 0 ||
         capabilities.create_email || capabilities.messages;
-    const ok = Boolean(apiRecognized) && !config.tempmail_api_self_reference;
+    const ok = Boolean(apiRecognized) && !config.tempmail_api_self_reference && !config.tempmail_api_repository_url;
 
     let hint = "";
+    let steps = [];
+    const publicBaseUrl = config.tempmail_api_base_url || "https://<host-tempmail>";
+    const curlCommand = `curl -i ${publicBaseUrl}/api/health`;
+    const allNonJson = !anyJson;
     if (config.tempmail_api_self_reference) {
-        hint = `TEMPMAIL_API_URL mengarah ke domain aplikasi ini sendiri (${config.tempmail_api_host}). Ganti dengan host server TempMail-MCP yang terpisah, bukan domain GEN-Z.AI.`;
-    } else if (!anyJson) {
-        hint = "Semua endpoint diagnostik membalas non-JSON (halaman 404 HTML / domain salah). Pastikan TEMPMAIL_API_URL menunjuk ke URL dasar API TempMail-MCP; bila API dipasang di sub-path, sertakan sub-path itu pada nilainya.";
+        hint = `TEMPMAIL_API_URL mengarah ke domain aplikasi GEN-Z.AI sendiri (${config.tempmail_api_host}); Worker ini tidak punya route /api/health, /api/providers, atau /openapi.json. Ganti dengan host server TempMail-MCP yang terpisah.`;
+        steps = [
+            `Host aplikasi: ${config.app_host || "(tidak diketahui)"} · host provider saat ini: ${config.tempmail_api_host}.`,
+            "Deploy/aktifkan server Tempmail-MCP, lalu catat URL dasar API-nya (tanpa /api di akhir).",
+            "npx wrangler@4 secret put TEMPMAIL_API_URL",
+            curlCommand
+        ];
+    } else if (config.tempmail_api_repository_url) {
+        hint = `TEMPMAIL_API_URL berisi URL repositori kode (${config.tempmail_api_host}), bukan URL server yang menjalankan FastAPI. Repo Tempmail-MCP hanya memuat source + Dockerfile; README tidak mencantumkan host deploy dan repo tidak punya workflow deploy.`;
+        steps = [
+            "Clone: git clone https://github.com/sugionoofficial/Tempmail-MCP.git",
+            "Jalankan: cd Tempmail-MCP && docker compose up -d (API lokal di http://localhost:8000/api/health).",
+            "Expose ke HTTPS publik (VPS/reverse proxy/Cloudflare Tunnel/Render/Railway) — Worker Cloudflare tidak bisa memanggil localhost.",
+            "Verifikasi: curl -i https://<host>/api/health harus 200 JSON (bukan HTML 404).",
+            "Set ulang: npx wrangler@4 secret put TEMPMAIL_API_URL",
+            "Nilai = URL dasar server, tanpa /api di akhir; sertakan sub-path bila API dipasang di belakang reverse proxy."
+        ];
+    } else if (!apiRecognized && config.tempmail_api_codespaces_url) {
+        const forwardedPort = config.tempmail_api_port || "8000";
+        const schemeWarning = config.tempmail_api_scheme === "http"
+            ? " Skema secret saat ini http://; pakai https://."
+            : "";
+        hint = `TEMPMAIL_API_URL memakai URL port-forward GitHub Codespaces (${config.tempmail_api_host}). URL ini ephemeral: hanya hidup saat Codespace menyala, port ${forwardedPort} harus di-forward dengan visibility Public, dan hostname berubah bila Codespace dibuat ulang. Worker Cloudflare tidak bisa menjangkau port privat/stopped, sehingga ketiga probe membalas 404 HTML.${schemeWarning}`;
+        steps = [
+            `Di dalam Codespace: curl -i http://localhost:${forwardedPort}/api/health → harus 200 JSON.`,
+            "Pastikan service jalan: cd Tempmail-MCP && docker compose up -d.",
+            `Di tab Ports, set port ${forwardedPort} ke Public (default Private) dan jangan stop Codespace.`,
+            `Verifikasi dari luar: ${curlCommand} → harus 200 JSON, bukan HTML 404.`,
+            "Untuk produksi, pindahkan ke host persisten (VPS + reverse proxy / Cloudflare Tunnel / Render / Railway).",
+            "npx wrangler@4 secret put TEMPMAIL_API_URL lalu isi URL dasar HTTPS yang persisten (tanpa /api di akhir)."
+        ];
     } else if (!apiRecognized) {
-        hint = "Host merespons JSON tetapi tidak ada endpoint yang dikenal (2xx). Periksa versi/deployment TempMail-MCP atau path dasar TEMPMAIL_API_URL.";
+        hint = allNonJson
+            ? `Semua endpoint diagnostik membalas non-JSON (halaman 404 HTML / domain salah) pada host ${config.tempmail_api_host || "(tidak valid)"}. Ini bukan server API TempMail-MCP yang aktif. Pastikan TEMPMAIL_API_URL menunjuk ke URL dasar API TempMail-MCP; bila API dipasang di sub-path, sertakan sub-path itu pada nilainya.`
+            : `Host ${config.tempmail_api_host || "(tidak valid)"} membalas JSON error/404 tanpa endpoint inti yang dikenal. Pastikan TEMPMAIL_API_URL menunjuk ke URL dasar API TempMail-MCP; bila API dipasang di sub-path, sertakan sub-path itu pada nilainya.`;
+        steps = [
+            `Verifikasi host dari terminal: ${curlCommand} (harus 200 JSON, bukan HTML 404).`,
+            "Bila service mati / domain lama: deploy ulang Tempmail-MCP lalu pakai domain barunya.",
+            "Set ulang secret: npx wrangler@4 secret put TEMPMAIL_API_URL",
+            "Nilai harus URL DASAR API (mis. https://host atau https://host/prefix), jangan tambahkan /api di akhir.",
+            `Jangan isi dengan domain aplikasi GEN-Z.AI (${config.app_host || "domain ini"}), Worker genzai.genzai-f37.workers.dev, atau URL repo GitHub.`,
+            "Bila server hanya membuka POST /api/email (tanpa endpoint GET diagnostik), klik Buat Email untuk uji langsung."
+        ];
     } else if (providersProbe.status === 404) {
         hint = "Endpoint opsional /api/providers tidak tersedia (HTTP 404) pada versi server ini, tetapi endpoint inti terdeteksi. Ini BUKAN kerusakan: fitur Buat Email/Inbox tetap bisa dipakai. Aktifkan /api/providers hanya bila ingin memantau status provider.";
     } else if (providers.length && providers.every(item => item.disabled)) {
@@ -707,6 +934,11 @@ async function checkTempmailProvider(env, config) {
         detail = describeProbeStatuses(endpoints);
         const informative = probes.find(probe => probe.json && probe.payload);
         if (informative) detail += ` · ${describeErrorPayload(informative.payload)}`;
+        const nonJson = probes.find(probe => !probe.json && (probe.contentType || probe.sample || probe.error));
+        if (nonJson) {
+            detail += ` · ${nonJson.contentType ? `Content-Type: ${nonJson.contentType}` : "tanpa Content-Type"}` +
+                `; Cuplikan: ${nonJson.sample || nonJson.error || "(body kosong)"}`;
+        }
     } else if (providersProbe.status === 404) {
         detail = `/api/providers = HTTP 404 (endpoint opsional). Probe: ${describeProbeStatuses(endpoints)}`;
     }
@@ -722,6 +954,7 @@ async function checkTempmailProvider(env, config) {
         providers,
         endpoints,
         capabilities,
+        ...(steps.length ? { steps } : {}),
         ...(openapiPaths.length ? { openapi_paths: openapiPaths.slice(0, 12) } : {})
     };
 }
@@ -752,14 +985,19 @@ async function runDiagnostics(env, requestUrl) {
     }
 
     try {
-        record("tempmail_provider", await checkTempmailProvider(env, config));
+        if (config.builtin_mailtm) {
+            record("builtin_mailtm", await checkMailtmHealth());
+        } else {
+            record("tempmail_provider", await checkTempmailProvider(env, config));
+        }
     } catch (error) {
-        record("tempmail_provider", diagnosticsFailure(error));
+        record(config.builtin_mailtm ? "builtin_mailtm" : "tempmail_provider", diagnosticsFailure(error));
     }
 
+    const providerReady = config.builtin_mailtm ||
+        (config.tempmail_api_url && !config.tempmail_api_self_reference);
     const configOk = config.supabase_url && config.supabase_anon_key &&
-        config.supabase_service_role_key && config.tempmail_api_url &&
-        !config.tempmail_api_self_reference;
+        config.supabase_service_role_key && providerReady;
     return {
         ok: Boolean(configOk) && checks.every(check => check.ok),
         checkedAt: new Date().toISOString(),
