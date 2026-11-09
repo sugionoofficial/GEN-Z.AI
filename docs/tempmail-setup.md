@@ -65,7 +65,8 @@ disamarkan sebelum dikirim ke browser maupun log Worker.
 | `Gagal membaca pemetaan alias TempMail (HTTP 404). … PGRST205` | `tempmail_user_aliases` | Jalankan [`supabase/tempmail-user-aliases.sql`](../supabase/tempmail-user-aliases.sql); file sudah menyertakan `pg_notify('pgrst', 'reload schema')` |
 | `Gagal menyimpan alias TempMail. …` (409 ditangani khusus) | insert alias | 409 = email bentrok dengan user lain → otomatis diulang (maks. 3× per provider) |
 | `TEMPMAIL_API_URL belum di-set. …` | provider | `npx wrangler@4 secret put TEMPMAIL_API_URL` (URL API Tempmail-MCP, bukan halaman UI) |
-| `Provider gagal membuat email sementara. (HTTP 503: …)` | provider | Lihat `GET /api/providers`; aktifkan provider atau set `TEMPMAIL_PROVIDER=auto` |
+| `Provider gagal membuat email sementara. (HTTP 503: …)` | provider | Lihat `GET /api/providers` (bila tersedia); aktifkan provider atau set `TEMPMAIL_PROVIDER=auto` |
+| `tempmail_provider · HTTP 404` di diagnostik | introspection | Cek `endpoints`/`capabilities`: bila `/api/health` atau `/openapi.json` JSON 2xx, abaikan; bila semua non-JSON, perbaiki `TEMPMAIL_API_URL` |
 | `Provider TempMail gagal memproses permintaan. (HTTP …)` | inbox | Cek token/alias tersimpan & status server provider |
 | `Permintaan timeout setelah 20 detik. Coba lagi.` | jaringan | Cek cold start / ketersediaan host provider |
 | `Session tidak valid atau sudah kedaluwarsa.` | browser | Login ulang; samakan `assets/js/config.js` dengan `SUPABASE_URL` Worker |
@@ -75,6 +76,51 @@ Pesan lama `Gagal memproses TempMail. Periksa konfigurasi Supabase dan
 provider.` kini hanya muncul untuk kesalahan tak terduga yang tidak punya
 pesan; kegagalan HTTP/JSON/timeout selalu membawa pesan spesifik, `detail`
 yang disamarkan, dan `hint`.
+
+## Kenapa `/api/providers` bisa 404?
+
+Gejala yang sering dilaporkan:
+
+```
+❌ tempmail_provider · HTTP 404
+Detail: HTTP 404:
+Hint: Endpoint /api/providers tidak membalas JSON. ...
+Provider: tidak ada data provider
+```
+
+`/api/providers` adalah endpoint **introspection/opsional** Tempmail-MCP.
+Beberapa deployment tidak memilikinya:
+
+- versi server lama / fork yang hanya membawa `POST /api/email` dan
+  `GET /api/email/{email}/messages`;
+- reverse proxy atau Cloudflare Worker yang hanya meneruskan path
+  `/api/email*` ke backend;
+- `TEMPMAIL_API_URL` yang salah (domain aplikasi GEN-Z.AI sendiri,
+  halaman statis, atau base path kurang tepat).
+
+Diagnostik sekarang melakukan tiga probe read-only secara paralel:
+
+| Probe | Fungsi |
+| --- | --- |
+| `GET /api/health` | Bukti server API hidup (200/207 dengan JSON) |
+| `GET /api/providers` | Daftar provider + status disabled (opsional) |
+| `GET /openapi.json` | Daftar route yang benar-benar tersedia (`capabilities.create_email`, `capabilities.messages`) |
+
+Aturan penilaian:
+
+- `/api/providers` 404 + `/api/health` atau `/openapi.json` 2xx JSON →
+  `ok: true`, hint menjelaskan 404 itu opsional dan **bukan kerusakan**.
+- `/openapi.json` memuat `/api/email` → `ok: true` meski dua endpoint lain
+  404.
+- Semua probe non-JSON/404 → `ok: false`, hint meminta memeriksa URL dasar
+  `TEMPMAIL_API_URL` (termasuk kemungkinan API dipasang di sub-path).
+- Host `TEMPMAIL_API_URL` sama dengan host aplikasi → `ok: false` dengan
+  peringatan **self-reference**.
+
+Jadi jangan memperbaiki 404 itu dengan menambah route di Worker
+GEN-Z.AI: perbaiki `TEMPMAIL_API_URL`, atau terima bahwa server provider
+tidak menyediakan endpoint monitoring tersebut. Untuk memastikan fitur
+intinya, cukup klik **📧 Buat Email** lalu **🔄 Refresh Inbox**.
 
 ## Fallback provider
 

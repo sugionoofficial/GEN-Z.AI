@@ -768,6 +768,7 @@
             " · SERVICE_ROLE_KEY=" + Boolean(config.supabase_service_role_key) +
             " · TEMPMAIL_API_URL=" + Boolean(config.tempmail_api_url) +
             (config.tempmail_api_host ? " (" + config.tempmail_api_host + ")" : "") +
+            (config.tempmail_api_self_reference ? " ⚠️ self-reference" : "") +
             " · provider=" + (config.preferred_provider || "gmail"),
           "msg-meta"
         );
@@ -782,10 +783,32 @@
           );
           if (check.detail) appendDiagnosticsLine(item, "Detail: " + String(check.detail), "msg-meta");
           if (check.hint) appendDiagnosticsLine(item, "Hint: " + String(check.hint), "msg-meta");
+          if (Array.isArray(check.endpoints) && check.endpoints.length) {
+            const probeLine = check.endpoints.map(entry =>
+              entry.path + "=" + (entry.status || "network-error") +
+              (entry.json ? " (JSON)" : " (non-JSON)")
+            ).join(", ");
+            appendDiagnosticsLine(item, "Probe: " + probeLine, "msg-meta");
+          }
+          if (check.capabilities && Object.keys(check.capabilities).length) {
+            const caps = check.capabilities;
+            appendDiagnosticsLine(
+              item,
+              "Endpoint inti: /api/email=" + Boolean(caps.create_email) +
+                " · /messages=" + Boolean(caps.messages) +
+                " · /api/providers=" + Boolean(caps.providers) +
+                " · /api/health=" + Boolean(caps.health),
+              "msg-meta"
+            );
+          }
           if (Array.isArray(check.providers)) {
+            const providersMissing = Array.isArray(check.endpoints) &&
+              check.endpoints.some(entry => entry.path === "/api/providers" && entry.status === 404);
             const list = check.providers.length
               ? check.providers.map(entry => entry.name + (entry.disabled ? " (nonaktif)" : " (aktif)")).join(", ")
-              : "tidak ada data provider";
+              : (providersMissing
+                  ? "/api/providers tidak tersedia (endpoint opsional, bukan kerusakan)"
+                  : "tidak ada data provider");
             appendDiagnosticsLine(item, "Provider: " + list, "msg-meta");
           }
           diagnosticsList.appendChild(item);
