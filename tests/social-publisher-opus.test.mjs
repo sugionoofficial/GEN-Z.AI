@@ -3221,3 +3221,37 @@ test("save-schedule dan cron autopost menghormati pilihan salah satu dari 5 mode
 
 
 
+
+test("membaca jobId dalam result.content batch MCP tanpa mengirim ulang job", async () => {
+    resetOpusTokenCache();
+    const output = texturedJpeg({ width: 480, height: 854 });
+    let submissions = 0;
+    let statusCalls = 0;
+    const restore = mockFetch(async (url, options = {}) => {
+        assert.equal(url, OPUS_DEFAULT_MCP_URL);
+        const body = JSON.parse(options.body);
+        const reply = result => Response.json({ jsonrpc: "2.0", id: body.id, result });
+        if (body.method === "initialize") return reply({});
+        if (body.method === "notifications/initialized") return new Response(null, { status: 204 });
+        if (body.method === "tools/list") return reply({ tools: standardMcpTools() });
+        const { name, arguments: args } = body.params;
+        if (name === "opus_video_tools_whoami") return reply({ structuredContent: { has_api_access: true } });
+        if (name === "create_project") return reply({ structuredContent: { projectId: "gen_nested_1" } });
+        if (name === "generate_keyframes") {
+            submissions++;
+            return reply({ structuredContent: { projectId: "gen_nested_1", items: [{ id: "kf-1", ok: true, result: { content: [{ type: "text", text: JSON.stringify({ jobId: "job_nested_123", status: "queued" }) }] } }], succeeded: 1, failed: 0 } });
+        }
+        if (name === "get_status") {
+            statusCalls++;
+            assert.equal(args.jobId, "job_nested_123");
+            return reply({ structuredContent: { jobId: "job_nested_123", status: "completed" }, content: [{ type: "image", mimeType: "image/jpeg", data: Buffer.from(output).toString("base64") }] });
+        }
+        throw new Error(`Unexpected tool ${name}`);
+    });
+    try {
+        const result = await generateOpusSocialImage({ env: { OPUS_AUTH_TOKEN: "test-token", OPUS_POLL_INTERVAL_MS: "5" }, prompt: "Tes gambar" });
+        assert.equal(result.width, 480);
+        assert.equal(submissions, 1);
+        assert.equal(statusCalls, 1);
+    } finally { restore(); }
+});
