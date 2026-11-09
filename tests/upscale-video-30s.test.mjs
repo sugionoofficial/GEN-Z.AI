@@ -175,3 +175,83 @@ test("POST /api/generate action=upscale menandatangani result_url supabase-priva
         else process.env.GITHUB_PAT = prevPat;
     }
 });
+
+test("POST /api/generate action=upscale-video-upload returns success and remaining credits", async () => {
+    const envKeys = [
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_ANON_KEY",
+        "GITHUB_PAT"
+    ];
+    const previousEnv = Object.fromEntries(
+        envKeys.map(key => [key, process.env[key]])
+    );
+    const originalFetch = globalThis.fetch;
+
+    process.env.SUPABASE_URL = "https://project.example.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "srv-test-token";
+    process.env.SUPABASE_ANON_KEY = "project-anon";
+    process.env.GITHUB_PAT = "gh-test-token";
+
+    const sourceUrl =
+        `https://project.example.supabase.co/storage/v1/object/sign/user-uploads/upscale-videos/inputs/${USER_ID}/1793400000000-abc12345.mp4?token=test-signed`;
+    let dispatchedWorkflowBody = null;
+
+    globalThis.fetch = async (url, options = {}) => {
+        const u = String(url);
+        const method = String(options.method || "GET").toUpperCase();
+
+        if (u.endsWith("/auth/v1/user")) {
+            return Response.json({ id: USER_ID, email: "owner@example.com" });
+        }
+        if (u.includes("/rest/v1/feature_credit_settings")) {
+            return Response.json([{ feature_id: "upscale_video", credit_cost: 10 }]);
+        }
+        if (u.includes("/rest/v1/rpc/deduct_generate_credits")) {
+            return Response.json(990);
+        }
+        if (u.includes("/rest/v1/generation_history") && method === "POST") {
+            const [row] = JSON.parse(options.body);
+            return Response.json([{ id: UPSCALE_HISTORY_ID, ...row }]);
+        }
+        if (u.includes("/actions/workflows/") && u.endsWith("/dispatches") && method === "POST") {
+            dispatchedWorkflowBody = JSON.parse(options.body);
+            return new Response(null, { status: 204 });
+        }
+
+        throw new Error(`Unexpected fetch in upscale video upload test: ${method} ${u}`);
+    };
+
+    try {
+        const { default: generateHandler } = await import(
+            `../api/generate.js?upscale-video-upload=${Date.now()}`
+        );
+        const res = createMockRes();
+        await generateHandler(
+            {
+                method: "POST",
+                url: "/api/generate",
+                headers: { authorization: "Bearer test-access-token" },
+                body: {
+                    action: "upscale-video-upload",
+                    source_url: sourceUrl,
+                    target_resolution: "2k"
+                }
+            },
+            res
+        );
+
+        assert.equal(res.statusCode, 200, res.body);
+        const body = JSON.parse(res.body);
+        assert.equal(body.success, true);
+        assert.equal(body.remaining_credits, 990);
+        assert.equal(body.credit_used, 10);
+        assert.ok(dispatchedWorkflowBody, "workflow dispatch must happen before success is returned");
+    } finally {
+        globalThis.fetch = originalFetch;
+        for (const key of envKeys) {
+            if (previousEnv[key] === undefined) delete process.env[key];
+            else process.env[key] = previousEnv[key];
+        }
+    }
+});
