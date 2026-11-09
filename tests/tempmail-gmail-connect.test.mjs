@@ -535,6 +535,9 @@ test("UI, callback Worker, SQL, secret contoh, dan dokumentasi Mode C terpasang"
     assert.match(guide, /sugionoofficial88\+1@gmail\.com/);
     assert.match(guide, /Tanpa Docker/);
     assert.match(guide, /HttpOnly/);
+    assert.match(guide, /public\.provider_credentials/);
+    assert.match(guide, /process\.stdout\.write/);
+    assert.match(guide, /admin-control\/providers\.html/);
 
     const setup = fs.readFileSync(path.join(ROOT, "TEMPMAIL-SETUP.md"), "utf8");
     assert.match(setup, /TEMPMAIL-GMAIL-CONNECT\.md/);
