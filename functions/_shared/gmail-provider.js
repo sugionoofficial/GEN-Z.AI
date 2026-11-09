@@ -611,7 +611,7 @@ export async function listGmailMessages(env, connection, aliasEmail) {
             accessToken,
             gmailMessagePath(id, metadataParams)
         );
-        const headers = headerMap(message.headers);
+        const headers = headerMap(message?.payload?.headers ?? message?.headers);
         return {
             id,
             subject: headers.subject || "(tanpa subject)",
@@ -634,7 +634,7 @@ export async function getGmailMessage(env, connection, aliasEmail, messageId) {
         accessToken,
         gmailMessagePath(messageId, { format: "full" })
     );
-    const headers = headerMap(message.headers);
+    const headers = headerMap(message?.payload?.headers ?? message?.headers);
     if (!recipientMatchesAlias(headers, aliasEmail)) {
         throw notAliasMessageError();
     }

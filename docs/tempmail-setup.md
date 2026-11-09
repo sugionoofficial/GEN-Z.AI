@@ -303,3 +303,17 @@ Pada project Supabase `rvgioyenjgkprnssfpfr`: tabel
 `ACTIVE_HEALTHY`. Migrasi idempoten `tempmail_user_aliases` sudah
 diterapkan agar tabel ikut terbentuk saat restore/branch, sekaligus
 me-refresh schema cache PostgREST.
+
+### Email Gmail sudah terkirim tetapi inbox TempMail kosong
+
+Gmail API mengembalikan header `From` dan `To` di `payload.headers`, baik
+pada format metadata maupun isi pesan. Worker membaca lokasi ini untuk
+menampilkan pengirim dan memastikan pesan ditujukan ke alias aktif. Versi
+sebelumnya salah membaca `headers` di tingkat atas sehingga pesan yang
+sebenarnya ada dapat tersaring; deploy Worker yang sudah diperbaiki.
+
+Pastikan alias `+tag` di TempMail sama dengan penerima email. Pencarian Gmail
+saat ini tidak mencakup Spam atau Sampah dan menampilkan paling banyak 20
+hasil terbaru sebelum penyaringan alias. Periksa juga folder tersebut di
+Gmail jika pesan masih tidak muncul. Filter tampilan TempMail hanya menampilkan
+pengirim `@opus.pro` atau `@app.opus.pro`; filter From bukan bukti keaslian.

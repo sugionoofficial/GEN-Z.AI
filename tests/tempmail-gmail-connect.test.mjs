@@ -49,33 +49,27 @@ function request(url, { method = "GET", userId = "admin-a" } = {}) {
     });
 }
 
+function gmailHeaders(subject, recipient) {
+    return [
+        { name: "From", value: "OpusClip <login@app.opus.pro>" },
+        { name: "To", value: recipient },
+        { name: "Delivered-To", value: recipient },
+        { name: "Subject", value: subject },
+        { name: "Date", value: "Sat, 08 Nov 2026 10:00:00 +0000" }
+    ];
+}
+
+// Gmail API message headers are nested in payload for both metadata and full.
 function metadataMessage(id, subject, recipient) {
-    return {
-        id,
-        snippet: subject + " untuk " + recipient,
-        headers: [
-            { name: "From", value: "sender@example.com" },
-            { name: "To", value: recipient },
-            { name: "Delivered-To", value: recipient },
-            { name: "Subject", value: subject },
-            { name: "Date", value: "Sat, 08 Nov 2026 10:00:00 +0000" }
-        ]
-    };
+    return { id, snippet: subject + " untuk " + recipient, payload: { headers: gmailHeaders(subject, recipient) } };
 }
 
 function fullMessage(id, recipient, text) {
     return {
         id,
-        headers: [
-            { name: "From", value: "sender@example.com" },
-            { name: "To", value: recipient },
-            { name: "Delivered-To", value: recipient },
-            { name: "Subject", value: "Kode verifikasi" },
-            { name: "Date", value: "Sat, 08 Nov 2026 10:00:00 +0000" }
-        ],
         payload: {
             mimeType: "text/plain",
-            headers: [],
+            headers: gmailHeaders("Kode verifikasi", recipient),
             body: { data: b64url(text), size: text.length }
         }
     };
@@ -373,6 +367,7 @@ test("inbox Gmail hanya menampilkan pesan untuk +tag milik alias aktif", async (
         assert.equal(list.length, 1);
         assert.equal(list[0].id, "m-ok");
         assert.equal(list[0].to, ALIAS);
+        assert.equal(list[0].from, "OpusClip <login@app.opus.pro>");
         assert.ok(h.state.gmailQueries.some(q => q === `to:${ALIAS}`));
 
         const detailRes = await worker.fetch(
@@ -383,6 +378,7 @@ test("inbox Gmail hanya menampilkan pesan untuk +tag milik alias aktif", async (
         assert.equal(detailRes.status, 200);
         assert.equal(detail.bodyText, "Kode OTP: 123456");
         assert.equal(detail.to, ALIAS);
+        assert.equal(detail.from, "OpusClip <login@app.opus.pro>");
 
         const forbidden = await worker.fetch(
             request(`https://app.test/api/tempmail?action=message&email=${encodeURIComponent(ALIAS)}&messageId=m-other`),
