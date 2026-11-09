@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 
 import { getOpusVideoModel } from "../models/opus-video/index.js";
 import { resolveBillableCredit } from "../lib/generate/qwencloud-credit.js";
@@ -1510,12 +1511,18 @@ test("model clone MiniMax Hailuo 3 First & Last Frame 30s (opus-hailuo-3-i2v-30s
         const extractedFrame2Ref = `supabase-private://user-uploads/upscale-videos/inputs/${USER_ID}/staged30-${JOB_ID}/frame-2-end.png`;
 
         let activeTotalClips = 3;
+        const key = crypto.createHash("sha256").update("test-encryption-secret").digest();
+        const iv = crypto.randomBytes(12);
+        const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+        const ciphertext = Buffer.concat([cipher.update(JSON.stringify({ access_token: "test-access-token" })), cipher.final()]);
+        const storedCredential = { slot: 1, ciphertext: ciphertext.toString("base64"), iv: iv.toString("base64"), tag: cipher.getAuthTag().toString("base64") };
         const capturedMcpCreateArgs = [];
 
         globalThis.fetch = async (url, init = {}) => {
             const u = String(url);
             const method = String(init.method || "GET").toUpperCase();
 
+            if (u.includes("/rest/v1/opus_credentials") && method === "GET") return Response.json([storedCredential]);
             if (u.includes("/rest/v1/staged_generation_jobs") && method === "GET") {
                 return Response.json([
                     {
@@ -1672,7 +1679,9 @@ test("model clone MiniMax Hailuo 3 First & Last Frame 30s (opus-hailuo-3-i2v-30s
                         "x-staged-job-token": internalToken
                     },
                     env: {
-                        OPUS_API_KEY: "test-access-token"
+                        SUPABASE_URL: "https://proj.supabase.co",
+                        SUPABASE_SERVICE_ROLE_KEY: "srv-test-token",
+                        PROVIDER_CREDENTIAL_ENCRYPTION_KEY: "test-encryption-secret"
                     },
                     body: stepPayload
                 },

@@ -1,3 +1,4 @@
+import { loadStoredOpusPool } from "../lib/opus/credential-store.js";
 //generate-status.js?v=0001.2
 /* =========================================================
    GEN-Z.AI
@@ -1301,6 +1302,10 @@ async function loadProviderCredential(
         );
     }
 
+
+    if (normalizedProviderCode.toLowerCase() === "opus") {
+        return await loadStoredOpusPool(runtimeEnv || process.env);
+    }
 
     const params =
         new URLSearchParams();

@@ -5836,6 +5836,24 @@ function normalizeExcludedSlotSet(rawList, totalKeys) {
     return set;
 }
 
+function isOpusAuthFailure(error) {
+    return error?.status === 401 || error?.status === 403 ||
+        error?.code === "OPUS_AUTH_EXPIRED" || error?.code === "OPUS_AUTH_REJECTED";
+}
+
+function exhaustedOpusAuthPool(slot, size) {
+    const error = createProviderError({
+        message: "Semua slot autentikasi Opus tidak tersedia.",
+        code: "opus_upstream_queue_busy",
+        status: 503
+    });
+    error.opusFailedKeySlot = slot;
+    error.opusKeyPoolSize = size;
+    error.exhaustedKeyCount = size;
+    error.rotatedFullCycle = true;
+    return error;
+}
+
 async function createVideoTask(payload = {}, apiKey, options = {}) {
     const keyPool = extractOpusApiKeyPool(apiKey, options?.env);
     if (keyPool.length === 0) {
@@ -5853,7 +5871,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                 ...options,
                 keySlot: 0,
                 mediaCache,
-                isolateFromDefaultRefresh: false
+                isolateFromDefaultRefresh: true
             });
             return {
                 ...singleRes,
@@ -5867,6 +5885,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                 err.exhaustedKeyCount = 1;
                 err.rotatedFullCycle = true;
             }
+            if (isOpusAuthFailure(err)) throw exhaustedOpusAuthPool(0, 1);
             throw err;
         }
     }
@@ -5927,11 +5946,7 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                 throw err;
             }
 
-            const isAuthFailure =
-                err?.status === 401 ||
-                err?.status === 403 ||
-                err?.code === "OPUS_AUTH_EXPIRED" ||
-                err?.code === "OPUS_AUTH_REJECTED";
+            const isAuthFailure = isOpusAuthFailure(err);
 
             if (isAuthFailure && idx + 1 < candidateSlots.length) {
                 lastAuthError = err;
@@ -5947,6 +5962,10 @@ async function createVideoTask(payload = {}, apiKey, options = {}) {
                 throw lastExhaustedError;
             }
 
+            if (isAuthFailure) {
+                activeOpusKeyIndex = 0;
+                throw exhaustedOpusAuthPool(slotIndex, totalKeys);
+            }
             throw err;
         }
     }
@@ -6352,7 +6371,7 @@ async function getVideoTask(taskId, apiKey, options = {}) {
     if (keyPool.length <= 1) {
         const singleStatus = await getVideoTaskForSingleKey(parsedId, keyPool[0] || apiKey, {
             ...options,
-            isolateFromDefaultRefresh: false
+            isolateFromDefaultRefresh: true
         });
         return {
             ...singleStatus,

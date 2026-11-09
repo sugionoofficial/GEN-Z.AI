@@ -305,7 +305,7 @@
   <div class="email-container">
 
     <h1>GEN-Z.AI — TempMail</h1>
-    <div class="subtitle">Generate akhiran Gmail, lalu baca inboxnya langsung di halaman ini.</div>
+    <div class="subtitle">Generate akhiran Gmail dan lihat email dari @opus.pro atau @app.opus.pro di halaman ini. Email lain tetap diterima oleh penyedia email, tetapi tidak ditampilkan.</div>
 
     <div id="gmail-connect-box" class="box">
       <h3>🔗 Hubungkan Gmail</h3>
@@ -350,7 +350,7 @@
         <button id="btn-copy" type="button" class="secondary" style="margin:0;">📋 Salin</button>
       </div>
       <div style="margin-top:10px; font-size:12px; color:#888;">
-        Gunakan alamat ini untuk verifikasi akun. Inbox diperbarui otomatis setiap 15 detik; klik "Refresh Inbox" untuk cek manual.
+        Gunakan alamat ini untuk verifikasi akun. Inbox menampilkan pengirim @opus.pro dan @app.opus.pro dan diperbarui otomatis setiap 15 detik; klik "Refresh Inbox" untuk cek manual. Alamat pengirim saja tidak menjamin keaslian email.
       </div>
     </div>
 
@@ -698,16 +698,26 @@
         }
       }
 
+      // Hanya menyaring tampilan berdasarkan alamat From; bukan verifikasi keaslian email.
+      function isOpusSender(from) {
+        const text = typeof from === "string" ? from.trim() : "";
+        const address = text.includes("<") || text.includes(">")
+          ? /^\s*[^<>]*<\s*([^<>\s]+)\s*>\s*$/.exec(text)?.[1] || ""
+          : text;
+        return /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:opus\.pro|app\.opus\.pro)$/i.test(address);
+      }
+
       function renderMessages(messages, silent) {
+        messages = messages.filter(message => isOpusSender(message?.from));
         messageList.textContent = "";
 
         if (!messages.length) {
           const empty = document.createElement("p");
           empty.className = "empty-state";
-          empty.textContent = "Belum ada pesan. Tunggu beberapa saat lalu refresh.";
+          empty.textContent = "Belum ada email dari @opus.pro atau @app.opus.pro. Inbox diperbarui otomatis setiap 15 detik.";
           messageList.appendChild(empty);
           inboxMeta.textContent = "Diperbarui " + formatClock(new Date());
-          if (!silent) setStatus("📭 Belum ada pesan masuk.", "success");
+          if (!silent) setStatus("📭 Belum ada email Opus.", "success");
           inbox.classList.remove("hidden");
           lastMessageCount = 0;
           return;
