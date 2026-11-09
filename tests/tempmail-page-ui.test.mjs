@@ -129,3 +129,8 @@ test("light theme ikut menata elemen inbox dan iframe body yang baru", () => {
     assert.match(lightCss, /body \.msg-text/);
     assert.match(lightCss, /body \.inbox-meta/);
 });
+
+test("pintasan OpusClip membuka situs resmi di tab baru dengan aman", () => {
+    const html = readRepoFile("email.html");
+    assert.match(html, /<a\b[^>]*href="https:\/\/clip\.opus\.pro\/"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*>[^<]*Login OpusClip[^<]*<\/a>/);
+});
