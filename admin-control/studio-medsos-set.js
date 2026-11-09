@@ -760,7 +760,7 @@
             const activeOpusModel = settings.opus_model || selectedOpusModel() || "gpt-image-2.5-flare";
             return settings.opus_configured
                 ? `Opus Labs siap (${activeOpusModel} · maks 3 gambar referensi · rasio 9:16 · quality low): foto referensi karakter + outfit diimpor lewat import_assets lalu dibuat melalui generate_keyframes. Setiap gambar MEMOTONG kredit akun OpusClip Anda sendiri (bukan kredit GEN-Z.AI); kredit habis → generate gagal dengan credit_admission_rejected / insufficient_credits`
-                : "OPUS_AUTH_TOKEN belum tersedia — hubungkan akun OpusClip/Opus Labs (product-ad-studio.labs.opus.pro / labs.opus.pro/opus-video-tools/mcp) lalu simpan Bearer token OAuth sebagai secret Worker";
+                : "Token Opus belum tersedia di vault Supabase — tambahkan OPUS_AUTH_TOKEN_1, OPUS_AUTH_TOKEN_2, dan seterusnya melalui halaman Kredensial Opus";
         }
         return settings.gemini_configured ? "Gemini membuat gambar dan caption" : "GEMINI_API_KEY belum tersedia";
     }
