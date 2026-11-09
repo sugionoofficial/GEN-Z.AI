@@ -1,13 +1,13 @@
-# Deploy Tempmail-MCP memakai Docker Desktop di Windows PowerShell.
-# Jalankan: powershell -ExecutionPolicy Bypass -File .\setup.ps1
-# Catatan: host ini harus selalu hidup dan punya domain HTTPS publik.
+# ASCII-only on purpose. Windows PowerShell 5.1 reads .ps1 as ANSI;
+# UTF-8 emoji break string parsing. Do not add emoji or non-ASCII here.
+# Run: powershell -ExecutionPolicy Bypass -File .\setup.ps1
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
 
 function Assert-Command {
     param([string]$Name)
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
-        throw "'$Name' belum terpasang. Install dulu lalu jalankan ulang."
+        throw "Command '$Name' not found. Install it first, then run again."
     }
 }
 
@@ -17,27 +17,28 @@ docker compose version | Out-Null
 
 $envFile = Join-Path $PSScriptRoot ".env"
 if (-not (Test-Path $envFile)) {
-    Write-Host "Buat konfigurasi deploy (tidak ada yang di-commit):"
-    $domain = Read-Host "TEMPMAIL_DOMAIN (mis. tempmail.domain.tld)"
-    $acme = Read-Host "ACME_EMAIL (untuk Let's Encrypt)"
+    Write-Host "Create deploy config (nothing is committed):"
+    $domain = Read-Host "TEMPMAIL_DOMAIN (ex. tempmail.domain.tld)"
+    $acme = Read-Host "ACME_EMAIL (for Let's Encrypt)"
     $gmail = Read-Host "GMAIL_EMAIL"
-    $securePassword = Read-Host "GMAIL_APP_PASSWORD (16 digit, tidak ditampilkan)" -AsSecureString
+    $securePassword = Read-Host "GMAIL_APP_PASSWORD (16 digits, hidden)" -AsSecureString
     $password = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
         [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
     )
 
-    @"
-TEMPMAIL_DOMAIN="$domain"
-ACME_EMAIL="$acme"
-GMAIL_EMAIL="$gmail"
-GMAIL_APP_PASSWORD="$password"
-"@ | Set-Content -Path $envFile -Encoding UTF8
-    Write-Host "✓ .env dibuat. Jangan commit file ini."
+    $lines = @(
+        ('TEMPMAIL_DOMAIN="{0}"' -f $domain),
+        ('ACME_EMAIL="{0}"' -f $acme),
+        ('GMAIL_EMAIL="{0}"' -f $gmail),
+        ('GMAIL_APP_PASSWORD="{0}"' -f $password)
+    )
+    ($lines -join [Environment]::NewLine) | Set-Content -Path $envFile -Encoding ASCII
+    Write-Host "[OK] .env created. Do not commit this file."
 } else {
-    Write-Host "ℹ Memakai .env yang sudah ada."
+    Write-Host "[INFO] Using existing .env."
 }
 
-# Baca nilai untuk pesan penutup; docker compose juga membaca .env otomatis.
+# Read values for the final message; docker compose also reads .env itself.
 $values = @{}
 Get-Content $envFile | ForEach-Object {
     if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$') {
@@ -45,37 +46,37 @@ Get-Content $envFile | ForEach-Object {
     }
 }
 foreach ($required in @("TEMPMAIL_DOMAIN", "ACME_EMAIL", "GMAIL_EMAIL", "GMAIL_APP_PASSWORD")) {
-    if (-not $values[$required]) { throw "$required wajib diisi di .env" }
+    if (-not $values[$required]) { throw "$required must be set in .env" }
 }
 
 $cloneDir = Join-Path $PSScriptRoot "Tempmail-MCP"
 if (-not (Test-Path (Join-Path $cloneDir ".git"))) {
-    Write-Host "📥 Clone Tempmail-MCP..."
+    Write-Host "[CLONE] Tempmail-MCP..."
     git clone https://github.com/sugionoofficial/Tempmail-MCP.git $cloneDir
 } else {
-    Write-Host "🔄 Update Tempmail-MCP..."
+    Write-Host "[UPDATE] Tempmail-MCP..."
     git -C $cloneDir pull --ff-only
 }
 
-Write-Host "🐳 Build & jalankan container..."
+Write-Host "[BUILD] docker compose up..."
 docker compose up -d --build
 
 $domainValue = $values["TEMPMAIL_DOMAIN"]
 Write-Host ""
-Write-Host "✅ Selesai. Pastikan DNS $domainValue menunjuk ke host ini"
-Write-Host "   dan port 80/443 terbuka / diteruskan ke Docker Desktop."
+Write-Host "[OK] Done. Point DNS $domainValue to this host"
+Write-Host "     and open or forward ports 80/443 to Docker Desktop."
 Write-Host ""
-Write-Host "Verifikasi dari luar:"
+Write-Host "Verify from outside:"
 Write-Host "  curl.exe -i https://$domainValue/api/health"
 Write-Host "  curl.exe -i https://$domainValue/api/providers"
 Write-Host "  curl.exe -i https://$domainValue/openapi.json"
 Write-Host "  docker compose logs -f tempmail-api"
 Write-Host ""
-Write-Host "Lalu set secret Cloudflare Worker GEN-Z.AI:"
+Write-Host "Then set the GEN-Z.AI Cloudflare Worker secrets (from repo root):"
 Write-Host "  npx wrangler@4 secret put TEMPMAIL_API_URL"
-Write-Host "  # isi tepat: https://$domainValue"
-Write-Host "  # jangan tambahkan /api di akhir, jangan trailing slash"
-Write-Host "  npx wrangler@4 secret put TEMPMAIL_PROVIDER   # gmail (opsional)"
-Write-Host "  npx wrangler@4 secret delete TEMPMAIL_PROVIDER # hanya bila sebelumnya mailtm"
+Write-Host "  value: https://$domainValue"
+Write-Host "  no /api suffix, no trailing slash"
+Write-Host "  npx wrangler@4 secret put TEMPMAIL_PROVIDER   (optional: gmail)"
+Write-Host "  npx wrangler@4 secret delete TEMPMAIL_PROVIDER (only if it was mailtm)"
 Write-Host ""
-Write-Host "Terakhir buka /email.html → 🔍 Cek Konfigurasi."
+Write-Host "Finally open /email.html -> Cek Konfigurasi."

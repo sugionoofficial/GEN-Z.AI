@@ -54,6 +54,9 @@ test("artefak deploy Tempmail-MCP lengkap dan aman", () => {
     assert.match(setup, /jangan tambahkan \/api di akhir/);
 
     const powershell = read("deploy/tempmail-mcp/setup.ps1");
+    assert.match(powershell, /ASCII-only/);
+    assert.ok(!/[^\x00-\x7F]/.test(powershell), "setup.ps1 harus ASCII-only untuk PowerShell 5.1");
+    assert.doesNotMatch(powershell, /&/, "ampersand merusak parser PowerShell 5.1");
     assert.match(powershell, /ExecutionPolicy Bypass/);
     assert.match(powershell, /Read-Host "GMAIL_APP_PASSWORD/);
     assert.match(powershell, /docker compose up -d --build/);

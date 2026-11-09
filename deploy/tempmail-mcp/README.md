@@ -54,6 +54,10 @@ Script akan menanyakan 4 nilai, membuat `.env`, clone Tempmail-MCP ke
 
 `chmod` dan `./setup.sh` **tidak ada di PowerShell**. Pakai salah satu:
 
+> `setup.ps1` sengaja **ASCII-only tanpa emoji**. Windows PowerShell 5.1
+> membaca `.ps1` sebagai ANSI; emoji UTF-8 merusak tanda kutip string dan
+> memicu `AmpersandNotAllowed` / `missing terminator`.
+
 ```powershell
 # Opsi 1 — Dockerfile Desktop langsung
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
