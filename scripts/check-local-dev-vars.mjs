@@ -28,14 +28,16 @@ const REQUIRED = [
 
 const RECOMMENDED = [
     { name: "SUPABASE_ANON_KEY", hint: "publishable/anon key dari project yang SAMA dengan SUPABASE_URL" },
-    { name: "PROVIDER_CREDENTIAL_ENCRYPTION_KEY", hint: "wajib untuk membuka credential provider yang tersimpan" }
+    { name: "PROVIDER_CREDENTIAL_ENCRYPTION_KEY", hint: "wajib untuk vault kredensial dan Mode C Hubungkan Gmail" }
 ];
 
 /* Fitur opsional yang punya halaman sendiri di navigasi. Kalau variabel ini
    kosong, halaman tetap terbuka tetapi API-nya gagal — lebih baik diperingatkan
    sejak awal daripada admin melihat error generik di browser. */
 const FEATURE_FLAGS = [
-    { name: "TEMPMAIL_API_URL", hint: "wajib untuk @gmail.com: URL Tempmail-MCP persisten (bukan Codespaces). Tanpa ini, set TEMPMAIL_PROVIDER=mailtm bila cukup built-in mail.tm non-Gmail" }
+    { name: "TEMPMAIL_API_URL", hint: "Mode B lama untuk @gmail.com: URL Tempmail-MCP persisten (bukan Codespaces). Tidak wajib bila Mode C aktif; tanpa ini, built-in mail.tm hanya aktif lewat TEMPMAIL_PROVIDER=mailtm" },
+    { name: "GMAIL_CLIENT_ID", hint: "Mode C: OAuth client 'Web application' dari Google Cloud" },
+    { name: "GMAIL_CLIENT_SECRET", hint: "Mode C: client secret OAuth Google Cloud (server-only)" }
 ];
 
 const TEMPLATE = `# .dev.vars — secret lokal untuk \`npm run dev\` (JANGAN di-commit)
@@ -49,7 +51,11 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 # SIGHTENGINE_API_SECRET=<secret>
 # OPENKEY_API_KEY=<key>
 # GITHUB_PAT=<token-untuk-upscale-dan-admin-copilot>
-# TEMPMAIL_API_URL=<https://host-tempmail-mcp>   # opsional; kosong = built-in mail.tm
+# Mode C: Hubungkan Gmail langsung di /email.html (lihat TEMPMAIL-GMAIL-CONNECT.md)
+# GMAIL_CLIENT_ID=<oauth-web-client-id>
+# GMAIL_CLIENT_SECRET=<oauth-web-client-secret>
+# GMAIL_OAUTH_REDIRECT_URI=http://127.0.0.1:8787/api/tempmail-gmail-callback
+# TEMPMAIL_API_URL=<https://host-tempmail-mcp>   # Mode B lama; tidak wajib bila Mode C aktif
 `;
 
 function parseDevVars(text) {

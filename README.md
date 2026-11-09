@@ -23,7 +23,7 @@
 | **NSFW Filter** | Server-side content moderation (SightEngine) |
 | **Admin Panel** | Kelola user, model, kredit, dan provider credentials |
 | **Admin Copilot** | Asisten OpenKey untuk membaca dan mengubah repo melalui branch, PR, dan merge ber-CI |
-| **TempMail** | Email sementara untuk verifikasi akun (khusus admin/owner), alias tersimpan per user. Untuk `@gmail.com`, `TEMPMAIL_API_URL` wajib menunjuk ke Tempmail-MCP di host persisten (bukan Codespace). Mode **built-in mail.tm** opsional lewat `TEMPMAIL_PROVIDER=mailtm` bila domain Gmail tidak wajib |
+| **TempMail** | Email sementara untuk verifikasi akun (khusus admin/owner), alias tersimpan per user. **Mode C:** klik Hubungkan Gmail di `/email.html`, generate akhiran `nama+tag@gmail.com`, inbox muncul di halaman sama tanpa Docker/Codespace; lihat `TEMPMAIL-GMAIL-CONNECT.md`. Fallback lama: `TEMPMAIL_API_URL` ke Tempmail-MCP persisten. Mode **built-in mail.tm** opsional lewat `TEMPMAIL_PROVIDER=mailtm` bila domain Gmail tidak wajib |
 
 ---
 
@@ -303,9 +303,16 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-secret-key
 # Default: https://dashscope-intl.aliyuncs.com/api/v1
 # DASHSCOPE_BASE_URL=https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/api/v1
 
-# TempMail (menu admin "TempMail") — lihat TEMPMAIL-SETUP.md
-# WAJIB untuk alamat @gmail.com: deploy Tempmail-MCP ke host HTTPS persisten
-# (VPS / Cloudflare Tunnel / Render / Railway), BUKAN Codespaces *.app.github.dev.
+# TempMail (menu admin "TempMail") — lihat TEMPMAIL-GMAIL-CONNECT.md
+# MODE C (paling simpel): OAuth sekali, lalu generate +tag di /email.html.
+# Tidak perlu Docker, VPS, BIOS, Codespace, atau Tempmail-MCP.
+# GMAIL_CLIENT_ID=<oauth-web-client-id>
+# GMAIL_CLIENT_SECRET=<oauth-web-client-secret>
+# PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<sudah-ada-atau-64-hex>
+# GMAIL_OAUTH_REDIRECT_URI=https://<domain>/api/tempmail-gmail-callback
+#
+# MODE B fallback @gmail.com: Tempmail-MCP di host HTTPS persisten,
+# BUKAN Codespaces *.app.github.dev.
 # TEMPMAIL_API_URL=https://tempmail.example.com
 # TEMPMAIL_PROVIDER=gmail
 # Opsi non-Gmail tanpa service luar: built-in mail.tm

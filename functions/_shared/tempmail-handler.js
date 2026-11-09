@@ -2,24 +2,31 @@
    GEN-Z.AI — TEMPMAIL HANDLER
    ---------------------------------------------------------
    Endpoint: /api/tempmail
-   Provider: built-in mail.tm (default, tanpa secret) atau
-             Tempmail-MCP (opsional lewat TEMPMAIL_API_URL)
+   Provider:
+   - Mode C (utama): Gmail REST API + OAuth akun admin, plus-addressing
+     `nama+tag@gmail.com`; tanpa Docker / VPS / BIOS / Codespace.
+   - Mode B (fallback lama): Tempmail-MCP lewat TEMPMAIL_API_URL.
+   - Mode A (opsional non-Gmail): built-in mail.tm lewat TEMPMAIL_PROVIDER.
 
    Action yang didukung:
    - GET  action=alias     -> alias milik user (tanpa membuat baru)
    - GET  action=status    -> alias (nama alternatif untuk `alias`)
    - GET  action=diagnostics -> cek konfigurasi Supabase & provider
+   - GET  action=gmail-status -> status koneksi Gmail saat ini
+   - GET  action=gmail-connect -> URL Google OAuth untuk menghubungkan Gmail
    - POST action=create    -> pakai alias yang ada / buat baru
+   - POST action=rotate    -> generate akhiran +tag Gmail yang baru
+   - POST action=gmail-disconnect -> putuskan koneksi & hapus alias
    - GET  action=messages  -> daftar pesan pada alias
    - GET  action=message   -> isi satu pesan (body)
 
    Prinsip:
    1. Hanya role admin/owner (diverifikasi ulang di server).
    2. Alias selalu terikat user_id -> tidak bisa saling intip.
-   3. Bila TEMPMAIL_API_URL kosong, Worker memakai provider bawaan
-      mail.tm secara server-side (tidak perlu Codespace/service luar).
-      Bila secret diisi, kandidat TEMPMAIL_PROVIDER dipakai seperti
-      sebelumnya dengan fallback ke provider sehat lain.
+   3. Bila GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET/kunci enkripsi tersedia,
+      Mode C aktif: refresh token disimpan terenkripsi di Supabase dan
+      inbox dibaca lewat Gmail REST API. Tanpa Mode C, Worker memakai
+      TEMPMAIL_API_URL (Mode B) atau mail.tm opt-in (Mode A).
    4. Semua request keluar memakai timeout agar Worker tidak
       menggantung saat provider/Supabase lambat.
 ========================================================= */
@@ -34,6 +41,17 @@ import {
     fetchMailtmMessages,
     fetchMailtmMessage
 } from "./mailtm-provider.js";
+import {
+    GMAIL_API_PROVIDER,
+    isGmailApiConfigured,
+    getGmailConnection,
+    deleteGmailConnection,
+    buildGmailAuthUrl,
+    createGmailApiAlias,
+    listGmailMessages,
+    getGmailMessage,
+    checkGmailOAuthHealth
+} from "./gmail-provider.js";
 
 const SUPABASE_TIMEOUT_MS = 12000;
 const PROVIDER_TIMEOUT_MS = 20000;
@@ -41,7 +59,11 @@ const DIAGNOSTICS_TIMEOUT_MS = 8000;
 const ALIAS_SAVE_ATTEMPTS = 3;
 const TEMPMAIL_PROVIDER_DEFAULT = "gmail";
 const MISSING_TEMPMAIL_URL_HINT =
-    "TEMPMAIL_API_URL belum di-set. Untuk alamat @gmail.com, deploy Tempmail-MCP ke host HTTPS persisten (VPS / Cloudflare Tunnel / Render / Railway), lalu set secret ini. Jangan pakai URL repo GitHub atau port-forward Codespaces *.app.github.dev. Bila @gmail.com tidak wajib, set TEMPMAIL_PROVIDER=mailtm untuk memakai provider bawaan mail.tm.";
+    "TEMPMAIL_API_URL belum di-set. Untuk alamat @gmail.com, aktifkan Mode C (Hubungkan Gmail), atau deploy Tempmail-MCP ke host HTTPS persisten (VPS / Cloudflare Tunnel / Render / Railway), lalu set secret ini. Jangan pakai URL repo GitHub atau port-forward Codespaces *.app.github.dev. Bila @gmail.com tidak wajib, set TEMPMAIL_PROVIDER=mailtm untuk memakai provider bawaan mail.tm.";
+const MISSING_GMAIL_CONNECTION_HINT =
+    "Buka menu TempMail, klik 'Hubungkan Gmail', pilih akun @gmail.com, izinkan akses gmail.readonly, lalu kembali ke halaman ini. Refresh token disimpan terenkripsi di server, tidak pernah di browser.";
+const GMAIL_SECRETS_HINT =
+    "Aktifkan Gmail API, buat OAuth client 'Web application', lalu set secret Worker: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, PROVIDER_CREDENTIAL_ENCRYPTION_KEY. Lihat TEMPMAIL-GMAIL-CONNECT.md.";
 
 const CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
@@ -134,6 +156,9 @@ function supabaseRestHint(response, payload, resource) {
     if (response.status === 401 || response.status === 403) {
         return "SUPABASE_SERVICE_ROLE_KEY ditolak Supabase. Ganti dengan secret key project yang aktif / sama dengan SUPABASE_URL.";
     }
+    if (resource === "tempmail_gmail_connections" && (code === "PGRST205" || response.status === 404)) {
+        return "Tabel public.tempmail_gmail_connections belum dikenal PostgREST. Jalankan supabase/tempmail-gmail-connections.sql lalu NOTIFY pgrst, 'reload schema'.";
+    }
     if (code === "PGRST205" || (resource === "tempmail_user_aliases" && response.status === 404)) {
         return "Tabel public.tempmail_user_aliases belum dikenal PostgREST. Jalankan supabase/tempmail-user-aliases.sql lalu NOTIFY pgrst, 'reload schema'.";
     }
@@ -167,9 +192,10 @@ function getTempmailProviderUrl(env) {
     return String(env.TEMPMAIL_API_URL || "").trim().replace(/\/+$/, "");
 }
 
-function configError(message, status = 500) {
+function configError(message, status = 500, hint = "") {
     const error = new Error(message);
     error.status = status;
+    if (hint) error.hint = hint;
     return error;
 }
 
@@ -427,6 +453,116 @@ async function updateUserTempmailToken(env, email, token) {
     }
 }
 
+async function replaceUserTempmailAlias(env, userId, alias) {
+    const { supabaseUrl, serviceRoleKey } = getTempmailDatabaseConfig(env);
+    const url = new URL(`${supabaseUrl}/rest/v1/tempmail_user_aliases`);
+    url.searchParams.set("on_conflict", "user_id");
+    url.searchParams.set("select", "email,token,provider,created_at");
+
+    const response = await fetchWithTimeout(
+        url,
+        {
+            method: "POST",
+            headers: {
+                "apikey": serviceRoleKey,
+                "Authorization": `Bearer ${serviceRoleKey}`,
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates,return=representation"
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                email: alias.email,
+                token: alias.token || "",
+                provider: alias.provider || GMAIL_API_PROVIDER
+            })
+        },
+        SUPABASE_TIMEOUT_MS
+    );
+
+    if (response.status === 409) return null;
+
+    if (!response.ok) {
+        const payload = await readJsonSafe(response);
+        const error = new Error(
+            describeErrorPayload(payload) || "Gagal mengganti alias TempMail."
+        );
+        error.status = 502;
+        error.detail = describeErrorPayload(payload);
+        error.hint = supabaseRestHint(response, payload, "tempmail_user_aliases");
+        throw error;
+    }
+
+    const rows = await readJsonSafe(response);
+    const saved = Array.isArray(rows) ? normalizeAlias(rows[0]) : null;
+    return saved || normalizeAlias(await getUserTempmailAlias(env, userId));
+}
+
+async function deleteUserTempmailAlias(env, userId) {
+    const { supabaseUrl, serviceRoleKey } = getTempmailDatabaseConfig(env);
+    const url = new URL(`${supabaseUrl}/rest/v1/tempmail_user_aliases`);
+    url.searchParams.set("user_id", `eq.${userId}`);
+
+    const response = await fetchWithTimeout(
+        url,
+        {
+            method: "DELETE",
+            headers: {
+                "apikey": serviceRoleKey,
+                "Authorization": `Bearer ${serviceRoleKey}`,
+                "Prefer": "return=minimal"
+            }
+        },
+        SUPABASE_TIMEOUT_MS
+    );
+
+    if (!response.ok) {
+        const payload = await readJsonSafe(response);
+        const error = new Error("Gagal menghapus alias TempMail.");
+        error.status = 502;
+        error.detail = describeErrorPayload(payload);
+        error.hint = supabaseRestHint(response, payload, "tempmail_user_aliases");
+        throw error;
+    }
+}
+
+function aliasBelongsToConnection(alias, connection) {
+    const address = String(alias?.email || "").trim().toLowerCase();
+    const account = String(connection?.email || "").trim().toLowerCase();
+    const accountAt = account.lastIndexOf("@");
+    const addressAt = address.lastIndexOf("@");
+    const plus = address.indexOf("+");
+    if (accountAt <= 0 || addressAt <= plus || plus <= 0) return false;
+    return address.slice(0, plus) === account.slice(0, accountAt) &&
+        address.slice(addressAt + 1) === account.slice(accountAt + 1);
+}
+
+async function requireGmailConnection(env, userId) {
+    const connection = await getGmailConnection(env, userId);
+    if (!connection) {
+        throw configError(
+            "Akun Gmail belum dihubungkan.",
+            400,
+            MISSING_GMAIL_CONNECTION_HINT
+        );
+    }
+    return connection;
+}
+
+async function createGmailAliasForUser(env, userId, connection, requestedTag) {
+    const hasCustomTag = Boolean(String(requestedTag || "").trim());
+    for (let attempt = 0; attempt < ALIAS_SAVE_ATTEMPTS; attempt += 1) {
+        const alias = createGmailApiAlias(connection.email, requestedTag);
+        const saved = await replaceUserTempmailAlias(env, userId, alias);
+        if (saved) return saved;
+        if (hasCustomTag) break;
+    }
+    throw configError(
+        "Akhiran Gmail ini sudah dipakai. Coba akhiran lain.",
+        409,
+        "Isi akhiran yang berbeda, atau kosongkan kolom akhiran supaya Worker membuat angka acak."
+    );
+}
+
 async function createProviderAlias(env, providerName) {
     if (providerName === MAILTM_PROVIDER) {
         return createMailtmAlias();
@@ -590,7 +726,21 @@ async function requestBuiltinMailtm(env, alias, action, messageId) {
     }
 }
 
-async function requestProviderTempmail(env, alias, action, messageId) {
+async function requestProviderTempmail(env, alias, action, messageId, userId) {
+    if (alias.provider === GMAIL_API_PROVIDER) {
+        const connection = await requireGmailConnection(env, userId);
+        if (!aliasBelongsToConnection(alias, connection)) {
+            throw configError(
+                "Alamat aktif tidak cocok dengan akun Gmail yang terhubung.",
+                409,
+                "Klik 'Generate ujung' untuk membuat alias baru dari akun Gmail saat ini."
+            );
+        }
+        return action === "messages"
+            ? await listGmailMessages(env, connection, alias.email)
+            : await getGmailMessage(env, connection, alias.email, messageId);
+    }
+
     if (alias.provider === MAILTM_PROVIDER) {
         return requestBuiltinMailtm(env, alias, action, messageId);
     }
@@ -704,6 +854,14 @@ function getDiagnosticsConfig(env, requestUrl) {
         supabase_service_role_key: Boolean(serviceRoleKey),
         tempmail_api_url: Boolean(tempmailUrl),
         builtin_mailtm: isBuiltinMailtmEnabled(env),
+        gmail_api_configured: isGmailApiConfigured(env),
+        gmail_client_id: Boolean(String(env.GMAIL_CLIENT_ID || "").trim()),
+        gmail_client_secret: Boolean(String(env.GMAIL_CLIENT_SECRET || "").trim()),
+        gmail_oauth_redirect_uri: Boolean(String(env.GMAIL_OAUTH_REDIRECT_URI || "").trim()),
+        gmail_encryption_key: Boolean(String(env.PROVIDER_CREDENTIAL_ENCRYPTION_KEY || "").trim()),
+        active_provider: isGmailApiConfigured(env)
+            ? GMAIL_API_PROVIDER
+            : (isBuiltinMailtmEnabled(env) ? MAILTM_PROVIDER : "tempmail-mcp"),
         tempmail_api_host: host,
         tempmail_api_base_url: publicBaseUrl || null,
         tempmail_api_scheme: scheme,
@@ -975,7 +1133,8 @@ async function runDiagnostics(env, requestUrl) {
 
     for (const [name, resource] of [
         ["supabase_profiles", "profiles"],
-        ["supabase_aliases_table", "tempmail_user_aliases"]
+        ["supabase_aliases_table", "tempmail_user_aliases"],
+        ...(config.gmail_api_configured ? [["supabase_gmail_connections_table", "tempmail_gmail_connections"]] : [])
     ]) {
         try {
             record(name, await checkSupabaseRest(env, resource));
@@ -985,16 +1144,21 @@ async function runDiagnostics(env, requestUrl) {
     }
 
     try {
-        if (config.builtin_mailtm) {
+        if (config.gmail_api_configured) {
+            record("gmail_provider", await checkGmailOAuthHealth(env));
+        } else if (config.builtin_mailtm) {
             record("builtin_mailtm", await checkMailtmHealth());
         } else {
             record("tempmail_provider", await checkTempmailProvider(env, config));
         }
     } catch (error) {
-        record(config.builtin_mailtm ? "builtin_mailtm" : "tempmail_provider", diagnosticsFailure(error));
+        const name = config.gmail_api_configured
+            ? "gmail_provider"
+            : (config.builtin_mailtm ? "builtin_mailtm" : "tempmail_provider");
+        record(name, diagnosticsFailure(error));
     }
 
-    const providerReady = config.builtin_mailtm ||
+    const providerReady = config.gmail_api_configured || config.builtin_mailtm ||
         (config.tempmail_api_url && !config.tempmail_api_self_reference);
     const configOk = config.supabase_url && config.supabase_anon_key &&
         config.supabase_service_role_key && providerReady;
@@ -1015,15 +1179,19 @@ export default async function handleTempmail(request, env) {
     const action = url.searchParams.get("action");
     const email = url.searchParams.get("email");
     const messageId = url.searchParams.get("messageId");
+    const requestedTag = url.searchParams.get("tag") || "";
+    const GMAIL_ACTIONS = [
+        "gmail-status", "gmail-connect", "gmail-disconnect", "rotate"
+    ];
 
-    if (!["alias", "status", "diagnostics", "create", "messages", "message"].includes(action)) {
+    if (!["alias", "status", "diagnostics", "create", "messages", "message", ...GMAIL_ACTIONS].includes(action)) {
         return jsonResponse(
-            { error: "Action tidak dikenal. Gunakan: alias, status, diagnostics, create, messages, atau message." },
+            { error: "Action tidak dikenal. Gunakan: alias, status, diagnostics, create, rotate, gmail-status, gmail-connect, gmail-disconnect, messages, atau message." },
             400
         );
     }
 
-    const isWriteAction = action === "create";
+    const isWriteAction = ["create", "rotate", "gmail-disconnect"].includes(action);
     if (isWriteAction ? request.method !== "POST" : request.method !== "GET") {
         return jsonResponse({ error: "Method tidak diizinkan." }, 405);
     }
@@ -1060,6 +1228,58 @@ export default async function handleTempmail(request, env) {
             return jsonResponse(await runDiagnostics(env, url.toString()));
         }
 
+        if (action === "gmail-status") {
+            if (!isGmailApiConfigured(env)) {
+                return jsonResponse({ configured: false, connected: false, email: null });
+            }
+            const connection = await getGmailConnection(env, auth.user.id);
+            return jsonResponse({
+                configured: true,
+                connected: Boolean(connection?.email),
+                email: connection?.email || null
+            });
+        }
+
+        if (action === "gmail-connect") {
+            if (!isGmailApiConfigured(env)) {
+                throw configError(
+                    "Mode Hubungkan Gmail belum dikonfigurasi.",
+                    500,
+                    GMAIL_SECRETS_HINT
+                );
+            }
+            const { authUrl, cookie } = await buildGmailAuthUrl(env, auth.user.id, url.toString());
+            const response = jsonResponse({ authUrl });
+            /* Cookie HttpOnly ini mengikat state OAuth ke browser admin yang
+               memulai koneksi, mencegah login-confusion/CSRF saat callback. */
+            response.headers.append("Set-Cookie", cookie);
+            return response;
+        }
+
+        if (action === "gmail-disconnect") {
+            await deleteGmailConnection(env, auth.user.id);
+            await deleteUserTempmailAlias(env, auth.user.id);
+            return jsonResponse({ disconnected: true });
+        }
+
+        if (action === "rotate") {
+            if (!isGmailApiConfigured(env)) {
+                throw configError(
+                    "Mode Hubungkan Gmail belum dikonfigurasi.",
+                    500,
+                    GMAIL_SECRETS_HINT
+                );
+            }
+            const connection = await requireGmailConnection(env, auth.user.id);
+            const saved = await createGmailAliasForUser(env, auth.user.id, connection, requestedTag);
+            return jsonResponse({
+                email: saved.email,
+                provider: saved.provider,
+                createdAt: saved.createdAt,
+                reused: false
+            });
+        }
+
         if (action === "alias" || action === "status") {
             const existing = await getUserTempmailAlias(env, auth.user.id);
             return jsonResponse({
@@ -1070,7 +1290,32 @@ export default async function handleTempmail(request, env) {
         }
 
         if (action === "create") {
+            const gmailConfigured = isGmailApiConfigured(env);
+            const connection = gmailConfigured
+                ? await requireGmailConnection(env, auth.user.id)
+                : null;
             const existing = await getUserTempmailAlias(env, auth.user.id);
+
+            if (gmailConfigured && existing?.provider === GMAIL_API_PROVIDER &&
+                aliasBelongsToConnection(existing, connection)) {
+                return jsonResponse({
+                    email: existing.email,
+                    provider: existing.provider,
+                    createdAt: existing.created_at || null,
+                    reused: true
+                });
+            }
+
+            if (gmailConfigured) {
+                const saved = await createGmailAliasForUser(env, auth.user.id, connection, "");
+                return jsonResponse({
+                    email: saved.email,
+                    provider: saved.provider,
+                    createdAt: saved.createdAt,
+                    reused: false
+                });
+            }
+
             if (existing) {
                 return jsonResponse({
                     email: existing.email,
@@ -1094,7 +1339,7 @@ export default async function handleTempmail(request, env) {
             return jsonResponse({ error: "Email tidak ditemukan untuk akun ini." }, 404);
         }
 
-        const result = await requestProviderTempmail(env, alias, action, messageId);
+        const result = await requestProviderTempmail(env, alias, action, messageId, auth.user.id);
         return jsonResponse(result);
     } catch (error) {
         const message = error instanceof Error && error.message

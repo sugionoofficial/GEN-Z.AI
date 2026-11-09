@@ -4,6 +4,12 @@ Artefak ini menggantikan **GitHub Codespaces** dengan server yang selalu
 hidup. Provider `@gmail.com` tetap dipakai lewat IMAP + App Password, jadi
 kontrak `/api/tempmail` di GEN-Z.AI tidak berubah.
 
+> **Ingin cara yang lebih sederhana?** Pakai **Mode C: Hubungkan Gmail**
+> di `/email.html` lewat OAuth + Gmail REST API. Tidak perlu artefak ini,
+> Docker Desktop, BIOS/virtualisasi, VPS, atau Codespace. Lihat
+> [`TEMPMAIL-GMAIL-CONNECT.md`](../../TEMPMAIL-GMAIL-CONNECT.md). Folder ini
+> tetap dipertahankan sebagai fallback Mode B.
+
 ## Yang disiapkan
 
 | File | Fungsi |

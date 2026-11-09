@@ -118,6 +118,56 @@
       -webkit-box-orient: vertical;
     }
     .hidden { display: none !important; }
+    .gmail-status {
+      font-size: 13px;
+      color: #ddd;
+      margin-bottom: 10px;
+      word-break: break-word;
+    }
+    .gmail-actions,
+    .gmail-tag-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .gmail-tag-row {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #333;
+    }
+    .gmail-tag-row label {
+      display: block;
+      font-size: 12px;
+      color: #aaa;
+      margin-bottom: 6px;
+    }
+    .gmail-tag-row input {
+      flex: 1;
+      min-width: 140px;
+      max-width: 260px;
+      padding: 10px 12px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #101010;
+      color: #eee;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .gmail-tag-row input:focus-visible {
+      outline: 2px solid rgba(255, 74, 74, .55);
+      outline-offset: 1px;
+    }
+    .gmail-help {
+      font-size: 11px;
+      color: #888;
+      margin-top: 8px;
+      word-break: break-word;
+    }
+    .gmail-preview {
+      font-family: ui-monospace, "SF Mono", Consolas, monospace;
+      color: #4ade80;
+    }
     .status {
       font-size: 12px;
       color: #888;
@@ -241,7 +291,29 @@
   <div class="email-container">
 
     <h1>GEN-Z.AI — TempMail</h1>
-    <div class="subtitle">Generate email sementara untuk verifikasi &amp; testing.</div>
+    <div class="subtitle">Generate akhiran Gmail, lalu baca inboxnya langsung di halaman ini.</div>
+
+    <div id="gmail-connect-box" class="box">
+      <h3>🔗 Hubungkan Gmail</h3>
+      <div id="gmail-status-text" class="gmail-status">Memeriksa koneksi Gmail...</div>
+      <div class="gmail-actions">
+        <button id="btn-gmail-connect" type="button" class="hidden">Hubungkan Gmail</button>
+        <button id="btn-gmail-disconnect" type="button" class="secondary hidden">Putuskan</button>
+      </div>
+      <div id="gmail-tag-row" class="gmail-tag-row hidden">
+        <label for="gmail-tag-input">Akhiran setelah tanda + (mis. 1)</label>
+        <div class="gmail-tag-controls">
+          <input id="gmail-tag-input" type="text" maxlength="32" autocomplete="off"
+                 spellcheck="false" placeholder="1" aria-label="Akhiran Gmail" />
+          <button id="btn-gmail-rotate" type="button">Generate ujung</button>
+        </div>
+        <div class="gmail-help">Contoh hasil: <span id="gmail-preview" class="gmail-preview">nama+1@gmail.com</span></div>
+      </div>
+      <div class="gmail-help">
+        Cukup satu kali koneksi Google. Refresh token disimpan terenkripsi di server dan tidak pernah dikirim ke browser.
+        Tanpa Docker, VPS, BIOS, Codespace, atau Tempmail-MCP.
+      </div>
+    </div>
 
     <div>
       <button id="btn-generate" type="button">📧 Buat Email</button>
@@ -328,6 +400,9 @@
       let autoRefreshTimer = null;
       let refreshInFlight = null;
       let lastMessageCount = -1;
+      let gmailConfigured = false;
+      let gmailConnected = false;
+      let gmailAccountEmail = "";
 
       const emailContainer = document.querySelector(".email-container");
       const statusEl = document.getElementById("status");
@@ -347,6 +422,13 @@
       const msgAttachments = document.getElementById("msg-attachments");
       const messageFrame = document.getElementById("message-frame");
       const messageText = document.getElementById("message-text");
+      const gmailStatusText = document.getElementById("gmail-status-text");
+      const btnGmailConnect = document.getElementById("btn-gmail-connect");
+      const btnGmailDisconnect = document.getElementById("btn-gmail-disconnect");
+      const gmailTagRow = document.getElementById("gmail-tag-row");
+      const gmailTagInput = document.getElementById("gmail-tag-input");
+      const btnGmailRotate = document.getElementById("btn-gmail-rotate");
+      const gmailPreview = document.getElementById("gmail-preview");
       const btnDiagnostics = document.getElementById("btn-diagnostics");
       const btnCopyProbe = document.getElementById("btn-copy-probe");
       const diagnosticsBox = document.getElementById("diagnostics");
@@ -784,7 +866,17 @@
 
         appendDiagnosticsLine(
           diagnosticsList,
-          "Perintah cek: " + (config.tempmail_api_base_url
+          "Mode aktif: " + (config.active_provider || "tempmail-mcp") +
+            " · Gmail OAuth=" + Boolean(config.gmail_api_configured) +
+            " · kunci enkripsi=" + Boolean(config.gmail_encryption_key),
+          "msg-meta"
+        );
+
+        appendDiagnosticsLine(
+          diagnosticsList,
+          "Perintah cek: " + (config.gmail_api_configured
+            ? "klik Hubungkan Gmail di atas (tidak ada host eksternal)"
+            : config.tempmail_api_base_url
             ? "curl -i " + config.tempmail_api_base_url + "/api/health"
             : config.builtin_mailtm
               ? "curl -i https://api.mail.tm/domains"
@@ -858,7 +950,9 @@
 
       btnCopyProbe.addEventListener("click", async () => {
         const baseUrl = lastDiagnosticsConfig?.tempmail_api_base_url;
-        const command = baseUrl
+        const command = lastDiagnosticsConfig?.gmail_api_configured
+          ? "Buka /email.html lalu klik Hubungkan Gmail"
+          : baseUrl
           ? "curl -i " + baseUrl + "/api/health"
           : lastDiagnosticsConfig?.builtin_mailtm
             ? "curl -i https://api.mail.tm/domains"
@@ -888,6 +982,145 @@
           setLoading(btnDiagnostics, false);
         }
       });
+
+      function updateGmailPreview() {
+        const tag = gmailTagInput.value.trim() || "angka";
+        const at = gmailAccountEmail.lastIndexOf("@");
+        gmailPreview.textContent = at > 0
+          ? gmailAccountEmail.slice(0, at) + "+" + tag + "@gmail.com"
+          : "nama+" + tag + "@gmail.com";
+      }
+
+      function renderGmailStatus(data) {
+        gmailConfigured = Boolean(data?.configured);
+        gmailConnected = Boolean(gmailConfigured && data?.connected && data?.email);
+        gmailAccountEmail = gmailConnected ? String(data.email) : "";
+
+        gmailStatusText.textContent = gmailConfigured
+          ? (gmailConnected
+              ? "✅ Terhubung: " + gmailAccountEmail + ". Isi akhiran lalu klik Generate ujung."
+              : "⚙️ Google OAuth siap. Klik Hubungkan Gmail, izinkan gmail.readonly, lalu kembali ke halaman ini.")
+          : "Mode Hubungkan Gmail belum aktif. Tombol Buat Email memakai mode lama.";
+
+        btnGmailConnect.classList.toggle("hidden", !gmailConfigured);
+        btnGmailConnect.textContent = gmailConnected ? "Hubungkan ulang Gmail" : "Hubungkan Gmail";
+        btnGmailDisconnect.classList.toggle("hidden", !gmailConnected);
+        gmailTagRow.classList.toggle("hidden", !gmailConnected);
+        btnGenerate.classList.toggle("hidden", gmailConfigured);
+        updateGmailPreview();
+      }
+
+      function resetAliasView() {
+        currentEmail = "";
+        stopAutoRefresh();
+        refreshInFlight = null;
+        lastMessageCount = -1;
+        emailText.textContent = "-";
+        emailDisplay.classList.add("hidden");
+        btnRefresh.classList.add("hidden");
+        inbox.classList.add("hidden");
+        messageView.classList.add("hidden");
+        messageList.textContent = "";
+        inboxMeta.textContent = "";
+        closeMessageBody();
+      }
+
+      async function loadGmailStatus() {
+        try {
+          const data = await tempmailRequest("/api/tempmail?action=gmail-status");
+          renderGmailStatus(data);
+          return data;
+        } catch (error) {
+          gmailConfigured = false;
+          gmailConnected = false;
+          gmailAccountEmail = "";
+          gmailStatusText.textContent = "Status Gmail tidak bisa dibaca: " + error.message;
+          btnGmailConnect.classList.add("hidden");
+          btnGmailDisconnect.classList.add("hidden");
+          gmailTagRow.classList.add("hidden");
+          btnGenerate.classList.remove("hidden");
+          updateGmailPreview();
+          return null;
+        }
+      }
+
+      function showGmailCallbackNotice() {
+        const params = new URLSearchParams(window.location.search);
+        const result = params.get("gmail");
+        if (!result) return;
+
+        if (result === "connected") {
+          setStatus("✅ Gmail berhasil dihubungkan. Generate ujungnya sekarang.", "success");
+        } else {
+          const reason = params.get("reason") || "OAuth dibatalkan atau gagal.";
+          setStatus("❌ Gagal menghubungkan Gmail: " + reason, "error");
+        }
+
+        params.delete("gmail");
+        params.delete("reason");
+        const query = params.toString();
+        const cleanUrl = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
+        try {
+          window.history.replaceState(null, "", cleanUrl);
+        } catch {
+          /* browser lama / origin terbatas: biarkan query apa adanya */
+        }
+      }
+
+      btnGmailConnect.addEventListener("click", async () => {
+        setLoading(btnGmailConnect, true, "Membuka Google...");
+        try {
+          const data = await tempmailRequest("/api/tempmail?action=gmail-connect");
+          const authUrl = new URL(String(data?.authUrl || ""));
+          if (authUrl.protocol !== "https:" || authUrl.hostname !== "accounts.google.com") {
+            throw new Error("URL OAuth Google tidak valid.");
+          }
+          window.location.assign(authUrl.toString());
+        } catch (error) {
+          setStatus("❌ Gagal membuka Google OAuth: " + error.message, "error");
+        } finally {
+          setLoading(btnGmailConnect, false);
+        }
+      });
+
+      btnGmailDisconnect.addEventListener("click", async () => {
+        setLoading(btnGmailDisconnect, true, "Memutuskan...");
+        try {
+          await tempmailRequest("/api/tempmail?action=gmail-disconnect", { method: "POST" });
+          renderGmailStatus({ configured: gmailConfigured, connected: false, email: null });
+          resetAliasView();
+          setStatus("✅ Koneksi Gmail diputus. Hubungkan lagi bila ingin memakai fitur ini.", "success");
+        } catch (error) {
+          setStatus("❌ Gagal memutuskan Gmail: " + error.message, "error");
+        } finally {
+          setLoading(btnGmailDisconnect, false);
+        }
+      });
+
+      btnGmailRotate.addEventListener("click", async () => {
+        setLoading(btnGmailRotate, true, "Membuat akhiran...");
+        try {
+          const tag = gmailTagInput.value.trim();
+          const suffix = tag ? "&tag=" + encodeURIComponent(tag) : "";
+          const data = await tempmailRequest(
+            "/api/tempmail?action=rotate" + suffix,
+            { method: "POST" }
+          );
+          if (!data?.email) throw new Error("Server tidak mengembalikan alamat email.");
+
+          applyAlias(data.email);
+          messageView.classList.add("hidden");
+          closeMessageBody();
+          setStatus("✅ Akhiran baru: " + data.email, "success");
+          await checkMessages(true);
+        } catch (error) {
+          setStatus("❌ Gagal membuat akhiran: " + error.message, "error");
+        } finally {
+          setLoading(btnGmailRotate, false);
+        }
+      });
+
+      gmailTagInput.addEventListener("input", updateGmailPreview);
 
       btnGenerate.addEventListener("click", async () => {
         setLoading(btnGenerate, true, "Menghubungi server...");
@@ -964,8 +1197,14 @@
       window.addEventListener("pagehide", stopAutoRefresh);
 
       void (async () => {
-        if (await tempmailAccessReady) {
+        if (!(await tempmailAccessReady)) return;
+
+        showGmailCallbackNotice();
+        const gmail = await loadGmailStatus();
+        if (!gmail || !gmail.configured || gmail.connected) {
           await loadExistingAlias();
+        } else {
+          setStatus("⚠️ Hubungkan akun Gmail dulu, lalu generate ujungnya.", "error");
         }
       })();
     })();

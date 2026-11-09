@@ -1,8 +1,15 @@
 # TempMail — Setup & Troubleshooting
 
-Menu **TempMail** (`/email.html`) membuat alamat `@gmail.com` sementara
-untuk verifikasi/test akun. Fitur ini **khusus role `admin` dan `owner`**,
-dan setiap user hanya bisa melihat alias miliknya sendiri.
+Menu **TempMail** (`/email.html`) membuat akhiran `nama+tag@gmail.com`
+lalu menampilkan inboxnya di halaman yang sama. Fitur ini **khusus role
+`admin` dan `owner`**, dan setiap user hanya bisa melihat alias miliknya
+sendiri.
+
+Cara paling sederhana: **Mode C — Hubungkan Gmail** sekali lewat OAuth, lalu
+cukup generate akhiran. Lihat
+[`TEMPMAIL-GMAIL-CONNECT.md`](TEMPMAIL-GMAIL-CONNECT.md). Tidak perlu Docker,
+VPS, BIOS, Codespace, atau server Tempmail-MCP. Mode B lama tetap tersedia
+sebagai fallback.
 
 ---
 
@@ -16,22 +23,42 @@ Cloudflare Worker  /api/tempmail        (functions/_shared/tempmail-handler.js)
    │  1. verifikasi JWT ke Supabase Auth
    │  2. cek role di tabel public.profiles (admin/owner)
    │  3. baca/simpan alias di public.tempmail_user_aliases
+   │  4a. Mode C: baca Gmail REST API memakai refresh token terenkripsi
+   │  4b. Mode B: meneruskan ke Tempmail-MCP bila Mode C tidak aktif
    ▼
-Tempmail-MCP (self-hosted, TEMPMAIL_API_URL)
+Mode C: Gmail API (OAuth)  |  Mode B: Tempmail-MCP (TEMPMAIL_API_URL)
    https://github.com/sugionoofficial/Tempmail-MCP  <-- source, BUKAN host API
    POST /api/email?name=<provider>
    GET  /api/email/{email}/messages?token=..&name=..
    GET  /api/email/{email}/message/{id}?token=..&name=..
 ```
 
-Provider bawaan adalah **gmail** (alias `user+tag@gmail.com` lewat IMAP).
-Bila provider itu sedang down/disabled, Worker otomatis mencoba
-`TEMPMAIL_PROVIDER` berikutnya lalu fallback `auto` (provider sehat lain
-menurut prioritas Tempmail-MCP, mis. `mail.tm`).
+Bila secret OAuth Gmail lengkap, **Mode C** diprioritaskan: Worker membuat
+`user+tag@gmail.com` dan membaca inbox lewat Gmail REST API. Bila Mode C
+belum dikonfigurasi, Mode B memakai provider **gmail** Tempmail-MCP
+(`user+tag@gmail.com` lewat IMAP). Bila provider itu sedang down/disabled,
+Worker otomatis mencoba `TEMPMAIL_PROVIDER` berikutnya lalu fallback `auto`.
 
 ---
 
-## 2. Dua mode provider
+## 2. Tiga mode provider
+
+### Mode C — Hubungkan Gmail langsung di `/email.html` (paling simpel)
+
+Admin menghubungkan akun `@gmail.com` sekali lewat OAuth, lalu mengetik
+akhiran `1` dan klik **Generate ujung**. Hasilnya misalnya
+`sugionoofficial88+1@gmail.com`; inbox muncul di halaman yang sama. Refresh
+token disimpan terenkripsi AES-256-GCM di
+`public.tempmail_gmail_connections`, tidak pernah dikirim ke browser.
+
+Aktif bila `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, dan
+`PROVIDER_CREDENTIAL_ENCRYPTION_KEY` tersedia. `TEMPMAIL_API_URL` tidak
+dibutuhkan. Ikuti langkah Google Cloud, secret Worker, dan SQL di
+[`TEMPMAIL-GMAIL-CONNECT.md`](TEMPMAIL-GMAIL-CONNECT.md).
+
+Action baru: `gmail-status`, `gmail-connect`, `gmail-disconnect`, `rotate`.
+Diagnostik memakai `gmail_provider` dan
+`supabase_gmail_connections_table`, bukan probe `/api/health` eksternal.
 
 ### Mode A — Opsional, bukan untuk `@gmail.com`
 
@@ -57,7 +84,7 @@ isolasi alias per user tetap berlaku.
 
 Konsekuensi: alamat yang dibuat **bukan `@gmail.com`**, melainkan
 `xxxx@<domain-aktif-mail.tm>`. Untuk verifikasi OTP / kode, ini tetap bisa
-dipakai. Bila Anda memang butuh `@gmail.com`, pakai Mode B.
+dipakai. Bila Anda memang butuh `@gmail.com`, pakai Mode C (paling simpel) atau Mode B.
 
 Yang wajib diset di Cloudflare hanyalah secret Supabase yang sudah ada:
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. Tabel
@@ -67,7 +94,7 @@ Yang wajib diset di Cloudflare hanyalah secret Supabase yang sudah ada:
 `action=diagnostics` dalam mode ini memeriksa `builtin_mailtm` lewat
 `GET https://api.mail.tm/domains`, bukan `/api/health` Tempmail-MCP.
 
-### Mode B — Wajib untuk `@gmail.com` (tanpa Codespace)
+### Mode B — Fallback untuk `@gmail.com` (tanpa Codespace)
 
 Isi secret `TEMPMAIL_API_URL` dengan URL dasar instance FastAPI yang
 **persisten** (VPS / Cloudflare Tunnel / Render / Railway), bukan URL repo
@@ -186,7 +213,10 @@ error → tindakan.
 
 | Gejala | Penyebab umum | Perbaikan |
 |---|---|---|
-| `TEMPMAIL_API_URL belum di-set` | Hanya muncul bila Mode B dipaksa; Mode A tidak membutuhkannya | Biarkan kosong untuk memakai built-in `mail.tm`, atau isi URL Tempmail-MCP persisten lalu redeploy |
+| `TEMPMAIL_API_URL belum di-set` | Mode B lama dipakai karena Mode C belum aktif; Mode A tidak membutuhkannya | Aktifkan Mode C lewat 3 secret OAuth, atau isi URL Tempmail-MCP persisten lalu redeploy |
+| `Akun Gmail belum dihubungkan` | Mode C aktif tetapi admin belum klik **Hubungkan Gmail** | Klik tombol itu, izinkan `gmail.readonly`, lalu kembali ke `/email.html` |
+| `redirect_uri_mismatch` saat consent Google | Redirect URI tidak terdaftar persis di OAuth client | Daftarkan `https://<origin>/api/tempmail-gmail-callback`; lihat `TEMPMAIL-GMAIL-CONNECT.md` |
+| `PGRST205` pada `tempmail_gmail_connections` | SQL Mode C belum dijalankan | Jalankan `supabase/tempmail-gmail-connections.sql` lalu reload schema PostgREST |
 | `Gagal membaca pemetaan alias TempMail (HTTP 404). ... PGRST205` | Tabel belum ada / schema cache PostgREST basi | Jalankan `supabase/tempmail-user-aliases.sql` (sudah ada `pg_notify('pgrst', 'reload schema')`) |
 | `Konfigurasi database TempMail belum lengkap` | `SUPABASE_SERVICE_ROLE_KEY` kosong | Isi secret tersebut |
 | `Konfigurasi autentikasi Supabase belum lengkap` | `SUPABASE_ANON_KEY` kosong | Isi secret tersebut |
@@ -220,12 +250,13 @@ error → tindakan.
 
 - `functions/_shared/mailtm-provider.js` berisi klien `mail.tm` (tanpa
   kredensial yang dikirim ke browser).
-- `functions/_shared/tempmail-handler.js` memakai `mailtm` HANYA bila
-  `TEMPMAIL_PROVIDER=mailtm`; tanpa secret dan tanpa flag itu, `@gmail.com`
-  tetap dijaga lewat Mode B dengan pesan konfigurasi yang jelas.
-- `/email.html` tidak berubah alurnya: `alias`, `create`, `messages`,
-  `message`, auto-refresh, iframe `sandbox=""`, dan tombol diagnostik tetap
-  sama.
+- `functions/_shared/tempmail-handler.js` memprioritaskan Mode C bila secret
+  OAuth lengkap; memakai `mailtm` HANYA bila `TEMPMAIL_PROVIDER=mailtm`;
+  tanpa Mode C dan tanpa flag itu, `@gmail.com` tetap dijaga lewat Mode B.
+- `/email.html` kini punya panel **Hubungkan Gmail**, input akhiran `+tag`,
+  tombol **Generate ujung**, dan tombol **Putuskan**. Alur `alias`, `create`,
+  `messages`, `message`, auto-refresh, iframe `sandbox=""`, dan diagnostik
+  tetap sama.
 - Mode B tetap tersedia tanpa mengubah kontrak Tempmail-MCP lama.
 - [`deploy/tempmail-mcp/`](deploy/tempmail-mcp/README.md) menyiapkan host
   persisten + HTTPS untuk Mode B, lengkap dengan `.gitignore` agar `.env`

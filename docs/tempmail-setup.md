@@ -7,11 +7,14 @@ yang bisa ditindaklanjuti**, tanpa mengulang penjelasan arsitektur di sana.
 Menu **TempMail** ada di `navigation/navigation.js` → `/email.html`
 (khusus role `admin`/`owner`, diverifikasi ulang di server).
 
-## Dua mode: `@gmail.com` vs tanpa service luar
+## Dua mode lama + Mode C: `@gmail.com` tanpa Docker
 
-**`@gmail.com` tidak bisa dibuat murni di dalam halaman/Worker memakai
-IMAP** (butuh koneksi TCP, bukan `fetch`). Karena itu Mode B tetap wajib
-untuk Gmail — tetapi host-nya harus **persisten**, bukan Codespace.
+**IMAP tidak bisa dipakai langsung dari Cloudflare Worker** (butuh koneksi
+TCP, bukan `fetch`). Karena itu dulu `@gmail.com` mengandalkan Mode B dengan
+host Tempmail-MCP persisten. Sekarang ada **Mode C**: Worker memakai Gmail
+REST API + OAuth sekali, tanpa IMAP, Docker, VPS, BIOS, Codespace, atau host
+eksternal. Lihat
+[`TEMPMAIL-GMAIL-CONNECT.md`](../TEMPMAIL-GMAIL-CONNECT.md).
 
 Mode A (`TEMPMAIL_PROVIDER=mailtm`) adalah opsi terpisah bila domain Gmail
 tidak wajib: Worker memanggil `https://api.mail.tm` langsung dari server
@@ -21,13 +24,13 @@ tidak wajib: Worker memanggil `https://api.mail.tm` langsung dari server
 
 Perbandingan:
 
-| | Mode A (opsional, non-Gmail) | Mode B (wajib untuk `@gmail.com`) |
-|---|---|---|
-| `TEMPMAIL_API_URL` | kosong | URL Tempmail-MCP persisten |
-| Service luar | tidak ada | FastAPI + Docker/uvicorn |
-| Domain email | domain aktif `mail.tm` | bisa `@gmail.com` |
-| Kredensial | `token`+`password` di Supabase, hanya `service_role` | token Tempmail-MCP di Supabase |
-| Pemeriksaan diagnostik | `builtin_mailtm` → `GET api.mail.tm/domains` | `tempmail_provider` → `/api/health`, `/api/providers`, `/openapi.json` |
+| | Mode A (opsional, non-Gmail) | Mode B (lama, `@gmail.com`) | Mode C (utama, `@gmail.com`) |
+|---|---|---|---|
+| `TEMPMAIL_API_URL` | kosong | URL Tempmail-MCP persisten | tidak dipakai |
+| Service luar | tidak ada | FastAPI + Docker/uvicorn | tidak ada |
+| Domain email | domain aktif `mail.tm` | `@gmail.com` via IMAP | `@gmail.com` via plus-addressing |
+| Kredensial | `token`+`password` di Supabase, hanya `service_role` | token Tempmail-MCP di Supabase | refresh token OAuth terenkripsi AES-GCM di Supabase |
+| Pemeriksaan diagnostik | `builtin_mailtm` → `GET api.mail.tm/domains` | `tempmail_provider` → `/api/health`, `/api/providers`, `/openapi.json` | `gmail_provider` + `supabase_gmail_connections_table` |
 
 `TEMPMAIL_PROVIDER=mailtm` mengaktifkan Mode A walaupun secret Mode B ada.
 Untuk tetap di Mode B, isi `TEMPMAIL_API_URL` lewat
@@ -35,11 +38,12 @@ Untuk tetap di Mode B, isi `TEMPMAIL_API_URL` lewat
 jangan set `TEMPMAIL_PROVIDER=mailtm`.
 
 Konsekuensi penting: Mode A menghasilkan alamat **bukan `@gmail.com`**.
-Kalau layanan yang diverifikasi menolak domain disposable atau Anda
-memang butuh `@gmail.com`, satu-satunya jalan adalah Mode B dengan host
-persisten — bukan Codespaces. Alternatif lanjutan: klien Gmail REST API
-di Worker dengan OAuth refresh token (tanpa IMAP), tetapi itu memerlukan
-setup Google Cloud satu kali dan belum diimplementasikan di sini.
+Kalau layanan yang diverifikasi menolak domain disposable atau Anda memang
+butuh `@gmail.com`, pakai **Mode C** (tanpa host persisten, tanpa Codespace).
+Mode B tetap ada sebagai fallback bila secret OAuth Google belum diset.
+Alternatif Gmail REST API di Worker dengan OAuth refresh token (tanpa IMAP)
+**sudah diimplementasikan** sebagai Mode C; hanya butuh setup Google Cloud
+satu kali.
 
 ## Action yang didukung `GET/POST /api/tempmail`
 
@@ -48,8 +52,12 @@ setup Google Cloud satu kali dan belum diimplementasikan di sini.
 | `alias` | GET | Baca alias milik user tanpa membuat email baru |
 | `status` | GET | Alias untuk `alias` (kompatibilitas klien lama) |
 | `diagnostics` | GET | Cek env, Supabase REST, dan `/api/providers` |
-| `create` | POST | Pakai alias yang ada, atau buat baru dengan fallback provider |
-| `messages` | GET | Daftar pesan (dinormalisasi: `id`, `subject`, `from`, `preview`, `createdAt`) |
+| `create` | POST | Pakai alias yang ada, atau buat baru (Mode C bila aktif) |
+| `gmail-status` | GET | Status koneksi Gmail user (tanpa token) |
+| `gmail-connect` | GET | URL Google OAuth yang ditandatangani Worker |
+| `gmail-disconnect` | POST | Putuskan koneksi dan hapus alias aktif |
+| `rotate` | POST | Generate akhiran `+tag` baru; `tag` opsional |
+| `messages` | GET | Daftar pesan (Mode C difilter ke alias tepat) |
 | `message` | GET | Isi pesan (`bodyText`, `bodyHtml`, `attachments`) |
 
 Semua action melewati: verifikasi JWT ke Supabase Auth → cek role di
@@ -106,6 +114,10 @@ disamarkan sebelum dikirim ke browser maupun log Worker.
 | `Permintaan timeout setelah 20 detik. Coba lagi.` | jaringan | Cek cold start / ketersediaan host provider |
 | `Session tidak valid atau sudah kedaluwarsa.` | browser | Login ulang; samakan `assets/js/config.js` dengan `SUPABASE_URL` Worker |
 | `Fitur TempMail hanya tersedia untuk role admin atau owner.` | otorisasi | Ubah role di `public.profiles` |
+| `Akun Gmail belum dihubungkan.` | Mode C | Klik **Hubungkan Gmail** di `/email.html`, izinkan `gmail.readonly` |
+| `redirect_uri_mismatch` | OAuth Google | Daftarkan `https://<origin>/api/tempmail-gmail-callback` di Google Cloud |
+| `PGRST205` pada `tempmail_gmail_connections` | Supabase REST Mode C | Jalankan [`supabase/tempmail-gmail-connections.sql`](../supabase/tempmail-gmail-connections.sql) |
+| `Pesan tidak ditemukan untuk alamat TempMail ini.` | isolasi Mode C | Worker menolak pesan yang bukan ditujukan ke `+tag` milik user; generate ujung baru bila perlu |
 
 Pesan lama `Gagal memproses TempMail. Periksa konfigurasi Supabase dan
 provider.` kini hanya muncul untuk kesalahan tak terduga yang tidak punya

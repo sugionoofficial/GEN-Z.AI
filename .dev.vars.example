@@ -15,7 +15,9 @@ SUPABASE_ANON_KEY=sb_publishable_-Fq__LVjbaAe2e3YkhYnQg_-PLLDM1R
 # ---------------------------------------------------------
 # Disarankan
 # ---------------------------------------------------------
-# 32-byte key untuk mengenkripsi credential provider di database
+# Kunci enkripsi credential provider di database. Boleh 64 hex,
+# base64 32 byte, atau secret teks panjang (diturunkan SHA-256).
+# WAJIB juga untuk Mode C "Hubungkan Gmail" di /email.html.
 PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 
 # ---------------------------------------------------------
@@ -26,10 +28,22 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 # OPENKEY_API_KEY=<key>
 # GITHUB_PAT=<token: untuk upscale Actions & Admin Copilot>
 #
-# TempMail (menu admin "TempMail" -> /email.html) — lihat TEMPMAIL-SETUP.md
-# WAJIB untuk alamat @gmail.com. Deploy Tempmail-MCP ke host HTTPS
-# persisten (VPS / Cloudflare Tunnel / Render / Railway), BUKAN repo GitHub
-# dan BUKAN port-forward Codespaces *.app.github.dev.
+# TempMail (menu admin "TempMail" -> /email.html)
+# Lihat TEMPMAIL-GMAIL-CONNECT.md, TEMPMAIL-SETUP.md.
+#
+# MODE C (PALING SIMPEL): hubungkan akun Gmail langsung di /email.html.
+# Cukup generate akhiran +tag; inbox @gmail.com muncul di halaman sama.
+# Tidak perlu Docker, VPS, BIOS, Codespace, atau Tempmail-MCP.
+# GMAIL_CLIENT_ID=<oauth-web-client-id>
+# GMAIL_CLIENT_SECRET=<oauth-web-client-secret>
+# GMAIL_OAUTH_REDIRECT_URI=http://127.0.0.1:8787/api/tempmail-gmail-callback
+# Jalankan juga supabase/tempmail-gmail-connections.sql.
+#
+# MODE B (fallback lama): untuk alamat @gmail.com tanpa OAuth, deploy
+# Tempmail-MCP ke host HTTPS persisten (VPS / Cloudflare Tunnel / Render /
+# Railway), BUKAN repo GitHub dan BUKAN port-forward Codespaces
+# *.app.github.dev. Mode C otomatis diprioritaskan bila 3 secret di atas
+# plus PROVIDER_CREDENTIAL_ENCRYPTION_KEY tersedia.
 # TEMPMAIL_API_URL=https://tempmail.example.com
 # Opsi non-Gmail tanpa service luar: TEMPMAIL_PROVIDER=mailtm memakai
 # built-in mail.tm langsung dari Worker (alamat bukan @gmail.com).
