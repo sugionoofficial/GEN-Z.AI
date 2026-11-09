@@ -72,6 +72,10 @@ test("artefak deploy Tempmail-MCP lengkap dan aman", () => {
     assert.match(readme, /arena\/23682d30-gen-z-ai/);
     assert.match(readme, /Cloudflare Tunnel/);
     assert.match(readme, /Docker Desktop/);
+    assert.match(readme, /Virtualization is disabled in firmware/);
+    assert.match(readme, /Intel VT-x|SVM Mode/);
+    assert.match(readme, /VirtualMachinePlatform/);
+    assert.match(readme, /cloudflared tunnel run/);
     assert.match(readme, /Render/);
     assert.match(readme, /Railway/);
     assert.match(readme, /onrender\.com/);

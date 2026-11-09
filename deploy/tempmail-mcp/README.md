@@ -20,6 +20,70 @@ Port `8000` **tidak dipublish ke internet**; hanya Caddy yang membuka `80/443`.
 
 - Docker + plugin `docker compose`, Git.
 
+### Error "Virtualization is disabled in firmware"
+
+Ini bukan error `setup.ps1`, tapi prasyarat Docker Desktop/WSL2.
+Windows tidak bisa menjalankan hypervisor sampai **hardware virtualization**
+diaktifkan di BIOS/UEFI.
+
+#### Lenovo (umum)
+
+1. Matikan lalu nyalakan, tekan **F1** / **F2** berulang, atau tombol **Novo**
+   (lubang kecil di sisi bodi) → **BIOS Setup**.
+2. Masuk menu **Security** → **Virtualization** (kadang di **CPU Setup** /
+   **Advanced**).
+3. Set:
+   - **Intel (R) Virtualization Technology** / **Intel VT-x** = `Enabled`, atau
+   - **AMD-V** / **SVM Mode** = `Enabled`.
+4. Opsional: **Intel VT-d Feature** = `Enabled`.
+5. **F10** → Save & Exit → reboot.
+
+Setelah masuk Windows, cek:
+
+```powershell
+systeminfo | findstr /i "Virtualization Hypervisor"
+```
+
+Baris **"Virtualization Enabled In Firmware: Yes"** harus muncul. Lalu aktifkan
+fitur Windows (PowerShell **Administrator**):
+
+```powershell
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+wsl --install
+wsl --update
+wsl --status
+bcdedit /set hypervisorlaunchtype auto
+```
+
+Reboot, buka Docker Desktop, tunggu **"Docker Desktop is running"**, baru
+`docker info` dan `setup.ps1`.
+
+#### Kalau BIOS dikunci / IT managed / CPU tidak support
+
+Jangan paksakan Docker Desktop. Pilih salah satu:
+
+- **Render / Railway / Fly.io** — deploy dari repo Tempmail-MCP tanpa Docker
+  lokal (lihat section di bawah), atau
+- **VPS Linux** — jalankan `setup.sh` lewat SSH, atau
+- **Python native + Cloudflare Tunnel di Windows** — tidak butuh virtualisasi:
+  ```powershell
+  git clone https://github.com/sugionoofficial/Tempmail-MCP.git
+  cd Tempmail-MCP
+  python -m venv .venv
+  .\.venv\Scripts\python.exe -m pip install -r src\requirements.txt
+  $env:GMAIL_EMAIL="akun@gmail.com"
+  $env:GMAIL_APP_PASSWORD="xxxx xxxx xxxx xxxx"
+  .\.venv\Scripts\python.exe -m uvicorn src.api:app --host 0.0.0.0 --port 8000
+  ```
+  Terminal kedua:
+  ```powershell
+  cloudflared tunnel create tempmail
+  cloudflared tunnel route dns tempmail tempmail.domain.tld
+  cloudflared tunnel run --url http://localhost:8000 tempmail
+  ```
+  Laptop tetap harus menyala; Tunnel memberi URL HTTPS tanpa membuka port.
+
 ### Kalau `docker` belum ada di Windows PowerShell
 
 Error `Command 'docker' not found` berarti Docker Desktop belum terpasang
