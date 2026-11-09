@@ -68,6 +68,18 @@ html[data-genz-theme="light"][data-genz-theme="light"] body button {
     box-shadow: 0 8px 20px rgba(168, 13, 36, .18) !important;
 }
 
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-link {
+    border-color: #a80d24;
+    background: linear-gradient(135deg, #d4162f, #a80d24);
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(168, 13, 36, .18);
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-link:hover {
+    background: linear-gradient(135deg, #e01a34, #b90f28);
+    border-color: #8f0a1e;
+}
+
 html[data-genz-theme="light"][data-genz-theme="light"] body button:hover:not(:disabled) {
     background: linear-gradient(135deg, #e01a34, #b90f28) !important;
     border-color: #8f0a1e !important;
