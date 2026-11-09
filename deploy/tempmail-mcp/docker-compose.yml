@@ -1,0 +1,50 @@
+services:
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: tempmail-flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+    expose:
+      - "8191"
+    restart: unless-stopped
+
+  tempmail-api:
+    build: ./Tempmail-MCP
+    container_name: tempmail-api
+    expose:
+      - "8000"
+    environment:
+      FLARESOLVERR_URL: http://flaresolverr:8191
+      GMAIL_EMAIL: ${GMAIL_EMAIL}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      SHARED_EMAILS_PATH: /data/shared_emails.json
+      ENABLE_FRONTEND: "true"
+    volumes:
+      - tempmail-data:/data
+    depends_on:
+      - flaresolverr
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: tempmail-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      TEMPMAIL_DOMAIN: ${TEMPMAIL_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - tempmail-api
+    restart: unless-stopped
+
+volumes:
+  tempmail-data:
+  caddy-data:
+  caddy-config:

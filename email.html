@@ -24,6 +24,11 @@
       font-size: 22px;
       margin-bottom: 4px;
     }
+    h3 {
+      margin-top: 0;
+      font-size: 15px;
+      color: #fff;
+    }
     .subtitle {
       color: #888;
       font-size: 13px;
@@ -81,20 +86,88 @@
       padding: 12px 10px;
       border-bottom: 1px solid #222;
       transition: background .15s ease;
+      text-align: left;
+      width: 100%;
+      display: block;
+      background: transparent;
+      color: inherit;
     }
-    .msg-item:hover { background: #1a1a1a; }
+    .msg-item:hover,
+    .msg-item:focus-visible { background: #1a1a1a; outline: none; }
+    .msg-item:focus-visible { box-shadow: inset 0 0 0 2px rgba(255, 74, 74, .55); }
     .msg-item:last-child { border-bottom: none; }
     .msg-subject {
       font-weight: 600;
       color: #fff;
       font-size: 13px;
       margin-bottom: 2px;
+      word-break: break-word;
     }
     .msg-from {
       font-size: 11px;
       color: #888;
+      word-break: break-word;
+    }
+    .msg-preview {
+      font-size: 11px;
+      color: #6f6f6f;
+      margin-top: 3px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
     }
     .hidden { display: none !important; }
+    .gmail-status {
+      font-size: 13px;
+      color: #ddd;
+      margin-bottom: 10px;
+      word-break: break-word;
+    }
+    .gmail-actions,
+    .gmail-tag-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .gmail-tag-row {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #333;
+    }
+    .gmail-tag-row label {
+      display: block;
+      font-size: 12px;
+      color: #aaa;
+      margin-bottom: 6px;
+    }
+    .gmail-tag-row input {
+      flex: 1;
+      min-width: 140px;
+      max-width: 260px;
+      padding: 10px 12px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #101010;
+      color: #eee;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .gmail-tag-row input:focus-visible {
+      outline: 2px solid rgba(255, 74, 74, .55);
+      outline-offset: 1px;
+    }
+    .gmail-help {
+      font-size: 11px;
+      color: #888;
+      margin-top: 8px;
+      word-break: break-word;
+    }
+    .gmail-preview {
+      font-family: ui-monospace, "SF Mono", Consolas, monospace;
+      color: #4ade80;
+    }
     .status {
       font-size: 12px;
       color: #888;
@@ -115,30 +188,75 @@
       margin-right: 6px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .msg-body {
-      background: #fff;
+    .inbox-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .inbox-meta {
+      font-size: 11px;
+      color: #7a7a7a;
+    }
+    .msg-frame {
+      width: 100%;
+      height: 460px;
+      border: 0;
+      border-radius: 8px;
+      background: #ffffff;
+      display: block;
+    }
+    .msg-text {
+      background: #ffffff;
       color: #000;
       padding: 15px;
       border-radius: 8px;
-      margin-top: 10px;
+      margin: 10px 0 0;
       overflow-x: auto;
       font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, "SF Mono", Consolas, monospace;
     }
     .msg-meta {
       font-size: 12px;
       color: #888;
       margin-bottom: 4px;
+      word-break: break-word;
+    }
+    .msg-attachment {
+      display: inline-block;
+      font-size: 11px;
+      color: #bbb;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 2px 8px;
+      margin: 2px 4px 2px 0;
+    }
+    .empty-state {
+      color: #888;
+      font-size: 13px;
+      margin: 0;
+    }
+    .notice h1 {
+      font-size: 20px;
     }
     .email-container {
       visibility: hidden;
     }
 
-    /* Penyesuaian dengan sidebar navigation */
+    /* Penyesuaian dengan sidebar navigation.
+       Padding kiri diatur otomatis oleh navigation.js (body padding-left),
+       jadi di sini cukup memberi jarak atas/kanan/bawah. */
     @media (min-width: 769px) {
       body {
         max-width: none;
         margin: 0;
-        padding: 30px 30px 30px calc(248px + 30px);
+        padding-top: 30px;
+        padding-right: 30px;
+        padding-bottom: 30px;
       }
       .email-container {
         max-width: 720px;
@@ -149,58 +267,107 @@
       body {
         padding: 70px 20px 20px;
       }
+      .msg-frame {
+        height: 380px;
+      }
     }
-  
-        /* ====== LIGHT MODE PASS ====== */
-        html[data-genz-theme="light"] .msg-subject {
-            color: #172033;
-        }
 
-    </style>
+    /* ====== LIGHT MODE PASS ====== */
+    html[data-genz-theme="light"] .msg-subject {
+      color: #172033;
+    }
+  </style>
   <!-- ===== LIGHT THEME (MODE CERAH) ===== -->
-  <link rel="stylesheet" href="/assets/css/tempmail-light.css?v=light-theme-20261022">
-    <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
-<link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
-    <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
-    <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
-    <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
+  <link rel="stylesheet" href="/assets/css/tempmail-light.css?v=light-theme-20261108">
+  <link rel="icon" href="/assets/brand/favicon.ico?v=1" sizes="any">
+  <link rel="icon" href="/assets/brand/favicon.svg?v=1" type="image/svg+xml">
+  <link rel="icon" href="/assets/brand/favicon-32.png?v=1" sizes="32x32" type="image/png">
+  <link rel="icon" href="/assets/brand/favicon-16.png?v=1" sizes="16x16" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png?v=1" sizes="180x180">
 </head>
 <body>
 
   <!-- Container konten -->
   <div class="email-container">
 
-    <h1>GEN-Z.AI — Temp Gmail</h1>
-    <div class="subtitle">Generate email @gmail.com sementara untuk verifikasi & testing.</div>
+    <h1>GEN-Z.AI — TempMail</h1>
+    <div class="subtitle">Generate akhiran Gmail, lalu baca inboxnya langsung di halaman ini.</div>
 
-    <div>
-      <button id="btn-generate">📧 Generate Email Gmail</button>
-      <button id="btn-refresh" class="secondary hidden">🔄 Refresh Inbox</button>
+    <div id="gmail-connect-box" class="box">
+      <h3>🔗 Hubungkan Gmail</h3>
+      <div id="gmail-status-text" class="gmail-status">Memeriksa koneksi Gmail...</div>
+      <div class="gmail-actions">
+        <button id="btn-gmail-connect" type="button" class="hidden">Hubungkan Gmail</button>
+        <button id="btn-gmail-disconnect" type="button" class="secondary hidden">Putuskan</button>
+      </div>
+      <div id="gmail-tag-row" class="gmail-tag-row hidden">
+        <label for="gmail-tag-input">Akhiran setelah tanda + (mis. 1)</label>
+        <div class="gmail-tag-controls">
+          <input id="gmail-tag-input" type="text" maxlength="32" autocomplete="off"
+                 spellcheck="false" placeholder="1" aria-label="Akhiran Gmail" />
+          <button id="btn-gmail-rotate" type="button">Generate ujung</button>
+        </div>
+        <div class="gmail-help">Contoh hasil: <span id="gmail-preview" class="gmail-preview">nama+1@gmail.com</span></div>
+      </div>
+      <div class="gmail-help">
+        Cukup satu kali koneksi Google. Refresh token disimpan terenkripsi di server dan tidak pernah dikirim ke browser.
+        Tanpa Docker, VPS, BIOS, Codespace, atau Tempmail-MCP.
+      </div>
     </div>
 
-    <div id="status" class="status"></div>
+    <div>
+      <button id="btn-generate" type="button">📧 Buat Email</button>
+      <button id="btn-refresh" type="button" class="secondary hidden">🔄 Refresh Inbox</button>
+      <button id="btn-diagnostics" type="button" class="secondary">🔍 Cek Konfigurasi</button>
+    </div>
+
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+
+    <div id="diagnostics" class="box hidden">
+      <h3>🔍 Diagnostik TempMail</h3>
+      <button id="btn-copy-probe" type="button" class="secondary">📋 Salin perintah cek</button>
+      <div id="diagnostics-list"></div>
+    </div>
 
     <div id="email-display" class="box hidden">
       <div class="email-display">
         <span class="email-text" id="email-text">-</span>
-        <button id="btn-copy" class="secondary" style="margin:0;">📋 Salin</button>
+        <button id="btn-copy" type="button" class="secondary" style="margin:0;">📋 Salin</button>
       </div>
       <div style="margin-top:10px; font-size:12px; color:#888;">
-        Gunakan alamat ini untuk verifikasi akun. Klik "Refresh Inbox" untuk membaca email yang diterima.
+        Gunakan alamat ini untuk verifikasi akun. Inbox diperbarui otomatis setiap 15 detik; klik "Refresh Inbox" untuk cek manual.
       </div>
     </div>
 
     <div id="inbox" class="box hidden">
-      <h3 style="margin-top:0; font-size:15px; color:#fff;">📥 Pesan Masuk</h3>
+      <div class="inbox-header">
+        <h3>📥 Pesan Masuk</h3>
+        <span class="inbox-meta" id="inbox-meta"></span>
+      </div>
       <div id="message-list"></div>
     </div>
 
     <div id="message-view" class="box hidden">
-      <h3 style="margin-top:0; font-size:15px; color:#fff;">📩 Isi Pesan</h3>
+      <h3>📩 Isi Pesan</h3>
       <div class="msg-meta"><strong>Subject:</strong> <span id="msg-subject">-</span></div>
       <div class="msg-meta"><strong>Dari:</strong> <span id="msg-from">-</span></div>
-      <div class="msg-body" id="message-content"></div>
-      <button onclick="document.getElementById('message-view').classList.add('hidden')" class="secondary" style="margin-top:10px;">Tutup</button>
+      <div class="msg-meta hidden" id="msg-attachments-row"><strong>Lampiran:</strong> <span id="msg-attachments"></span></div>
+
+      <!--
+        Isi email dirender di dalam iframe sandbox tanpa
+        allow-scripts/allow-same-origin. Email dari pengirim luar
+        tidak boleh bisa membaca session Supabase di localStorage
+        halaman ini (XSS), dan CSP di srcdoc memblokir resource lain.
+      -->
+      <iframe
+        id="message-frame"
+        class="msg-frame hidden"
+        sandbox=""
+        referrerpolicy="no-referrer"
+        title="Isi pesan email"></iframe>
+      <pre id="message-text" class="msg-text hidden"></pre>
+
+      <button id="btn-close-message" type="button" class="secondary" style="margin-top:10px;">Tutup</button>
     </div>
 
   </div>
@@ -216,199 +383,831 @@
   <script src="/assets/js/config.js"></script>
 
   <!-- 3. Navigation (path absolut) -->
-  <script src="/navigation/navigation.js?v=livechat-nav-20261101"></script>
+  <script src="/navigation/navigation.js?v=tempmail-20261108"></script>
 
   <!-- =========================================================
        TEMPMAIL LOGIC
   ========================================================== -->
   <script>
-    let currentEmail = '';
-    let autoRefreshTimer = null;
+    (() => {
+      "use strict";
 
-    const statusEl = document.getElementById('status');
-    const btnGenerate = document.getElementById('btn-generate');
-    const btnRefresh = document.getElementById('btn-refresh');
-    const btnCopy = document.getElementById('btn-copy');
-    const emailContainer = document.querySelector('.email-container');
-    const tempmailAccessReady = (async () => {
-      if (window.GENZNavigationReady) {
-        await window.GENZNavigationReady;
+      const AUTO_REFRESH_MS = 15000;
+      const BODY_CSP = "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; font-src https: data:; form-action 'none'; base-uri 'none'";
+
+      let currentEmail = "";
+      let lastDiagnosticsConfig = null;
+      let autoRefreshTimer = null;
+      let refreshInFlight = null;
+      let lastMessageCount = -1;
+      let gmailConfigured = false;
+      let gmailConnected = false;
+      let gmailAccountEmail = "";
+
+      const emailContainer = document.querySelector(".email-container");
+      const statusEl = document.getElementById("status");
+      const btnGenerate = document.getElementById("btn-generate");
+      const btnRefresh = document.getElementById("btn-refresh");
+      const btnCopy = document.getElementById("btn-copy");
+      const btnCloseMessage = document.getElementById("btn-close-message");
+      const emailDisplay = document.getElementById("email-display");
+      const emailText = document.getElementById("email-text");
+      const inbox = document.getElementById("inbox");
+      const inboxMeta = document.getElementById("inbox-meta");
+      const messageList = document.getElementById("message-list");
+      const messageView = document.getElementById("message-view");
+      const msgSubject = document.getElementById("msg-subject");
+      const msgFrom = document.getElementById("msg-from");
+      const msgAttachmentsRow = document.getElementById("msg-attachments-row");
+      const msgAttachments = document.getElementById("msg-attachments");
+      const messageFrame = document.getElementById("message-frame");
+      const messageText = document.getElementById("message-text");
+      const gmailStatusText = document.getElementById("gmail-status-text");
+      const btnGmailConnect = document.getElementById("btn-gmail-connect");
+      const btnGmailDisconnect = document.getElementById("btn-gmail-disconnect");
+      const gmailTagRow = document.getElementById("gmail-tag-row");
+      const gmailTagInput = document.getElementById("gmail-tag-input");
+      const btnGmailRotate = document.getElementById("btn-gmail-rotate");
+      const gmailPreview = document.getElementById("gmail-preview");
+      const btnDiagnostics = document.getElementById("btn-diagnostics");
+      const btnCopyProbe = document.getElementById("btn-copy-probe");
+      const diagnosticsBox = document.getElementById("diagnostics");
+      const diagnosticsList = document.getElementById("diagnostics-list");
+
+      const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+      function setStatus(message, type) {
+        statusEl.textContent = message || "";
+        statusEl.className = "status" + (type ? " " + type : "");
       }
 
-      const role = String(
-        window.GENZNavigation?.getRole?.() || window.GENZ_NAVIGATION_ROLE || ''
-      ).trim().toLowerCase();
-
-      if (role !== 'admin' && role !== 'owner') {
-        emailContainer.innerHTML = '<h1>Akses terbatas</h1><div class="subtitle">Fitur ini hanya tersedia untuk role admin atau owner.</div>';
-        emailContainer.style.visibility = 'visible';
-        return false;
+      function setLoading(btn, isLoading, text) {
+        if (isLoading) {
+          btn.disabled = true;
+          if (!btn.dataset.originalText) btn.dataset.originalText = btn.innerHTML;
+          btn.innerHTML = '<span class="spinner"></span>' + text;
+        } else {
+          btn.disabled = false;
+          if (btn.dataset.originalText) {
+            btn.innerHTML = btn.dataset.originalText;
+            delete btn.dataset.originalText;
+          }
+        }
       }
 
-      emailContainer.style.visibility = 'visible';
-      return true;
-    })();
-
-    function setStatus(message, type) {
-      statusEl.textContent = message || '';
-      statusEl.className = 'status' + (type ? ' ' + type : '');
-    }
-
-    function setLoading(btn, isLoading, originalText) {
-      if (isLoading) {
-        btn.disabled = true;
-        btn.dataset.originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="spinner"></span>' + originalText;
-      } else {
-        btn.disabled = false;
-        if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
-      }
-    }
-
-    async function tempmailRequest(url, options = {}) {
-      if (!(await tempmailAccessReady)) {
-        throw new Error('Fitur ini hanya tersedia untuk role admin atau owner.');
+      function showNotice(message) {
+        if (!emailContainer) return;
+        emailContainer.classList.add("notice");
+        emailContainer.textContent = "";
+        const heading = document.createElement("h1");
+        heading.textContent = "Akses terbatas";
+        const subtitle = document.createElement("div");
+        subtitle.className = "subtitle";
+        subtitle.textContent = message;
+        emailContainer.append(heading, subtitle);
+        emailContainer.style.visibility = "visible";
       }
 
-      if (window.GENZNavigationReady) {
-        await window.GENZNavigationReady;
+      async function resolveRole() {
+        if (window.GENZNavigationReady) {
+          try {
+            await Promise.race([window.GENZNavigationReady, sleep(12000)]);
+          } catch {
+            /* lanjut memakai role yang tersedia */
+          }
+        } else {
+          const deadline = Date.now() + 8000;
+          while (!window.GENZNavigation && Date.now() < deadline) {
+            await sleep(150);
+          }
+        }
+
+        const role = window.GENZNavigation?.getRole?.() || window.GENZ_NAVIGATION_ROLE || "";
+        return String(role).trim().toLowerCase();
       }
 
-      const client = window.GENZ_SUPABASE || window.supabaseClient;
-      if (!client?.auth?.getSession) {
-        throw new Error('Session Supabase tidak tersedia. Silakan login kembali.');
+      /*
+       * Guard tampilan: halaman hanya dirender untuk admin/owner.
+       * Ini bukan pengamanan utama — server (/api/tempmail) tetap
+       * memeriksa JWT + role pada setiap request.
+       */
+      const tempmailAccessReady = (async () => {
+        const role = await resolveRole();
+
+        if (role !== "admin" && role !== "owner") {
+          if (!window.GENZNavigation && !window.GENZ_NAVIGATION_ROLE) {
+            showNotice("Navigasi belum siap dimuat. Muat ulang halaman ini, lalu coba lagi.");
+          } else {
+            showNotice("Fitur ini hanya tersedia untuk role admin atau owner.");
+          }
+          return false;
+        }
+
+        if (emailContainer) emailContainer.style.visibility = "visible";
+        return true;
+      })();
+
+      async function getAccessToken(forceRefresh = false) {
+        let refreshedToken = "";
+
+        if (window.GENZSession?.ensureFreshSession) {
+          try {
+            const session = await window.GENZSession.ensureFreshSession({ force: forceRefresh });
+            if (session?.access_token) refreshedToken = String(session.access_token);
+          } catch {
+            /* lanjut dengan session yang tersedia di client */
+          }
+        }
+
+        const client = window.GENZ_SUPABASE || window.supabaseClient;
+        if (!client?.auth?.getSession) {
+          if (refreshedToken) return refreshedToken;
+          throw new Error("Session Supabase tidak tersedia. Silakan login kembali.");
+        }
+
+        const { data, error } = await client.auth.getSession();
+        const clientToken = data?.session?.access_token;
+
+        /*
+         * Token hasil ensureFreshSession() adalah token yang baru
+         * divalidasi/di-refresh, jadi dipakai lebih dulu. getSession()
+         * hanya cadangan bila helper session tidak menyediakan token.
+         */
+        const accessToken = refreshedToken || clientToken;
+
+        if (error || !accessToken) {
+          throw new Error("Silakan login terlebih dahulu untuk menggunakan TempMail.");
+        }
+
+        return accessToken;
       }
 
-      const { data, error } = await client.auth.getSession();
-      const accessToken = data?.session?.access_token;
-      if (error || !accessToken) {
-        throw new Error('Silakan login terlebih dahulu untuk menggunakan TempMail.');
+      /*
+       * Semua request TempMail:
+       * - token selalu disegarkan (ensureFreshSession) sebelum dipakai
+       * - 401 sekali dicoba ulang dengan token baru
+       * - body non-JSON (mis. halaman error Cloudflare) tidak membuat
+       *   pesan error "Unexpected token"
+       */
+      async function tempmailRequest(url, options = {}, attempt = 0) {
+        if (!(await tempmailAccessReady)) {
+          throw new Error("Fitur ini hanya tersedia untuk role admin atau owner.");
+        }
+
+        const accessToken = await getAccessToken(attempt > 0);
+
+        const response = await fetch(url, {
+          ...options,
+          cache: "no-store",
+          headers: {
+            ...(options.headers || {}),
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+
+        const raw = await response.text();
+        let payload = null;
+        if (raw) {
+          try {
+            payload = JSON.parse(raw);
+          } catch {
+            payload = null;
+          }
+        }
+
+        if (response.status === 401 && attempt === 0) {
+          return tempmailRequest(url, options, 1);
+        }
+
+        if (!response.ok) {
+          const parts = [
+            String(payload?.error || payload?.detail || `Permintaan TempMail gagal (HTTP ${response.status}).`)
+          ];
+          if (payload?.error && payload?.detail) parts.push("Detail: " + String(payload.detail));
+          if (payload?.hint) parts.push("Hint: " + String(payload.hint));
+          throw new Error(parts.join(" "));
+        }
+
+        if (payload === null) {
+          throw new Error("Respons server TempMail tidak valid. Coba lagi.");
+        }
+
+        return payload;
       }
 
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...options.headers,
-          Authorization: `Bearer ${accessToken}`
+      function startAutoRefresh() {
+        stopAutoRefresh();
+        autoRefreshTimer = window.setInterval(() => {
+          if (!currentEmail || document.hidden) return;
+          void checkMessages(true);
+        }, AUTO_REFRESH_MS);
+      }
+
+      function stopAutoRefresh() {
+        if (autoRefreshTimer) {
+          clearInterval(autoRefreshTimer);
+          autoRefreshTimer = null;
+        }
+      }
+
+      function applyAlias(email) {
+        currentEmail = String(email || "");
+        emailText.textContent = currentEmail;
+        emailDisplay.classList.remove("hidden");
+        btnRefresh.classList.remove("hidden");
+        startAutoRefresh();
+      }
+
+      function renderAttachments(attachments) {
+        msgAttachments.textContent = "";
+        const list = Array.isArray(attachments) ? attachments : [];
+
+        if (!list.length) {
+          msgAttachmentsRow.classList.add("hidden");
+          return;
+        }
+
+        for (const file of list) {
+          const chip = document.createElement("span");
+          chip.className = "msg-attachment";
+          const name = file?.filename || "lampiran";
+          const size = Number(file?.size) > 0
+            ? ` (${Math.max(1, Math.round(Number(file.size) / 1024))} KB)`
+            : "";
+          chip.textContent = name + size;
+          msgAttachments.appendChild(chip);
+        }
+
+        msgAttachmentsRow.classList.remove("hidden");
+      }
+
+      function closeMessageBody() {
+        messageFrame.removeAttribute("srcdoc");
+        messageFrame.classList.add("hidden");
+        messageText.textContent = "";
+        messageText.classList.add("hidden");
+      }
+
+      function renderMessageBody(message) {
+        closeMessageBody();
+
+        const html = typeof message?.bodyHtml === "string" ? message.bodyHtml.trim() : "";
+        const text = typeof message?.bodyText === "string" ? message.bodyText : "";
+
+        if (html) {
+          messageFrame.srcdoc = [
+            "<!DOCTYPE html><html><head><meta charset=\"utf-8\">",
+            `<meta http-equiv="Content-Security-Policy" content="${BODY_CSP}">`,
+            "<base target=\"_blank\">",
+            "<style>html,body{margin:0;padding:12px;background:#fff;color:#101828;",
+            "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;",
+            "font-size:14px;line-height:1.5;word-break:break-word}",
+            "img{max-width:100%;height:auto}a{color:#0b63ce}",
+            "table{max-width:100%}</style></head><body>",
+            html,
+            "</body></html>"
+          ].join("");
+          messageFrame.classList.remove("hidden");
+          return;
+        }
+
+        messageText.textContent = text || "Tidak ada konten pada pesan ini.";
+        messageText.classList.remove("hidden");
+      }
+
+      function formatClock(date) {
+        try {
+          return date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        } catch {
+          return "";
+        }
+      }
+
+      function renderMessages(messages, silent) {
+        messageList.textContent = "";
+
+        if (!messages.length) {
+          const empty = document.createElement("p");
+          empty.className = "empty-state";
+          empty.textContent = "Belum ada pesan. Tunggu beberapa saat lalu refresh.";
+          messageList.appendChild(empty);
+          inboxMeta.textContent = "Diperbarui " + formatClock(new Date());
+          if (!silent) setStatus("📭 Belum ada pesan masuk.", "success");
+          inbox.classList.remove("hidden");
+          lastMessageCount = 0;
+          return;
+        }
+
+        for (const message of messages) {
+          const item = document.createElement("div");
+          item.className = "msg-item";
+          item.setAttribute("role", "button");
+          item.tabIndex = 0;
+
+          const subject = document.createElement("div");
+          subject.className = "msg-subject";
+          subject.textContent = message.subject || "(tanpa subject)";
+
+          const from = document.createElement("div");
+          from.className = "msg-from";
+          from.textContent = "Dari: " + (message.from || "-");
+
+          item.append(subject, from);
+
+          if (message.preview) {
+            const preview = document.createElement("div");
+            preview.className = "msg-preview";
+            preview.textContent = message.preview;
+            item.appendChild(preview);
+          }
+
+          const openMessage = () => {
+            void showMessage(message.id);
+          };
+
+          item.addEventListener("click", openMessage);
+          item.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openMessage();
+            }
+          });
+
+          messageList.appendChild(item);
+        }
+
+        inboxMeta.textContent = `${messages.length} pesan · diperbarui ${formatClock(new Date())}`;
+        inbox.classList.remove("hidden");
+
+        if (!silent || messages.length !== lastMessageCount) {
+          setStatus(`📬 ${messages.length} pesan ditemukan.`, "success");
+        }
+        lastMessageCount = messages.length;
+      }
+
+      async function checkMessages(silent = false) {
+        if (!currentEmail) {
+          if (!silent) setStatus("⚠️ Buat email dulu.", "error");
+          return;
+        }
+
+        if (refreshInFlight) return refreshInFlight;
+
+        const requestedEmail = currentEmail;
+        if (!silent) setStatus("🔄 Memuat pesan...");
+
+        refreshInFlight = (async () => {
+          try {
+            const messages = await tempmailRequest(
+              `/api/tempmail?action=messages&email=${encodeURIComponent(requestedEmail)}`
+            );
+
+            // Abaikan hasil lama bila alias sudah berganti saat request berjalan.
+            if (requestedEmail !== currentEmail) return;
+
+            renderMessages(Array.isArray(messages) ? messages : [], silent);
+          } catch (error) {
+            setStatus("❌ Gagal memuat inbox: " + error.message, "error");
+          } finally {
+            refreshInFlight = null;
+          }
+        })();
+
+        return refreshInFlight;
+      }
+
+      async function showMessage(id) {
+        if (!id) {
+          setStatus("❌ Pesan ini tidak memiliki ID yang valid.", "error");
+          return;
+        }
+
+        setStatus("🔄 Memuat isi pesan...");
+
+        try {
+          const message = await tempmailRequest(
+            `/api/tempmail?action=message&email=${encodeURIComponent(currentEmail)}&messageId=${encodeURIComponent(id)}`
+          );
+
+          msgSubject.textContent = message.subject || "(tanpa subject)";
+          msgFrom.textContent = message.from || "-";
+          renderAttachments(message.attachments);
+          renderMessageBody(message);
+          messageView.classList.remove("hidden");
+
+          try {
+            messageView.scrollIntoView({ behavior: "smooth", block: "start" });
+          } catch {
+            /* browser lama: abaikan */
+          }
+
+          setStatus("");
+        } catch (error) {
+          setStatus("❌ Gagal memuat pesan: " + error.message, "error");
+        }
+      }
+
+      async function loadExistingAlias() {
+        if (!(await tempmailAccessReady)) return;
+
+        setStatus("🔄 Memeriksa email aktif...");
+
+        try {
+          const alias = await tempmailRequest("/api/tempmail?action=alias");
+
+          if (alias?.email) {
+            applyAlias(alias.email);
+            setStatus("✅ Email aktif dimuat.", "success");
+            await checkMessages(true);
+          } else {
+            setStatus("Belum ada email. Klik \"Buat Email\" untuk membuat alamat baru.");
+          }
+        } catch (error) {
+          setStatus("❌ " + error.message, "error");
+        }
+      }
+
+      /* ===================== DIAGNOSTIK KONFIGURASI =====================
+         Menjawab error "Periksa konfigurasi Supabase dan provider":
+         action=diagnostics melaporkan tiap tahap tanpa membocorkan secret. */
+      function appendDiagnosticsLine(parent, text, className) {
+        const line = document.createElement("div");
+        line.className = className;
+        line.textContent = text;
+        parent.appendChild(line);
+      }
+
+      function renderDiagnostics(data) {
+        lastDiagnosticsConfig = data?.config || null;
+        diagnosticsList.replaceChildren();
+        appendDiagnosticsLine(
+          diagnosticsList,
+          data?.ok ? "✅ Semua pemeriksaan lulus." : "❌ Ada konfigurasi yang belum siap.",
+          "msg-subject"
+        );
+
+        const config = data?.config || {};
+        appendDiagnosticsLine(
+          diagnosticsList,
+          "SUPABASE_URL=" + Boolean(config.supabase_url) +
+            " · ANON_KEY=" + Boolean(config.supabase_anon_key) +
+            " · SERVICE_ROLE_KEY=" + Boolean(config.supabase_service_role_key) +
+            " · TEMPMAIL_API_URL=" + Boolean(config.tempmail_api_url) +
+            (config.builtin_mailtm ? " · mode=built-in mail.tm (tanpa secret)" : "") +
+            (config.tempmail_api_host ? " (" + config.tempmail_api_host + ")" : "") +
+            (config.tempmail_api_self_reference ? " ⚠️ self-reference" : "") +
+            (config.tempmail_api_repository_url ? " ⚠️ URL repo, bukan host API" : "") +
+            (config.tempmail_api_codespaces_url ? " ⚠️ Codespaces/ephemeral" : "") +
+            (config.tempmail_api_scheme === "http" ? " ⚠️ pakai https" : "") +
+            " · app=" + (config.app_host || "-") +
+            " · provider=" + (config.preferred_provider || "gmail"),
+          "msg-meta"
+        );
+
+        appendDiagnosticsLine(
+          diagnosticsList,
+          "Mode aktif: " + (config.active_provider || "tempmail-mcp") +
+            " · Gmail OAuth=" + Boolean(config.gmail_api_configured) +
+            " · kunci enkripsi=" + Boolean(config.gmail_encryption_key),
+          "msg-meta"
+        );
+
+        appendDiagnosticsLine(
+          diagnosticsList,
+          "Perintah cek: " + (config.gmail_api_configured
+            ? "klik Hubungkan Gmail di atas (tidak ada host eksternal)"
+            : config.tempmail_api_base_url
+            ? "curl -i " + config.tempmail_api_base_url + "/api/health"
+            : config.builtin_mailtm
+              ? "curl -i https://api.mail.tm/domains"
+              : "curl -i https://<host-tempmail>/api/health"),
+          "msg-meta"
+        );
+
+        for (const check of Array.isArray(data?.checks) ? data.checks : []) {
+          const item = document.createElement("div");
+          item.className = "msg-item";
+          appendDiagnosticsLine(
+            item,
+            (check.ok ? "✅ " : "❌ ") + check.name + " · HTTP " + (check.status ?? "-"),
+            "msg-subject"
+          );
+          if (check.detail) appendDiagnosticsLine(item, "Detail: " + String(check.detail), "msg-meta");
+          if (check.hint) appendDiagnosticsLine(item, "Hint: " + String(check.hint), "msg-meta");
+          if (Array.isArray(check.endpoints) && check.endpoints.length) {
+            const probeLine = check.endpoints.map(entry =>
+              entry.path + "=" + (entry.status || "network-error") +
+              (entry.json ? " (JSON)" : " (non-JSON)")
+            ).join(", ");
+            appendDiagnosticsLine(item, "Probe: " + probeLine, "msg-meta");
+            const failedProbe = check.endpoints.find(entry => !entry.json && (entry.sample || entry.error || entry.content_type));
+            if (failedProbe) {
+              appendDiagnosticsLine(
+                item,
+                "Balasan: " + (failedProbe.content_type || "tanpa Content-Type") +
+                  " · Cuplikan: " + String(failedProbe.sample || failedProbe.error || "(body kosong)"),
+                "msg-meta"
+              );
+            }
+          }
+          if (Array.isArray(check.steps)) {
+            for (const step of check.steps) {
+              appendDiagnosticsLine(item, "→ " + String(step), "msg-meta");
+            }
+          }
+          if (check.capabilities && Object.keys(check.capabilities).length) {
+            const caps = check.capabilities;
+            appendDiagnosticsLine(
+              item,
+              "Endpoint inti: /api/email=" + Boolean(caps.create_email) +
+                " · /messages=" + Boolean(caps.messages) +
+                " · /api/providers=" + Boolean(caps.providers) +
+                " · /api/health=" + Boolean(caps.health),
+              "msg-meta"
+            );
+          }
+          if (Array.isArray(check.providers)) {
+            const providersMissing = Array.isArray(check.endpoints) &&
+              check.endpoints.some(entry => entry.path === "/api/providers" && entry.status === 404);
+            const caps = check.capabilities || {};
+            const apiDetected = Boolean(check.ok) ||
+              (Array.isArray(check.endpoints) && check.endpoints.some(entry =>
+                entry.json && entry.status >= 200 && entry.status < 300)) ||
+              Boolean(caps.create_email || caps.messages || caps.health);
+            const list = check.providers.length
+              ? check.providers.map(entry => entry.name + (entry.disabled ? " (nonaktif)" : " (aktif)")).join(", ")
+              : (providersMissing && apiDetected
+                  ? "/api/providers tidak tersedia (endpoint opsional, bukan kerusakan)"
+                  : config.builtin_mailtm
+                    ? "tidak ada data provider — periksa koneksi mail.tm dan langkah di atas"
+                    : "tidak ada data provider — periksa TEMPMAIL_API_URL dan langkah di atas");
+            appendDiagnosticsLine(item, "Provider: " + list, "msg-meta");
+          }
+          diagnosticsList.appendChild(item);
+        }
+        diagnosticsBox.classList.remove("hidden");
+      }
+
+      btnCopyProbe.addEventListener("click", async () => {
+        const baseUrl = lastDiagnosticsConfig?.tempmail_api_base_url;
+        const command = lastDiagnosticsConfig?.gmail_api_configured
+          ? "Buka /email.html lalu klik Hubungkan Gmail"
+          : baseUrl
+          ? "curl -i " + baseUrl + "/api/health"
+          : lastDiagnosticsConfig?.builtin_mailtm
+            ? "curl -i https://api.mail.tm/domains"
+            : "npx wrangler@4 secret put TEMPMAIL_API_URL";
+        try {
+          await navigator.clipboard.writeText(command);
+          setStatus("✅ Perintah disalin: " + command, "success");
+        } catch {
+          setStatus("Perintah cek: " + command, "success");
         }
       });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Permintaan TempMail gagal.');
-      }
-      return result;
-    }
 
-    // ===================== GENERATE EMAIL =====================
-    btnGenerate.addEventListener('click', async () => {
-      setLoading(btnGenerate, true, 'Menghubungi server...');
-      setStatus('');
-      try {
-        const data = await tempmailRequest('/api/tempmail?action=create', { method: 'POST' });
-
-        if (data.email) {
-          currentEmail = data.email;
-
-          document.getElementById('email-text').textContent = data.email;
-          document.getElementById('email-display').classList.remove('hidden');
-          document.getElementById('inbox').classList.add('hidden');
-          document.getElementById('message-view').classList.add('hidden');
-          btnRefresh.classList.remove('hidden');
-
-          setStatus('✅ Email berhasil dibuat. Klik "Refresh Inbox" untuk cek pesan masuk.', 'success');
-
-          if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-          autoRefreshTimer = setInterval(() => {
-            if (currentEmail) checkMessages(true);
-          }, 15000);
-        } else {
-          setStatus('❌ Gagal generate email: ' + (data.error || 'Unknown error'), 'error');
+      btnDiagnostics.addEventListener("click", async () => {
+        setLoading(btnDiagnostics, true, "Memeriksa...");
+        try {
+          const data = await tempmailRequest("/api/tempmail?action=diagnostics");
+          renderDiagnostics(data);
+          setStatus(
+            data?.ok
+              ? "✅ Konfigurasi TempMail siap."
+              : "⚠️ Ada pemeriksaan yang gagal — lihat detail diagnostik di bawah.",
+            data?.ok ? "success" : "error"
+          );
+        } catch (error) {
+          setStatus("❌ Error diagnostik: " + error.message, "error");
+        } finally {
+          setLoading(btnDiagnostics, false);
         }
-      } catch (err) {
-        setStatus('❌ Error: ' + err.message, 'error');
-      } finally {
-        setLoading(btnGenerate, false);
+      });
+
+      function updateGmailPreview() {
+        const tag = gmailTagInput.value.trim() || "angka";
+        const at = gmailAccountEmail.lastIndexOf("@");
+        gmailPreview.textContent = at > 0
+          ? gmailAccountEmail.slice(0, at) + "+" + tag + "@gmail.com"
+          : "nama+" + tag + "@gmail.com";
       }
-    });
 
-    // ===================== COPY EMAIL =====================
-    btnCopy.addEventListener('click', async () => {
-      if (!currentEmail) return;
-      try {
-        await navigator.clipboard.writeText(currentEmail);
-        btnCopy.textContent = '✅ Tersalin';
-        setTimeout(() => { btnCopy.textContent = '📋 Salin'; }, 1500);
-      } catch {
-        const temp = document.createElement('textarea');
-        temp.value = currentEmail;
-        document.body.appendChild(temp);
-        temp.select();
-        document.execCommand('copy');
-        document.body.removeChild(temp);
-        btnCopy.textContent = '✅ Tersalin';
-        setTimeout(() => { btnCopy.textContent = '📋 Salin'; }, 1500);
+      function renderGmailStatus(data) {
+        gmailConfigured = Boolean(data?.configured);
+        gmailConnected = Boolean(gmailConfigured && data?.connected && data?.email);
+        gmailAccountEmail = gmailConnected ? String(data.email) : "";
+
+        gmailStatusText.textContent = gmailConfigured
+          ? (gmailConnected
+              ? "✅ Terhubung: " + gmailAccountEmail + ". Isi akhiran lalu klik Generate ujung."
+              : "⚙️ Google OAuth siap. Klik Hubungkan Gmail, izinkan gmail.readonly, lalu kembali ke halaman ini.")
+          : "Mode Hubungkan Gmail belum aktif. Tombol Buat Email memakai mode lama.";
+
+        btnGmailConnect.classList.toggle("hidden", !gmailConfigured);
+        btnGmailConnect.textContent = gmailConnected ? "Hubungkan ulang Gmail" : "Hubungkan Gmail";
+        btnGmailDisconnect.classList.toggle("hidden", !gmailConnected);
+        gmailTagRow.classList.toggle("hidden", !gmailConnected);
+        btnGenerate.classList.toggle("hidden", gmailConfigured);
+        updateGmailPreview();
       }
-    });
 
-    // ===================== CEK PESAN MASUK =====================
-    async function checkMessages(silent = false) {
-      if (!currentEmail) {
-        setStatus('⚠️ Generate email dulu.', 'error');
-        return;
+      function resetAliasView() {
+        currentEmail = "";
+        stopAutoRefresh();
+        refreshInFlight = null;
+        lastMessageCount = -1;
+        emailText.textContent = "-";
+        emailDisplay.classList.add("hidden");
+        btnRefresh.classList.add("hidden");
+        inbox.classList.add("hidden");
+        messageView.classList.add("hidden");
+        messageList.textContent = "";
+        inboxMeta.textContent = "";
+        closeMessageBody();
       }
-      if (!silent) setStatus('🔄 Memuat pesan...');
 
-      try {
-        const messages = await tempmailRequest(
-          `/api/tempmail?action=messages&email=${encodeURIComponent(currentEmail)}`
-        );
-        const list = document.getElementById('message-list');
-        list.innerHTML = '';
-
-        if (Array.isArray(messages) && messages.length > 0) {
-          messages.forEach(msg => {
-            const div = document.createElement('div');
-            div.className = 'msg-item';
-            div.innerHTML = `
-              <div class="msg-subject">${msg.subject || '(tanpa subject)'}</div>
-              <div class="msg-from">Dari: ${msg.from_addr || '-'}</div>
-            `;
-            div.addEventListener('click', () => showMessage(msg.id));
-            list.appendChild(div);
-          });
-          if (!silent) setStatus(`✅ ${messages.length} pesan ditemukan.`, 'success');
-        } else {
-          list.innerHTML = '<p style="color:#888; font-size:13px;">Belum ada pesan. Tunggu beberapa saat lalu refresh.</p>';
-          if (!silent) setStatus('📭 Belum ada pesan masuk.', 'success');
+      async function loadGmailStatus() {
+        try {
+          const data = await tempmailRequest("/api/tempmail?action=gmail-status");
+          renderGmailStatus(data);
+          return data;
+        } catch (error) {
+          gmailConfigured = false;
+          gmailConnected = false;
+          gmailAccountEmail = "";
+          gmailStatusText.textContent = "Status Gmail tidak bisa dibaca: " + error.message;
+          btnGmailConnect.classList.add("hidden");
+          btnGmailDisconnect.classList.add("hidden");
+          gmailTagRow.classList.add("hidden");
+          btnGenerate.classList.remove("hidden");
+          updateGmailPreview();
+          return null;
         }
-        document.getElementById('inbox').classList.remove('hidden');
-      } catch (err) {
-        setStatus('❌ Error cek pesan: ' + err.message, 'error');
       }
-    }
 
-    btnRefresh.addEventListener('click', () => checkMessages(false));
+      function showGmailCallbackNotice() {
+        const params = new URLSearchParams(window.location.search);
+        const result = params.get("gmail");
+        if (!result) return;
 
-    // ===================== TAMPILKAN ISI PESAN =====================
-    async function showMessage(id) {
-      setStatus('🔄 Memuat isi pesan...');
-      try {
-        const msg = await tempmailRequest(
-          `/api/tempmail?action=message&email=${encodeURIComponent(currentEmail)}&messageId=${encodeURIComponent(id)}`
-        );
+        if (result === "connected") {
+          setStatus("✅ Gmail berhasil dihubungkan. Generate ujungnya sekarang.", "success");
+        } else {
+          const reason = params.get("reason") || "OAuth dibatalkan atau gagal.";
+          setStatus("❌ Gagal menghubungkan Gmail: " + reason, "error");
+        }
 
-        document.getElementById('msg-subject').textContent = msg.subject || '-';
-        document.getElementById('msg-from').textContent = msg.from_addr || '-';
-
-        const content = msg.body_html || msg.body_text || '<em>Tidak ada konten</em>';
-        document.getElementById('message-content').innerHTML = content;
-
-        document.getElementById('message-view').classList.remove('hidden');
-        setStatus('');
-      } catch (err) {
-        setStatus('❌ Error memuat pesan: ' + err.message, 'error');
+        params.delete("gmail");
+        params.delete("reason");
+        const query = params.toString();
+        const cleanUrl = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
+        try {
+          window.history.replaceState(null, "", cleanUrl);
+        } catch {
+          /* browser lama / origin terbatas: biarkan query apa adanya */
+        }
       }
-    }
+
+      btnGmailConnect.addEventListener("click", async () => {
+        setLoading(btnGmailConnect, true, "Membuka Google...");
+        try {
+          const data = await tempmailRequest("/api/tempmail?action=gmail-connect");
+          const authUrl = new URL(String(data?.authUrl || ""));
+          if (authUrl.protocol !== "https:" || authUrl.hostname !== "accounts.google.com") {
+            throw new Error("URL OAuth Google tidak valid.");
+          }
+          window.location.assign(authUrl.toString());
+        } catch (error) {
+          setStatus("❌ Gagal membuka Google OAuth: " + error.message, "error");
+        } finally {
+          setLoading(btnGmailConnect, false);
+        }
+      });
+
+      btnGmailDisconnect.addEventListener("click", async () => {
+        setLoading(btnGmailDisconnect, true, "Memutuskan...");
+        try {
+          await tempmailRequest("/api/tempmail?action=gmail-disconnect", { method: "POST" });
+          renderGmailStatus({ configured: gmailConfigured, connected: false, email: null });
+          resetAliasView();
+          setStatus("✅ Koneksi Gmail diputus. Hubungkan lagi bila ingin memakai fitur ini.", "success");
+        } catch (error) {
+          setStatus("❌ Gagal memutuskan Gmail: " + error.message, "error");
+        } finally {
+          setLoading(btnGmailDisconnect, false);
+        }
+      });
+
+      btnGmailRotate.addEventListener("click", async () => {
+        setLoading(btnGmailRotate, true, "Membuat akhiran...");
+        try {
+          const tag = gmailTagInput.value.trim();
+          const suffix = tag ? "&tag=" + encodeURIComponent(tag) : "";
+          const data = await tempmailRequest(
+            "/api/tempmail?action=rotate" + suffix,
+            { method: "POST" }
+          );
+          if (!data?.email) throw new Error("Server tidak mengembalikan alamat email.");
+
+          applyAlias(data.email);
+          messageView.classList.add("hidden");
+          closeMessageBody();
+          setStatus("✅ Akhiran baru: " + data.email, "success");
+          await checkMessages(true);
+        } catch (error) {
+          setStatus("❌ Gagal membuat akhiran: " + error.message, "error");
+        } finally {
+          setLoading(btnGmailRotate, false);
+        }
+      });
+
+      gmailTagInput.addEventListener("input", updateGmailPreview);
+
+      btnGenerate.addEventListener("click", async () => {
+        setLoading(btnGenerate, true, "Menghubungi server...");
+        setStatus("");
+
+        try {
+          const data = await tempmailRequest("/api/tempmail?action=create", { method: "POST" });
+
+          if (!data?.email) {
+            throw new Error("Server tidak mengembalikan alamat email.");
+          }
+
+          applyAlias(data.email);
+          messageView.classList.add("hidden");
+          closeMessageBody();
+          setStatus(
+            data.reused
+              ? "✅ Email aktif dipakai kembali (alamat tidak berubah)."
+              : "✅ Email berhasil dibuat.",
+            "success"
+          );
+          await checkMessages(true);
+        } catch (error) {
+          setStatus("❌ Gagal membuat email: " + error.message, "error");
+        } finally {
+          setLoading(btnGenerate, false);
+        }
+      });
+
+      btnCopy.addEventListener("click", async () => {
+        if (!currentEmail) return;
+
+        const markCopied = () => {
+          btnCopy.textContent = "✅ Tersalin";
+          setTimeout(() => { btnCopy.textContent = "📋 Salin"; }, 1500);
+        };
+
+        try {
+          await navigator.clipboard.writeText(currentEmail);
+          markCopied();
+        } catch {
+          try {
+            const temp = document.createElement("textarea");
+            temp.value = currentEmail;
+            temp.setAttribute("readonly", "readonly");
+            temp.style.position = "fixed";
+            temp.style.opacity = "0";
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand("copy");
+            document.body.removeChild(temp);
+            markCopied();
+          } catch {
+            setStatus("❌ Gagal menyalin. Salin manual dari alamat di atas.", "error");
+          }
+        }
+      });
+
+      btnRefresh.addEventListener("click", () => {
+        void checkMessages(false);
+      });
+
+      btnCloseMessage.addEventListener("click", () => {
+        messageView.classList.add("hidden");
+        closeMessageBody();
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && currentEmail) {
+          void checkMessages(true);
+        }
+      });
+
+      window.addEventListener("pagehide", stopAutoRefresh);
+
+      void (async () => {
+        if (!(await tempmailAccessReady)) return;
+
+        showGmailCallbackNotice();
+        const gmail = await loadGmailStatus();
+        if (!gmail || !gmail.configured || gmail.connected) {
+          await loadExistingAlias();
+        } else {
+          setStatus("⚠️ Hubungkan akun Gmail dulu, lalu generate ujungnya.", "error");
+        }
+      })();
+    })();
   </script>
 </body>
 </html>

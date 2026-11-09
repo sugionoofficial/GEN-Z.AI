@@ -183,9 +183,53 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .msg-meta span {
 }
 
 /* Body email tetap berlatar putih agar konten HTML dari pengirim
-   (logo, tabel, warna brand) tidak berubah tampilannya. */
-html[data-genz-theme="light"][data-genz-theme="light"] body .msg-body {
+   (logo, tabel, warna brand) tidak berubah tampilannya.
+   Sejak perbaikan TempMail, isi pesan dirender di dalam iframe
+   sandbox (#message-frame), bukan lagi innerHTML di halaman ini. */
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-frame {
+    border: 1px solid #dbe3ee !important;
+    background: #ffffff !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-text {
     border: 1px solid #dbe3ee !important;
     background: #ffffff !important;
     color: #101a2e !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .msg-attachment {
+    border: 1px solid #d3dde9 !important;
+    background: #f2f6fc !important;
+    color: #33405a !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .inbox-meta,
+html[data-genz-theme="light"][data-genz-theme="light"] body .empty-state,
+html[data-genz-theme="light"][data-genz-theme="light"] body #message-list .msg-preview {
+    color: #58657b !important;
+}
+
+
+/* =========================================================
+   08. PANEL HUBUNGKAN GMAIL
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .gmail-status,
+html[data-genz-theme="light"][data-genz-theme="light"] body .gmail-help,
+html[data-genz-theme="light"][data-genz-theme="light"] body .gmail-tag-row label {
+    color: #4a566b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .gmail-tag-row {
+    border-top: 1px solid #e2e8f1 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .gmail-tag-row input {
+    border: 1px solid #c8d3e2 !important;
+    background: #ffffff !important;
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .gmail-preview {
+    color: #0a6b3f !important;
 }

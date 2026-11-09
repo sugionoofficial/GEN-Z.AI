@@ -39,6 +39,7 @@ import copilotCloudflare from "../api/copilot-cloudflare.js";
 import copilotSession from "../api/copilot-session.js";
 import copilotUpload from "../api/copilot-upload.js";
 import handleTempmail from "./_shared/tempmail-handler.js";
+import { handleGmailOAuthCallback } from "./_shared/gmail-provider.js";
 import handleFbMediaDownload from "./_shared/fb-media-handler.js";
 import antiProxyCheck from "../api/anti-proxy-check.js";
 
@@ -200,6 +201,19 @@ export default {
         // Route khusus Tempmail
         if (pathname === "/api/tempmail") {
             const res = await handleTempmail(request, env);
+            return applySecurityHeaders(res, true);
+        }
+
+        // Callback OAuth Google untuk "Hubungkan Gmail" di /email.html.
+        // State ditandatangani HMAC oleh Worker; tidak ada token di browser.
+        if (pathname === "/api/tempmail-gmail-callback") {
+            if (request.method !== "GET") {
+                return applySecurityHeaders(
+                    Response.json({ error: "Method tidak diizinkan." }, { status: 405 }),
+                    true
+                );
+            }
+            const res = await handleGmailOAuthCallback(request, env);
             return applySecurityHeaders(res, true);
         }
 
