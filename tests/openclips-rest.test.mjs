@@ -145,3 +145,37 @@ test("redirect during REST preview stops dispatch without retrying another accou
     }), error => error.code === "OPENCLIPS_REDIRECT_REJECTED");
     assert.equal(calls.length, 2);
 });
+
+for (const [path, method, stage] of [
+    ["/api/workspaces/", "GET", "workspace"],
+    ["/api/workspaces/10/generated_creatives/generate/marketplace_proxy/preview_cost/", "POST", "preview"],
+    ["/api/workspaces/10/generated_creatives/generate/marketplace_proxy/", "POST", "generation"],
+    ["/api/workspaces/10/generated_creatives/55/", "GET", "polling"]
+]) {
+    test(`REST 403 identifies ${stage} without exposing upstream text or token`, async () => {
+        const client = new OpenClipsRestClient({ accessToken: "private-token", fetchImpl: async () =>
+            json({ detail: "private-token", code: "private-token" }, 403) });
+        await assert.rejects(client.request(method, path), error =>
+            error.status === 403 && error.code === "OPENCLIPS_FORBIDDEN" && error.stage === stage
+            && error.message.includes(`[${stage}]`) && !error.message.includes("private-token"));
+    });
+}
+
+test("REST 403 challenge is distinguished from an unconfirmed HTML gateway denial", async () => {
+    for (const challenge of [true, false]) {
+        const client = new OpenClipsRestClient({ accessToken: "secret", fetchImpl: async () =>
+            new Response("<html>secret</html>", { status: 403, headers: {
+                "content-type": "text/html", ...(challenge ? { "cf-mitigated": "challenge" } : {})
+            } }) });
+        await assert.rejects(client.request("GET", "/api/workspaces/"), error =>
+            error.message.includes(challenge ? "challenge keamanan Cloudflare terdeteksi" : "kemungkinan halaman blokir/gateway")
+            && !error.message.includes("secret"));
+    }
+});
+
+test("workspace 403 stops before preview/generation and does not rotate accounts", async () => {
+    const fake = server({ workspaceStatus: 403 });
+    await assert.rejects(createOpenClipsMarketplaceTask(payload, '["key1","key2"]', { env: {}, fetchImpl: fake.fetchImpl }),
+        error => error.code === "OPENCLIPS_FORBIDDEN" && error.stage === "workspace");
+    assert.equal(fake.calls.length, 1);
+});
