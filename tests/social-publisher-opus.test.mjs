@@ -25,6 +25,7 @@ import {
 import { encryptSecret, generateSocialImage, testOpusImageProvider } from "../lib/social-publisher/providers.js";
 import { runSocialPublisherCron } from "../functions/_shared/social-publisher-cron.js";
 import socialPublisherHandler from "../api/social-publisher.js";
+import { withSupabaseOpusCredentials } from "../lib/opus/credential-store.js";
 
 function texturedJpeg({ width = 480, height = 854 } = {}) {
     const data = new Uint8Array(width * height * 4);
@@ -65,7 +66,7 @@ function encryptedOpusCredentialRow(token, slot = 1, secret = "opus-vault-test-s
         cipher.final()
     ]);
     return {
-        id: `opus-slot-${slot}`,
+        id: `00000000-0000-4000-8000-${String(slot).padStart(12, "0")}`,
         slot,
         label: `OPUS_AUTH_TOKEN_${slot}`,
         ciphertext: ciphertext.toString("base64"),
@@ -3286,4 +3287,73 @@ test("membaca jobId dalam result.content batch MCP tanpa mengirim ulang job", as
         assert.equal(submissions, 1);
         assert.equal(statusCalls, 1);
     } finally { restore(); }
+});
+
+test("Social Publisher selalu mencoba slot Supabase pertama lalu mencatat exhausted/available per token", async () => {
+    resetOpusTokenCache();
+    const env = {
+        SUPABASE_URL: "https://vault.example",
+        SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
+        PROVIDER_CREDENTIAL_ENCRYPTION_KEY: "opus-vault-test-secret",
+        OPUS_API_URL: "https://opus.example/generate"
+    };
+    const records = [
+        encryptedOpusCredentialRow("opus-slot-one", 1),
+        encryptedOpusCredentialRow("opus-slot-two", 2)
+    ];
+    const attempts = [];
+    const statusWrites = [];
+    const outputJpeg = texturedJpeg({ width: 540, height: 960 });
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async (input, options = {}) => {
+        const url = String(input);
+        const method = String(options.method || "GET").toUpperCase();
+        if (url.includes("/rest/v1/opus_credentials?")) {
+            if (method === "GET") return Response.json(records);
+            if (method === "PATCH") {
+                statusWrites.push({
+                    id: new URL(url).searchParams.get("id")?.replace(/^eq\./, ""),
+                    ...JSON.parse(options.body)
+                });
+                return new Response(null, { status: 204 });
+            }
+        }
+        if (url === "https://opus.example/generate") {
+            const token = options.headers.Authorization.replace(/^Bearer\s+/, "");
+            attempts.push(token);
+            if (token === "opus-slot-one") {
+                return Response.json({
+                    error: { code: "credit_admission_rejected", message: "Organization does not have enough credits" }
+                }, { status: 402 });
+            }
+            return new Response(outputJpeg, {
+                status: 200,
+                headers: { "content-type": "image/jpeg" }
+            });
+        }
+        throw new Error(`Unexpected fetch in Supabase Opus credit test: ${method} ${url}`);
+    };
+
+    try {
+        const storedEnv = await withSupabaseOpusCredentials(env);
+        await generateOpusSocialImage({ env: storedEnv, prompt: "First image" });
+        await generateOpusSocialImage({ env: storedEnv, prompt: "Second image" });
+
+        assert.deepEqual(attempts, [
+            "opus-slot-one", "opus-slot-two",
+            "opus-slot-one", "opus-slot-two"
+        ], "setiap generate harus mulai lagi dari slot 1, lalu failover berurutan");
+        assert.deepEqual(
+            statusWrites.map(({ id, credit_status }) => ({ id, credit_status })),
+            [
+                { id: records[0].id, credit_status: "exhausted" },
+                { id: records[1].id, credit_status: "available" },
+                { id: records[0].id, credit_status: "exhausted" },
+                { id: records[1].id, credit_status: "available" }
+            ]
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
 });
