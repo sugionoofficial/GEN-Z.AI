@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -24,6 +25,17 @@ test("artefak deploy Tempmail-MCP lengkap dan aman", () => {
     ];
     for (const file of files) {
         assert.ok(fs.existsSync(path.join(ROOT, file)), `${file} harus ada`);
+    }
+
+    // Pola global `.env*` menyembunyikan template ini dari `git add -A`.
+    // Pastikan ia benar-benar ter-track, bukan cuma ada di working tree lokal.
+    if (fs.existsSync(path.join(ROOT, ".git"))) {
+        const tracked = execFileSync(
+            "git",
+            ["ls-files", "--error-unmatch", "deploy/tempmail-mcp/.env.example"],
+            { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+        ).trim();
+        assert.equal(tracked, "deploy/tempmail-mcp/.env.example", "template .env.example harus ikut ter-commit");
     }
 
     const compose = read("deploy/tempmail-mcp/docker-compose.yml");
@@ -86,6 +98,7 @@ test("artefak deploy Tempmail-MCP lengkap dan aman", () => {
 test(".env dan clone upstream deploy tidak boleh masuk Git", () => {
     const ignore = read(".gitignore");
     assert.match(ignore, /deploy\/tempmail-mcp\/\.env/);
+    assert.match(ignore, /!deploy\/tempmail-mcp\/\.env\.example/);
     assert.match(ignore, /deploy\/tempmail-mcp\/Tempmail-MCP\//);
 
     const setup = read("TEMPMAIL-SETUP.md");
