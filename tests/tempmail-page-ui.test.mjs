@@ -149,3 +149,28 @@ test("inbox hanya menampilkan alamat pengirim dari domain Opus yang diizinkan", 
     assert.match(html, /messages\s*=\s*messages\.filter\(message => isOpusSender\(message\?\.from\)\)/);
     assert.match(html, /Email lain tetap diterima/);
 });
+
+test("kode Opus disalin hanya jika kode enam digit unik dan ada konteks verifikasi", () => {
+    const html = readRepoFile("email.html");
+    const source = extractFunctionSource(html, "function extractOpusVerificationCode(subject, body)");
+    const context = vm.createContext({});
+    vm.runInContext(`${source}\nthis.extractCode = extractOpusVerificationCode;`, context);
+    assert.equal(context.extractCode("Your login verification code", "Your code is 482193"), "482193");
+    assert.equal(context.extractCode("Kode verifikasi", "<p>Kode Anda: <b>482193</b></p>"), "482193");
+    assert.equal(context.extractCode("code", "482193 and 123456"), "");
+    assert.equal(context.extractCode("Penawaran", "123456"), "");
+    assert.equal(context.extractCode("verification", "1234567"), "");
+    assert.match(html, /action=message&email=/);
+    assert.match(html, /event\.stopPropagation\(\)/);
+    assert.match(html, /formatMessageTime\(message\.createdAt\)/);
+});
+
+test("pengembalian token hanya menerima popup yang dibuka, origin sama dan nonce cocok", () => {
+    const html = readRepoFile("email.html");
+    assert.match(html, /event\.origin !== window\.location\.origin/);
+    assert.match(html, /event\.source !== opusPopup/);
+    assert.match(html, /event\.data\?\.nonce !== opusNonce/);
+    assert.match(html, /crypto\.getRandomValues\(bytes\)/);
+    assert.match(html, /btn-copy-opus-token/);
+    assert.doesNotMatch(html, /localStorage\.setItem\([^\n]*opusToken/);
+});

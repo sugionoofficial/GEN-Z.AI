@@ -65,6 +65,7 @@ export default async function handler(req, res) {
     const rawCount = url.searchParams.get("count");
     const count = Math.max(slot, rawCount === null ? slot : normalizeOpusSlot(rawCount));
     const requestedMcpUrl = normalizeOpusMcpUrl(url.searchParams.get("mcp"));
+    const tempmailNonce = /^[a-f0-9]{32}$/.test(url.searchParams.get("tempmail_nonce") || "") ? url.searchParams.get("tempmail_nonce") : "";
     const origin = resolvePublicOrigin(req);
 
     if (url.searchParams.get("start") !== "1") {
@@ -106,7 +107,8 @@ export default async function handler(req, res) {
                 cn: count,
                 ru: redirectUri,
                 te: endpoints.tokenEndpoint,
-                mu: endpoints.mcpUrl || OPUS_MCP_URL
+                mu: endpoints.mcpUrl || OPUS_MCP_URL,
+                ...(tempmailNonce ? { tm: tempmailNonce } : {})
             },
             { env: req.env || null }
         );

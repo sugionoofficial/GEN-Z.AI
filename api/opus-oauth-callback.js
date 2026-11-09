@@ -140,6 +140,7 @@ export default async function handler(req, res) {
             200,
             buildOpusLoginSuccessHtml({
                 compactJson: JSON.stringify(cleanBundle),
+                tempmailNonce: /^[a-f0-9]{32}$/.test(state.tm || "") ? state.tm : "",
                 slot,
                 status: check.status,
                 mcpUrl

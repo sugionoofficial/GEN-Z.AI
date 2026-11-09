@@ -236,7 +236,7 @@ test("GET /api/opus-oauth-login?start=1 melakukan DCR lalu redirect 302 ke Opus 
         },
         async () => {
             const res = createMockRes();
-            await opusOAuthLogin(createMockReq("/api/opus-oauth-login?start=1&slot=1"), res);
+            await opusOAuthLogin(createMockReq("/api/opus-oauth-login?start=1&slot=1&tempmail_nonce=0123456789abcdef0123456789abcdef"), res);
 
             assert.equal(res.statusCode, 302);
             const location = new URL(res.headers.location);
@@ -250,6 +250,7 @@ test("GET /api/opus-oauth-login?start=1 melakukan DCR lalu redirect 302 ke Opus 
             );
             assert.equal(location.searchParams.get("resource"), "https://labs.opus.pro/opus-video-tools/mcp");
             assert.ok(location.searchParams.get("state").includes("."));
+            assert.equal((await decodeOAuthState(location.searchParams.get("state"))).tm, "0123456789abcdef0123456789abcdef");
         }
     );
 });
@@ -265,7 +266,8 @@ test("GET /api/opus-oauth-callback menukar code dan menampilkan tombol salin tok
             sl: 1,
             ru: "https://genzai.genzai-f37.workers.dev/api/opus-oauth-callback",
             te: "https://focused-horizon-38.authkit.app/oauth2/token",
-            mu: "https://labs.opus.pro/opus-video-tools/mcp"
+            mu: "https://labs.opus.pro/opus-video-tools/mcp",
+            tm: "0123456789abcdef0123456789abcdef"
         },
         { env }
     );
@@ -290,6 +292,9 @@ test("GET /api/opus-oauth-callback menukar code dan menampilkan tombol salin tok
             assert.match(res.body, /SALIN TOKEN JSON KE CLIPBOARD/);
             assert.match(res.body, /OPUS_AUTH_TOKEN_1</);
             assert.match(res.body, /refresh-xyz/);
+            assert.match(res.body, /window\.opener\.postMessage/);
+            assert.match(res.body, /0123456789abcdef0123456789abcdef/);
+            assert.match(res.body, /window\.location\.origin/);
         }
     );
 });
@@ -314,6 +319,7 @@ test("halaman sukses & pembuka memakai latar #000000 dan tanpa dependensi ekster
     assert.match(success, /#000000/);
     assert.match(success, /OPUS_AUTH_TOKEN_3/);
     assert.match(success, /navigator\.clipboard/);
+    assert.doesNotMatch(success, /window\.opener\.postMessage/);
     assert.doesNotMatch(success, /https:\/\/fonts\./);
 
     const intro = buildLoginIntroHtml({ slot: 1, origin: "https://genzai.genzai-f37.workers.dev" });
@@ -332,3 +338,12 @@ test("parameter mcp OpusClip lama diabaikan dan login tetap menuju Opus Labs MCP
     assert.match(resIntro.body, /Login Opus Labs/);
 });
 
+
+test("callback hanya mengirim token untuk nonce TempMail yang valid", () => {
+    const token = '{"access_token":"<sensitive>"}';
+    const ok = buildOpusLoginSuccessHtml({ compactJson: token, tempmailNonce: 'a'.repeat(32) });
+    assert.match(ok, /window\.opener\.postMessage/);
+    assert.match(ok, /token:box\.value/);
+    assert.doesNotMatch(ok, /<sensitive>/);
+    assert.doesNotMatch(buildOpusLoginSuccessHtml({ compactJson: token, tempmailNonce: "a';alert(1)//" }), /window\.opener\.postMessage/);
+});

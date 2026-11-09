@@ -703,7 +703,7 @@ export function buildLoginIntroHtml({ slot = 1, count = null, origin = "", mcpUr
     });
 }
 
-export function buildOpusLoginSuccessHtml({ compactJson = "", slot = 1, status = 0, mcpUrl = OPUS_MCP_URL } = {}) {
+export function buildOpusLoginSuccessHtml({ compactJson = "", slot = 1, status = 0, mcpUrl = OPUS_MCP_URL, tempmailNonce = "" } = {}) {
     const secretName = opusSecretNameForSlot(slot);
 
     return htmlShell({
@@ -723,6 +723,7 @@ export function buildOpusLoginSuccessHtml({ compactJson = "", slot = 1, status =
             + "</div>"
             + "<script>"
             + "const btn=document.getElementById('copyBtn');const box=document.getElementById('tokenBox');"
+            + (/^[a-f0-9]{32}$/.test(tempmailNonce) ? `if(window.opener){window.opener.postMessage({type:'genz-opus-oauth-success',nonce:'${tempmailNonce}',token:box.value},window.location.origin);}` : "")
             + "btn.addEventListener('click',async()=>{"
             + "let ok=false;"
             + "if(navigator.clipboard&&navigator.clipboard.writeText){try{await navigator.clipboard.writeText(box.value);ok=true;}catch(e){}}"
