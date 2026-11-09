@@ -130,10 +130,17 @@ Respons sukses `create`:
 Klik **🔍 Cek Konfigurasi** di `/email.html` (atau panggil
 `GET /api/tempmail?action=diagnostics` sebagai admin/owner). Responsnya
 berisi boolean konfigurasi (tanpa nilai secret), hasil
-`/rest/v1/profiles`, `/rest/v1/tempmail_user_aliases`, dan
-`GET /api/providers` pada server Tempmail-MCP — lengkap dengan `status`,
-`detail` yang disamarkan, dan `hint` perbaikannya. Action `status` adalah
-alias untuk `action=alias` (baca alias tanpa membuat email baru).
+`/rest/v1/profiles`, `/rest/v1/tempmail_user_aliases`, dan probe read-only
+ke server Tempmail-MCP: `GET /api/health`, `GET /api/providers`, dan
+`GET /openapi.json`. Tiap probe dilaporkan (`endpoints`: path, status,
+JSON/non-JSON), plus `capabilities` yang menunjukkan route inti yang
+tersedia. Action `status` adalah alias untuk `action=alias`.
+
+`/api/providers` **opsional**: bila endpoint itu 404 tetapi `/api/health`
+atau `/openapi.json` merespons JSON, diagnostik tetap `ok` dan fitur
+Buat Email/Inbox bisa dipakai. Yang dianggap rusak hanyalah: secret kosong,
+`TEMPMAIL_API_URL` menunjuk ke domain aplikasi sendiri (self-reference),
+atau semua probe membalas non-JSON/404 (salah host / salah base path).
 
 Lihat juga [`docs/tempmail-setup.md`](docs/tempmail-setup.md) untuk peta
 error → tindakan.
@@ -149,6 +156,7 @@ error → tindakan.
 | `Konfigurasi database TempMail belum lengkap` | `SUPABASE_SERVICE_ROLE_KEY` kosong | Isi secret tersebut |
 | `Konfigurasi autentikasi Supabase belum lengkap` | `SUPABASE_ANON_KEY` kosong | Isi secret tersebut |
 | `Session tidak valid atau sudah kedaluwarsa` | Access token kedaluwarsa / project Supabase berbeda | Login ulang; pastikan `SUPABASE_URL` Worker = project di `assets/js/config.js` |
+| Diagnostik: `❌ tempmail_provider · HTTP 404` + `Endpoint /api/providers tidak membalas JSON` | `/api/providers` tidak ada di deployment (versi lama / proxy hanya meneruskan `/api/email`) | **Bukan kerusakan** bila `/api/health` atau `/openapi.json` hidup: diagnostik baru memprobe 3 endpoint dan tidak lagi menggagalkan config hanya karena satu endpoint opsional 404. Lihat [docs/tempmail-setup.md](docs/tempmail-setup.md#kenapa-apiproviders-bisa-404) |
 | `Fitur TempMail hanya tersedia untuk role admin atau owner` | Role di `profiles` bukan admin/owner (nilai `Administrator` otomatis dianggap `admin`) | Ubah role user di admin panel |
 | `Gagal membuat email TempMail. ... Provider gagal` | Tempmail-MCP down / gmail IMAP gagal login | Cek `/api/health` dan `/api/providers`; perbaiki `GMAIL_APP_PASSWORD` |
 | Halaman hanya menampilkan "Akses terbatas" padahal admin | `navigation.js` gagal dimuat / cache lama | Hard refresh (Ctrl+Shift+R), pastikan `/navigation/navigation.js` tidak 404 |

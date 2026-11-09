@@ -24,6 +24,7 @@
 
 const SUPABASE_TIMEOUT_MS = 12000;
 const PROVIDER_TIMEOUT_MS = 20000;
+const DIAGNOSTICS_TIMEOUT_MS = 8000;
 const ALIAS_SAVE_ATTEMPTS = 3;
 const TEMPMAIL_PROVIDER_DEFAULT = "gmail";
 
@@ -534,14 +535,17 @@ async function requestProviderTempmail(env, alias, action, messageId) {
    membocorkan nilai secret: hanya boolean, host, HTTP status,
    dan petunjuk perbaikan. Tetap khusus admin/owner.
 ========================================================= */
-function getDiagnosticsConfig(env) {
+function getDiagnosticsConfig(env, requestUrl) {
     const { supabaseUrl, anonKey, serviceRoleKey } = getSupabaseConfig(env);
     const tempmailUrl = getTempmailProviderUrl(env);
     let host = null;
+    let selfReference = false;
     try {
         host = tempmailUrl ? new URL(tempmailUrl).host : null;
+        const appHost = new URL(requestUrl).host;
+        selfReference = Boolean(host && host === appHost);
     } catch {
-        host = null;
+        /* URL tidak valid / request URL tidak tersedia */
     }
     return {
         supabase_url: Boolean(supabaseUrl),
@@ -549,6 +553,7 @@ function getDiagnosticsConfig(env) {
         supabase_service_role_key: Boolean(serviceRoleKey),
         tempmail_api_url: Boolean(tempmailUrl),
         tempmail_api_host: host,
+        tempmail_api_self_reference: selfReference,
         preferred_provider: getProviderCandidates(env).join(",")
     };
 }
@@ -580,6 +585,147 @@ async function checkSupabaseRest(env, resource) {
     };
 }
 
+/*
+ * Probe read-only ke server TempMail-MCP. `/api/providers` itu OPSIONAL:
+ * beberapa deployment (versi lama / reverse-proxy yang hanya meneruskan
+ * /api/email) membalas 404, sementara fitur Buat Email/Inbox tetap jalan.
+ * Karena itu diagnostik mencoba beberapa endpoint dan tidak boleh
+ * menyatakan konfigurasi rusak hanya karena satu endpoint 404.
+ */
+async function probeProviderEndpoint(target, path) {
+    const result = { path, status: 0, json: false, payload: null, error: "" };
+    try {
+        const response = await fetchWithTimeout(
+            target,
+            { headers: { "Accept": "application/json" } },
+            DIAGNOSTICS_TIMEOUT_MS
+        );
+        result.status = response.status;
+        const payload = await readJsonSafe(response);
+        if (payload !== null && payload !== undefined) {
+            result.json = true;
+            result.payload = payload;
+        }
+    } catch (error) {
+        result.error = safeSnippet(error?.message || String(error), 160);
+    }
+    return result;
+}
+
+function isSuccessfulJsonProbe(probe) {
+    return Boolean(probe.json && probe.status >= 200 && probe.status < 300);
+}
+
+function describeProbeStatuses(endpoints) {
+    return endpoints
+        .map(item => `${item.path}=${item.status || "network-error"}${item.json ? " (JSON)" : " (non-JSON)"}`)
+        .join(", ");
+}
+
+async function checkTempmailProvider(env, config) {
+    const tempmailUrl = getTempmailProviderUrl(env);
+    const endpoints = [];
+    const emptyResult = (hint, status = 0, detail = "") => ({
+        ok: false,
+        status,
+        detail,
+        hint,
+        providers: [],
+        endpoints,
+        capabilities: {}
+    });
+
+    if (!tempmailUrl) {
+        return emptyResult(
+            "TEMPMAIL_API_URL belum di-set (atau bukan URL yang valid). Isi secret Cloudflare Worker / .dev.vars dengan URL API TempMail-MCP."
+        );
+    }
+
+    const probeTargets = [
+        ["/api/health", `${tempmailUrl}/api/health`],
+        ["/api/providers", `${tempmailUrl}/api/providers`],
+        ["/openapi.json", `${tempmailUrl}/openapi.json`]
+    ];
+    const probes = await Promise.all(
+        probeTargets.map(([path, target]) => probeProviderEndpoint(target, path))
+    );
+    const [healthProbe, providersProbe, openapiProbe] = probes;
+    for (const probe of probes) {
+        endpoints.push({
+            path: probe.path,
+            status: probe.status,
+            json: probe.json,
+            ...(probe.error ? { error: probe.error } : {})
+        });
+    }
+
+    const providers = Array.isArray(providersProbe.payload)
+        ? providersProbe.payload.map(item => ({
+            name: String(item?.name || ""),
+            disabled: Boolean(item?.disabled),
+            failures: Number(item?.failures || 0)
+        }))
+        : [];
+    const openapiPaths = openapiProbe.json &&
+        openapiProbe.payload?.paths &&
+        typeof openapiProbe.payload.paths === "object"
+        ? Object.keys(openapiProbe.payload.paths)
+        : [];
+    const capabilities = {
+        create_email: openapiPaths.some(item => /^\/api\/email\/?$/.test(item)),
+        messages: openapiPaths.some(item => item.includes("/messages")),
+        providers: openapiPaths.includes("/api/providers"),
+        health: openapiPaths.includes("/api/health")
+    };
+
+    const successful = probes.filter(isSuccessfulJsonProbe);
+    const anyJson = probes.some(probe => probe.json);
+    const apiRecognized = successful.length > 0 ||
+        capabilities.create_email || capabilities.messages;
+    const ok = Boolean(apiRecognized) && !config.tempmail_api_self_reference;
+
+    let hint = "";
+    if (config.tempmail_api_self_reference) {
+        hint = `TEMPMAIL_API_URL mengarah ke domain aplikasi ini sendiri (${config.tempmail_api_host}). Ganti dengan host server TempMail-MCP yang terpisah, bukan domain GEN-Z.AI.`;
+    } else if (!anyJson) {
+        hint = "Semua endpoint diagnostik membalas non-JSON (halaman 404 HTML / domain salah). Pastikan TEMPMAIL_API_URL menunjuk ke URL dasar API TempMail-MCP; bila API dipasang di sub-path, sertakan sub-path itu pada nilainya.";
+    } else if (!apiRecognized) {
+        hint = "Host merespons JSON tetapi tidak ada endpoint yang dikenal (2xx). Periksa versi/deployment TempMail-MCP atau path dasar TEMPMAIL_API_URL.";
+    } else if (providersProbe.status === 404) {
+        hint = "Endpoint opsional /api/providers tidak tersedia (HTTP 404) pada versi server ini, tetapi endpoint inti terdeteksi. Ini BUKAN kerusakan: fitur Buat Email/Inbox tetap bisa dipakai. Aktifkan /api/providers hanya bila ingin memantau status provider.";
+    } else if (providers.length && providers.every(item => item.disabled)) {
+        hint = "Semua provider sedang nonaktif (circuit breaker). Aktifkan lewat POST /api/providers/{name}/enable pada server TempMail-MCP.";
+    } else {
+        const preferred = getProviderCandidates(env)[0];
+        if (preferred !== "auto" && providers.length && !providers.some(item => item.name === preferred)) {
+            hint = `Provider '${preferred}' tidak terdaftar di server. Set TEMPMAIL_PROVIDER=auto untuk memakai fallback otomatis.`;
+        }
+    }
+
+    let detail = "";
+    if (!ok) {
+        detail = describeProbeStatuses(endpoints);
+        const informative = probes.find(probe => probe.json && probe.payload);
+        if (informative) detail += ` · ${describeErrorPayload(informative.payload)}`;
+    } else if (providersProbe.status === 404) {
+        detail = `/api/providers = HTTP 404 (endpoint opsional). Probe: ${describeProbeStatuses(endpoints)}`;
+    }
+
+    const status = successful[0]?.status ||
+        providersProbe.status || healthProbe.status || openapiProbe.status || 0;
+
+    return {
+        ok,
+        status,
+        detail,
+        hint,
+        providers,
+        endpoints,
+        capabilities,
+        ...(openapiPaths.length ? { openapi_paths: openapiPaths.slice(0, 12) } : {})
+    };
+}
+
 function diagnosticsFailure(error) {
     return {
         ok: false,
@@ -589,8 +735,8 @@ function diagnosticsFailure(error) {
     };
 }
 
-async function runDiagnostics(env) {
-    const config = getDiagnosticsConfig(env);
+async function runDiagnostics(env, requestUrl) {
+    const config = getDiagnosticsConfig(env, requestUrl);
     const checks = [];
     const record = (name, result) => checks.push({ name, ...result });
 
@@ -605,55 +751,15 @@ async function runDiagnostics(env) {
         }
     }
 
-    const tempmailUrl = getTempmailProviderUrl(env);
-    if (!tempmailUrl) {
-        record("tempmail_provider", {
-            ok: false,
-            status: 0,
-            detail: "",
-            hint: "TEMPMAIL_API_URL belum di-set (atau bukan URL yang valid). Isi secret Cloudflare Worker / .dev.vars dengan URL API TempMail-MCP."
-        });
-    } else {
-        try {
-            const response = await fetchWithTimeout(
-                `${tempmailUrl}/api/providers`,
-                { headers: { "Accept": "application/json" } },
-                PROVIDER_TIMEOUT_MS
-            );
-            const payload = await readJsonSafe(response);
-            const providers = Array.isArray(payload)
-                ? payload.map(item => ({
-                    name: String(item?.name || ""),
-                    disabled: Boolean(item?.disabled),
-                    failures: Number(item?.failures || 0)
-                }))
-                : [];
-            const ok = response.ok && Array.isArray(payload);
-            let hint = "";
-            if (!ok) {
-                hint = "Endpoint /api/providers tidak membalas JSON. Pastikan TEMPMAIL_API_URL menunjuk ke server TempMail-MCP, bukan halaman HTML.";
-            } else if (providers.length && providers.every(item => item.disabled)) {
-                hint = "Semua provider sedang nonaktif (circuit breaker). Aktifkan lewat POST /api/providers/{name}/enable pada server TempMail-MCP.";
-            } else {
-                const preferred = getProviderCandidates(env)[0];
-                if (preferred !== "auto" && !providers.some(item => item.name === preferred)) {
-                    hint = `Provider '${preferred}' tidak terdaftar di server. Set TEMPMAIL_PROVIDER=auto untuk memakai fallback otomatis.`;
-                }
-            }
-            record("tempmail_provider", {
-                ok,
-                status: response.status,
-                detail: ok ? "" : `HTTP ${response.status}: ${describeErrorPayload(payload)}`,
-                providers,
-                hint
-            });
-        } catch (error) {
-            record("tempmail_provider", diagnosticsFailure(error));
-        }
+    try {
+        record("tempmail_provider", await checkTempmailProvider(env, config));
+    } catch (error) {
+        record("tempmail_provider", diagnosticsFailure(error));
     }
 
     const configOk = config.supabase_url && config.supabase_anon_key &&
-        config.supabase_service_role_key && config.tempmail_api_url;
+        config.supabase_service_role_key && config.tempmail_api_url &&
+        !config.tempmail_api_self_reference;
     return {
         ok: Boolean(configOk) && checks.every(check => check.ok),
         checkedAt: new Date().toISOString(),
@@ -713,7 +819,7 @@ export default async function handleTempmail(request, env) {
 
     try {
         if (action === "diagnostics") {
-            return jsonResponse(await runDiagnostics(env));
+            return jsonResponse(await runDiagnostics(env, url.toString()));
         }
 
         if (action === "alias" || action === "status") {

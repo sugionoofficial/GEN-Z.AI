@@ -14,6 +14,7 @@ import worker from '../functions/worker.mjs';
    3. action=status kompatibel dengan action=alias.
    4. detail error disamarkan (token tidak bocor).
    5. Tombol "Cek Konfigurasi" terpasang di /email.html.
+   6. 404 pada endpoint opsional /api/providers TIDAK dianggap rusak.
 ========================================================= */
 
 const ROOT = process.cwd();
@@ -53,6 +54,17 @@ function makeHarness(options = {}) {
         { name: 'gmail', disabled: false, failures: 0 },
         { name: 'mail.tm', disabled: false, failures: 0 }
     ]));
+    const healthProbe = options.healthProbe ||
+        (async () => Response.json({ healthy: true, providers: {} }));
+    const openapiProbe = options.openapiProbe || (async () => Response.json({
+        paths: {
+            '/api/email': {},
+            '/api/email/{email}/messages': {},
+            '/api/email/{email}/message/{message_id}': {},
+            '/api/health': {},
+            '/api/providers': {}
+        }
+    }));
 
     const fetchImpl = async (input, fetchOptions = {}) => {
         const url = new URL(input instanceof Request ? input.url : String(input));
@@ -92,6 +104,14 @@ function makeHarness(options = {}) {
         if (url.pathname === '/api/email' && method === 'POST') {
             state.providerCreates.push(url);
             return providerPost(url, fetchOptions, state);
+        }
+
+        if (url.pathname === '/api/health') {
+            return healthProbe(url, fetchOptions, state);
+        }
+
+        if (url.pathname === '/openapi.json') {
+            return openapiProbe(url, fetchOptions, state);
         }
 
         if (url.pathname === '/api/providers') {
@@ -250,6 +270,100 @@ test('detail error provider disamarkan agar token tidak bocor ke browser', async
     }
 });
 
+test('404 pada /api/providers tidak membatalkan diagnostik bila /api/health hidup', async () => {
+    const h = makeHarness({
+        providerList: async () => new Response('<html>Not Found</html>', {
+            status: 404,
+            headers: { 'Content-Type': 'text/html' }
+        })
+    });
+    try {
+        const res = await worker.fetch(makeRequest('diagnostics'), baseEnv());
+        const data = await res.json();
+        const check = data.checks.find(item => item.name === 'tempmail_provider');
+
+        assert.equal(res.status, 200);
+        assert.equal(data.ok, true, 'endpoint opsional 404 bukan kerusakan');
+        assert.equal(check.ok, true);
+        assert.equal(check.status, 200, 'status utama diambil dari probe 2xx');
+        assert.match(check.hint, /opsional/);
+        assert.match(check.hint, /BUKAN kerusakan/);
+        assert.ok(check.endpoints.some(item => item.path === '/api/providers' && item.status === 404));
+        assert.equal(check.capabilities.create_email, true);
+        assert.equal(check.providers.length, 0);
+    } finally {
+        h.restore();
+    }
+});
+
+test('openapi.json saja cukup membuktikan API TempMail-MCP saat introspection 404', async () => {
+    const html404 = async () => new Response('<html>Not Found</html>', {
+        status: 404,
+        headers: { 'Content-Type': 'text/html' }
+    });
+    const h = makeHarness({
+        healthProbe: html404,
+        providerList: html404,
+        openapiProbe: async () => Response.json({ paths: { '/api/email': {}, '/api/email/{email}/messages': {} } })
+    });
+    try {
+        const res = await worker.fetch(makeRequest('diagnostics'), baseEnv());
+        const data = await res.json();
+        const check = data.checks.find(item => item.name === 'tempmail_provider');
+
+        assert.equal(data.ok, true);
+        assert.equal(check.capabilities.create_email, true);
+        assert.equal(check.capabilities.messages, true);
+        assert.match(check.hint, /opsional/);
+    } finally {
+        h.restore();
+    }
+});
+
+test('semua probe non-JSON 404 tetap dilaporkan gagal dengan petunjuk URL dasar', async () => {
+    const html404 = async () => new Response('<html>Not Found</html>', {
+        status: 404,
+        headers: { 'Content-Type': 'text/html' }
+    });
+    const h = makeHarness({
+        healthProbe: html404,
+        providerList: html404,
+        openapiProbe: html404
+    });
+    try {
+        const res = await worker.fetch(makeRequest('diagnostics'), baseEnv());
+        const data = await res.json();
+        const check = data.checks.find(item => item.name === 'tempmail_provider');
+
+        assert.equal(data.ok, false);
+        assert.equal(check.ok, false);
+        assert.match(check.hint, /URL dasar API TempMail-MCP/);
+        assert.match(check.detail, /\/api\/providers=404 \(non-JSON\)/);
+        assert.doesNotMatch(check.detail, /supersecret/);
+    } finally {
+        h.restore();
+    }
+});
+
+test('TEMPMAIL_API_URL yang menunjuk ke domain aplikasi sendiri terdeteksi', async () => {
+    const h = makeHarness();
+    try {
+        const res = await worker.fetch(
+            makeRequest('diagnostics'),
+            baseEnv({ TEMPMAIL_API_URL: 'https://app.test' })
+        );
+        const data = await res.json();
+        const check = data.checks.find(item => item.name === 'tempmail_provider');
+
+        assert.equal(data.config.tempmail_api_self_reference, true);
+        assert.equal(data.ok, false);
+        assert.equal(check.ok, false);
+        assert.match(check.hint, /domain aplikasi ini sendiri/);
+    } finally {
+        h.restore();
+    }
+});
+
 test('tombol Cek Konfigurasi dan dokumentasi diagnostik terpasang', () => {
     const page = fs.readFileSync(path.join(ROOT, 'email.html'), 'utf8');
     assert.match(page, /id="btn-diagnostics"/);
@@ -263,9 +377,14 @@ test('tombol Cek Konfigurasi dan dokumentasi diagnostik terpasang', () => {
     const setup = fs.readFileSync(path.join(ROOT, 'TEMPMAIL-SETUP.md'), 'utf8');
     assert.match(setup, /action=diagnostics/);
     assert.match(setup, /docs\/tempmail-setup\.md/);
+    assert.match(setup, /api\/providers/);
+
+    assert.match(page, /check\.endpoints/);
+    assert.match(page, /endpoint opsional/);
 
     const doc = fs.readFileSync(path.join(ROOT, 'docs/tempmail-setup.md'), 'utf8');
     assert.match(doc, /action=diagnostics/);
+    assert.match(doc, /api\/providers/);
 
     const example = fs.readFileSync(path.join(ROOT, '.dev.vars.example'), 'utf8');
     assert.match(example, /action=diagnostics/);

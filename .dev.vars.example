@@ -36,6 +36,8 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 #
 # Cek konfigurasi tanpa membocorkan secret:
 #   GET /api/tempmail?action=diagnostics (atau tombol "Cek Konfigurasi" di /email.html)
+# Diagnostik memprobe /api/health, /api/providers (opsional), /openapi.json.
+# 404 pada /api/providers TIDAK berarti rusak bila endpoint inti terdeteksi.
 # Endpoint provider yang dipakai: POST /api/email, GET /api/email/{email}/messages,
 # GET /api/email/{email}/message/{id}, GET /api/providers.
 
