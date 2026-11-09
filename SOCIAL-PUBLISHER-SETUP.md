@@ -119,33 +119,13 @@ akun OpusClip operator sendiri (bukan kredit GEN-Z.AI). Saat kredit habis
 (`credit_admission_rejected` / `insufficient_credits`) atau akun belum memiliki
 akses beta Opus Labs, generate gagal secara jujur tanpa gambar pengganti.
 
-Simpan Bearer token OAuth Opus Labs sebagai secret Worker:
+Token Opus untuk Studio Medsos dibaca dari vault Supabase, bukan dari secret token Cloudflare Worker.
 
-1. Di PowerShell / Terminal pada folder proyek lokal Anda, tarik kode terbaru lalu jalankan pembantu login OAuth resmi:
+1. Pastikan migrasi `supabase/opus-credentials.sql` sudah dijalankan dan binding `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, serta `PROVIDER_CREDENTIAL_ENCRYPTION_KEY` (atau `API_KEY_ENCRYPTION_SECRET`) tersedia pada server. Kunci enkripsi harus sama dengan yang dipakai saat menyimpan slot.
+2. Login sebagai admin/owner, buka **Admin Panel → Kredensial Opus** (`/admin-control/opus-credentials.html`), lalu masukkan JSON OAuth hasil login Opus ke slot `OPUS_AUTH_TOKEN_1`. Tambahkan akun lainnya berurutan ke `OPUS_AUTH_TOKEN_2`, `OPUS_AUTH_TOKEN_3`, dan seterusnya. Kredensial dienkripsi di Supabase; slot bernomor terkecil dicoba lebih dulu.
+3. Gunakan **Tes Opus** di **SET Studio Medsos** untuk memastikan token Supabase dapat dipakai. Jika vault kosong atau tidak dapat didekripsi, proses berhenti dengan pesan error—token Worker lama tidak dijadikan fallback untuk Social Publisher.
 
-```powershell
-git checkout main
-git pull origin main
-npm run opus:login
-```
-
-Perintah tersebut otomatis membuka browser ke login akun OpusClip/Opus Labs Anda, menukar kode PKCE OAuth menjadi JSON siap-pakai (`access_token`, `refresh_token`, `client_id`, `expires_at`, `token_endpoint`), menyimpannya ke `.opus-auth-token.json` (di-ignore Git), dan menyalinnya ke Clipboard.
-
-2. Tempel isi JSON tersebut ke Cloudflare Dashboard (**Workers & Pages → `genzai` → Settings → Variables and Secrets → Secret `OPUS_AUTH_TOKEN`**), atau unggah lewat Wrangler:
-
-```sh
-npx wrangler@4 secret put OPUS_AUTH_TOKEN
-```
-
-`OPUS_AUTH_TOKEN` menerima:
-- objek JSON kredensial OAuth hasil `npm run opus:login` (`{ "access_token", "refresh_token", "client_id", "expires_at", "token_endpoint" }`) — Worker otomatis menukar `refresh_token` ke `https://focused-horizon-38.authkit.app/oauth2/token` sebelum kedaluwarsa, atau
-- Bearer token string mentah + pasangan opsional `OPUS_REFRESH_TOKEN` dan `OPUS_CLIENT_ID` sebagai secret terpisah, atau
-- beberapa kredensial per baris (JSONL) maupun JSON Array `[ {...}, {...} ]`.
-
-**Multi-API-Key Berurutan Otomatis (Failover saat Credit Habis):**
-- Untuk menambahkan akun/API key Opus cadangan berikutnya di Cloudflare Secrets, cukup tambahkan secret bernomor secara berurutan: `OPUS_AUTH_TOKEN` (akun ke-1), `OPUS_AUTH_TOKEN_2` (akun ke-2), `OPUS_AUTH_TOKEN_3` (akun ke-3), dst. hingga `OPUS_AUTH_TOKEN_20` (atau daftar JSON array di `OPUS_AUTH_TOKENS`).
-- Saat sebuah API key kehabisan kredit (`credit_admission_rejected` / `insufficient_credits`), sistem otomatis berpindah secara berurutan ke key berikutnya (`1 → 2 → 3 → ...`) sampai kembali bertemu key pertama.
-- Pada `/generate`, bila 1 putaran penuh seluruh API key masih kehabisan kredit, sistem melakukan jeda **5 menit** lalu mencoba ulang maksimal **3 kali jeda 5 menit**. Bila kredit tetap habis setelah 3 kali jeda 5 menit, sistem berhenti dan menampilkan notifikasi error merah `"SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI"`.
+Saat kredit Opus habis (`credit_admission_rejected` / `insufficient_credits`), Social Publisher mencoba slot Supabase selanjutnya. Tindakan antre ulang dan jeda mengikuti perilaku job yang sedang berjalan.
 
 Variabel opsional:
 - Pilihan model di **Admin Panel → SET Studio Medsos** (tersimpan di `social_publisher_config.image_model`, atau dioverride via `OPUS_IMAGE_MODEL`):

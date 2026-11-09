@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { saveOpusCredential, listOpusCredentials, withStoredOpusCredentials, loadStoredOpusPool } from '../lib/opus/credential-store.js';
+import { saveOpusCredential, listOpusCredentials, withStoredOpusCredentials, withSupabaseOpusCredentials, loadStoredOpusPool } from '../lib/opus/credential-store.js';
 import { collectOpusCredentialEntries } from '../lib/social-publisher/opus.js';
 import handler from '../api/opus-credentials.js';
 
@@ -22,6 +22,12 @@ test('credentials encrypted at rest and included alongside legacy slots', async 
         const merged = await withStoredOpusCredentials({...env, OPUS_AUTH_TOKEN_42: 'legacy'});
         const entries = collectOpusCredentialEntries(merged);
         assert.equal(entries.length, 2); assert.ok(entries.some(x => x.includes('secret-refresh'))); assert.ok(entries.includes('legacy'));
+        const supabaseOnly = await withSupabaseOpusCredentials({...env, OPUS_AUTH_TOKEN_42: 'legacy'});
+        const strictEntries = collectOpusCredentialEntries(supabaseOnly);
+        assert.equal(supabaseOnly.OPUS_CREDENTIALS_SOURCE, 'supabase');
+        assert.equal(strictEntries.length, 1);
+        assert.ok(strictEntries[0].includes('secret-refresh'));
+        assert.ok(!strictEntries.includes('legacy'), 'Social Publisher must ignore Cloudflare/Worker tokens when Supabase is authoritative');
     } finally { globalThis.fetch = original; }
 });
 test('only database admin or owner can list credentials, even if user metadata claims admin', async () => {

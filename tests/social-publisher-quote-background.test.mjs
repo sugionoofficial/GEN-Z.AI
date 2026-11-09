@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -45,6 +46,26 @@ const CHARACTER = {
     reference_mime_type: "image/png",
     prompt_notes: ""
 };
+const OPUS_VAULT_SECRET = "social-publisher-opus-vault-test";
+
+function encryptedOpusCredentialRow(token = "opus-token-from-supabase") {
+    const key = createHash("sha256").update(OPUS_VAULT_SECRET).digest();
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", key, iv);
+    const ciphertext = Buffer.concat([
+        cipher.update(JSON.stringify({ access_token: token }), "utf8"),
+        cipher.final()
+    ]);
+    return {
+        id: "opus-vault-slot-1",
+        slot: 1,
+        label: "OPUS_AUTH_TOKEN_1",
+        ciphertext: ciphertext.toString("base64"),
+        iv: iv.toString("base64"),
+        tag: cipher.getAuthTag().toString("base64"),
+        updated_at: new Date().toISOString()
+    };
+}
 
 function solidPng(side = 16, shade = 120) {
     const rgba = new Uint8Array(side * side * 4);
@@ -168,6 +189,7 @@ async function createManualHarness({ useCharacter = false } = {}) {
         SUPABASE_ANON_KEY: "anon-key",
         SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
         SOCIAL_TOKEN_ENCRYPTION_KEY: TEST_ENCRYPTION_KEY,
+        PROVIDER_CREDENTIAL_ENCRYPTION_KEY: OPUS_VAULT_SECRET,
         QWENCLOUD_API_KEY: "qwencloud-llm-key",
         OPUS_AUTH_TOKEN: "opus-test-token",
         OPUS_API_URL: "https://opus.example/image"
@@ -178,6 +200,7 @@ async function createManualHarness({ useCharacter = false } = {}) {
         const method = (init.method || "GET").toUpperCase();
         calls.push({ url, method, body: init.body && typeof init.body === "string" ? JSON.parse(init.body) : null });
 
+        if (url.includes("/rest/v1/opus_credentials?")) return Response.json([encryptedOpusCredentialRow()]);
         if (url === "https://opus.example/image") {
             return new Response(png, { status: 200, headers: { "Content-Type": "image/png" } });
         }
@@ -526,6 +549,7 @@ test("cron autopost Quote memakai OPUS + foto karakter + outfit acak sesuai jadw
         SUPABASE_URL: "https://supabase.example.co",
         SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
         SOCIAL_TOKEN_ENCRYPTION_KEY: TEST_ENCRYPTION_KEY,
+        PROVIDER_CREDENTIAL_ENCRYPTION_KEY: OPUS_VAULT_SECRET,
         QWENCLOUD_API_KEY: "qwencloud-llm-key",
         OPUS_AUTH_TOKEN: "opus-test-token",
         OPUS_API_URL: "https://opus.example/image"
@@ -534,6 +558,7 @@ test("cron autopost Quote memakai OPUS + foto karakter + outfit acak sesuai jadw
         globalThis.fetch = async (input, init = {}) => {
             const url = String(input);
             const method = (init.method || "GET").toUpperCase();
+            if (url.includes("/rest/v1/opus_credentials?")) return Response.json([encryptedOpusCredentialRow()]);
             if (url === "https://opus.example/image") {
                 opusCalls.push(JSON.parse(init.body));
                 return new Response(png, { status: 200, headers: { "Content-Type": "image/png" } });

@@ -1,4 +1,4 @@
-import { withStoredOpusCredentials } from "../../lib/opus/credential-store.js";
+import { withSupabaseOpusCredentials } from "../../lib/opus/credential-store.js";
 import { applyOutfitToScene, buildImagePrompt, composeSocialCaption, createScenePlan, formatTagBlockForCaption, pickRandomOutfit, renderCaption, sceneOverridesFromSchedule } from "../../lib/social-publisher/utils.js";
 import { buildQuoteImagePrompt, createQuotePlan, normalizeQuotePublishTarget, normalizeSocialPostMode, pickRandomFacebookSong, quoteOverridesFromSchedule, resolveScheduleSongMode } from "../../lib/social-publisher/quotes.js";
 import { decryptSecret, normalizeTextProvider, generateSocialContextCaption, generateSocialImage, generateSocialQuote, generateSocialQuoteImage, makeProfileShareUrl, publishFacebookPhoto, publishFacebookQuoteVideo } from "../../lib/social-publisher/providers.js";
@@ -762,6 +762,9 @@ async function processRun(env, config, claimedRun, options = {}) {
         imageProvider = ["cloudflare", "qwencloud", "tencent", "puter", "opus"].includes(publisherConfigs?.[0]?.image_provider)
             ? publisherConfigs[0].image_provider
             : "gemini";
+        if (imageProvider === "opus") {
+            env = await withSupabaseOpusCredentials(env);
+        }
         const aspectRatio = postMode === "quote"
             ? "9:16"
             : imageProvider === "opus"
@@ -1407,7 +1410,6 @@ async function sweepAbandonedRuns(config, now) {
 }
 
 export async function runSocialPublisherCron(env, scheduledTime = new Date()) {
-    env = await withStoredOpusCredentials(env);
     const config = getConfig(env);
     if (!config.url || !config.serviceRoleKey) {
         console.warn("[Social Publisher] Cron skipped: Supabase credentials are not configured.");

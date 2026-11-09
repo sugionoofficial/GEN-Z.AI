@@ -237,7 +237,9 @@ test("Opus Labs (Product Ad Studio) tersedia sebagai opsi provider gambar dengan
     assert.match(setHtml, /id="test-opus-provider"/, "Harus ada tombol Tes Opus");
     assert.match(setHtml, /product-ad-studio\.labs\.opus\.pro/, "Keterangan harus merujuk ke Product Ad Studio Opus Labs");
     assert.match(setHtml, /kredit akun OpusClip Anda sendiri/, "Label Opus harus menyebut kredit akun OpusClip sendiri secara jujur");
-    assert.match(setHtml, /OPUS_AUTH_TOKEN/, "Petunjuk secret OPUS_AUTH_TOKEN harus tampil di panel");
+    assert.match(setHtml, /OPUS_AUTH_TOKEN_1[\s\S]*OPUS_AUTH_TOKEN_2/, "Slot token Opus Supabase harus dijelaskan pada panel");
+    assert.match(setHtml, /Kredensial Opus/, "Panel harus mengarahkan admin ke vault Supabase");
+    assert.doesNotMatch(setHtml, /secret Worker <code>OPUS_AUTH_TOKEN/, "Token Opus Studio Medsos tidak boleh diarahkan ke secret Worker");
     assert.doesNotMatch(
         setHtml,
         /value="opus">[\s\S]{0,400}unlimited/i,
@@ -245,6 +247,8 @@ test("Opus Labs (Product Ad Studio) tersedia sebagai opsi provider gambar dengan
     );
     assert.match(apiSource, /OPUS_AUTH_TOKEN/, "API harus menyebut secret OPUS_AUTH_TOKEN");
     assert.match(apiSource, /opus_configured/, "Status kesiapan Opus harus dikirim ke admin");
+    assert.match(apiSource, /withSupabaseOpusCredentials/, "API Studio Medsos harus membaca slot token dari Supabase");
+    assert.doesNotMatch(apiSource, /withStoredOpusCredentials/, "API Studio Medsos tidak boleh fallback ke token Worker");
     assert.match(apiSource, /opus_models/, "Daftar model Opus harus dikirim ke admin");
     assert.match(setJs, /opus_configured/, "Status kesiapan Opus harus ditampilkan di admin");
     assert.match(setJs, /selectedOpusModel/, "SET Studio Medsos harus mengirim pilihan model Opus");
@@ -253,6 +257,7 @@ test("Opus Labs (Product Ad Studio) tersedia sebagai opsi provider gambar dengan
     assert.match(source, /Opus Labs \(Product Ad Studio/, "Kartu status Studio Medsos harus mengenali label Opus");
     assert.match(providersSource, /generateOpusSocialImage/, "generateSocialImage harus meneruskan ke provider Opus");
     assert.match(cronSource, /"opus"/, "Cron autopost harus mendukung provider opus");
+    assert.match(cronSource, /withSupabaseOpusCredentials/, "Cron Studio Medsos juga harus memakai slot token Supabase");
     assert.match(setupDoc, /OPUS_AUTH_TOKEN/, "Dokumen setup harus memuat panduan secret Opus");
     assert.match(setupDoc, /gpt-image-2\.5-flare/, "Dokumen setup harus memuat model GPT Image 2.5 Flare");
     assert.match(setupDoc, /gpt-image-2\.5-sunburst/, "Dokumen setup harus memuat model GPT Image 2.5 Sunburst");

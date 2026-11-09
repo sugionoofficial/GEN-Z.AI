@@ -1,4 +1,4 @@
-import { withStoredOpusCredentials } from "../lib/opus/credential-store.js";
+import { withSupabaseOpusCredentials } from "../lib/opus/credential-store.js";
 import {
     queueSocialVideoCrosspost,
     sanitizeSocialVideoAccountIds
@@ -1315,7 +1315,7 @@ async function saveSocialImageProvider(config, adminId, body, env) {
         throw error;
     }
     if (imageProvider === "opus" && !opusConfigured(env)) {
-        const error = new Error("OPUS_AUTH_TOKEN diperlukan saat provider Opus dipilih. Hubungkan akun OpusClip/Opus Labs (product-ad-studio.labs.opus.pro / labs.opus.pro/opus-video-tools/mcp) lalu simpan Bearer token OAuth sebagai secret Worker OPUS_AUTH_TOKEN (atau pasangan OPUS_REFRESH_TOKEN + OPUS_CLIENT_ID). Setiap gambar memotong kredit akun OpusClip Anda sendiri, bukan kredit GEN-Z.AI.");
+        const error = new Error("Token Opus belum tersedia di Supabase. Simpan token akun sebagai slot OPUS_AUTH_TOKEN_1, OPUS_AUTH_TOKEN_2, dan seterusnya di halaman Kredensial Opus. Setiap gambar memotong kredit akun OpusClip Anda sendiri, bukan kredit GEN-Z.AI.");
         error.status = 409;
         throw error;
     }
@@ -3054,7 +3054,7 @@ async function generateManualPost(config, userId, env, body = {}) {
             : activeProvider === "qwencloud"
                 ? "QWENCLOUD_API_KEY diperlukan saat provider QwenCloud dipilih dan SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual."
                 : activeProvider === "opus"
-                    ? "OPUS_AUTH_TOKEN diperlukan saat provider Opus dipilih dan SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual."
+                    ? "Token Opus harus tersimpan di vault Supabase sebagai OPUS_AUTH_TOKEN_1, OPUS_AUTH_TOKEN_2, dan seterusnya; SOCIAL_TOKEN_ENCRYPTION_KEY juga diperlukan untuk posting manual."
                     : "SOCIAL_TOKEN_ENCRYPTION_KEY diperlukan untuk posting manual.");
         error.status = 503;
         throw error;
@@ -4493,9 +4493,24 @@ export default async function handler(req, res) {
 
     try {
         const { config, userId, profile } = await verifyAdmin(req, env);
-        env = await withStoredOpusCredentials(env);
         if (action.startsWith("studio-admin-")) {
             requireStudioAdmin(profile);
+        }
+        const requestBody = req.body && typeof req.body === "object" ? req.body : {};
+        let needsSupabaseOpusCredentials = false;
+        if (action === "studio-admin-image-provider" && req.method === "GET") {
+            needsSupabaseOpusCredentials = (await getSocialImageProvider(config)) === "opus";
+        } else if (action === "studio-admin-image-provider") {
+            needsSupabaseOpusCredentials = String(requestBody.image_provider || "").toLowerCase() === "opus";
+        } else if (action === "studio-admin-image-provider-test") {
+            needsSupabaseOpusCredentials = String(requestBody.provider || "cloudflare").toLowerCase() === "opus";
+        } else if (action === "manual-generate") {
+            needsSupabaseOpusCredentials = (await getSocialImageProvider(config)) === "opus";
+        }
+        if (needsSupabaseOpusCredentials) {
+            env = await withSupabaseOpusCredentials(env, {
+                required: !(action === "studio-admin-image-provider" && req.method === "GET")
+            });
         }
         if (req.method === "GET") return await handleGet(req, res, config, userId, env, action, profile);
         return await handlePost(req, res, config, userId, env, action, profile);

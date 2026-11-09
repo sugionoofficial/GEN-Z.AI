@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { encode as encodeWebp, encodeWithAlpha as encodeWebpWithAlpha } from "@stacksjs/ts-webp";
 import jpeg from "jpeg-js";
 import { PNG } from "pngjs";
@@ -52,6 +53,25 @@ function mockFetch(handler) {
     globalThis.fetch = async (input, options = {}) => handler(String(input), options);
     return () => {
         globalThis.fetch = originalFetch;
+    };
+}
+
+function encryptedOpusCredentialRow(token, slot = 1, secret = "opus-vault-test-secret") {
+    const key = createHash("sha256").update(secret).digest();
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", key, iv);
+    const ciphertext = Buffer.concat([
+        cipher.update(JSON.stringify({ access_token: token }), "utf8"),
+        cipher.final()
+    ]);
+    return {
+        id: `opus-slot-${slot}`,
+        slot,
+        label: `OPUS_AUTH_TOKEN_${slot}`,
+        ciphertext: ciphertext.toString("base64"),
+        iv: iv.toString("base64"),
+        tag: cipher.getAuthTag().toString("base64"),
+        updated_at: new Date().toISOString()
     };
 }
 
@@ -623,7 +643,8 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji model 
     const baseEnv = {
         SUPABASE_URL: "https://project.example",
         SUPABASE_SERVICE_ROLE_KEY: "server-only-test-key",
-        SUPABASE_ANON_KEY: "anon-test-key"
+        SUPABASE_ANON_KEY: "anon-test-key",
+        PROVIDER_CREDENTIAL_ENCRYPTION_KEY: "opus-vault-test-secret"
     };
     const makeRes = () => ({
         statusCode: 0,
@@ -636,8 +657,10 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji model 
     });
     const outJpeg = texturedJpeg({ width: 540, height: 960 });
     let lastHttpModel = "";
+    let storedOpusRows = [];
 
     const restore = mockFetch(async (url, options = {}) => {
+        if (url.includes("/rest/v1/opus_credentials?")) return Response.json(storedOpusRows);
         if (url.endsWith("/auth/v1/user")) return Response.json({ id: "admin-user" });
         if (url.includes("/rest/v1/profiles?select=id,role,status")) {
             return Response.json([{ id: "admin-user", role: "ADMIN", status: "active" }]);
@@ -653,6 +676,7 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji model 
             }], { status: 201 });
         }
         if (url === "https://custom.opus.example/v1/ad-images") {
+            assert.equal(options.headers.Authorization, "Bearer tok-from-supabase");
             const reqJson = options.body ? JSON.parse(options.body) : {};
             lastHttpModel = reqJson.model || "";
             return new Response(outJpeg, { status: 200, headers: { "content-type": "image/jpeg" } });
@@ -674,7 +698,8 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji model 
         assert.equal(resMissing.statusCode, 409);
         assert.match(resMissing.body.error, /OPUS_AUTH_TOKEN/);
 
-        /* Dengan OPUS_AUTH_TOKEN + pilihan model Sunburst -> 200 */
+        /* Token slot dari Supabase dipakai meskipun masih ada token legacy di Worker. */
+        storedOpusRows = [encryptedOpusCredentialRow("tok-from-supabase", 1)];
         const resSaved = makeRes();
         await socialPublisherHandler({
             method: "POST",
@@ -682,7 +707,7 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji model 
             query: { action: "studio-admin-image-provider" },
             headers: { authorization: "Bearer test-token" },
             body: { image_provider: "opus", image_model: "gpt-image-2.5-sunburst" },
-            env: { ...baseEnv, OPUS_AUTH_TOKEN: "tok-live" }
+            env: { ...baseEnv, OPUS_AUTH_TOKEN: "legacy-cloudflare-token" }
         }, resSaved);
         assert.equal(resSaved.statusCode, 200);
         assert.equal(resSaved.body.settings.image_provider, "opus");
@@ -703,7 +728,7 @@ test("endpoint api/social-publisher mengizinkan admin menyimpan & menguji model 
             body: { provider: "opus", image_model: "gpt-image-2.5-sunburst" },
             env: {
                 ...baseEnv,
-                OPUS_AUTH_TOKEN: "tok-live",
+                OPUS_AUTH_TOKEN: "legacy-cloudflare-token",
                 OPUS_API_URL: "https://custom.opus.example/v1/ad-images"
             }
         }, resTest);
@@ -2690,6 +2715,7 @@ test("autopost cron saat ditolak policy Opus tetap mencatat status failed di riw
     let facebookPostedCount = 0;
 
     const restore = mockFetch(async (url, options = {}) => {
+        if (url.includes("/rest/v1/opus_credentials?")) return Response.json([encryptedOpusCredentialRow("tok-from-supabase")]);
         if (url.endsWith("/rest/v1/rpc/claim_due_social_post_schedules")) {
             return Response.json([{
                 run_id: "run-policy-1",
@@ -2848,7 +2874,8 @@ test("autopost cron saat ditolak policy Opus tetap mencatat status failed di riw
             SUPABASE_URL: "https://project.example",
             SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
             SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey,
-            OPUS_AUTH_TOKEN: "opus-test-token",
+            PROVIDER_CREDENTIAL_ENCRYPTION_KEY: "opus-vault-test-secret",
+            OPUS_AUTH_TOKEN: "legacy-cloudflare-token",
             OPUS_API_URL: "https://api.opus.example/generate",
             AI: {
                 async run() {
@@ -2889,6 +2916,7 @@ test("bila percobaan langsung ke-2 masih ditolak policy Opus, jadwal langsung di
     let opusAttempt = 0;
 
     const restore = mockFetch(async (url, options = {}) => {
+        if (url.includes("/rest/v1/opus_credentials?")) return Response.json([encryptedOpusCredentialRow("tok-from-supabase")]);
         if (url.endsWith("/rest/v1/rpc/claim_due_social_post_schedules")) {
             return Response.json([{
                 run_id: "run-policy-a",
@@ -2998,7 +3026,8 @@ test("bila percobaan langsung ke-2 masih ditolak policy Opus, jadwal langsung di
             SUPABASE_URL: "https://project.example",
             SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
             SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey,
-            OPUS_AUTH_TOKEN: "opus-test-token",
+            PROVIDER_CREDENTIAL_ENCRYPTION_KEY: "opus-vault-test-secret",
+            OPUS_AUTH_TOKEN: "legacy-cloudflare-token",
             OPUS_API_URL: "https://api.opus.example/generate"
         });
 
@@ -3034,6 +3063,7 @@ test("save-schedule dan cron autopost menghormati pilihan salah satu dari 5 mode
     });
 
     const restore = mockFetch(async (url, options = {}) => {
+        if (url.includes("/rest/v1/opus_credentials?")) return Response.json([encryptedOpusCredentialRow("tok-from-supabase")]);
         if (url.endsWith("/auth/v1/user")) {
             return Response.json({ id: "owner-model-test" });
         }
@@ -3138,6 +3168,7 @@ test("save-schedule dan cron autopost menghormati pilihan salah satu dari 5 mode
             return Response.json({ signedURL: "/object/sign/social-character-references/char.jpg?token=signed" });
         }
         if (url === "https://api.opus.example/generate") {
+            assert.equal(options.headers.Authorization, "Bearer tok-from-supabase");
             const payload = JSON.parse(options.body);
             if (!seenManualOpusModel) seenManualOpusModel = payload.model;
             else seenCronOpusModel = payload.model;
@@ -3160,7 +3191,8 @@ test("save-schedule dan cron autopost menghormati pilihan salah satu dari 5 mode
         SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
         SUPABASE_ANON_KEY: "anon-key",
         SOCIAL_TOKEN_ENCRYPTION_KEY: encryptionKey,
-        OPUS_AUTH_TOKEN: "opus-test-token",
+        PROVIDER_CREDENTIAL_ENCRYPTION_KEY: "opus-vault-test-secret",
+        OPUS_AUTH_TOKEN: "legacy-cloudflare-token",
         OPUS_API_URL: "https://api.opus.example/generate"
     };
 
