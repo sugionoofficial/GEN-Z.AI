@@ -4172,8 +4172,9 @@ async function handleUpscaleVideoUploadAction(req, res, body, user) {
         return failure(res, 500, "Tarif Upscale Video belum tersedia");
     }
 
+    let remainingCredits;
     try {
-        await deductGenerateCredits(user.id, creditCost);
+        remainingCredits = await deductGenerateCredits(user.id, creditCost);
     } catch (err) {
         console.error("[upscale-video-upload] Credit deduction failed:", err);
 
