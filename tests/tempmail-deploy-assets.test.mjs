@@ -58,6 +58,9 @@ test("artefak deploy Tempmail-MCP lengkap dan aman", () => {
     assert.ok(!/[^\x00-\x7F]/.test(powershell), "setup.ps1 harus ASCII-only untuk PowerShell 5.1");
     assert.doesNotMatch(powershell, /&/, "ampersand merusak parser PowerShell 5.1");
     assert.match(powershell, /ExecutionPolicy Bypass/);
+    assert.match(powershell, /winget install --id Docker\.DockerDesktop/);
+    assert.match(powershell, /docker info/);
+    assert.match(powershell, /Docker Desktop is running/);
     assert.match(powershell, /Read-Host "GMAIL_APP_PASSWORD/);
     assert.match(powershell, /docker compose up -d --build/);
     assert.match(powershell, /wrangler@4 secret put TEMPMAIL_API_URL/);
@@ -68,6 +71,10 @@ test("artefak deploy Tempmail-MCP lengkap dan aman", () => {
     assert.match(readme, /curl\.exe/);
     assert.match(readme, /arena\/23682d30-gen-z-ai/);
     assert.match(readme, /Cloudflare Tunnel/);
+    assert.match(readme, /Docker Desktop/);
+    assert.match(readme, /Render/);
+    assert.match(readme, /Railway/);
+    assert.match(readme, /onrender\.com/);
     assert.match(readme, /Full \(strict\)/);
     assert.match(readme, /app\.github\.dev/);
 });

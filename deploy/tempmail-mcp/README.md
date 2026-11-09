@@ -19,6 +19,25 @@ Port `8000` **tidak dipublish ke internet**; hanya Caddy yang membuka `80/443`.
 ## Prasyarat di VPS
 
 - Docker + plugin `docker compose`, Git.
+
+### Kalau `docker` belum ada di Windows PowerShell
+
+Error `Command 'docker' not found` berarti Docker Desktop belum terpasang
+atau belum masuk `PATH`. Install lalu **restart PowerShell**:
+
+```powershell
+winget install --id Docker.DockerDesktop -e
+# atau unduh dari https://www.docker.com/products/docker-desktop/
+
+# setelah install + Docker Desktop status running:
+docker --version
+docker compose version
+docker info
+```
+
+`setup.ps1` sekarang mengecek tiga hal itu dan memberi pesan spesifik:
+Docker belum terpasang, plugin `compose` belum ada, atau daemon belum jalan.
+
 - Domain/subdomain mis. `tempmail.domain.tld` dengan **A/AAAA record ke IP VPS**.
 - Port `80` dan `443` terbuka.
 - `GMAIL_EMAIL` + **App Password 16 digit** (bukan password akun).
@@ -125,6 +144,44 @@ cloudflared tunnel run --url http://localhost:8000 tempmail
 
 Catatan: compose upstream mempublish `8000:8000`, jadi `localhost:8000`
 bisa dipakai tunnel. `TEMPMAIL_API_URL` tetap `https://tempmail.domain.tld`.
+
+## Alternatif tanpa Docker lokal: Render / Railway / Fly.io
+
+Kalau ini cuma laptop Windows dan Anda tidak punya VPS, jangan memaksakan
+`setup.ps1` (laptop yang tidur tidak bisa dipanggil Worker Cloudflare).
+Deploy langsung dari repo upstream **Tanpa Docker di komputer Anda**:
+
+### Render
+
+1. Dashboard Render → **New** → **Web Service**.
+2. Connect repo `https://github.com/sugionoofficial/Tempmail-MCP`.
+3. Runtime **Docker**; Render memakai `Dockerfile` yang sudah ada
+   (`uvicorn src.api:app --host 0.0.0.0 --port 8000`).
+4. Environment:
+   - `GMAIL_EMAIL`
+   - `GMAIL_APP_PASSWORD`
+   - `FLARESOLVERR_URL` (isi URL FlareSolverr terpisah, atau biarkan default
+     bila tidak memakai provider yang butuh Cloudflare bypass)
+   - `PORT=8000`
+5. Deploy → catat URL `https://<service>.onrender.com`.
+6. Set `TEMPMAIL_API_URL=https://<service>.onrender.com` di Worker GEN-Z.AI.
+
+Catatan: free tier Render bisa **sleep**; pakai plan berbayar / always-on
+atau VPS supaya tidak kembali ke masalah "harus dinyalakan dulu".
+
+### Railway / Fly.io
+
+Sama: buat service dari repo Tempmail-MCP, pakai Dockerfile, set env
+`GMAIL_EMAIL` + `GMAIL_APP_PASSWORD`, expose port `8000`, lalu pakai URL
+HTTPS yang diberikan platform sebagai `TEMPMAIL_API_URL`.
+
+Verifikasi tetap sama:
+
+```bash
+curl -i https://<host>/api/health
+curl -i https://<host>/api/providers
+curl -i https://<host>/openapi.json
+```
 
 ## Catatan Cloudflare DNS
 

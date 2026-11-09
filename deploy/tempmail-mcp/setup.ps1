@@ -7,13 +7,25 @@ Set-Location -Path $PSScriptRoot
 function Assert-Command {
     param([string]$Name)
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+        if ($Name -eq "docker") {
+            throw "Docker Desktop belum terpasang atau belum ada di PATH. Install dengan: winget install --id Docker.DockerDesktop -e ; lalu restart PowerShell, buka Docker Desktop, dan tunggu sampai statusnya running."
+        }
         throw "Command '$Name' not found. Install it first, then run again."
     }
 }
 
 Assert-Command "docker"
 Assert-Command "git"
+
 docker compose version | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "Plugin 'docker compose' tidak tersedia. Update Docker Desktop ke versi terbaru, lalu ulangi."
+}
+
+docker info | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "Docker Desktop terpasang tetapi daemon belum jalan. Buka Docker Desktop, tunggu sampai 'Docker Desktop is running', lalu ulangi."
+}
 
 $envFile = Join-Path $PSScriptRoot ".env"
 if (-not (Test-Path $envFile)) {
