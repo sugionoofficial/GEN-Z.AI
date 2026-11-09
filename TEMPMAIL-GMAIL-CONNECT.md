@@ -88,15 +88,29 @@ npx wrangler@4 secret put PROVIDER_CREDENTIAL_ENCRYPTION_KEY
 ```
 
 - Tempel Client ID / Client secret dari langkah 2.
-- Untuk `PROVIDER_CREDENTIAL_ENCRYPTION_KEY`, disarankan tempel **64 karakter
-  hex** dari perintah `node -e` di atas. Bila secret ini sudah ada di Worker,
-  pakai nilai yang sama; jangan dibuat ulang.
+- Untuk `PROVIDER_CREDENTIAL_ENCRYPTION_KEY`, disarankan **64 karakter hex**.
+  Bila secret ini sudah ada di Worker, pakai nilai yang sama; jangan dibuat
+  ulang. `wrangler secret put` **menimpa** nilai lama, bukan menambah.
 - Jangan menaruh nilai ini di `.dev.vars` yang ter-commit, `wrangler.toml`,
-  `email.html`, atau browser.
-- `PROVIDER_CREDENTIAL_ENCRYPTION_KEY` juga dipakai vault kredensial lain.
-  **Jangan mengganti nilainya** bila sudah ada ciphertext lama: gunakan
-  nilai yang sama. Bila harus diganti, putuskan dan hubungkan ulang semua
-  koneksi Gmail dari `/email.html`.
+  `email.html`, browser, issue, atau chat. Untuk membuat kunci baru tanpa
+  menampilkannya di layar/chat, pipe langsung dari stdin:
+
+  ```powershell
+  node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))" | npx wrangler@4 secret put PROVIDER_CREDENTIAL_ENCRYPTION_KEY
+  ```
+
+  Wrangler membaca nilai dari stdin saat tidak interaktif; `wrangler secret
+  list` hanya menampilkan **nama** secret, bukan nilainya.
+- ⚠️ `PROVIDER_CREDENTIAL_ENCRYPTION_KEY` dipakai **bersama** oleh vault
+  `public.provider_credentials` (API key KIE, OpenKey, QwenCloud, OpusClip,
+  OpenClips, kredensial OAuth Social Video, dll.) dan tabel
+  `public.tempmail_gmail_connections`. **Jangan mengganti nilainya** bila
+  sudah ada ciphertext lama. Mengganti kunci membuat seluruh ciphertext lama
+  tidak bisa didekrip lagi. Bila terlanjur diganti: kembalikan kunci lama bila
+  masih tersimpan, atau isi ulang semua kredensial di
+  `/admin-control/providers.html` (khusus YouTube/TikTok Social Video lewat
+  `/black-box/index.html` → **Status OAuth App Multi-User**) lalu putuskan dan
+  hubungkan ulang akun Gmail dari `/email.html`.
 
 Deploy Worker seperti biasa (CI repo atau `npx wrangler@4 deploy`). Tidak ada
 proses server tambahan yang harus dinyalakan.

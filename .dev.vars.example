@@ -38,6 +38,9 @@ PROVIDER_CREDENTIAL_ENCRYPTION_KEY=<32-byte-secret>
 # GMAIL_CLIENT_SECRET=<oauth-web-client-secret>
 # GMAIL_OAUTH_REDIRECT_URI=http://127.0.0.1:8787/api/tempmail-gmail-callback
 # Jalankan juga supabase/tempmail-gmail-connections.sql.
+# PERINGATAN: PROVIDER_CREDENTIAL_ENCRYPTION_KEY dipakai bersama vault
+# public.provider_credentials. Jangan timpa nilai lama di Worker produksi;
+# baca bagian rotasi kunci di TEMPMAIL-GMAIL-CONNECT.md sebelum secret put.
 #
 # MODE B (fallback lama): untuk alamat @gmail.com tanpa OAuth, deploy
 # Tempmail-MCP ke host HTTPS persisten (VPS / Cloudflare Tunnel / Render /
