@@ -5,10 +5,12 @@ import worker from "../functions/worker.mjs";
 /* =========================================================
    TEMPMAIL — ALIAS RECOVERY, PROVIDER FALLBACK, NORMALISASI
    ---------------------------------------------------------
-   Provider yang dipakai aplikasi adalah Tempmail-MCP:
+   Mode B memakai Tempmail-MCP:
      POST /api/email?name=<provider>
      GET  /api/email/{email}/messages?token=..&name=..
      GET  /api/email/{email}/message/{id}?token=..&name=..
+   Mode A (default saat TEMPMAIL_API_URL kosong) memakai api.mail.tm
+   langsung dari Worker.
 
    Tes ini menjaga perilaku yang dulu membuat fitur TempMail
    terasa rusak:
@@ -56,6 +58,21 @@ function makeHarness(options = {}) {
     globalThis.fetch = async (input, fetchOptions = {}) => {
         const url = new URL(input instanceof Request ? input.url : String(input));
         const method = fetchOptions.method || "GET";
+
+        if (url.host === "api.mail.tm") {
+            if (url.pathname === "/domains") {
+                return Response.json({
+                    "hydra:member": [{ domain: "mailtm.test", isActive: true, isPrivate: false }]
+                });
+            }
+            if (url.pathname === "/accounts" && method === "POST") {
+                const { address } = JSON.parse(fetchOptions.body);
+                return Response.json({ id: "acct-1", address }, { status: 201 });
+            }
+            if (url.pathname === "/token" && method === "POST") {
+                return Response.json({ token: "builtin-tok-1" });
+            }
+        }
 
         if (url.pathname === "/auth/v1/user") {
             const token = fetchOptions.headers.Authorization.replace(/^Bearer\s+/i, "");
@@ -306,7 +323,7 @@ test("email bentrok dengan alias user lain diulang sampai tersimpan", async () =
     }
 });
 
-test("TEMPMAIL_API_URL yang belum di-set memberi error konfigurasi yang jelas", async () => {
+test("TEMPMAIL_API_URL kosong tanpa flag mailtm menjaga kebutuhan @gmail.com", async () => {
     const harness = makeHarness();
     const env = { ...ENV, TEMPMAIL_API_URL: "" };
 
@@ -316,7 +333,26 @@ test("TEMPMAIL_API_URL yang belum di-set memberi error konfigurasi yang jelas", 
 
         assert.equal(response.status, 500);
         assert.match(payload.error, /TEMPMAIL_API_URL/);
+        assert.match(payload.error, /@gmail\.com/);
         assert.equal(harness.providerCreateCount, 0);
+    } finally {
+        harness.restore();
+    }
+});
+
+test("TEMPMAIL_PROVIDER=mailtm memakai built-in walaupun secret kosong", async () => {
+    const harness = makeHarness();
+    const env = { ...ENV, TEMPMAIL_API_URL: "", TEMPMAIL_PROVIDER: "mailtm" };
+
+    try {
+        const response = await worker.fetch(tempmailRequest("admin-a", "create"), env);
+        const payload = await response.json();
+
+        assert.equal(response.status, 200);
+        assert.equal(payload.provider, "mailtm");
+        assert.match(payload.email, /^[a-z0-9]{10}@mailtm\.test$/);
+        assert.equal(harness.providerCreateCount, 0);
+        assert.equal(harness.aliases.get("admin-a").provider, "mailtm");
     } finally {
         harness.restore();
     }
