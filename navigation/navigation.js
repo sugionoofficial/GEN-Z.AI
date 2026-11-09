@@ -976,6 +976,7 @@
             { label: "Studio Medsos", href: "/admin-control/social-publisher.html", icon: ICONS.socialStudio },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
             { label: "TempMail", href: "/email.html", icon: ICONS.chinaapi },
+            { label: "Kredensial Opus", href: "/admin-control/opus-credentials.html", icon: ICONS.chinaapi },
             { label: "Admin Panel", href: "/admin-control/admin-panel.html", icon: ICONS.adminPanel },
             { label: "Informasi Penting", href: "/admin-control/announcements.html", icon: ICONS.announcements },
             { label: "Black Box", href: "/black-box/index.html", icon: ICONS.blackBox },

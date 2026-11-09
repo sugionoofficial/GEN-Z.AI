@@ -1,3 +1,4 @@
+import { withStoredOpusCredentials } from "../lib/opus/credential-store.js";
 import {
     queueSocialVideoCrosspost,
     sanitizeSocialVideoAccountIds
@@ -4477,7 +4478,7 @@ export default async function handler(req, res) {
 
     const requestPath = new URL(String(req.url || "/"), "https://social-publisher.invalid").pathname;
     const action = getQuery(req, "action") || (requestPath === "/api/facebook-oauth-callback" ? "oauth-callback" : "dashboard");
-    const env = req.env || {};
+    let env = req.env || {};
 
     if (req.method === "GET" && action === "oauth-callback") {
         res.setHeader(
@@ -4492,6 +4493,7 @@ export default async function handler(req, res) {
 
     try {
         const { config, userId, profile } = await verifyAdmin(req, env);
+        env = await withStoredOpusCredentials(env);
         if (action.startsWith("studio-admin-")) {
             requireStudioAdmin(profile);
         }
