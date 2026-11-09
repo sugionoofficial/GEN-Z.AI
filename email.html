@@ -287,6 +287,7 @@
     }
 
     /* ====== LIGHT MODE PASS ====== */
+    html[data-genz-theme="light"] #opus-token { background: #fff !important; color: #172033 !important; border-color: #94a3b8 !important; }
     html[data-genz-theme="light"] .msg-subject {
       color: #172033;
     }
@@ -334,9 +335,17 @@
       <button id="btn-refresh" type="button" class="secondary hidden">🔄 Refresh Inbox</button>
       <button id="btn-diagnostics" type="button" class="secondary">🔍 Cek Konfigurasi</button>
       <a class="shortcut-link" href="https://clip.opus.pro/" target="_blank" rel="noopener noreferrer">↗ Login OpusClip (tab baru)</a>
+      <button id="btn-opus-oauth" type="button">🔑 Login Opus Labs untuk token</button>
     </div>
 
     <div id="status" class="status" role="status" aria-live="polite"></div>
+    <div id="opus-token-box" class="box hidden">
+      <h3>Token OAuth Opus Labs</h3>
+      <p class="gmail-help">Token rahasia hanya tersedia selama halaman ini terbuka. Jangan bagikan. Salin dan simpan di Kredensial Opus.</p>
+      <textarea id="opus-token" readonly aria-label="Token OAuth Opus" style="width:100%;min-height:90px;background:#111;color:#eee;border:1px solid #555;border-radius:8px;padding:8px;"></textarea>
+      <button id="btn-copy-opus-token" type="button">📋 Salin token</button>
+      <button id="btn-clear-opus-token" class="secondary" type="button">Hapus dari halaman</button>
+    </div>
 
     <div id="diagnostics" class="box hidden">
       <h3>🔍 Diagnostik TempMail</h3>
@@ -411,6 +420,8 @@
       const BODY_CSP = "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; font-src https: data:; form-action 'none'; base-uri 'none'";
 
       let currentEmail = "";
+      let opusPopup = null;
+      let opusNonce = "";
       let lastDiagnosticsConfig = null;
       let autoRefreshTimer = null;
       let refreshInFlight = null;
@@ -445,6 +456,33 @@
       const btnGmailRotate = document.getElementById("btn-gmail-rotate");
       const gmailPreview = document.getElementById("gmail-preview");
       const btnDiagnostics = document.getElementById("btn-diagnostics");
+      const opusTokenBox = document.getElementById("opus-token-box");
+      const opusToken = document.getElementById("opus-token");
+      document.getElementById("btn-opus-oauth").addEventListener("click", () => {
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        opusNonce = Array.from(bytes, value => value.toString(16).padStart(2, "0")).join("");
+        opusToken.value = "";
+        opusTokenBox.classList.add("hidden");
+        opusPopup = window.open(`/api/opus-oauth-login?start=1&tempmail_nonce=${opusNonce}`, "_blank");
+        if (!opusPopup) { opusNonce = ""; setStatus("Popup diblokir. Izinkan popup lalu coba lagi, atau gunakan Login Opus di Black Box.", "error"); }
+        else setStatus("Selesaikan login dan persetujuan di jendela Opus. Jika token tidak kembali, salin dari halaman hasil login.");
+      });
+      window.addEventListener("message", event => {
+        if (event.origin !== window.location.origin || !opusPopup || event.source !== opusPopup ||
+            event.data?.type !== "genz-opus-oauth-success" || !opusNonce || event.data?.nonce !== opusNonce ||
+            typeof event.data?.token !== "string" || !event.data.token || event.data.token.length > 64000) return;
+        opusToken.value = event.data.token;
+        opusNonce = "";
+        opusPopup = null;
+        opusTokenBox.classList.remove("hidden");
+        setStatus("✅ Token Opus Labs siap disalin. Jangan bagikan token ini.", "success");
+      });
+      document.getElementById("btn-copy-opus-token").addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(opusToken.value); setStatus("✅ Token disalin.", "success"); }
+        catch { opusToken.focus(); opusToken.select(); setStatus("Pilih dan salin token secara manual.", "error"); }
+      });
+      document.getElementById("btn-clear-opus-token").addEventListener("click", () => { opusToken.value = ""; opusTokenBox.classList.add("hidden"); });
       const btnCopyProbe = document.getElementById("btn-copy-probe");
       const diagnosticsBox = document.getElementById("diagnostics");
       const diagnosticsList = document.getElementById("diagnostics-list");
@@ -707,6 +745,34 @@
         return /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:opus\.pro|app\.opus\.pro)$/i.test(address);
       }
 
+      function extractOpusVerificationCode(subject, body) {
+        const text = `${subject || ""} ${body || ""}`.replace(/<[^>]*>/g, " ").replace(/&nbsp;|&#160;/gi, " ");
+        if (!/\b(?:verification|verify|verifikasi|kode|code|otp|sign[ -]?in|log[ -]?in)\b/i.test(text)) return "";
+        const codes = [...text.matchAll(/(?<![0-9])([0-9]{6})(?![0-9])/g)].map(match => match[1]);
+        const unique = [...new Set(codes)];
+        return unique.length === 1 ? unique[0] : "";
+      }
+
+      function formatMessageTime(value) {
+        if (!value) return "Waktu tidak tersedia";
+        const raw = String(value).trim();
+        const numeric = /^\d{10,13}$/.test(raw) ? Number(raw) : NaN;
+        const date = new Date(Number.isFinite(numeric) ? (numeric < 1e12 ? numeric * 1000 : numeric) : value);
+        if (!Number.isFinite(date.getTime())) return "Waktu tidak tersedia";
+        return date.toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      }
+
+      async function copyText(text) {
+        try { await navigator.clipboard.writeText(text); return true; } catch {
+          const field = document.createElement("textarea");
+          field.value = text; field.style.position = "fixed"; field.style.opacity = "0";
+          document.body.appendChild(field); field.select();
+          let copied = false;
+          try { copied = document.execCommand("copy"); } catch { /* akses clipboard ditolak */ }
+          field.remove(); return copied;
+        }
+      }
+
       function renderMessages(messages, silent) {
         messages = messages.filter(message => isOpusSender(message?.from));
         messageList.textContent = "";
@@ -737,13 +803,47 @@
           from.className = "msg-from";
           from.textContent = "Dari: " + (message.from || "-");
 
-          item.append(subject, from);
+          const time = document.createElement("div");
+          time.className = "msg-from";
+          time.textContent = "Waktu: " + formatMessageTime(message.createdAt);
+          item.append(subject, from, time);
 
           if (message.preview) {
             const preview = document.createElement("div");
             preview.className = "msg-preview";
             preview.textContent = message.preview;
             item.appendChild(preview);
+          }
+
+          if (message.id) {
+            const copyCode = document.createElement("button");
+            copyCode.type = "button";
+            copyCode.className = "secondary";
+            copyCode.textContent = "📋 Salin kode";
+            copyCode.setAttribute("aria-label", "Salin kode verifikasi dari " + (message.subject || "email Opus"));
+            let foundCode = "";
+            copyCode.addEventListener("keydown", event => event.stopPropagation());
+            copyCode.addEventListener("click", async event => {
+              event.stopPropagation();
+              if (copyCode.disabled) return;
+              const alias = currentEmail;
+              copyCode.disabled = true;
+              try {
+                if (!foundCode) {
+                  foundCode = extractOpusVerificationCode(message.subject, message.preview);
+                  if (!foundCode) {
+                    const detail = await tempmailRequest(`/api/tempmail?action=message&email=${encodeURIComponent(alias)}&messageId=${encodeURIComponent(message.id)}`);
+                    if (alias !== currentEmail || !isOpusSender(detail?.from)) throw new Error("Email atau pengirim berubah. Refresh inbox dan coba lagi.");
+                    foundCode = extractOpusVerificationCode(detail.subject, `${detail.bodyText || ""} ${detail.bodyHtml || ""}`);
+                  }
+                }
+                if (!foundCode) throw new Error("Kode enam digit tidak dapat dikenali dengan pasti. Buka email untuk memeriksanya.");
+                if (await copyText(foundCode)) { copyCode.textContent = "✅ Kode disalin"; }
+                else { copyCode.textContent = `Kode: ${foundCode} — salin manual`; setStatus("Clipboard ditolak. Salin kode yang ditampilkan pada pesan.", "error"); }
+              } catch (error) { setStatus("❌ " + error.message, "error"); }
+              finally { copyCode.disabled = false; }
+            });
+            item.appendChild(copyCode);
           }
 
           const openMessage = () => {
@@ -1219,7 +1319,13 @@
         }
       });
 
-      window.addEventListener("pagehide", stopAutoRefresh);
+      window.addEventListener("pagehide", () => {
+        stopAutoRefresh();
+        opusToken.value = "";
+        opusTokenBox.classList.add("hidden");
+        opusNonce = "";
+        opusPopup = null;
+      });
 
       void (async () => {
         if (!(await tempmailAccessReady)) return;

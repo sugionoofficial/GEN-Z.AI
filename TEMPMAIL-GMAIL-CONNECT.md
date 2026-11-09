@@ -222,3 +222,22 @@ aktif, plus pemeriksaan `supabase_gmail_connections_table` dan
 berpindah ke Mode C.
 
 [1]: https://developers.google.com/identity/protocols/oauth2#expiration
+
+## Login Opus Labs dan salin kode dari inbox
+
+Di TempMail, tombol **Login Opus Labs untuk token** membuka login OAuth resmi
+pada jendela terpisah. Selesaikan login dan persetujuan di Opus; setelah token
+diverifikasi, halaman hasil mencoba mengirimkannya kembali ke TempMail. Token
+hanya ditampilkan sementara di halaman, bukan disimpan otomatis. Salin dan
+simpan ke slot di Kredensial Opus, lalu hapus dari halaman. Jangan bagikan
+access token, refresh token atau kode verifikasi.
+
+Browser yang memblokir popup atau memutus hubungan antarjendela dapat mencegah
+pengembalian otomatis; dalam hal itu izinkan popup atau salin token langsung dari
+halaman hasil login Opus. Sesi Opus lama tidak dihapus secara otomatis.
+
+Pesan Opus menampilkan waktu menurut zona waktu browser dan tombol **Salin
+kode**. Jika kode belum tampak pada ringkasan, tombol mengambil isi pesan di
+belakang layar. Ekstraksi hanya menerima satu kandidat enam digit dengan
+konteks verifikasi; jika tidak yakin, buka email dan periksa sendiri. Pengirim
+From dapat dipalsukan; periksa keaslian pesan sebelum menggunakan kode.
