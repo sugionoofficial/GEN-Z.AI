@@ -21,6 +21,7 @@ import openClipsOAuthLogin from "../api/openclips-oauth-login.js";
 import openClipsOAuthCallback from "../api/openclips-oauth-callback.js";
 import opusVoicePreview from "../api/opus-voice-preview.js";
 import opusBlackbox from "../api/opus-blackbox.js";
+import opusCredentials from "../api/opus-credentials.js";
 import socialVideoAdmin from "../api/social-video-admin.js";
 import socialVideoAutopost from "../api/social-video-autopost.js";
 import socialVideoOAuthCallback from "../api/social-video-oauth-callback.js";
@@ -67,6 +68,7 @@ const handlers = new Map([
     ["/api/openclips-oauth-callback", openClipsOAuthCallback],
     ["/api/opus-voice-preview", opusVoicePreview],
     ["/api/opus-blackbox", opusBlackbox],
+    ["/api/opus-credentials", opusCredentials],
     ["/api/social-video-admin", socialVideoAdmin],
     ["/api/social-video-autopost", socialVideoAutopost],
     ["/api/social-video-oauth-callback", socialVideoOAuthCallback],
