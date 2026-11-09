@@ -181,6 +181,16 @@ Respons sukses `create`:
   di origin aplikasi, sehingga tidak bisa mencuri session di `localStorage`.
   Subject/pengirim di daftar inbox dirender dengan `textContent`, bukan
   `innerHTML`.
+- Panel **⚡ Pintasan Login** berisi tombol cepat ke situs yang sering
+  dipakai bersama TempMail — saat ini **Opus Clip** (`https://clip.opus.pro/`).
+  Klik kartu membuka tab baru **dan** menyalin alamat sementara ke clipboard,
+  jadi tinggal `Ctrl/⌘+V` di form login; kode verifikasi lalu mendarat di
+  inbox di bawahnya. Kartu adalah tautan HTML biasa (tetap jalan walau JS
+  gagal dimuat) dengan `rel="noopener noreferrer"`, dan tujuan divalidasi
+  ulang saat klik: wajib `https` dan tercantum di `SHORTCUT_ALLOWED_HOSTS`
+  di `email.html`. Menambah pintasan baru = tambah satu kartu di markup
+  `#login-shortcuts` **dan** daftarkan host-nya ke
+  `SHORTCUT_ALLOWED_HOSTS`.
 
 ---
 

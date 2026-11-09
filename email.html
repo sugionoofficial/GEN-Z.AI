@@ -168,6 +168,74 @@
       font-family: ui-monospace, "SF Mono", Consolas, monospace;
       color: #4ade80;
     }
+
+    /* ====== PINTASAN LOGIN ====== */
+    .shortcut-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 2px;
+    }
+    .shortcut-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid #333;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .02);
+      color: #eee;
+      text-decoration: none;
+      transition: border-color .18s ease, background .18s ease;
+    }
+    .shortcut-card:hover,
+    .shortcut-card:focus-visible {
+      border-color: rgba(255, 74, 74, .55);
+      background: rgba(255, 0, 0, .08);
+      outline: none;
+    }
+    .shortcut-card:focus-visible {
+      box-shadow: inset 0 0 0 2px rgba(255, 74, 74, .45);
+    }
+    .shortcut-icon {
+      flex: 0 0 auto;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 9px;
+      background: rgba(255, 74, 74, .1);
+      font-size: 17px;
+      line-height: 1;
+    }
+    .shortcut-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .shortcut-title {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .shortcut-desc {
+      display: block;
+      font-size: 11px;
+      color: #888;
+      margin-top: 2px;
+      word-break: break-word;
+    }
+    .shortcut-arrow {
+      flex: 0 0 auto;
+      font-size: 13px;
+      color: #888;
+    }
+    .shortcut-help {
+      font-size: 11px;
+      color: #888;
+      margin-top: 8px;
+      word-break: break-word;
+    }
     .status {
       font-size: 12px;
       color: #888;
@@ -336,6 +404,38 @@
       </div>
       <div style="margin-top:10px; font-size:12px; color:#888;">
         Gunakan alamat ini untuk verifikasi akun. Inbox diperbarui otomatis setiap 15 detik; klik "Refresh Inbox" untuk cek manual.
+      </div>
+    </div>
+
+    <!-- =========================================================
+         PINTASAN LOGIN
+         Kartu ini sengaja berupa tautan HTML biasa (bukan
+         window.open dari JS) supaya tetap bisa diklik walau skrip
+         gagal dimuat. JS hanya menambah kenyamanan: menyalin
+         alamat sementara ke clipboard sebelum tab tujuan terbuka.
+    ========================================================== -->
+    <div id="login-shortcuts" class="box">
+      <h3>⚡ Pintasan Login</h3>
+      <div class="shortcut-list">
+        <a
+          id="shortcut-opus-clip"
+          class="shortcut-card"
+          href="https://clip.opus.pro/"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-shortcut-host="clip.opus.pro"
+          data-shortcut-label="Opus Clip"
+        >
+          <span class="shortcut-icon" aria-hidden="true">🎬</span>
+          <span class="shortcut-body">
+            <span class="shortcut-title">Opus Clip</span>
+            <span class="shortcut-desc">Buka clip.opus.pro di tab baru. Alamat email sementara di atas ikut tersalin otomatis, tinggal tempel (Ctrl/⌘+V) di form login.</span>
+          </span>
+          <span class="shortcut-arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
+      <div class="shortcut-help" id="shortcut-help">
+        Kode verifikasi dari Opus Clip akan mendarat di "Pesan Masuk" di bawah. Inbox diperbarui otomatis setiap 15 detik.
       </div>
     </div>
 
@@ -1150,6 +1250,100 @@
         }
       });
 
+      /*
+       * Salin teks ke clipboard dengan cadangan textarea untuk
+       * browser/context yang memblokir navigator.clipboard
+       * (mis. dibuka tanpa HTTPS atau izin clipboard ditolak).
+       * Dipakai bersama oleh tombol "Salin" dan pintasan login.
+       */
+      async function copyToClipboard(text) {
+        if (!text) return false;
+
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch {
+          /* lanjut ke jalur cadangan */
+        }
+
+        try {
+          const temp = document.createElement("textarea");
+          temp.value = text;
+          temp.setAttribute("readonly", "readonly");
+          temp.style.position = "fixed";
+          temp.style.opacity = "0";
+          document.body.appendChild(temp);
+          temp.select();
+          const copied = document.execCommand("copy");
+          document.body.removeChild(temp);
+          return Boolean(copied);
+        } catch {
+          return false;
+        }
+      }
+
+      /* ===================== PINTASAN LOGIN =====================
+         Kartu pintasan (mis. Opus Clip) membuka situs tujuan di
+         tab baru dan menyalin alamat email sementara agar tinggal
+         ditempel di form login/registrasi.
+
+         Pengamanan:
+         - Tujuan divalidasi ulang saat klik: wajib https dan host
+           harus ada di SHORTCUT_ALLOWED_HOSTS. Bila atribut href
+           diubah (injeksi DOM / ekstensi nakal), klik dibatalkan.
+         - rel="noopener noreferrer" (ada di markup) memutus
+           window.opener sehingga tab tujuan tidak bisa memakai
+           session/login GEN-Z.AI di halaman ini.
+         - Tidak ada credential yang dikirim ke situs tujuan; yang
+           disalin hanya alamat email sementara milik pengguna. */
+      const SHORTCUT_ALLOWED_HOSTS = new Set(["clip.opus.pro"]);
+      const shortcutCards = Array.from(document.querySelectorAll("[data-shortcut-host]"));
+
+      function isAllowedShortcutUrl(rawUrl) {
+        try {
+          const url = new URL(String(rawUrl || ""));
+          return url.protocol === "https:" &&
+            SHORTCUT_ALLOWED_HOSTS.has(url.hostname.toLowerCase());
+        } catch {
+          return false;
+        }
+      }
+
+      for (const card of shortcutCards) {
+        card.addEventListener("click", event => {
+          const href = card.getAttribute("href");
+
+          if (!isAllowedShortcutUrl(href)) {
+            event.preventDefault();
+            setStatus("❌ Pintasan diblokir: tujuan tidak dikenal. Muat ulang halaman ini.", "error");
+            return;
+          }
+
+          const label = card.dataset.shortcutLabel || "Pintasan login";
+
+          if (!currentEmail) {
+            setStatus(
+              "⚠️ " + label + " dibuka tanpa menyalin — buat/generate email sementara dulu di atas.",
+              "error"
+            );
+            return;
+          }
+
+          /*
+           * Default klik <a target="_blank"> dibiarkan jalan supaya
+           * tab baru tetap terbuka walau clipboard gagal.
+           */
+          void copyToClipboard(currentEmail).then(copied => {
+            setStatus(
+              copied
+                ? "✅ " + label + " dibuka di tab baru · " + currentEmail + " tersalin (tempel dengan Ctrl/⌘+V)."
+                : "⚠️ " + label + " dibuka di tab baru, tapi gagal menyalin. Salin manual alamat di atas.",
+              copied ? "success" : "error"
+            );
+          });
+        });
+      }
+
       btnCopy.addEventListener("click", async () => {
         if (!currentEmail) return;
 
@@ -1158,24 +1352,11 @@
           setTimeout(() => { btnCopy.textContent = "📋 Salin"; }, 1500);
         };
 
-        try {
-          await navigator.clipboard.writeText(currentEmail);
+        const copied = await copyToClipboard(currentEmail);
+        if (copied) {
           markCopied();
-        } catch {
-          try {
-            const temp = document.createElement("textarea");
-            temp.value = currentEmail;
-            temp.setAttribute("readonly", "readonly");
-            temp.style.position = "fixed";
-            temp.style.opacity = "0";
-            document.body.appendChild(temp);
-            temp.select();
-            document.execCommand("copy");
-            document.body.removeChild(temp);
-            markCopied();
-          } catch {
-            setStatus("❌ Gagal menyalin. Salin manual dari alamat di atas.", "error");
-          }
+        } else {
+          setStatus("❌ Gagal menyalin. Salin manual dari alamat di atas.", "error");
         }
       });
 

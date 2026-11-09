@@ -233,3 +233,42 @@ html[data-genz-theme="light"][data-genz-theme="light"] body .gmail-tag-row input
 html[data-genz-theme="light"][data-genz-theme="light"] body .gmail-preview {
     color: #0a6b3f !important;
 }
+
+
+/* =========================================================
+   09. PINTASAN LOGIN
+========================================================= */
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-card {
+    border: 1px solid #e2e8f1 !important;
+    background: #ffffff !important;
+    color: #33405a !important;
+    text-decoration: none !important;
+    box-shadow: 0 8px 20px rgba(40, 54, 82, .06) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-card:hover,
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-card:focus-visible {
+    border-color: #d4162f !important;
+    background: #fff5f6 !important;
+    outline: none;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-card:focus-visible {
+    box-shadow: 0 0 0 3px rgba(212, 22, 47, .22) !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-title {
+    color: #0b1424 !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-desc,
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-help,
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-arrow {
+    color: #58657b !important;
+}
+
+html[data-genz-theme="light"][data-genz-theme="light"] body .shortcut-icon {
+    border: 1px solid #f0cdd3 !important;
+    background: #fff1f2 !important;
+}

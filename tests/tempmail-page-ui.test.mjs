@@ -122,6 +122,54 @@ test("daftar pesan memakai textContent supaya subject pengirim tidak bisa injeks
     assert.doesNotMatch(page, /\$\{msg\.from_addr\}/);
 });
 
+test("pintasan login Opus Clip ada di halaman TempMail dan aman (https + tab baru)", () => {
+    const page = readRepoFile("email.html");
+
+    // Kartu pintasan: link biasa, jadi tetap jalan walau JS gagal dimuat.
+    assert.match(page, /id="shortcut-opus-clip"/);
+    assert.match(page, /id="login-shortcuts"/);
+
+    const card = page.match(/<a\b[\s\S]*?id="shortcut-opus-clip"[\s\S]*?>/);
+    assert.ok(card, "expected kartu pintasan Opus Clip di email.html");
+    assert.match(card[0], /href="https:\/\/clip\.opus\.pro\/"/);
+    assert.match(card[0], /target="_blank"/);
+    assert.match(card[0], /rel="noopener noreferrer"/);
+});
+
+test("tujuan pintasan login divalidasi (https + daftar host yang diizinkan)", () => {
+    const page = readRepoFile("email.html");
+
+    const hostsMatch = page.match(
+        /SHORTCUT_ALLOWED_HOSTS\s*=\s*new Set\(\[([\s\S]*?)\]\)/
+    );
+    assert.ok(hostsMatch, "expected konstanta SHORTCUT_ALLOWED_HOSTS");
+    assert.match(hostsMatch[1], /clip\.opus\.pro/);
+
+    const validatorSrc = extractFunctionSource(page, "function isAllowedShortcutUrl(rawUrl)");
+
+    const context = vm.createContext({ URL, Set });
+    vm.runInContext(
+        `const SHORTCUT_ALLOWED_HOSTS = new Set([${hostsMatch[1]}]);\n` +
+        `${validatorSrc}\nthis.isAllowedShortcutUrl = isAllowedShortcutUrl;`,
+        context
+    );
+
+    assert.equal(context.isAllowedShortcutUrl("https://clip.opus.pro/"), true);
+    assert.equal(context.isAllowedShortcutUrl("https://clip.opus.pro/login"), true);
+
+    // Protokol tidak aman / host di luar daftar harus ditolak.
+    assert.equal(context.isAllowedShortcutUrl("http://clip.opus.pro/"), false);
+    assert.equal(context.isAllowedShortcutUrl("https://evil.example.com/"), false);
+    assert.equal(context.isAllowedShortcutUrl("https://clip.opus.pro.evil.example.com/"), false);
+    assert.equal(context.isAllowedShortcutUrl("javascript:alert(1)"), false);
+    assert.equal(context.isAllowedShortcutUrl(""), false);
+
+    // href yang tertulis di markup harus lolos validasi yang sama.
+    const href = page.match(/id="shortcut-opus-clip"[\s\S]*?href="([^"]+)"/);
+    assert.ok(href, "expected href pada kartu pintasan");
+    assert.equal(context.isAllowedShortcutUrl(href[1]), true);
+});
+
 test("light theme ikut menata elemen inbox dan iframe body yang baru", () => {
     const lightCss = readRepoFile("assets/css/tempmail-light.css");
 
