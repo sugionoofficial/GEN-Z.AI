@@ -424,7 +424,7 @@ test("simulasi 3 API key: 12 submit key, jeda 5 menit x3, dan hanya 1 baris GAGA
         },
         err => {
             assert.equal(err.code, OPUS_SYSTEM_BUSY_FINAL_CODE);
-            assert.equal(err.message, "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI");
+            assert.equal(err.message, "SISTEM SEDANG SIBUK, COBA LAGI NANTI");
             return true;
         }
     );
@@ -443,5 +443,5 @@ test("simulasi 3 API key: 12 submit key, jeda 5 menit x3, dan hanya 1 baris GAGA
         "selama rotasi API key tidak ada baris GAGAL; hanya sekali saat STOP"
     );
     assert.equal(historyWrites[0].attempt, 4);
-    assert.equal(historyWrites[0].message, "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI");
+    assert.equal(historyWrites[0].message, "SISTEM SEDANG SIBUK, COBA LAGI NANTI");
 });

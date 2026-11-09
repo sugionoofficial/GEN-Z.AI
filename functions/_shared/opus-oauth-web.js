@@ -14,8 +14,7 @@
  * dan tanpa `pkg update`.
  *
  * Hilirnya sama dengan `scripts/opus-login.mjs`: menghasilkan
- * JSON token 1 baris yang siap ditempel ke Cloudflare Secret
- * OPUS_AUTH_TOKEN / OPUS_AUTH_TOKEN_2 / OPUS_AUTH_TOKEN_3.
+ * JSON token 1 baris yang siap ditempel ke slot Kredensial Opus di Supabase.
  * =========================================================
  */
 
@@ -474,7 +473,7 @@ export function normalizeOpusSlot(value) {
 
 export function opusSecretNameForSlot(slot) {
     const normalized = normalizeOpusSlot(slot);
-    return normalized <= 1 ? "OPUS_AUTH_TOKEN" : `OPUS_AUTH_TOKEN_${normalized}`;
+    return `OPUS_AUTH_TOKEN_${normalized}`;
 }
 
 /**
@@ -603,7 +602,7 @@ const INTRO_SLOT_STYLE = (
  * Halaman pembuka login OAuth Opus.
  *
  * Tombol `+` / `-` menambah / mengurangi slot auth
- * (OPUS_AUTH_TOKEN, OPUS_AUTH_TOKEN_2, ... tanpa batas atas)
+ * (OPUS_AUTH_TOKEN_1, OPUS_AUTH_TOKEN_2, ... tanpa batas atas)
  * tanpa perlu mengedit `?slot=` di URL secara manual. Nomor slot,
  * tautan "LANJUT LOGIN KE OPUS", dan URL halaman selalu disinkronkan.
  */
@@ -697,7 +696,7 @@ export function buildLoginIntroHtml({ slot = 1, count = null, origin = "", mcpUr
             + "Tekan <b>+</b> untuk menambah slot akun baru, <b>&minus;</b> untuk mengurangi, atau ketuk chip <b>Slot N</b> untuk memilih slot. "
             + "Setiap klik <b>langsung mengganti alamat URL</b> (<b>?slot=…&amp;count=…</b>) dan memuat ulang halaman, "
             + "jadi <b>tidak perlu lagi mengedit URL secara manual</b> dan alamatnya bisa disalin / dibagikan.<br><br>"
-            + "Jumlah slot <b>tidak dibatasi</b>: <b>OPUS_AUTH_TOKEN</b>, <b>OPUS_AUTH_TOKEN_2</b>, "
+            + "Jumlah slot <b>tidak dibatasi</b>: <b>OPUS_AUTH_TOKEN_1</b>, <b>OPUS_AUTH_TOKEN_2</b>, "
             + "<b>OPUS_AUTH_TOKEN_3</b>, … dan seterusnya. Kalau slot sudah sangat banyak, "
             + "chip ditampilkan bertahap di sekitar slot yang sedang aktif."
             + "</div>"
@@ -715,12 +714,12 @@ export function buildOpusLoginSuccessHtml({ compactJson = "", slot = 1, status =
             + `<p>Token OAuth sudah <b>diverifikasi${status ? ` (HTTP ${status} OK)` : ""}</b>. Ketuk tombol hijau untuk menyalin JSON token ke clipboard:</p>`
             + "<button id='copyBtn' type='button' class='btn'>SALIN TOKEN JSON KE CLIPBOARD</button>"
             + `<textarea id='tokenBox' readonly onclick='this.select()'>${escapeHtml(compactJson)}</textarea>`
-            + "<a class='linkbtn' href='https://dash.cloudflare.com/' target='_blank' rel='noopener'>Buka Cloudflare Dashboard &rarr;</a>"
+            + "<a class='linkbtn' href='/admin-control/opus-credentials.html' target='_blank' rel='noopener'>Buka Kredensial Opus &rarr;</a>"
             + "<div class='steps'>"
-            + "<b>Langkah tempel di Cloudflare:</b><br>"
-            + "1. Buka <b>Workers &amp; Pages &rarr; genzai &rarr; Settings &rarr; Variables and Secrets</b>.<br>"
-            + `2. Tempel (Paste) ke <b>${escapeHtml(secretName)}</b>.<br>`
-            + "3. Klik <b>Save / Deploy</b>. Selesai — refresh token tersimpan permanen otomatis."
+            + "<b>Langkah simpan di Supabase:</b><br>"
+            + "1. Buka halaman <b>Kredensial Opus</b> dari navigasi admin.<br>"
+            + `2. Tempel JSON ke <b>OPUS_AUTH_TOKEN_${normalizeOpusSlot(slot)}</b>.<br>`
+            + "3. Klik <b>Simpan</b>."
             + "</div>"
             + "<script>"
             + "const btn=document.getElementById('copyBtn');const box=document.getElementById('tokenBox');"
@@ -728,7 +727,7 @@ export function buildOpusLoginSuccessHtml({ compactJson = "", slot = 1, status =
             + "let ok=false;"
             + "if(navigator.clipboard&&navigator.clipboard.writeText){try{await navigator.clipboard.writeText(box.value);ok=true;}catch(e){}}"
             + "if(!ok){box.focus();box.select();try{ok=document.execCommand('copy');}catch(e){}}"
-            + "btn.textContent=ok?'TERSALIN KE CLIPBOARD! Tinggal Paste di Cloudflare':'Silakan tahan & Salin teks di kotak bawah';"
+            + "btn.textContent=ok?'TERSALIN KE CLIPBOARD! Tempel di Kredensial Opus':'Silakan tahan & Salin teks di kotak bawah';"
             + "});"
             + "</script>"
     });

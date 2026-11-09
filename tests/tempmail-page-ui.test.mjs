@@ -134,3 +134,18 @@ test("pintasan OpusClip membuka situs resmi di tab baru dengan aman", () => {
     const html = readRepoFile("email.html");
     assert.match(html, /<a\b[^>]*href="https:\/\/clip\.opus\.pro\/"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*>[^<]*Login OpusClip[^<]*<\/a>/);
 });
+
+test("inbox hanya menampilkan alamat pengirim dari domain Opus yang diizinkan", () => {
+    const html = readRepoFile("email.html");
+    const source = extractFunctionSource(html, "function isOpusSender(from)");
+    const context = vm.createContext({});
+    vm.runInContext(`${source}\nthis.isOpusSender = isOpusSender;`, context);
+    for (const from of ["no-reply@opus.pro", "OpusClip <no-reply@opus.pro>", "OPUS <TEAM@OPUS.PRO>", "login@app.opus.pro", "Opus <login@APP.OPUS.PRO>"]) {
+        assert.equal(context.isOpusSender(from), true, from);
+    }
+    for (const from of ["OpusClip <attacker@example.com>", "opus.pro@example.com", "fake@opus.pro.evil.com", "fake@notopus.pro", "fake@sub.opus.pro", "@opus.pro", "", null]) {
+        assert.equal(context.isOpusSender(from), false, String(from));
+    }
+    assert.match(html, /messages\s*=\s*messages\.filter\(message => isOpusSender\(message\?\.from\)\)/);
+    assert.match(html, /Email lain tetap diterima/);
+});

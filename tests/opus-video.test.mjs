@@ -1517,12 +1517,12 @@ test("semua 11 model provider Opus mendukung pilihan durasi sistem checkbox di E
     }
 });
 
-test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu 3 kali jeda 5 menit berstatus MENCOBA, lalu STOP dengan notif merah SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI", async () => {
+test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu 3 kali jeda 5 menit berstatus MENCOBA, lalu STOP dengan notif merah SISTEM SEDANG SIBUK, COBA LAGI NANTI", async () => {
     assert.equal(OPUS_QUEUE_RUNTIME_MS, 5 * 60 * 1000);
     assert.equal(OPUS_QUEUE_MAX_WAIT_RETRIES, 3, "wajib tepat 3 kali jeda 5 menit mencoba");
     assert.equal(OPUS_QUEUE_MAX_ATTEMPTS, 4, "1 percobaan awal + 3 kali jeda 5 menit mencoba = 4");
     assert.equal(OPUS_QUEUE_WAIT_MESSAGE, "mohon tunggu antrian, sistem sedang padat");
-    assert.equal(OPUS_QUEUE_FINAL_ERROR_MESSAGE, "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI");
+    assert.equal(OPUS_QUEUE_FINAL_ERROR_MESSAGE, "SISTEM SEDANG SIBUK, COBA LAGI NANTI");
     assert.equal(OPUS_QUEUE_RETRY_STATUS_LABEL, "MENCOBA");
     assert.equal(formatQueueCountdown(OPUS_QUEUE_RUNTIME_MS), "05:00");
     assert.equal(formatQueueCountdown(61000), "01:01");
@@ -1596,7 +1596,7 @@ test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu 3 kali je
         "3 kali jeda masing-masing tepat 5 menit"
     );
 
-    /* 4. Skenario 3 kali jeda 5 menit mencoba masih habis -> sistem STOP dan mengeluarkan notif SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI */
+    /* 4. Skenario 3 kali jeda 5 menit mencoba masih habis -> sistem STOP dan mengeluarkan notif SISTEM SEDANG SIBUK, COBA LAGI NANTI */
     const sleptSlicesFail = [];
     const waitStartsFail = [];
     let attemptCounterFail = 0;
@@ -1622,7 +1622,7 @@ test("antrian Opus: mendeteksi Insufficient credits upstream, menunggu 3 kali je
             });
         },
         err => {
-            assert.equal(err.message, "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI");
+            assert.equal(err.message, "SISTEM SEDANG SIBUK, COBA LAGI NANTI");
             assert.equal(err.code, OPUS_SYSTEM_BUSY_FINAL_CODE);
             assert.equal(err.waitRetries, 3);
             assert.equal(err.attempts, 4);
@@ -2226,7 +2226,7 @@ test("Multi-API-Key Opus: rotasi berurutan sampai ketemu key pertama saat credit
             },
             err => {
                 assert.equal(err.code, OPUS_SYSTEM_BUSY_FINAL_CODE);
-                assert.equal(err.message, "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI");
+                assert.equal(err.message, "SISTEM SEDANG SIBUK, COBA LAGI NANTI");
                 assert.equal(err.waitRetries, 3);
                 assert.equal(err.attempts, 4);
                 return true;

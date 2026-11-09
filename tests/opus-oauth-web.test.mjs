@@ -122,10 +122,10 @@ test("state OAuth ditandatangani, bisa dibaca ulang, dan menolak manipulasi/keda
 });
 
 test("normalizeOpusSlot & opusSecretNameForSlot memetakan slot ke nama secret Cloudflare", () => {
-    assert.equal(opusSecretNameForSlot(1), "OPUS_AUTH_TOKEN");
+    assert.equal(opusSecretNameForSlot(1), "OPUS_AUTH_TOKEN_1");
     assert.equal(opusSecretNameForSlot(2), "OPUS_AUTH_TOKEN_2");
     assert.equal(opusSecretNameForSlot(3), "OPUS_AUTH_TOKEN_3");
-    assert.equal(opusSecretNameForSlot(0), "OPUS_AUTH_TOKEN");
+    assert.equal(opusSecretNameForSlot(0), "OPUS_AUTH_TOKEN_1");
     assert.equal(normalizeOpusSlot("3"), 3);
 });
 
@@ -288,7 +288,7 @@ test("GET /api/opus-oauth-callback menukar code dan menampilkan tombol salin tok
             );
             assert.equal(res.statusCode, 200);
             assert.match(res.body, /SALIN TOKEN JSON KE CLIPBOARD/);
-            assert.match(res.body, /OPUS_AUTH_TOKEN</);
+            assert.match(res.body, /OPUS_AUTH_TOKEN_1</);
             assert.match(res.body, /refresh-xyz/);
         }
     );

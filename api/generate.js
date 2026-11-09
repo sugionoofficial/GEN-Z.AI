@@ -1,3 +1,4 @@
+import { loadStoredOpusPool } from "../lib/opus/credential-store.js";
 //generate.js?v=1.1
 /**
  * =========================================================
@@ -2611,6 +2612,10 @@ async function loadProviderApiKey(
     }
 
 
+    if (normalizedProviderCode.toLowerCase() === "opus") {
+        return await loadStoredOpusPool(runtimeEnv || process.env);
+    }
+
     const params =
         new URLSearchParams();
 
@@ -4759,7 +4764,7 @@ async function handleStagedVideoStepAction(req, res, body, providedToken) {
         console.error("[staged-video-step] Gagal memuat kredensial Opus:", err?.message);
         return rawJsonResponse(res, 500, {
             success: false,
-            error: "Kredensial Opus tidak tersedia di Worker."
+            error: "Kredensial Opus tidak tersedia di Supabase."
         });
     }
 

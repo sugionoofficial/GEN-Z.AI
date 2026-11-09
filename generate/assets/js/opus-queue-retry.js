@@ -15,7 +15,7 @@
      sebanyak maksimal 3 kali jeda 5 menit mencoba ulang.
    - Jika setelah 3 kali jeda 5 menit mencoba kredit masih habis,
      sistem berhenti otomatis dan mengeluarkan notifikasi error merah:
-       "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI"
+       "SISTEM SEDANG SIBUK, COBA LAGI NANTI"
 
    CATATAN BUNDLE:
    Modul murni ES (tanpa node:* atau server-only import) agar aman
@@ -32,7 +32,7 @@ export const OPUS_QUEUE_WAIT_MESSAGE =
     "mohon tunggu antrian, sistem sedang padat";
 
 export const OPUS_QUEUE_FINAL_ERROR_MESSAGE =
-    "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI";
+    "SISTEM SEDANG SIBUK, COBA LAGI NANTI";
 
 export const OPUS_QUEUE_RETRY_STATUS_LABEL =
     "MENCOBA";
@@ -62,7 +62,7 @@ export const OPUS_QUEUE_MAX_ATTEMPTS =
  *                      penuh + 3 kali jeda 5 menit, baru sistem
  *                      STOP dan menulis TEPAT SATU baris GAGAL
  *                      dengan notif merah
- *                      "SISTEM SEDANG SIBUK, SILAHKAN COBA LAGI"
+ *                      "SISTEM SEDANG SIBUK, COBA LAGI NANTI"
  *
  * Tanpa metadata (klien lama / request langsung), percobaan
  * dianggap final sehingga perilaku lama tetap sama.
@@ -490,7 +490,7 @@ export async function runOpusQueueRetryLoop({
                 const { poolSize, failedSlot, rotatedFullCycle } = extractOpusPoolMetadata(error);
 
                 /*
-                 * Jika ada lebih dari 1 API key Opus di Cloudflare dan kegagalan
+                 * Jika ada lebih dari 1 API key Opus di Supabase dan kegagalan
                  * terjadi asinkron pada 1 slot (mis. pada /api/generate-status
                  * setelah job sempat masuk status queued), LANGSUNG beralih ke
                  * API key berikutnya tanpa menunggu jeda 5 menit sampai seluruh
