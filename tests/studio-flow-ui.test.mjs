@@ -8,6 +8,11 @@ const css = readFileSync(new URL("../studio-flow/studio-flow.css", import.meta.u
 const nav = readFileSync(new URL("../navigation/navigation.js", import.meta.url), "utf8");
 const api = readFileSync(new URL("../api/social-publisher.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/20261110065601_studio_flow_history.sql", import.meta.url), "utf8");
+const buildScript = readFileSync(new URL("../scripts/build-cloudflare-pages.mjs", import.meta.url), "utf8");
+
+test("Cloudflare static build includes the Studio Flow files", () => {
+    assert.match(buildScript, /"studio-flow"/);
+});
 
 test("STUDIO FLOW menyediakan ruang premium untuk gambar/video dan preview khusus", () => {
     assert.match(html, /STUDIO <span>FLOW<\/span>/);

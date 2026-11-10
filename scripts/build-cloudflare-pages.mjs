@@ -25,6 +25,7 @@ const staticDirectories = [
     "navigation",
     "privacy",
     "prompt-studio",
+    "studio-flow",
 
     /*
      * Adapter model di models/** meng-import provider/**
