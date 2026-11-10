@@ -127,6 +127,6 @@ test("logo medsos untuk riwayat ada di social-publisher.js dengan status jadwal/
 
 test("pin cache composer & publisher dimutakhirkan", () => {
     assert.match(studioHtml, /social-video-composer\.js\?v=svp-composer-20261103/);
-    assert.match(studioHtml, /social-publisher\.js\?v=fb-connections-compact-20261103/);
+    assert.match(studioHtml, /social-publisher\.js\?v=facebook-oauth-status-20261110/);
     assert.match(studioHtml, /satu daftar urut waktu/, "legenda daftar terpadu wajib ada di sub judul riwayat");
 });

@@ -181,6 +181,7 @@ import { mergeRunsAndPosts, socialPostTimeMs } from "./social-video-merge.js";
     }
 
     function status(element, message, tone = "") {
+        if (!element) return;
         element.textContent = message || "";
         element.className = `status${tone ? ` ${tone}` : ""}`;
     }
