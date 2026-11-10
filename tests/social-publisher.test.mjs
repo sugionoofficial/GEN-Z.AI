@@ -20,11 +20,15 @@ import {
 } from "../lib/social-publisher/providers.js";
 import {
     createSignedReferenceUrl,
+    createSignedStudioFlowOutputUrl,
     deleteReferenceObject,
+    deleteStudioFlowOutputObject,
     downloadReferenceObject,
     isPrivateReferenceBucket,
     SOCIAL_REFERENCE_STORAGE_BUCKET,
-    uploadReferenceObject
+    STUDIO_FLOW_OUTPUT_BUCKET,
+    uploadReferenceObject,
+    uploadStudioFlowOutputObject
 } from "../lib/social-publisher/storage.js";
 import { stripImageMetadata } from "../metadata-cleaner/assets/js/metadata-cleaner-image.js";
 
@@ -543,6 +547,39 @@ test("reference storage uses a private Supabase bucket and server-side service-r
         assert.equal(calls[4].options.method, "DELETE");
         assert.match(calls[3].url, /\/storage\/v1\/object\/sign\/social-character-references\/social-reference\/user-1\/ref-1\.jpg$/);
         assert.deepEqual(JSON.parse(calls[3].options.body), { expiresIn: 600 });
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("Studio Flow output objects use the private bucket, service role, and short-lived signed URLs", async () => {
+    const originalFetch = globalThis.fetch;
+    const calls = [];
+    const bytes = new Uint8Array([255, 216, 255, 0]);
+    globalThis.fetch = async (url, options = {}) => {
+        calls.push({ url: String(url), options });
+        if (calls.length === 3) {
+            return Response.json({ signedURL: "/object/sign/studio-flow-results/user-1/task-1/output.jpg?token=short-lived" });
+        }
+        return new Response(null, { status: 200 });
+    };
+    const config = { url: "https://project.example", serviceRoleKey: "server-only-test-key" };
+    const key = "user-1/task-1/output.jpg";
+    try {
+        await uploadStudioFlowOutputObject(config, key, bytes, "image/jpeg");
+        await deleteStudioFlowOutputObject(config, key);
+        const signedUrl = await createSignedStudioFlowOutputUrl(config, key);
+
+        assert.equal(signedUrl, "https://project.example/storage/v1/object/sign/studio-flow-results/user-1/task-1/output.jpg?token=short-lived");
+        assert.match(calls[0].url, new RegExp(`/storage/v1/object/${STUDIO_FLOW_OUTPUT_BUCKET}/user-1/task-1/output\\.jpg$`));
+        assert.equal(calls[0].options.method, "POST");
+        assert.equal(calls[0].options.headers["Content-Type"], "image/jpeg");
+        assert.equal(calls[0].options.headers["x-upsert"], "false");
+        assert.equal(calls[0].options.headers.Authorization, "Bearer server-only-test-key");
+        assert.match(calls[1].url, new RegExp(`/storage/v1/object/${STUDIO_FLOW_OUTPUT_BUCKET}$`));
+        assert.deepEqual(JSON.parse(calls[1].options.body), { prefixes: [key] });
+        assert.match(calls[2].url, new RegExp(`/storage/v1/object/sign/${STUDIO_FLOW_OUTPUT_BUCKET}/user-1/task-1/output\\.jpg$`));
+        assert.deepEqual(JSON.parse(calls[2].options.body), { expiresIn: 3600 });
     } finally {
         globalThis.fetch = originalFetch;
     }

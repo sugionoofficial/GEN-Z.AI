@@ -87,7 +87,9 @@ import {
 } from "../lib/social-publisher/quotas.js";
 import {
     createSignedReferenceUrl,
+    createSignedStudioFlowOutputUrl,
     deleteReferenceObject,
+    deleteStudioFlowOutputObject,
     deleteStoryAudioObject,
     downloadModelReference,
     downloadReferenceObject,
@@ -96,7 +98,8 @@ import {
     loadBuiltinStoryAudio,
     resolveStorySongAudioBytes,
     uploadReferenceObject,
-    uploadStoryAudioObject
+    uploadStoryAudioObject,
+    uploadStudioFlowOutputObject
 } from "../lib/social-publisher/storage.js";
 import {
     encodeStoryMp4,
@@ -4023,6 +4026,24 @@ async function setGlobalEnabled(config, userId, env, statusOrEnabled) {
     };
 }
 
+const MAX_STUDIO_FLOW_RESULT_BYTES = 50 * 1024 * 1024;
+const STUDIO_FLOW_RESULT_TYPES = {
+    "image/jpeg": { mediaType: "image", extension: "jpg" },
+    "image/png": { mediaType: "image", extension: "png" },
+    "image/webp": { mediaType: "image", extension: "webp" },
+    "video/mp4": { mediaType: "video", extension: "mp4" },
+    "video/webm": { mediaType: "video", extension: "webm" }
+};
+
+function hasValidStudioFlowResultSignature(bytes, mimeType) {
+    if (mimeType === "image/jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    if (mimeType === "image/png") return bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => bytes[index] === byte);
+    if (mimeType === "image/webp") return bytes.length >= 12 && String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" && String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP";
+    if (mimeType === "video/mp4") return bytes.length >= 12 && String.fromCharCode(...bytes.subarray(4, 8)) === "ftyp";
+    if (mimeType === "video/webm") return bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
+    return false;
+}
+
 function normalizeStudioFlowHistoryPayload(body = {}) {
     const mediaType = body.media_type === "video" ? "video" : body.media_type === "image" ? "image" : "";
     const statuses = new Set(["queued", "running", "succeeded", "failed"]);
@@ -4071,8 +4092,16 @@ async function handleStudioFlowHistoryPost(req, res, config, userId, action) {
     if (action === "studio-flow-history-delete") {
         const id = cleanText(body.id, 80);
         if (!/^[0-9a-f-]{36}$/i.test(id)) return json(res, 400, { success: false, error: "ID riwayat tidak valid." });
+        const existing = await supabaseRequest(config, tablePath("studio_flow_history", `id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}&select=id,outputs&limit=1`));
+        if (!existing?.length) return json(res, 404, { success: false, error: "Riwayat tidak ditemukan." });
         const rows = await supabaseRequest(config, tablePath("studio_flow_history", `id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}&select=id`), { method: "DELETE", headers: { Prefer: "return=representation" } });
         if (!rows?.length) return json(res, 404, { success: false, error: "Riwayat tidak ditemukan." });
+        for (const output of Array.isArray(existing[0].outputs) ? existing[0].outputs : []) {
+            const key = String(output?.object_key || "");
+            if (key.startsWith(`${userId}/`)) await deleteStudioFlowOutputObject(config, key).catch(error => {
+                console.error("Studio Flow output cleanup failed:", error?.message || "unknown error");
+            });
+        }
         return json(res, 200, { success: true });
     }
 
@@ -4097,12 +4126,57 @@ async function handleStudioFlowHistoryPost(req, res, config, userId, action) {
     return json(res, 201, { success: true, item: rows?.[0] || null });
 }
 
+async function handleStudioFlowResultUpload(req, res, config, userId) {
+    const historyId = cleanText(getQuery(req, "history_id"), 80);
+    if (!/^[0-9a-f-]{36}$/i.test(historyId)) return json(res, 400, { success: false, error: "ID task STUDIO FLOW tidak valid." });
+
+    const mimeType = String(getHeader(req, "content-type") || "").split(";")[0].trim().toLowerCase();
+    const media = STUDIO_FLOW_RESULT_TYPES[mimeType];
+    const bytes = bytesFromBody(req.body);
+    if (!media || !bytes.length || bytes.length > MAX_STUDIO_FLOW_RESULT_BYTES || !hasValidStudioFlowResultSignature(bytes, mimeType)) {
+        return json(res, 400, { success: false, error: "Hasil harus berupa gambar JPEG/PNG/WEBP atau video MP4/WEBM valid hingga 50 MB." });
+    }
+
+    const rows = await supabaseRequest(config, tablePath("studio_flow_history", `select=id,media_type,status,options,outputs&id=eq.${encodeURIComponent(historyId)}&user_id=eq.${encodeURIComponent(userId)}&limit=1`));
+    const task = rows?.[0];
+    if (!task) return json(res, 404, { success: false, error: "Task STUDIO FLOW tidak ditemukan untuk akun ini." });
+    if (task.media_type !== media.mediaType) return json(res, 400, { success: false, error: "Jenis file tidak cocok dengan jenis task." });
+    const previousOutputs = Array.isArray(task.outputs) ? task.outputs : [];
+    if (previousOutputs.length >= 4) return json(res, 409, { success: false, error: "Maksimal empat hasil tersimpan untuk task ini." });
+
+    const key = `${userId}/${historyId}/${crypto.randomUUID()}.${media.extension}`;
+    await uploadStudioFlowOutputObject(config, key, bytes, mimeType);
+    try {
+        const output = {
+            object_key: key,
+            media_type: media.mediaType,
+            label: `${media.mediaType === "video" ? "Video" : "Gambar"} ${previousOutputs.length + 1}`
+        };
+        const outputs = [...previousOutputs, output];
+        const expectedCount = Math.max(1, Math.min(4, Number(task.options?.output_count) || 1));
+        const status = outputs.length >= expectedCount ? "succeeded" : "running";
+        const saved = await supabaseRequest(config, tablePath("studio_flow_history", `id=eq.${encodeURIComponent(historyId)}&user_id=eq.${encodeURIComponent(userId)}&select=id,status,outputs,updated_at`), {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify({ outputs, status, updated_at: new Date().toISOString() })
+        });
+        if (!saved?.length) throw Object.assign(new Error("Task STUDIO FLOW tidak ditemukan untuk akun ini."), { status: 404 });
+        return json(res, 201, { success: true, item: saved[0] });
+    } catch (error) {
+        await deleteStudioFlowOutputObject(config, key).catch(() => {});
+        throw error;
+    }
+}
+
 async function handlePost(req, res, config, userId, env, action, profile = null) {
     if (action !== "studio-access-status" && !action.startsWith("studio-admin-")) {
         await ensureStudioAccess(config, userId);
     }
     if (action === "studio-flow-history-save" || action === "studio-flow-history-delete") {
         return handleStudioFlowHistoryPost(req, res, config, userId, action);
+    }
+    if (action === "studio-flow-save-result") {
+        return handleStudioFlowResultUpload(req, res, config, userId);
     }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
     if (action === "replace-reference") return replaceReference(req, res, config, userId);
@@ -4315,8 +4389,27 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
 async function handleGet(req, res, config, userId, env, action, profile = null) {
     if (action === "studio-flow-history") {
         await ensureStudioAccess(config, userId);
-        const rows = await supabaseRequest(config, tablePath("studio_flow_history", `select=id,media_type,title,prompt,model,status,options,outputs,created_at,updated_at&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=50`));
-        return json(res, 200, { success: true, history: Array.isArray(rows) ? rows : [] });
+        const rows = await supabaseRequest(config, tablePath("studio_flow_history", `select=id,media_type,title,prompt,model,status,options,outputs,created_at,updated_at&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=10`));
+        const history = await Promise.all((Array.isArray(rows) ? rows : []).map(async item => {
+            const outputs = await Promise.all((Array.isArray(item.outputs) ? item.outputs : []).map(async output => {
+                const objectKey = String(output?.object_key || "");
+                if (objectKey.startsWith(`${userId}/`)) {
+                    try {
+                        const url = await createSignedStudioFlowOutputUrl(config, objectKey, 3600);
+                        return { media_type: output.media_type, label: output.label || "Hasil STUDIO FLOW", url };
+                    } catch (error) {
+                        console.warn("Studio Flow signed output URL unavailable:", error?.message || "unknown error");
+                        return { media_type: output.media_type, label: output.label || "Hasil STUDIO FLOW", url: "" };
+                    }
+                }
+                const legacyUrl = String(output?.url || "");
+                return legacyUrl.startsWith("https:")
+                    ? { media_type: output.media_type, label: output.label || "Hasil STUDIO FLOW", url: legacyUrl }
+                    : null;
+            }));
+            return { ...item, outputs: outputs.filter(Boolean) };
+        }));
+        return json(res, 200, { success: true, history });
     }
     if (action === "studio-access-status") {
         const access = await getStudioAccessStatus(config, userId);

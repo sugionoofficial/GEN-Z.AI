@@ -9,6 +9,7 @@ const nav = readFileSync(new URL("../navigation/navigation.js", import.meta.url)
 const api = readFileSync(new URL("../api/social-publisher.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../supabase/migrations/20261110065601_studio_flow_history.sql", import.meta.url), "utf8");
 const buildScript = readFileSync(new URL("../scripts/build-cloudflare-pages.mjs", import.meta.url), "utf8");
+const resultMigration = readFileSync(new URL("../supabase/migrations/20261110100538_studio_flow_results_bucket.sql", import.meta.url), "utf8");
 
 test("Cloudflare static build includes the Studio Flow files", () => {
     assert.match(buildScript, /"studio-flow"/);
@@ -57,23 +58,29 @@ test("Studio Flow has its own history area and is listed for every navigation ro
     assert.equal((nav.match(/href: "\/studio-flow\/index.html"/g) || []).length, 2);
 });
 
-test("Studio Flow enables only a connected desktop handoff and records the manual state honestly", () => {
+test("Studio Flow sends tasks through visible Flow UI automation and returns downloaded results", () => {
     assert.match(js, /window\.studioFlowDesktop/);
-    assert.match(js, /desktopBridge\.handoffTask\(task\)/);
-    assert.match(js, /handoffOnly !== true/);
-    assert.match(js, /Tugas dicatat sebagai handoff, bukan hasil generate/);
+    assert.match(js, /desktopBridge\.handoffTask\(task, stagingId, \{ historyId, accessToken \}\)/);
+    assert.match(js, /protocolVersion !== 2/);
+    assert.match(js, /generationSubmitted !== true/);
+    assert.match(js, /onOutputImported/);
     assert.match(html, /Companion dibutuhkan/);
-    assert.match(html, /proses generate dan pengambilan hasil tetap dilakukan manual di Flow/i);
+    assert.match(html, /Companion mengisi kontrol Flow yang terlihat/);
 });
 
 test("Studio Flow history is authenticated, subscription-gated, and scoped to the current user", () => {
     assert.match(api, /action === "studio-flow-history"[\s\S]*?ensureStudioAccess\(config, userId\)/);
-    assert.match(api, /user_id=eq\.\$\{encodeURIComponent\(userId\)\}.*order=created_at\.desc&limit=50/);
+    assert.match(api, /user_id=eq\.\$\{encodeURIComponent\(userId\)\}.*order=created_at\.desc&limit=10/);
     assert.match(api, /studio-flow-history-delete[\s\S]*?user_id=eq\.\$\{encodeURIComponent\(userId\)\}/);
     assert.match(api, /if \(!parsed \|\| parsed\.protocol !== "https:"\)/);
     assert.match(migration, /references auth\.users\(id\) on delete cascade/);
     assert.match(migration, /enable row level security/);
     assert.match(migration, /auth\.uid\(\) = user_id/);
+    assert.match(api, /studio-flow-save-result/);
+    assert.match(api, /createSignedStudioFlowOutputUrl/);
+    assert.match(resultMigration, /'studio-flow-results'[\s\S]*?false/);
+    assert.match(resultMigration, /studio_flow_results_owner_select/);
+    assert.match(resultMigration, /storage\.foldername\(name\).*auth\.uid\(\)::text/s);
     assert.match(js, /studio-flow-history/);
     assert.match(js, /createElement\("article"\)/);
 });

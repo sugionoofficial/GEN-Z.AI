@@ -228,6 +228,18 @@ export default {
         if (
             pathname === "/api/social-publisher" &&
             request.method === "POST" &&
+            url.searchParams.get("action") === "studio-flow-save-result" &&
+            Number(request.headers.get("content-length") || 0) > 50 * 1024 * 1024
+        ) {
+            return applySecurityHeaders(
+                Response.json({ success: false, error: "Hasil Google Flow maksimal 50 MB per file." }, { status: 413, headers: { "Cache-Control": "no-store" } }),
+                true
+            );
+        }
+
+        if (
+            pathname === "/api/social-publisher" &&
+            request.method === "POST" &&
             ["upload-reference", "upload-outfit", "upload-song"].includes(url.searchParams.get("action"))
         ) {
             const action = url.searchParams.get("action");

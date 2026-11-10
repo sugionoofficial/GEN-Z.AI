@@ -2,7 +2,7 @@
   "name": "genz-studio-flow-companion",
   "version": "0.1.0",
   "private": true,
-  "description": "Windows desktop handoff companion for GEN-Z.AI STUDIO FLOW",
+  "description": "Windows companion with visible Google Flow UI automation for GEN-Z.AI STUDIO FLOW",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
@@ -23,6 +23,7 @@
       "main.cjs",
       "preload.cjs",
       "task-validator.cjs",
+      "flow-ui-automation.cjs",
       "reference-stager.cjs",
       "package.json"
     ],
