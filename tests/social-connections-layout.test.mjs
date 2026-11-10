@@ -99,7 +99,7 @@ test("tombol Muat ulang blok koneksi menyegarkan Facebook juga", () => {
         /\$\("refresh-social-connections"\)\?\.addEventListener\("click"[^}]*loadDashboard/,
         "listener social-publisher.js wajib memuat ulang dashboard (Facebook)"
     );
-    assert.match(html, /social-publisher\.js\?v=fb-connections-compact-20261103/, "pin publisher wajib dimutakhirkan");
+    assert.match(html, /social-publisher\.js\?v=facebook-oauth-status-20261110/, "pin publisher wajib dimutakhirkan");
 });
 
 test("daftar Facebook Page ringkas: 2 kartu per baris, aksi di baris bawah, tinggi dibatasi", () => {

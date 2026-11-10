@@ -288,6 +288,15 @@ test("dropdown model QwenCloud dan panel kuota tier tersedia di SET Studio Medso
     assert.match(migration, /create table if not exists public\.social_publisher_model_quotas/, "Migration harus membuat ledger kuota model");
 });
 
+test("Hubungkan Facebook memiliki target status sehingga klik dapat memulai redirect OAuth", () => {
+    assert.match(htmlSource, /id="connect-status" class="status" role="status" aria-live="polite"/);
+    assert.match(source, /const connectStatus = \$\("connect-status"\)/);
+    assert.match(source, /function status\(element, message, tone = ""\) \{\s*if \(!element\) return;/);
+    assert.match(source, /\$\("connect-page"\)\.addEventListener\("click", connectFacebook\)/);
+    assert.match(source, /window\.location\.assign\(url\.toString\(\)\)/);
+    assert.match(htmlSource, /social-publisher\.js\?v=facebook-oauth-status-20261110/);
+});
+
 test("kartu Hubungkan Facebook bersih tanpa panduan mode Development karena aplikasi sudah Live", () => {
     assert.doesNotMatch(
         htmlSource,
