@@ -57,6 +57,15 @@ test("Studio Flow has its own history area and is listed for every navigation ro
     assert.equal((nav.match(/href: "\/studio-flow\/index.html"/g) || []).length, 2);
 });
 
+test("Studio Flow enables only a connected desktop handoff and records the manual state honestly", () => {
+    assert.match(js, /window\.studioFlowDesktop/);
+    assert.match(js, /desktopBridge\.handoffTask\(task\)/);
+    assert.match(js, /handoffOnly !== true/);
+    assert.match(js, /Tugas dicatat sebagai handoff, bukan hasil generate/);
+    assert.match(html, /Companion dibutuhkan/);
+    assert.match(html, /proses generate dan pengambilan hasil tetap dilakukan manual di Flow/i);
+});
+
 test("Studio Flow history is authenticated, subscription-gated, and scoped to the current user", () => {
     assert.match(api, /action === "studio-flow-history"[\s\S]*?ensureStudioAccess\(config, userId\)/);
     assert.match(api, /user_id=eq\.\$\{encodeURIComponent\(userId\)\}.*order=created_at\.desc&limit=50/);

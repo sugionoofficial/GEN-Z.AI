@@ -1,24 +1,46 @@
-# STUDIO FLOW Windows companion: safe integration boundary
+# STUDIO FLOW Windows companion
 
-## Current state
+## What works in this version
 
-The website scaffold does not generate images or videos and does not communicate with Google Flow. The Generate buttons stay disabled until a companion is implemented and connected. This is deliberate: the repository does not establish a supported Google Flow generation API, and this feature must not depend on undocumented endpoints, copied Armagic internals, browser cookies, or Google passwords.
+The Windows app source is in `desktop-companion/`. It opens the production STUDIO FLOW page in a sandboxed Electron window and exposes a tiny, origin-checked `contextBridge` API. In the app, the webpage detects that API and enables **Siapkan di Google Flow** after the existing Studio Medsos subscription check succeeds.
 
-## Recommended companion architecture
+On click, the app:
 
-1. Ship a signed Windows companion plus a narrowly scoped browser extension/native-messaging host. The companion must be user-installed and explicitly paired to the user's GEN-Z.AI account. Do not make the public web page call `localhost` or `127.0.0.1`; besides failing in proxied previews, an unauthenticated loopback listener creates a browser-to-local-network attack surface.
-2. Restrict extension messaging to the exact production GEN-Z.AI origin and the signed extension ID. Pair with a short-lived, one-use code issued by the authenticated backend; bind the resulting device record to the authenticated user, expire/revoke it, and never treat a client-supplied user ID as identity.
-3. Send versioned, schema-validated task envelopes with an idempotency ID, media kind, prompt, model/options, and bounded image references. Require a visible user confirmation in the companion before submitting a task. Reject unknown fields, oversized payloads, and unsupported models/options.
-4. Use Google Flow only through a Google-supported integration if one becomes available, or through a user-visible workflow that Google explicitly permits. Do not use private network endpoints, steal/replay session cookies, read browser profiles, or attach to Chrome's debugging protocol. If the Flow interface cannot be automated under documented terms, keep generation manual rather than bypassing that boundary.
-5. Keep Google sign-in and Flow session data in the user's browser. The companion must never request a Google password or export cookies. Do not upload prompt references or generated media without explicit user consent.
-6. Persist task metadata in `studio_flow_history` under the authenticated owner's ID. The current table intentionally stores no inline media; before durable private previews are added, use an owner-scoped private Storage bucket and signed URLs rather than public object links. Limit and expire signed URLs.
-7. Return task status/results through authenticated, user-scoped server routes. The webpage should never trust task owner IDs, bridge status claims, arbitrary callbacks, or result URLs without validation. Add pairing revocation, rate limits, request signing/replay protection, and an audit trail before enabling Generate.
+1. Validates the task's media type, prompt, model, ratio, output count, and video settings against an allowlist.
+2. If references were selected, asks for native Windows confirmation, copies the selected image bytes to a generated-name folder under the app's user-data directory, and opens that folder in Explorer. Copies older than 24 hours are cleaned at the next app start.
+3. Copies the prompt to the Windows clipboard and opens `https://flow.google.com/` in the user's default browser.
+4. Saves a per-user history entry marked as a manual handoff, not as a completed generation.
 
-## Deployment checklist before enabling Generate
+The user still uploads the staged images, checks the chosen model/settings, and presses Generate on Google Flow. Generated results are **not** captured or imported back into STUDIO FLOW yet. There is no supported direct Google Flow generation API established in this project, so the companion does not use private endpoints, cookies, profile files, or Chrome debugging automation.
 
-- Review Google Flow's current supported integration options and applicable terms; record the approved mechanism.
-- Build/sign the Windows app and extension/native host; pin the production extension ID and permitted site origins.
-- Add expiring device-pairing and task-relay routes with owner checks; do not rely on UI-side authorization.
-- Apply `20261110065601_studio_flow_history.sql` to Supabase and verify owner isolation using two independent test users.
-- Add explicit consent and retry behavior, test disconnect/revoke, malformed messages, replayed task IDs, and large uploads.
-- Enable buttons only after the companion handshake and server-side subscription check both succeed.
+## Build and run on Windows
+
+1. Install Node.js 22 or newer.
+2. In PowerShell, run:
+   ```powershell
+   cd desktop-companion
+   npm ci
+   npm test
+   npm start
+   ```
+3. Sign in to GEN-Z.AI inside the companion window. Keep the default browser signed into the Google account used for Flow.
+4. Open Studio Flow, configure the task, and click **Siapkan di Google Flow**. Approve reference staging if prompted, upload the staged files on Flow, paste the prompt, review options, then click Generate on Flow.
+
+To make installer and portable builds:
+
+```powershell
+npm ci
+npm test
+npm run dist:win
+```
+
+Build outputs go to `desktop-companion/release/`. The app is unsigned in this source version; sign it with GEN-Z.AI's production code-signing identity before public distribution. Windows SmartScreen may warn about unsigned builds.
+
+## Security boundary
+
+- The remote page runs with context isolation and sandbox enabled; Node integration is off.
+- The preload exposes only `getStatus`, `stageReferences`, and `handoffTask`. Every IPC method verifies the exact production site origin.
+- Reference filenames are generated locally; content signatures, MIME types, 12 MB per-file size, and the eight-image limit are validated before writing.
+- Reference bytes are copied only after a native confirmation. They are never uploaded by this companion and are removed after 24 hours.
+- Google credentials, cookies, browser profiles, and generated media are not accessed.
+- Browser permissions are denied. There is no loopback server, and external navigation is restricted to Google Flow.
