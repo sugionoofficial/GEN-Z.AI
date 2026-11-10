@@ -1,6 +1,6 @@
 {
   "name": "genz-studio-flow-companion",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Windows companion with visible Google Flow UI automation for GEN-Z.AI STUDIO FLOW",
   "main": "main.cjs",

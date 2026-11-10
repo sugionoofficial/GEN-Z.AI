@@ -75,12 +75,22 @@ test("Studio Flow sends tasks through visible Flow UI automation and returns dow
     assert.doesNotMatch(html, /Buka Google Flow|Buka Flow langsung/);
     assert.match(js, /Companion perlu diperbarui/);
     assert.match(js, /protocolVersion < 2/);
-    assert.match(html, /studio-flow\.js\?v=companion-update-v1/);
-    assert.match(html, /Companion mengisi kontrol Flow yang terlihat/);
+    assert.match(html, /studio-flow\.js\?v=companion-background-v1/);
+    assert.match(html, /Companion mengirim tugas ke kontrol Google Flow di latar belakang/);
+});
+
+test("Companion submits Flow tasks in the background without interrupting consent dialogs", () => {
+    assert.match(companionMain, /show: false/);
+    assert.match(companionMain, /backgroundThrottling: false/);
+    assert.doesNotMatch(companionMain, /showMessageBox\(mainWindow, \{[\s\S]*?title: 'Siapkan referensi/);
+    assert.doesNotMatch(companionMain, /Konfirmasi penggunaan kredit Google Flow/);
+    assert.match(companionMain, /flow\.show\(\);[\s\S]*needsLogin/);
+    assert.match(html, /setelah Anda menekan Generate/);
+    assert.doesNotMatch(html, /meminta konfirmasi sebelum mengirim Generate/);
 });
 
 test("Windows Companion exposes click-to-update notifications and publishes versioned stable releases", () => {
-    assert.equal(companionPackage.version, "0.2.0");
+    assert.equal(companionPackage.version, "0.2.1");
     assert.equal(companionPackage.dependencies["electron-updater"], "^6.8.11");
     assert.equal(companionPackage.build.publish[0].provider, "github");
     assert.match(companionMain, /autoUpdater\.autoDownload = false/);

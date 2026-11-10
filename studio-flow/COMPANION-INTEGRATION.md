@@ -2,11 +2,11 @@
 
 ## Integrated flow
 
-`desktop-companion/` contains the Windows Electron app. It embeds the Studio Flow workspace and opens Google Flow in a separate visible, sandboxed window inside the companion. After the Studio Medsos access check succeeds, the **Kirim Generate via Flow** button sends the selected task to the companion's narrow bridge.
+`desktop-companion/` contains the Windows Electron app. It embeds the Studio Flow workspace and loads Google Flow in a separate, hidden sandboxed window inside the companion for background task handling. After the Studio Medsos access check succeeds, the **Kirim Generate via Flow** button sends the selected task to the companion's narrow bridge.
 
-The companion uses visible Flow DOM controls to fill the prompt, model, aspect ratio, video mode/duration, and output count. Selected references are copied to a generated-name temporary directory only after a native Windows confirmation, then supplied through Flow's visible file input. If any required control or upload slot cannot be identified, the companion stops before Generate and shows the Flow window for recovery. It does not silently guess or call private Google endpoints.
+The companion uses visible Flow DOM controls in its hidden window to fill the prompt, model, aspect ratio, video mode/duration, and output count. Selected references are copied to a generated-name temporary directory silently as part of the user-submitted task, then supplied through Flow's visible file input. If any required control or upload slot cannot be identified, the companion stops before Generate and opens the Flow window for recovery. During a successful task, the Flow window remains hidden in the background. It does not silently guess or call private Google endpoints.
 
-Before submitting, a second native dialog summarizes the task and reminds the user that Google Flow's own credits/limits apply. The user must confirm. The Generate button is then clicked in the visible Flow window; the browser remains open in the companion so the user can monitor the result.
+The Generate button is clicked in the hidden Flow window immediately after the user submits the task from STUDIO FLOW. Google Flow credits/limits still apply. No extra confirmation dialogs or routine Flow window popups interrupt the task; the Flow window is shown only if sign-in or manual recovery is required.
 
 ## Returning results to Studio Flow
 
@@ -19,7 +19,7 @@ This means results do return to the Studio Flow history, but the download click 
 - Google authentication occurs in the companion's persistent Flow browser partition. The app never reads or exports passwords, cookies, or browser profile files.
 - Flow operates through the visible website and user-visible controls. No private Flow API or undocumented network endpoint is used.
 - The Studio webpage has no Node or local-network access. The preload exposes only a small, origin-checked API; Flow itself is a separate sandboxed BrowserWindow with no preload.
-- Reference staging requires explicit consent and local copies are cleaned after 24 hours. Generated downloads are uploaded only after the user invokes Download; failed-upload local copies are also cleaned after 24 hours.
+- Submitting a task from STUDIO FLOW authorizes staging its selected references; local copies are cleaned after 24 hours. Generated downloads are uploaded only after the user invokes Download; failed-upload local copies are also cleaned after 24 hours.
 - Supabase result storage is private and RLS-scoped by the authenticated owner's UUID. The API independently filters every history row by that UUID.
 
 ## In-app updates
