@@ -4031,7 +4031,7 @@ function normalizeStudioFlowHistoryPayload(body = {}) {
     if (!statuses.has(status)) throw Object.assign(new Error("Status tugas tidak valid."), { status: 400 });
 
     const options = {};
-    const allowedOptions = new Set(["ratio", "duration", "input_mode", "output_count", "resolution"]);
+    const allowedOptions = new Set(["ratio", "duration", "input_mode", "output_count", "resolution", "workflow"]);
     if (body.options && typeof body.options === "object" && !Array.isArray(body.options)) {
         for (const [key, value] of Object.entries(body.options)) {
             if (!allowedOptions.has(key)) continue;

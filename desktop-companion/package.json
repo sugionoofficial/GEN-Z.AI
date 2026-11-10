@@ -1,0 +1,40 @@
+{
+  "name": "genz-studio-flow-companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Windows desktop handoff companion for GEN-Z.AI STUDIO FLOW",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.cjs",
+    "dist:win": "electron-builder --win nsis portable"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "ai.genz.studioflow.companion",
+    "productName": "GEN-Z.AI STUDIO FLOW Companion",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "task-validator.cjs",
+      "reference-stager.cjs",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "artifactName": "GEN-Z-STUDIO-FLOW-Companion-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

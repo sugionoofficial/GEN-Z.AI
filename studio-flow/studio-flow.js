@@ -1,7 +1,8 @@
 const $ = id => document.getElementById(id);
 const IMAGE_LIMIT = { character: 5, outfit: 1, scene: 2 };
 const REF_LIMIT = 8;
-const desktopCompanionConnected = false;
+let desktopCompanionConnected = false;
+let desktopBridge = null;
 const selectedFiles = { character: [], outfit: [], scene: [], videoRef: [] };
 let subscriptionActive = false;
 let toastTimer = 0;
@@ -29,6 +30,13 @@ function updateCounts() {
     $("reference-meter").style.width = `${Math.min(100, total / REF_LIMIT * 100)}%`;
     $("generate-image").disabled = !subscriptionActive || !desktopCompanionConnected;
     $("generate-video").disabled = !subscriptionActive || !desktopCompanionConnected;
+    if (desktopCompanionConnected) {
+        $("generate-image").textContent = "Siapkan di Google Flow →";
+        $("generate-video").textContent = "Siapkan di Google Flow →";
+    } else {
+        $("generate-image").textContent = "Companion dibutuhkan";
+        $("generate-video").textContent = "Companion dibutuhkan";
+    }
 }
 
 function renderBucket(bucket) {
@@ -118,6 +126,29 @@ function attachTabs() {
     });
 }
 
+async function detectDesktopCompanion() {
+    const bridge = window.studioFlowDesktop;
+    if (!bridge || typeof bridge.getStatus !== "function" || typeof bridge.handoffTask !== "function") return;
+    try {
+        const status = await bridge.getStatus();
+        if (status?.connected === true && status.protocolVersion === 1) {
+            desktopBridge = bridge;
+            desktopCompanionConnected = true;
+            $("companion-title").textContent = "Desktop Companion tersambung";
+            $("companion-copy").textContent = "Siap membuka Google Flow dan menyalin prompt. Referensi perlu diunggah manual di Flow.";
+            $("connection-label").textContent = "TERHUBUNG · HANDOFF MANUAL";
+            $("bridge-title").textContent = "Terhubung · handoff manual";
+            $("bridge-copy").textContent = "Companion menyalin prompt dan membuka Google Flow. Kamu tetap menekan Generate dan mengunggah referensi di Flow.";
+            $("bridge-privacy").textContent = "Companion tidak membaca password/cookie Google atau mengunggah gambar. Setelah konfirmasi, salinan referensi dibuka di folder sementara lokal dan dihapus otomatis setelah 24 jam.";
+            updateCounts();
+        }
+    } catch {
+        desktopBridge = null;
+        desktopCompanionConnected = false;
+        updateCounts();
+    }
+}
+
 function authClient() {
     if (window.GENZ_SUPABASE) return window.GENZ_SUPABASE;
     if (window.supabaseClient) return window.supabaseClient;
@@ -193,7 +224,9 @@ function renderHistory(items) {
         badge.textContent = item.media_type === "video" ? "VIDEO" : "GAMBAR";
         const status = document.createElement("span");
         status.className = `history-status is-${item.status || "queued"}`;
-        status.textContent = ({ queued: "Dalam antrean", running: "Diproses", succeeded: "Selesai", failed: "Gagal" })[item.status] || "Tersimpan";
+        status.textContent = item.options?.workflow === "manual-handoff"
+            ? "Siap dilanjutkan di Flow"
+            : ({ queued: "Dalam antrean", running: "Diproses", succeeded: "Selesai", failed: "Gagal" })[item.status] || "Tersimpan";
         top.append(badge, status);
         const title = document.createElement("h4");
         title.textContent = item.title || (item.media_type === "video" ? "Kreasi video" : "Kreasi gambar");
@@ -263,6 +296,96 @@ async function loadStudioFlowHistory() {
     }
 }
 
+async function saveHandoffHistory(mediaType, task) {
+    const token = await readAccessToken();
+    const options = {
+        ratio: task.ratio,
+        output_count: task.outputCount,
+        workflow: "manual-handoff"
+    };
+    if (mediaType === "video") {
+        options.duration = task.duration;
+        options.input_mode = task.inputMode;
+    }
+    const response = await fetch("/api/social-publisher?action=studio-flow-history-save", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+            media_type: mediaType,
+            title: `Siap di Google Flow · ${task.prompt.slice(0, 70)}`,
+            prompt: task.prompt,
+            model: task.model,
+            status: "queued",
+            options,
+            outputs: []
+        })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `Riwayat gagal disimpan (${response.status}).`);
+}
+
+async function runStudioFlowHandoff(mediaType, button) {
+    if (!subscriptionActive) {
+        toast("Akses Studio Medsos belum aktif. Aktifkan langganan untuk memakai STUDIO FLOW.");
+        return;
+    }
+    if (!desktopBridge || !desktopCompanionConnected) {
+        toast("Buka halaman ini dari aplikasi Windows STUDIO FLOW Companion terlebih dahulu.");
+        return;
+    }
+
+    const isVideo = mediaType === "video";
+    const prompt = $(isVideo ? "video-prompt" : "image-prompt").value.trim();
+    if (!prompt) {
+        toast("Isi prompt sebelum menyiapkan tugas di Google Flow.");
+        return;
+    }
+    const task = {
+        mediaType,
+        prompt,
+        model: $(isVideo ? "video-model" : "image-model").value,
+        ratio: $(isVideo ? "video-ratio" : "image-ratio").value,
+        outputCount: Number($(isVideo ? "video-count" : "image-count").value),
+        referenceCount: isVideo ? selectedFiles.videoRef.length : totalImageReferences()
+    };
+    if (isVideo) {
+        task.duration = Number($("video-duration").value);
+        task.inputMode = $("video-input-mode").value;
+    }
+
+    button.disabled = true;
+    try {
+        const referenceEntries = isVideo
+            ? [["videoRef", selectedFiles.videoRef]]
+            : [["character", selectedFiles.character], ["outfit", selectedFiles.outfit], ["scene", selectedFiles.scene]];
+        const references = await Promise.all(referenceEntries.flatMap(([bucket, files]) =>
+            files.map(async file => ({ bucket, mimeType: file.type, bytes: await file.arrayBuffer() }))
+        ));
+        if (references.length) {
+            const staged = await desktopBridge.stageReferences(references);
+            if (!staged?.accepted) {
+                toast("Penyiapan referensi dibatalkan. Task tidak dikirim.");
+                return;
+            }
+        }
+        const result = await desktopBridge.handoffTask(task);
+        if (!result?.accepted || result.protocolVersion !== 1 || result.handoffOnly !== true) {
+            throw new Error("Companion tidak menerima tugas ini dengan format yang didukung.");
+        }
+        try {
+            await saveHandoffHistory(mediaType, task);
+            await loadStudioFlowHistory();
+            toast(`${result.message} Tugas dicatat sebagai handoff, bukan hasil generate.`);
+        } catch (historyError) {
+            toast(`${result.message} Catatan riwayat belum tersimpan: ${historyError.message}`);
+        }
+    } catch (error) {
+        toast(error.message || "Companion belum dapat membuka Google Flow.");
+    } finally {
+        updateCounts();
+    }
+}
+
 function bindCounters() {
     for (const [inputId, countId] of [["image-prompt", "image-prompt-count"], ["video-prompt", "video-prompt-count"]]) {
         const input = $(inputId);
@@ -274,12 +397,13 @@ function bindCounters() {
         $("image-prompt").dispatchEvent(new Event("input"));
     });
     $("history-open").addEventListener("click", () => $("history-section").scrollIntoView({ behavior: "smooth" }));
-    $("generate-image").addEventListener("click", () => toast("Desktop Companion belum tersambung. Tugas belum dikirim ke Google Flow."));
-    $("generate-video").addEventListener("click", () => toast("Desktop Companion belum tersambung. Tugas belum dikirim ke Google Flow."));
+    $("generate-image").addEventListener("click", event => runStudioFlowHandoff("image", event.currentTarget));
+    $("generate-video").addEventListener("click", event => runStudioFlowHandoff("video", event.currentTarget));
 }
 
 attachUploadControls();
 attachTabs();
 bindCounters();
 updateCounts();
+void detectDesktopCompanion();
 loadSubscription();

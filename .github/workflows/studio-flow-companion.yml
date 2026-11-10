@@ -1,0 +1,60 @@
+name: Build STUDIO FLOW Companion
+
+on:
+  pull_request:
+    paths:
+      - 'desktop-companion/**'
+      - 'studio-flow/**'
+      - 'api/social-publisher.js'
+      - '.github/workflows/studio-flow-companion.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'desktop-companion/**'
+      - 'studio-flow/**'
+      - 'api/social-publisher.js'
+      - '.github/workflows/studio-flow-companion.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  windows-companion:
+    name: Test and package Windows companion
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: desktop-companion
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop-companion/package-lock.json
+
+      - name: Install companion dependencies
+        run: npm ci
+
+      - name: Test companion bridge and reference staging
+        run: npm test
+
+      - name: Package installer and portable executable
+        run: npm run dist:win
+
+      - name: Upload unsigned Windows builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: genz-studio-flow-companion-windows
+          path: desktop-companion/release/*.exe
+          if-no-files-found: error
+          retention-days: 14
