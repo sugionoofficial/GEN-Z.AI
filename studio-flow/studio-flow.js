@@ -132,6 +132,50 @@ function showCompanionState(title, copy, label) {
     $("connection-label").textContent = label;
 }
 
+function renderCompanionUpdate(update = {}) {
+    const banner = $("companion-update");
+    const title = $("companion-update-title");
+    const detail = $("companion-update-detail");
+    const button = $("companion-update-action");
+    if (!["available", "downloading", "installing", "error"].includes(update.state)) {
+        banner.hidden = true;
+        return;
+    }
+
+    banner.hidden = false;
+    button.disabled = update.state === "downloading" || update.state === "installing";
+    button.hidden = update.state === "installing";
+    if (update.state === "available") {
+        title.textContent = `Pembaruan STUDIO FLOW Companion ${update.version || "baru"} tersedia`;
+        detail.textContent = "Klik Perbarui untuk mengunduh dan memasang versi terbaru. Aplikasi akan mulai ulang setelah selesai.";
+        button.textContent = "Perbarui sekarang";
+    } else if (update.state === "downloading") {
+        title.textContent = `Mengunduh pembaruan ${update.version || "Companion"}`;
+        detail.textContent = `Progres unduhan ${Math.max(0, Math.min(100, Number(update.percent) || 0))}%. Jangan tutup aplikasi.`;
+        button.textContent = "Sedang mengunduh…";
+    } else if (update.state === "installing") {
+        title.textContent = "Pembaruan selesai diunduh";
+        detail.textContent = "Companion akan mulai ulang sebentar lagi untuk menerapkan versi terbaru.";
+    } else {
+        title.textContent = "Pembaruan Companion gagal diunduh";
+        detail.textContent = update.message || "Periksa koneksi internet, lalu coba lagi.";
+        button.hidden = false;
+        button.disabled = false;
+        button.textContent = "Coba lagi";
+    }
+}
+
+async function requestCompanionUpdate() {
+    if (!desktopBridge?.downloadUpdate) return;
+    const button = $("companion-update-action");
+    button.disabled = true;
+    try {
+        await desktopBridge.downloadUpdate();
+    } catch (error) {
+        renderCompanionUpdate({ state: "error", message: error?.message || "Perbarui gagal dimulai." });
+    }
+}
+
 async function detectDesktopCompanion() {
     const bridge = window.studioFlowDesktop;
     if (!bridge) return;
@@ -156,6 +200,8 @@ async function detectDesktopCompanion() {
         if (status?.connected === true && status.protocolVersion >= 2) {
             desktopBridge = bridge;
             desktopCompanionConnected = true;
+            bridge.onUpdateState?.(renderCompanionUpdate);
+            bridge.getUpdateState?.().then(renderCompanionUpdate).catch(() => {});
             bridge.onOutputImported?.(async result => {
                 if (result?.success) {
                     await loadStudioFlowHistory();
@@ -169,7 +215,7 @@ async function detectDesktopCompanion() {
             $("connection-label").textContent = "TERHUBUNG · UI AUTOMATION";
             $("bridge-title").textContent = "Flow UI tersambung";
             $("bridge-copy").textContent = "Companion menyiapkan prompt, model, rasio, jumlah output, durasi, dan referensi melalui kontrol yang terlihat. Kamu menyetujui sebelum Flow Generate dijalankan.";
-            $("bridge-privacy").textContent = "Google login tetap berada di jendela Flow companion. Tidak ada cookie atau endpoint privat yang digunakan. Referensi diunggah melalui UI Flow setelah konfirmasi.";
+            document.querySelector(".bridge-privacy").textContent = "Google login tetap berada di jendela Flow companion. Tidak ada cookie atau endpoint privat yang digunakan. Referensi diunggah melalui UI Flow setelah konfirmasi.";
             updateCounts();
             return;
         }
@@ -477,6 +523,7 @@ function bindCounters() {
         $("image-prompt").dispatchEvent(new Event("input"));
     });
     $("history-open").addEventListener("click", () => $("history-section").scrollIntoView({ behavior: "smooth" }));
+    $("companion-update-action").addEventListener("click", requestCompanionUpdate);
     $("generate-image").addEventListener("click", event => runStudioFlowHandoff("image", event.currentTarget));
     $("generate-video").addEventListener("click", event => runStudioFlowHandoff("video", event.currentTarget));
 }

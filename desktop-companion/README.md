@@ -18,6 +18,12 @@ Google sign-in happens in the companion's own persistent Chromium partition; pas
 3. Sign in to GEN-Z.AI in the main companion window and sign in to Google Flow in the Flow window that opens.
 4. Select prompt/references/options in Studio Flow and click **Kirim Generate via Flow**. Review the visible Flow task and confirm the credit-use dialog. When results appear, use Flow's Download control; the app imports completed downloads into the private STUDIO FLOW history.
 
+## Install once and receive in-app updates
+
+Install the **NSIS installer** once. Packaged installer builds check the public GEN-Z.AI GitHub Releases feed at startup and every six hours. When a stable update is available, a banner appears at the top of STUDIO FLOW. Click **Perbarui sekarang** to download it; the app shows progress, then restarts and applies the update automatically. No repeated manual download/install is needed after the update-capable installer is installed.
+
+The portable executable is still provided for testing, but it does not support automatic updates; replace it manually when needed. Existing 0.1.0 installs predate the updater and need one final manual install of version 0.2.0 (or later) to bootstrap it. Automatic updates apply to future releases after that.
+
 ## Build Windows installer and portable executable
 
 ```powershell
@@ -26,7 +32,7 @@ npm test
 npm run dist:win
 ```
 
-Outputs are written to `release/`. The `Build STUDIO FLOW Companion` GitHub Actions workflow packages installer and portable builds for pull requests and main-branch changes; download its artifact from the workflow run. Builds are unsigned; sign them with GEN-Z.AI's production code-signing identity before public distribution. Windows SmartScreen may warn about unsigned builds.
+Outputs are written to `release/`. The `Build STUDIO FLOW Companion` workflow tests and packages pull requests and main-branch changes. A main-branch build publishes a stable GitHub Release only when `desktop-companion/package.json` has a new version; bump the version (patch for fixes, minor for features) in the same pull request to ship an in-app update. The release includes the NSIS installer, `latest.yml`, and blockmaps used by the updater. Builds are unsigned; sign them with GEN-Z.AI's production code-signing identity before public distribution. Windows SmartScreen may warn on first install.
 
 ## Security and limitations
 

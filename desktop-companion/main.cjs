@@ -1,6 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow, dialog, ipcMain, session, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const fsSync = require('node:fs');
 const fs = require('node:fs/promises');
 const crypto = require('node:crypto');
@@ -22,6 +23,8 @@ let outputRoot;
 let activeFlowJob = null;
 let outputImportChain = Promise.resolve();
 let flowDownloadListenerInstalled = false;
+let updateState = { state: 'idle' };
+let updateCheckTimer = null;
 const stagedDirectories = new Map();
 
 function isFlowUrl(value) {
@@ -45,6 +48,66 @@ function assertTrustedSender(event) {
 function notifyStudioPage(message) {
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
         mainWindow.webContents.send('studio-flow:output-imported', message);
+    }
+}
+
+function setUpdateState(state, details = {}) {
+    updateState = { state, ...details };
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send('studio-flow:update-state', updateState);
+    }
+}
+
+function configureAutoUpdates() {
+    if (process.platform !== 'win32' || !app.isPackaged || process.env.PORTABLE_EXECUTABLE_DIR) return;
+
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
+    autoUpdater.allowDowngrade = false;
+    autoUpdater.on('checking-for-update', () => setUpdateState('checking'));
+    autoUpdater.on('update-available', info => setUpdateState('available', {
+        version: String(info?.version || '').slice(0, 40)
+    }));
+    autoUpdater.on('update-not-available', () => setUpdateState('idle'));
+    autoUpdater.on('download-progress', progress => setUpdateState('downloading', {
+        version: updateState.version || '',
+        percent: Math.max(0, Math.min(100, Math.round(Number(progress?.percent) || 0)))
+    }));
+    autoUpdater.on('update-downloaded', info => {
+        setUpdateState('installing', { version: String(info?.version || updateState.version || '').slice(0, 40) });
+        setTimeout(() => autoUpdater.quitAndInstall(true, true), 1200);
+    });
+    autoUpdater.on('error', error => {
+        const message = String(error?.message || 'Pembaruan Companion gagal.').slice(0, 220);
+        console.warn('[STUDIO FLOW Companion] Auto-update error:', message);
+        if (updateState.state === 'downloading') setUpdateState('error', { version: updateState.version || '', message });
+        else setUpdateState('idle');
+    });
+
+    const check = () => autoUpdater.checkForUpdates().catch(error => {
+        console.warn('[STUDIO FLOW Companion] Update check failed:', String(error?.message || 'unknown error').slice(0, 220));
+        if (updateState.state === 'checking') setUpdateState('idle');
+    });
+    setTimeout(check, 5000).unref();
+    updateCheckTimer = setInterval(check, 6 * 60 * 60 * 1000);
+    updateCheckTimer.unref();
+}
+
+async function downloadCompanionUpdate() {
+    if (process.platform !== 'win32' || !app.isPackaged || process.env.PORTABLE_EXECUTABLE_DIR) {
+        throw new Error('Pembaruan otomatis tersedia untuk aplikasi Windows yang dipasang melalui installer.');
+    }
+    if (updateState.state !== 'available' && updateState.state !== 'error') {
+        throw new Error('Belum ada pembaruan yang siap diunduh.');
+    }
+    setUpdateState('downloading', { version: updateState.version || '', percent: 0 });
+    try {
+        await autoUpdater.downloadUpdate();
+        return { accepted: true };
+    } catch (error) {
+        const message = String(error?.message || 'Pembaruan Companion gagal diunduh.').slice(0, 220);
+        setUpdateState('error', { version: updateState.version || '', message });
+        throw new Error(message);
     }
 }
 
@@ -248,6 +311,14 @@ app.whenReady().then(() => {
             mode: 'visible-flow-ui-automation'
         };
     });
+    ipcMain.handle('studio-flow:get-update-state', event => {
+        assertTrustedSender(event);
+        return updateState;
+    });
+    ipcMain.handle('studio-flow:download-update', async event => {
+        assertTrustedSender(event);
+        return downloadCompanionUpdate();
+    });
 
     referenceRoot = path.join(app.getPath('userData'), 'flow-reference-staging');
     outputRoot = path.join(app.getPath('userData'), 'flow-output-imports');
@@ -375,6 +446,7 @@ app.whenReady().then(() => {
     });
 
     createWindow();
+    configureAutoUpdates();
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

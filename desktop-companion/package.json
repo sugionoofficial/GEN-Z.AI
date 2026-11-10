@@ -1,13 +1,13 @@
 {
   "name": "genz-studio-flow-companion",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Windows companion with visible Google Flow UI automation for GEN-Z.AI STUDIO FLOW",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test tests/*.test.cjs",
-    "dist:win": "electron-builder --win nsis portable"
+    "dist:win": "electron-builder --win nsis portable --publish never"
   },
   "devDependencies": {
     "electron": "45.2.3",
@@ -28,7 +28,10 @@
       "package.json"
     ],
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "artifactName": "GEN-Z-STUDIO-FLOW-Companion-${version}-${arch}.${ext}"
     },
     "nsis": {
@@ -36,6 +39,18 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "sugionoofficial",
+        "repo": "GEN-Z.AI",
+        "releaseType": "release",
+        "publishAutoUpdate": true
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
   }
 }
