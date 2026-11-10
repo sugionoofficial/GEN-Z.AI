@@ -4023,9 +4023,86 @@ async function setGlobalEnabled(config, userId, env, statusOrEnabled) {
     };
 }
 
+function normalizeStudioFlowHistoryPayload(body = {}) {
+    const mediaType = body.media_type === "video" ? "video" : body.media_type === "image" ? "image" : "";
+    const statuses = new Set(["queued", "running", "succeeded", "failed"]);
+    const status = String(body.status || "queued").toLowerCase();
+    if (!mediaType) throw Object.assign(new Error("Jenis hasil harus image atau video."), { status: 400 });
+    if (!statuses.has(status)) throw Object.assign(new Error("Status tugas tidak valid."), { status: 400 });
+
+    const options = {};
+    const allowedOptions = new Set(["ratio", "duration", "input_mode", "output_count", "resolution"]);
+    if (body.options && typeof body.options === "object" && !Array.isArray(body.options)) {
+        for (const [key, value] of Object.entries(body.options)) {
+            if (!allowedOptions.has(key)) continue;
+            if (typeof value === "string") options[key] = cleanText(value, 40);
+            else if (typeof value === "number" && Number.isFinite(value)) options[key] = value;
+        }
+    }
+
+    const rawOutputs = body.outputs === undefined ? [] : body.outputs;
+    if (!Array.isArray(rawOutputs) || rawOutputs.length > 4) {
+        throw Object.assign(new Error("Maksimal empat output dapat disimpan per tugas."), { status: 400 });
+    }
+    const outputs = rawOutputs.map((output) => {
+        const url = cleanText(output?.url, 2000);
+        let parsed;
+        try { parsed = new URL(url); } catch {}
+        if (!parsed || parsed.protocol !== "https:") {
+            throw Object.assign(new Error("Output harus berupa tautan HTTPS. Jangan simpan data media inline."), { status: 400 });
+        }
+        return { url: parsed.toString(), media_type: mediaType, label: cleanText(output?.label, 120) };
+    });
+
+    return {
+        media_type: mediaType,
+        title: cleanText(body.title, 120),
+        prompt: cleanText(body.prompt, 5000),
+        model: cleanText(body.model, 120),
+        status,
+        options,
+        outputs,
+        updated_at: new Date().toISOString()
+    };
+}
+
+async function handleStudioFlowHistoryPost(req, res, config, userId, action) {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    if (action === "studio-flow-history-delete") {
+        const id = cleanText(body.id, 80);
+        if (!/^[0-9a-f-]{36}$/i.test(id)) return json(res, 400, { success: false, error: "ID riwayat tidak valid." });
+        const rows = await supabaseRequest(config, tablePath("studio_flow_history", `id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}&select=id`), { method: "DELETE", headers: { Prefer: "return=representation" } });
+        if (!rows?.length) return json(res, 404, { success: false, error: "Riwayat tidak ditemukan." });
+        return json(res, 200, { success: true });
+    }
+
+    const record = normalizeStudioFlowHistoryPayload(body);
+    const id = cleanText(body.id, 80);
+    if (id) {
+        if (!/^[0-9a-f-]{36}$/i.test(id)) return json(res, 400, { success: false, error: "ID riwayat tidak valid." });
+        const rows = await supabaseRequest(config, tablePath("studio_flow_history", `id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}&select=*`), {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(record)
+        });
+        if (!rows?.length) return json(res, 404, { success: false, error: "Riwayat tidak ditemukan." });
+        return json(res, 200, { success: true, item: rows[0] });
+    }
+
+    const rows = await supabaseRequest(config, tablePath("studio_flow_history", "select=*"), {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ ...record, user_id: userId })
+    });
+    return json(res, 201, { success: true, item: rows?.[0] || null });
+}
+
 async function handlePost(req, res, config, userId, env, action, profile = null) {
     if (action !== "studio-access-status" && !action.startsWith("studio-admin-")) {
         await ensureStudioAccess(config, userId);
+    }
+    if (action === "studio-flow-history-save" || action === "studio-flow-history-delete") {
+        return handleStudioFlowHistoryPost(req, res, config, userId, action);
     }
     if (action === "upload-reference") return uploadReference(req, res, config, userId);
     if (action === "replace-reference") return replaceReference(req, res, config, userId);
@@ -4236,6 +4313,11 @@ async function handlePost(req, res, config, userId, env, action, profile = null)
 }
 
 async function handleGet(req, res, config, userId, env, action, profile = null) {
+    if (action === "studio-flow-history") {
+        await ensureStudioAccess(config, userId);
+        const rows = await supabaseRequest(config, tablePath("studio_flow_history", `select=id,media_type,title,prompt,model,status,options,outputs,created_at,updated_at&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=50`));
+        return json(res, 200, { success: true, history: Array.isArray(rows) ? rows : [] });
+    }
     if (action === "studio-access-status") {
         const access = await getStudioAccessStatus(config, userId);
         return json(res, 200, { success: true, access });

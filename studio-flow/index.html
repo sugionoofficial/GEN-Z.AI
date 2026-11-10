@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="STUDIO FLOW — ruang kerja premium untuk membuat gambar dan video dengan Google Flow.">
+  <title>STUDIO FLOW — GEN-Z.AI</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
+  <script src="/assets/js/config.js"></script>
+  <link rel="stylesheet" href="/assets/css/genz-premium.css?v=flow-20261110">
+  <link rel="stylesheet" href="/studio-flow/studio-flow.css?v=flow-premium-20261110">
+  <script src="/navigation/navigation.js?v=studio-flow-20261110"></script>
+  <script type="module" src="/studio-flow/studio-flow.js?v=studio-flow-20261110"></script>
+</head>
+<body class="flow-page">
+  <div id="adminNavigation" role="navigation" aria-label="Navigasi GEN-Z.AI"></div>
+  <main class="flow-shell">
+    <header class="flow-topbar">
+      <div class="flow-brand"><span class="flow-brand-mark">✦</span><div><p class="eyebrow">GEN-Z.AI CREATIVE SUITE</p><h1>STUDIO <span>FLOW</span></h1></div></div>
+      <div class="flow-top-actions">
+        <span class="subscription-pill" id="subscription-pill"><i></i><span>Memeriksa langganan…</span></span>
+        <button class="button button-quiet" id="history-open" type="button"><span aria-hidden="true">◷</span> Riwayat Studio Flow</button>
+        <a class="button button-quiet" href="https://flow.google.com/" target="_blank" rel="noopener noreferrer">Buka Google Flow ↗</a>
+      </div>
+    </header>
+
+    <section class="flow-hero">
+      <div class="hero-copy"><div class="hero-kicker"><span class="sparkle">✦</span> YOUR CREATIVE WORKSPACE</div><h2>Dari referensi<br><em>menjadi cerita.</em></h2><p>Bangun karakter, styling, lokasi, lalu lanjutkan ke adegan bergerak. Semua proses dan hasil STUDIO FLOW tersimpan di ruang riwayat khusus ini.</p></div>
+      <div class="hero-side"><div class="hero-glow"></div><div class="hero-stat"><span class="hero-stat-icon">◈</span><div><strong>Google Flow</strong><small>Engine akun Google Anda</small></div><span class="engine-tag">FLOW ENGINE</span></div><div class="hero-meta"><span>IMAGE + VIDEO</span><b>•</b><span>PRIVATE WORKSPACE</span><b>•</b><span>NO GEN-Z CREDIT DEDUCTION</span></div></div>
+    </section>
+
+    <div class="flow-alert" id="flow-alert" role="status" aria-live="polite" hidden></div>
+    <section class="flow-companion" aria-label="Koneksi desktop companion">
+      <div class="companion-icon">⌘</div><div class="companion-copy"><strong>Desktop Companion belum tersambung</strong><span>Google Flow memproses melalui sesi Google di perangkat Anda. Sambungkan companion untuk mengirim tugas dan menyimpan hasil ke riwayat STUDIO FLOW.</span></div><span class="connection-state"><i></i> MENUNGGU KONEKSI</span>
+    </section>
+
+    <div class="workspace-grid">
+      <section class="composer panel">
+        <div class="panel-head"><div><p class="eyebrow">CREATE / 01</p><h3>Ruang Kreasi</h3></div><div class="mode-switch" role="tablist" aria-label="Pilih jenis kreasi"><button class="mode-tab is-active" role="tab" aria-selected="true" aria-controls="image-mode" id="tab-image" data-mode="image" type="button"><span>▧</span> Gambar</button><button class="mode-tab" role="tab" aria-selected="false" aria-controls="video-mode" id="tab-video" data-mode="video" type="button"><span>▶</span> Video</button></div></div>
+
+        <div class="mode-pane" id="image-mode" role="tabpanel" aria-labelledby="tab-image">
+          <section class="reference-section"><div class="section-heading"><div><span class="step-no">01</span><div><h4>Karakter</h4><p>Foto acuan wajah & identitas · maks. 5</p></div></div><span class="count-chip" id="character-count">0 / 5</span></div><div class="upload-grid" id="character-drop"><button class="upload-card" type="button" data-upload="character"><span class="upload-plus">+</span><strong>Tambah foto karakter</strong><small>PNG, JPG, WEBP · hingga 5 foto</small><input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden></button><div class="thumb-list" data-thumbs="character"></div></div></section>
+          <section class="reference-section"><div class="section-heading"><div><span class="step-no">02</span><div><h4>Outfit</h4><p>Jaga desain pakaian sesuai referensi</p></div></div><span class="count-chip" id="outfit-count">0 / 1</span></div><div class="upload-grid"><button class="upload-card upload-card--compact" type="button" data-upload="outfit"><span class="upload-plus">+</span><strong>Tambah foto outfit</strong><small>Maks. 1 foto</small><input type="file" accept="image/png,image/jpeg,image/webp" hidden></button><div class="thumb-list" data-thumbs="outfit"></div></div></section>
+          <section class="reference-section"><div class="section-heading"><div><span class="step-no">03</span><div><h4>Lokasi & Pose</h4><p>Referensi suasana, framing, dan pose · maks. 2</p></div></div><span class="count-chip" id="scene-count">0 / 2</span></div><div class="upload-grid"><button class="upload-card" type="button" data-upload="scene"><span class="upload-plus">+</span><strong>Tambah referensi adegan</strong><small>Lokasi atau pose karakter</small><input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden></button><div class="thumb-list" data-thumbs="scene"></div></div></section>
+          <div class="reference-total"><span>Referensi terpilih</span><strong id="total-reference-count">0 / 8</strong><div class="total-track"><i id="reference-meter"></i></div></div>
+          <section class="prompt-section"><div class="section-heading"><div><span class="step-no">04</span><div><h4>Prompt</h4><p>Jelaskan adegan, gaya visual, dan detail yang diinginkan</p></div></div><span class="count-chip" id="image-prompt-count">0 / 5000</span></div><textarea id="image-prompt" maxlength="5000" placeholder="Contoh: Potret editorial sinematik, karakter berdiri di lobi hotel modern saat golden hour…"></textarea><div class="prompt-tools"><button class="text-button" id="clear-image-prompt" type="button">Bersihkan</button><span>Tip: gunakan deskripsi yang spesifik dan natural</span></div></section>
+          <div class="options-grid"><label class="field"><span>Rasio gambar</span><select id="image-ratio"><option value="9:16">9:16 · Portrait</option><option value="16:9">16:9 · Landscape</option><option value="1:1">1:1 · Square</option><option value="4:3">4:3 · Classic</option><option value="3:4">3:4 · Portrait</option></select></label><label class="field"><span>Model gambar</span><select id="image-model"><option value="nano-banana-2.1">Nano Banana 2.1</option><option value="nano-banana-pro">Nano Banana Pro</option><option value="nano-banana-2-lite">Nano Banana 2 Lite</option></select></label><label class="field"><span>Total output</span><select id="image-count"><option value="1">1 output</option><option value="2">2 output</option><option value="3">3 output</option><option value="4">4 output</option></select></label></div>
+          <div class="submit-row"><div class="account-note"><span class="mini-orbit">✦</span><span><strong>Tanpa potong kredit GEN-Z.AI</strong><small>Berlaku selama langganan aktif. Kuota Google Flow tetap berlaku.</small></span></div><button class="generate-button" id="generate-image" type="button" disabled><span>✦</span> Generate gambar <b>→</b></button></div>
+        </div>
+
+        <div class="mode-pane" id="video-mode" role="tabpanel" aria-labelledby="tab-video" hidden>
+          <section class="reference-section"><div class="section-heading"><div><span class="step-no">01</span><div><h4>Referensi Frame / Bahan</h4><p>Tambahkan gambar acuan untuk adegan video · maks. 8</p></div></div><span class="count-chip" id="video-ref-count">0 / 8</span></div><div class="upload-grid"><button class="upload-card upload-card--wide" type="button" data-upload="videoRef"><span class="upload-plus">+</span><strong>Tambah referensi video</strong><small>Gunakan gambar untuk frame awal, karakter, atau bahan</small><input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden></button><div class="thumb-list" data-thumbs="videoRef"></div></div></section>
+          <section class="prompt-section"><div class="section-heading"><div><span class="step-no">02</span><div><h4>Deskripsi Gerak</h4><p>Terangkan aksi, kamera, tempo, dan suasana video</p></div></div><span class="count-chip" id="video-prompt-count">0 / 5000</span></div><textarea id="video-prompt" maxlength="5000" placeholder="Contoh: Kamera bergerak perlahan mengitari karakter; kain dan rambut bergerak lembut tertiup angin…"></textarea></section>
+          <div class="options-grid video-options"><label class="field"><span>Mode input</span><select id="video-input-mode"><option value="ingredients">Bahan / Ingredients</option><option value="frames">Frame awal & akhir</option></select></label><label class="field"><span>Rasio</span><select id="video-ratio"><option value="9:16">9:16 · Portrait</option><option value="16:9">16:9 · Landscape</option></select></label><label class="field"><span>Model Flow</span><select id="video-model"><option>Veo 3.1 Lite</option><option>Veo 3.1 Fast</option><option>Veo 3.1 Quality</option><option>Omni 1.2 Flash</option><option>Omni 1.1 Flash</option></select></label><label class="field"><span>Durasi</span><select id="video-duration"><option value="8">8 detik</option><option value="10">10 detik</option></select></label><label class="field"><span>Total output</span><select id="video-count"><option value="1">1 output</option><option value="2">2 output</option><option value="3">3 output</option><option value="4">4 output</option></select></label></div>
+          <div class="submit-row"><div class="account-note"><span class="mini-orbit">✦</span><span><strong>Diproses dengan akun Google Anda</strong><small>Google Flow menerapkan batas dan kredit akun sendiri.</small></span></div><button class="generate-button" id="generate-video" type="button" disabled><span>▶</span> Generate video <b>→</b></button></div>
+        </div>
+      </section>
+
+      <aside class="preview-column">
+        <section class="preview-card panel"><div class="panel-head"><div><p class="eyebrow">CANVAS / 02</p><h3>Preview & status</h3></div><span class="canvas-live"><i></i> LIVE</span></div><div class="preview-stage" id="preview-stage"><div class="preview-orbit orbit-one"></div><div class="preview-orbit orbit-two"></div><div class="preview-empty"><div class="preview-glyph">✦</div><strong>Ruang untuk hasil karyamu</strong><span>Hasil generate akan muncul di sini setelah desktop companion terhubung.</span><a href="https://flow.google.com/" target="_blank" rel="noopener noreferrer">Buka Flow langsung ↗</a></div></div><div class="preview-footer"><div><span>ENGINE</span><strong>Google Flow</strong></div><div><span>WORKSPACE</span><strong>Studio Flow</strong></div><div><span>HISTORY</span><strong>Terpisah</strong></div></div></section>
+        <section class="companion-card panel"><div class="companion-card-head"><div class="mini-orbit">⌘</div><div><p class="eyebrow">DESKTOP BRIDGE</p><h3>Companion status</h3></div></div><div class="bridge-status"><i></i><div><strong id="bridge-title">Belum terhubung</strong><span id="bridge-copy">Fitur generate aktif setelah aplikasi pendamping tersedia dan terhubung.</span></div></div><p class="bridge-privacy">Login Google dan sesi Flow tetap di perangkat Anda; halaman ini tidak meminta password atau cookie.</p></section>
+      </aside>
+    </div>
+
+    <section class="history-section panel" id="history-section"><div class="panel-head"><div><p class="eyebrow">ARCHIVE / 03</p><h3>Riwayat STUDIO FLOW</h3></div><span class="history-separate">RIWAYAT TERPISAH DARI HISTORY UTAMA</span></div><div class="history-empty" id="history-empty"><span>◷</span><strong>Belum ada hasil STUDIO FLOW</strong><small>Hasil dan status tugas akan muncul di ruang ini setelah desktop companion terhubung; riwayatnya terpisah dari History GEN-Z.AI.</small></div><div class="history-grid" id="history-grid" hidden></div></section>
+    <footer class="flow-footer"><span>STUDIO FLOW · GEN-Z.AI</span><span>Gambar & video tetap mengikuti batas akun Google Flow.</span></footer>
+  </main>
+  <div class="flow-toast" id="flow-toast" role="status" aria-live="polite"></div>
+  <script src="/assets/js/genz-toast.js?v=20261029-global-download-toast"></script>
+</body>
+</html>

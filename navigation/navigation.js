@@ -929,6 +929,8 @@
 
             socialStudio: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M7 9h10"></path><path d="M7 13h6"></path><path d="M16 17l3-3-3-3"></path></svg>`,
 
+            studioFlow: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z"></path><path d="m9 15 3-7 3 7"></path><path d="M10 13h4"></path></svg>`,
+
             metadataCleaner: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h9l5 5v13H5z"></path><path d="M14 3v5h5"></path><path d="M8.5 15l2.2 2.2 4.8-5"></path></svg>`,
 
             topUp: `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 9h18"></path><path d="M12 12v5"></path><path d="M9.5 14.5h5"></path></svg>`,
@@ -958,6 +960,7 @@
             { label: "Upscale Studio", href: "/upscale/index.html", icon: ICONS.upscale },
             { label: "History", href: "/history/index.html", icon: ICONS.history },
             { label: "Studio Medsos", href: "/admin-control/social-publisher.html", icon: ICONS.socialStudio },
+            { label: "STUDIO FLOW", href: "/studio-flow/index.html", icon: ICONS.studioFlow },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
             { label: "Top Up", href: "/user/topup.html", icon: ICONS.topUp },
             { label: "Hub Admin", href: "/user/hub-admin.html", icon: ICONS.hubAdmin }
@@ -974,6 +977,7 @@
             { label: "Upscale Studio", href: "/upscale/index.html", icon: ICONS.upscale },
             { label: "History", href: "/history/index.html", icon: ICONS.history },
             { label: "Studio Medsos", href: "/admin-control/social-publisher.html", icon: ICONS.socialStudio },
+            { label: "STUDIO FLOW", href: "/studio-flow/index.html", icon: ICONS.studioFlow },
             { label: "AI Metadata Cleaner", href: "/metadata-cleaner/index.html", icon: ICONS.metadataCleaner },
             { label: "TempMail", href: "/email.html", icon: ICONS.chinaapi },
             { label: "Kredensial Opus", href: "/admin-control/opus-credentials.html", icon: ICONS.chinaapi },
