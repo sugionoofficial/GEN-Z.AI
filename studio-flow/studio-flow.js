@@ -31,8 +31,8 @@ function updateCounts() {
     $("generate-image").disabled = !subscriptionActive || !desktopCompanionConnected;
     $("generate-video").disabled = !subscriptionActive || !desktopCompanionConnected;
     if (desktopCompanionConnected) {
-        $("generate-image").textContent = "Siapkan di Google Flow →";
-        $("generate-video").textContent = "Siapkan di Google Flow →";
+        $("generate-image").textContent = "Kirim Generate via Flow →";
+        $("generate-video").textContent = "Kirim Generate via Flow →";
     } else {
         $("generate-image").textContent = "Companion dibutuhkan";
         $("generate-video").textContent = "Companion dibutuhkan";
@@ -131,15 +131,23 @@ async function detectDesktopCompanion() {
     if (!bridge || typeof bridge.getStatus !== "function" || typeof bridge.handoffTask !== "function") return;
     try {
         const status = await bridge.getStatus();
-        if (status?.connected === true && status.protocolVersion === 1) {
+        if (status?.connected === true && status.protocolVersion >= 2) {
             desktopBridge = bridge;
             desktopCompanionConnected = true;
+            bridge.onOutputImported?.(async result => {
+                if (result?.success) {
+                    await loadStudioFlowHistory();
+                    toast(result.message || "Hasil tersimpan di riwayat STUDIO FLOW.");
+                } else if (result?.message) {
+                    toast(result.message);
+                }
+            });
             $("companion-title").textContent = "Desktop Companion tersambung";
-            $("companion-copy").textContent = "Siap membuka Google Flow dan menyalin prompt. Referensi perlu diunggah manual di Flow.";
-            $("connection-label").textContent = "TERHUBUNG · HANDOFF MANUAL";
-            $("bridge-title").textContent = "Terhubung · handoff manual";
-            $("bridge-copy").textContent = "Companion menyalin prompt dan membuka Google Flow. Kamu tetap menekan Generate dan mengunggah referensi di Flow.";
-            $("bridge-privacy").textContent = "Companion tidak membaca password/cookie Google atau mengunggah gambar. Setelah konfirmasi, salinan referensi dibuka di folder sementara lokal dan dihapus otomatis setelah 24 jam.";
+            $("companion-copy").textContent = "Siap mengisi prompt dan opsi melalui UI Flow yang terlihat di dalam companion.";
+            $("connection-label").textContent = "TERHUBUNG · UI AUTOMATION";
+            $("bridge-title").textContent = "Flow UI tersambung";
+            $("bridge-copy").textContent = "Companion menyiapkan prompt, model, rasio, jumlah output, durasi, dan referensi melalui kontrol yang terlihat. Kamu menyetujui sebelum Flow Generate dijalankan.";
+            $("bridge-privacy").textContent = "Google login tetap berada di jendela Flow companion. Tidak ada cookie atau endpoint privat yang digunakan. Referensi diunggah melalui UI Flow setelah konfirmasi.";
             updateCounts();
         }
     } catch {
@@ -240,6 +248,22 @@ function renderHistory(items) {
         const outputs = Array.isArray(item.outputs) ? item.outputs : [];
         for (const output of outputs) {
             if (!output?.url || !String(output.url).startsWith("https://")) continue;
+            if (output.media_type === "video") {
+                const video = document.createElement("video");
+                video.className = "history-output-media";
+                video.src = output.url;
+                video.controls = true;
+                video.preload = "metadata";
+                video.setAttribute("aria-label", output.label || "Hasil video STUDIO FLOW");
+                card.append(video);
+            } else if (output.media_type === "image") {
+                const image = document.createElement("img");
+                image.className = "history-output-media";
+                image.src = output.url;
+                image.alt = output.label || "Hasil gambar STUDIO FLOW";
+                image.loading = "lazy";
+                card.append(image);
+            }
             const link = document.createElement("a");
             link.href = output.url;
             link.target = "_blank";
@@ -296,12 +320,12 @@ async function loadStudioFlowHistory() {
     }
 }
 
-async function saveHandoffHistory(mediaType, task) {
-    const token = await readAccessToken();
+async function saveHandoffHistory(mediaType, task, workflow = "manual-handoff", status = "queued", tokenValue = "", id = "") {
+    const token = tokenValue || await readAccessToken();
     const options = {
         ratio: task.ratio,
         output_count: task.outputCount,
-        workflow: "manual-handoff"
+        workflow
     };
     if (mediaType === "video") {
         options.duration = task.duration;
@@ -311,17 +335,19 @@ async function saveHandoffHistory(mediaType, task) {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
+            ...(id ? { id } : {}),
             media_type: mediaType,
-            title: `Siap di Google Flow · ${task.prompt.slice(0, 70)}`,
+            title: `${status === "failed" ? "Gagal" : "Task Flow"} · ${task.prompt.slice(0, 70)}`,
             prompt: task.prompt,
             model: task.model,
-            status: "queued",
+            status,
             options,
             outputs: []
         })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || `Riwayat gagal disimpan (${response.status}).`);
+    return data.item?.id || id;
 }
 
 async function runStudioFlowHandoff(mediaType, button) {
@@ -354,6 +380,8 @@ async function runStudioFlowHandoff(mediaType, button) {
     }
 
     button.disabled = true;
+    let accessToken = "";
+    let historyId = "";
     try {
         const referenceEntries = isVideo
             ? [["videoRef", selectedFiles.videoRef]]
@@ -361,25 +389,41 @@ async function runStudioFlowHandoff(mediaType, button) {
         const references = await Promise.all(referenceEntries.flatMap(([bucket, files]) =>
             files.map(async file => ({ bucket, mimeType: file.type, bytes: await file.arrayBuffer() }))
         ));
+        let stagingId = "";
         if (references.length) {
             const staged = await desktopBridge.stageReferences(references);
             if (!staged?.accepted) {
                 toast("Penyiapan referensi dibatalkan. Task tidak dikirim.");
                 return;
             }
+            stagingId = staged.stagingId || "";
         }
-        const result = await desktopBridge.handoffTask(task);
-        if (!result?.accepted || result.protocolVersion !== 1 || result.handoffOnly !== true) {
-            throw new Error("Companion tidak menerima tugas ini dengan format yang didukung.");
+        accessToken = await readAccessToken();
+        historyId = await saveHandoffHistory(mediaType, task, "visible-ui-automation", "queued", accessToken);
+        if (!historyId) throw new Error("Task berhasil disiapkan, tetapi ID riwayat tidak diterima.");
+        const result = await desktopBridge.handoffTask(task, stagingId, { historyId, accessToken });
+        if (!result?.accepted) {
+            await saveHandoffHistory(mediaType, task, "visible-ui-automation", "failed", accessToken, historyId).catch(() => {});
+            const detail = Array.isArray(result?.missing) ? ` ${result.missing.join("; ")}` : "";
+            toast(`${result?.message || "Flow belum siap."}${detail}`);
+            await loadStudioFlowHistory();
+            return;
+        }
+        if (result.protocolVersion !== 2 || result.generationSubmitted !== true) {
+            throw new Error("Companion tidak mengonfirmasi pengiriman Generate ke UI Flow.");
         }
         try {
-            await saveHandoffHistory(mediaType, task);
+            await saveHandoffHistory(mediaType, task, "visible-ui-automation", "running", accessToken, historyId);
             await loadStudioFlowHistory();
-            toast(`${result.message} Tugas dicatat sebagai handoff, bukan hasil generate.`);
+            toast(`${result.message} Unduh hasil dari jendela Flow untuk mengembalikannya ke riwayat.`);
         } catch (historyError) {
-            toast(`${result.message} Catatan riwayat belum tersimpan: ${historyError.message}`);
+            toast(`${result.message} Riwayat belum tersimpan: ${historyError.message}`);
         }
     } catch (error) {
+        if (historyId && accessToken) {
+            await saveHandoffHistory(mediaType, task, "visible-ui-automation", "failed", accessToken, historyId).catch(() => {});
+            await loadStudioFlowHistory();
+        }
         toast(error.message || "Companion belum dapat membuka Google Flow.");
     } finally {
         updateCounts();

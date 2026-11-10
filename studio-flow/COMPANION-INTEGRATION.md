@@ -1,46 +1,27 @@
 # STUDIO FLOW Windows companion
 
-## What works in this version
+## Integrated flow
 
-The Windows app source is in `desktop-companion/`. It opens the production STUDIO FLOW page in a sandboxed Electron window and exposes a tiny, origin-checked `contextBridge` API. In the app, the webpage detects that API and enables **Siapkan di Google Flow** after the existing Studio Medsos subscription check succeeds.
+`desktop-companion/` contains the Windows Electron app. It embeds the Studio Flow workspace and opens Google Flow in a separate visible, sandboxed window inside the companion. After the Studio Medsos access check succeeds, the **Kirim Generate via Flow** button sends the selected task to the companion's narrow bridge.
 
-On click, the app:
+The companion uses visible Flow DOM controls to fill the prompt, model, aspect ratio, video mode/duration, and output count. Selected references are copied to a generated-name temporary directory only after a native Windows confirmation, then supplied through Flow's visible file input. If any required control or upload slot cannot be identified, the companion stops before Generate and shows the Flow window for recovery. It does not silently guess or call private Google endpoints.
 
-1. Validates the task's media type, prompt, model, ratio, output count, and video settings against an allowlist.
-2. If references were selected, asks for native Windows confirmation, copies the selected image bytes to a generated-name folder under the app's user-data directory, and opens that folder in Explorer. Copies older than 24 hours are cleaned at the next app start.
-3. Copies the prompt to the Windows clipboard and opens `https://flow.google.com/` in the user's default browser.
-4. Saves a per-user history entry marked as a manual handoff, not as a completed generation.
+Before submitting, a second native dialog summarizes the task and reminds the user that Google Flow's own credits/limits apply. The user must confirm. The Generate button is then clicked in the visible Flow window; the browser remains open in the companion so the user can monitor the result.
 
-The user still uploads the staged images, checks the chosen model/settings, and presses Generate on Google Flow. Generated results are **not** captured or imported back into STUDIO FLOW yet. There is no supported direct Google Flow generation API established in this project, so the companion does not use private endpoints, cookies, profile files, or Chrome debugging automation.
+## Returning results to Studio Flow
 
-## Build and run on Windows
+The user clicks Google Flow's visible **Download** control for each completed output. Electron captures that download from its Flow session and sends the file through an authenticated GEN-Z.AI API route. The API verifies the current user, validates media type/signature and the 50 MB limit, writes to the private `studio-flow-results` bucket under that user's path, and records the object key in their history row. History reads create short-lived signed URLs so the Studio Flow page can display image/video previews without public storage links. A task is marked complete after its requested number of outputs is imported.
 
-1. Install Node.js 22 or newer.
-2. In PowerShell, run:
-   ```powershell
-   cd desktop-companion
-   npm ci
-   npm test
-   npm start
-   ```
-3. Sign in to GEN-Z.AI inside the companion window. Keep the default browser signed into the Google account used for Flow.
-4. Open Studio Flow, configure the task, and click **Siapkan di Google Flow**. Approve reference staging if prompted, upload the staged files on Flow, paste the prompt, review options, then click Generate on Flow.
+This means results do return to the Studio Flow history, but the download click remains a visible user action; the companion never clicks Download on the user's behalf. If Flow UI controls change, automation stops rather than sending a guessed task. Unsupported formats or files over 50 MB remain in the Flow UI and are not imported.
 
-To make installer and portable builds:
+## Data/security boundary
 
-```powershell
-npm ci
-npm test
-npm run dist:win
-```
+- Google authentication occurs in the companion's persistent Flow browser partition. The app never reads or exports passwords, cookies, or browser profile files.
+- Flow operates through the visible website and user-visible controls. No private Flow API or undocumented network endpoint is used.
+- The Studio webpage has no Node or local-network access. The preload exposes only a small, origin-checked API; Flow itself is a separate sandboxed BrowserWindow with no preload.
+- Reference staging requires explicit consent and local copies are cleaned after 24 hours. Generated downloads are uploaded only after the user invokes Download; failed-upload local copies are also cleaned after 24 hours.
+- Supabase result storage is private and RLS-scoped by the authenticated owner's UUID. The API independently filters every history row by that UUID.
 
-Build outputs go to `desktop-companion/release/`. The app is unsigned in this source version; sign it with GEN-Z.AI's production code-signing identity before public distribution. Windows SmartScreen may warn about unsigned builds.
+## Build/run
 
-## Security boundary
-
-- The remote page runs with context isolation and sandbox enabled; Node integration is off.
-- The preload exposes only `getStatus`, `stageReferences`, and `handoffTask`. Every IPC method verifies the exact production site origin.
-- Reference filenames are generated locally; content signatures, MIME types, 12 MB per-file size, and the eight-image limit are validated before writing.
-- Reference bytes are copied only after a native confirmation. They are never uploaded by this companion and are removed after 24 hours.
-- Google credentials, cookies, browser profiles, and generated media are not accessed.
-- Browser permissions are denied. There is no loopback server, and external navigation is restricted to Google Flow.
+See `desktop-companion/README.md`. Windows installer and portable builds are produced by `.github/workflows/studio-flow-companion.yml` for pull requests and main-branch changes. Builds are unsigned until GEN-Z.AI code signing is configured.
