@@ -16,7 +16,10 @@ function setup() {
     const ids = ['status','credential-form','credential','slot-title','slot-state','previous-slot','next-slot','save','saved-slots','last-slot','slot-number'];
     const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
     const document = {getElementById: id => elements[id], createElement: () => new Element()};
-    let rows = [{slot: 1, id: 'one'}, {slot: 2, id: 'two'}], post;
+    let rows = [
+        {slot: 1, id: 'one', credit_status: 'exhausted', credit_status_updated_at: '2026-11-01T12:00:00Z'},
+        {slot: 2, id: 'two', credit_status: 'available', credit_status_updated_at: '2026-11-02T12:00:00Z'}
+    ], post;
     let confirmResult = true;
     const fetch = async (_url, options) => {
         if (options.method === 'GET') return {ok: true, json: async () => ({credentials: rows})};
@@ -36,6 +39,10 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 test('one input selects slots, explicitly edits existing tokens and saves the selected slot', async () => {
     const {elements: el, getPost, setConfirm} = setup(); await tick();
     assert.equal(el['slot-title'].textContent, 'OPUS_AUTH_TOKEN_1');
+    assert.equal(el['saved-slots'].children[0].children[0].children[1].textContent, 'Credit habis');
+    assert.equal(el['saved-slots'].children[0].children[0].children[1].className, 'credit-indicator exhausted');
+    assert.equal(el['saved-slots'].children[1].children[0].children[1].textContent, 'Credit tersedia');
+    assert.equal(el['saved-slots'].children[1].children[0].children[1].className, 'credit-indicator available');
     assert.equal(el.credential.disabled, true);
     el['next-slot'].onclick();
     assert.equal(el['slot-title'].textContent, 'OPUS_AUTH_TOKEN_2');
