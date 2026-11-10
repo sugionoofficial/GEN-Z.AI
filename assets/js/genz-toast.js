@@ -809,7 +809,7 @@
         ) {
             window.__GENZ_MONITOR_SCRIPT_LOADING = true;
             const monitorScript = document.createElement("script");
-            monitorScript.src = "/assets/js/security-beacon.js?v=beacon-20261102-noise-guards";
+            monitorScript.src = "/assets/js/security-beacon.js?v=beacon-20261109-owner-role-verify";
             monitorScript.defer = true;
             monitorScript.onerror = () => {
                 window.__GENZ_MONITOR_SCRIPT_LOADING = false;
