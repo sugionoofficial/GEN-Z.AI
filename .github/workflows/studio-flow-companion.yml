@@ -51,10 +51,64 @@ jobs:
       - name: Package installer and portable executable
         run: npm run dist:win
 
-      - name: Upload unsigned Windows builds
+      - name: Upload Windows builds and updater metadata
         uses: actions/upload-artifact@v4
         with:
           name: genz-studio-flow-companion-windows
-          path: desktop-companion/release/*.exe
+          path: |
+            desktop-companion/release/*.exe
+            desktop-companion/release/*.blockmap
+            desktop-companion/release/latest.yml
           if-no-files-found: error
           retention-days: 14
+
+  publish-release:
+    name: Publish Companion auto-update release
+    needs: windows-companion
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Read Companion version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./desktop-companion/package.json').version")
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version is already published
+        id: release-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if gh release view "v${APP_VERSION}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download packaged Companion and updater metadata
+        if: steps.release-check.outputs.exists == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: genz-studio-flow-companion-windows
+          path: release
+
+      - name: Publish stable GitHub release for in-app updates
+        if: steps.release-check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ github.token }}
+          tag_name: v${{ steps.version.outputs.value }}
+          name: STUDIO FLOW Companion v${{ steps.version.outputs.value }}
+          generate_release_notes: true
+          make_latest: true
+          fail_on_unmatched_files: true
+          files: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml

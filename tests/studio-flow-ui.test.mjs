@@ -10,6 +10,10 @@ const api = readFileSync(new URL("../api/social-publisher.js", import.meta.url),
 const migration = readFileSync(new URL("../supabase/migrations/20261110065601_studio_flow_history.sql", import.meta.url), "utf8");
 const buildScript = readFileSync(new URL("../scripts/build-cloudflare-pages.mjs", import.meta.url), "utf8");
 const resultMigration = readFileSync(new URL("../supabase/migrations/20261110100538_studio_flow_results_bucket.sql", import.meta.url), "utf8");
+const companionMain = readFileSync(new URL("../desktop-companion/main.cjs", import.meta.url), "utf8");
+const companionPreload = readFileSync(new URL("../desktop-companion/preload.cjs", import.meta.url), "utf8");
+const companionPackage = JSON.parse(readFileSync(new URL("../desktop-companion/package.json", import.meta.url), "utf8"));
+const companionWorkflow = readFileSync(new URL("../.github/workflows/studio-flow-companion.yml", import.meta.url), "utf8");
 
 test("Cloudflare static build includes the Studio Flow files", () => {
     assert.match(buildScript, /"studio-flow"/);
@@ -64,12 +68,33 @@ test("Studio Flow sends tasks through visible Flow UI automation and returns dow
     assert.match(js, /protocolVersion !== 2/);
     assert.match(js, /generationSubmitted !== true/);
     assert.match(js, /onOutputImported/);
+    assert.match(js, /document\.querySelector\("\.bridge-privacy"\)\.textContent/);
+    assert.match(html, /class="bridge-privacy"/);
     assert.match(html, /Companion dibutuhkan/);
     assert.match(html, /buka STUDIO FLOW dari aplikasi Windows Companion versi terbaru/);
-    assert.doesNotMatch(html, /Buka Google Flow/);
+    assert.doesNotMatch(html, /Buka Google Flow|Buka Flow langsung/);
     assert.match(js, /Companion perlu diperbarui/);
     assert.match(js, /protocolVersion < 2/);
+    assert.match(html, /studio-flow\.js\?v=companion-update-v1/);
     assert.match(html, /Companion mengisi kontrol Flow yang terlihat/);
+});
+
+test("Windows Companion exposes click-to-update notifications and publishes versioned stable releases", () => {
+    assert.equal(companionPackage.version, "0.2.0");
+    assert.equal(companionPackage.dependencies["electron-updater"], "^6.8.11");
+    assert.equal(companionPackage.build.publish[0].provider, "github");
+    assert.match(companionMain, /autoUpdater\.autoDownload = false/);
+    assert.match(companionMain, /autoUpdater\.checkForUpdates\(\)/);
+    assert.match(companionMain, /studio-flow:download-update/);
+    assert.match(companionMain, /autoUpdater\.downloadUpdate\(\)/);
+    assert.match(companionMain, /autoUpdater\.quitAndInstall\(true, true\)/);
+    assert.match(companionPreload, /onUpdateState/);
+    assert.match(companionPreload, /downloadUpdate/);
+    assert.match(html, /id="companion-update"/);
+    assert.match(js, /Pembaruan STUDIO FLOW Companion/);
+    assert.match(companionWorkflow, /contents: write/);
+    assert.match(companionWorkflow, /softprops\/action-gh-release/);
+    assert.match(companionWorkflow, /release\/latest\.yml/);
 });
 
 test("Studio Flow history is authenticated, subscription-gated, and scoped to the current user", () => {

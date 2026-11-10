@@ -22,6 +22,10 @@ This means results do return to the Studio Flow history, but the download click 
 - Reference staging requires explicit consent and local copies are cleaned after 24 hours. Generated downloads are uploaded only after the user invokes Download; failed-upload local copies are also cleaned after 24 hours.
 - Supabase result storage is private and RLS-scoped by the authenticated owner's UUID. The API independently filters every history row by that UUID.
 
+## In-app updates
+
+The installed NSIS version checks the stable GitHub Releases feed at startup and every six hours. When a release is available, STUDIO FLOW shows a top banner; clicking **Perbarui sekarang** downloads it, reports progress, then restarts the companion to apply it. Portable executables do not auto-update. Installs from before version 0.2.0 need one final manual install to gain the updater; after that, new tagged releases install in-app. Maintainers bump `desktop-companion/package.json` for each shipped version, and the main-branch companion workflow publishes the matching versioned release after packaging.
+
 ## Build/run
 
 See `desktop-companion/README.md`. Windows installer and portable builds are produced by `.github/workflows/studio-flow-companion.yml` for pull requests and main-branch changes. Builds are unsigned until GEN-Z.AI code signing is configured.

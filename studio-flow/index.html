@@ -9,13 +9,17 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
   <script src="/assets/js/config.js"></script>
   <link rel="stylesheet" href="/assets/css/genz-premium.css?v=flow-20261110">
-  <link rel="stylesheet" href="/studio-flow/studio-flow.css?v=flow-premium-20261110">
+  <link rel="stylesheet" href="/studio-flow/studio-flow.css?v=companion-update-v1">
   <script src="/navigation/navigation.js?v=studio-flow-20261110"></script>
-  <script type="module" src="/studio-flow/studio-flow.js?v=studio-flow-visible-ui-v2"></script>
+  <script type="module" src="/studio-flow/studio-flow.js?v=companion-update-v1"></script>
 </head>
 <body class="flow-page">
   <div id="adminNavigation" role="navigation" aria-label="Navigasi GEN-Z.AI"></div>
   <main class="flow-shell">
+    <section class="companion-update" id="companion-update" role="status" aria-live="polite" hidden>
+      <div class="companion-update-copy"><strong id="companion-update-title">Pembaruan Companion tersedia</strong><span id="companion-update-detail">Versi terbaru siap dipasang.</span></div>
+      <button class="button companion-update-action" id="companion-update-action" type="button">Perbarui sekarang</button>
+    </section>
     <header class="flow-topbar">
       <div class="flow-brand"><span class="flow-brand-mark">✦</span><div><p class="eyebrow">GEN-Z.AI CREATIVE SUITE</p><h1>STUDIO <span>FLOW</span></h1></div></div>
       <div class="flow-top-actions">
@@ -57,12 +61,12 @@
       </section>
 
       <aside class="preview-column">
-        <section class="preview-card panel"><div class="panel-head"><div><p class="eyebrow">CANVAS / 02</p><h3>Preview & status</h3></div><span class="canvas-live"><i></i> LIVE</span></div><div class="preview-stage" id="preview-stage"><div class="preview-orbit orbit-one"></div><div class="preview-orbit orbit-two"></div><div class="preview-empty"><div class="preview-glyph">✦</div><strong>Ruang untuk hasil karyamu</strong><span>Companion membuka antarmuka Flow yang terlihat untuk menyiapkan dan menjalankan task. Hasil akan terlihat di jendela Flow dalam companion.</span><a href="https://flow.google.com/" target="_blank" rel="noopener noreferrer">Buka Flow langsung ↗</a></div></div><div class="preview-footer"><div><span>ENGINE</span><strong>Google Flow</strong></div><div><span>WORKSPACE</span><strong>Studio Flow</strong></div><div><span>HISTORY</span><strong>Terpisah</strong></div></div></section>
+        <section class="preview-card panel"><div class="panel-head"><div><p class="eyebrow">CANVAS / 02</p><h3>Preview & status</h3></div><span class="canvas-live"><i></i> LIVE</span></div><div class="preview-stage" id="preview-stage"><div class="preview-orbit orbit-one"></div><div class="preview-orbit orbit-two"></div><div class="preview-empty"><div class="preview-glyph">✦</div><strong>Ruang untuk hasil karyamu</strong><span>Setelah Generate disetujui, Flow terbuka di companion. Unduh hasil dari jendela Flow untuk menyimpannya ke riwayat STUDIO FLOW.</span></div></div><div class="preview-footer"><div><span>ENGINE</span><strong>Google Flow</strong></div><div><span>WORKSPACE</span><strong>Studio Flow</strong></div><div><span>HISTORY</span><strong>Terpisah</strong></div></div></section>
         <section class="companion-card panel"><div class="companion-card-head"><div class="mini-orbit">⌘</div><div><p class="eyebrow">DESKTOP BRIDGE</p><h3>Companion status</h3></div></div><div class="bridge-status"><i></i><div><strong id="bridge-title">Belum terhubung</strong><span id="bridge-copy">Handoff prompt aktif dari aplikasi companion; generation tetap dilakukan manual di Google Flow.</span></div></div><p class="bridge-privacy">Login Google dan sesi Flow tetap di perangkat Anda; halaman ini tidak meminta password atau cookie.</p></section>
       </aside>
     </div>
 
-    <section class="history-section panel" id="history-section"><div class="panel-head"><div><p class="eyebrow">ARCHIVE / 03</p><h3>Riwayat STUDIO FLOW</h3></div><span class="history-separate">RIWAYAT TERPISAH DARI HISTORY UTAMA</span></div><div class="history-empty" id="history-empty"><span>◷</span><strong>Belum ada hasil STUDIO FLOW</strong><small>Prompt yang disiapkan lewat companion dicatat di sini. Hasil media Google Flow belum otomatis tersimpan; riwayat ini terpisah dari History GEN-Z.AI.</small></div><div class="history-grid" id="history-grid" hidden></div></section>
+    <section class="history-section panel" id="history-section"><div class="panel-head"><div><p class="eyebrow">ARCHIVE / 03</p><h3>Riwayat STUDIO FLOW</h3></div><span class="history-separate">RIWAYAT TERPISAH DARI HISTORY UTAMA</span></div><div class="history-empty" id="history-empty"><span>◷</span><strong>Belum ada hasil STUDIO FLOW</strong><small>Hasil tersimpan di sini setelah Anda memilih Download pada output di jendela Flow Companion. Riwayat ini terpisah dari History GEN-Z.AI.</small></div><div class="history-grid" id="history-grid" hidden></div></section>
     <footer class="flow-footer"><span>STUDIO FLOW · GEN-Z.AI</span><span>Gambar & video tetap mengikuti batas akun Google Flow.</span></footer>
   </main>
   <div class="flow-toast" id="flow-toast" role="status" aria-live="polite"></div>
