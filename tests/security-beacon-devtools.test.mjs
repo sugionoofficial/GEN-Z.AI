@@ -348,6 +348,7 @@ function loadLockdownBeacon(options = {}) {
         devtoolsLockdown = true,
         localSpoofRole = "",
         hasAccessToken = false,
+        responseDelayMs = 0,
         /* Biarkan fetch menggantung: meniru kondisi nyata saat server belum
            sempat menjawab ketika pemeriksaan pertama berjalan. */
         skipServerResponse = false,
@@ -433,6 +434,9 @@ function loadLockdownBeacon(options = {}) {
     const initialFetch = async (_url, reqOpts = {}) => {
         if (skipServerResponse) {
             return new Promise(() => {});
+        }
+        if (responseDelayMs > 0) {
+            await new Promise(resolve => setTimeout(resolve, responseDelayMs));
         }
         sent.push({
             headers: reqOpts.headers || {},
@@ -680,6 +684,38 @@ test("role ADMIN dan OWNER bebas DevTools; USER dan tamu tetap dikunci", async (
     assert.equal(ownerBlocked, false, "OWNER bebas memakai F12 & klik kanan Inspect");
     assert.equal(ownerEnv.window.GENZMonitor.isLockedDown(), false, "OWNER tidak boleh kena lockdown");
     assert.match(ownerEnv.document.body.innerHTML, /Konten Rahasia Aplikasi/);
+});
+
+test("akun OWNER tidak diblokir ketika cache lokal masih USER sambil menunggu verifikasi server", async () => {
+    const ownerEnv = loadLockdownBeacon({
+        navRole: "user",
+        serverIsOwner: true,
+        serverRole: "owner",
+        serverEmail: "owner@genz.ai",
+        hasAccessToken: true,
+        responseDelayMs: 50
+    });
+
+    let blockedBeforeVerification = false;
+    ownerEnv.dispatchWindow("keydown", {
+        key: "F12",
+        keyCode: 123,
+        preventDefault: () => { blockedBeforeVerification = true; }
+    });
+    assert.equal(blockedBeforeVerification, false, "cache role USER tidak boleh memblokir owner sebelum server menjawab");
+    assert.equal(ownerEnv.window.GENZMonitor.isLockedDown(), false);
+
+    await new Promise(resolve => setTimeout(resolve, 70));
+    assert.equal(ownerEnv.window.GENZMonitor.isOwnerViewer(), true, "hasil role OWNER dari server menjadi acuan");
+
+    let blockedAfterVerification = false;
+    ownerEnv.dispatchWindow("keydown", {
+        key: "F12",
+        keyCode: 123,
+        preventDefault: () => { blockedAfterVerification = true; }
+    });
+    assert.equal(blockedAfterVerification, false, "OWNER tetap bebas DevTools setelah verifikasi");
+    assert.equal(ownerEnv.window.GENZMonitor.isLockedDown(), false);
 });
 
 test("manipulasi localStorage role=owner tidak bisa menembus verifikasi server", async () => {

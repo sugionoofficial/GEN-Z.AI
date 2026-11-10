@@ -347,10 +347,18 @@
         if (!lockdownSettingEnabled) return false;
         if (isOwnerViewer()) return false;
         /*
+         * Sesi login harus diverifikasi server sebelum pintasan DevTools
+         * diblokir. Cache profil di browser bisa tertinggal (mis. role masih
+         * USER sesaat setelah dipromosikan OWNER); memakai cache tersebut
+         * untuk memblokir F12 menyebabkan owner terkunci sebelum respons
+         * server sempat tiba. Ingest page-view sudah mengirim JWT untuk
+         * verifikasi dan mengisi serverRoleResolved.
+         */
+        if (!serverRoleResolved && readStoredAuthSession().accessToken) return false;
+        /*
          * Belum ada petunjuk lokal DAN server belum menjawab: jangan kunci.
-         * Menahan beberapa detik jauh lebih baik daripada mengunci pengelola
-         * yang sah; penguncian tetap terjadi begitu server menyatakan
-         * pengunjung bukan pengelola.
+         * Menahan beberapa saat lebih baik daripada mengunci pengelola sah;
+         * setelah verifikasi, hanya role non-privileged yang dikunci.
          */
         if (!serverRoleResolved && !hasLocalRoleHint()) return false;
         return true;
