@@ -208,8 +208,6 @@ function isAllowedFlowNavigation(value) {
 
 function createFlowWindow() {
     if (flowWindow && !flowWindow.isDestroyed()) {
-        flowWindow.show();
-        flowWindow.focus();
         return flowWindow;
     }
     const flowSession = session.fromPartition(FLOW_PARTITION);
@@ -219,6 +217,7 @@ function createFlowWindow() {
         parent: mainWindow || undefined,
         width: 1380,
         height: 900,
+        show: false,
         minWidth: 980,
         minHeight: 680,
         title: 'Google Flow · STUDIO FLOW Companion',
@@ -229,7 +228,8 @@ function createFlowWindow() {
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: true,
-            webSecurity: true
+            webSecurity: true,
+            backgroundThrottling: false
         }
     });
     flowWindow.webContents.setWindowOpenHandler(({ url }) => ({ action: isAllowedFlowNavigation(url) ? 'allow' : 'deny' }));
@@ -336,18 +336,6 @@ app.whenReady().then(() => {
         if (!Array.isArray(references) || references.length < 1 || references.length > 8) {
             throw new Error('Pilih antara satu dan delapan referensi.');
         }
-        const confirmation = await dialog.showMessageBox(mainWindow, {
-            type: 'question',
-            title: 'Siapkan referensi untuk Google Flow',
-            message: 'Companion akan menyalin gambar terpilih ke folder sementara lokal lalu mengunggahkannya melalui kontrol Flow yang terlihat.',
-            detail: 'File hanya dipakai untuk task ini dan dihapus otomatis setelah 24 jam. Companion tidak mengirim gambar ke GEN-Z.AI atau membaca cookie Google.',
-            buttons: ['Batal', 'Izinkan unggah referensi'],
-            defaultId: 1,
-            cancelId: 0,
-            noLink: true
-        });
-        if (confirmation.response !== 1) return { accepted: false, cancelled: true };
-
         const staged = await stageReferences(references, referenceRoot);
         const stagingId = path.basename(staged.directory);
         stagedDirectories.set(stagingId, staged.directory);
@@ -374,12 +362,10 @@ app.whenReady().then(() => {
         }
 
         const flow = await ensureFlowReady();
-        if (flow.isMinimized()) flow.restore();
-        flow.show();
-        flow.focus();
-
         const formStatus = await applyVisibleTask(flow.webContents, task);
         if (formStatus.needsLogin) {
+            flow.show();
+            flow.focus();
             return {
                 accepted: false,
                 needsLogin: true,
@@ -387,11 +373,13 @@ app.whenReady().then(() => {
             };
         }
         if (!formStatus.ok) {
+            flow.show();
+            flow.focus();
             return {
                 accepted: false,
                 needsManualReview: true,
                 missing: formStatus.missing || [],
-                message: 'Companion tidak mengenali semua kontrol Flow. Jendela Flow tetap terbuka; lengkapi pengaturan yang ditandai secara manual.'
+                message: 'Companion tidak mengenali semua kontrol Flow. Jendela Flow dibuka untuk pemeriksaan manual.'
             };
         }
 
@@ -408,18 +396,6 @@ app.whenReady().then(() => {
                 };
             }
         }
-
-        const confirmation = await dialog.showMessageBox(flow, {
-            type: 'warning',
-            title: 'Konfirmasi penggunaan kredit Google Flow',
-            message: `Kirim task ${task.mediaType === 'image' ? 'gambar' : 'video'} ke Flow sekarang?`,
-            detail: `${task.model} · ${task.ratio} · ${task.outputCount} output${task.mediaType === 'video' ? ` · ${task.duration} detik` : ''}. Google Flow akan menggunakan kredit/kuota akun Anda; biaya final ditentukan Flow. Periksa prompt dan pengaturan yang terlihat sebelum menyetujui.`,
-            buttons: ['Batal', 'Generate di Flow'],
-            defaultId: 0,
-            cancelId: 0,
-            noLink: true
-        });
-        if (confirmation.response !== 1) return { accepted: false, cancelled: true, message: 'Generate dibatalkan; task tetap terlihat di jendela Flow.' };
 
         const job = { historyId, accessToken, remaining: task.outputCount, outputCount: task.outputCount };
         job.expiryTimer = setTimeout(() => {
@@ -441,7 +417,7 @@ app.whenReady().then(() => {
             protocolVersion: 2,
             generationSubmitted: true,
             mode: 'visible-flow-ui-automation',
-            message: 'Task dikirim ke tombol Generate di UI Google Flow yang terlihat dalam companion. Setelah hasil siap, klik Download pada hasil di jendela itu; companion akan mengimpor file ke Riwayat STUDIO FLOW.'
+            message: 'Task dikirim ke Google Flow di latar belakang. Hasil akan masuk ke Riwayat STUDIO FLOW setelah diunduh dari Flow.'
         };
     });
 

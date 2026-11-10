@@ -214,8 +214,8 @@ async function detectDesktopCompanion() {
             $("companion-copy").textContent = "Siap mengisi prompt dan opsi melalui UI Flow yang terlihat di dalam companion.";
             $("connection-label").textContent = "TERHUBUNG · UI AUTOMATION";
             $("bridge-title").textContent = "Flow UI tersambung";
-            $("bridge-copy").textContent = "Companion menyiapkan prompt, model, rasio, jumlah output, durasi, dan referensi melalui kontrol yang terlihat. Kamu menyetujui sebelum Flow Generate dijalankan.";
-            document.querySelector(".bridge-privacy").textContent = "Google login tetap berada di jendela Flow companion. Tidak ada cookie atau endpoint privat yang digunakan. Referensi diunggah melalui UI Flow setelah konfirmasi.";
+            $("bridge-copy").textContent = "Companion menyiapkan prompt, model, rasio, jumlah output, durasi, dan referensi melalui kontrol Google Flow di latar belakang.";
+            document.querySelector(".bridge-privacy").textContent = "Sesi Google tetap tersimpan di Companion. Generate berjalan di latar belakang melalui kontrol Flow; tidak ada cookie atau endpoint privat yang digunakan.";
             updateCounts();
             return;
         }
@@ -497,7 +497,7 @@ async function runStudioFlowHandoff(mediaType, button) {
         try {
             await saveHandoffHistory(mediaType, task, "visible-ui-automation", "running", accessToken, historyId);
             await loadStudioFlowHistory();
-            toast(`${result.message} Unduh hasil dari jendela Flow untuk mengembalikannya ke riwayat.`);
+            toast(`${result.message} Pilih Download di Flow untuk mengembalikan hasil ke riwayat.`);
         } catch (historyError) {
             toast(`${result.message} Riwayat belum tersimpan: ${historyError.message}`);
         }
