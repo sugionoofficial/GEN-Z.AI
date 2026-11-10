@@ -126,11 +126,33 @@ function attachTabs() {
     });
 }
 
+function showCompanionState(title, copy, label) {
+    $("companion-title").textContent = title;
+    $("companion-copy").textContent = copy;
+    $("connection-label").textContent = label;
+}
+
 async function detectDesktopCompanion() {
     const bridge = window.studioFlowDesktop;
-    if (!bridge || typeof bridge.getStatus !== "function" || typeof bridge.handoffTask !== "function") return;
+    if (!bridge) return;
+    if (typeof bridge.getStatus !== "function" || typeof bridge.handoffTask !== "function") {
+        showCompanionState(
+            "Desktop Companion perlu diperbarui",
+            "Versi Companion ini belum mendukung otomasi UI Flow. Instal build Windows Companion terbaru lalu buka ulang STUDIO FLOW.",
+            "VERSI LAMA"
+        );
+        return;
+    }
     try {
         const status = await bridge.getStatus();
+        if (status?.connected === true && (!Number.isFinite(status.protocolVersion) || status.protocolVersion < 2)) {
+            showCompanionState(
+                "Desktop Companion perlu diperbarui",
+                "Versi Companion ini belum mendukung otomasi UI Flow. Instal build Windows Companion terbaru lalu buka ulang STUDIO FLOW.",
+                "VERSI LAMA"
+            );
+            return;
+        }
         if (status?.connected === true && status.protocolVersion >= 2) {
             desktopBridge = bridge;
             desktopCompanionConnected = true;
@@ -149,10 +171,24 @@ async function detectDesktopCompanion() {
             $("bridge-copy").textContent = "Companion menyiapkan prompt, model, rasio, jumlah output, durasi, dan referensi melalui kontrol yang terlihat. Kamu menyetujui sebelum Flow Generate dijalankan.";
             $("bridge-privacy").textContent = "Google login tetap berada di jendela Flow companion. Tidak ada cookie atau endpoint privat yang digunakan. Referensi diunggah melalui UI Flow setelah konfirmasi.";
             updateCounts();
+            return;
         }
+        desktopBridge = null;
+        desktopCompanionConnected = false;
+        showCompanionState(
+            "Desktop Companion tidak merespons",
+            "Tutup lalu buka kembali aplikasi Windows Companion. Jika pesan ini tetap muncul, instal build Companion terbaru.",
+            "KONEKSI GAGAL"
+        );
+        updateCounts();
     } catch {
         desktopBridge = null;
         desktopCompanionConnected = false;
+        showCompanionState(
+            "Desktop Companion tidak merespons",
+            "Tutup lalu buka kembali aplikasi Windows Companion. Jika pesan ini tetap muncul, instal build Companion terbaru.",
+            "KONEKSI GAGAL"
+        );
         updateCounts();
     }
 }

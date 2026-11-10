@@ -65,6 +65,10 @@ test("Studio Flow sends tasks through visible Flow UI automation and returns dow
     assert.match(js, /generationSubmitted !== true/);
     assert.match(js, /onOutputImported/);
     assert.match(html, /Companion dibutuhkan/);
+    assert.match(html, /buka STUDIO FLOW dari aplikasi Windows Companion versi terbaru/);
+    assert.doesNotMatch(html, /Buka Google Flow/);
+    assert.match(js, /Companion perlu diperbarui/);
+    assert.match(js, /protocolVersion < 2/);
     assert.match(html, /Companion mengisi kontrol Flow yang terlihat/);
 });
 
